@@ -1,4 +1,4 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
 // Loading spinner component
@@ -58,9 +58,18 @@ export function SetupRoute({ children }: { children: React.ReactNode }) {
 // Public route wrapper (redirects to dashboard if already logged in with profile)
 export function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user, loading, hasProfile } = useAuth();
+  const [searchParams] = useSearchParams();
+
+  // Check if this is a password reset flow - don't redirect
+  const isPasswordReset = searchParams.get("reset") === "true";
 
   if (loading) {
     return <LoadingScreen />;
+  }
+
+  // Allow access to auth page during password reset flow
+  if (isPasswordReset) {
+    return <>{children}</>;
   }
 
   if (user) {
