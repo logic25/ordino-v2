@@ -168,10 +168,10 @@ export function ProposalTable({
                           Send to Client
                         </DropdownMenuItem>
                       )}
-                      {(proposal.status === "sent" || proposal.status === "viewed") && (
+                      {(proposal.status === "draft" || proposal.status === "sent" || proposal.status === "viewed") && (
                         <DropdownMenuItem onClick={() => onSign(proposal)}>
                           <PenLine className="h-4 w-4 mr-2" />
-                          Sign Proposal
+                          Sign & Convert to Project
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuSeparator />
