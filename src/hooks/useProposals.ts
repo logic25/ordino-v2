@@ -338,13 +338,66 @@ export function useSignProposalInternal() {
       signatureData: string;
       assignedPmId: string;
     }) => {
+      // Get current user's profile
       const { data: profile } = await supabase
         .from("profiles")
-        .select("id")
+        .select("id, company_id")
         .single();
 
       if (!profile) throw new Error("Profile not found");
 
+      // Get proposal with items
+      const { data: proposal, error: proposalError } = await supabase
+        .from("proposals")
+        .select("*, items:proposal_items(*)")
+        .eq("id", id)
+        .single();
+
+      if (proposalError) throw proposalError;
+
+      // Create the dob_application (project)
+      const { data: application, error: appError } = await supabase
+        .from("dob_applications")
+        .insert({
+          company_id: profile.company_id,
+          property_id: proposal.property_id,
+          assigned_pm_id: assignedPmId,
+          status: "draft",
+          description: proposal.title,
+          estimated_value: proposal.total_amount,
+          notes: `Converted from proposal ${proposal.proposal_number}`,
+        })
+        .select()
+        .single();
+
+      if (appError) throw appError;
+
+      // Create services from proposal items
+      const items = (proposal as any).items || [];
+      if (items.length > 0) {
+        const servicesToInsert = items.map((item: any) => ({
+          company_id: profile.company_id,
+          application_id: application.id,
+          name: item.name,
+          description: item.description,
+          estimated_hours: item.estimated_hours || null,
+          fixed_price: item.total_price,
+          total_amount: item.total_price,
+          billing_type: "fixed",
+          status: "not_started",
+        }));
+
+        const { error: servicesError } = await supabase
+          .from("services")
+          .insert(servicesToInsert);
+
+        if (servicesError) {
+          console.error("Error creating services:", servicesError);
+          // Don't throw - project was created successfully
+        }
+      }
+
+      // Update proposal with signature and link to application
       const { data, error } = await supabase
         .from("proposals")
         .update({
@@ -353,17 +406,20 @@ export function useSignProposalInternal() {
           internal_signed_at: new Date().toISOString(),
           internal_signature_data: signatureData,
           assigned_pm_id: assignedPmId,
+          converted_application_id: application.id,
+          converted_at: new Date().toISOString(),
         })
         .eq("id", id)
         .select()
         .single();
 
       if (error) throw error;
-      return data;
+      return { proposal: data, application };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["proposals"] });
-      queryClient.invalidateQueries({ queryKey: ["proposals", data.id] });
+      queryClient.invalidateQueries({ queryKey: ["proposals", data.proposal.id] });
+      queryClient.invalidateQueries({ queryKey: ["applications"] });
     },
   });
 }
