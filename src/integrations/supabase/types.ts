@@ -103,6 +103,53 @@ export type Database = {
           },
         ]
       }
+      clients: {
+        Row: {
+          address: string | null
+          company_id: string
+          created_at: string | null
+          email: string | null
+          id: string
+          metadata: Json | null
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          company_id: string
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          metadata?: Json | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          company_id?: string
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          metadata?: Json | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           address: string | null
@@ -346,6 +393,9 @@ export type Database = {
         Row: {
           created_at: string | null
           description: string | null
+          discount_amount: number | null
+          discount_percent: number | null
+          estimated_hours: number | null
           id: string
           metadata: Json | null
           name: string
@@ -358,6 +408,9 @@ export type Database = {
         Insert: {
           created_at?: string | null
           description?: string | null
+          discount_amount?: number | null
+          discount_percent?: number | null
+          estimated_hours?: number | null
           id?: string
           metadata?: Json | null
           name: string
@@ -370,6 +423,9 @@ export type Database = {
         Update: {
           created_at?: string | null
           description?: string | null
+          discount_amount?: number | null
+          discount_percent?: number | null
+          estimated_hours?: number | null
           id?: string
           metadata?: Json | null
           name?: string
@@ -437,6 +493,7 @@ export type Database = {
         Row: {
           assigned_pm_id: string | null
           client_email: string | null
+          client_id: string | null
           client_ip_address: string | null
           client_name: string | null
           client_signature_data: string | null
@@ -462,6 +519,7 @@ export type Database = {
           subtotal: number | null
           tax_amount: number | null
           tax_rate: number | null
+          terms_conditions: string | null
           title: string
           total_amount: number | null
           updated_at: string | null
@@ -471,6 +529,7 @@ export type Database = {
         Insert: {
           assigned_pm_id?: string | null
           client_email?: string | null
+          client_id?: string | null
           client_ip_address?: string | null
           client_name?: string | null
           client_signature_data?: string | null
@@ -496,6 +555,7 @@ export type Database = {
           subtotal?: number | null
           tax_amount?: number | null
           tax_rate?: number | null
+          terms_conditions?: string | null
           title: string
           total_amount?: number | null
           updated_at?: string | null
@@ -505,6 +565,7 @@ export type Database = {
         Update: {
           assigned_pm_id?: string | null
           client_email?: string | null
+          client_id?: string | null
           client_ip_address?: string | null
           client_name?: string | null
           client_signature_data?: string | null
@@ -530,6 +591,7 @@ export type Database = {
           subtotal?: number | null
           tax_amount?: number | null
           tax_rate?: number | null
+          terms_conditions?: string | null
           title?: string
           total_amount?: number | null
           updated_at?: string | null
@@ -542,6 +604,13 @@ export type Database = {
             columns: ["assigned_pm_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {

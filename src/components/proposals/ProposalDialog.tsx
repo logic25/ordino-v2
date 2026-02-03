@@ -22,11 +22,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Plus, Trash2, DollarSign } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Loader2, Plus, Trash2, UserPlus } from "lucide-react";
 import type { ProposalWithRelations, ProposalFormInput } from "@/hooks/useProposals";
 import { useProperties } from "@/hooks/useProperties";
 import { useAssignableProfiles } from "@/hooks/useProfiles";
+import { useClients, useCreateClient, Client } from "@/hooks/useClients";
+import { useCompanySettings, ServiceCatalogItem } from "@/hooks/useCompanySettings";
+import { useToast } from "@/hooks/use-toast";
 
 const itemSchema = z.object({
   id: z.string().optional(),
@@ -34,34 +37,25 @@ const itemSchema = z.object({
   description: z.string().optional(),
   quantity: z.coerce.number().min(0.01, "Quantity must be greater than 0"),
   unit_price: z.coerce.number().min(0, "Price must be 0 or greater"),
-  sort_order: z.number().optional(),
-});
-
-const milestoneSchema = z.object({
-  id: z.string().optional(),
-  name: z.string().min(1, "Milestone name is required"),
-  description: z.string().optional(),
-  percentage: z.coerce.number().min(0).max(100).optional(),
-  amount: z.coerce.number().optional(),
-  due_date: z.string().optional(),
+  estimated_hours: z.coerce.number().min(0).optional(),
+  discount_percent: z.coerce.number().min(0).max(100).optional(),
   sort_order: z.number().optional(),
 });
 
 const proposalSchema = z.object({
   property_id: z.string().min(1, "Property is required"),
   title: z.string().min(1, "Title is required"),
-  scope_of_work: z.string().optional(),
   payment_terms: z.string().optional(),
   deposit_required: z.coerce.number().optional(),
   deposit_percentage: z.coerce.number().optional(),
-  tax_rate: z.coerce.number().optional(),
   valid_until: z.string().optional(),
+  client_id: z.string().optional(),
   client_name: z.string().optional(),
   client_email: z.string().email().optional().or(z.literal("")),
   assigned_pm_id: z.string().optional(),
   notes: z.string().optional(),
+  terms_conditions: z.string().optional(),
   items: z.array(itemSchema),
-  milestones: z.array(milestoneSchema),
 });
 
 type FormData = z.infer<typeof proposalSchema>;
@@ -86,25 +80,34 @@ export function ProposalDialog({
   const isEditing = !!proposal;
   const { data: properties = [] } = useProperties();
   const { data: profiles = [] } = useAssignableProfiles();
+  const { data: clients = [] } = useClients();
+  const { data: companyData } = useCompanySettings();
+  const createClient = useCreateClient();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("services");
+  const [showNewClient, setShowNewClient] = useState(false);
+  const [newClientName, setNewClientName] = useState("");
+  const [newClientEmail, setNewClientEmail] = useState("");
+
+  const serviceCatalog = companyData?.settings?.service_catalog || [];
+  const defaultTerms = companyData?.settings?.default_terms || "";
 
   const form = useForm<FormData>({
     resolver: zodResolver(proposalSchema),
     defaultValues: {
       property_id: defaultPropertyId || "",
       title: "",
-      scope_of_work: "",
       payment_terms: "",
       deposit_required: 0,
       deposit_percentage: undefined,
-      tax_rate: 0,
       valid_until: "",
+      client_id: "",
       client_name: "",
       client_email: "",
       assigned_pm_id: "",
       notes: "",
-      items: [{ name: "", description: "", quantity: 1, unit_price: 0 }],
-      milestones: [],
+      terms_conditions: defaultTerms,
+      items: [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0 }],
     },
   });
 
@@ -113,85 +116,118 @@ export function ProposalDialog({
     name: "items",
   });
 
-  const { fields: milestoneFields, append: appendMilestone, remove: removeMilestone } = useFieldArray({
-    control: form.control,
-    name: "milestones",
-  });
-
   useEffect(() => {
     if (proposal) {
       form.reset({
         property_id: proposal.property_id || "",
         title: proposal.title || "",
-        scope_of_work: proposal.scope_of_work || "",
         payment_terms: proposal.payment_terms || "",
         deposit_required: Number(proposal.deposit_required) || 0,
         deposit_percentage: proposal.deposit_percentage ? Number(proposal.deposit_percentage) : undefined,
-        tax_rate: Number(proposal.tax_rate) || 0,
         valid_until: proposal.valid_until || "",
+        client_id: (proposal as any).client_id || "",
         client_name: proposal.client_name || "",
         client_email: proposal.client_email || "",
         assigned_pm_id: proposal.assigned_pm_id || "",
         notes: proposal.notes || "",
+        terms_conditions: (proposal as any).terms_conditions || defaultTerms,
         items: proposal.items?.length ? proposal.items.map(i => ({
           id: i.id,
           name: i.name,
           description: i.description || "",
           quantity: Number(i.quantity),
           unit_price: Number(i.unit_price),
-          sort_order: i.sort_order,
-        })) : [{ name: "", description: "", quantity: 1, unit_price: 0 }],
-        milestones: proposal.milestones?.map(m => ({
-          id: m.id,
-          name: m.name,
-          description: m.description || "",
-          percentage: m.percentage ? Number(m.percentage) : undefined,
-          amount: m.amount ? Number(m.amount) : undefined,
-          due_date: m.due_date || "",
-          sort_order: m.sort_order,
-        })) || [],
+          estimated_hours: Number((i as any).estimated_hours) || 0,
+          discount_percent: Number((i as any).discount_percent) || 0,
+          sort_order: i.sort_order ?? undefined,
+        })) : [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0 }],
       });
     } else {
       form.reset({
         property_id: defaultPropertyId || "",
         title: "",
-        scope_of_work: "",
         payment_terms: "",
         deposit_required: 0,
         deposit_percentage: undefined,
-        tax_rate: 0,
         valid_until: "",
+        client_id: "",
         client_name: "",
         client_email: "",
         assigned_pm_id: "",
         notes: "",
-        items: [{ name: "", description: "", quantity: 1, unit_price: 0 }],
-        milestones: [],
+        terms_conditions: defaultTerms,
+        items: [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0 }],
       });
     }
-  }, [proposal, form, defaultPropertyId]);
+  }, [proposal, form, defaultPropertyId, defaultTerms]);
 
   const watchedItems = form.watch("items");
-  const watchedTaxRate = form.watch("tax_rate") || 0;
   
-  const subtotal = watchedItems.reduce((sum, item) => {
-    return sum + (Number(item.quantity) || 0) * (Number(item.unit_price) || 0);
-  }, 0);
-  const taxAmount = subtotal * (watchedTaxRate / 100);
-  const total = subtotal + taxAmount;
+  const calculateLineTotal = (item: typeof watchedItems[0]) => {
+    const qty = Number(item.quantity) || 0;
+    const price = Number(item.unit_price) || 0;
+    const discountPct = Number(item.discount_percent) || 0;
+    const subtotal = qty * price;
+    const discount = subtotal * (discountPct / 100);
+    return subtotal - discount;
+  };
+
+  const subtotal = watchedItems.reduce((sum, item) => sum + calculateLineTotal(item), 0);
+  const totalHours = watchedItems.reduce((sum, item) => sum + (Number(item.estimated_hours) || 0), 0);
+
+  const handleClientSelect = (clientId: string) => {
+    const client = clients.find(c => c.id === clientId);
+    if (client) {
+      form.setValue("client_id", clientId);
+      form.setValue("client_name", client.name);
+      form.setValue("client_email", client.email || "");
+    }
+    setShowNewClient(false);
+  };
+
+  const handleAddNewClient = async () => {
+    if (!newClientName.trim()) {
+      toast({ title: "Error", description: "Client name is required", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const newClient = await createClient.mutateAsync({
+        name: newClientName,
+        email: newClientEmail || null,
+      });
+      form.setValue("client_id", newClient.id);
+      form.setValue("client_name", newClient.name);
+      form.setValue("client_email", newClient.email || "");
+      setNewClientName("");
+      setNewClientEmail("");
+      setShowNewClient(false);
+      toast({ title: "Client added", description: "New client has been created." });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleAddServiceFromCatalog = (service: ServiceCatalogItem) => {
+    appendItem({
+      name: service.name,
+      description: service.description || "",
+      quantity: 1,
+      unit_price: service.default_price || 0,
+      estimated_hours: service.default_hours || 0,
+      discount_percent: 0,
+    });
+  };
 
   const handleSubmit = async (data: FormData) => {
     const validItems = data.items.filter(i => i.name);
-    const validMilestones = data.milestones.filter(m => m.name);
 
     const formData: ProposalFormInput = {
       property_id: data.property_id,
       title: data.title,
-      scope_of_work: data.scope_of_work || null,
       payment_terms: data.payment_terms || null,
       deposit_required: data.deposit_required || null,
       deposit_percentage: data.deposit_percentage || null,
-      tax_rate: data.tax_rate || null,
       valid_until: data.valid_until || null,
       client_name: data.client_name || null,
       client_email: data.client_email || null,
@@ -205,15 +241,7 @@ export function ProposalDialog({
         unit_price: item.unit_price,
         sort_order: idx,
       })),
-      milestones: validMilestones.map((m, idx) => ({
-        id: m.id,
-        name: m.name,
-        description: m.description || null,
-        percentage: m.percentage || null,
-        amount: m.amount || null,
-        due_date: m.due_date || null,
-        sort_order: idx,
-      })),
+      milestones: [],
     };
     await onSubmit(formData);
     form.reset();
@@ -228,7 +256,7 @@ export function ProposalDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[1000px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? "Edit Proposal" : "New Proposal"}
@@ -281,59 +309,122 @@ export function ProposalDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="client_name">Client Name</Label>
-              <Input
-                id="client_name"
-                placeholder="Client or Owner name"
-                {...form.register("client_name")}
-              />
+          {/* Client Selection */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Client</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowNewClient(!showNewClient)}
+              >
+                <UserPlus className="h-4 w-4 mr-1" />
+                {showNewClient ? "Select Existing" : "New Client"}
+              </Button>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="client_email">Client Email</Label>
-              <Input
-                id="client_email"
-                type="email"
-                placeholder="client@example.com"
-                {...form.register("client_email")}
-              />
-            </div>
+            
+            {showNewClient ? (
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Client name"
+                  value={newClientName}
+                  onChange={(e) => setNewClientName(e.target.value)}
+                  className="flex-1"
+                />
+                <Input
+                  placeholder="Email (optional)"
+                  type="email"
+                  value={newClientEmail}
+                  onChange={(e) => setNewClientEmail(e.target.value)}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  onClick={handleAddNewClient}
+                  disabled={createClient.isPending}
+                  size="sm"
+                >
+                  {createClient.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
+                </Button>
+              </div>
+            ) : (
+              <Select
+                value={form.watch("client_id") || ""}
+                onValueChange={handleClientSelect}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select or add a client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name} {c.email && `(${c.email})`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="services">Services</TabsTrigger>
-              <TabsTrigger value="scope">Scope & Terms</TabsTrigger>
-              <TabsTrigger value="milestones">Payment Milestones</TabsTrigger>
+              <TabsTrigger value="terms">Terms & Notes</TabsTrigger>
             </TabsList>
 
             {/* Services Tab - Spreadsheet Style */}
             <TabsContent value="services" className="space-y-4 mt-4">
+              {serviceCatalog.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-sm text-muted-foreground">Quick add:</span>
+                  {serviceCatalog.map((service) => (
+                    <Button
+                      key={service.id}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleAddServiceFromCatalog(service)}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      {service.name}
+                    </Button>
+                  ))}
+                </div>
+              )}
+
               <div className="border rounded-lg overflow-hidden">
-                <table className="w-full">
+                <table className="w-full text-sm">
                   <thead className="bg-muted/50">
                     <tr>
-                      <th className="text-left p-2 font-medium text-sm">Service</th>
-                      <th className="text-left p-2 font-medium text-sm w-32">Qty</th>
-                      <th className="text-left p-2 font-medium text-sm w-32">Price</th>
-                      <th className="text-right p-2 font-medium text-sm w-32">Total</th>
+                      <th className="text-left p-2 font-medium">Service</th>
+                      <th className="text-left p-2 font-medium w-[200px]">Description</th>
+                      <th className="text-left p-2 font-medium w-20">Qty</th>
+                      <th className="text-left p-2 font-medium w-24">Unit Price</th>
+                      <th className="text-left p-2 font-medium w-20">Hours</th>
+                      <th className="text-left p-2 font-medium w-20">Disc %</th>
+                      <th className="text-right p-2 font-medium w-28">Total</th>
                       <th className="w-10"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {itemFields.map((field, index) => {
-                      const qty = Number(form.watch(`items.${index}.quantity`)) || 0;
-                      const price = Number(form.watch(`items.${index}.unit_price`)) || 0;
-                      const lineTotal = qty * price;
+                      const lineTotal = calculateLineTotal(watchedItems[index] || {});
 
                       return (
                         <tr key={field.id} className="border-t">
                           <td className="p-1">
                             <Input
                               placeholder="Service name"
-                              className="border-0 shadow-none focus-visible:ring-0"
+                              className="border-0 shadow-none focus-visible:ring-0 h-8"
                               {...form.register(`items.${index}.name`)}
+                            />
+                          </td>
+                          <td className="p-1">
+                            <Input
+                              placeholder="Description"
+                              className="border-0 shadow-none focus-visible:ring-0 h-8"
+                              {...form.register(`items.${index}.description`)}
                             />
                           </td>
                           <td className="p-1">
@@ -341,7 +432,7 @@ export function ProposalDialog({
                               type="number"
                               min="0"
                               step="0.01"
-                              className="border-0 shadow-none focus-visible:ring-0"
+                              className="border-0 shadow-none focus-visible:ring-0 h-8"
                               {...form.register(`items.${index}.quantity`)}
                             />
                           </td>
@@ -350,8 +441,27 @@ export function ProposalDialog({
                               type="number"
                               min="0"
                               step="0.01"
-                              className="border-0 shadow-none focus-visible:ring-0"
+                              className="border-0 shadow-none focus-visible:ring-0 h-8"
                               {...form.register(`items.${index}.unit_price`)}
+                            />
+                          </td>
+                          <td className="p-1">
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.5"
+                              className="border-0 shadow-none focus-visible:ring-0 h-8"
+                              {...form.register(`items.${index}.estimated_hours`)}
+                            />
+                          </td>
+                          <td className="p-1">
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="1"
+                              className="border-0 shadow-none focus-visible:ring-0 h-8"
+                              {...form.register(`items.${index}.discount_percent`)}
                             />
                           </td>
                           <td className="p-2 text-right font-medium">
@@ -381,7 +491,7 @@ export function ProposalDialog({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => appendItem({ name: "", description: "", quantity: 1, unit_price: 0 })}
+                onClick={() => appendItem({ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0 })}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Service
@@ -390,41 +500,20 @@ export function ProposalDialog({
               {/* Totals */}
               <Card>
                 <CardContent className="pt-4 space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span className="font-medium">{formatCurrency(subtotal)}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-muted-foreground">Tax Rate (%)</span>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      className="w-24 text-right"
-                      {...form.register("tax_rate")}
-                    />
-                    <span className="font-medium w-24 text-right">{formatCurrency(taxAmount)}</span>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Total Hours</span>
+                    <span className="font-medium">{totalHours} hrs</span>
                   </div>
                   <div className="flex justify-between border-t pt-2">
                     <span className="font-semibold">Total</span>
-                    <span className="font-bold text-lg">{formatCurrency(total)}</span>
+                    <span className="font-bold text-lg">{formatCurrency(subtotal)}</span>
                   </div>
                 </CardContent>
               </Card>
             </TabsContent>
 
-            {/* Scope & Terms Tab */}
-            <TabsContent value="scope" className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="scope_of_work">Scope of Work</Label>
-                <Textarea
-                  id="scope_of_work"
-                  placeholder="Describe the work to be performed in detail..."
-                  rows={6}
-                  {...form.register("scope_of_work")}
-                />
-              </div>
-
+            {/* Terms & Notes Tab */}
+            <TabsContent value="terms" className="space-y-4 mt-4">
               <div className="space-y-2">
                 <Label htmlFor="payment_terms">Payment Terms</Label>
                 <Textarea
@@ -462,7 +551,7 @@ export function ProposalDialog({
                     onValueChange={(value) => form.setValue("assigned_pm_id", value)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select PM..." />
+                      <SelectValue placeholder="Select PM" />
                     </SelectTrigger>
                     <SelectContent>
                       {profiles.map((p) => (
@@ -476,80 +565,26 @@ export function ProposalDialog({
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="terms_conditions">Terms & Conditions</Label>
+                <Textarea
+                  id="terms_conditions"
+                  placeholder="Enter terms and conditions..."
+                  rows={6}
+                  {...form.register("terms_conditions")}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Configure default terms in Settings → Company
+                </p>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="notes">Internal Notes</Label>
                 <Textarea
                   id="notes"
-                  placeholder="Notes for internal use only..."
-                  rows={2}
+                  placeholder="Notes visible only to your team..."
+                  rows={3}
                   {...form.register("notes")}
                 />
-              </div>
-            </TabsContent>
-
-            {/* Payment Milestones Tab */}
-            <TabsContent value="milestones" className="space-y-4 mt-4">
-              <div className="space-y-3">
-                {milestoneFields.map((field, index) => (
-                  <Card key={field.id}>
-                    <CardContent className="pt-4">
-                      <div className="flex items-start gap-4">
-                        <div className="flex-1 grid grid-cols-4 gap-3">
-                          <div className="col-span-2 space-y-1">
-                            <Label className="text-xs">Milestone Name</Label>
-                            <Input
-                              placeholder="e.g., Upon Permit Approval"
-                              {...form.register(`milestones.${index}.name`)}
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Percentage</Label>
-                            <Input
-                              type="number"
-                              min="0"
-                              max="100"
-                              placeholder="25"
-                              {...form.register(`milestones.${index}.percentage`)}
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Due Date</Label>
-                            <Input
-                              type="date"
-                              {...form.register(`milestones.${index}.due_date`)}
-                            />
-                          </div>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 mt-5"
-                          onClick={() => removeMilestone(index)}
-                        >
-                          <Trash2 className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-
-                {milestoneFields.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <DollarSign className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>No payment milestones defined</p>
-                    <p className="text-sm">Add milestones to schedule payments</p>
-                  </div>
-                )}
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => appendMilestone({ name: "", percentage: undefined, due_date: "" })}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Milestone
-                </Button>
               </div>
             </TabsContent>
           </Tabs>
@@ -564,16 +599,16 @@ export function ProposalDialog({
             </Button>
             <Button
               type="submit"
-              className="bg-accent text-accent-foreground hover:bg-accent/90"
               disabled={isLoading}
+              className="bg-accent text-accent-foreground hover:bg-accent/90"
             >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isEditing ? "Saving..." : "Creating..."}
+                  {isEditing ? "Updating..." : "Creating..."}
                 </>
               ) : isEditing ? (
-                "Save Changes"
+                "Update Proposal"
               ) : (
                 "Create Proposal"
               )}
