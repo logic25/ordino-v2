@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,17 +21,51 @@ const resetSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
 });
 
+const newPasswordSchema = z.object({
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  confirmPassword: z.string().min(8, "Password must be at least 8 characters"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
 type AuthFormData = z.infer<typeof authSchema>;
 type ResetFormData = z.infer<typeof resetSchema>;
+type NewPasswordFormData = z.infer<typeof newPasswordSchema>;
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [isPasswordReset, setIsPasswordReset] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { signIn, signUp } = useAuth();
+
+  // Check for password reset flow from email link
+  useEffect(() => {
+    const isReset = searchParams.get("reset") === "true";
+    if (isReset) {
+      // Listen for the PASSWORD_RECOVERY event
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+        if (event === "PASSWORD_RECOVERY") {
+          setIsPasswordReset(true);
+        }
+      });
+      
+      // Also check if we're already in a recovery session
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          setIsPasswordReset(true);
+        }
+      });
+      
+      return () => subscription.unsubscribe();
+    }
+  }, [searchParams]);
 
   const form = useForm<AuthFormData>({
     resolver: zodResolver(authSchema),
@@ -45,6 +79,14 @@ export default function Auth() {
     resolver: zodResolver(resetSchema),
     defaultValues: {
       email: "",
+    },
+  });
+
+  const newPasswordForm = useForm<NewPasswordFormData>({
+    resolver: zodResolver(newPasswordSchema),
+    defaultValues: {
+      password: "",
+      confirmPassword: "",
     },
   });
 
@@ -122,6 +164,31 @@ export default function Auth() {
     }
   };
 
+  const onUpdatePassword = async (data: NewPasswordFormData) => {
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: data.password,
+      });
+      if (error) {
+        toast({
+          title: "Update failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: "Password updated",
+        description: "Your password has been successfully changed.",
+      });
+      setIsPasswordReset(false);
+      navigate("/dashboard");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex">
       {/* Left Panel - Branding */}
@@ -180,22 +247,89 @@ export default function Auth() {
             </div>
             
             <CardTitle className="text-2xl font-bold">
-              {isForgotPassword 
-                ? "Reset password" 
-                : isLogin 
-                  ? "Welcome back" 
-                  : "Create your account"}
+              {isPasswordReset
+                ? "Set new password"
+                : isForgotPassword 
+                  ? "Reset password" 
+                  : isLogin 
+                    ? "Welcome back" 
+                    : "Create your account"}
             </CardTitle>
             <CardDescription>
-              {isForgotPassword
-                ? "Enter your email and we'll send you a reset link"
-                : isLogin 
-                  ? "Sign in to access your projects and time tracking" 
-                  : "Get started with Ordino for your team"}
+              {isPasswordReset
+                ? "Enter your new password below"
+                : isForgotPassword
+                  ? "Enter your email and we'll send you a reset link"
+                  : isLogin 
+                    ? "Sign in to access your projects and time tracking" 
+                    : "Get started with Ordino for your team"}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {isForgotPassword ? (
+            {isPasswordReset ? (
+              <form onSubmit={newPasswordForm.handleSubmit(onUpdatePassword)} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">New Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="new-password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      {...newPasswordForm.register("password")}
+                      className="h-11 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {newPasswordForm.formState.errors.password && (
+                    <p className="text-sm text-destructive">{newPasswordForm.formState.errors.password.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="confirm-password"
+                      type={showConfirmPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      {...newPasswordForm.register("confirmPassword")}
+                      className="h-11 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {newPasswordForm.formState.errors.confirmPassword && (
+                    <p className="text-sm text-destructive">{newPasswordForm.formState.errors.confirmPassword.message}</p>
+                  )}
+                </div>
+
+                <Button 
+                  type="submit" 
+                  className="w-full h-11 bg-accent text-accent-foreground hover:bg-accent/90 glow-amber"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <span className="animate-pulse-soft">Updating...</span>
+                  ) : (
+                    <>
+                      Update Password
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              </form>
+            ) : isForgotPassword ? (
               <form onSubmit={resetForm.handleSubmit(onResetPassword)} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="reset-email">Email</Label>
