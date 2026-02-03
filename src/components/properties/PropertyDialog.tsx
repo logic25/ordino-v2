@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -21,8 +21,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import type { Property, PropertyFormInput } from "@/hooks/useProperties";
+import { useNYCPropertyLookup } from "@/hooks/useNYCPropertyLookup";
+import { useToast } from "@/hooks/use-toast";
 
 const propertySchema = z.object({
   address: z.string().min(5, "Address must be at least 5 characters"),
@@ -47,11 +49,11 @@ interface PropertyDialogProps {
 }
 
 const boroughs = [
-  { value: "MANHATTAN", label: "Manhattan" },
-  { value: "BROOKLYN", label: "Brooklyn" },
-  { value: "QUEENS", label: "Queens" },
-  { value: "BRONX", label: "Bronx" },
-  { value: "STATEN_ISLAND", label: "Staten Island" },
+  { value: "Manhattan", label: "Manhattan" },
+  { value: "Brooklyn", label: "Brooklyn" },
+  { value: "Queens", label: "Queens" },
+  { value: "Bronx", label: "Bronx" },
+  { value: "Staten Island", label: "Staten Island" },
 ];
 
 export function PropertyDialog({
@@ -62,6 +64,9 @@ export function PropertyDialog({
   isLoading,
 }: PropertyDialogProps) {
   const isEditing = !!property;
+  const { lookupByAddress, isLoading: isLookingUp } = useNYCPropertyLookup();
+  const { toast } = useToast();
+  const [addressToLookup, setAddressToLookup] = useState("");
 
   const form = useForm<PropertyFormData>({
     resolver: zodResolver(propertySchema),
@@ -91,6 +96,7 @@ export function PropertyDialog({
         owner_contact: property.owner_contact || "",
         notes: property.notes || "",
       });
+      setAddressToLookup(property.address || "");
     } else {
       form.reset({
         address: "",
@@ -103,8 +109,42 @@ export function PropertyDialog({
         owner_contact: "",
         notes: "",
       });
+      setAddressToLookup("");
     }
   }, [property, form]);
+
+  const handleAddressLookup = async () => {
+    const address = form.getValues("address");
+    if (!address || address.length < 5) {
+      toast({
+        title: "Enter an address",
+        description: "Please enter a valid NYC address to look up.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const data = await lookupByAddress(address);
+    if (data) {
+      if (data.borough) form.setValue("borough", data.borough);
+      if (data.block) form.setValue("block", data.block);
+      if (data.lot) form.setValue("lot", data.lot);
+      if (data.bin) form.setValue("bin", data.bin);
+      if (data.zip_code) form.setValue("zip_code", data.zip_code);
+      if (data.owner_name) form.setValue("owner_name", data.owner_name);
+      
+      toast({
+        title: "Property found",
+        description: "Property data has been filled in from NYC Open Data.",
+      });
+    } else {
+      toast({
+        title: "No data found",
+        description: "Could not find property data for this address. Please enter details manually.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleSubmit = async (data: PropertyFormData) => {
     await onSubmit(data);
@@ -121,22 +161,43 @@ export function PropertyDialog({
           <DialogDescription>
             {isEditing
               ? "Update the property details below."
-              : "Enter the property details to add it to your portfolio."}
+              : "Enter the address and click lookup to auto-fill NYC property data."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="address">Address *</Label>
-            <Input
-              id="address"
-              placeholder="123 Main Street, New York, NY"
-              {...form.register("address")}
-            />
+            <div className="flex gap-2">
+              <Input
+                id="address"
+                placeholder="350 Fifth Avenue, New York, NY"
+                className="flex-1"
+                {...form.register("address")}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleAddressLookup}
+                disabled={isLookingUp}
+              >
+                {isLookingUp ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Search className="h-4 w-4 mr-1" />
+                    Lookup
+                  </>
+                )}
+              </Button>
+            </div>
             {form.formState.errors.address && (
               <p className="text-sm text-destructive">
                 {form.formState.errors.address.message}
               </p>
             )}
+            <p className="text-xs text-muted-foreground">
+              Enter a NYC address and click Lookup to auto-fill property details from NYC Open Data
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

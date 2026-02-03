@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,20 +14,33 @@ import {
   useDeleteProperty,
   Property,
 } from "@/hooks/useProperties";
+import { useApplications } from "@/hooks/useApplications";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Properties() {
+  const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
 
-  const { data: properties = [], isLoading } = useProperties();
+  const { data: properties = [], isLoading: propertiesLoading } = useProperties();
+  const { data: applications = [], isLoading: applicationsLoading } = useApplications();
   const createProperty = useCreateProperty();
   const updateProperty = useUpdateProperty();
   const deleteProperty = useDeleteProperty();
 
-  const filteredProperties = properties.filter((p) => {
+  const isLoading = propertiesLoading || applicationsLoading;
+
+  // Merge properties with their applications
+  const propertiesWithApplications = useMemo(() => {
+    return properties.map((property) => ({
+      ...property,
+      applications: applications.filter((app) => app.property_id === property.id),
+    }));
+  }, [properties, applications]);
+
+  const filteredProperties = propertiesWithApplications.filter((p) => {
     const query = searchQuery.toLowerCase();
     return (
       p.address.toLowerCase().includes(query) ||
@@ -89,6 +103,11 @@ export default function Properties() {
     }
   };
 
+  const handleCreateProposal = (propertyId: string) => {
+    // Navigate to proposals page with the property pre-selected
+    navigate(`/proposals?property=${propertyId}`);
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
@@ -132,7 +151,7 @@ export default function Properties() {
               )}
             </CardTitle>
             <CardDescription>
-              View all properties with their associated applications
+              View all properties with their associated projects. Click the arrow to expand and see related projects.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -160,6 +179,7 @@ export default function Properties() {
                 properties={filteredProperties}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
+                onCreateProposal={handleCreateProposal}
                 isDeleting={deleteProperty.isPending}
               />
             )}

@@ -342,6 +342,238 @@ export type Database = {
           },
         ]
       }
+      proposal_items: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          metadata: Json | null
+          name: string
+          proposal_id: string
+          quantity: number | null
+          sort_order: number | null
+          total_price: number | null
+          unit_price: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          name: string
+          proposal_id: string
+          quantity?: number | null
+          sort_order?: number | null
+          total_price?: number | null
+          unit_price?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          name?: string
+          proposal_id?: string
+          quantity?: number | null
+          sort_order?: number | null
+          total_price?: number | null
+          unit_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_items_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposal_milestones: {
+        Row: {
+          amount: number | null
+          created_at: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          name: string
+          percentage: number | null
+          proposal_id: string
+          sort_order: number | null
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          name: string
+          percentage?: number | null
+          proposal_id: string
+          sort_order?: number | null
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          name?: string
+          percentage?: number | null
+          proposal_id?: string
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_milestones_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposals: {
+        Row: {
+          assigned_pm_id: string | null
+          client_email: string | null
+          client_ip_address: string | null
+          client_name: string | null
+          client_signature_data: string | null
+          client_signed_at: string | null
+          company_id: string
+          converted_application_id: string | null
+          converted_at: string | null
+          created_at: string | null
+          deposit_percentage: number | null
+          deposit_required: number | null
+          id: string
+          internal_signature_data: string | null
+          internal_signed_at: string | null
+          internal_signed_by: string | null
+          metadata: Json | null
+          notes: string | null
+          payment_terms: string | null
+          property_id: string
+          proposal_number: string | null
+          scope_of_work: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["proposal_status"] | null
+          subtotal: number | null
+          tax_amount: number | null
+          tax_rate: number | null
+          title: string
+          total_amount: number | null
+          updated_at: string | null
+          valid_until: string | null
+          viewed_at: string | null
+        }
+        Insert: {
+          assigned_pm_id?: string | null
+          client_email?: string | null
+          client_ip_address?: string | null
+          client_name?: string | null
+          client_signature_data?: string | null
+          client_signed_at?: string | null
+          company_id: string
+          converted_application_id?: string | null
+          converted_at?: string | null
+          created_at?: string | null
+          deposit_percentage?: number | null
+          deposit_required?: number | null
+          id?: string
+          internal_signature_data?: string | null
+          internal_signed_at?: string | null
+          internal_signed_by?: string | null
+          metadata?: Json | null
+          notes?: string | null
+          payment_terms?: string | null
+          property_id: string
+          proposal_number?: string | null
+          scope_of_work?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["proposal_status"] | null
+          subtotal?: number | null
+          tax_amount?: number | null
+          tax_rate?: number | null
+          title: string
+          total_amount?: number | null
+          updated_at?: string | null
+          valid_until?: string | null
+          viewed_at?: string | null
+        }
+        Update: {
+          assigned_pm_id?: string | null
+          client_email?: string | null
+          client_ip_address?: string | null
+          client_name?: string | null
+          client_signature_data?: string | null
+          client_signed_at?: string | null
+          company_id?: string
+          converted_application_id?: string | null
+          converted_at?: string | null
+          created_at?: string | null
+          deposit_percentage?: number | null
+          deposit_required?: number | null
+          id?: string
+          internal_signature_data?: string | null
+          internal_signed_at?: string | null
+          internal_signed_by?: string | null
+          metadata?: Json | null
+          notes?: string | null
+          payment_terms?: string | null
+          property_id?: string
+          proposal_number?: string | null
+          scope_of_work?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["proposal_status"] | null
+          subtotal?: number | null
+          tax_amount?: number | null
+          tax_rate?: number | null
+          title?: string
+          total_amount?: number | null
+          updated_at?: string | null
+          valid_until?: string | null
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposals_assigned_pm_id_fkey"
+            columns: ["assigned_pm_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_converted_application_id_fkey"
+            columns: ["converted_application_id"]
+            isOneToOne: false
+            referencedRelation: "dob_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_internal_signed_by_fkey"
+            columns: ["internal_signed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       services: {
         Row: {
           actual_hours: number | null
@@ -480,6 +712,15 @@ export type Database = {
         | "inspection"
         | "complete"
         | "closed"
+      proposal_status:
+        | "draft"
+        | "sent"
+        | "viewed"
+        | "signed_internal"
+        | "signed_client"
+        | "accepted"
+        | "rejected"
+        | "expired"
       service_status:
         | "not_started"
         | "in_progress"
@@ -633,6 +874,16 @@ export const Constants = {
         "inspection",
         "complete",
         "closed",
+      ],
+      proposal_status: [
+        "draft",
+        "sent",
+        "viewed",
+        "signed_internal",
+        "signed_client",
+        "accepted",
+        "rejected",
+        "expired",
       ],
       service_status: [
         "not_started",

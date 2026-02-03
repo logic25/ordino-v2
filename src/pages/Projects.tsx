@@ -1,29 +1,29 @@
-import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { FolderKanban, Plus, Filter, Search, Loader2 } from "lucide-react";
+import { FolderKanban, Search, Loader2, Info } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { ApplicationDialog } from "@/components/applications/ApplicationDialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ApplicationTable } from "@/components/applications/ApplicationTable";
 import {
   useApplications,
-  useCreateApplication,
   useUpdateApplication,
   useDeleteApplication,
   ApplicationWithProperty,
   ApplicationFormInput,
 } from "@/hooks/useApplications";
+import { ApplicationDialog } from "@/components/applications/ApplicationDialog";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 export default function Projects() {
+  const [searchQuery, setSearchQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingApplication, setEditingApplication] = useState<ApplicationWithProperty | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
 
   const { data: applications = [], isLoading } = useApplications();
-  const createApplication = useCreateApplication();
   const updateApplication = useUpdateApplication();
   const deleteApplication = useDeleteApplication();
 
@@ -37,11 +37,6 @@ export default function Projects() {
     );
   });
 
-  const handleOpenCreate = () => {
-    setEditingApplication(null);
-    setDialogOpen(true);
-  };
-
   const handleEdit = (application: ApplicationWithProperty) => {
     setEditingApplication(application);
     setDialogOpen(true);
@@ -52,18 +47,12 @@ export default function Projects() {
       if (editingApplication) {
         await updateApplication.mutateAsync({ id: editingApplication.id, ...data });
         toast({
-          title: "Application updated",
-          description: "The DOB application has been updated.",
+          title: "Project updated",
+          description: "The project has been updated.",
         });
-      } else {
-        await createApplication.mutateAsync(data);
-        toast({
-          title: "Application created",
-          description: "The DOB application has been created.",
-        });
+        setDialogOpen(false);
+        setEditingApplication(null);
       }
-      setDialogOpen(false);
-      setEditingApplication(null);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -77,13 +66,13 @@ export default function Projects() {
     try {
       await deleteApplication.mutateAsync(id);
       toast({
-        title: "Application deleted",
-        description: "The DOB application has been removed.",
+        title: "Project deleted",
+        description: "The project has been removed.",
       });
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to delete application.",
+        description: error.message || "Failed to delete project.",
         variant: "destructive",
       });
     }
@@ -96,24 +85,21 @@ export default function Projects() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Projects</h1>
             <p className="text-muted-foreground mt-1">
-              Manage your DOB applications and permits
+              View and manage your DOB applications and permits
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
-            </Button>
-            <Button
-              size="sm"
-              className="bg-accent text-accent-foreground hover:bg-accent/90"
-              onClick={handleOpenCreate}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              New Project
-            </Button>
-          </div>
         </div>
+
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            Projects are created automatically when a proposal is signed by both parties. 
+            <Link to="/proposals" className="font-medium underline underline-offset-4 ml-1">
+              Create a proposal
+            </Link>{" "}
+            to start a new project.
+          </AlertDescription>
+        </Alert>
 
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -150,15 +136,14 @@ export default function Projects() {
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <FolderKanban className="h-12 w-12 text-muted-foreground/50 mb-4" />
                 <h3 className="text-lg font-medium">No projects yet</h3>
-                <p className="text-muted-foreground mt-1 mb-4">
-                  Create your first project to start tracking permits
+                <p className="text-muted-foreground mt-1 mb-4 max-w-sm">
+                  Projects are created when proposals are signed. Start by creating a proposal for a property.
                 </p>
                 <Button
                   className="bg-accent text-accent-foreground hover:bg-accent/90"
-                  onClick={handleOpenCreate}
+                  asChild
                 >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Project
+                  <Link to="/proposals">Go to Proposals</Link>
                 </Button>
               </div>
             ) : (
@@ -178,7 +163,7 @@ export default function Projects() {
         onOpenChange={setDialogOpen}
         onSubmit={handleSubmit}
         application={editingApplication}
-        isLoading={createApplication.isPending || updateApplication.isPending}
+        isLoading={updateApplication.isPending}
       />
     </AppLayout>
   );
