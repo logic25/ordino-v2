@@ -158,14 +158,14 @@ export default function Proposals() {
     if (!signingProposal) return;
 
     try {
-      await signProposal.mutateAsync({
+      const result = await signProposal.mutateAsync({
         id: signingProposal.id,
         signatureData,
         assignedPmId,
       });
       toast({
-        title: "Proposal signed",
-        description: "You have signed the proposal. Waiting for client signature.",
+        title: "Proposal signed & converted!",
+        description: `Project created successfully. The proposal has been converted to a project.`,
       });
       setSignDialogOpen(false);
       setSigningProposal(null);
