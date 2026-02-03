@@ -1,0 +1,224 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Eye, EyeOff, Building2, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+
+const authSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+type AuthFormData = z.infer<typeof authSchema>;
+
+export default function Auth() {
+  const [isLogin, setIsLogin] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { signIn, signUp } = useAuth();
+
+  const form = useForm<AuthFormData>({
+    resolver: zodResolver(authSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
+
+  const onSubmit = async (data: AuthFormData) => {
+    setIsLoading(true);
+    try {
+      if (isLogin) {
+        const { error } = await signIn(data.email, data.password);
+        if (error) {
+          if (error.message.includes("Invalid login credentials")) {
+            toast({
+              title: "Invalid credentials",
+              description: "Please check your email and password.",
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "Sign in failed",
+              description: error.message,
+              variant: "destructive",
+            });
+          }
+          return;
+        }
+        navigate("/dashboard");
+      } else {
+        const { error } = await signUp(data.email, data.password);
+        if (error) {
+          if (error.message.includes("already registered")) {
+            toast({
+              title: "Account exists",
+              description: "This email is already registered. Please sign in instead.",
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "Sign up failed",
+              description: error.message,
+              variant: "destructive",
+            });
+          }
+          return;
+        }
+        toast({
+          title: "Check your email",
+          description: "We've sent you a confirmation link to verify your account.",
+        });
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex">
+      {/* Left Panel - Branding */}
+      <div className="hidden lg:flex lg:w-1/2 bg-sidebar flex-col justify-between p-12">
+        <div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-sidebar-primary flex items-center justify-center">
+              <span className="text-sidebar-primary-foreground font-bold text-lg">O</span>
+            </div>
+            <span className="text-sidebar-foreground font-semibold text-2xl tracking-tight">
+              Ordino
+            </span>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <h1 className="text-4xl font-bold text-sidebar-foreground leading-tight">
+            NYC Permit Expediting,<br />
+            <span className="text-sidebar-primary">Powered by AI</span>
+          </h1>
+          <p className="text-sidebar-foreground/70 text-lg max-w-md">
+            Transform permit management from manual chaos into AI-powered excellence. 
+            Track time, manage projects, and close permits faster.
+          </p>
+          <div className="flex items-center gap-4 pt-4">
+            <div className="flex items-center gap-2 text-sidebar-foreground/60">
+              <Building2 className="h-5 w-5" />
+              <span>Multi-tenant ready</span>
+            </div>
+            <div className="w-px h-4 bg-sidebar-border" />
+            <div className="flex items-center gap-2 text-sidebar-foreground/60">
+              <span>Mobile-first</span>
+            </div>
+            <div className="w-px h-4 bg-sidebar-border" />
+            <div className="flex items-center gap-2 text-sidebar-foreground/60">
+              <span>Offline capable</span>
+            </div>
+          </div>
+        </div>
+
+        <p className="text-sidebar-foreground/40 text-sm">
+          © 2026 Green Light Expediting LLC
+        </p>
+      </div>
+
+      {/* Right Panel - Auth Form */}
+      <div className="flex-1 flex items-center justify-center p-8 bg-background">
+        <Card className="w-full max-w-md border-border shadow-lg">
+          <CardHeader className="space-y-1 text-center">
+            {/* Mobile logo */}
+            <div className="flex items-center justify-center gap-2 lg:hidden mb-4">
+              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                <span className="text-primary-foreground font-bold">O</span>
+              </div>
+              <span className="text-foreground font-semibold text-xl">Ordino</span>
+            </div>
+            
+            <CardTitle className="text-2xl font-bold">
+              {isLogin ? "Welcome back" : "Create your account"}
+            </CardTitle>
+            <CardDescription>
+              {isLogin 
+                ? "Sign in to access your projects and time tracking" 
+                : "Get started with Ordino for your team"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="you@company.com"
+                  {...form.register("email")}
+                  className="h-11"
+                />
+                {form.formState.errors.email && (
+                  <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    {...form.register("password")}
+                    className="h-11 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {form.formState.errors.password && (
+                  <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
+                )}
+              </div>
+
+              <Button 
+                type="submit" 
+                className="w-full h-11 bg-accent text-accent-foreground hover:bg-accent/90 glow-amber"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <span className="animate-pulse-soft">Processing...</span>
+                ) : (
+                  <>
+                    {isLogin ? "Sign In" : "Create Account"}
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </>
+                )}
+              </Button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <button
+                type="button"
+                onClick={() => setIsLogin(!isLogin)}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {isLogin 
+                  ? "Don't have an account? Sign up" 
+                  : "Already have an account? Sign in"}
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
