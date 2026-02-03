@@ -3,23 +3,30 @@ import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, Building2, ArrowRight } from "lucide-react";
+import { Eye, EyeOff, Building2, ArrowRight, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const authSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
+const resetSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+});
+
 type AuthFormData = z.infer<typeof authSchema>;
+type ResetFormData = z.infer<typeof resetSchema>;
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -31,6 +38,13 @@ export default function Auth() {
     defaultValues: {
       email: "",
       password: "",
+    },
+  });
+
+  const resetForm = useForm<ResetFormData>({
+    resolver: zodResolver(resetSchema),
+    defaultValues: {
+      email: "",
     },
   });
 
@@ -79,6 +93,30 @@ export default function Auth() {
           description: "We've sent you a confirmation link to verify your account.",
         });
       }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onResetPassword = async (data: ResetFormData) => {
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
+        redirectTo: `${window.location.origin}/auth?reset=true`,
+      });
+      if (error) {
+        toast({
+          title: "Reset failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: "Check your email",
+        description: "We've sent you a password reset link.",
+      });
+      setIsForgotPassword(false);
     } finally {
       setIsLoading(false);
     }
@@ -142,80 +180,143 @@ export default function Auth() {
             </div>
             
             <CardTitle className="text-2xl font-bold">
-              {isLogin ? "Welcome back" : "Create your account"}
+              {isForgotPassword 
+                ? "Reset password" 
+                : isLogin 
+                  ? "Welcome back" 
+                  : "Create your account"}
             </CardTitle>
             <CardDescription>
-              {isLogin 
-                ? "Sign in to access your projects and time tracking" 
-                : "Get started with Ordino for your team"}
+              {isForgotPassword
+                ? "Enter your email and we'll send you a reset link"
+                : isLogin 
+                  ? "Sign in to access your projects and time tracking" 
+                  : "Get started with Ordino for your team"}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@company.com"
-                  {...form.register("email")}
-                  className="h-11"
-                />
-                {form.formState.errors.email && (
-                  <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
+            {isForgotPassword ? (
+              <form onSubmit={resetForm.handleSubmit(onResetPassword)} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="reset-email">Email</Label>
                   <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    {...form.register("password")}
-                    className="h-11 pr-10"
+                    id="reset-email"
+                    type="email"
+                    placeholder="you@company.com"
+                    {...resetForm.register("email")}
+                    className="h-11"
                   />
+                  {resetForm.formState.errors.email && (
+                    <p className="text-sm text-destructive">{resetForm.formState.errors.email.message}</p>
+                  )}
+                </div>
+
+                <Button 
+                  type="submit" 
+                  className="w-full h-11 bg-accent text-accent-foreground hover:bg-accent/90 glow-amber"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <span className="animate-pulse-soft">Processing...</span>
+                  ) : (
+                    <>
+                      Send Reset Link
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+
+                <div className="text-center">
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setIsForgotPassword(false)}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    <ArrowLeft className="h-3 w-3" />
+                    Back to sign in
                   </button>
                 </div>
-                {form.formState.errors.password && (
-                  <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
-                )}
-              </div>
+              </form>
+            ) : (
+              <>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="you@company.com"
+                      {...form.register("email")}
+                      className="h-11"
+                    />
+                    {form.formState.errors.email && (
+                      <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
+                    )}
+                  </div>
 
-              <Button 
-                type="submit" 
-                className="w-full h-11 bg-accent text-accent-foreground hover:bg-accent/90 glow-amber"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <span className="animate-pulse-soft">Processing...</span>
-                ) : (
-                  <>
-                    {isLogin ? "Sign In" : "Create Account"}
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </>
-                )}
-              </Button>
-            </form>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password">Password</Label>
+                      {isLogin && (
+                        <button
+                          type="button"
+                          onClick={() => setIsForgotPassword(true)}
+                          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          Forgot password?
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        {...form.register("password")}
+                        className="h-11 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {form.formState.errors.password && (
+                      <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
+                    )}
+                  </div>
 
-            <div className="mt-6 text-center">
-              <button
-                type="button"
-                onClick={() => setIsLogin(!isLogin)}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {isLogin 
-                  ? "Don't have an account? Sign up" 
-                  : "Already have an account? Sign in"}
-              </button>
-            </div>
+                  <Button 
+                    type="submit" 
+                    className="w-full h-11 bg-accent text-accent-foreground hover:bg-accent/90 glow-amber"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <span className="animate-pulse-soft">Processing...</span>
+                    ) : (
+                      <>
+                        {isLogin ? "Sign In" : "Create Account"}
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+                </form>
+
+                <div className="mt-6 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setIsLogin(!isLogin)}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {isLogin 
+                      ? "Don't have an account? Sign up" 
+                      : "Already have an account? Sign in"}
+                  </button>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
