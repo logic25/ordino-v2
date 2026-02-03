@@ -40,31 +40,17 @@ export default function Setup() {
     
     setIsLoading(true);
     try {
-      // Create company
-      const { data: company, error: companyError } = await supabase
-        .from("companies")
-        .insert({
-          name: data.companyName,
-          slug: data.companyName.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""),
-        })
-        .select()
-        .single();
+      const slug = data.companyName.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+      
+      // Use the atomic bootstrap_company function to create company + profile in one transaction
+      const { error } = await supabase.rpc("bootstrap_company", {
+        company_name: data.companyName,
+        company_slug: slug,
+        first_name: data.firstName,
+        last_name: data.lastName,
+      });
 
-      if (companyError) throw companyError;
-
-      // Create profile with admin role
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .insert({
-          user_id: user.id,
-          company_id: company.id,
-          role: "admin",
-          first_name: data.firstName,
-          last_name: data.lastName,
-          display_name: `${data.firstName} ${data.lastName}`,
-        });
-
-      if (profileError) throw profileError;
+      if (error) throw error;
 
       toast({
         title: "Welcome to Ordino!",
