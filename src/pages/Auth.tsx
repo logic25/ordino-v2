@@ -49,16 +49,13 @@ export default function Auth() {
   useEffect(() => {
     const isReset = searchParams.get("reset") === "true";
     if (isReset) {
-      // Listen for the PASSWORD_RECOVERY event
+      // If we have the reset parameter, show the password reset form
+      // The user has been authenticated via the recovery token in the email link
+      setIsPasswordReset(true);
+      
+      // Also listen for the PASSWORD_RECOVERY event as a backup
       const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
         if (event === "PASSWORD_RECOVERY") {
-          setIsPasswordReset(true);
-        }
-      });
-      
-      // Also check if we're already in a recovery session
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
           setIsPasswordReset(true);
         }
       });
