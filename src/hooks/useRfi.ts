@@ -91,7 +91,7 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
       { id: "applicant_phone", label: "Phone", type: "phone", width: "half" },
       { id: "applicant_email", label: "Email", type: "email", width: "half" },
       { id: "applicant_nys_lic", label: "NYS License #", type: "text", width: "half" },
-      { id: "applicant_lic_type", label: "License Type", type: "select", options: ["RA", "PE", "Expeditor"], width: "half" },
+      { id: "applicant_lic_type", label: "License Type", type: "select", options: ["RA", "PE"], width: "half" },
       { id: "applicant_work_types", label: "Work Types", type: "checkbox_group", width: "full", options: [] },
       { id: "owner_heading", label: "Building Owner", type: "heading" },
       { id: "ownership_type", label: "Ownership Type", type: "select", options: ["Individual", "Corporation", "Partnership", "Condo/Co-op", "Non-profit", "Government"], width: "half" },
