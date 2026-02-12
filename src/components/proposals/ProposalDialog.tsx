@@ -21,6 +21,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, Plus, Trash2, UserPlus } from "lucide-react";
@@ -96,6 +111,7 @@ export function ProposalDialog({
   const [newClientName, setNewClientName] = useState("");
   const [newClientEmail, setNewClientEmail] = useState("");
   const [contacts, setContacts] = useState<ProposalContactInput[]>([]);
+  const [propertyOpen, setPropertyOpen] = useState(false);
 
   const { data: existingContacts = [] } = useProposalContacts(proposal?.id);
 
@@ -331,22 +347,50 @@ export function ProposalDialog({
             <TabsContent value="details" className="space-y-4 mt-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="property_id">Property *</Label>
-                  <Select
-                    value={form.watch("property_id")}
-                    onValueChange={(value) => form.setValue("property_id", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select property" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {properties.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.address}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>Property *</Label>
+                  <Popover open={propertyOpen} onOpenChange={setPropertyOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={propertyOpen}
+                        className="w-full justify-between font-normal"
+                      >
+                        {form.watch("property_id")
+                          ? properties.find((p) => p.id === form.watch("property_id"))?.address ?? "Select property…"
+                          : "Search properties…"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[400px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Type an address…" />
+                        <CommandList>
+                          <CommandEmpty>No properties found.</CommandEmpty>
+                          <CommandGroup>
+                            {properties.map((p) => (
+                              <CommandItem
+                                key={p.id}
+                                value={p.address}
+                                onSelect={() => {
+                                  form.setValue("property_id", p.id);
+                                  setPropertyOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    form.watch("property_id") === p.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {p.address}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   {form.formState.errors.property_id && (
                     <p className="text-sm text-destructive">
                       {form.formState.errors.property_id.message}
