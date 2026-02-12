@@ -45,6 +45,7 @@ import {
   type ClientFormInput,
 } from "@/hooks/useClients";
 import { ClientDialog } from "@/components/clients/ClientDialog";
+import { AddContactDialog } from "@/components/clients/AddContactDialog";
 import { useCompanyProfiles, type Profile } from "@/hooks/useProfiles";
 
 function useClientDetail(id: string | undefined) {
@@ -117,6 +118,7 @@ export default function ClientDetail() {
   const deleteClient = useDeleteClient();
   const updateClient = useUpdateClient();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [addContactOpen, setAddContactOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const handleDelete = async () => {
@@ -282,7 +284,7 @@ export default function ClientDetail() {
                   Contacts
                   <Badge variant="secondary" className="text-xs">{contacts.length}</Badge>
                 </CardTitle>
-                <Button size="sm" variant="outline" onClick={() => setDialogOpen(true)}>
+                <Button size="sm" variant="outline" onClick={() => setAddContactOpen(true)}>
                   <Plus className="h-3.5 w-3.5 mr-1" />
                   Add Contact
                 </Button>
@@ -370,6 +372,14 @@ export default function ClientDetail() {
         client={client}
         isLoading={updateClient.isPending}
       />
+
+      {id && (
+        <AddContactDialog
+          open={addContactOpen}
+          onOpenChange={setAddContactOpen}
+          clientId={id}
+        />
+      )}
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
