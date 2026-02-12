@@ -502,6 +502,260 @@ export type Database = {
           },
         ]
       }
+      email_attachments: {
+        Row: {
+          company_id: string
+          created_at: string
+          email_id: string
+          filename: string
+          gmail_attachment_id: string | null
+          id: string
+          mime_type: string | null
+          saved_to_project: boolean
+          size_bytes: number | null
+          storage_path: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          email_id: string
+          filename: string
+          gmail_attachment_id?: string | null
+          id?: string
+          mime_type?: string | null
+          saved_to_project?: boolean
+          size_bytes?: number | null
+          storage_path?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          email_id?: string
+          filename?: string
+          gmail_attachment_id?: string | null
+          id?: string
+          mime_type?: string | null
+          saved_to_project?: boolean
+          size_bytes?: number | null
+          storage_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_attachments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_attachments_email_id_fkey"
+            columns: ["email_id"]
+            isOneToOne: false
+            referencedRelation: "emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_project_tags: {
+        Row: {
+          category: string
+          company_id: string
+          email_id: string
+          id: string
+          notes: string | null
+          project_id: string
+          tagged_at: string
+          tagged_by_id: string
+        }
+        Insert: {
+          category?: string
+          company_id: string
+          email_id: string
+          id?: string
+          notes?: string | null
+          project_id: string
+          tagged_at?: string
+          tagged_by_id: string
+        }
+        Update: {
+          category?: string
+          company_id?: string
+          email_id?: string
+          id?: string
+          notes?: string | null
+          project_id?: string
+          tagged_at?: string
+          tagged_by_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_project_tags_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_project_tags_email_id_fkey"
+            columns: ["email_id"]
+            isOneToOne: false
+            referencedRelation: "emails"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_project_tags_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_project_tags_tagged_by_id_fkey"
+            columns: ["tagged_by_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      emails: {
+        Row: {
+          body_html: string | null
+          body_text: string | null
+          company_id: string
+          created_at: string
+          date: string | null
+          from_email: string | null
+          from_name: string | null
+          gmail_message_id: string
+          has_attachments: boolean
+          id: string
+          is_read: boolean
+          labels: Json | null
+          snippet: string | null
+          subject: string | null
+          synced_at: string
+          thread_id: string | null
+          to_emails: Json | null
+          user_id: string
+        }
+        Insert: {
+          body_html?: string | null
+          body_text?: string | null
+          company_id: string
+          created_at?: string
+          date?: string | null
+          from_email?: string | null
+          from_name?: string | null
+          gmail_message_id: string
+          has_attachments?: boolean
+          id?: string
+          is_read?: boolean
+          labels?: Json | null
+          snippet?: string | null
+          subject?: string | null
+          synced_at?: string
+          thread_id?: string | null
+          to_emails?: Json | null
+          user_id: string
+        }
+        Update: {
+          body_html?: string | null
+          body_text?: string | null
+          company_id?: string
+          created_at?: string
+          date?: string | null
+          from_email?: string | null
+          from_name?: string | null
+          gmail_message_id?: string
+          has_attachments?: boolean
+          id?: string
+          is_read?: boolean
+          labels?: Json | null
+          snippet?: string | null
+          subject?: string | null
+          synced_at?: string
+          thread_id?: string | null
+          to_emails?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emails_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emails_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gmail_connections: {
+        Row: {
+          access_token: string | null
+          company_id: string
+          created_at: string
+          email_address: string
+          history_id: string | null
+          id: string
+          last_sync_at: string | null
+          refresh_token: string | null
+          sync_enabled: boolean
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          company_id: string
+          created_at?: string
+          email_address: string
+          history_id?: string | null
+          id?: string
+          last_sync_at?: string | null
+          refresh_token?: string | null
+          sync_enabled?: boolean
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          company_id?: string
+          created_at?: string
+          email_address?: string
+          history_id?: string | null
+          id?: string
+          last_sync_at?: string | null
+          refresh_token?: string | null
+          sync_enabled?: boolean
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gmail_connections_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gmail_connections_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

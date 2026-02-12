@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   FolderKanban,
   Receipt,
+  Mail,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -26,6 +27,7 @@ const mainNav = [
   { title: "Time", icon: Clock, href: "/time" },
   { title: "Proposals", icon: FileText, href: "/proposals" },
   { title: "Invoices", icon: Receipt, href: "/invoices" },
+  { title: "Email", icon: Mail, href: "/emails" },
 ];
 
 const secondaryNav = [
