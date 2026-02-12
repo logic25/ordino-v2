@@ -15,6 +15,7 @@ import {
   ProjectWithRelations,
   ProjectFormInput,
 } from "@/hooks/useProjects";
+import { useCreateRfiRequest, useRfiTemplates, DEFAULT_PIS_SECTIONS } from "@/hooks/useRfi";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Projects() {
@@ -27,6 +28,8 @@ export default function Projects() {
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
+  const createRfi = useCreateRfiRequest();
+  const { data: rfiTemplates } = useRfiTemplates();
 
   const filteredProjects = projects.filter((p) => {
     const query = searchQuery.toLowerCase();
@@ -100,6 +103,35 @@ export default function Projects() {
       toast({
         title: "Error",
         description: error.message || "Failed to delete project.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSendRfi = async (project: ProjectWithRelations) => {
+    try {
+      // Use default template or first available
+      const defaultTemplate = rfiTemplates?.find((t) => t.is_default) || rfiTemplates?.[0];
+      const sections = defaultTemplate?.sections || DEFAULT_PIS_SECTIONS;
+
+      const rfi = await createRfi.mutateAsync({
+        project_id: project.id,
+        property_id: project.property_id,
+        title: `PIS — ${project.properties?.address || project.name || "Project"}`,
+        sections,
+        template_id: defaultTemplate?.id,
+      });
+
+      const rfiUrl = `${window.location.origin}/rfi?token=${rfi.access_token}`;
+      await navigator.clipboard.writeText(rfiUrl);
+      toast({
+        title: "RFI Created",
+        description: "Link copied to clipboard! Share it with your client.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create RFI.",
         variant: "destructive",
       });
     }
@@ -219,7 +251,9 @@ export default function Projects() {
                 onEdit={handleEdit}
                 onView={handleView}
                 onDelete={handleDelete}
+                onSendRfi={handleSendRfi}
                 isDeleting={deleteProject.isPending}
+                isSendingRfi={createRfi.isPending}
               />
             )}
           </CardContent>
