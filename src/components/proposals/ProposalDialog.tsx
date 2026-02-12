@@ -38,7 +38,7 @@ import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, Plus, Trash2, UserPlus } from "lucide-react";
+import { Loader2, Plus, Trash2 } from "lucide-react";
 import type { ProposalWithRelations, ProposalFormInput } from "@/hooks/useProposals";
 import { useProperties, useCreateProperty } from "@/hooks/useProperties";
 import { useClients, useCreateClient, Client } from "@/hooks/useClients";
@@ -59,6 +59,16 @@ const itemSchema = z.object({
   sort_order: z.number().optional(),
 });
 
+const LEAD_SOURCES = [
+  "Referral",
+  "Website",
+  "Cold Call",
+  "Architect",
+  "Repeat Client",
+  "Walk-in",
+  "Other",
+] as const;
+
 const proposalSchema = z.object({
   property_id: z.string().min(1, "Property is required"),
   title: z.string().min(1, "Title is required"),
@@ -72,11 +82,11 @@ const proposalSchema = z.object({
   notes: z.string().optional(),
   terms_conditions: z.string().optional(),
   lead_source: z.string().optional(),
-  project_type: z.string().optional(),
   sales_person_id: z.string().optional(),
   billed_to_name: z.string().optional(),
   billed_to_email: z.string().email().optional().or(z.literal("")),
   reminder_date: z.string().optional(),
+  notable: z.boolean().optional(),
   items: z.array(itemSchema),
 });
 
@@ -107,9 +117,6 @@ export function ProposalDialog({
   const createClient = useCreateClient();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("details");
-  const [showNewClient, setShowNewClient] = useState(false);
-  const [newClientName, setNewClientName] = useState("");
-  const [newClientEmail, setNewClientEmail] = useState("");
   const [contacts, setContacts] = useState<ProposalContactInput[]>([]);
   const [propertyOpen, setPropertyOpen] = useState(false);
   const [propertySearch, setPropertySearch] = useState("");
@@ -140,11 +147,11 @@ export function ProposalDialog({
 
   const newFieldDefaults = {
     lead_source: "",
-    project_type: "",
     sales_person_id: "",
     billed_to_name: "",
     billed_to_email: "",
     reminder_date: "",
+    notable: false,
   };
 
   const form = useForm<FormData>({
@@ -187,7 +194,6 @@ export function ProposalDialog({
         notes: proposal.notes || "",
         terms_conditions: p.terms_conditions || defaultTerms,
         lead_source: p.lead_source || "",
-        project_type: p.project_type || "",
         sales_person_id: p.sales_person_id || "",
         billed_to_name: p.billed_to_name || "",
         billed_to_email: p.billed_to_email || "",
@@ -236,38 +242,6 @@ export function ProposalDialog({
   const subtotal = watchedItems.reduce((sum, item) => sum + calculateLineTotal(item), 0);
   const totalHours = watchedItems.reduce((sum, item) => sum + (Number(item.estimated_hours) || 0), 0);
 
-  const handleClientSelect = (clientId: string) => {
-    const client = clients.find(c => c.id === clientId);
-    if (client) {
-      form.setValue("client_id", clientId);
-      form.setValue("client_name", client.name);
-      form.setValue("client_email", client.email || "");
-    }
-    setShowNewClient(false);
-  };
-
-  const handleAddNewClient = async () => {
-    if (!newClientName.trim()) {
-      toast({ title: "Error", description: "Client name is required", variant: "destructive" });
-      return;
-    }
-
-    try {
-      const newClient = await createClient.mutateAsync({
-        name: newClientName,
-        email: newClientEmail || null,
-      });
-      form.setValue("client_id", newClient.id);
-      form.setValue("client_name", newClient.name);
-      form.setValue("client_email", newClient.email || "");
-      setNewClientName("");
-      setNewClientEmail("");
-      setShowNewClient(false);
-      toast({ title: "Client added", description: "New client has been created." });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    }
-  };
 
   const handleAddServiceFromCatalog = (service: ServiceCatalogItem) => {
     appendItem({
@@ -296,7 +270,6 @@ export function ProposalDialog({
       notes: data.notes || null,
       terms_conditions: data.terms_conditions || null,
       lead_source: data.lead_source || null,
-      project_type: data.project_type || null,
       sales_person_id: data.sales_person_id || null,
       billed_to_name: data.billed_to_name || null,
       billed_to_email: data.billed_to_email || null,
@@ -441,120 +414,31 @@ export function ProposalDialog({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="project_type">Project Type</Label>
-                  <Input
-                    id="project_type"
-                    placeholder="e.g., New Building, Alteration, Renovation"
-                    {...form.register("project_type")}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lead_source">Lead Source</Label>
-                  <Input
-                    id="lead_source"
-                    placeholder="e.g., Referral, Website, Cold Call"
-                    {...form.register("lead_source")}
-                  />
-                </div>
-              </div>
-
-              {/* Client Selection */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Client</Label>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowNewClient(!showNewClient)}
-                  >
-                    <UserPlus className="h-4 w-4 mr-1" />
-                    {showNewClient ? "Select Existing" : "New Client"}
-                  </Button>
-                </div>
-                
-                {showNewClient ? (
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Client name"
-                      value={newClientName}
-                      onChange={(e) => setNewClientName(e.target.value)}
-                      className="flex-1"
-                    />
-                    <Input
-                      placeholder="Email (optional)"
-                      type="email"
-                      value={newClientEmail}
-                      onChange={(e) => setNewClientEmail(e.target.value)}
-                      className="flex-1"
-                    />
-                    <Button
-                      type="button"
-                      onClick={handleAddNewClient}
-                      disabled={createClient.isPending}
-                      size="sm"
-                    >
-                      {createClient.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
-                    </Button>
-                  </div>
-                ) : (
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Lead Source</Label>
                   <Select
-                    value={form.watch("client_id") || ""}
-                    onValueChange={handleClientSelect}
+                    value={form.watch("lead_source") || ""}
+                    onValueChange={(value) => form.setValue("lead_source", value)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select or add a client" />
+                      <SelectValue placeholder="Select…" />
                     </SelectTrigger>
                     <SelectContent>
-                      {clients.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name} {c.email && `(${c.email})`}
-                        </SelectItem>
+                      {LEAD_SOURCES.map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                )}
-              </div>
-
-              {/* Billed To */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="billed_to_name">Billed To (Name)</Label>
-                  <Input
-                    id="billed_to_name"
-                    placeholder="If different from client"
-                    {...form.register("billed_to_name")}
-                  />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="billed_to_email">Billed To (Email)</Label>
-                  <Input
-                    id="billed_to_email"
-                    type="email"
-                    placeholder="Billing email"
-                    {...form.register("billed_to_email")}
-                  />
-                </div>
-              </div>
-
-              {/* Multi-Contact Support */}
-              <ProposalContactsSection
-                contacts={contacts}
-                onChange={setContacts}
-              />
-
-              {/* Sales Person & Reminder */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="sales_person_id">Sales Person</Label>
+                <div className="space-y-1.5">
+                  <Label>Sales Person</Label>
                   <Select
                     value={form.watch("sales_person_id") || ""}
                     onValueChange={(value) => form.setValue("sales_person_id", value)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select sales person" />
+                      <SelectValue placeholder="Select…" />
                     </SelectTrigger>
                     <SelectContent>
                       {profiles.map((p) => (
@@ -565,21 +449,28 @@ export function ProposalDialog({
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="reminder_date">Reminder Date</Label>
-                  <Input
-                    id="reminder_date"
-                    type="date"
-                    {...form.register("reminder_date")}
-                  />
+                <div className="space-y-1.5">
+                  <Label>Reminder</Label>
+                  <Input type="date" {...form.register("reminder_date")} />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="deposit_percentage">Deposit %</Label>
+              {/* Multi-Contact Support */}
+              <ProposalContactsSection
+                contacts={contacts}
+                onChange={setContacts}
+                clients={clients}
+                onAddClient={async (name, email) => {
+                  const newClient = await createClient.mutateAsync({ name, email: email || null });
+                  return newClient;
+                }}
+                isAddingClient={createClient.isPending}
+              />
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Deposit %</Label>
                   <Input
-                    id="deposit_percentage"
                     type="number"
                     min="0"
                     max="100"
@@ -587,13 +478,19 @@ export function ProposalDialog({
                     {...form.register("deposit_percentage")}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="valid_until">Valid Until</Label>
-                  <Input
-                    id="valid_until"
-                    type="date"
-                    {...form.register("valid_until")}
-                  />
+                <div className="space-y-1.5">
+                  <Label>Valid Until</Label>
+                  <Input type="date" {...form.register("valid_until")} />
+                </div>
+                <div className="flex items-end pb-1">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="rounded border-input"
+                      {...form.register("notable")}
+                    />
+                    Notable Project
+                  </label>
                 </div>
               </div>
             </TabsContent>
