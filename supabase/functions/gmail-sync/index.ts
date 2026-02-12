@@ -214,7 +214,15 @@ Deno.serve(async (req) => {
       );
       const msgData = await msgRes.json();
 
+      if (!msgData.payload) {
+        console.error("No payload for message:", msg.id, JSON.stringify(msgData).substring(0, 500));
+        continue;
+      }
+
       const headers = msgData.payload?.headers || [];
+      if (headers.length === 0) {
+        console.error("No headers for message:", msg.id, "payload keys:", Object.keys(msgData.payload), "payload.headers:", msgData.payload?.headers);
+      }
       const fromRaw = getHeader(headers, "From");
       const fromMatch = fromRaw.match(/^(.*?)\s*<(.+?)>$/);
       const from_name = fromMatch ? fromMatch[1].replace(/"/g, "").trim() : fromRaw;
