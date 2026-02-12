@@ -2,12 +2,13 @@ import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Settings as SettingsIcon, User, Building, Bell, CreditCard, Shield, Package, ChevronLeft, FileText } from "lucide-react";
+import { Settings as SettingsIcon, User, Building, Bell, CreditCard, Shield, Package, ChevronLeft, FileText, Tags } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ServiceCatalogSettings } from "@/components/settings/ServiceCatalogSettings";
 import { RfiTemplateSettings } from "@/components/settings/RfiTemplateSettings";
+import { CompanyTypeSettings } from "@/components/settings/CompanyTypeSettings";
 
-type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "notifications" | "billing" | "security";
+type SettingsSection = "main" | "profile" | "company" | "proposals" | "company_types" | "rfi_templates" | "notifications" | "billing" | "security";
 
 const settingsSections = [
   {
@@ -27,6 +28,12 @@ const settingsSections = [
     title: "Proposals & Services",
     description: "Service catalog and default terms",
     icon: Package,
+  },
+  {
+    id: "company_types" as const,
+    title: "Company Types",
+    description: "Define types like Architect, Plumber, GC for sorting and filtering",
+    icon: Tags,
   },
   {
     id: "rfi_templates" as const,
@@ -61,6 +68,8 @@ export default function Settings() {
     switch (activeSection) {
       case "proposals":
         return <ServiceCatalogSettings />;
+      case "company_types":
+        return <CompanyTypeSettings />;
       case "rfi_templates":
         return <RfiTemplateSettings />;
       case "profile":

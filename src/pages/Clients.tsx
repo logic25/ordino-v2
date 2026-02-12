@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Plus, Search, Loader2, Building2, UserPlus, Contact, Download } from "lucide-react";
+import { Building2, Plus, Search, Loader2, UserPlus, Contact, Download, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ClientDialog } from "@/components/clients/ClientDialog";
 import { ClientTable } from "@/components/clients/ClientTable";
@@ -121,9 +121,10 @@ export default function Clients() {
 
   const handleExportCsv = () => {
     const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
-    const headers = ["Name", "Email", "Phone", "Fax", "Address", "Tax ID", "SIA", "Added"];
+    const headers = ["Name", "Type", "Email", "Phone", "Fax", "Address", "Tax ID", "SIA", "Added"];
     const rows = filteredClients.map((c) => [
       c.name || "",
+      (c as any).client_type || "",
       c.email || "",
       c.phone || "",
       c.fax || "",
@@ -137,7 +138,7 @@ export default function Clients() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `clients-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    a.download = `companies-${format(new Date(), "yyyy-MM-dd")}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -147,9 +148,9 @@ export default function Clients() {
       <div className="space-y-6 animate-fade-in">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Clients</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Companies</h1>
             <p className="text-muted-foreground mt-1">
-              Manage your client relationships
+              Manage your companies and relationships
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -163,72 +164,38 @@ export default function Clients() {
               onClick={handleOpenCreate}
             >
               <Plus className="h-4 w-4 mr-2" />
-              Add Client
+              Add Company
             </Button>
           </div>
         </div>
 
         {/* Metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-4 pb-3 px-4">
-              <div className="flex items-center gap-3">
-                <div className="rounded-md bg-primary/10 p-2">
-                  <Users className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{metrics.totalClients}</p>
-                  <p className="text-xs text-muted-foreground">Total Clients</p>
-                </div>
+        <Card>
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center justify-around gap-4 text-center">
+              <div>
+                <p className="text-2xl font-bold">{metrics.totalClients}</p>
+                <p className="text-xs text-muted-foreground">Companies</p>
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 pb-3 px-4">
-              <div className="flex items-center gap-3">
-                <div className="rounded-md bg-accent/10 p-2">
-                  <Contact className="h-4 w-4 text-accent" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{metrics.totalContacts}</p>
-                  <p className="text-xs text-muted-foreground">Total Contacts</p>
-                </div>
+              <div className="h-8 w-px bg-border" />
+              <div>
+                <p className="text-2xl font-bold">{metrics.totalContacts}</p>
+                <p className="text-xs text-muted-foreground">Contacts</p>
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 pb-3 px-4">
-              <div className="flex items-center gap-3">
-                <div className="rounded-md bg-secondary/50 p-2">
-                  <Building2 className="h-4 w-4 text-secondary-foreground" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{metrics.uniqueCompanies}</p>
-                  <p className="text-xs text-muted-foreground">Companies</p>
-                </div>
+              <div className="h-8 w-px bg-border" />
+              <div>
+                <p className="text-2xl font-bold text-primary">{metrics.newClients}</p>
+                <p className="text-xs text-muted-foreground">New (30d)</p>
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 pb-3 px-4">
-              <div className="flex items-center gap-3">
-                <div className="rounded-md bg-primary/10 p-2">
-                  <UserPlus className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{metrics.newClients}</p>
-                  <p className="text-xs text-muted-foreground">New (30 days)</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search clients..."
+            placeholder="Search companies..."
             className="pl-9"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -238,8 +205,8 @@ export default function Clients() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              All Clients
+              <Building2 className="h-5 w-5" />
+              All Companies
               {!isLoading && (
                 <span className="text-muted-foreground font-normal text-sm">
                   ({filteredClients.length})
@@ -247,7 +214,7 @@ export default function Clients() {
               )}
             </CardTitle>
             <CardDescription>
-              Property owners, architects, and contractors
+              Property owners, architects, contractors, and more
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -257,17 +224,17 @@ export default function Clients() {
               </div>
             ) : filteredClients.length === 0 && !searchQuery ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Users className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                <h3 className="text-lg font-medium">No clients yet</h3>
+                <Building2 className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-medium">No companies yet</h3>
                 <p className="text-muted-foreground mt-1 mb-4">
-                  Add your first client to start managing relationships
+                  Add your first company to start managing relationships
                 </p>
                 <Button
                   className="bg-accent text-accent-foreground hover:bg-accent/90"
                   onClick={handleOpenCreate}
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Client
+                  Add Company
                 </Button>
               </div>
             ) : (

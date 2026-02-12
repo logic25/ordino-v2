@@ -13,6 +13,7 @@ export interface ServiceCatalogItem {
 export interface CompanySettings {
   service_catalog?: ServiceCatalogItem[];
   default_terms?: string;
+  company_types?: string[];
 }
 
 export function useCompanySettings() {
@@ -61,6 +62,7 @@ export function useUpdateCompanySettings() {
         ...currentSettings,
         service_catalog: settings.service_catalog as unknown as Json,
         default_terms: settings.default_terms,
+        company_types: settings.company_types as unknown as Json,
       };
 
       const { error } = await supabase

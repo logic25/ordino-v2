@@ -25,6 +25,12 @@ import {
 import { Loader2 } from "lucide-react";
 import type { Client, ClientFormInput } from "@/hooks/useClients";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
+
+const DEFAULT_TYPES = [
+  "Architect", "General Contractor", "Plumber", "Electrician", "Engineer",
+  "Property Owner", "Developer", "Expediter", "Attorney", "Insurance",
+];
 
 const clientSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
@@ -35,6 +41,7 @@ const clientSchema = z.object({
   notes: z.string().max(2000).optional(),
   lead_owner_id: z.string().optional(),
   tax_id: z.string().max(50).optional(),
+  client_type: z.string().optional(),
   is_sia: z.boolean().optional(),
 });
 
@@ -57,12 +64,14 @@ export function ClientDialog({
 }: ClientDialogProps) {
   const isEditing = !!client;
   const { data: profiles = [] } = useCompanyProfiles();
+  const { data: settingsData } = useCompanySettings();
+  const companyTypes = settingsData?.settings?.company_types ?? DEFAULT_TYPES;
 
   const form = useForm<FormData>({
     resolver: zodResolver(clientSchema),
     defaultValues: {
       name: "", email: "", phone: "", fax: "", address: "", notes: "",
-      lead_owner_id: "", tax_id: "", is_sia: false,
+      lead_owner_id: "", tax_id: "", client_type: "", is_sia: false,
     },
   });
 
@@ -77,12 +86,13 @@ export function ClientDialog({
         notes: client.notes || "",
         lead_owner_id: client.lead_owner_id || "",
         tax_id: client.tax_id || "",
+        client_type: (client as any).client_type || "",
         is_sia: client.is_sia || false,
       });
     } else {
       form.reset({
         name: "", email: "", phone: "", fax: "", address: "", notes: "",
-        lead_owner_id: "", tax_id: "", is_sia: false,
+        lead_owner_id: "", tax_id: "", client_type: "", is_sia: false,
       });
     }
   }, [client, form]);
@@ -97,6 +107,7 @@ export function ClientDialog({
       notes: data.notes || null,
       lead_owner_id: data.lead_owner_id || null,
       tax_id: data.tax_id || null,
+      client_type: data.client_type || null,
       is_sia: data.is_sia || false,
     });
     form.reset();
@@ -111,19 +122,38 @@ export function ClientDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[520px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit Client" : "New Client"}</DialogTitle>
+          <DialogTitle>{isEditing ? "Edit Company" : "New Company"}</DialogTitle>
           <DialogDescription>
-            {isEditing ? "Update the client's business information." : "Add a new client company."}
+            {isEditing ? "Update the company's business information." : "Add a new company."}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Business Name *</Label>
-            <Input id="name" placeholder="e.g. Rudin Management" {...form.register("name")} />
-            {form.formState.errors.name && (
-              <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
-            )}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Company Name *</Label>
+              <Input id="name" placeholder="e.g. Rudin Management" {...form.register("name")} />
+              {form.formState.errors.name && (
+                <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <Select
+                value={form.watch("client_type") || ""}
+                onValueChange={(v) => form.setValue("client_type", v === "none" ? "" : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {companyTypes.map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -198,7 +228,7 @@ export function ClientDialog({
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   {isEditing ? "Updating..." : "Creating..."}
                 </>
-              ) : isEditing ? "Update Client" : "Create Client"}
+              ) : isEditing ? "Update Company" : "Create Company"}
             </Button>
           </DialogFooter>
         </form>
