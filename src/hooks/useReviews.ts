@@ -50,6 +50,7 @@ export function useCreateReview() {
       project_id?: string | null;
       rating: number;
       comment?: string | null;
+      category_ratings?: Record<string, number> | null;
     }) => {
       const { data: profile } = await supabase
         .from("profiles")
@@ -68,6 +69,7 @@ export function useCreateReview() {
           reviewer_id: profile.id,
           rating: input.rating,
           comment: input.comment || null,
+          category_ratings: input.category_ratings || {},
         } as any)
         .select()
         .single();

@@ -12,9 +12,20 @@ import {
 } from "@/components/ui/select";
 import { Star, Loader2, Trash2, MessageSquare, User } from "lucide-react";
 import { useClientReviews, useCreateReview, useDeleteReview, type Review } from "@/hooks/useReviews";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
 import type { ClientContact } from "@/hooks/useClients";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+
+const DEFAULT_CATEGORIES = [
+  "Responsiveness",
+  "Fair Price",
+  "Knowledgeable",
+  "Quality of Work",
+  "Communication",
+  "Timeliness",
+  "Professionalism",
+];
 
 interface ReviewsSectionProps {
   clientId: string;
@@ -23,6 +34,7 @@ interface ReviewsSectionProps {
 
 export function ReviewsSection({ clientId, contacts }: ReviewsSectionProps) {
   const { data: reviews = [], isLoading } = useClientReviews(clientId);
+  const { data: companySettings } = useCompanySettings();
   const createReview = useCreateReview();
   const deleteReview = useDeleteReview();
   const { toast } = useToast();
@@ -31,6 +43,10 @@ export function ReviewsSection({ clientId, contacts }: ReviewsSectionProps) {
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState("");
   const [contactId, setContactId] = useState<string>("none");
+  const [categoryRatings, setCategoryRatings] = useState<Record<string, number>>({});
+  const [categoryHover, setCategoryHover] = useState<Record<string, number>>({});
+
+  const categories = companySettings?.settings?.review_categories ?? DEFAULT_CATEGORIES;
 
   const avgRating = reviews.length > 0
     ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
@@ -38,11 +54,10 @@ export function ReviewsSection({ clientId, contacts }: ReviewsSectionProps) {
 
   const handleSubmit = async () => {
     if (rating === 0) {
-      toast({ title: "Please select a rating", variant: "destructive" });
+      toast({ title: "Please select an overall rating", variant: "destructive" });
       return;
     }
 
-    // Parse @mentions from comment
     const mentionedContactId = contactId !== "none" ? contactId : null;
 
     try {
@@ -51,11 +66,13 @@ export function ReviewsSection({ clientId, contacts }: ReviewsSectionProps) {
         contact_id: mentionedContactId,
         rating,
         comment: comment.trim() || null,
+        category_ratings: Object.keys(categoryRatings).length > 0 ? categoryRatings : null,
       });
       toast({ title: "Review added" });
       setRating(0);
       setComment("");
       setContactId("none");
+      setCategoryRatings({});
       setShowForm(false);
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -69,6 +86,14 @@ export function ReviewsSection({ clientId, contacts }: ReviewsSectionProps) {
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
+  };
+
+  const setCatRating = (cat: string, val: number) => {
+    setCategoryRatings((prev) => ({ ...prev, [cat]: val }));
+  };
+
+  const setCatHover = (cat: string, val: number) => {
+    setCategoryHover((prev) => ({ ...prev, [cat]: val }));
   };
 
   return (
@@ -98,9 +123,9 @@ export function ReviewsSection({ clientId, contacts }: ReviewsSectionProps) {
         {/* Add Review Form */}
         {showForm && (
           <div className="border rounded-lg p-4 space-y-3 bg-muted/20">
-            {/* Star Rating */}
+            {/* Overall Rating */}
             <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Rating *</label>
+              <label className="text-xs font-medium text-muted-foreground">Overall Rating *</label>
               <div className="flex gap-1">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
@@ -123,7 +148,41 @@ export function ReviewsSection({ clientId, contacts }: ReviewsSectionProps) {
               </div>
             </div>
 
-            {/* Contact Select (@ mention) */}
+            {/* Category Ratings */}
+            {categories.length > 0 && (
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground">Category Ratings (optional)</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {categories.map((cat) => (
+                    <div key={cat} className="flex items-center justify-between gap-2 rounded-md border px-3 py-1.5 bg-background">
+                      <span className="text-xs text-muted-foreground truncate">{cat}</span>
+                      <div className="flex gap-0.5 shrink-0">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onMouseEnter={() => setCatHover(cat, star)}
+                            onMouseLeave={() => setCatHover(cat, 0)}
+                            onClick={() => setCatRating(cat, star)}
+                            className="transition-transform hover:scale-110"
+                          >
+                            <Star
+                              className={`h-3.5 w-3.5 ${
+                                star <= (categoryHover[cat] || categoryRatings[cat] || 0)
+                                  ? "fill-accent text-accent"
+                                  : "text-muted-foreground/20"
+                              }`}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Contact Select */}
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">
                 @ Contact (optional)
@@ -216,6 +275,8 @@ function ReviewCard({
     ? review.project.project_number || review.project.name || "Project"
     : null;
 
+  const catRatings = (review as any).category_ratings as Record<string, number> | null;
+
   return (
     <div className="border rounded-lg p-3 space-y-2">
       <div className="flex items-start justify-between">
@@ -270,6 +331,25 @@ function ReviewCard({
               {projectLabel}
             </Badge>
           )}
+        </div>
+      )}
+
+      {/* Category ratings */}
+      {catRatings && Object.keys(catRatings).length > 0 && (
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+          {Object.entries(catRatings).map(([cat, val]) => (
+            <div key={cat} className="flex items-center gap-1 text-muted-foreground">
+              <span>{cat}:</span>
+              <div className="flex">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <Star
+                    key={s}
+                    className={`h-2.5 w-2.5 ${s <= val ? "fill-accent text-accent" : "text-muted-foreground/20"}`}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
