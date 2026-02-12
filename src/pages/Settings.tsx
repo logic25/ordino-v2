@@ -2,11 +2,12 @@ import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Settings as SettingsIcon, User, Building, Bell, CreditCard, Shield, Package, ChevronLeft } from "lucide-react";
+import { Settings as SettingsIcon, User, Building, Bell, CreditCard, Shield, Package, ChevronLeft, FileText } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ServiceCatalogSettings } from "@/components/settings/ServiceCatalogSettings";
+import { RfiTemplateSettings } from "@/components/settings/RfiTemplateSettings";
 
-type SettingsSection = "main" | "profile" | "company" | "proposals" | "notifications" | "billing" | "security";
+type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "notifications" | "billing" | "security";
 
 const settingsSections = [
   {
@@ -26,6 +27,12 @@ const settingsSections = [
     title: "Proposals & Services",
     description: "Service catalog and default terms",
     icon: Package,
+  },
+  {
+    id: "rfi_templates" as const,
+    title: "RFI Templates",
+    description: "Configure client questionnaire forms",
+    icon: FileText,
   },
   {
     id: "notifications" as const,
@@ -54,6 +61,8 @@ export default function Settings() {
     switch (activeSection) {
       case "proposals":
         return <ServiceCatalogSettings />;
+      case "rfi_templates":
+        return <RfiTemplateSettings />;
       case "profile":
       case "company":
       case "notifications":

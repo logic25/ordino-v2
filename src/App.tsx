@@ -17,6 +17,7 @@ import Proposals from "./pages/Proposals";
 import Invoices from "./pages/Invoices";
 import Clients from "./pages/Clients";
 import Settings from "./pages/Settings";
+import RfiForm from "./pages/RfiForm";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -110,6 +111,9 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
+      {/* Public RFI form - no auth required */}
+      <Route path="/rfi" element={<RfiForm />} />
 
       {/* Catch-all */}
       <Route path="*" element={<NotFound />} />
