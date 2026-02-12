@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Plus, Search, Loader2, Building2, UserPlus, Contact } from "lucide-react";
+import { Users, Plus, Search, Loader2, Building2, UserPlus, Contact, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ClientDialog } from "@/components/clients/ClientDialog";
 import { ClientTable } from "@/components/clients/ClientTable";
@@ -18,7 +18,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { subDays } from "date-fns";
+import { subDays, format } from "date-fns";
 
 function useClientMetrics(clients: Client[]) {
   const contactsQuery = useQuery({
@@ -119,6 +119,29 @@ export default function Clients() {
     }
   };
 
+  const handleExportCsv = () => {
+    const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
+    const headers = ["Name", "Email", "Phone", "Fax", "Address", "Tax ID", "SIA", "Added"];
+    const rows = filteredClients.map((c) => [
+      c.name || "",
+      c.email || "",
+      c.phone || "",
+      c.fax || "",
+      c.address || "",
+      c.tax_id || "",
+      c.is_sia ? "Yes" : "No",
+      c.created_at ? format(new Date(c.created_at), "yyyy-MM-dd") : "",
+    ]);
+    const csv = [headers, ...rows].map((r) => r.map(escape).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `clients-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
@@ -129,14 +152,20 @@ export default function Clients() {
               Manage your client relationships
             </p>
           </div>
-          <Button
-            size="sm"
-            className="bg-accent text-accent-foreground hover:bg-accent/90"
-            onClick={handleOpenCreate}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Client
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleExportCsv} disabled={filteredClients.length === 0}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+            <Button
+              size="sm"
+              className="bg-accent text-accent-foreground hover:bg-accent/90"
+              onClick={handleOpenCreate}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Client
+            </Button>
+          </div>
         </div>
 
         {/* Metrics */}

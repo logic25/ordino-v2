@@ -29,6 +29,14 @@ import { useState } from "react";
 import type { Client } from "@/hooks/useClients";
 import { format } from "date-fns";
 
+function formatPhone(value: string | null | undefined): string {
+  if (!value) return "";
+  const digits = value.replace(/\D/g, "");
+  if (digits.length === 10) return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  if (digits.length === 11 && digits.startsWith("1")) return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  return value;
+}
+
 interface ClientTableProps {
   clients: Client[];
   onEdit: (client: Client) => void;
@@ -83,7 +91,7 @@ export function ClientTable({
             >
               <TableCell className="font-medium">{client.name}</TableCell>
               <TableCell className="text-muted-foreground">{client.email || "—"}</TableCell>
-              <TableCell className="text-muted-foreground">{client.phone || "—"}</TableCell>
+              <TableCell className="text-muted-foreground">{formatPhone(client.phone) || "—"}</TableCell>
               <TableCell className="text-muted-foreground max-w-[200px] truncate">
                 {client.address || "—"}
               </TableCell>
