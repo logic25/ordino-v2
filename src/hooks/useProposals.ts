@@ -12,6 +12,8 @@ export type ProposalWithRelations = Proposal & {
   milestones?: ProposalMilestone[];
   internal_signer?: Tables<"profiles"> | null;
   assigned_pm?: Tables<"profiles"> | null;
+  sales_person?: Tables<"profiles"> | null;
+  creator?: Tables<"profiles"> | null;
 };
 
 export interface ProposalFormInput {
@@ -25,8 +27,16 @@ export interface ProposalFormInput {
   valid_until?: string | null;
   client_name?: string | null;
   client_email?: string | null;
+  client_id?: string | null;
   assigned_pm_id?: string | null;
   notes?: string | null;
+  lead_source?: string | null;
+  project_type?: string | null;
+  sales_person_id?: string | null;
+  billed_to_name?: string | null;
+  billed_to_email?: string | null;
+  reminder_date?: string | null;
+  terms_conditions?: string | null;
   items?: ProposalItemInput[];
   milestones?: ProposalMilestoneInput[];
 }
@@ -60,7 +70,9 @@ export function useProposals() {
           *,
           properties (id, address, borough),
           internal_signer:profiles!proposals_internal_signed_by_fkey (id, first_name, last_name),
-          assigned_pm:profiles!proposals_assigned_pm_id_fkey (id, first_name, last_name)
+          assigned_pm:profiles!proposals_assigned_pm_id_fkey (id, first_name, last_name),
+          sales_person:profiles!proposals_sales_person_id_fkey (id, first_name, last_name),
+          creator:profiles!proposals_created_by_fkey (id, first_name, last_name)
         `)
         .order("created_at", { ascending: false });
       
@@ -119,7 +131,7 @@ export function useCreateProposal() {
     mutationFn: async (input: ProposalFormInput) => {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("company_id")
+        .select("id, company_id")
         .single();
 
       if (!profile?.company_id) {
@@ -134,6 +146,7 @@ export function useCreateProposal() {
       const taxAmount = subtotal * (taxRate / 100);
       const totalAmount = subtotal + taxAmount;
 
+      // Get current user's profile id for created_by
       const { data: proposal, error: proposalError } = await supabase
         .from("proposals")
         .insert({
@@ -151,8 +164,17 @@ export function useCreateProposal() {
           valid_until: proposalData.valid_until || null,
           client_name: proposalData.client_name || null,
           client_email: proposalData.client_email || null,
+          client_id: proposalData.client_id || null,
           notes: proposalData.notes || null,
-        })
+          terms_conditions: proposalData.terms_conditions || null,
+          lead_source: proposalData.lead_source || null,
+          project_type: proposalData.project_type || null,
+          sales_person_id: proposalData.sales_person_id || null,
+          created_by: profile.id,
+          billed_to_name: proposalData.billed_to_name || null,
+          billed_to_email: proposalData.billed_to_email || null,
+          reminder_date: proposalData.reminder_date || null,
+        } as any)
         .select()
         .single();
 
@@ -233,8 +255,16 @@ export function useUpdateProposal() {
           valid_until: proposalData.valid_until || null,
           client_name: proposalData.client_name || null,
           client_email: proposalData.client_email || null,
+          client_id: proposalData.client_id || null,
           notes: proposalData.notes || null,
-        })
+          terms_conditions: proposalData.terms_conditions || null,
+          lead_source: proposalData.lead_source || null,
+          project_type: proposalData.project_type || null,
+          sales_person_id: proposalData.sales_person_id || null,
+          billed_to_name: proposalData.billed_to_name || null,
+          billed_to_email: proposalData.billed_to_email || null,
+          reminder_date: proposalData.reminder_date || null,
+        } as any)
         .eq("id", id)
         .select()
         .single();

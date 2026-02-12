@@ -26,9 +26,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, Plus, Trash2, UserPlus } from "lucide-react";
 import type { ProposalWithRelations, ProposalFormInput } from "@/hooks/useProposals";
 import { useProperties } from "@/hooks/useProperties";
-// PM is assigned during signing, not on the proposal
 import { useClients, useCreateClient, Client } from "@/hooks/useClients";
 import { useCompanySettings, ServiceCatalogItem } from "@/hooks/useCompanySettings";
+import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useToast } from "@/hooks/use-toast";
 
 const itemSchema = z.object({
@@ -54,6 +54,12 @@ const proposalSchema = z.object({
   client_email: z.string().email().optional().or(z.literal("")),
   notes: z.string().optional(),
   terms_conditions: z.string().optional(),
+  lead_source: z.string().optional(),
+  project_type: z.string().optional(),
+  sales_person_id: z.string().optional(),
+  billed_to_name: z.string().optional(),
+  billed_to_email: z.string().email().optional().or(z.literal("")),
+  reminder_date: z.string().optional(),
   items: z.array(itemSchema),
 });
 
@@ -78,18 +84,27 @@ export function ProposalDialog({
 }: ProposalDialogProps) {
   const isEditing = !!proposal;
   const { data: properties = [] } = useProperties();
-  // PM removed from proposal — assigned during signing
   const { data: clients = [] } = useClients();
   const { data: companyData } = useCompanySettings();
+  const { data: profiles = [] } = useCompanyProfiles();
   const createClient = useCreateClient();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("services");
+  const [activeTab, setActiveTab] = useState("details");
   const [showNewClient, setShowNewClient] = useState(false);
   const [newClientName, setNewClientName] = useState("");
   const [newClientEmail, setNewClientEmail] = useState("");
 
   const serviceCatalog = companyData?.settings?.service_catalog || [];
   const defaultTerms = companyData?.settings?.default_terms || "";
+
+  const newFieldDefaults = {
+    lead_source: "",
+    project_type: "",
+    sales_person_id: "",
+    billed_to_name: "",
+    billed_to_email: "",
+    reminder_date: "",
+  };
 
   const form = useForm<FormData>({
     resolver: zodResolver(proposalSchema),
@@ -105,6 +120,7 @@ export function ProposalDialog({
       client_email: "",
       notes: "",
       terms_conditions: defaultTerms,
+      ...newFieldDefaults,
       items: [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0 }],
     },
   });
@@ -116,6 +132,7 @@ export function ProposalDialog({
 
   useEffect(() => {
     if (proposal) {
+      const p = proposal as any;
       form.reset({
         property_id: proposal.property_id || "",
         title: proposal.title || "",
@@ -123,11 +140,17 @@ export function ProposalDialog({
         deposit_required: proposal.deposit_required ? Number(proposal.deposit_required) : undefined,
         deposit_percentage: proposal.deposit_percentage ? Number(proposal.deposit_percentage) : undefined,
         valid_until: proposal.valid_until || "",
-        client_id: (proposal as any).client_id || "",
+        client_id: p.client_id || "",
         client_name: proposal.client_name || "",
         client_email: proposal.client_email || "",
         notes: proposal.notes || "",
-        terms_conditions: (proposal as any).terms_conditions || defaultTerms,
+        terms_conditions: p.terms_conditions || defaultTerms,
+        lead_source: p.lead_source || "",
+        project_type: p.project_type || "",
+        sales_person_id: p.sales_person_id || "",
+        billed_to_name: p.billed_to_name || "",
+        billed_to_email: p.billed_to_email || "",
+        reminder_date: p.reminder_date || "",
         items: proposal.items?.length ? proposal.items.map(i => ({
           id: i.id,
           name: i.name,
@@ -152,6 +175,7 @@ export function ProposalDialog({
         client_email: "",
         notes: "",
         terms_conditions: defaultTerms,
+        ...newFieldDefaults,
         items: [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0 }],
       });
     }
@@ -227,7 +251,15 @@ export function ProposalDialog({
       valid_until: data.valid_until || null,
       client_name: data.client_name || null,
       client_email: data.client_email || null,
+      client_id: data.client_id || null,
       notes: data.notes || null,
+      terms_conditions: data.terms_conditions || null,
+      lead_source: data.lead_source || null,
+      project_type: data.project_type || null,
+      sales_person_id: data.sales_person_id || null,
+      billed_to_name: data.billed_to_name || null,
+      billed_to_email: data.billed_to_email || null,
+      reminder_date: data.reminder_date || null,
       items: validItems.map((item, idx) => ({
         id: item.id,
         name: item.name,
@@ -264,109 +296,204 @@ export function ProposalDialog({
         </DialogHeader>
 
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-          {/* Basic Info */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="property_id">Property *</Label>
-              <Select
-                value={form.watch("property_id")}
-                onValueChange={(value) => form.setValue("property_id", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select property" />
-                </SelectTrigger>
-                <SelectContent>
-                  {properties.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.address}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {form.formState.errors.property_id && (
-                <p className="text-sm text-destructive">
-                  {form.formState.errors.property_id.message}
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="title">Proposal Title *</Label>
-              <Input
-                id="title"
-                placeholder="e.g., Full Permit Package"
-                {...form.register("title")}
-              />
-              {form.formState.errors.title && (
-                <p className="text-sm text-destructive">
-                  {form.formState.errors.title.message}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Client Selection */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Client</Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowNewClient(!showNewClient)}
-              >
-                <UserPlus className="h-4 w-4 mr-1" />
-                {showNewClient ? "Select Existing" : "New Client"}
-              </Button>
-            </div>
-            
-            {showNewClient ? (
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Client name"
-                  value={newClientName}
-                  onChange={(e) => setNewClientName(e.target.value)}
-                  className="flex-1"
-                />
-                <Input
-                  placeholder="Email (optional)"
-                  type="email"
-                  value={newClientEmail}
-                  onChange={(e) => setNewClientEmail(e.target.value)}
-                  className="flex-1"
-                />
-                <Button
-                  type="button"
-                  onClick={handleAddNewClient}
-                  disabled={createClient.isPending}
-                  size="sm"
-                >
-                  {createClient.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
-                </Button>
-              </div>
-            ) : (
-              <Select
-                value={form.watch("client_id") || ""}
-                onValueChange={handleClientSelect}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select or add a client" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name} {c.email && `(${c.email})`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="details">Details</TabsTrigger>
               <TabsTrigger value="services">Services</TabsTrigger>
               <TabsTrigger value="terms">Terms & Notes</TabsTrigger>
             </TabsList>
+
+            {/* Details Tab */}
+            <TabsContent value="details" className="space-y-4 mt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="property_id">Property *</Label>
+                  <Select
+                    value={form.watch("property_id")}
+                    onValueChange={(value) => form.setValue("property_id", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select property" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {properties.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.address}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {form.formState.errors.property_id && (
+                    <p className="text-sm text-destructive">
+                      {form.formState.errors.property_id.message}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="title">Proposal Title *</Label>
+                  <Input
+                    id="title"
+                    placeholder="e.g., Full Permit Package"
+                    {...form.register("title")}
+                  />
+                  {form.formState.errors.title && (
+                    <p className="text-sm text-destructive">
+                      {form.formState.errors.title.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="project_type">Project Type</Label>
+                  <Input
+                    id="project_type"
+                    placeholder="e.g., New Building, Alteration, Renovation"
+                    {...form.register("project_type")}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lead_source">Lead Source</Label>
+                  <Input
+                    id="lead_source"
+                    placeholder="e.g., Referral, Website, Cold Call"
+                    {...form.register("lead_source")}
+                  />
+                </div>
+              </div>
+
+              {/* Client Selection */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Client</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowNewClient(!showNewClient)}
+                  >
+                    <UserPlus className="h-4 w-4 mr-1" />
+                    {showNewClient ? "Select Existing" : "New Client"}
+                  </Button>
+                </div>
+                
+                {showNewClient ? (
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Client name"
+                      value={newClientName}
+                      onChange={(e) => setNewClientName(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Input
+                      placeholder="Email (optional)"
+                      type="email"
+                      value={newClientEmail}
+                      onChange={(e) => setNewClientEmail(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      onClick={handleAddNewClient}
+                      disabled={createClient.isPending}
+                      size="sm"
+                    >
+                      {createClient.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
+                    </Button>
+                  </div>
+                ) : (
+                  <Select
+                    value={form.watch("client_id") || ""}
+                    onValueChange={handleClientSelect}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select or add a client" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clients.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name} {c.email && `(${c.email})`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+
+              {/* Billed To */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="billed_to_name">Billed To (Name)</Label>
+                  <Input
+                    id="billed_to_name"
+                    placeholder="If different from client"
+                    {...form.register("billed_to_name")}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="billed_to_email">Billed To (Email)</Label>
+                  <Input
+                    id="billed_to_email"
+                    type="email"
+                    placeholder="Billing email"
+                    {...form.register("billed_to_email")}
+                  />
+                </div>
+              </div>
+
+              {/* Sales Person & Reminder */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="sales_person_id">Sales Person</Label>
+                  <Select
+                    value={form.watch("sales_person_id") || ""}
+                    onValueChange={(value) => form.setValue("sales_person_id", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select sales person" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {profiles.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.first_name} {p.last_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="reminder_date">Reminder Date</Label>
+                  <Input
+                    id="reminder_date"
+                    type="date"
+                    {...form.register("reminder_date")}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="deposit_percentage">Deposit %</Label>
+                  <Input
+                    id="deposit_percentage"
+                    type="number"
+                    min="0"
+                    max="100"
+                    placeholder="50"
+                    {...form.register("deposit_percentage")}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="valid_until">Valid Until</Label>
+                  <Input
+                    id="valid_until"
+                    type="date"
+                    {...form.register("valid_until")}
+                  />
+                </div>
+              </div>
+            </TabsContent>
 
             {/* Services Tab - Spreadsheet Style */}
             <TabsContent value="services" className="space-y-4 mt-4">
@@ -517,28 +644,6 @@ export function ProposalDialog({
                   rows={3}
                   {...form.register("payment_terms")}
                 />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="deposit_percentage">Deposit %</Label>
-                  <Input
-                    id="deposit_percentage"
-                    type="number"
-                    min="0"
-                    max="100"
-                    placeholder="50"
-                    {...form.register("deposit_percentage")}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="valid_until">Valid Until</Label>
-                  <Input
-                    id="valid_until"
-                    type="date"
-                    {...form.register("valid_until")}
-                  />
-                </div>
               </div>
 
               <div className="space-y-2">
