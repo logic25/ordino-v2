@@ -26,7 +26,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, Plus, Trash2, UserPlus } from "lucide-react";
 import type { ProposalWithRelations, ProposalFormInput } from "@/hooks/useProposals";
 import { useProperties } from "@/hooks/useProperties";
-import { useAssignableProfiles } from "@/hooks/useProfiles";
+// PM is assigned during signing, not on the proposal
 import { useClients, useCreateClient, Client } from "@/hooks/useClients";
 import { useCompanySettings, ServiceCatalogItem } from "@/hooks/useCompanySettings";
 import { useToast } from "@/hooks/use-toast";
@@ -46,13 +46,12 @@ const proposalSchema = z.object({
   property_id: z.string().min(1, "Property is required"),
   title: z.string().min(1, "Title is required"),
   payment_terms: z.string().optional(),
-  deposit_required: z.coerce.number().optional(),
-  deposit_percentage: z.coerce.number().optional(),
+  deposit_required: z.preprocess((v) => (v === "" || v === undefined || v === null ? undefined : Number(v)), z.number().min(0).optional()),
+  deposit_percentage: z.preprocess((v) => (v === "" || v === undefined || v === null ? undefined : Number(v)), z.number().min(0).max(100).optional()),
   valid_until: z.string().optional(),
   client_id: z.string().optional(),
   client_name: z.string().optional(),
   client_email: z.string().email().optional().or(z.literal("")),
-  assigned_pm_id: z.string().optional(),
   notes: z.string().optional(),
   terms_conditions: z.string().optional(),
   items: z.array(itemSchema),
@@ -79,7 +78,7 @@ export function ProposalDialog({
 }: ProposalDialogProps) {
   const isEditing = !!proposal;
   const { data: properties = [] } = useProperties();
-  const { data: profiles = [] } = useAssignableProfiles();
+  // PM removed from proposal — assigned during signing
   const { data: clients = [] } = useClients();
   const { data: companyData } = useCompanySettings();
   const createClient = useCreateClient();
@@ -98,13 +97,12 @@ export function ProposalDialog({
       property_id: defaultPropertyId || "",
       title: "",
       payment_terms: "",
-      deposit_required: 0,
+      deposit_required: undefined,
       deposit_percentage: undefined,
       valid_until: "",
       client_id: "",
       client_name: "",
       client_email: "",
-      assigned_pm_id: "",
       notes: "",
       terms_conditions: defaultTerms,
       items: [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0 }],
@@ -122,13 +120,12 @@ export function ProposalDialog({
         property_id: proposal.property_id || "",
         title: proposal.title || "",
         payment_terms: proposal.payment_terms || "",
-        deposit_required: Number(proposal.deposit_required) || 0,
+        deposit_required: proposal.deposit_required ? Number(proposal.deposit_required) : undefined,
         deposit_percentage: proposal.deposit_percentage ? Number(proposal.deposit_percentage) : undefined,
         valid_until: proposal.valid_until || "",
         client_id: (proposal as any).client_id || "",
         client_name: proposal.client_name || "",
         client_email: proposal.client_email || "",
-        assigned_pm_id: proposal.assigned_pm_id || "",
         notes: proposal.notes || "",
         terms_conditions: (proposal as any).terms_conditions || defaultTerms,
         items: proposal.items?.length ? proposal.items.map(i => ({
@@ -147,13 +144,12 @@ export function ProposalDialog({
         property_id: defaultPropertyId || "",
         title: "",
         payment_terms: "",
-        deposit_required: 0,
+        deposit_required: undefined,
         deposit_percentage: undefined,
         valid_until: "",
         client_id: "",
         client_name: "",
         client_email: "",
-        assigned_pm_id: "",
         notes: "",
         terms_conditions: defaultTerms,
         items: [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0 }],
@@ -231,7 +227,6 @@ export function ProposalDialog({
       valid_until: data.valid_until || null,
       client_name: data.client_name || null,
       client_email: data.client_email || null,
-      assigned_pm_id: data.assigned_pm_id || null,
       notes: data.notes || null,
       items: validItems.map((item, idx) => ({
         id: item.id,
@@ -524,7 +519,7 @@ export function ProposalDialog({
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="deposit_percentage">Deposit %</Label>
                   <Input
@@ -543,24 +538,6 @@ export function ProposalDialog({
                     type="date"
                     {...form.register("valid_until")}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="assigned_pm_id">Assigned PM</Label>
-                  <Select
-                    value={form.watch("assigned_pm_id") || ""}
-                    onValueChange={(value) => form.setValue("assigned_pm_id", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select PM" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {profiles.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.first_name} {p.last_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
 
