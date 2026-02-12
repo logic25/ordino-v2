@@ -631,6 +631,8 @@ export type Database = {
       proposals: {
         Row: {
           assigned_pm_id: string | null
+          billed_to_email: string | null
+          billed_to_name: string | null
           client_email: string | null
           client_id: string | null
           client_ip_address: string | null
@@ -642,17 +644,22 @@ export type Database = {
           converted_at: string | null
           converted_project_id: string | null
           created_at: string | null
+          created_by: string | null
           deposit_percentage: number | null
           deposit_required: number | null
           id: string
           internal_signature_data: string | null
           internal_signed_at: string | null
           internal_signed_by: string | null
+          lead_source: string | null
           metadata: Json | null
           notes: string | null
           payment_terms: string | null
+          project_type: string | null
           property_id: string
           proposal_number: string | null
+          reminder_date: string | null
+          sales_person_id: string | null
           scope_of_work: string | null
           sent_at: string | null
           status: Database["public"]["Enums"]["proposal_status"] | null
@@ -668,6 +675,8 @@ export type Database = {
         }
         Insert: {
           assigned_pm_id?: string | null
+          billed_to_email?: string | null
+          billed_to_name?: string | null
           client_email?: string | null
           client_id?: string | null
           client_ip_address?: string | null
@@ -679,17 +688,22 @@ export type Database = {
           converted_at?: string | null
           converted_project_id?: string | null
           created_at?: string | null
+          created_by?: string | null
           deposit_percentage?: number | null
           deposit_required?: number | null
           id?: string
           internal_signature_data?: string | null
           internal_signed_at?: string | null
           internal_signed_by?: string | null
+          lead_source?: string | null
           metadata?: Json | null
           notes?: string | null
           payment_terms?: string | null
+          project_type?: string | null
           property_id: string
           proposal_number?: string | null
+          reminder_date?: string | null
+          sales_person_id?: string | null
           scope_of_work?: string | null
           sent_at?: string | null
           status?: Database["public"]["Enums"]["proposal_status"] | null
@@ -705,6 +719,8 @@ export type Database = {
         }
         Update: {
           assigned_pm_id?: string | null
+          billed_to_email?: string | null
+          billed_to_name?: string | null
           client_email?: string | null
           client_id?: string | null
           client_ip_address?: string | null
@@ -716,17 +732,22 @@ export type Database = {
           converted_at?: string | null
           converted_project_id?: string | null
           created_at?: string | null
+          created_by?: string | null
           deposit_percentage?: number | null
           deposit_required?: number | null
           id?: string
           internal_signature_data?: string | null
           internal_signed_at?: string | null
           internal_signed_by?: string | null
+          lead_source?: string | null
           metadata?: Json | null
           notes?: string | null
           payment_terms?: string | null
+          project_type?: string | null
           property_id?: string
           proposal_number?: string | null
+          reminder_date?: string | null
+          sales_person_id?: string | null
           scope_of_work?: string | null
           sent_at?: string | null
           status?: Database["public"]["Enums"]["proposal_status"] | null
@@ -777,6 +798,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "proposals_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "proposals_internal_signed_by_fkey"
             columns: ["internal_signed_by"]
             isOneToOne: false
@@ -788,6 +816,13 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_sales_person_id_fkey"
+            columns: ["sales_person_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
