@@ -126,6 +126,11 @@ export function ClientDialog({
             )}
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="address">Address</Label>
+            <Input id="address" placeholder="Business address" {...form.register("address")} />
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -143,6 +148,13 @@ export function ClientDialog({
               <Input id="fax" placeholder="(555) 123-4568" {...form.register("fax")} />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="tax_id">Tax ID</Label>
+              <Input id="tax_id" placeholder="XX-XXXXXXX" {...form.register("tax_id")} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label>Lead Owner</Label>
               <Select
                 value={form.watch("lead_owner_id") || ""}
@@ -158,18 +170,6 @@ export function ClientDialog({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="address">Address</Label>
-            <Input id="address" placeholder="Business address" {...form.register("address")} />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="tax_id">Tax ID</Label>
-              <Input id="tax_id" placeholder="XX-XXXXXXX" {...form.register("tax_id")} />
             </div>
             <div className="flex items-center gap-3 pt-6">
               <Switch

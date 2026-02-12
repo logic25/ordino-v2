@@ -41,7 +41,6 @@ export function AddContactDialog({ open, onOpenChange, clientId }: AddContactDia
     mobile: "",
     fax: "",
     linkedin_url: "",
-    company_name: "",
     lead_owner_id: "",
     address_1: "",
     address_2: "",
@@ -76,7 +75,6 @@ export function AddContactDialog({ open, onOpenChange, clientId }: AddContactDia
         mobile: form.mobile || null,
         fax: form.fax || null,
         linkedin_url: form.linkedin_url || null,
-        company_name: form.company_name || null,
         lead_owner_id: form.lead_owner_id || null,
         address_1: form.address_1 || null,
         address_2: form.address_2 || null,
@@ -91,7 +89,7 @@ export function AddContactDialog({ open, onOpenChange, clientId }: AddContactDia
       queryClient.invalidateQueries({ queryKey: ["client-contacts", clientId] });
       setForm({
         first_name: "", last_name: "", title: "", email: "", phone: "",
-        mobile: "", fax: "", linkedin_url: "", company_name: "",
+        mobile: "", fax: "", linkedin_url: "",
         lead_owner_id: "", address_1: "", address_2: "", city: "",
         state: "", zip: "", is_primary: false,
       });
@@ -113,6 +111,7 @@ export function AddContactDialog({ open, onOpenChange, clientId }: AddContactDia
         </DialogHeader>
 
         <div className="space-y-3">
+          {/* Name */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>First Name *</Label>
@@ -124,17 +123,40 @@ export function AddContactDialog({ open, onOpenChange, clientId }: AddContactDia
             </div>
           </div>
 
+          {/* Title */}
+          <div className="space-y-1.5">
+            <Label>Title / Role</Label>
+            <Input value={form.title} onChange={(e) => update("title", e.target.value)} />
+          </div>
+
+          {/* Address */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Title / Role</Label>
-              <Input value={form.title} onChange={(e) => update("title", e.target.value)} />
+              <Label>Address 1</Label>
+              <Input value={form.address_1} onChange={(e) => update("address_1", e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label>Company</Label>
-              <Input value={form.company_name} onChange={(e) => update("company_name", e.target.value)} />
+              <Label>Address 2</Label>
+              <Input value={form.address_2} onChange={(e) => update("address_2", e.target.value)} />
             </div>
           </div>
 
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <Label>City</Label>
+              <Input value={form.city} onChange={(e) => update("city", e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>State</Label>
+              <Input value={form.state} onChange={(e) => update("state", e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Zip</Label>
+              <Input value={form.zip} onChange={(e) => update("zip", e.target.value)} />
+            </div>
+          </div>
+
+          {/* Contact Info */}
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <Label>Email</Label>
@@ -163,32 +185,7 @@ export function AddContactDialog({ open, onOpenChange, clientId }: AddContactDia
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Address 1</Label>
-              <Input value={form.address_1} onChange={(e) => update("address_1", e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Address 2</Label>
-              <Input value={form.address_2} onChange={(e) => update("address_2", e.target.value)} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1.5">
-              <Label>City</Label>
-              <Input value={form.city} onChange={(e) => update("city", e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>State</Label>
-              <Input value={form.state} onChange={(e) => update("state", e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Zip</Label>
-              <Input value={form.zip} onChange={(e) => update("zip", e.target.value)} />
-            </div>
-          </div>
-
+          {/* Settings */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Lead Owner</Label>
