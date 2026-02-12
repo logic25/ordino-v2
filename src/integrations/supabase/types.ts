@@ -111,6 +111,7 @@ export type Database = {
           email: string | null
           id: string
           is_primary: boolean
+          linkedin_url: string | null
           name: string
           notes: string | null
           phone: string | null
@@ -125,6 +126,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_primary?: boolean
+          linkedin_url?: string | null
           name: string
           notes?: string | null
           phone?: string | null
@@ -139,6 +141,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_primary?: boolean
+          linkedin_url?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
