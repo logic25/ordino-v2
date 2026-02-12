@@ -11,6 +11,7 @@ export interface ClientContactInput {
   title?: string | null;
   email?: string | null;
   phone?: string | null;
+  linkedin_url?: string | null;
   is_primary?: boolean;
 }
 
@@ -94,6 +95,7 @@ export function useCreateClient() {
           title: c.title || null,
           email: c.email || null,
           phone: c.phone || null,
+          linkedin_url: c.linkedin_url || null,
           is_primary: c.is_primary || false,
           sort_order: i,
         }));
@@ -167,6 +169,7 @@ export function useUpdateClient() {
             title: c.title || null,
             email: c.email || null,
             phone: c.phone || null,
+            linkedin_url: c.linkedin_url || null,
             is_primary: c.is_primary || false,
             sort_order: i,
           };
