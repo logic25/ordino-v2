@@ -50,6 +50,7 @@ function extractEmailParts(payload: any): {
   const attachments: any[] = [];
 
   function walk(part: any) {
+    if (!part) return;
     if (part.filename && part.filename.length > 0) {
       attachments.push({
         filename: part.filename,
