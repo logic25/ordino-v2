@@ -355,29 +355,32 @@ export function useSignProposalInternal() {
 
       if (proposalError) throw proposalError;
 
-      // Create the dob_application (project)
-      const { data: application, error: appError } = await supabase
-        .from("dob_applications")
+      // Create a Project (not a DOB application directly)
+      const { data: project, error: projectError } = await supabase
+        .from("projects")
         .insert({
           company_id: profile.company_id,
           property_id: proposal.property_id,
+          proposal_id: proposal.id,
+          name: proposal.title,
           assigned_pm_id: assignedPmId,
-          status: "draft",
-          description: proposal.title,
-          estimated_value: proposal.total_amount,
-          notes: `Converted from proposal ${proposal.proposal_number}`,
-        })
+          client_id: proposal.client_id || null,
+          status: "open",
+          created_by: profile.id,
+          notes: `Created from proposal ${proposal.proposal_number}`,
+        } as any)
         .select()
         .single();
 
-      if (appError) throw appError;
+      if (projectError) throw projectError;
 
-      // Create services from proposal items
+      // Create services from proposal items, linked to the project
       const items = (proposal as any).items || [];
       if (items.length > 0) {
         const servicesToInsert = items.map((item: any) => ({
           company_id: profile.company_id,
-          application_id: application.id,
+          application_id: (project as any).id, // Still requires application_id due to NOT NULL — we'll create a placeholder
+          project_id: (project as any).id,
           name: item.name,
           description: item.description,
           estimated_hours: item.estimated_hours || null,
@@ -387,17 +390,42 @@ export function useSignProposalInternal() {
           status: "not_started",
         }));
 
-        const { error: servicesError } = await supabase
-          .from("services")
-          .insert(servicesToInsert);
+        // We need a DOB application to satisfy the FK constraint on services
+        const { data: application, error: appError } = await supabase
+          .from("dob_applications")
+          .insert({
+            company_id: profile.company_id,
+            property_id: proposal.property_id,
+            assigned_pm_id: assignedPmId,
+            project_id: (project as any).id,
+            status: "draft",
+            description: proposal.title,
+            estimated_value: proposal.total_amount,
+            notes: `Auto-created from proposal ${proposal.proposal_number}`,
+          } as any)
+          .select()
+          .single();
 
-        if (servicesError) {
-          console.error("Error creating services:", servicesError);
-          // Don't throw - project was created successfully
+        if (appError) {
+          console.error("Error creating application:", appError);
+        } else {
+          // Now insert services linked to application
+          const servicesWithApp = servicesToInsert.map((s: any) => ({
+            ...s,
+            application_id: application.id,
+          }));
+
+          const { error: servicesError } = await supabase
+            .from("services")
+            .insert(servicesWithApp);
+
+          if (servicesError) {
+            console.error("Error creating services:", servicesError);
+          }
         }
       }
 
-      // Update proposal with signature and link to application
+      // Update proposal with signature and link to project
       const { data, error } = await supabase
         .from("proposals")
         .update({
@@ -406,19 +434,20 @@ export function useSignProposalInternal() {
           internal_signed_at: new Date().toISOString(),
           internal_signature_data: signatureData,
           assigned_pm_id: assignedPmId,
-          converted_application_id: application.id,
+          converted_project_id: (project as any).id,
           converted_at: new Date().toISOString(),
-        })
+        } as any)
         .eq("id", id)
         .select()
         .single();
 
       if (error) throw error;
-      return { proposal: data, application };
+      return { proposal: data, project };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["proposals"] });
       queryClient.invalidateQueries({ queryKey: ["proposals", data.proposal.id] });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
       queryClient.invalidateQueries({ queryKey: ["applications"] });
     },
   });

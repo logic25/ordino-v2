@@ -208,6 +208,7 @@ export type Database = {
           metadata: Json | null
           notes: string | null
           permit_issued_date: string | null
+          project_id: string | null
           property_id: string
           status: Database["public"]["Enums"]["application_status"] | null
           updated_at: string | null
@@ -227,6 +228,7 @@ export type Database = {
           metadata?: Json | null
           notes?: string | null
           permit_issued_date?: string | null
+          project_id?: string | null
           property_id: string
           status?: Database["public"]["Enums"]["application_status"] | null
           updated_at?: string | null
@@ -246,6 +248,7 @@ export type Database = {
           metadata?: Json | null
           notes?: string | null
           permit_issued_date?: string | null
+          project_id?: string | null
           property_id?: string
           status?: Database["public"]["Enums"]["application_status"] | null
           updated_at?: string | null
@@ -263,6 +266,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dob_applications_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
           {
@@ -326,6 +336,135 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          assigned_pm_id: string | null
+          client_id: string | null
+          company_id: string
+          completion_date: string | null
+          created_at: string | null
+          created_by: string | null
+          floor_number: string | null
+          id: string
+          is_external: boolean
+          last_editor_id: string | null
+          metadata: Json | null
+          name: string | null
+          notable: boolean
+          notes: string | null
+          project_number: string | null
+          project_type: string | null
+          property_id: string
+          proposal_id: string | null
+          senior_pm_id: string | null
+          status: Database["public"]["Enums"]["project_status"]
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_pm_id?: string | null
+          client_id?: string | null
+          company_id: string
+          completion_date?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          floor_number?: string | null
+          id?: string
+          is_external?: boolean
+          last_editor_id?: string | null
+          metadata?: Json | null
+          name?: string | null
+          notable?: boolean
+          notes?: string | null
+          project_number?: string | null
+          project_type?: string | null
+          property_id: string
+          proposal_id?: string | null
+          senior_pm_id?: string | null
+          status?: Database["public"]["Enums"]["project_status"]
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_pm_id?: string | null
+          client_id?: string | null
+          company_id?: string
+          completion_date?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          floor_number?: string | null
+          id?: string
+          is_external?: boolean
+          last_editor_id?: string | null
+          metadata?: Json | null
+          name?: string | null
+          notable?: boolean
+          notes?: string | null
+          project_number?: string | null
+          project_type?: string | null
+          property_id?: string
+          proposal_id?: string | null
+          senior_pm_id?: string | null
+          status?: Database["public"]["Enums"]["project_status"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_assigned_pm_id_fkey"
+            columns: ["assigned_pm_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_last_editor_id_fkey"
+            columns: ["last_editor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_senior_pm_id_fkey"
+            columns: ["senior_pm_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -501,6 +640,7 @@ export type Database = {
           company_id: string
           converted_application_id: string | null
           converted_at: string | null
+          converted_project_id: string | null
           created_at: string | null
           deposit_percentage: number | null
           deposit_required: number | null
@@ -537,6 +677,7 @@ export type Database = {
           company_id: string
           converted_application_id?: string | null
           converted_at?: string | null
+          converted_project_id?: string | null
           created_at?: string | null
           deposit_percentage?: number | null
           deposit_required?: number | null
@@ -573,6 +714,7 @@ export type Database = {
           company_id?: string
           converted_application_id?: string | null
           converted_at?: string | null
+          converted_project_id?: string | null
           created_at?: string | null
           deposit_percentage?: number | null
           deposit_required?: number | null
@@ -628,6 +770,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "proposals_converted_project_id_fkey"
+            columns: ["converted_project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "proposals_internal_signed_by_fkey"
             columns: ["internal_signed_by"]
             isOneToOne: false
@@ -661,6 +810,7 @@ export type Database = {
           metadata: Json | null
           name: string
           notes: string | null
+          project_id: string | null
           qb_invoice_id: string | null
           status: Database["public"]["Enums"]["service_status"] | null
           total_amount: number | null
@@ -683,6 +833,7 @@ export type Database = {
           metadata?: Json | null
           name: string
           notes?: string | null
+          project_id?: string | null
           qb_invoice_id?: string | null
           status?: Database["public"]["Enums"]["service_status"] | null
           total_amount?: number | null
@@ -705,6 +856,7 @@ export type Database = {
           metadata?: Json | null
           name?: string
           notes?: string | null
+          project_id?: string | null
           qb_invoice_id?: string | null
           status?: Database["public"]["Enums"]["service_status"] | null
           total_amount?: number | null
@@ -723,6 +875,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "services_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -781,6 +940,7 @@ export type Database = {
         | "inspection"
         | "complete"
         | "closed"
+      project_status: "open" | "on_hold" | "closed" | "paid"
       proposal_status:
         | "draft"
         | "sent"
@@ -944,6 +1104,7 @@ export const Constants = {
         "complete",
         "closed",
       ],
+      project_status: ["open", "on_hold", "closed", "paid"],
       proposal_status: [
         "draft",
         "sent",
