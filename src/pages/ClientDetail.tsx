@@ -23,6 +23,12 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   ArrowLeft,
   FileText,
   FolderOpen,
@@ -36,6 +42,7 @@ import {
   Mail,
   ChevronDown,
   Phone,
+  MoreHorizontal,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -286,14 +293,15 @@ export default function ClientDetail() {
           <div className="space-y-4">
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Info</CardTitle>
+                <CardTitle className="text-base">{client.name}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2.5 text-sm">
-                <InfoRow label="Name" value={client.name} />
+                {client.address && (
+                  <p className="text-muted-foreground">{client.address}</p>
+                )}
                 <InfoRow label="Email" value={client.email} />
                 <InfoRow label="Phone" value={client.phone} />
                 <InfoRow label="Fax" value={client.fax} />
-                <InfoRow label="Address" value={client.address} />
                 <InfoRow label="Lead Owner" value={leadOwnerName} />
                 <InfoRow label="Tax ID" value={client.tax_id} />
                 {client.notes && <InfoRow label="Notes" value={client.notes} />}
@@ -344,7 +352,7 @@ export default function ClientDetail() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               {contactsLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -355,19 +363,27 @@ export default function ClientDetail() {
                   <p className="text-xs mt-1">Click Add Contact to add people.</p>
                 </div>
               ) : (
-                <div className="space-y-1">
-                  {/* Select All */}
-                  <div className="flex items-center gap-3 px-3 py-1.5 text-xs text-muted-foreground">
-                    <Checkbox
-                      checked={selectedContacts.size === contacts.length && contacts.length > 0}
-                      onCheckedChange={toggleSelectAll}
-                      className="h-3.5 w-3.5"
-                    />
-                    <span>Select all</span>
+                <div>
+                  {/* Table Header */}
+                  <div className="flex items-center gap-3 px-4 py-2 border-b bg-muted/40 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    <div className="w-8 shrink-0 flex items-center">
+                      <Checkbox
+                        checked={selectedContacts.size === contacts.length && contacts.length > 0}
+                        onCheckedChange={toggleSelectAll}
+                        className="h-3.5 w-3.5"
+                      />
+                    </div>
+                    <div className="w-5 shrink-0" />
+                    <div className="flex-1 min-w-[140px]">Name</div>
+                    <div className="w-[120px] shrink-0 hidden sm:block">Title</div>
+                    <div className="w-[120px] shrink-0 hidden md:block">Phone</div>
+                    <div className="w-[180px] shrink-0 hidden lg:block">Email</div>
+                    <div className="w-10 shrink-0" />
                   </div>
 
+                  {/* Contact Rows */}
                   {contacts.map((contact) => (
-                    <ContactCard
+                    <ContactRow
                       key={contact.id}
                       contact={contact}
                       profiles={profiles}
@@ -487,9 +503,9 @@ export default function ClientDetail() {
   );
 }
 
-/* ─── Contact Card ─── */
+/* ─── Contact Row (table-style collapsible) ─── */
 
-interface ContactCardProps {
+interface ContactRowProps {
   contact: ClientContact;
   profiles: Profile[];
   isSelected: boolean;
@@ -500,7 +516,7 @@ interface ContactCardProps {
   onDelete: () => void;
 }
 
-function ContactCard({
+function ContactRow({
   contact,
   profiles,
   isSelected,
@@ -509,7 +525,7 @@ function ContactCard({
   onToggleExpand,
   onEdit,
   onDelete,
-}: ContactCardProps) {
+}: ContactRowProps) {
   const leadOwner = contact.lead_owner_id
     ? profiles.find((p) => p.id === contact.lead_owner_id)
     : null;
@@ -519,55 +535,65 @@ function ContactCard({
 
   return (
     <Collapsible open={isExpanded} onOpenChange={onToggleExpand}>
+      {/* Row */}
       <div
-        className={`rounded-lg border transition-colors ${
-          isSelected ? "border-primary/50 bg-primary/5" : "bg-card hover:bg-muted/40"
+        className={`flex items-center gap-3 px-4 py-2.5 border-b transition-colors cursor-pointer ${
+          isSelected ? "bg-primary/5" : "hover:bg-muted/40"
         }`}
       >
-        {/* Summary Row */}
-        <div className="flex items-center gap-3 px-3 py-2.5">
+        <div className="w-8 shrink-0 flex items-center">
           <Checkbox
             checked={isSelected}
             onCheckedChange={onToggleSelect}
-            className="h-4 w-4"
+            className="h-3.5 w-3.5"
             onClick={(e) => e.stopPropagation()}
           />
-
-          <CollapsibleTrigger asChild>
-            <button className="flex-1 flex items-center gap-3 text-left min-w-0">
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                {contact.is_primary && (
-                  <Star className="h-3.5 w-3.5 text-accent fill-accent shrink-0" />
-                )}
-                <span className="font-medium text-sm truncate">
-                  {contact.first_name} {contact.last_name}
-                </span>
-                {contact.title && (
-                  <span className="text-xs text-muted-foreground truncate hidden sm:inline">
-                    · {contact.title}
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-3 shrink-0 text-muted-foreground">
-                {contact.email && (
-                  <span className="text-xs hidden md:inline truncate max-w-[160px]">{contact.email}</span>
-                )}
-                {contact.phone && (
-                  <span className="text-xs hidden lg:inline">{contact.phone}</span>
-                )}
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
-                />
-              </div>
-            </button>
-          </CollapsibleTrigger>
         </div>
 
-        {/* Expanded Details */}
-        <CollapsibleContent>
-          <div className="px-3 pb-3 pt-0 border-t">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 py-3 text-sm">
+        <CollapsibleTrigger asChild>
+          <button className="w-5 shrink-0 flex items-center justify-center">
+            <ChevronDown
+              className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`}
+            />
+          </button>
+        </CollapsibleTrigger>
+
+        <CollapsibleTrigger asChild>
+          <button className="flex-1 flex items-center gap-3 text-left min-w-0">
+            <div className="flex-1 min-w-[140px] flex items-center gap-1.5">
+              {contact.is_primary && (
+                <Star className="h-3 w-3 text-accent fill-accent shrink-0" />
+              )}
+              <span className="font-medium text-sm truncate">
+                {contact.first_name} {contact.last_name}
+              </span>
+            </div>
+            <div className="w-[120px] shrink-0 hidden sm:block text-sm text-muted-foreground truncate">
+              {contact.title || "—"}
+            </div>
+            <div className="w-[120px] shrink-0 hidden md:block text-sm text-muted-foreground truncate">
+              {contact.phone || "—"}
+            </div>
+            <div className="w-[180px] shrink-0 hidden lg:block text-sm truncate">
+              {contact.email ? (
+                <span className="text-primary">{contact.email}</span>
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )}
+            </div>
+          </button>
+        </CollapsibleTrigger>
+
+        <div className="w-10 shrink-0 flex items-center justify-end">
+          <MoreActions contact={contact} onEdit={onEdit} onDelete={onDelete} />
+        </div>
+      </div>
+
+      {/* Expanded Detail Panel */}
+      <CollapsibleContent>
+        <div className="border-b bg-muted/20">
+          <div className="px-4 py-4 ml-[52px]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2.5 text-sm">
               <DetailRow label="Email" value={contact.email} isLink={`mailto:${contact.email}`} />
               <DetailRow label="Phone" value={contact.phone} isLink={`tel:${contact.phone}`} />
               <DetailRow label="Mobile" value={contact.mobile} isLink={`tel:${contact.mobile}`} />
@@ -575,7 +601,7 @@ function ContactCard({
               <DetailRow label="Company" value={contact.company_name} />
               <DetailRow label="Title" value={contact.title} />
               {contact.linkedin_url && (
-                <div className="flex justify-between gap-2">
+                <div className="flex gap-2">
                   <span className="text-muted-foreground shrink-0">LinkedIn:</span>
                   <a
                     href={contact.linkedin_url}
@@ -589,8 +615,8 @@ function ContactCard({
               )}
               <DetailRow label="Lead Owner" value={leadOwnerName} />
               {(contact.address_1 || contact.city) && (
-                <div className="sm:col-span-2">
-                  <span className="text-muted-foreground">Address: </span>
+                <div className="sm:col-span-2 lg:col-span-3 flex gap-2">
+                  <span className="text-muted-foreground shrink-0">Address:</span>
                   <span>
                     {[contact.address_1, contact.address_2, contact.city, contact.state, contact.zip]
                       .filter(Boolean)
@@ -600,7 +626,7 @@ function ContactCard({
               )}
             </div>
 
-            <div className="flex items-center gap-2 pt-2 border-t">
+            <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border/50">
               <Button variant="outline" size="sm" onClick={onEdit}>
                 <Pencil className="h-3.5 w-3.5 mr-1" />
                 Edit
@@ -633,9 +659,52 @@ function ContactCard({
               </Button>
             </div>
           </div>
-        </CollapsibleContent>
-      </div>
+        </div>
+      </CollapsibleContent>
     </Collapsible>
+  );
+}
+
+/* ─── More Actions Dropdown ─── */
+
+function MoreActions({
+  contact,
+  onEdit,
+  onDelete,
+}: {
+  contact: ClientContact;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-7 w-7">
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={onEdit}>
+          <Pencil className="h-3.5 w-3.5 mr-2" />
+          Edit
+        </DropdownMenuItem>
+        {contact.email && (
+          <DropdownMenuItem asChild>
+            <a href={`mailto:${contact.email}`}>
+              <Mail className="h-3.5 w-3.5 mr-2" />
+              Send Email
+            </a>
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem
+          className="text-destructive focus:text-destructive"
+          onClick={onDelete}
+        >
+          <Trash2 className="h-3.5 w-3.5 mr-2" />
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -662,7 +731,7 @@ function DetailRow({
 }) {
   if (!value) return null;
   return (
-    <div className="flex justify-between gap-2">
+    <div className="flex gap-2">
       <span className="text-muted-foreground shrink-0">{label}:</span>
       {isLink ? (
         <a href={isLink} className="text-primary hover:underline text-sm truncate">
