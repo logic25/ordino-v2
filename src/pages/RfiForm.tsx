@@ -45,27 +45,29 @@ export default function RfiForm() {
   const progress = totalSteps > 0 ? Math.max(0, ((currentStep + 1) / totalSteps) * 100) : 0;
   const currentSection = currentStep >= 0 ? sections[currentStep] : null;
 
-  // Pre-populate property address when data loads
+  // Pre-populate property data when loaded
   useEffect(() => {
     if (property && rfi) {
       const newResponses = { ...responses };
-      // Find address field in project_info section and pre-populate
+      const prefillMap: Record<string, string | null> = {
+        project_address: property.address,
+        borough: property.borough,
+        block: property.block,
+        lot: property.lot,
+      };
       for (const section of rfi.sections) {
         for (const field of section.fields) {
-          if (
-            (field.id === "project_address" || field.label.toLowerCase().includes("address")) &&
-            section.id === "project_info"
-          ) {
+          const prefillValue = prefillMap[field.id];
+          if (prefillValue && section.id === "project_info") {
             const key = `${section.id}_${field.id}`;
             if (!newResponses[key]) {
-              newResponses[key] = property.address;
+              newResponses[key] = prefillValue;
             }
           }
         }
       }
       setResponses(newResponses);
     }
-    // Only run when data loads, not on every response change
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [property, rfi]);
 
@@ -210,7 +212,7 @@ export default function RfiForm() {
 
     return (
       <div key={key} className={`space-y-2 ${widthClass}`}>
-        <Label className="text-sm font-medium text-foreground/80">
+        <Label className="text-sm font-medium text-slate-300">
           {field.label}
           {field.required && <span className="text-amber-500 ml-0.5">*</span>}
         </Label>
@@ -441,11 +443,11 @@ export default function RfiForm() {
                     </span>
                   )}
                 </div>
-                <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">
+                <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
                   {currentSection.title}
                 </h2>
                 {currentSection.description && (
-                  <p className="text-slate-400 text-lg">{currentSection.description}</p>
+                  <p className="text-slate-400 text-base">{currentSection.description}</p>
                 )}
               </div>
 
