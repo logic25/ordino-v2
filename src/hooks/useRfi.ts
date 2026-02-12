@@ -56,7 +56,7 @@ export interface RfiRequest {
 // Default PIS template – regrouped for a seamless client experience
 export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
   {
-    id: "building_characteristics",
+    id: "building_details",
     title: "Building & Project Details",
     description: "Verify or update the property details below",
     fields: [
@@ -75,9 +75,9 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
     ],
   },
   {
-    id: "scope",
-    title: "Scope of Work",
-    description: "Describe the work and select all applicable types",
+    id: "scope_and_costs",
+    title: "Scope of Work & Costs",
+    description: "Describe the work, select types, and enter estimated costs",
     fields: [
       { id: "job_description", label: "Job Description", type: "textarea", required: true, width: "full", placeholder: "Describe the work in detail..." },
       {
@@ -95,13 +95,7 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
       },
       { id: "work_type_other", label: "Other Work Type", type: "text", width: "full", placeholder: "If not listed above..." },
       { id: "directive_14", label: "Directive 14?", type: "select", options: ["Yes", "No"], width: "half" },
-    ],
-  },
-  {
-    id: "costs",
-    title: "Estimated Costs",
-    description: "Cost breakdown by trade (enter $0 for N/A)",
-    fields: [
+      { id: "costs_heading", label: "Estimated Costs", type: "heading" },
       { id: "cost_architectural", label: "Architectural", type: "currency", width: "half" },
       { id: "cost_plumbing", label: "Plumbing", type: "currency", width: "half" },
       { id: "cost_mechanical", label: "Mechanical", type: "currency", width: "half" },
@@ -114,27 +108,20 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
     ],
   },
   {
-    id: "applicant_info",
-    title: "Applicant (Architect / Engineer)",
-    description: "Licensed professional signing and sealing plans",
-    repeatable: true,
-    maxRepeat: 4,
+    id: "applicant_and_owner",
+    title: "Applicant & Building Owner",
+    description: "Licensed professional and building owner details",
     fields: [
+      { id: "applicant_heading", label: "Applicant (Architect / Engineer)", type: "heading" },
       { id: "applicant_name", label: "Name", type: "text", required: true, width: "half" },
-      { id: "company_name", label: "Company", type: "text", width: "half" },
-      { id: "phone", label: "Phone", type: "phone", width: "half" },
-      { id: "email", label: "Email", type: "email", width: "half" },
-      { id: "nys_lic", label: "NYS License #", type: "text", width: "half" },
-      { id: "work_types", label: "Work Types", type: "text", width: "half" },
-    ],
-  },
-  {
-    id: "owner_info",
-    title: "Building Owner",
-    description: "Who owns the building?",
-    fields: [
-      { id: "signatory_name", label: "Name", type: "text", required: true, width: "half" },
-      { id: "job_title", label: "Title", type: "text", width: "half" },
+      { id: "applicant_company", label: "Company", type: "text", width: "half" },
+      { id: "applicant_phone", label: "Phone", type: "phone", width: "half" },
+      { id: "applicant_email", label: "Email", type: "email", width: "half" },
+      { id: "applicant_nys_lic", label: "NYS License #", type: "text", width: "half" },
+      { id: "applicant_work_types", label: "Work Types", type: "text", width: "half" },
+      { id: "owner_heading", label: "Building Owner", type: "heading" },
+      { id: "owner_name", label: "Name", type: "text", required: true, width: "half" },
+      { id: "owner_title", label: "Title", type: "text", width: "half" },
       { id: "owner_company", label: "Company", type: "text", width: "full" },
       { id: "owner_address", label: "Address", type: "text", width: "full" },
       { id: "owner_email", label: "Email", type: "email", width: "half" },
@@ -142,10 +129,11 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
     ],
   },
   {
-    id: "gc_info",
-    title: "General Contractor",
-    description: "If applicable",
+    id: "contractors_inspections",
+    title: "GC, TPP & Special Inspections",
+    description: "Check 'Same as Applicant' to auto-fill from above",
     fields: [
+      { id: "gc_heading", label: "General Contractor", type: "heading" },
       { id: "gc_same_as", label: "Same as Applicant", type: "checkbox", width: "full" },
       { id: "gc_name", label: "Name", type: "text", width: "half" },
       { id: "gc_company", label: "Company", type: "text", width: "half" },
@@ -154,23 +142,11 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
       { id: "gc_address", label: "Address", type: "text", width: "full" },
       { id: "gc_dob_tracking", label: "DOB Tracking #", type: "text", width: "half" },
       { id: "gc_hic_lic", label: "HIC License #", type: "text", width: "half" },
-    ],
-  },
-  {
-    id: "tpp_info",
-    title: "TPP Applicant",
-    description: "Tenant Protection Plan – required if occupied residential units",
-    fields: [
+      { id: "tpp_heading", label: "TPP Applicant", type: "heading" },
       { id: "tpp_same_as", label: "Same as Applicant", type: "checkbox", width: "full" },
       { id: "tpp_name", label: "Name", type: "text", width: "half" },
       { id: "tpp_email", label: "Email", type: "email", width: "half" },
-    ],
-  },
-  {
-    id: "sia_info",
-    title: "Special Inspections (SIA)",
-    description: "If applicable",
-    fields: [
+      { id: "sia_heading", label: "Special Inspections (SIA)", type: "heading" },
       { id: "sia_same_as", label: "Same as Applicant", type: "checkbox", width: "full" },
       { id: "sia_name", label: "Name", type: "text", width: "half" },
       { id: "sia_company", label: "Company", type: "text", width: "half" },

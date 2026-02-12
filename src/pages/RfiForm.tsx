@@ -58,7 +58,7 @@ export default function RfiForm() {
       for (const section of rfi.sections) {
         for (const field of section.fields) {
           const prefillValue = prefillMap[field.id];
-          if (prefillValue && section.id === "building_characteristics") {
+          if (prefillValue && section.id === "building_details") {
             const key = `${section.id}_${field.id}`;
             if (!newResponses[key]) {
               newResponses[key] = prefillValue;
@@ -107,9 +107,9 @@ export default function RfiForm() {
 
     // "Same as Applicant" copy logic
     const sameAsMappings: Record<string, Record<string, string>> = {
-      "gc_info_gc_same_as": { gc_info_gc_name: "applicant_info_applicant_name", gc_info_gc_company: "applicant_info_company_name", gc_info_gc_phone: "applicant_info_phone", gc_info_gc_email: "applicant_info_email" },
-      "tpp_info_tpp_same_as": { tpp_info_tpp_name: "applicant_info_applicant_name", tpp_info_tpp_email: "applicant_info_email" },
-      "sia_info_sia_same_as": { sia_info_sia_name: "applicant_info_applicant_name", sia_info_sia_company: "applicant_info_company_name", sia_info_sia_phone: "applicant_info_phone", sia_info_sia_email: "applicant_info_email" },
+      "contractors_inspections_gc_same_as": { contractors_inspections_gc_name: "applicant_and_owner_applicant_name", contractors_inspections_gc_company: "applicant_and_owner_applicant_company", contractors_inspections_gc_phone: "applicant_and_owner_applicant_phone", contractors_inspections_gc_email: "applicant_and_owner_applicant_email" },
+      "contractors_inspections_tpp_same_as": { contractors_inspections_tpp_name: "applicant_and_owner_applicant_name", contractors_inspections_tpp_email: "applicant_and_owner_applicant_email" },
+      "contractors_inspections_sia_same_as": { contractors_inspections_sia_name: "applicant_and_owner_applicant_name", contractors_inspections_sia_company: "applicant_and_owner_applicant_company", contractors_inspections_sia_phone: "applicant_and_owner_applicant_phone", contractors_inspections_sia_email: "applicant_and_owner_applicant_email" },
     };
 
     if (value === true && sameAsMappings[key]) {
