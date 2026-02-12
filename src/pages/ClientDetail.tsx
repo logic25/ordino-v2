@@ -1,9 +1,19 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -55,7 +65,7 @@ import {
 } from "@/hooks/useClients";
 import { ClientDialog } from "@/components/clients/ClientDialog";
 import { AddContactDialog } from "@/components/clients/AddContactDialog";
-import { EditContactDialog } from "@/components/clients/EditContactDialog";
+
 import { ClientProposalsModal } from "@/components/clients/ClientProposalsModal";
 import { useCompanyProfiles, type Profile } from "@/hooks/useProfiles";
 
@@ -141,7 +151,6 @@ export default function ClientDetail() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [editContact, setEditContact] = useState<ClientContact | null>(null);
   const [deleteContactId, setDeleteContactId] = useState<string | null>(null);
   const [proposalsOpen, setProposalsOpen] = useState(false);
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
@@ -405,8 +414,11 @@ export default function ClientDetail() {
                       onToggleExpand={() =>
                         setExpandedContact(expandedContact === contact.id ? null : contact.id)
                       }
-                      onEdit={() => setEditContact(contact)}
                       onDelete={() => setDeleteContactId(contact.id)}
+                      onContactUpdated={() => {
+                        queryClient.invalidateQueries({ queryKey: ["client-contacts", id] });
+                        queryClient.invalidateQueries({ queryKey: ["client-detail", id] });
+                      }}
                     />
                   ))}
                 </div>
@@ -441,11 +453,6 @@ export default function ClientDetail() {
         />
       )}
 
-      <EditContactDialog
-        open={!!editContact}
-        onOpenChange={(open) => { if (!open) setEditContact(null); }}
-        contact={editContact}
-      />
 
       {/* Delete Client */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
@@ -515,7 +522,7 @@ export default function ClientDetail() {
   );
 }
 
-/* ─── Contact Row (table-style collapsible) ─── */
+/* ─── Contact Row (table-style collapsible with inline editing) ─── */
 
 interface ContactRowProps {
   contact: ClientContact;
@@ -524,8 +531,8 @@ interface ContactRowProps {
   isExpanded: boolean;
   onToggleSelect: () => void;
   onToggleExpand: () => void;
-  onEdit: () => void;
   onDelete: () => void;
+  onContactUpdated: () => void;
 }
 
 function ContactRow({
@@ -535,15 +542,71 @@ function ContactRow({
   isExpanded,
   onToggleSelect,
   onToggleExpand,
-  onEdit,
   onDelete,
+  onContactUpdated,
 }: ContactRowProps) {
-  const leadOwner = contact.lead_owner_id
-    ? profiles.find((p) => p.id === contact.lead_owner_id)
-    : null;
-  const leadOwnerName = leadOwner
-    ? leadOwner.display_name || `${leadOwner.first_name || ""} ${leadOwner.last_name || ""}`.trim()
-    : null;
+  const [form, setForm] = useState({
+    first_name: contact.first_name || "",
+    last_name: contact.last_name || "",
+    title: contact.title || "",
+    email: contact.email || "",
+    phone: contact.phone || "",
+    mobile: contact.mobile || "",
+    fax: contact.fax || "",
+    linkedin_url: contact.linkedin_url || "",
+    lead_owner_id: contact.lead_owner_id || "",
+    address_1: contact.address_1 || "",
+    address_2: contact.address_2 || "",
+    city: contact.city || "",
+    state: contact.state || "",
+    zip: contact.zip || "",
+    is_primary: contact.is_primary,
+  });
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+
+  const update = (field: string, value: any) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setDirty(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("client_contacts")
+        .update({
+          name: [form.first_name, form.last_name].filter(Boolean).join(" "),
+          first_name: form.first_name,
+          last_name: form.last_name || null,
+          title: form.title || null,
+          email: form.email || null,
+          phone: form.phone || null,
+          mobile: form.mobile || null,
+          fax: form.fax || null,
+          linkedin_url: form.linkedin_url || null,
+          lead_owner_id: form.lead_owner_id || null,
+          address_1: form.address_1 || null,
+          address_2: form.address_2 || null,
+          city: form.city || null,
+          state: form.state || null,
+          zip: form.zip || null,
+          is_primary: form.is_primary,
+        })
+        .eq("id", contact.id);
+      if (!error) {
+        setDirty(false);
+        onContactUpdated();
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const profileOptions = profiles.map((p) => ({
+    value: p.id,
+    label: p.display_name || `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Unknown",
+  }));
 
   return (
     <Collapsible open={isExpanded} onOpenChange={onToggleExpand}>
@@ -597,52 +660,120 @@ function ContactRow({
         </CollapsibleTrigger>
 
         <div className="w-10 shrink-0 flex items-center justify-end">
-          <MoreActions contact={contact} onEdit={onEdit} onDelete={onDelete} />
+          <MoreActions contact={contact} onDelete={onDelete} />
         </div>
       </div>
 
-      {/* Expanded Detail Panel */}
+      {/* Expanded Inline Edit Panel */}
       <CollapsibleContent>
         <div className="border-b bg-muted/20">
-          <div className="px-4 py-4 ml-[52px]">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2.5 text-sm">
-              <DetailRow label="Email" value={contact.email} isLink={`mailto:${contact.email}`} />
-              <DetailRow label="Phone" value={formatPhone(contact.phone)} isLink={`tel:${contact.phone}`} />
-              <DetailRow label="Mobile" value={formatPhone(contact.mobile)} isLink={`tel:${contact.mobile}`} />
-              <DetailRow label="Fax" value={formatPhone(contact.fax)} />
-              <DetailRow label="Company" value={contact.company_name} />
-              <DetailRow label="Title" value={contact.title} />
-              {contact.linkedin_url && (
-                <div className="flex gap-2">
-                  <span className="text-muted-foreground shrink-0">LinkedIn:</span>
-                  <a
-                    href={contact.linkedin_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline flex items-center gap-1 text-sm"
-                  >
-                    <Linkedin className="h-3.5 w-3.5" /> Profile
-                  </a>
-                </div>
-              )}
-              <DetailRow label="Lead Owner" value={leadOwnerName} />
-              {(contact.address_1 || contact.city) && (
-                <div className="sm:col-span-2 lg:col-span-3 flex gap-2">
-                  <span className="text-muted-foreground shrink-0">Address:</span>
-                  <span>
-                    {[contact.address_1, contact.address_2, contact.city, contact.state, contact.zip]
-                      .filter(Boolean)
-                      .join(", ")}
-                  </span>
-                </div>
-              )}
+          <div className="px-4 py-4 ml-[52px] space-y-3">
+            {/* Name */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">First Name *</Label>
+                <Input className="h-8 text-sm" value={form.first_name} onChange={(e) => update("first_name", e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Last Name</Label>
+                <Input className="h-8 text-sm" value={form.last_name} onChange={(e) => update("last_name", e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Title / Role</Label>
+                <Input className="h-8 text-sm" value={form.title} onChange={(e) => update("title", e.target.value)} />
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border/50">
-              <Button variant="outline" size="sm" onClick={onEdit}>
-                <Pencil className="h-3.5 w-3.5 mr-1" />
-                Edit
-              </Button>
+            {/* Address */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Address 1</Label>
+                <Input className="h-8 text-sm" value={form.address_1} onChange={(e) => update("address_1", e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Address 2</Label>
+                <Input className="h-8 text-sm" value={form.address_2} onChange={(e) => update("address_2", e.target.value)} />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">City</Label>
+                <Input className="h-8 text-sm" value={form.city} onChange={(e) => update("city", e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">State</Label>
+                <Input className="h-8 text-sm" value={form.state} onChange={(e) => update("state", e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Zip</Label>
+                <Input className="h-8 text-sm" value={form.zip} onChange={(e) => update("zip", e.target.value)} />
+              </div>
+            </div>
+
+            {/* Contact Info */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Email</Label>
+                <Input className="h-8 text-sm" type="email" value={form.email} onChange={(e) => update("email", e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Phone</Label>
+                <Input className="h-8 text-sm" value={form.phone} onChange={(e) => update("phone", e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Mobile</Label>
+                <Input className="h-8 text-sm" value={form.mobile} onChange={(e) => update("mobile", e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Fax</Label>
+                <Input className="h-8 text-sm" value={form.fax} onChange={(e) => update("fax", e.target.value)} />
+              </div>
+            </div>
+
+            {/* LinkedIn & Lead Owner */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Linkedin className="h-3 w-3" /> LinkedIn URL
+                </Label>
+                <Input className="h-8 text-sm" value={form.linkedin_url} onChange={(e) => update("linkedin_url", e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Lead Owner</Label>
+                <Select
+                  value={form.lead_owner_id || "none"}
+                  onValueChange={(v) => { update("lead_owner_id", v === "none" ? "" : v); }}
+                >
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {profileOptions.map((p) => (
+                      <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2 pt-4">
+                <Switch checked={form.is_primary} onCheckedChange={(v) => update("is_primary", v)} />
+                <Label className="text-xs text-muted-foreground">Primary</Label>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2 pt-2 border-t border-border/50">
+              {dirty && (
+                <Button
+                  size="sm"
+                  className="bg-accent text-accent-foreground hover:bg-accent/90"
+                  onClick={handleSave}
+                  disabled={saving || !form.first_name.trim()}
+                >
+                  {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+                  Save
+                </Button>
+              )}
               {contact.email && (
                 <Button variant="outline" size="sm" asChild>
                   <a href={`mailto:${contact.email}`}>
@@ -651,9 +782,9 @@ function ContactRow({
                   </a>
                 </Button>
               )}
-              {contact.phone && (
+              {(contact.phone || contact.mobile) && (
                 <Button variant="outline" size="sm" asChild>
-                  <a href={`tel:${contact.phone}`}>
+                  <a href={`tel:${contact.mobile || contact.phone}`}>
                     <Phone className="h-3.5 w-3.5 mr-1" />
                     Call
                   </a>
@@ -681,11 +812,9 @@ function ContactRow({
 
 function MoreActions({
   contact,
-  onEdit,
   onDelete,
 }: {
   contact: ClientContact;
-  onEdit: () => void;
   onDelete: () => void;
 }) {
   return (
@@ -696,15 +825,19 @@ function MoreActions({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={onEdit}>
-          <Pencil className="h-3.5 w-3.5 mr-2" />
-          Edit
-        </DropdownMenuItem>
         {contact.email && (
           <DropdownMenuItem asChild>
             <a href={`mailto:${contact.email}`}>
               <Mail className="h-3.5 w-3.5 mr-2" />
               Send Email
+            </a>
+          </DropdownMenuItem>
+        )}
+        {(contact.phone || contact.mobile) && (
+          <DropdownMenuItem asChild>
+            <a href={`tel:${contact.mobile || contact.phone}`}>
+              <Phone className="h-3.5 w-3.5 mr-2" />
+              Call
             </a>
           </DropdownMenuItem>
         )}
