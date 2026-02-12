@@ -19,9 +19,12 @@ import {
   FolderOpen,
   Loader2,
   StickyNote,
+  Star,
+  User,
 } from "lucide-react";
 import { format } from "date-fns";
 import type { Client } from "@/hooks/useClients";
+import { useClientContacts } from "@/hooks/useClients";
 
 interface ClientDetailSheetProps {
   client: Client | null;
@@ -85,9 +88,13 @@ export function ClientDetailSheet({
   onOpenChange,
   onEdit,
 }: ClientDetailSheetProps) {
-  const { data, isLoading } = useClientRelations(client?.id);
+  const { data: relations, isLoading: relLoading } = useClientRelations(client?.id);
+  const { data: contacts = [], isLoading: contactsLoading } = useClientContacts(client?.id);
 
   if (!client) return null;
+
+  const primaryContact = contacts.find((c) => c.is_primary);
+  const otherContacts = contacts.filter((c) => !c.is_primary);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -115,10 +122,10 @@ export function ClientDetailSheet({
         </SheetHeader>
 
         <div className="mt-6 space-y-6">
-          {/* Contact Info */}
+          {/* Company Contact Info */}
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              Contact Info
+              Company Info
             </h3>
             <div className="space-y-2.5">
               {client.email && (
@@ -144,9 +151,71 @@ export function ClientDetailSheet({
                 </div>
               )}
               {!client.email && !client.phone && !client.address && (
-                <p className="text-sm text-muted-foreground">No contact details on file</p>
+                <p className="text-sm text-muted-foreground">No company details on file</p>
               )}
             </div>
+          </div>
+
+          {/* Contacts */}
+          <Separator />
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <User className="h-3.5 w-3.5" />
+              People ({contacts.length})
+            </h3>
+            {contactsLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : contacts.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No contacts added yet</p>
+            ) : (
+              <div className="space-y-2">
+                {[...(primaryContact ? [primaryContact] : []), ...otherContacts].map(
+                  (contact) => (
+                    <div
+                      key={contact.id}
+                      className="p-3 rounded-lg border bg-muted/30 space-y-1"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{contact.name}</span>
+                        {contact.is_primary && (
+                          <Badge variant="default" className="text-xs h-5 gap-1">
+                            <Star className="h-3 w-3" />
+                            Primary
+                          </Badge>
+                        )}
+                        {contact.title && (
+                          <span className="text-xs text-muted-foreground">
+                            · {contact.title}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1">
+                        {contact.email && (
+                          <a
+                            href={`mailto:${contact.email}`}
+                            className="text-xs text-primary hover:underline flex items-center gap-1"
+                          >
+                            <Mail className="h-3 w-3" />
+                            {contact.email}
+                          </a>
+                        )}
+                        {contact.phone && (
+                          <a
+                            href={`tel:${contact.phone}`}
+                            className="text-xs hover:underline flex items-center gap-1"
+                          >
+                            <Phone className="h-3 w-3" />
+                            {contact.phone}
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
           </div>
 
           {/* Notes */}
@@ -169,17 +238,17 @@ export function ClientDetailSheet({
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
               <FolderOpen className="h-3.5 w-3.5" />
-              Projects ({data?.projects.length ?? 0})
+              Projects ({relations?.projects.length ?? 0})
             </h3>
-            {isLoading ? (
+            {relLoading ? (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
-            ) : data?.projects.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No projects linked to this client</p>
+            ) : relations?.projects.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No projects linked</p>
             ) : (
               <div className="space-y-2">
-                {data?.projects.map((project: any) => (
+                {relations?.projects.map((project: any) => (
                   <div
                     key={project.id}
                     className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
@@ -192,7 +261,10 @@ export function ClientDetailSheet({
                         {project.properties?.address || "—"}
                       </p>
                     </div>
-                    <Badge variant={statusVariant[project.status] || "secondary"} className="shrink-0 ml-2">
+                    <Badge
+                      variant={statusVariant[project.status] || "secondary"}
+                      className="shrink-0 ml-2"
+                    >
                       {project.status?.replace("_", " ")}
                     </Badge>
                   </div>
@@ -207,17 +279,17 @@ export function ClientDetailSheet({
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
               <FileText className="h-3.5 w-3.5" />
-              Proposals ({data?.proposals.length ?? 0})
+              Proposals ({relations?.proposals.length ?? 0})
             </h3>
-            {isLoading ? (
+            {relLoading ? (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
-            ) : data?.proposals.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No proposals linked to this client</p>
+            ) : relations?.proposals.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No proposals linked</p>
             ) : (
               <div className="space-y-2">
-                {data?.proposals.map((proposal: any) => (
+                {relations?.proposals.map((proposal: any) => (
                   <div
                     key={proposal.id}
                     className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"

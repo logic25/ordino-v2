@@ -1,8 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { Tables, TablesInsert } from "@/integrations/supabase/types";
+import type { Tables } from "@/integrations/supabase/types";
 
 export type Client = Tables<"clients">;
+export type ClientContact = Tables<"client_contacts">;
+
+export interface ClientContactInput {
+  id?: string;
+  name: string;
+  title?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  is_primary?: boolean;
+}
 
 export interface ClientFormInput {
   name: string;
@@ -10,6 +20,7 @@ export interface ClientFormInput {
   phone?: string | null;
   address?: string | null;
   notes?: string | null;
+  contacts?: ClientContactInput[];
 }
 
 export function useClients() {
@@ -24,6 +35,24 @@ export function useClients() {
       if (error) throw error;
       return data as Client[];
     },
+  });
+}
+
+export function useClientContacts(clientId: string | undefined) {
+  return useQuery({
+    queryKey: ["client-contacts", clientId],
+    queryFn: async () => {
+      if (!clientId) return [];
+      const { data, error } = await supabase
+        .from("client_contacts")
+        .select("*")
+        .eq("client_id", clientId)
+        .order("sort_order")
+        .order("name");
+      if (error) throw error;
+      return data as ClientContact[];
+    },
+    enabled: !!clientId,
   });
 }
 
@@ -55,10 +84,30 @@ export function useCreateClient() {
         .single();
 
       if (error) throw error;
+
+      // Create contacts if provided
+      if (input.contacts?.length) {
+        const contactRows = input.contacts.map((c, i) => ({
+          client_id: data.id,
+          company_id: profile.company_id,
+          name: c.name,
+          title: c.title || null,
+          email: c.email || null,
+          phone: c.phone || null,
+          is_primary: c.is_primary || false,
+          sort_order: i,
+        }));
+        const { error: cErr } = await supabase
+          .from("client_contacts")
+          .insert(contactRows);
+        if (cErr) throw cErr;
+      }
+
       return data as Client;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
+      queryClient.invalidateQueries({ queryKey: ["client-contacts"] });
     },
   });
 }
@@ -68,6 +117,12 @@ export function useUpdateClient() {
 
   return useMutation({
     mutationFn: async ({ id, ...input }: ClientFormInput & { id: string }) => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .single();
+      if (!profile?.company_id) throw new Error("No company found");
+
       const { data, error } = await supabase
         .from("clients")
         .update({
@@ -82,10 +137,60 @@ export function useUpdateClient() {
         .single();
 
       if (error) throw error;
+
+      // Sync contacts: delete removed, upsert existing/new
+      if (input.contacts !== undefined) {
+        // Get existing contact IDs
+        const { data: existing } = await supabase
+          .from("client_contacts")
+          .select("id")
+          .eq("client_id", id);
+        const existingIds = new Set((existing || []).map((e) => e.id));
+        const inputIds = new Set(
+          input.contacts.filter((c) => c.id).map((c) => c.id!)
+        );
+
+        // Delete removed contacts
+        const toDelete = [...existingIds].filter((eid) => !inputIds.has(eid));
+        if (toDelete.length) {
+          await supabase
+            .from("client_contacts")
+            .delete()
+            .in("id", toDelete);
+        }
+
+        // Upsert contacts
+        for (let i = 0; i < (input.contacts || []).length; i++) {
+          const c = input.contacts![i];
+          const row = {
+            name: c.name,
+            title: c.title || null,
+            email: c.email || null,
+            phone: c.phone || null,
+            is_primary: c.is_primary || false,
+            sort_order: i,
+          };
+
+          if (c.id && existingIds.has(c.id)) {
+            await supabase
+              .from("client_contacts")
+              .update(row)
+              .eq("id", c.id);
+          } else {
+            await supabase.from("client_contacts").insert({
+              ...row,
+              client_id: id,
+              company_id: profile.company_id,
+            });
+          }
+        }
+      }
+
       return data as Client;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
+      queryClient.invalidateQueries({ queryKey: ["client-contacts"] });
     },
   });
 }
@@ -104,6 +209,7 @@ export function useDeleteClient() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
+      queryClient.invalidateQueries({ queryKey: ["client-contacts"] });
     },
   });
 }
