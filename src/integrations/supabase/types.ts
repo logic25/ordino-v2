@@ -105,49 +105,82 @@ export type Database = {
       }
       client_contacts: {
         Row: {
+          address_1: string | null
+          address_2: string | null
+          city: string | null
           client_id: string
           company_id: string
+          company_name: string | null
           created_at: string | null
           email: string | null
+          fax: string | null
+          first_name: string | null
           id: string
           is_primary: boolean
+          last_name: string | null
+          lead_owner_id: string | null
           linkedin_url: string | null
+          mobile: string | null
           name: string
           notes: string | null
           phone: string | null
           sort_order: number | null
+          state: string | null
           title: string | null
           updated_at: string | null
+          zip: string | null
         }
         Insert: {
+          address_1?: string | null
+          address_2?: string | null
+          city?: string | null
           client_id: string
           company_id: string
+          company_name?: string | null
           created_at?: string | null
           email?: string | null
+          fax?: string | null
+          first_name?: string | null
           id?: string
           is_primary?: boolean
+          last_name?: string | null
+          lead_owner_id?: string | null
           linkedin_url?: string | null
+          mobile?: string | null
           name: string
           notes?: string | null
           phone?: string | null
           sort_order?: number | null
+          state?: string | null
           title?: string | null
           updated_at?: string | null
+          zip?: string | null
         }
         Update: {
+          address_1?: string | null
+          address_2?: string | null
+          city?: string | null
           client_id?: string
           company_id?: string
+          company_name?: string | null
           created_at?: string | null
           email?: string | null
+          fax?: string | null
+          first_name?: string | null
           id?: string
           is_primary?: boolean
+          last_name?: string | null
+          lead_owner_id?: string | null
           linkedin_url?: string | null
+          mobile?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
           sort_order?: number | null
+          state?: string | null
           title?: string | null
           updated_at?: string | null
+          zip?: string | null
         }
         Relationships: [
           {
@@ -164,6 +197,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "client_contacts_lead_owner_id_fkey"
+            columns: ["lead_owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       clients: {
@@ -171,36 +211,63 @@ export type Database = {
           address: string | null
           company_id: string
           created_at: string | null
+          dob_tracking: string | null
+          dob_tracking_expiration: string | null
           email: string | null
+          fax: string | null
+          hic_license: string | null
+          ibm_number: string | null
+          ibm_number_expiration: string | null
           id: string
+          is_sia: boolean
+          lead_owner_id: string | null
           metadata: Json | null
           name: string
           notes: string | null
           phone: string | null
+          tax_id: string | null
           updated_at: string | null
         }
         Insert: {
           address?: string | null
           company_id: string
           created_at?: string | null
+          dob_tracking?: string | null
+          dob_tracking_expiration?: string | null
           email?: string | null
+          fax?: string | null
+          hic_license?: string | null
+          ibm_number?: string | null
+          ibm_number_expiration?: string | null
           id?: string
+          is_sia?: boolean
+          lead_owner_id?: string | null
           metadata?: Json | null
           name: string
           notes?: string | null
           phone?: string | null
+          tax_id?: string | null
           updated_at?: string | null
         }
         Update: {
           address?: string | null
           company_id?: string
           created_at?: string | null
+          dob_tracking?: string | null
+          dob_tracking_expiration?: string | null
           email?: string | null
+          fax?: string | null
+          hic_license?: string | null
+          ibm_number?: string | null
+          ibm_number_expiration?: string | null
           id?: string
+          is_sia?: boolean
+          lead_owner_id?: string | null
           metadata?: Json | null
           name?: string
           notes?: string | null
           phone?: string | null
+          tax_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -209,6 +276,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clients_lead_owner_id_fkey"
+            columns: ["lead_owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
