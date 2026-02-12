@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   ArrowLeft,
   FileText,
   FolderOpen,
@@ -35,6 +41,8 @@ import {
   Linkedin,
   Star,
   ShieldCheck,
+  MoreHorizontal,
+  Mail,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -42,10 +50,12 @@ import {
   useDeleteClient,
   useUpdateClient,
   type Client,
+  type ClientContact,
   type ClientFormInput,
 } from "@/hooks/useClients";
 import { ClientDialog } from "@/components/clients/ClientDialog";
 import { AddContactDialog } from "@/components/clients/AddContactDialog";
+import { EditContactDialog } from "@/components/clients/EditContactDialog";
 import { useCompanyProfiles, type Profile } from "@/hooks/useProfiles";
 
 function useClientDetail(id: string | undefined) {
@@ -120,6 +130,9 @@ export default function ClientDetail() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editContact, setEditContact] = useState<ClientContact | null>(null);
+  const [deleteContactId, setDeleteContactId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const handleDelete = async () => {
     if (!id) return;
@@ -127,6 +140,23 @@ export default function ClientDetail() {
       await deleteClient.mutateAsync(id);
       toast({ title: "Client deleted" });
       navigate("/clients");
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleDeleteContact = async () => {
+    if (!deleteContactId) return;
+    try {
+      const { error } = await supabase
+        .from("client_contacts")
+        .delete()
+        .eq("id", deleteContactId);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["client-contacts", id] });
+      queryClient.invalidateQueries({ queryKey: ["client-detail", id] });
+      toast({ title: "Contact deleted" });
+      setDeleteContactId(null);
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
@@ -313,6 +343,7 @@ export default function ClientDetail() {
                         <TableHead>Mobile</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>LinkedIn</TableHead>
+                        <TableHead className="w-12" />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -353,6 +384,36 @@ export default function ClientDetail() {
                                 Profile
                               </a>
                             ) : <span className="text-muted-foreground">—</span>}
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => setEditContact(contact)}>
+                                  <Pencil className="h-3.5 w-3.5 mr-2" />
+                                  Edit
+                                </DropdownMenuItem>
+                                {contact.email && (
+                                  <DropdownMenuItem asChild>
+                                    <a href={`mailto:${contact.email}`}>
+                                      <Mail className="h-3.5 w-3.5 mr-2" />
+                                      Send Email
+                                    </a>
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => setDeleteContactId(contact.id)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -397,6 +458,32 @@ export default function ClientDetail() {
               disabled={deleteClient.isPending}
             >
               {deleteClient.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <EditContactDialog
+        open={!!editContact}
+        onOpenChange={(open) => { if (!open) setEditContact(null); }}
+        contact={editContact}
+      />
+
+      <AlertDialog open={!!deleteContactId} onOpenChange={(open) => { if (!open) setDeleteContactId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete contact?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove this contact from the client.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteContact}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
