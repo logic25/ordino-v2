@@ -58,7 +58,7 @@ export default function RfiForm() {
       for (const section of rfi.sections) {
         for (const field of section.fields) {
           const prefillValue = prefillMap[field.id];
-          if (prefillValue && section.id === "project_info") {
+          if (prefillValue && section.id === "building_characteristics") {
             const key = `${section.id}_${field.id}`;
             if (!newResponses[key]) {
               newResponses[key] = prefillValue;
@@ -102,7 +102,24 @@ export default function RfiForm() {
   };
 
   const getValue = (key: string) => responses[key] || "";
-  const setValue = (key: string, value: any) => setResponses({ ...responses, [key]: value });
+  const setValue = (key: string, value: any) => {
+    const newResponses = { ...responses, [key]: value };
+
+    // "Same as Applicant" copy logic
+    const sameAsMappings: Record<string, Record<string, string>> = {
+      "gc_info_gc_same_as": { gc_info_gc_name: "applicant_info_applicant_name", gc_info_gc_company: "applicant_info_company_name", gc_info_gc_phone: "applicant_info_phone", gc_info_gc_email: "applicant_info_email" },
+      "tpp_info_tpp_same_as": { tpp_info_tpp_name: "applicant_info_applicant_name", tpp_info_tpp_email: "applicant_info_email" },
+      "sia_info_sia_same_as": { sia_info_sia_name: "applicant_info_applicant_name", sia_info_sia_company: "applicant_info_company_name", sia_info_sia_phone: "applicant_info_phone", sia_info_sia_email: "applicant_info_email" },
+    };
+
+    if (value === true && sameAsMappings[key]) {
+      for (const [targetKey, sourceKey] of Object.entries(sameAsMappings[key])) {
+        newResponses[targetKey] = newResponses[sourceKey] || "";
+      }
+    }
+
+    setResponses(newResponses);
+  };
 
   const getCheckboxGroupValue = (key: string): string[] => {
     const val = responses[key];
@@ -368,7 +385,7 @@ export default function RfiForm() {
           )}
 
           <p className="text-slate-400 text-lg mb-10 leading-relaxed max-w-md mx-auto">
-            We need some information about your project to get started. This should take about <span className="text-white font-medium">{Math.max(5, totalSteps * 2)} minutes</span>.
+            Please verify the pre-filled details and provide any additional information needed to get your project started.
           </p>
 
           {/* Section preview */}

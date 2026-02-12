@@ -53,12 +53,12 @@ export interface RfiRequest {
   updated_at: string | null;
 }
 
-// Default PIS template based on the Green Light Expediting form
+// Default PIS template – regrouped for a seamless client experience
 export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
   {
-    id: "project_info",
-    title: "Project Information",
-    description: "Where is the work happening?",
+    id: "building_characteristics",
+    title: "Building & Project Details",
+    description: "Verify or update the property details below",
     fields: [
       { id: "project_address", label: "Project Address", type: "text", required: true, width: "full" },
       { id: "borough", label: "Borough", type: "text", width: "half" },
@@ -67,31 +67,19 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
       { id: "floors", label: "Floor(s)", type: "text", width: "half" },
       { id: "apt_numbers", label: "Apt #(s)", type: "text", width: "half" },
       { id: "sq_ft", label: "Area (sq ft)", type: "number", width: "half" },
+      { id: "rent_controlled", label: "Rent Controlled?", type: "select", options: ["Yes", "No"], width: "half" },
+      { id: "rent_stabilized", label: "Rent Stabilized?", type: "select", options: ["Yes", "No"], width: "half" },
+      { id: "units_occupied", label: "Occupied Units During Construction", type: "number", width: "half" },
+      { id: "ownership_type", label: "Ownership Type", type: "select", options: ["Individual", "Corporation", "Partnership", "Condo/Co-op", "Non-profit", "Government"], width: "half" },
+      { id: "non_profit", label: "Non-Profit?", type: "select", options: ["Yes", "No"], width: "half" },
     ],
   },
   {
     id: "scope",
     title: "Scope of Work",
-    description: "Tell us what you're building",
+    description: "Describe the work and select all applicable types",
     fields: [
       { id: "job_description", label: "Job Description", type: "textarea", required: true, width: "full", placeholder: "Describe the work in detail..." },
-    ],
-  },
-  {
-    id: "building_info",
-    title: "Building Details",
-    description: "Occupancy and rent status",
-    fields: [
-      { id: "rent_controlled", label: "Rent Controlled?", type: "select", options: ["Yes", "No"], width: "half" },
-      { id: "rent_stabilized", label: "Rent Stabilized?", type: "select", options: ["Yes", "No"], width: "half" },
-      { id: "units_occupied", label: "Occupied Units During Construction", type: "number", width: "half" },
-    ],
-  },
-  {
-    id: "work_types",
-    title: "Work Types",
-    description: "Select all that apply",
-    fields: [
       {
         id: "work_type_selection",
         label: "Work Types",
@@ -105,14 +93,14 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
           "Supported Scaffold", "Fire Protection Plan", "Building Pavement Plan",
         ],
       },
-      { id: "work_type_other", label: "Other", type: "text", width: "full", placeholder: "If not listed above..." },
+      { id: "work_type_other", label: "Other Work Type", type: "text", width: "full", placeholder: "If not listed above..." },
       { id: "directive_14", label: "Directive 14?", type: "select", options: ["Yes", "No"], width: "half" },
     ],
   },
   {
     id: "costs",
     title: "Estimated Costs",
-    description: "Cost breakdown by trade",
+    description: "Cost breakdown by trade (enter $0 for N/A)",
     fields: [
       { id: "cost_architectural", label: "Architectural", type: "currency", width: "half" },
       { id: "cost_plumbing", label: "Plumbing", type: "currency", width: "half" },
@@ -127,8 +115,8 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
   },
   {
     id: "applicant_info",
-    title: "Applicant (Architect/Engineer)",
-    description: "Licensed professional(s) signing and sealing plans",
+    title: "Applicant (Architect / Engineer)",
+    description: "Licensed professional signing and sealing plans",
     repeatable: true,
     maxRepeat: 4,
     fields: [
@@ -141,7 +129,7 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
     ],
   },
   {
-    id: "ownership_info",
+    id: "owner_info",
     title: "Building Owner",
     description: "Who owns the building?",
     fields: [
@@ -151,8 +139,6 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
       { id: "owner_address", label: "Address", type: "text", width: "full" },
       { id: "owner_email", label: "Email", type: "email", width: "half" },
       { id: "owner_phone", label: "Phone", type: "phone", width: "half" },
-      { id: "ownership_type", label: "Ownership Type", type: "select", options: ["Individual", "Corporation", "Partnership", "Condo/Co-op", "Non-profit", "Government"], width: "half" },
-      { id: "non_profit", label: "Non-Profit?", type: "select", options: ["Yes", "No"], width: "half" },
     ],
   },
   {
@@ -160,6 +146,7 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
     title: "General Contractor",
     description: "If applicable",
     fields: [
+      { id: "gc_same_as", label: "Same as Applicant", type: "checkbox", width: "full" },
       { id: "gc_name", label: "Name", type: "text", width: "half" },
       { id: "gc_company", label: "Company", type: "text", width: "half" },
       { id: "gc_phone", label: "Phone", type: "phone", width: "half" },
@@ -171,18 +158,20 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
   },
   {
     id: "tpp_info",
-    title: "Tenant Protection Plan",
-    description: "Required if occupied residential units",
+    title: "TPP Applicant",
+    description: "Tenant Protection Plan – required if occupied residential units",
     fields: [
-      { id: "tpp_name", label: "Applicant Name", type: "text", width: "half" },
+      { id: "tpp_same_as", label: "Same as Applicant", type: "checkbox", width: "full" },
+      { id: "tpp_name", label: "Name", type: "text", width: "half" },
       { id: "tpp_email", label: "Email", type: "email", width: "half" },
     ],
   },
   {
-    id: "special_inspections",
-    title: "Special Inspections",
+    id: "sia_info",
+    title: "Special Inspections (SIA)",
     description: "If applicable",
     fields: [
+      { id: "sia_same_as", label: "Same as Applicant", type: "checkbox", width: "full" },
       { id: "sia_name", label: "Name", type: "text", width: "half" },
       { id: "sia_company", label: "Company", type: "text", width: "half" },
       { id: "sia_phone", label: "Phone", type: "phone", width: "half" },
