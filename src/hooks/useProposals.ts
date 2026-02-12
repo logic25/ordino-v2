@@ -151,7 +151,6 @@ export function useCreateProposal() {
           valid_until: proposalData.valid_until || null,
           client_name: proposalData.client_name || null,
           client_email: proposalData.client_email || null,
-          assigned_pm_id: proposalData.assigned_pm_id || null,
           notes: proposalData.notes || null,
         })
         .select()
@@ -234,7 +233,6 @@ export function useUpdateProposal() {
           valid_until: proposalData.valid_until || null,
           client_name: proposalData.client_name || null,
           client_email: proposalData.client_email || null,
-          assigned_pm_id: proposalData.assigned_pm_id || null,
           notes: proposalData.notes || null,
         })
         .eq("id", id)
