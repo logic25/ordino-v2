@@ -231,9 +231,18 @@ Deno.serve(async (req) => {
       const dateStr = getHeader(headers, "Date");
       let emailDate: string | null = null;
       try {
-        emailDate = new Date(dateStr).toISOString();
+        const parsed = new Date(dateStr);
+        if (!isNaN(parsed.getTime())) {
+          emailDate = parsed.toISOString();
+        } else {
+          emailDate = new Date(parseInt(msgData.internalDate)).toISOString();
+        }
       } catch {
-        emailDate = new Date(parseInt(msgData.internalDate)).toISOString();
+        try {
+          emailDate = new Date(parseInt(msgData.internalDate)).toISOString();
+        } catch {
+          emailDate = new Date().toISOString();
+        }
       }
 
       const { data: inserted, error: insertError } = await supabaseAdmin
