@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 export interface RfiFieldConfig {
   id: string;
   label: string;
-  type: "text" | "textarea" | "email" | "phone" | "number" | "select" | "checkbox" | "checkbox_group" | "currency" | "heading" | "file_upload";
+  type: "text" | "textarea" | "email" | "phone" | "number" | "select" | "checkbox" | "checkbox_group" | "currency" | "heading" | "file_upload" | "work_type_picker";
   placeholder?: string;
   required?: boolean;
   options?: string[];
@@ -76,20 +76,7 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
       { id: "non_profit", label: "Non-Profit?", type: "select", options: ["Yes", "No"], width: "half" },
       { id: "scope_heading", label: "Scope of Work & Cost Breakdown", type: "heading" },
       { id: "job_description", label: "Job Description", type: "textarea", required: true, width: "full", placeholder: "Describe the work in detail..." },
-      { id: "cost_architectural", label: "Architectural", type: "currency", width: "half" },
-      { id: "cost_structural", label: "Structural", type: "currency", width: "half" },
-      { id: "cost_mechanical", label: "Mechanical", type: "currency", width: "half" },
-      { id: "cost_plumbing", label: "Plumbing", type: "currency", width: "half" },
-      { id: "cost_sprinkler", label: "Sprinkler", type: "currency", width: "half" },
-      { id: "cost_fire_alarm", label: "Fire Alarm", type: "currency", width: "half" },
-      { id: "cost_fire_suppression", label: "Fire Suppression", type: "currency", width: "half" },
-      { id: "cost_standpipe", label: "Standpipe", type: "currency", width: "half" },
-      { id: "cost_fuel_burning", label: "Fuel Burning", type: "currency", width: "half" },
-      { id: "cost_boiler", label: "Boiler", type: "currency", width: "half" },
-      { id: "cost_fuel_storage", label: "Fuel Storage", type: "currency", width: "half" },
-      { id: "cost_curb_cut", label: "Curb Cut", type: "currency", width: "half" },
-      { id: "cost_other", label: "Other", type: "currency", width: "half" },
-      { id: "work_type_other", label: "Other Work Type", type: "text", width: "half", placeholder: "Describe other work..." },
+      { id: "work_types", label: "Select Applicable Work Types", type: "work_type_picker", width: "full", options: ["Architectural", "Structural", "Mechanical", "Plumbing", "Sprinkler", "Fire Alarm", "Fire Suppression", "Standpipe", "Fuel Burning", "Boiler", "Fuel Storage", "Curb Cut", "Other"] },
       { id: "directive_14", label: "Directive 14?", type: "select", options: ["Yes", "No"], width: "half" },
       { id: "plans_upload", label: "Upload Plans / Drawings", type: "file_upload", width: "full", accept: ".pdf,.dwg,.dxf,.jpg,.jpeg,.png", maxFiles: 10, placeholder: "PDF, DWG, DXF, JPG, or PNG files" },
     ],
