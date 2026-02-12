@@ -69,6 +69,24 @@ const LEAD_SOURCES = [
   "Other",
 ] as const;
 
+const PROJECT_TYPES = [
+  "New Building",
+  "Alteration Type I",
+  "Alteration Type II",
+  "Alteration Type III",
+  "Demolition",
+  "Place of Assembly",
+  "Sign",
+  "Elevator",
+  "Sprinkler",
+  "Standpipe",
+  "Mechanical",
+  "Plumbing",
+  "Construction Fence",
+  "Sidewalk Shed",
+  "Other",
+] as const;
+
 const proposalSchema = z.object({
   property_id: z.string().min(1, "Property is required"),
   title: z.string().min(1, "Title is required"),
@@ -82,6 +100,7 @@ const proposalSchema = z.object({
   notes: z.string().optional(),
   terms_conditions: z.string().optional(),
   lead_source: z.string().optional(),
+  project_type: z.string().optional(),
   sales_person_id: z.string().optional(),
   billed_to_name: z.string().optional(),
   billed_to_email: z.string().email().optional().or(z.literal("")),
@@ -124,7 +143,7 @@ export function ProposalDialog({
 
   const { data: existingContacts = [] } = useProposalContacts(proposal?.id);
 
-  // Sync existing contacts when editing
+  // Sync existing contacts when editing (only on initial load)
   useEffect(() => {
     if (proposal && existingContacts.length > 0) {
       setContacts(existingContacts.map(c => ({
@@ -137,16 +156,16 @@ export function ProposalDialog({
         role: c.role as ProposalContactInput["role"],
         sort_order: c.sort_order ?? 0,
       })));
-    } else if (!proposal) {
-      setContacts([]);
     }
-  }, [proposal, existingContacts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proposal?.id, existingContacts]);
 
   const serviceCatalog = companyData?.settings?.service_catalog || [];
   const defaultTerms = companyData?.settings?.default_terms || "";
 
   const newFieldDefaults = {
     lead_source: "",
+    project_type: "",
     sales_person_id: "",
     billed_to_name: "",
     billed_to_email: "",
@@ -194,6 +213,7 @@ export function ProposalDialog({
         notes: proposal.notes || "",
         terms_conditions: p.terms_conditions || defaultTerms,
         lead_source: p.lead_source || "",
+        project_type: p.project_type || "",
         sales_person_id: p.sales_person_id || "",
         billed_to_name: p.billed_to_name || "",
         billed_to_email: p.billed_to_email || "",
@@ -225,6 +245,7 @@ export function ProposalDialog({
         ...newFieldDefaults,
         items: [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0 }],
       });
+      setContacts([]);
     }
   }, [proposal, form, defaultPropertyId, defaultTerms]);
 
@@ -270,6 +291,7 @@ export function ProposalDialog({
       notes: data.notes || null,
       terms_conditions: data.terms_conditions || null,
       lead_source: data.lead_source || null,
+      project_type: data.project_type || null,
       sales_person_id: data.sales_person_id || null,
       billed_to_name: data.billed_to_name || null,
       billed_to_email: data.billed_to_email || null,
@@ -414,7 +436,23 @@ export function ProposalDialog({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Project Type</Label>
+                  <Select
+                    value={form.watch("project_type") || ""}
+                    onValueChange={(value) => form.setValue("project_type", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PROJECT_TYPES.map((t) => (
+                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-1.5">
                   <Label>Lead Source</Label>
                   <Select
@@ -431,6 +469,9 @@ export function ProposalDialog({
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>Sales Person</Label>
                   <Select
