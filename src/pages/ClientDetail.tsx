@@ -108,6 +108,18 @@ function useClientStats(clientId: string | undefined) {
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 }).format(value);
 
+function formatPhone(value: string | null | undefined): string {
+  if (!value) return "";
+  const digits = value.replace(/\D/g, "");
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  }
+  return value;
+}
+
 function getProfileName(profiles: Profile[], id: string | null) {
   if (!id) return null;
   const p = profiles.find((pr) => pr.id === id);
@@ -300,8 +312,8 @@ export default function ClientDetail() {
                   <p className="text-muted-foreground">{client.address}</p>
                 )}
                 <InfoRow label="Email" value={client.email} />
-                <InfoRow label="Phone" value={client.phone} />
-                <InfoRow label="Fax" value={client.fax} />
+                <InfoRow label="Phone" value={formatPhone(client.phone)} />
+                <InfoRow label="Fax" value={formatPhone(client.fax)} />
                 <InfoRow label="Lead Owner" value={leadOwnerName} />
                 <InfoRow label="Tax ID" value={client.tax_id} />
                 {client.notes && <InfoRow label="Notes" value={client.notes} />}
@@ -376,7 +388,7 @@ export default function ClientDetail() {
                     <div className="w-5 shrink-0" />
                     <div className="flex-1 min-w-[140px]">Name</div>
                     <div className="w-[120px] shrink-0 hidden sm:block">Title</div>
-                    <div className="w-[120px] shrink-0 hidden md:block">Phone</div>
+                    <div className="w-[120px] shrink-0 hidden md:block">Mobile</div>
                     <div className="w-[180px] shrink-0 hidden lg:block">Email</div>
                     <div className="w-10 shrink-0" />
                   </div>
@@ -572,7 +584,7 @@ function ContactRow({
               {contact.title || "—"}
             </div>
             <div className="w-[120px] shrink-0 hidden md:block text-sm text-muted-foreground truncate">
-              {contact.phone || "—"}
+              {formatPhone(contact.mobile) || "—"}
             </div>
             <div className="w-[180px] shrink-0 hidden lg:block text-sm truncate">
               {contact.email ? (
@@ -595,9 +607,9 @@ function ContactRow({
           <div className="px-4 py-4 ml-[52px]">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2.5 text-sm">
               <DetailRow label="Email" value={contact.email} isLink={`mailto:${contact.email}`} />
-              <DetailRow label="Phone" value={contact.phone} isLink={`tel:${contact.phone}`} />
-              <DetailRow label="Mobile" value={contact.mobile} isLink={`tel:${contact.mobile}`} />
-              <DetailRow label="Fax" value={contact.fax} />
+              <DetailRow label="Phone" value={formatPhone(contact.phone)} isLink={`tel:${contact.phone}`} />
+              <DetailRow label="Mobile" value={formatPhone(contact.mobile)} isLink={`tel:${contact.mobile}`} />
+              <DetailRow label="Fax" value={formatPhone(contact.fax)} />
               <DetailRow label="Company" value={contact.company_name} />
               <DetailRow label="Title" value={contact.title} />
               {contact.linkedin_url && (
