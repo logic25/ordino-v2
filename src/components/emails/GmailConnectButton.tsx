@@ -23,18 +23,11 @@ export function GmailConnectButton() {
       if (result.auth_url) {
         window.location.href = result.auth_url;
       }
-    } catch (err: any) {
-      const msg = err?.message || "";
-      const isSetupNeeded =
-        msg.includes("Gmail credentials not configured") ||
-        msg.includes("setup_required") ||
-        msg.includes("non-2xx");
+    } catch {
       toast({
-        title: isSetupNeeded ? "Gmail Setup Required" : "Error",
-        description: isSetupNeeded
-          ? "Gmail API credentials haven't been configured yet. Contact your admin to set up the Google Cloud project."
-          : msg,
-        variant: "destructive",
+        title: "Gmail Setup Required",
+        description:
+          "Gmail API credentials haven't been configured yet. Contact your admin to set up the Google Cloud project.",
       });
     }
   };
