@@ -101,27 +101,39 @@ export default function RfiForm() {
   };
 
   // Dynamically inject selected work types into applicant_work_types options
-  const sections = useMemo(() => {
-    const baseSections = rfi?.sections || [];
+  // Each applicant only sees work types not already claimed by other applicants
+  const getApplicantWorkTypeOptions = (repeatIdx: number): string[] => {
     const workTypesKey = "building_and_scope_work_types_selected";
     const selectedWorkTypes: string[] = Array.isArray(responses[workTypesKey]) ? responses[workTypesKey] : [];
-    const applicantOptions = selectedWorkTypes.filter(t => t !== "Other");
+    const allOptions = selectedWorkTypes.filter(t => t !== "Other");
+    if (allOptions.length === 0) return ["No work types selected yet"];
 
-    return baseSections.map(section => {
-      if (section.id === "applicant_and_owner") {
-        return {
-          ...section,
-          fields: section.fields.map(field => {
-            if (field.id === "applicant_work_types") {
-              return { ...field, options: applicantOptions.length > 0 ? applicantOptions : ["No work types selected yet"] };
-            }
-            return field;
-          }),
-        };
-      }
-      return section;
-    });
-  }, [rfi, responses]);
+    // Gather work types claimed by OTHER applicants
+    const repeatGroupId = "applicant_and_owner_repeat";
+    const repeatCount = getRepeatCount(repeatGroupId);
+    const takenByOthers = new Set<string>();
+    for (let i = 0; i < repeatCount; i++) {
+      if (i === repeatIdx) continue;
+      const key = i > 0
+        ? `applicant_and_owner_${i}_applicant_work_types`
+        : `applicant_and_owner_applicant_work_types`;
+      const claimed: string[] = Array.isArray(responses[key]) ? responses[key] : [];
+      claimed.forEach(t => takenByOthers.add(t));
+    }
+
+    // Keep types not taken by others (but keep ones this applicant already selected)
+    const myKey = repeatIdx > 0
+      ? `applicant_and_owner_${repeatIdx}_applicant_work_types`
+      : `applicant_and_owner_applicant_work_types`;
+    const mySelected: string[] = Array.isArray(responses[myKey]) ? responses[myKey] : [];
+
+    return allOptions.filter(t => !takenByOthers.has(t) || mySelected.includes(t));
+  };
+
+  const sections = useMemo(() => {
+    const baseSections = rfi?.sections || [];
+    return baseSections;
+  }, [rfi]);
   const totalSteps = sections.length;
   const isReviewStep = currentStep === totalSteps; // review is one past the last section
   const progress = totalSteps > 0 ? Math.max(0, ((Math.min(currentStep + 1, totalSteps)) / totalSteps) * 100) : 0;
@@ -369,27 +381,37 @@ export default function RfiForm() {
           </div>
         ) : field.type === "checkbox_group" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {field.options?.map((opt) => {
-              const isChecked = getCheckboxGroupValue(key).includes(opt);
-              return (
-                <div
-                  key={opt}
-                  onClick={() => toggleCheckboxGroup(key, opt)}
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                    isChecked
-                      ? "border-amber-500 bg-amber-50 shadow-sm ring-1 ring-amber-500/30"
-                      : "border-stone-200 bg-white hover:border-amber-300"
-                  }`}
-                >
-                  <Checkbox
-                    checked={isChecked}
-                    onCheckedChange={() => toggleCheckboxGroup(key, opt)}
-                    className="data-[state=checked]:bg-amber-600 data-[state=checked]:border-amber-600"
-                  />
-                  <span className={`text-sm ${isChecked ? "text-amber-800 font-medium" : "text-stone-600"}`}>{opt}</span>
-                </div>
-              );
-            })}
+            {(() => {
+              // For applicant_work_types, use dynamic per-applicant options
+              const options = field.id === "applicant_work_types"
+                ? getApplicantWorkTypeOptions(repeatIdx)
+                : (field.options || []);
+              return options.map((opt) => {
+                const isChecked = getCheckboxGroupValue(key).includes(opt);
+                return (
+                  <div
+                    key={opt}
+                    onClick={() => opt !== "No work types selected yet" && toggleCheckboxGroup(key, opt)}
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                      opt === "No work types selected yet"
+                        ? "border-stone-200 bg-stone-50 cursor-default"
+                        : isChecked
+                        ? "border-amber-500 bg-amber-50 shadow-sm ring-1 ring-amber-500/30"
+                        : "border-stone-200 bg-white hover:border-amber-300"
+                    }`}
+                  >
+                    {opt !== "No work types selected yet" && (
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={() => toggleCheckboxGroup(key, opt)}
+                        className="data-[state=checked]:bg-amber-600 data-[state=checked]:border-amber-600"
+                      />
+                    )}
+                    <span className={`text-sm ${isChecked ? "text-amber-800 font-medium" : "text-stone-600"}`}>{opt}</span>
+                  </div>
+                );
+              });
+            })()}
           </div>
         ) : field.type === "work_type_picker" ? (
           <div className="space-y-3">
