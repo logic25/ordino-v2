@@ -99,6 +99,7 @@ export function ProposalTable({
             <TableHead>Client</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Total</TableHead>
+            <TableHead>Creator</TableHead>
             <TableHead>Created</TableHead>
             <TableHead className="w-[60px]"></TableHead>
           </TableRow>
@@ -140,6 +141,11 @@ export function ProposalTable({
                 </TableCell>
                 <TableCell className="text-right font-medium">
                   {formatCurrency(Number(proposal.total_amount))}
+                </TableCell>
+                <TableCell className="text-sm font-medium text-primary">
+                  {(proposal as any).creator
+                    ? `${(proposal as any).creator.first_name} ${(proposal as any).creator.last_name}`
+                    : "-"}
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {proposal.created_at
