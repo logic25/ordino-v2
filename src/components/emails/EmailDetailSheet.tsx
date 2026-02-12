@@ -11,10 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import { Tag, Paperclip, X, Reply, Send, Loader2 } from "lucide-react";
+import { Tag, Paperclip, X, Reply, Send, Loader2, ChevronDown, ChevronUp, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EmailWithTags } from "@/hooks/useEmails";
-import { useUntagEmail } from "@/hooks/useEmails";
+import { useUntagEmail, useThreadEmails } from "@/hooks/useEmails";
 import { useSendEmail } from "@/hooks/useGmailConnection";
 import { EmailTagDialog } from "./EmailTagDialog";
 import { useToast } from "@/hooks/use-toast";
@@ -41,18 +41,145 @@ const categoryLabels: Record<string, string> = {
   other: "Other",
 };
 
+function ThreadMessage({
+  email,
+  isExpanded,
+  onToggle,
+  isLatest,
+}: {
+  email: EmailWithTags;
+  isExpanded: boolean;
+  onToggle: () => void;
+  isLatest: boolean;
+}) {
+  const attachments = email.email_attachments || [];
+
+  return (
+    <div className={cn(
+      "border rounded-lg transition-colors",
+      isLatest ? "border-primary/30 bg-primary/5" : "border-border"
+    )}>
+      <button
+        onClick={onToggle}
+        className="w-full text-left px-4 py-3 flex items-start justify-between gap-2 hover:bg-muted/30 rounded-t-lg"
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium truncate">
+              {email.from_name || email.from_email || "Unknown"}
+            </span>
+            {attachments.length > 0 && (
+              <Paperclip className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+            )}
+          </div>
+          {!isExpanded && (
+            <p className="text-xs text-muted-foreground truncate mt-0.5">
+              {email.snippet}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
+            {email.date ? format(new Date(email.date), "MMM d, h:mm a") : ""}
+          </span>
+          {isExpanded ? (
+            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          )}
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="px-4 pb-4 space-y-3">
+          <div className="text-xs text-muted-foreground">
+            <span>From: {email.from_name ? `${email.from_name} <${email.from_email}>` : email.from_email}</span>
+            {email.to_emails && Array.isArray(email.to_emails) && (
+              <div>To: {(email.to_emails as string[]).join(", ")}</div>
+            )}
+          </div>
+
+          {attachments.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {attachments.map((att) => (
+                <div
+                  key={att.id}
+                  className="flex items-center gap-2 px-2.5 py-1 border rounded bg-muted/30 text-xs"
+                >
+                  <Paperclip className="h-3 w-3 text-muted-foreground" />
+                  <span className="truncate max-w-[180px]">{att.filename}</span>
+                  {att.size_bytes && (
+                    <span className="text-muted-foreground">
+                      {(att.size_bytes / 1024).toFixed(0)}KB
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <Separator />
+
+          <div className="email-content">
+            {email.body_html ? (
+              <div
+                className="prose prose-sm max-w-none text-foreground
+                  [&_a]:text-accent [&_img]:max-w-full [&_table]:text-sm"
+                dangerouslySetInnerHTML={{ __html: email.body_html }}
+              />
+            ) : (
+              <pre className="whitespace-pre-wrap text-sm font-sans text-foreground">
+                {email.body_text || email.snippet || "No content"}
+              </pre>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function EmailDetailSheet({ email, open, onOpenChange }: EmailDetailSheetProps) {
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
   const [showReply, setShowReply] = useState(false);
   const [replyBody, setReplyBody] = useState("");
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const untagEmail = useUntagEmail();
   const sendEmail = useSendEmail();
   const { toast } = useToast();
 
+  const { data: threadEmails = [] } = useThreadEmails(email?.thread_id);
+
+  // Determine which emails to show — thread if available, otherwise just the single email
+  const hasThread = threadEmails.length > 1;
+  const displayEmails = hasThread ? threadEmails : email ? [email] : [];
+
+  // Auto-expand the latest message when thread loads
+  const latestEmail = displayEmails[displayEmails.length - 1];
+
+  const toggleExpanded = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const isExpanded = (id: string) => {
+    // Latest message is expanded by default; others are collapsed by default
+    if (latestEmail && id === latestEmail.id) {
+      return !expandedIds.has(id); // toggle inverts default-open
+    }
+    return expandedIds.has(id);
+  };
+
   if (!email) return null;
 
   const tags = email.email_project_tags || [];
-  const attachments = email.email_attachments || [];
 
   const handleUntag = async (tagId: string) => {
     try {
@@ -63,19 +190,21 @@ export function EmailDetailSheet({ email, open, onOpenChange }: EmailDetailSheet
     }
   };
 
+  const replyToEmail = latestEmail || email;
+
   const handleReply = async () => {
     if (!replyBody.trim()) return;
     try {
-      const replyTo = email.from_email || "";
-      const subject = email.subject?.startsWith("Re:")
-        ? email.subject
-        : `Re: ${email.subject || "(no subject)"}`;
+      const replyTo = replyToEmail.from_email || "";
+      const subject = replyToEmail.subject?.startsWith("Re:")
+        ? replyToEmail.subject
+        : `Re: ${replyToEmail.subject || "(no subject)"}`;
 
       await sendEmail.mutateAsync({
         to: replyTo,
         subject,
         html_body: `<div>${replyBody.replace(/\n/g, "<br/>")}</div>`,
-        reply_to_email_id: email.id,
+        reply_to_email_id: replyToEmail.id,
       });
 
       toast({ title: "Reply Sent", description: `Reply sent to ${replyTo}` });
@@ -92,107 +221,71 @@ export function EmailDetailSheet({ email, open, onOpenChange }: EmailDetailSheet
         if (!o) {
           setShowReply(false);
           setReplyBody("");
+          setExpandedIds(new Set());
         }
         onOpenChange(o);
       }}>
-        <SheetContent className="w-full sm:max-w-xl p-0 flex flex-col">
+        <SheetContent className="w-full sm:max-w-2xl p-0 flex flex-col">
           <SheetHeader className="px-6 pt-6 pb-4">
             <SheetTitle className="text-lg leading-tight pr-8">
               {email.subject || "(no subject)"}
             </SheetTitle>
-            <div className="text-sm text-muted-foreground space-y-1">
-              <p>
-                <span className="font-medium text-foreground">
-                  {email.from_name || email.from_email}
-                </span>
-                {email.from_name && (
-                  <span className="ml-1">&lt;{email.from_email}&gt;</span>
-                )}
-              </p>
-              {email.date && (
-                <p>{format(new Date(email.date), "EEEE, MMMM d, yyyy 'at' h:mm a")}</p>
-              )}
-            </div>
+            {hasThread && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <MessageSquare className="h-3.5 w-3.5" />
+                <span>{displayEmails.length} messages in thread</span>
+              </div>
+            )}
           </SheetHeader>
 
           <Separator />
 
-          <ScrollArea className="flex-1">
-            <div className="px-6 py-4 space-y-4">
-              {/* Tags */}
-              <div className="flex flex-wrap items-center gap-2">
-                {tags.map((tag) => (
-                  <Badge
-                    key={tag.id}
-                    variant="outline"
-                    className={cn(
-                      "text-xs gap-1",
-                      categoryColors[tag.category] || categoryColors.other
-                    )}
-                  >
-                    {tag.projects?.project_number || tag.projects?.name || "Project"}
-                    {" · "}
-                    {categoryLabels[tag.category] || tag.category}
-                    <button
-                      onClick={() => handleUntag(tag.id)}
-                      className="ml-0.5 hover:opacity-70"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-6 text-xs"
-                  onClick={() => setTagDialogOpen(true)}
-                >
-                  <Tag className="h-3 w-3 mr-1" />
-                  Tag to Project
-                </Button>
-              </div>
-
-              {/* Attachments */}
-              {attachments.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Attachments ({attachments.length})
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {attachments.map((att) => (
-                      <div
-                        key={att.id}
-                        className="flex items-center gap-2 px-3 py-1.5 border rounded-md bg-muted/30 text-sm"
-                      >
-                        <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className="truncate max-w-[200px]">{att.filename}</span>
-                        {att.size_bytes && (
-                          <span className="text-xs text-muted-foreground">
-                            {(att.size_bytes / 1024).toFixed(0)}KB
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <Separator />
-
-              {/* Email Body */}
-              <div className="email-content">
-                {email.body_html ? (
-                  <div
-                    className="prose prose-sm max-w-none text-foreground
-                      [&_a]:text-accent [&_img]:max-w-full [&_table]:text-sm"
-                    dangerouslySetInnerHTML={{ __html: email.body_html }}
-                  />
-                ) : (
-                  <pre className="whitespace-pre-wrap text-sm font-sans text-foreground">
-                    {email.body_text || email.snippet || "No content"}
-                  </pre>
+          {/* Tags */}
+          <div className="px-6 py-3 flex flex-wrap items-center gap-2">
+            {tags.map((tag) => (
+              <Badge
+                key={tag.id}
+                variant="outline"
+                className={cn(
+                  "text-xs gap-1",
+                  categoryColors[tag.category] || categoryColors.other
                 )}
-              </div>
+              >
+                {tag.projects?.project_number || tag.projects?.name || "Project"}
+                {" · "}
+                {categoryLabels[tag.category] || tag.category}
+                <button
+                  onClick={() => handleUntag(tag.id)}
+                  className="ml-0.5 hover:opacity-70"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 text-xs"
+              onClick={() => setTagDialogOpen(true)}
+            >
+              <Tag className="h-3 w-3 mr-1" />
+              Tag to Project
+            </Button>
+          </div>
+
+          <Separator />
+
+          <ScrollArea className="flex-1">
+            <div className="px-6 py-4 space-y-3">
+              {displayEmails.map((threadEmail) => (
+                <ThreadMessage
+                  key={threadEmail.id}
+                  email={threadEmail}
+                  isExpanded={isExpanded(threadEmail.id)}
+                  onToggle={() => toggleExpanded(threadEmail.id)}
+                  isLatest={threadEmail.id === latestEmail?.id}
+                />
+              ))}
             </div>
           </ScrollArea>
 
@@ -211,7 +304,7 @@ export function EmailDetailSheet({ email, open, onOpenChange }: EmailDetailSheet
             ) : (
               <div className="space-y-2">
                 <p className="text-xs text-muted-foreground">
-                  Reply to <span className="font-medium text-foreground">{email.from_email}</span>
+                  Reply to <span className="font-medium text-foreground">{replyToEmail.from_email}</span>
                 </p>
                 <Textarea
                   placeholder="Type your reply..."

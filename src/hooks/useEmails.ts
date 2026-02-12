@@ -132,6 +132,33 @@ export function useEmailDetail(id: string | undefined) {
   });
 }
 
+export function useThreadEmails(threadId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["thread-emails", threadId],
+    queryFn: async () => {
+      if (!threadId) return [];
+      const { data, error } = await supabase
+        .from("emails")
+        .select(`
+          *,
+          email_project_tags (
+            id, project_id, category, notes, tagged_at,
+            projects (id, name, project_number)
+          ),
+          email_attachments (
+            id, filename, mime_type, size_bytes, gmail_attachment_id, saved_to_project
+          )
+        `)
+        .eq("thread_id", threadId)
+        .order("date", { ascending: true });
+
+      if (error) throw error;
+      return data as unknown as EmailWithTags[];
+    },
+    enabled: !!threadId,
+  });
+}
+
 export function useTagEmail() {
   const queryClient = useQueryClient();
 
