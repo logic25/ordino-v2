@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,6 @@ import { Users, Plus, Search, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ClientDialog } from "@/components/clients/ClientDialog";
 import { ClientTable } from "@/components/clients/ClientTable";
-import { ClientDetailSheet } from "@/components/clients/ClientDetailSheet";
 import {
   useClients,
   useCreateClient,
@@ -18,9 +18,9 @@ import {
 import { useToast } from "@/hooks/use-toast";
 
 export default function Clients() {
+  const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
-  const [viewingClient, setViewingClient] = useState<Client | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
 
@@ -52,41 +52,24 @@ export default function Clients() {
     try {
       if (editingClient) {
         await updateClient.mutateAsync({ id: editingClient.id, ...data });
-        toast({
-          title: "Client updated",
-          description: "The client has been updated successfully.",
-        });
+        toast({ title: "Client updated" });
       } else {
         await createClient.mutateAsync(data);
-        toast({
-          title: "Client added",
-          description: "The client has been added to your contacts.",
-        });
+        toast({ title: "Client added" });
       }
       setDialogOpen(false);
       setEditingClient(null);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Something went wrong.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
   const handleDelete = async (id: string) => {
     try {
       await deleteClient.mutateAsync(id);
-      toast({
-        title: "Client deleted",
-        description: "The client has been removed.",
-      });
+      toast({ title: "Client deleted" });
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete client.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
@@ -161,7 +144,7 @@ export default function Clients() {
                 clients={filteredClients}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
-                onView={(client) => setViewingClient(client)}
+                onView={(client) => navigate(`/clients/${client.id}`)}
                 isDeleting={deleteClient.isPending}
               />
             )}
@@ -175,13 +158,6 @@ export default function Clients() {
         onSubmit={handleSubmit}
         client={editingClient}
         isLoading={createClient.isPending || updateClient.isPending}
-      />
-
-      <ClientDetailSheet
-        client={viewingClient}
-        open={!!viewingClient}
-        onOpenChange={(open) => !open && setViewingClient(null)}
-        onEdit={handleEdit}
       />
     </AppLayout>
   );
