@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Pencil, Trash2, Eye } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Eye, FileText } from "lucide-react";
 import type { ProjectWithRelations } from "@/hooks/useProjects";
 
 interface ProjectTableProps {
@@ -23,7 +23,9 @@ interface ProjectTableProps {
   onEdit: (project: ProjectWithRelations) => void;
   onView: (project: ProjectWithRelations) => void;
   onDelete: (id: string) => void;
+  onSendRfi?: (project: ProjectWithRelations) => void;
   isDeleting: boolean;
+  isSendingRfi?: boolean;
 }
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -47,7 +49,7 @@ const formatName = (profile: { first_name: string | null; last_name: string | nu
   return [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "—";
 };
 
-export function ProjectTable({ projects, onEdit, onView, onDelete, isDeleting }: ProjectTableProps) {
+export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, isDeleting, isSendingRfi }: ProjectTableProps) {
   return (
     <div className="overflow-x-auto">
       <Table>
@@ -109,6 +111,15 @@ export function ProjectTable({ projects, onEdit, onView, onDelete, isDeleting }:
                         <Pencil className="h-4 w-4 mr-2" />
                         Edit
                       </DropdownMenuItem>
+                      {onSendRfi && (
+                        <DropdownMenuItem
+                          disabled={isSendingRfi}
+                          onClick={() => onSendRfi(project)}
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          Send RFI
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-destructive"
