@@ -2,13 +2,14 @@ import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Settings as SettingsIcon, User, Building, Bell, CreditCard, Shield, Package, ChevronLeft, FileText, Tags } from "lucide-react";
+import { Settings as SettingsIcon, User, Building, Bell, CreditCard, Shield, Package, ChevronLeft, FileText, Tags, MessageSquare } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ServiceCatalogSettings } from "@/components/settings/ServiceCatalogSettings";
 import { RfiTemplateSettings } from "@/components/settings/RfiTemplateSettings";
 import { CompanyTypeSettings } from "@/components/settings/CompanyTypeSettings";
+import { ReviewCategorySettings } from "@/components/settings/ReviewCategorySettings";
 
-type SettingsSection = "main" | "profile" | "company" | "proposals" | "company_types" | "rfi_templates" | "notifications" | "billing" | "security";
+type SettingsSection = "main" | "profile" | "company" | "proposals" | "company_types" | "review_categories" | "rfi_templates" | "notifications" | "billing" | "security";
 
 const settingsSections = [
   {
@@ -34,6 +35,12 @@ const settingsSections = [
     title: "Company Types",
     description: "Define types like Architect, Plumber, GC for sorting and filtering",
     icon: Tags,
+  },
+  {
+    id: "review_categories" as const,
+    title: "Review Categories",
+    description: "Rating criteria for internal company reviews",
+    icon: MessageSquare,
   },
   {
     id: "rfi_templates" as const,
@@ -70,6 +77,8 @@ export default function Settings() {
         return <ServiceCatalogSettings />;
       case "company_types":
         return <CompanyTypeSettings />;
+      case "review_categories":
+        return <ReviewCategorySettings />;
       case "rfi_templates":
         return <RfiTemplateSettings />;
       case "profile":

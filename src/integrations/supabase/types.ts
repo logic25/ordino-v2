@@ -334,6 +334,7 @@ export type Database = {
       }
       company_reviews: {
         Row: {
+          category_ratings: Json | null
           client_id: string
           comment: string | null
           company_id: string
@@ -346,6 +347,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          category_ratings?: Json | null
           client_id: string
           comment?: string | null
           company_id: string
@@ -358,6 +360,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          category_ratings?: Json | null
           client_id?: string
           comment?: string | null
           company_id?: string

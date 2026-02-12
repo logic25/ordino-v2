@@ -712,7 +712,17 @@ function ContactRow({
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Zip</Label>
-                <Input className="h-8 text-sm" value={form.zip} onChange={(e) => update("zip", e.target.value)} />
+                <Input
+                  className="h-8 text-sm"
+                  value={form.zip}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, "").slice(0, 5);
+                    update("zip", raw);
+                  }}
+                  placeholder="10001"
+                  inputMode="numeric"
+                  maxLength={5}
+                />
               </div>
             </div>
 
@@ -723,21 +733,57 @@ function ContactRow({
                 <Input className="h-8 text-sm" type="email" value={form.email} onChange={(e) => update("email", e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Phone</Label>
-                <Input className="h-8 text-sm" value={form.phone} onChange={(e) => update("phone", e.target.value)} />
+                <Label className="text-xs text-muted-foreground">Phone (Office)</Label>
+                <Input
+                  className="h-8 text-sm"
+                  value={form.phone}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    update("phone", raw);
+                  }}
+                  placeholder="(555) 555-5555"
+                  inputMode="tel"
+                />
+                {form.phone && (
+                  <p className="text-[10px] text-muted-foreground">{formatPhone(form.phone)}</p>
+                )}
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Mobile</Label>
-                <Input className="h-8 text-sm" value={form.mobile} onChange={(e) => update("mobile", e.target.value)} />
+                <Input
+                  className="h-8 text-sm"
+                  value={form.mobile}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    update("mobile", raw);
+                  }}
+                  placeholder="(555) 555-5555"
+                  inputMode="tel"
+                />
+                {form.mobile && (
+                  <p className="text-[10px] text-muted-foreground">{formatPhone(form.mobile)}</p>
+                )}
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Fax</Label>
-                <Input className="h-8 text-sm" value={form.fax} onChange={(e) => update("fax", e.target.value)} />
+                <Input
+                  className="h-8 text-sm"
+                  value={form.fax}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    update("fax", raw);
+                  }}
+                  placeholder="(555) 555-5555"
+                  inputMode="tel"
+                />
+                {form.fax && (
+                  <p className="text-[10px] text-muted-foreground">{formatPhone(form.fax)}</p>
+                )}
               </div>
             </div>
 
-            {/* LinkedIn & Lead Owner */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {/* LinkedIn, Lead Owner & Primary */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 items-end">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground flex items-center gap-1">
                   <Linkedin className="h-3 w-3" /> LinkedIn URL
@@ -761,7 +807,7 @@ function ContactRow({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-center gap-2 pt-4">
+              <div className="flex items-center gap-2 pb-1">
                 <Switch checked={form.is_primary} onCheckedChange={(v) => update("is_primary", v)} />
                 <Label className="text-xs text-muted-foreground">Primary</Label>
               </div>
