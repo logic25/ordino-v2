@@ -528,6 +528,60 @@ export type Database = {
           },
         ]
       }
+      proposal_contacts: {
+        Row: {
+          client_id: string | null
+          company_name: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          proposal_id: string
+          role: string
+          sort_order: number | null
+        }
+        Insert: {
+          client_id?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          proposal_id: string
+          role?: string
+          sort_order?: number | null
+        }
+        Update: {
+          client_id?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          proposal_id?: string
+          role?: string
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_contacts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_contacts_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proposal_items: {
         Row: {
           created_at: string | null

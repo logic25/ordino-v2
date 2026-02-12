@@ -18,6 +18,7 @@ import {
   ProposalWithRelations,
   ProposalFormInput,
 } from "@/hooks/useProposals";
+import { useSaveProposalContacts, type ProposalContactInput } from "@/hooks/useProposalContacts";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Proposals() {
@@ -37,6 +38,7 @@ export default function Proposals() {
   const deleteProposal = useDeleteProposal();
   const sendProposal = useSendProposal();
   const signProposal = useSignProposalInternal();
+  const saveContacts = useSaveProposalContacts();
 
   // Open dialog if coming from properties with a property pre-selected
   useEffect(() => {
@@ -91,16 +93,20 @@ export default function Proposals() {
     setDialogOpen(true);
   };
 
-  const handleSubmit = async (data: ProposalFormInput) => {
+  const handleSubmit = async (data: ProposalFormInput, contacts: ProposalContactInput[]) => {
     try {
       if (editingProposal) {
         await updateProposal.mutateAsync({ id: editingProposal.id, ...data });
+        await saveContacts.mutateAsync({ proposalId: editingProposal.id, contacts });
         toast({
           title: "Proposal updated",
           description: "The proposal has been updated successfully.",
         });
       } else {
-        await createProposal.mutateAsync(data);
+        const newProposal = await createProposal.mutateAsync(data);
+        if (contacts.length > 0) {
+          await saveContacts.mutateAsync({ proposalId: newProposal.id, contacts });
+        }
         toast({
           title: "Proposal created",
           description: "Your proposal has been created as a draft.",

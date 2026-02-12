@@ -30,6 +30,8 @@ import { useClients, useCreateClient, Client } from "@/hooks/useClients";
 import { useCompanySettings, ServiceCatalogItem } from "@/hooks/useCompanySettings";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useToast } from "@/hooks/use-toast";
+import { ProposalContactsSection } from "@/components/proposals/ProposalContactsSection";
+import { useProposalContacts, type ProposalContactInput } from "@/hooks/useProposalContacts";
 
 const itemSchema = z.object({
   id: z.string().optional(),
@@ -68,7 +70,7 @@ type FormData = z.infer<typeof proposalSchema>;
 interface ProposalDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: ProposalFormInput) => Promise<void>;
+  onSubmit: (data: ProposalFormInput, contacts: ProposalContactInput[]) => Promise<void>;
   proposal?: ProposalWithRelations | null;
   isLoading?: boolean;
   defaultPropertyId?: string;
@@ -93,6 +95,27 @@ export function ProposalDialog({
   const [showNewClient, setShowNewClient] = useState(false);
   const [newClientName, setNewClientName] = useState("");
   const [newClientEmail, setNewClientEmail] = useState("");
+  const [contacts, setContacts] = useState<ProposalContactInput[]>([]);
+
+  const { data: existingContacts = [] } = useProposalContacts(proposal?.id);
+
+  // Sync existing contacts when editing
+  useEffect(() => {
+    if (proposal && existingContacts.length > 0) {
+      setContacts(existingContacts.map(c => ({
+        id: c.id,
+        client_id: c.client_id,
+        name: c.name,
+        email: c.email,
+        phone: c.phone,
+        company_name: c.company_name,
+        role: c.role as ProposalContactInput["role"],
+        sort_order: c.sort_order ?? 0,
+      })));
+    } else if (!proposal) {
+      setContacts([]);
+    }
+  }, [proposal, existingContacts]);
 
   const serviceCatalog = companyData?.settings?.service_catalog || [];
   const defaultTerms = companyData?.settings?.default_terms || "";
@@ -270,8 +293,9 @@ export function ProposalDialog({
       })),
       milestones: [],
     };
-    await onSubmit(formData);
+    await onSubmit(formData, contacts);
     form.reset();
+    setContacts([]);
   };
 
   const formatCurrency = (value: number) => {
@@ -441,6 +465,12 @@ export function ProposalDialog({
                   />
                 </div>
               </div>
+
+              {/* Multi-Contact Support */}
+              <ProposalContactsSection
+                contacts={contacts}
+                onChange={setContacts}
+              />
 
               {/* Sales Person & Reminder */}
               <div className="grid grid-cols-2 gap-4">
