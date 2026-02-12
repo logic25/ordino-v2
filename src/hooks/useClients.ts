@@ -7,11 +7,21 @@ export type ClientContact = Tables<"client_contacts">;
 
 export interface ClientContactInput {
   id?: string;
-  name: string;
+  first_name: string;
+  last_name?: string | null;
   title?: string | null;
   email?: string | null;
   phone?: string | null;
+  mobile?: string | null;
+  fax?: string | null;
   linkedin_url?: string | null;
+  company_name?: string | null;
+  lead_owner_id?: string | null;
+  address_1?: string | null;
+  address_2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
   is_primary?: boolean;
 }
 
@@ -19,8 +29,17 @@ export interface ClientFormInput {
   name: string;
   email?: string | null;
   phone?: string | null;
+  fax?: string | null;
   address?: string | null;
   notes?: string | null;
+  lead_owner_id?: string | null;
+  tax_id?: string | null;
+  ibm_number?: string | null;
+  ibm_number_expiration?: string | null;
+  hic_license?: string | null;
+  dob_tracking?: string | null;
+  dob_tracking_expiration?: string | null;
+  is_sia?: boolean;
   contacts?: ClientContactInput[];
 }
 
@@ -57,6 +76,10 @@ export function useClientContacts(clientId: string | undefined) {
   });
 }
 
+function buildContactName(c: ClientContactInput): string {
+  return [c.first_name, c.last_name].filter(Boolean).join(" ") || c.first_name;
+}
+
 export function useCreateClient() {
   const queryClient = useQueryClient();
 
@@ -78,8 +101,17 @@ export function useCreateClient() {
           name: input.name,
           email: input.email || null,
           phone: input.phone || null,
+          fax: input.fax || null,
           address: input.address || null,
           notes: input.notes || null,
+          lead_owner_id: input.lead_owner_id || null,
+          tax_id: input.tax_id || null,
+          ibm_number: input.ibm_number || null,
+          ibm_number_expiration: input.ibm_number_expiration || null,
+          hic_license: input.hic_license || null,
+          dob_tracking: input.dob_tracking || null,
+          dob_tracking_expiration: input.dob_tracking_expiration || null,
+          is_sia: input.is_sia || false,
         })
         .select()
         .single();
@@ -91,11 +123,22 @@ export function useCreateClient() {
         const contactRows = input.contacts.map((c, i) => ({
           client_id: data.id,
           company_id: profile.company_id,
-          name: c.name,
+          name: buildContactName(c),
+          first_name: c.first_name,
+          last_name: c.last_name || null,
           title: c.title || null,
           email: c.email || null,
           phone: c.phone || null,
+          mobile: c.mobile || null,
+          fax: c.fax || null,
           linkedin_url: c.linkedin_url || null,
+          company_name: c.company_name || null,
+          lead_owner_id: c.lead_owner_id || null,
+          address_1: c.address_1 || null,
+          address_2: c.address_2 || null,
+          city: c.city || null,
+          state: c.state || null,
+          zip: c.zip || null,
           is_primary: c.is_primary || false,
           sort_order: i,
         }));
@@ -131,8 +174,17 @@ export function useUpdateClient() {
           name: input.name,
           email: input.email || null,
           phone: input.phone || null,
+          fax: input.fax || null,
           address: input.address || null,
           notes: input.notes || null,
+          lead_owner_id: input.lead_owner_id || null,
+          tax_id: input.tax_id || null,
+          ibm_number: input.ibm_number || null,
+          ibm_number_expiration: input.ibm_number_expiration || null,
+          hic_license: input.hic_license || null,
+          dob_tracking: input.dob_tracking || null,
+          dob_tracking_expiration: input.dob_tracking_expiration || null,
+          is_sia: input.is_sia ?? false,
         })
         .eq("id", id)
         .select()
@@ -140,9 +192,8 @@ export function useUpdateClient() {
 
       if (error) throw error;
 
-      // Sync contacts: delete removed, upsert existing/new
+      // Sync contacts
       if (input.contacts !== undefined) {
-        // Get existing contact IDs
         const { data: existing } = await supabase
           .from("client_contacts")
           .select("id")
@@ -165,11 +216,22 @@ export function useUpdateClient() {
         for (let i = 0; i < (input.contacts || []).length; i++) {
           const c = input.contacts![i];
           const row = {
-            name: c.name,
+            name: buildContactName(c),
+            first_name: c.first_name,
+            last_name: c.last_name || null,
             title: c.title || null,
             email: c.email || null,
             phone: c.phone || null,
+            mobile: c.mobile || null,
+            fax: c.fax || null,
             linkedin_url: c.linkedin_url || null,
+            company_name: c.company_name || null,
+            lead_owner_id: c.lead_owner_id || null,
+            address_1: c.address_1 || null,
+            address_2: c.address_2 || null,
+            city: c.city || null,
+            state: c.state || null,
+            zip: c.zip || null,
             is_primary: c.is_primary || false,
             sort_order: i,
           };
@@ -194,6 +256,7 @@ export function useUpdateClient() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       queryClient.invalidateQueries({ queryKey: ["client-contacts"] });
+      queryClient.invalidateQueries({ queryKey: ["client-detail"] });
     },
   });
 }
