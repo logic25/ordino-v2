@@ -6,6 +6,7 @@ import { Users, Plus, Search, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ClientDialog } from "@/components/clients/ClientDialog";
 import { ClientTable } from "@/components/clients/ClientTable";
+import { ClientDetailSheet } from "@/components/clients/ClientDetailSheet";
 import {
   useClients,
   useCreateClient,
@@ -19,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function Clients() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [viewingClient, setViewingClient] = useState<Client | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
 
@@ -159,6 +161,7 @@ export default function Clients() {
                 clients={filteredClients}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
+                onView={(client) => setViewingClient(client)}
                 isDeleting={deleteClient.isPending}
               />
             )}
@@ -172,6 +175,13 @@ export default function Clients() {
         onSubmit={handleSubmit}
         client={editingClient}
         isLoading={createClient.isPending || updateClient.isPending}
+      />
+
+      <ClientDetailSheet
+        client={viewingClient}
+        open={!!viewingClient}
+        onOpenChange={(open) => !open && setViewingClient(null)}
+        onEdit={handleEdit}
       />
     </AppLayout>
   );
