@@ -40,7 +40,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, Plus, Trash2, UserPlus } from "lucide-react";
 import type { ProposalWithRelations, ProposalFormInput } from "@/hooks/useProposals";
-import { useProperties } from "@/hooks/useProperties";
+import { useProperties, useCreateProperty } from "@/hooks/useProperties";
 import { useClients, useCreateClient, Client } from "@/hooks/useClients";
 import { useCompanySettings, ServiceCatalogItem } from "@/hooks/useCompanySettings";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
@@ -112,6 +112,8 @@ export function ProposalDialog({
   const [newClientEmail, setNewClientEmail] = useState("");
   const [contacts, setContacts] = useState<ProposalContactInput[]>([]);
   const [propertyOpen, setPropertyOpen] = useState(false);
+  const [propertySearch, setPropertySearch] = useState("");
+  const createProperty = useCreateProperty();
 
   const { data: existingContacts = [] } = useProposalContacts(proposal?.id);
 
@@ -363,10 +365,36 @@ export function ProposalDialog({
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[400px] p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Type an address…" />
+                      <Command shouldFilter={true}>
+                        <CommandInput
+                          placeholder="Type an address…"
+                          value={propertySearch}
+                          onValueChange={setPropertySearch}
+                        />
                         <CommandList>
-                          <CommandEmpty>No properties found.</CommandEmpty>
+                          <CommandEmpty className="p-0">
+                            <button
+                              type="button"
+                              className="w-full px-4 py-3 text-sm text-left hover:bg-accent flex items-center gap-2"
+                              onClick={async () => {
+                                if (!propertySearch.trim()) return;
+                                try {
+                                  const newProp = await createProperty.mutateAsync({
+                                    address: propertySearch.trim(),
+                                  });
+                                  form.setValue("property_id", newProp.id);
+                                  setPropertySearch("");
+                                  setPropertyOpen(false);
+                                  toast({ title: "Property created", description: newProp.address });
+                                } catch (e: any) {
+                                  toast({ title: "Error", description: e.message, variant: "destructive" });
+                                }
+                              }}
+                            >
+                              <Plus className="h-4 w-4" />
+                              Add "{propertySearch}" as new property
+                            </button>
+                          </CommandEmpty>
                           <CommandGroup>
                             {properties.map((p) => (
                               <CommandItem
@@ -374,6 +402,7 @@ export function ProposalDialog({
                                 value={p.address}
                                 onSelect={() => {
                                   form.setValue("property_id", p.id);
+                                  setPropertySearch("");
                                   setPropertyOpen(false);
                                 }}
                               >
