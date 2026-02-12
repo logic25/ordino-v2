@@ -24,6 +24,9 @@ import {
   Plus,
   Trash2,
   Building2,
+  Upload,
+  X,
+  File,
 } from "lucide-react";
 
 export default function RfiForm() {
@@ -39,6 +42,55 @@ export default function RfiForm() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [direction, setDirection] = useState<"forward" | "back">("forward");
+  const [uploading, setUploading] = useState<Record<string, boolean>>({});
+
+  // File upload handler
+  const handleFileUpload = async (key: string, files: FileList | null, accept?: string, maxFiles?: number) => {
+    if (!files || !rfi || !token) return;
+    const max = maxFiles || 5;
+    const existing: { name: string; path: string }[] = responses[key] || [];
+    if (existing.length + files.length > max) {
+      alert(`Maximum ${max} files allowed.`);
+      return;
+    }
+
+    setUploading((prev) => ({ ...prev, [key]: true }));
+    try {
+      const uploaded = [...existing];
+      for (const file of Array.from(files)) {
+        // Validate file size (20MB max)
+        if (file.size > 20 * 1024 * 1024) {
+          alert(`${file.name} is too large. Maximum 20MB per file.`);
+          continue;
+        }
+        // Sanitize filename
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const filePath = `${rfi.id}/${Date.now()}_${safeName}`;
+        const { error } = await supabase.storage
+          .from('rfi-attachments')
+          .upload(filePath, file, { upsert: false });
+        if (error) {
+          console.error('Upload error:', error);
+          alert(`Failed to upload ${file.name}`);
+          continue;
+        }
+        uploaded.push({ name: file.name, path: filePath });
+      }
+      setValue(key, uploaded);
+    } finally {
+      setUploading((prev) => ({ ...prev, [key]: false }));
+    }
+  };
+
+  const removeFile = async (key: string, index: number) => {
+    const files: { name: string; path: string }[] = responses[key] || [];
+    const file = files[index];
+    if (file?.path) {
+      await supabase.storage.from('rfi-attachments').remove([file.path]);
+    }
+    const updated = files.filter((_, i) => i !== index);
+    setValue(key, updated);
+  };
 
   const sections = useMemo(() => rfi?.sections || [], [rfi]);
   const totalSteps = sections.length;
@@ -308,6 +360,48 @@ export default function RfiForm() {
                 </div>
               );
             })}
+          </div>
+        ) : field.type === "file_upload" ? (
+          <div className="space-y-3">
+            {/* Uploaded files list */}
+            {((responses[key] as { name: string; path: string }[]) || []).map((file, idx) => (
+              <div key={idx} className="flex items-center gap-3 p-3 rounded-lg border border-stone-200 bg-white">
+                <File className="h-4 w-4 text-amber-600 shrink-0" />
+                <span className="text-sm text-stone-700 truncate flex-1">{file.name}</span>
+                <button
+                  type="button"
+                  onClick={() => removeFile(key, idx)}
+                  className="text-stone-400 hover:text-red-500 transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+            {/* Upload area */}
+            {((responses[key] as any[]) || []).length < (field.maxFiles || 5) && (
+              <label className="flex flex-col items-center gap-2 p-6 rounded-xl border-2 border-dashed border-stone-200 bg-stone-50 hover:border-amber-400 hover:bg-amber-50/30 transition-all cursor-pointer">
+                {uploading[key] ? (
+                  <>
+                    <Loader2 className="h-6 w-6 animate-spin text-amber-600" />
+                    <span className="text-sm text-stone-500">Uploading...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-6 w-6 text-stone-400" />
+                    <span className="text-sm text-stone-500">{field.placeholder || "Click to upload files"}</span>
+                    <span className="text-xs text-stone-400">Max {field.maxFiles || 5} files, 20MB each</span>
+                  </>
+                )}
+                <input
+                  type="file"
+                  multiple
+                  accept={field.accept}
+                  className="hidden"
+                  disabled={!!uploading[key]}
+                  onChange={(e) => handleFileUpload(key, e.target.files, field.accept, field.maxFiles)}
+                />
+              </label>
+            )}
           </div>
         ) : null}
       </div>
