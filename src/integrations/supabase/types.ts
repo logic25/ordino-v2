@@ -881,6 +881,156 @@ export type Database = {
           },
         ]
       }
+      rfi_requests: {
+        Row: {
+          access_token: string
+          company_id: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          project_id: string | null
+          property_id: string | null
+          proposal_id: string | null
+          recipient_email: string | null
+          recipient_name: string | null
+          responses: Json | null
+          sections: Json
+          sent_at: string | null
+          status: string
+          submitted_at: string | null
+          template_id: string | null
+          title: string
+          updated_at: string | null
+          viewed_at: string | null
+        }
+        Insert: {
+          access_token?: string
+          company_id: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          project_id?: string | null
+          property_id?: string | null
+          proposal_id?: string | null
+          recipient_email?: string | null
+          recipient_name?: string | null
+          responses?: Json | null
+          sections?: Json
+          sent_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          template_id?: string | null
+          title: string
+          updated_at?: string | null
+          viewed_at?: string | null
+        }
+        Update: {
+          access_token?: string
+          company_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          project_id?: string | null
+          property_id?: string | null
+          proposal_id?: string | null
+          recipient_email?: string | null
+          recipient_name?: string | null
+          responses?: Json | null
+          sections?: Json
+          sent_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          template_id?: string | null
+          title?: string
+          updated_at?: string | null
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rfi_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfi_requests_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfi_requests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfi_requests_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfi_requests_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfi_requests_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "rfi_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rfi_templates: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_default: boolean
+          name: string
+          sections: Json
+          updated_at: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean
+          name?: string
+          sections?: Json
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean
+          name?: string
+          sections?: Json
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rfi_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       services: {
         Row: {
           actual_hours: number | null
