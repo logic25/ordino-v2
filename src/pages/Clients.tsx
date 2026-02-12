@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Plus, Search, Loader2 } from "lucide-react";
+import { Users, Plus, Search, Loader2, Building2, UserPlus, Contact } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ClientDialog } from "@/components/clients/ClientDialog";
 import { ClientTable } from "@/components/clients/ClientTable";
@@ -15,7 +15,52 @@ import {
   Client,
   ClientFormInput,
 } from "@/hooks/useClients";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { subDays } from "date-fns";
+
+function useClientMetrics(clients: Client[]) {
+  const contactsQuery = useQuery({
+    queryKey: ["all-client-contacts-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("client_contacts")
+        .select("*", { count: "exact", head: true });
+      if (error) throw error;
+      return count || 0;
+    },
+  });
+
+  const totalClients = clients.length;
+  const totalContacts = contactsQuery.data || 0;
+
+  // Unique company names from contacts
+  const uniqueCompanies = new Set<string>();
+  // We'll get this from a separate query
+  const companiesQuery = useQuery({
+    queryKey: ["contact-companies-count"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("client_contacts")
+        .select("company_name")
+        .not("company_name", "is", null);
+      if (error) throw error;
+      const unique = new Set(data?.map((c) => c.company_name?.toLowerCase().trim()).filter(Boolean));
+      return unique.size;
+    },
+  });
+
+  const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
+  const newClients = clients.filter((c) => c.created_at && c.created_at >= thirtyDaysAgo).length;
+
+  return {
+    totalClients,
+    totalContacts,
+    uniqueCompanies: companiesQuery.data || 0,
+    newClients,
+  };
+}
 
 export default function Clients() {
   const navigate = useNavigate();
@@ -28,6 +73,7 @@ export default function Clients() {
   const createClient = useCreateClient();
   const updateClient = useUpdateClient();
   const deleteClient = useDeleteClient();
+  const metrics = useClientMetrics(clients);
 
   const filteredClients = clients.filter((c) => {
     const query = searchQuery.toLowerCase();
@@ -91,6 +137,62 @@ export default function Clients() {
             <Plus className="h-4 w-4 mr-2" />
             Add Client
           </Button>
+        </div>
+
+        {/* Metrics */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="pt-4 pb-3 px-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-md bg-primary/10 p-2">
+                  <Users className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{metrics.totalClients}</p>
+                  <p className="text-xs text-muted-foreground">Total Clients</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-3 px-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-md bg-accent/10 p-2">
+                  <Contact className="h-4 w-4 text-accent" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{metrics.totalContacts}</p>
+                  <p className="text-xs text-muted-foreground">Total Contacts</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-3 px-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-md bg-secondary/50 p-2">
+                  <Building2 className="h-4 w-4 text-secondary-foreground" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{metrics.uniqueCompanies}</p>
+                  <p className="text-xs text-muted-foreground">Companies</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-3 px-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-md bg-primary/10 p-2">
+                  <UserPlus className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{metrics.newClients}</p>
+                  <p className="text-xs text-muted-foreground">New (30 days)</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         <div className="relative max-w-md">
