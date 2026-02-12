@@ -116,7 +116,7 @@ export default function Projects() {
       const rfi = await createRfi.mutateAsync({
         project_id: project.id,
         property_id: project.property_id,
-        title: `PIS — ${project.properties?.address || project.name || "Project"}`,
+        title: `PIS — ${project.name || "Project"} — ${project.properties?.address || ""}`.trim(),
         sections,
       });
 
