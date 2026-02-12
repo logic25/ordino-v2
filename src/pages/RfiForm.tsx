@@ -92,7 +92,32 @@ export default function RfiForm() {
     setValue(key, updated);
   };
 
-  const sections = useMemo(() => rfi?.sections || [], [rfi]);
+  // Dynamically inject selected work types into applicant_work_types options
+  const sections = useMemo(() => {
+    const baseSections = rfi?.sections || [];
+    const buildingSection = baseSections.find(s => s.id === "building_and_scope");
+    const workTypesKey = "building_and_scope_work_types_selected";
+    const selectedWorkTypes: string[] = Array.isArray(responses[workTypesKey]) ? responses[workTypesKey] : [];
+    // Filter out "Other" from work type options for applicant
+    const applicantOptions = selectedWorkTypes.filter(t => t !== "Other");
+
+    return baseSections.map(section => {
+      if (section.id === "applicant_and_owner") {
+        return {
+          ...section,
+          repeatable: true,
+          maxRepeat: 5,
+          fields: section.fields.map(field => {
+            if (field.id === "applicant_work_types") {
+              return { ...field, options: applicantOptions.length > 0 ? applicantOptions : ["No work types selected yet"] };
+            }
+            return field;
+          }),
+        };
+      }
+      return section;
+    });
+  }, [rfi, responses]);
   const totalSteps = sections.length;
   const isReviewStep = currentStep === totalSteps; // review is one past the last section
   const progress = totalSteps > 0 ? Math.max(0, ((Math.min(currentStep + 1, totalSteps)) / totalSteps) * 100) : 0;
@@ -450,19 +475,29 @@ export default function RfiForm() {
         ) : field.type === "file_upload" ? (
           <div className="space-y-3">
             {/* Uploaded files list */}
-            {((responses[key] as { name: string; path: string }[]) || []).map((file, idx) => (
-              <div key={idx} className="flex items-center gap-3 p-3 rounded-lg border border-stone-200 bg-white">
-                <File className="h-4 w-4 text-amber-600 shrink-0" />
-                <span className="text-sm text-stone-700 truncate flex-1">{file.name}</span>
-                <button
-                  type="button"
-                  onClick={() => removeFile(key, idx)}
-                  className="text-stone-400 hover:text-red-500 transition-colors"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
+            {((responses[key] as { name: string; path: string }[]) || []).map((file, idx) => {
+              const publicUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/rfi-attachments/${file.path}`;
+              return (
+                <div key={idx} className="flex items-center gap-3 p-3 rounded-lg border border-stone-200 bg-white">
+                  <File className="h-4 w-4 text-amber-600 shrink-0" />
+                  <a
+                    href={publicUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-amber-700 hover:text-amber-900 underline truncate flex-1"
+                  >
+                    {file.name}
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => removeFile(key, idx)}
+                    className="text-stone-400 hover:text-red-500 transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              );
+            })}
             {/* Upload area */}
             {((responses[key] as any[]) || []).length < (field.maxFiles || 5) && (
               <label className="flex flex-col items-center gap-2 p-6 rounded-xl border-2 border-dashed border-stone-200 bg-stone-50 hover:border-amber-400 hover:bg-amber-50/30 transition-all cursor-pointer">
@@ -684,11 +719,30 @@ export default function RfiForm() {
                           const val = responses[key];
                           if (!val || (typeof val === "string" && val.trim() === "") || (Array.isArray(val) && val.length === 0)) return null;
 
-                          let displayVal: string;
+                          let displayVal: React.ReactNode;
                           if (field.type === "currency" && val) {
                             displayVal = `$${Number(val).toLocaleString()}`;
                           } else if (field.type === "file_upload" && Array.isArray(val)) {
-                            displayVal = `${val.length} file(s) uploaded`;
+                            displayVal = (
+                              <div className="space-y-1">
+                                {(val as { name: string; path: string }[]).map((file, fIdx) => {
+                                  const publicUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/rfi-attachments/${file.path}`;
+                                  return (
+                                    <a
+                                      key={fIdx}
+                                      href={publicUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center gap-2 text-sm text-amber-700 hover:text-amber-900 underline"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <File className="h-3 w-3 shrink-0" />
+                                      {file.name}
+                                    </a>
+                                  );
+                                })}
+                              </div>
+                            );
                           } else if (field.type === "checkbox" && val === true) {
                             displayVal = "Yes";
                           } else if (Array.isArray(val)) {
@@ -700,7 +754,7 @@ export default function RfiForm() {
                           return (
                             <div key={key} className={`py-1.5 ${field.width === "full" ? "sm:col-span-2" : ""}`}>
                               <p className="text-xs text-stone-400">{field.label}</p>
-                              <p className="text-sm text-stone-700 truncate">{displayVal}</p>
+                              <div className="text-sm text-stone-700">{displayVal}</div>
                             </div>
                           );
                         })}
