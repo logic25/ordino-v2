@@ -70,20 +70,14 @@ const LEAD_SOURCES = [
 ] as const;
 
 const PROJECT_TYPES = [
-  "New Building",
-  "Alteration Type I",
-  "Alteration Type II",
-  "Alteration Type III",
-  "Demolition",
-  "Place of Assembly",
-  "Sign",
-  "Elevator",
-  "Sprinkler",
-  "Standpipe",
-  "Mechanical",
-  "Plumbing",
-  "Construction Fence",
-  "Sidewalk Shed",
+  "Residential",
+  "Commercial",
+  "Industrial",
+  "Mixed-Use",
+  "Institutional",
+  "Healthcare",
+  "Hospitality",
+  "Retail",
   "Other",
 ] as const;
 
