@@ -58,9 +58,9 @@ export interface RfiRequest {
 // Default PIS template – regrouped for a seamless client experience
 export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
   {
-    id: "building_details",
-    title: "Building & Project Details",
-    description: "Verify or update the property details below",
+    id: "building_and_scope",
+    title: "Building Details & Scope of Work",
+    description: "Verify the property info and enter costs for each applicable work type",
     fields: [
       { id: "project_address", label: "Project Address", type: "text", required: true, width: "full" },
       { id: "borough", label: "Borough", type: "text", width: "half" },
@@ -71,16 +71,10 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
       { id: "sq_ft", label: "Area (sq ft)", type: "number", width: "half" },
       { id: "rent_controlled", label: "Rent Controlled?", type: "select", options: ["Yes", "No"], width: "half" },
       { id: "rent_stabilized", label: "Rent Stabilized?", type: "select", options: ["Yes", "No"], width: "half" },
-      { id: "units_occupied", label: "Occupied Units During Construction", type: "number", width: "half" },
+      { id: "units_occupied", label: "Occupied Units", type: "number", width: "half" },
       { id: "ownership_type", label: "Ownership Type", type: "select", options: ["Individual", "Corporation", "Partnership", "Condo/Co-op", "Non-profit", "Government"], width: "half" },
       { id: "non_profit", label: "Non-Profit?", type: "select", options: ["Yes", "No"], width: "half" },
-    ],
-  },
-  {
-    id: "scope_and_costs",
-    title: "Scope of Work & Costs",
-    description: "Enter estimated costs for each applicable work type — only fill in what applies to your project",
-    fields: [
+      { id: "scope_heading", label: "Scope of Work & Cost Breakdown", type: "heading" },
       { id: "job_description", label: "Job Description", type: "textarea", required: true, width: "full", placeholder: "Describe the work in detail..." },
       { id: "cost_architectural", label: "Architectural", type: "currency", width: "half" },
       { id: "cost_structural", label: "Structural", type: "currency", width: "half" },
@@ -95,7 +89,7 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
       { id: "cost_fuel_storage", label: "Fuel Storage", type: "currency", width: "half" },
       { id: "cost_curb_cut", label: "Curb Cut", type: "currency", width: "half" },
       { id: "cost_other", label: "Other", type: "currency", width: "half" },
-      { id: "work_type_other", label: "Other Work Type Description", type: "text", width: "half", placeholder: "Describe other work..." },
+      { id: "work_type_other", label: "Other Work Type", type: "text", width: "half", placeholder: "Describe other work..." },
       { id: "directive_14", label: "Directive 14?", type: "select", options: ["Yes", "No"], width: "half" },
       { id: "plans_upload", label: "Upload Plans / Drawings", type: "file_upload", width: "full", accept: ".pdf,.dwg,.dxf,.jpg,.jpeg,.png", maxFiles: 10, placeholder: "PDF, DWG, DXF, JPG, or PNG files" },
     ],

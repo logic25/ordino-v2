@@ -94,8 +94,9 @@ export default function RfiForm() {
 
   const sections = useMemo(() => rfi?.sections || [], [rfi]);
   const totalSteps = sections.length;
-  const progress = totalSteps > 0 ? Math.max(0, ((currentStep + 1) / totalSteps) * 100) : 0;
-  const currentSection = currentStep >= 0 ? sections[currentStep] : null;
+  const isReviewStep = currentStep === totalSteps; // review is one past the last section
+  const progress = totalSteps > 0 ? Math.max(0, ((Math.min(currentStep + 1, totalSteps)) / totalSteps) * 100) : 0;
+  const currentSection = currentStep >= 0 && currentStep < totalSteps ? sections[currentStep] : null;
 
   // Pre-populate property data when loaded
   useEffect(() => {
@@ -110,7 +111,7 @@ export default function RfiForm() {
       for (const section of rfi.sections) {
         for (const field of section.fields) {
           const prefillValue = prefillMap[field.id];
-          if (prefillValue && section.id === "building_details") {
+          if (prefillValue && section.id === "building_and_scope") {
             const key = `${section.id}_${field.id}`;
             if (!newResponses[key]) {
               newResponses[key] = prefillValue;
@@ -205,7 +206,7 @@ export default function RfiForm() {
 
   const goNext = () => {
     setDirection("forward");
-    if (currentStep < totalSteps - 1) {
+    if (currentStep < totalSteps) { // allow going to review step
       setCurrentStep((s) => s + 1);
     }
   };
@@ -523,7 +524,7 @@ export default function RfiForm() {
 
           <div className="flex items-center gap-3">
             <span className="text-xs font-mono text-stone-400">
-              {currentStep + 1} / {totalSteps}
+              {isReviewStep ? "Review" : `${currentStep + 1} / ${totalSteps}`}
             </span>
           </div>
         </div>
@@ -539,7 +540,70 @@ export default function RfiForm() {
       {/* Main content */}
       <div className="flex-1 flex items-start justify-center px-4 py-8 md:py-12">
         <div className="w-full max-w-2xl">
-          {currentSection && (
+          {/* Review step */}
+          {isReviewStep && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="mb-8">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xs font-mono text-emerald-600 bg-emerald-50 border border-emerald-200/50 px-2 py-0.5 rounded">
+                    Review
+                  </span>
+                </div>
+                <h2 className="text-2xl md:text-3xl font-bold text-stone-800 mb-2">
+                  Review & Submit
+                </h2>
+                <p className="text-stone-500 text-base">
+                  Please review your answers below. Click any section to go back and edit.
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                {sections.map((section, sIdx) => (
+                  <div key={section.id} className="rounded-2xl border border-stone-200 bg-white shadow-sm overflow-hidden">
+                    <button
+                      onClick={() => { setDirection("back"); setCurrentStep(sIdx); }}
+                      className="w-full px-6 py-4 flex items-center justify-between bg-stone-50 hover:bg-amber-50/50 transition-colors text-left border-b border-stone-200"
+                    >
+                      <h3 className="text-sm font-semibold text-stone-800">{section.title}</h3>
+                      <span className="text-xs text-amber-600 font-medium">Edit</span>
+                    </button>
+                    <div className="px-6 py-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                        {section.fields.filter(f => f.type !== "heading").map((field) => {
+                          const key = getFieldKey(section.id, field.id);
+                          const val = responses[key];
+                          if (!val || (typeof val === "string" && val.trim() === "") || (Array.isArray(val) && val.length === 0)) return null;
+
+                          let displayVal: string;
+                          if (field.type === "currency" && val) {
+                            displayVal = `$${Number(val).toLocaleString()}`;
+                          } else if (field.type === "file_upload" && Array.isArray(val)) {
+                            displayVal = `${val.length} file(s) uploaded`;
+                          } else if (field.type === "checkbox" && val === true) {
+                            displayVal = "Yes";
+                          } else if (Array.isArray(val)) {
+                            displayVal = val.join(", ");
+                          } else {
+                            displayVal = String(val);
+                          }
+
+                          return (
+                            <div key={key} className={`py-1.5 ${field.width === "full" ? "sm:col-span-2" : ""}`}>
+                              <p className="text-xs text-stone-400">{field.label}</p>
+                              <p className="text-sm text-stone-700 truncate">{displayVal}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Regular section step */}
+          {currentSection && !isReviewStep && (
             <div key={currentSection.id} className="animate-in fade-in slide-in-from-bottom-4 duration-300">
               {/* Section header */}
               <div className="mb-8">
@@ -623,7 +687,7 @@ export default function RfiForm() {
       <div className="sticky bottom-0 bg-white/80 backdrop-blur-xl border-t border-stone-200">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           {/* Step dots */}
-          <div className="hidden sm:flex items-center gap-1">
+          <div className="hidden sm:flex items-center gap-1.5">
             {sections.map((section, i) => {
               const { total, filled } = getSectionProgress(section);
               const isCurrent = i === currentStep;
@@ -646,21 +710,21 @@ export default function RfiForm() {
                 />
               );
             })}
+            {/* Review dot */}
+            <button
+              onClick={() => { setDirection("forward"); setCurrentStep(totalSteps); }}
+              className={`h-2 rounded-full transition-all ${
+                isReviewStep ? "w-6 bg-emerald-500" : "w-2 bg-stone-200 hover:bg-stone-300"
+              }`}
+              title="Review & Submit"
+            />
           </div>
 
           {/* Action button */}
-          {currentStep < totalSteps - 1 ? (
-            <Button
-              onClick={goNext}
-              className="bg-amber-600 hover:bg-amber-500 text-white font-semibold px-6 h-11 rounded-xl ml-auto"
-            >
-              Continue
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          ) : (
+          {isReviewStep ? (
             <Button
               onClick={handleSubmit}
-              disabled={submitting || !validateCurrentStep()}
+              disabled={submitting}
               className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-6 h-11 rounded-xl ml-auto disabled:opacity-50"
             >
               {submitting ? (
@@ -674,6 +738,14 @@ export default function RfiForm() {
                   Submit
                 </>
               )}
+            </Button>
+          ) : (
+            <Button
+              onClick={goNext}
+              className="bg-amber-600 hover:bg-amber-500 text-white font-semibold px-6 h-11 rounded-xl ml-auto"
+            >
+              {currentStep === totalSteps - 1 ? "Review" : "Continue"}
+              <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           )}
         </div>
