@@ -332,6 +332,81 @@ export type Database = {
         }
         Relationships: []
       }
+      company_reviews: {
+        Row: {
+          client_id: string
+          comment: string | null
+          company_id: string
+          contact_id: string | null
+          created_at: string | null
+          id: string
+          project_id: string | null
+          rating: number
+          reviewer_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          client_id: string
+          comment?: string | null
+          company_id: string
+          contact_id?: string | null
+          created_at?: string | null
+          id?: string
+          project_id?: string | null
+          rating: number
+          reviewer_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          client_id?: string
+          comment?: string | null
+          company_id?: string
+          contact_id?: string | null
+          created_at?: string | null
+          id?: string
+          project_id?: string | null
+          rating?: number
+          reviewer_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_reviews_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_reviews_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_reviews_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_reviews_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_reviews_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dob_applications: {
         Row: {
           application_type: string | null

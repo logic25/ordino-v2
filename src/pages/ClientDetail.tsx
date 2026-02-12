@@ -65,7 +65,7 @@ import {
 } from "@/hooks/useClients";
 import { ClientDialog } from "@/components/clients/ClientDialog";
 import { AddContactDialog } from "@/components/clients/AddContactDialog";
-
+import { ReviewsSection } from "@/components/clients/ReviewsSection";
 import { ClientProposalsModal } from "@/components/clients/ClientProposalsModal";
 import { useCompanyProfiles, type Profile } from "@/hooks/useProfiles";
 
@@ -317,11 +317,12 @@ export default function ClientDetail() {
                 <CardTitle className="text-base">{client.name}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2.5 text-sm">
+                <InfoRow label="Type" value={(client as any).client_type} />
                 {client.address && (
                   <p className="text-muted-foreground">{client.address}</p>
                 )}
                 <InfoRow label="Email" value={client.email} />
-                <InfoRow label="Phone" value={formatPhone(client.phone)} />
+                <InfoRow label="Phone (Office)" value={formatPhone(client.phone)} />
                 <InfoRow label="Fax" value={formatPhone(client.fax)} />
                 <InfoRow label="Lead Owner" value={leadOwnerName} />
                 <InfoRow label="Tax ID" value={client.tax_id} />
@@ -346,85 +347,90 @@ export default function ClientDetail() {
             </Card>
           </div>
 
-          {/* Right: Contacts */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base flex items-center gap-2">
-                  Contacts
-                  <Badge variant="secondary" className="text-xs">{contacts.length}</Badge>
-                </CardTitle>
-                <div className="flex items-center gap-2">
-                  {selectedContacts.size > 0 && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => setBulkDeleteOpen(true)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5 mr-1" />
-                      Delete ({selectedContacts.size})
+          {/* Right: Contacts + Reviews */}
+          <div className="space-y-6">
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    Contacts
+                    <Badge variant="secondary" className="text-xs">{contacts.length}</Badge>
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    {selectedContacts.size > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => setBulkDeleteOpen(true)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1" />
+                        Delete ({selectedContacts.size})
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" onClick={() => setAddContactOpen(true)}>
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      Add Contact
                     </Button>
-                  )}
-                  <Button size="sm" variant="outline" onClick={() => setAddContactOpen(true)}>
-                    <Plus className="h-3.5 w-3.5 mr-1" />
-                    Add Contact
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              {contactsLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : contacts.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <p className="text-sm">No contacts yet.</p>
-                  <p className="text-xs mt-1">Click Add Contact to add people.</p>
-                </div>
-              ) : (
-                <div>
-                  {/* Table Header */}
-                  <div className="flex items-center gap-3 px-4 py-2 border-b bg-muted/40 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    <div className="w-8 shrink-0 flex items-center">
-                      <Checkbox
-                        checked={selectedContacts.size === contacts.length && contacts.length > 0}
-                        onCheckedChange={toggleSelectAll}
-                        className="h-3.5 w-3.5"
-                      />
-                    </div>
-                    <div className="w-5 shrink-0" />
-                    <div className="flex-1 min-w-[140px]">Name</div>
-                    <div className="w-[120px] shrink-0 hidden sm:block">Title</div>
-                    <div className="w-[120px] shrink-0 hidden md:block">Mobile</div>
-                    <div className="w-[180px] shrink-0 hidden lg:block">Email</div>
-                    <div className="w-10 shrink-0" />
                   </div>
-
-                  {/* Contact Rows */}
-                  {contacts.map((contact) => (
-                    <ContactRow
-                      key={contact.id}
-                      contact={contact}
-                      profiles={profiles}
-                      isSelected={selectedContacts.has(contact.id)}
-                      isExpanded={expandedContact === contact.id}
-                      onToggleSelect={() => toggleSelect(contact.id)}
-                      onToggleExpand={() =>
-                        setExpandedContact(expandedContact === contact.id ? null : contact.id)
-                      }
-                      onDelete={() => setDeleteContactId(contact.id)}
-                      onContactUpdated={() => {
-                        queryClient.invalidateQueries({ queryKey: ["client-contacts", id] });
-                        queryClient.invalidateQueries({ queryKey: ["client-detail", id] });
-                      }}
-                    />
-                  ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent className="p-0">
+                {contactsLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : contacts.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <p className="text-sm">No contacts yet.</p>
+                    <p className="text-xs mt-1">Click Add Contact to add people.</p>
+                  </div>
+                ) : (
+                  <div>
+                    {/* Table Header */}
+                    <div className="flex items-center gap-3 px-4 py-2 border-b bg-muted/40 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      <div className="w-8 shrink-0 flex items-center">
+                        <Checkbox
+                          checked={selectedContacts.size === contacts.length && contacts.length > 0}
+                          onCheckedChange={toggleSelectAll}
+                          className="h-3.5 w-3.5"
+                        />
+                      </div>
+                      <div className="w-5 shrink-0" />
+                      <div className="flex-1 min-w-[140px]">Name</div>
+                      <div className="w-[120px] shrink-0 hidden sm:block">Title</div>
+                      <div className="w-[120px] shrink-0 hidden md:block">Mobile</div>
+                      <div className="w-[180px] shrink-0 hidden lg:block">Email</div>
+                      <div className="w-10 shrink-0" />
+                    </div>
+
+                    {/* Contact Rows */}
+                    {contacts.map((contact) => (
+                      <ContactRow
+                        key={contact.id}
+                        contact={contact}
+                        profiles={profiles}
+                        isSelected={selectedContacts.has(contact.id)}
+                        isExpanded={expandedContact === contact.id}
+                        onToggleSelect={() => toggleSelect(contact.id)}
+                        onToggleExpand={() =>
+                          setExpandedContact(expandedContact === contact.id ? null : contact.id)
+                        }
+                        onDelete={() => setDeleteContactId(contact.id)}
+                        onContactUpdated={() => {
+                          queryClient.invalidateQueries({ queryKey: ["client-contacts", id] });
+                          queryClient.invalidateQueries({ queryKey: ["client-detail", id] });
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Reviews */}
+            {id && <ReviewsSection clientId={id} contacts={contacts} />}
+          </div>
         </div>
       </div>
 
