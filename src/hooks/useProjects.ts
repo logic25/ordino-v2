@@ -58,7 +58,7 @@ export function useProjects() {
         .select(`
           *,
           properties (id, address, borough),
-          proposals (id, proposal_number, title, total_amount),
+          proposals!projects_proposal_id_fkey (id, proposal_number, title, total_amount),
           assigned_pm:profiles!projects_assigned_pm_id_fkey (id, first_name, last_name),
           senior_pm:profiles!projects_senior_pm_id_fkey (id, first_name, last_name),
           clients (id, name)
@@ -81,7 +81,7 @@ export function useProject(id: string | undefined) {
         .select(`
           *,
           properties (id, address, borough, block, lot, bin, zip_code, owner_name),
-          proposals (id, proposal_number, title, total_amount, status),
+          proposals!projects_proposal_id_fkey (id, proposal_number, title, total_amount, status),
           assigned_pm:profiles!projects_assigned_pm_id_fkey (id, first_name, last_name),
           senior_pm:profiles!projects_senior_pm_id_fkey (id, first_name, last_name),
           clients (id, name, email, phone)
