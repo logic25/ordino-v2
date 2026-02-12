@@ -10,10 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tag, Paperclip, X, ExternalLink } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Tag, Paperclip, X, Reply, Send, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EmailWithTags } from "@/hooks/useEmails";
 import { useUntagEmail } from "@/hooks/useEmails";
+import { useSendEmail } from "@/hooks/useGmailConnection";
 import { EmailTagDialog } from "./EmailTagDialog";
 import { useToast } from "@/hooks/use-toast";
 
@@ -41,7 +43,10 @@ const categoryLabels: Record<string, string> = {
 
 export function EmailDetailSheet({ email, open, onOpenChange }: EmailDetailSheetProps) {
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
+  const [showReply, setShowReply] = useState(false);
+  const [replyBody, setReplyBody] = useState("");
   const untagEmail = useUntagEmail();
+  const sendEmail = useSendEmail();
   const { toast } = useToast();
 
   if (!email) return null;
@@ -58,9 +63,38 @@ export function EmailDetailSheet({ email, open, onOpenChange }: EmailDetailSheet
     }
   };
 
+  const handleReply = async () => {
+    if (!replyBody.trim()) return;
+    try {
+      const replyTo = email.from_email || "";
+      const subject = email.subject?.startsWith("Re:")
+        ? email.subject
+        : `Re: ${email.subject || "(no subject)"}`;
+
+      await sendEmail.mutateAsync({
+        to: replyTo,
+        subject,
+        html_body: `<div>${replyBody.replace(/\n/g, "<br/>")}</div>`,
+        reply_to_email_id: email.id,
+      });
+
+      toast({ title: "Reply Sent", description: `Reply sent to ${replyTo}` });
+      setReplyBody("");
+      setShowReply(false);
+    } catch (err: any) {
+      toast({ title: "Send Failed", description: err.message, variant: "destructive" });
+    }
+  };
+
   return (
     <>
-      <Sheet open={open} onOpenChange={onOpenChange}>
+      <Sheet open={open} onOpenChange={(o) => {
+        if (!o) {
+          setShowReply(false);
+          setReplyBody("");
+        }
+        onOpenChange(o);
+      }}>
         <SheetContent className="w-full sm:max-w-xl p-0 flex flex-col">
           <SheetHeader className="px-6 pt-6 pb-4">
             <SheetTitle className="text-lg leading-tight pr-8">
@@ -161,6 +195,58 @@ export function EmailDetailSheet({ email, open, onOpenChange }: EmailDetailSheet
               </div>
             </div>
           </ScrollArea>
+
+          {/* Reply Section */}
+          <div className="border-t px-6 py-3 space-y-3">
+            {!showReply ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowReply(true)}
+                className="w-full"
+              >
+                <Reply className="h-4 w-4 mr-2" />
+                Reply
+              </Button>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Reply to <span className="font-medium text-foreground">{email.from_email}</span>
+                </p>
+                <Textarea
+                  placeholder="Type your reply..."
+                  value={replyBody}
+                  onChange={(e) => setReplyBody(e.target.value)}
+                  rows={4}
+                  className="resize-none text-sm"
+                />
+                <div className="flex items-center justify-end gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowReply(false);
+                      setReplyBody("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleReply}
+                    disabled={!replyBody.trim() || sendEmail.isPending}
+                  >
+                    {sendEmail.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4 mr-1" />
+                    )}
+                    Send Reply
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         </SheetContent>
       </Sheet>
 

@@ -84,3 +84,31 @@ export function useSyncGmail() {
     },
   });
 }
+
+export function useSendEmail() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      to,
+      subject,
+      html_body,
+      reply_to_email_id,
+    }: {
+      to: string;
+      subject: string;
+      html_body: string;
+      reply_to_email_id?: string;
+    }) => {
+      const { data, error } = await supabase.functions.invoke("gmail-send", {
+        body: { to, subject, html_body, reply_to_email_id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["emails"] });
+    },
+  });
+}

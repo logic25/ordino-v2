@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
     if (action === "get_auth_url") {
       const scopes = [
         "https://www.googleapis.com/auth/gmail.readonly",
-        "https://www.googleapis.com/auth/gmail.metadata",
+        "https://www.googleapis.com/auth/gmail.send",
       ].join(" ");
 
       const authUrl =
