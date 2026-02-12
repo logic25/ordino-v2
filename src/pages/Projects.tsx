@@ -15,7 +15,7 @@ import {
   ProjectWithRelations,
   ProjectFormInput,
 } from "@/hooks/useProjects";
-import { useCreateRfiRequest, useRfiTemplates, DEFAULT_PIS_SECTIONS } from "@/hooks/useRfi";
+import { useCreateRfiRequest, DEFAULT_PIS_SECTIONS } from "@/hooks/useRfi";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Projects() {
@@ -29,7 +29,7 @@ export default function Projects() {
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
   const createRfi = useCreateRfiRequest();
-  const { data: rfiTemplates } = useRfiTemplates();
+  
 
   const filteredProjects = projects.filter((p) => {
     const query = searchQuery.toLowerCase();
