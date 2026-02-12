@@ -4,11 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 export interface RfiFieldConfig {
   id: string;
   label: string;
-  type: "text" | "textarea" | "email" | "phone" | "number" | "select" | "checkbox" | "checkbox_group" | "currency" | "heading";
+  type: "text" | "textarea" | "email" | "phone" | "number" | "select" | "checkbox" | "checkbox_group" | "currency" | "heading" | "file_upload";
   placeholder?: string;
   required?: boolean;
   options?: string[];
   width?: "full" | "half";
+  accept?: string; // for file_upload: e.g. ".pdf,.dwg,.jpg,.png"
+  maxFiles?: number; // for file_upload
 }
 
 export interface RfiSectionConfig {
@@ -95,6 +97,7 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
       { id: "cost_other", label: "Other", type: "currency", width: "half" },
       { id: "work_type_other", label: "Other Work Type Description", type: "text", width: "half", placeholder: "Describe other work..." },
       { id: "directive_14", label: "Directive 14?", type: "select", options: ["Yes", "No"], width: "half" },
+      { id: "plans_upload", label: "Upload Plans / Drawings", type: "file_upload", width: "full", accept: ".pdf,.dwg,.dxf,.jpg,.jpeg,.png", maxFiles: 10, placeholder: "PDF, DWG, DXF, JPG, or PNG files" },
     ],
   },
   {
