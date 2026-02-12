@@ -219,8 +219,8 @@ export default function RfiForm() {
     if (field.type === "heading") {
       return (
         <div key={key} className="col-span-full pt-4 pb-1">
-          <h4 className="text-base font-semibold text-foreground">{field.label}</h4>
-          <div className="h-px bg-border mt-2" />
+          <h4 className="text-base font-semibold text-stone-800">{field.label}</h4>
+          <div className="h-px bg-stone-200 mt-2" />
         </div>
       );
     }
@@ -229,21 +229,21 @@ export default function RfiForm() {
 
     return (
       <div key={key} className={`space-y-2 ${widthClass}`}>
-        <Label className="text-sm font-medium text-slate-300">
+        <Label className="text-sm font-medium text-stone-600">
           {field.label}
-          {field.required && <span className="text-amber-500 ml-0.5">*</span>}
+          {field.required && <span className="text-amber-600 ml-0.5">*</span>}
         </Label>
 
         {(field.type === "text" || field.type === "phone" || field.type === "email" || field.type === "number" || field.type === "currency") ? (
           field.type === "currency" ? (
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">$</span>
               <Input
                 type="number"
                 placeholder="0.00"
                 value={getValue(key)}
                 onChange={(e) => setValue(key, e.target.value)}
-                className="pl-7 h-11 bg-card border-border/60 focus:border-amber-500/50 focus:ring-amber-500/20 transition-all"
+                className="pl-7 h-11 bg-white border-stone-200 text-stone-800 focus:border-amber-500 focus:ring-amber-500/20 transition-all"
               />
             </div>
           ) : (
@@ -252,7 +252,7 @@ export default function RfiForm() {
               placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
               value={getValue(key)}
               onChange={(e) => setValue(key, e.target.value)}
-              className="h-11 bg-card border-border/60 focus:border-amber-500/50 focus:ring-amber-500/20 transition-all"
+              className="h-11 bg-white border-stone-200 text-stone-800 focus:border-amber-500 focus:ring-amber-500/20 transition-all"
             />
           )
         ) : field.type === "textarea" ? (
@@ -261,11 +261,11 @@ export default function RfiForm() {
             value={getValue(key)}
             onChange={(e) => setValue(key, e.target.value)}
             rows={3}
-            className="bg-card border-border/60 focus:border-amber-500/50 focus:ring-amber-500/20 transition-all resize-none"
+            className="bg-white border-stone-200 text-stone-800 focus:border-amber-500 focus:ring-amber-500/20 transition-all resize-none"
           />
         ) : field.type === "select" ? (
           <Select value={getValue(key)} onValueChange={(v) => setValue(key, v)}>
-            <SelectTrigger className="h-11 bg-card border-border/60 focus:border-amber-500/50 focus:ring-amber-500/20">
+            <SelectTrigger className="h-11 bg-white border-stone-200 text-stone-800 focus:border-amber-500 focus:ring-amber-500/20">
               <SelectValue placeholder="Select an option..." />
             </SelectTrigger>
             <SelectContent>
@@ -275,15 +275,15 @@ export default function RfiForm() {
             </SelectContent>
           </Select>
         ) : field.type === "checkbox" ? (
-          <div className="flex items-center gap-3 p-3 rounded-lg border border-border/60 bg-card hover:border-amber-500/30 transition-colors cursor-pointer"
+          <div className="flex items-center gap-3 p-3 rounded-lg border border-stone-200 bg-white hover:border-amber-400 transition-colors cursor-pointer"
             onClick={() => setValue(key, !getValue(key))}
           >
             <Checkbox
               checked={!!getValue(key)}
               onCheckedChange={(checked) => setValue(key, !!checked)}
-              className="data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
+              className="data-[state=checked]:bg-amber-600 data-[state=checked]:border-amber-600"
             />
-            <span className="text-sm">{field.placeholder || "Yes"}</span>
+            <span className="text-sm text-stone-700">{field.placeholder || "Yes"}</span>
           </div>
         ) : field.type === "checkbox_group" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -295,16 +295,16 @@ export default function RfiForm() {
                   onClick={() => toggleCheckboxGroup(key, opt)}
                   className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
                     isChecked
-                      ? "border-amber-500/60 bg-amber-500/5 shadow-sm"
-                      : "border-border/60 bg-card hover:border-amber-500/30"
+                      ? "border-amber-500 bg-amber-50 shadow-sm ring-1 ring-amber-500/30"
+                      : "border-stone-200 bg-white hover:border-amber-300"
                   }`}
                 >
                   <Checkbox
                     checked={isChecked}
                     onCheckedChange={() => toggleCheckboxGroup(key, opt)}
-                    className="data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
+                    className="data-[state=checked]:bg-amber-600 data-[state=checked]:border-amber-600"
                   />
-                  <span className="text-sm">{opt}</span>
+                  <span className={`text-sm ${isChecked ? "text-amber-800 font-medium" : "text-stone-600"}`}>{opt}</span>
                 </div>
               );
             })}
@@ -317,10 +317,10 @@ export default function RfiForm() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
-          <p className="text-slate-400 text-sm">Loading your form...</p>
+          <Loader2 className="h-8 w-8 animate-spin text-amber-600" />
+          <p className="text-stone-500 text-sm">Loading your form...</p>
         </div>
       </div>
     );
@@ -329,13 +329,13 @@ export default function RfiForm() {
   // Invalid/not found
   if (!rfi || error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white flex items-center justify-center p-4">
         <div className="max-w-md w-full text-center">
-          <div className="w-16 h-16 rounded-2xl bg-slate-800 flex items-center justify-center mx-auto mb-6">
-            <FileText className="h-8 w-8 text-slate-500" />
+          <div className="w-16 h-16 rounded-2xl bg-stone-100 flex items-center justify-center mx-auto mb-6">
+            <FileText className="h-8 w-8 text-stone-400" />
           </div>
-          <h2 className="text-2xl font-bold text-white mb-3">Form Not Found</h2>
-          <p className="text-slate-400 leading-relaxed">
+          <h2 className="text-2xl font-bold text-stone-800 mb-3">Form Not Found</h2>
+          <p className="text-stone-500 leading-relaxed">
             This link may be expired or invalid. Please contact your project manager for a new link.
           </p>
         </div>
@@ -346,13 +346,13 @@ export default function RfiForm() {
   // Already submitted
   if (submitted || rfi.status === "submitted") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white flex items-center justify-center p-4">
         <div className="max-w-md w-full text-center">
-          <div className="w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-6">
-            <CheckCircle2 className="h-10 w-10 text-emerald-400" />
+          <div className="w-20 h-20 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-6">
+            <CheckCircle2 className="h-10 w-10 text-emerald-500" />
           </div>
-          <h2 className="text-3xl font-bold text-white mb-3">All Done!</h2>
-          <p className="text-slate-400 leading-relaxed text-lg">
+          <h2 className="text-3xl font-bold text-stone-800 mb-3">All Done!</h2>
+          <p className="text-stone-500 leading-relaxed text-lg">
             Your project information has been submitted. Your project manager will review everything and be in touch shortly.
           </p>
         </div>
@@ -363,40 +363,39 @@ export default function RfiForm() {
   // Welcome screen
   if (currentStep === -1) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white flex items-center justify-center p-4">
         <div className="max-w-lg w-full text-center">
-          {/* Logo / branding area */}
-          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 flex items-center justify-center mx-auto mb-8">
-            <Building2 className="h-8 w-8 text-amber-500" />
+          <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200/50 flex items-center justify-center mx-auto mb-8">
+            <Building2 className="h-8 w-8 text-amber-600" />
           </div>
 
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 leading-tight">
+          <h1 className="text-4xl md:text-5xl font-bold text-stone-800 mb-4 leading-tight">
             {rfi.title}
           </h1>
 
           {property && (
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/80 border border-slate-700/50 mb-6">
-              <Building2 className="h-4 w-4 text-amber-500" />
-              <span className="text-slate-300 text-sm font-medium">{property.address}</span>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-stone-200 mb-6 shadow-sm">
+              <Building2 className="h-4 w-4 text-amber-600" />
+              <span className="text-stone-700 text-sm font-medium">{property.address}</span>
               {property.borough && (
-                <span className="text-slate-500 text-sm">· {property.borough}</span>
+                <span className="text-stone-400 text-sm">· {property.borough}</span>
               )}
             </div>
           )}
 
-          <p className="text-slate-400 text-lg mb-10 leading-relaxed max-w-md mx-auto">
+          <p className="text-stone-500 text-lg mb-10 leading-relaxed max-w-md mx-auto">
             Please verify the pre-filled details and provide any additional information needed to get your project started.
           </p>
 
           {/* Section preview */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-10 max-w-md mx-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-10 max-w-md mx-auto">
             {sections.map((section, i) => (
               <div
                 key={section.id}
-                className="px-3 py-2 rounded-lg bg-slate-800/50 border border-slate-700/30 text-left"
+                className="px-3 py-2 rounded-lg bg-white border border-stone-200 text-left shadow-sm"
               >
-                <span className="text-[10px] font-mono text-amber-500/70">{String(i + 1).padStart(2, "0")}</span>
-                <p className="text-xs text-slate-300 leading-snug mt-0.5">{section.title}</p>
+                <span className="text-[10px] font-mono text-amber-600/70">{String(i + 1).padStart(2, "0")}</span>
+                <p className="text-xs text-stone-600 leading-snug mt-0.5">{section.title}</p>
               </div>
             ))}
           </div>
@@ -404,7 +403,7 @@ export default function RfiForm() {
           <Button
             onClick={startForm}
             size="lg"
-            className="bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold px-8 h-12 text-base rounded-xl shadow-lg shadow-amber-500/20 transition-all hover:shadow-amber-500/30 hover:scale-[1.02]"
+            className="bg-amber-600 hover:bg-amber-500 text-white font-semibold px-8 h-12 text-base rounded-xl shadow-lg shadow-amber-600/20 transition-all hover:shadow-amber-600/30 hover:scale-[1.02]"
           >
             Get Started
             <ChevronRight className="h-5 w-5 ml-1" />
@@ -416,26 +415,26 @@ export default function RfiForm() {
 
   // Question view
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white flex flex-col">
       {/* Top bar */}
-      <div className="sticky top-0 z-20 bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50">
+      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-xl border-b border-stone-200">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <button
             onClick={goBack}
-            className="flex items-center gap-1.5 text-slate-400 hover:text-white transition-colors text-sm"
+            className="flex items-center gap-1.5 text-stone-500 hover:text-stone-800 transition-colors text-sm"
           >
             <ChevronLeft className="h-4 w-4" />
             {currentStep === 0 ? "Back" : "Previous"}
           </button>
 
           <div className="flex items-center gap-3">
-            <span className="text-xs font-mono text-slate-500">
+            <span className="text-xs font-mono text-stone-400">
               {currentStep + 1} / {totalSteps}
             </span>
           </div>
         </div>
         {/* Progress bar */}
-        <div className="h-0.5 bg-slate-800">
+        <div className="h-0.5 bg-stone-100">
           <div
             className="h-full bg-amber-500 transition-all duration-500 ease-out"
             style={{ width: `${progress}%` }}
@@ -451,20 +450,20 @@ export default function RfiForm() {
               {/* Section header */}
               <div className="mb-8">
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xs font-mono text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded">
+                  <span className="text-xs font-mono text-amber-600 bg-amber-50 border border-amber-200/50 px-2 py-0.5 rounded">
                     {String(currentStep + 1).padStart(2, "0")}
                   </span>
                   {currentSection.repeatable && (
-                    <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded">
+                    <span className="text-xs text-stone-400 bg-stone-100 px-2 py-0.5 rounded">
                       repeatable
                     </span>
                   )}
                 </div>
-                <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
+                <h2 className="text-2xl md:text-3xl font-bold text-stone-800 mb-2">
                   {currentSection.title}
                 </h2>
                 {currentSection.description && (
-                  <p className="text-slate-400 text-base">{currentSection.description}</p>
+                  <p className="text-stone-500 text-base">{currentSection.description}</p>
                 )}
               </div>
 
@@ -472,16 +471,16 @@ export default function RfiForm() {
               {currentSection.repeatable ? (
                 <div className="space-y-6">
                   {Array.from({ length: getRepeatCount(currentSection.id) }).map((_, repeatIdx) => (
-                    <div key={repeatIdx} className="rounded-2xl border border-slate-700/50 bg-slate-800/30 p-6">
+                    <div key={repeatIdx} className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
                       <div className="flex items-center justify-between mb-5">
-                        <h3 className="text-sm font-medium text-slate-400">
+                        <h3 className="text-sm font-medium text-stone-500">
                           Entry {repeatIdx + 1}
                         </h3>
                         {repeatIdx > 0 && (
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            className="text-red-500 hover:text-red-600 hover:bg-red-50"
                             onClick={() => removeRepeat(currentSection.id)}
                           >
                             <Trash2 className="h-3.5 w-3.5 mr-1" />
@@ -497,7 +496,7 @@ export default function RfiForm() {
                   {getRepeatCount(currentSection.id) < (currentSection.maxRepeat || 4) && (
                     <button
                       onClick={() => addRepeat(currentSection.id, currentSection.maxRepeat || 4)}
-                      className="w-full py-3 rounded-xl border border-dashed border-slate-600 text-slate-400 hover:text-amber-400 hover:border-amber-500/40 transition-all flex items-center justify-center gap-2 text-sm"
+                      className="w-full py-3 rounded-xl border border-dashed border-stone-300 text-stone-400 hover:text-amber-600 hover:border-amber-400 transition-all flex items-center justify-center gap-2 text-sm"
                     >
                       <Plus className="h-4 w-4" />
                       Add Another
@@ -505,7 +504,7 @@ export default function RfiForm() {
                   )}
                 </div>
               ) : (
-                <div className="rounded-2xl border border-slate-700/50 bg-slate-800/30 p-6">
+                <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {currentSection.fields.map((field) => renderField(field, currentSection.id))}
                   </div>
@@ -516,7 +515,7 @@ export default function RfiForm() {
               {(() => {
                 const { total, filled } = getSectionProgress(currentSection);
                 return total > 0 ? (
-                  <p className="text-xs text-slate-600 mt-4">
+                  <p className="text-xs text-stone-400 mt-4">
                     {filled} of {total} fields completed
                   </p>
                 ) : null;
@@ -527,7 +526,7 @@ export default function RfiForm() {
       </div>
 
       {/* Bottom navigation */}
-      <div className="sticky bottom-0 bg-slate-900/80 backdrop-blur-xl border-t border-slate-700/50">
+      <div className="sticky bottom-0 bg-white/80 backdrop-blur-xl border-t border-stone-200">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           {/* Step dots */}
           <div className="hidden sm:flex items-center gap-1">
@@ -547,7 +546,7 @@ export default function RfiForm() {
                       ? "w-6 bg-amber-500"
                       : isComplete
                       ? "w-2 bg-emerald-500"
-                      : "w-2 bg-slate-700 hover:bg-slate-600"
+                      : "w-2 bg-stone-200 hover:bg-stone-300"
                   }`}
                   title={section.title}
                 />
@@ -559,7 +558,7 @@ export default function RfiForm() {
           {currentStep < totalSteps - 1 ? (
             <Button
               onClick={goNext}
-              className="bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold px-6 h-11 rounded-xl ml-auto"
+              className="bg-amber-600 hover:bg-amber-500 text-white font-semibold px-6 h-11 rounded-xl ml-auto"
             >
               Continue
               <ChevronRight className="h-4 w-4 ml-1" />
@@ -568,7 +567,7 @@ export default function RfiForm() {
             <Button
               onClick={handleSubmit}
               disabled={submitting || !validateCurrentStep()}
-              className="bg-emerald-500 hover:bg-emerald-400 text-white font-semibold px-6 h-11 rounded-xl ml-auto disabled:opacity-50"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-6 h-11 rounded-xl ml-auto disabled:opacity-50"
             >
               {submitting ? (
                 <>
