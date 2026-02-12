@@ -63,6 +63,8 @@ const FIELD_TYPES: { value: RfiFieldConfig["type"]; label: string }[] = [
   { value: "select", label: "Dropdown" },
   { value: "checkbox", label: "Checkbox" },
   { value: "checkbox_group", label: "Checkbox Group" },
+  { value: "work_type_picker", label: "Work Type Picker" },
+  { value: "file_upload", label: "File Upload" },
   { value: "heading", label: "Section Heading" },
 ];
 

@@ -426,15 +426,10 @@ export default function RfiForm() {
                     onClick={() => {
                       const current = getCheckboxGroupValue(`${key}_selected`);
                       if (current.includes(opt)) {
-                        setValue(`${key}_selected`, current.filter(v => v !== opt));
-                        // Clear cost when deselected
-                        const costKey = `${key}_cost_${opt.toLowerCase().replace(/\s+/g, '_')}`;
-                        const newResp = { ...responses };
-                        delete newResp[costKey];
-                        if (opt === "Other") {
-                          delete newResp[`${key}_other_label`];
-                        }
-                        setResponses({ ...newResp, [`${key}_selected`]: current.filter(v => v !== opt) });
+                        const updated = current.filter(v => v !== opt);
+                        const newResp = { ...responses, [`${key}_selected`]: updated };
+                        if (opt === "Other") delete newResp[`${key}_other_label`];
+                        setResponses(newResp);
                       } else {
                         setValue(`${key}_selected`, [...current, opt]);
                       }
@@ -454,49 +449,19 @@ export default function RfiForm() {
                 );
               })}
             </div>
-            {/* Cost inputs for selected types */}
-            {(() => {
-              const selected: string[] = getCheckboxGroupValue(`${key}_selected`);
-              if (selected.length === 0) return null;
-              return (
-                <div className="mt-4 space-y-3">
-                  <p className="text-xs font-medium text-stone-500 uppercase tracking-wide">Cost for selected work types</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {selected.map((opt) => {
-                      const costKey = `${key}_cost_${opt.toLowerCase().replace(/\s+/g, '_')}`;
-                      return (
-                        <div key={opt} className="space-y-1.5">
-                          {opt === "Other" ? (
-                            <>
-                              <Label className="text-sm text-stone-600">Other — describe:</Label>
-                              <Input
-                                type="text"
-                                placeholder="e.g. Elevator modernization"
-                                value={getValue(`${key}_other_label`)}
-                                onChange={(e) => setValue(`${key}_other_label`, e.target.value)}
-                                className="h-10 bg-white border-stone-200 text-stone-800 focus:border-amber-500 focus:ring-amber-500/20 mb-1"
-                              />
-                            </>
-                          ) : (
-                            <Label className="text-sm text-stone-600">{opt}</Label>
-                          )}
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">$</span>
-                            <Input
-                              type="number"
-                              placeholder="0.00"
-                              value={getValue(costKey)}
-                              onChange={(e) => setValue(costKey, e.target.value)}
-                              className="pl-7 h-10 bg-white border-stone-200 text-stone-800 focus:border-amber-500 focus:ring-amber-500/20"
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })()}
+            {/* Other description if selected */}
+            {getCheckboxGroupValue(`${key}_selected`).includes("Other") && (
+              <div className="space-y-1.5">
+                <Label className="text-sm text-stone-600">Describe other work type:</Label>
+                <Input
+                  type="text"
+                  placeholder="e.g. Elevator modernization"
+                  value={getValue(`${key}_other_label`)}
+                  onChange={(e) => setValue(`${key}_other_label`, e.target.value)}
+                  className="h-10 bg-white border-stone-200 text-stone-800 focus:border-amber-500 focus:ring-amber-500/20"
+                />
+              </div>
+            )}
           </div>
         ) : field.type === "file_upload" ? (
           <div className="space-y-3">
@@ -724,21 +689,16 @@ export default function RfiForm() {
                           if (field.type === "work_type_picker") {
                             const selected: string[] = Array.isArray(responses[`${key}_selected`]) ? responses[`${key}_selected`] : [];
                             if (selected.length === 0) return null;
+                            const otherLabel = responses[`${key}_other_label`];
                             return (
                               <div key={key} className="sm:col-span-2 py-1.5">
                                 <p className="text-xs text-stone-400 mb-1">{field.label}</p>
-                                <div className="space-y-1">
-                                  {selected.map((opt) => {
-                                    const costKey = `${key}_cost_${opt.toLowerCase().replace(/\s+/g, '_')}`;
-                                    const cost = responses[costKey];
-                                    const label = opt === "Other" ? (responses[`${key}_other_label`] || "Other") : opt;
-                                    return (
-                                      <div key={opt} className="flex justify-between text-sm">
-                                        <span className="text-stone-700">{label}</span>
-                                        {cost && <span className="text-stone-600 font-medium">${Number(cost).toLocaleString()}</span>}
-                                      </div>
-                                    );
-                                  })}
+                                <div className="flex flex-wrap gap-1.5">
+                                  {selected.map((opt) => (
+                                    <span key={opt} className="inline-flex px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                                      {opt === "Other" && otherLabel ? otherLabel : opt}
+                                    </span>
+                                  ))}
                                 </div>
                               </div>
                             );
