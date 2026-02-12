@@ -48,20 +48,20 @@ export default function Auth() {
   // Check for password reset flow from email link
   useEffect(() => {
     const isReset = searchParams.get("reset") === "true";
+    
+    // Listen for PASSWORD_RECOVERY event regardless
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setIsPasswordReset(true);
+      }
+    });
+
     if (isReset) {
-      // If we have the reset parameter, show the password reset form
-      // The user has been authenticated via the recovery token in the email link
+      // Show reset form immediately - the recovery session should be active
       setIsPasswordReset(true);
-      
-      // Also listen for the PASSWORD_RECOVERY event as a backup
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-        if (event === "PASSWORD_RECOVERY") {
-          setIsPasswordReset(true);
-        }
-      });
-      
-      return () => subscription.unsubscribe();
     }
+    
+    return () => subscription.unsubscribe();
   }, [searchParams]);
 
   const form = useForm<AuthFormData>({
@@ -164,6 +164,19 @@ export default function Auth() {
   const onUpdatePassword = async (data: NewPasswordFormData) => {
     setIsLoading(true);
     try {
+      // Check if we have an active session first
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        toast({
+          title: "Session expired",
+          description: "Your reset link has expired. Please request a new password reset.",
+          variant: "destructive",
+        });
+        setIsPasswordReset(false);
+        setIsForgotPassword(true);
+        return;
+      }
+
       const { error } = await supabase.auth.updateUser({
         password: data.password,
       });
