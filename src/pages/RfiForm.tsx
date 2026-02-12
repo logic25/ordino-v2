@@ -12,6 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useRfiByToken, type RfiSectionConfig, type RfiFieldConfig } from "@/hooks/useRfi";
 import {
@@ -27,6 +33,7 @@ import {
   Upload,
   X,
   File,
+  Eye,
 } from "lucide-react";
 
 export default function RfiForm() {
@@ -43,6 +50,7 @@ export default function RfiForm() {
   const [submitted, setSubmitted] = useState(false);
   const [direction, setDirection] = useState<"forward" | "back">("forward");
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
+  const [previewFile, setPreviewFile] = useState<{ name: string; url: string } | null>(null);
 
   // File upload handler
   const handleFileUpload = async (key: string, files: FileList | null, accept?: string, maxFiles?: number) => {
@@ -95,18 +103,14 @@ export default function RfiForm() {
   // Dynamically inject selected work types into applicant_work_types options
   const sections = useMemo(() => {
     const baseSections = rfi?.sections || [];
-    const buildingSection = baseSections.find(s => s.id === "building_and_scope");
     const workTypesKey = "building_and_scope_work_types_selected";
     const selectedWorkTypes: string[] = Array.isArray(responses[workTypesKey]) ? responses[workTypesKey] : [];
-    // Filter out "Other" from work type options for applicant
     const applicantOptions = selectedWorkTypes.filter(t => t !== "Other");
 
     return baseSections.map(section => {
       if (section.id === "applicant_and_owner") {
         return {
           ...section,
-          repeatable: true,
-          maxRepeat: 5,
           fields: section.fields.map(field => {
             if (field.id === "applicant_work_types") {
               return { ...field, options: applicantOptions.length > 0 ? applicantOptions : ["No work types selected yet"] };
@@ -477,17 +481,19 @@ export default function RfiForm() {
             {/* Uploaded files list */}
             {((responses[key] as { name: string; path: string }[]) || []).map((file, idx) => {
               const publicUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/rfi-attachments/${file.path}`;
+              const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
               return (
                 <div key={idx} className="flex items-center gap-3 p-3 rounded-lg border border-stone-200 bg-white">
                   <File className="h-4 w-4 text-amber-600 shrink-0" />
-                  <a
-                    href={publicUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-amber-700 hover:text-amber-900 underline truncate flex-1"
+                  <span className="text-sm text-stone-700 truncate flex-1">{file.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewFile({ name: file.name, url: publicUrl })}
+                    className="text-amber-600 hover:text-amber-800 transition-colors"
+                    title="Preview"
                   >
-                    {file.name}
-                  </a>
+                    <Eye className="h-4 w-4" />
+                  </button>
                   <button
                     type="button"
                     onClick={() => removeFile(key, idx)}
@@ -728,17 +734,14 @@ export default function RfiForm() {
                                 {(val as { name: string; path: string }[]).map((file, fIdx) => {
                                   const publicUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/rfi-attachments/${file.path}`;
                                   return (
-                                    <a
+                                    <button
                                       key={fIdx}
-                                      href={publicUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
+                                      onClick={(e) => { e.stopPropagation(); setPreviewFile({ name: file.name, url: publicUrl }); }}
                                       className="flex items-center gap-2 text-sm text-amber-700 hover:text-amber-900 underline"
-                                      onClick={(e) => e.stopPropagation()}
                                     >
-                                      <File className="h-3 w-3 shrink-0" />
+                                      <Eye className="h-3 w-3 shrink-0" />
                                       {file.name}
-                                    </a>
+                                    </button>
                                   );
                                 })}
                               </div>
@@ -798,49 +801,78 @@ export default function RfiForm() {
                 )}
               </div>
 
-              {/* Fields */}
-              {currentSection.repeatable ? (
-                <div className="space-y-6">
-                  {Array.from({ length: getRepeatCount(currentSection.id) }).map((_, repeatIdx) => (
-                    <div key={repeatIdx} className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-                      <div className="flex items-center justify-between mb-5">
-                        <h3 className="text-sm font-medium text-stone-500">
-                          Entry {repeatIdx + 1}
-                        </h3>
-                        {repeatIdx > 0 && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                            onClick={() => removeRepeat(currentSection.id)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5 mr-1" />
-                            Remove
-                          </Button>
-                        )}
-                      </div>
+              {/* Fields — with repeatableGroup support */}
+              {(() => {
+                // Split fields into groups: find repeatableGroup heading and its fields
+                const fields = currentSection.fields;
+                const repeatableIdx = fields.findIndex(f => f.type === "heading" && f.repeatableGroup);
+
+                if (repeatableIdx === -1) {
+                  // No repeatable group — render normally
+                  return (
+                    <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {currentSection.fields.map((field) => renderField(field, currentSection.id, repeatIdx))}
+                        {fields.map((field) => renderField(field, currentSection.id))}
                       </div>
                     </div>
-                  ))}
-                  {getRepeatCount(currentSection.id) < (currentSection.maxRepeat || 4) && (
-                    <button
-                      onClick={() => addRepeat(currentSection.id, currentSection.maxRepeat || 4)}
-                      className="w-full py-3 rounded-xl border border-dashed border-stone-300 text-stone-400 hover:text-amber-600 hover:border-amber-400 transition-all flex items-center justify-center gap-2 text-sm"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Add Another
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {currentSection.fields.map((field) => renderField(field, currentSection.id))}
+                  );
+                }
+
+                // Find the next heading after the repeatable group to know where it ends
+                const nextHeadingIdx = fields.findIndex((f, i) => i > repeatableIdx && f.type === "heading" && !f.repeatableGroup);
+                const repeatableFields = fields.slice(repeatableIdx, nextHeadingIdx === -1 ? undefined : nextHeadingIdx);
+                const afterFields = nextHeadingIdx === -1 ? [] : fields.slice(nextHeadingIdx);
+                const repeatGroupId = `${currentSection.id}_repeat`;
+                const repeatCount = getRepeatCount(repeatGroupId);
+                const maxRepeat = repeatableFields[0]?.maxRepeatGroup || 5;
+
+                return (
+                  <div className="space-y-6">
+                    {/* Repeatable applicant entries */}
+                    {Array.from({ length: repeatCount }).map((_, repeatIdx) => (
+                      <div key={repeatIdx} className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+                        <div className="flex items-center justify-between mb-5">
+                          <h3 className="text-sm font-semibold text-stone-800">
+                            {repeatableFields[0]?.label || "Entry"} {repeatCount > 1 ? `#${repeatIdx + 1}` : ""}
+                          </h3>
+                          {repeatIdx > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                              onClick={() => removeRepeat(repeatGroupId)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 mr-1" />
+                              Remove
+                            </Button>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {repeatableFields.slice(1).map((field) => renderField(field, currentSection.id, repeatIdx))}
+                        </div>
+                      </div>
+                    ))}
+                    {repeatCount < maxRepeat && (
+                      <button
+                        onClick={() => addRepeat(repeatGroupId, maxRepeat)}
+                        className="w-full py-3 rounded-xl border border-dashed border-stone-300 text-stone-400 hover:text-amber-600 hover:border-amber-400 transition-all flex items-center justify-center gap-2 text-sm"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Another Applicant
+                      </button>
+                    )}
+
+                    {/* Owner & other fields after the repeatable group */}
+                    {afterFields.length > 0 && (
+                      <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {afterFields.map((field) => renderField(field, currentSection.id))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Section progress hint */}
               {(() => {
@@ -923,6 +955,38 @@ export default function RfiForm() {
           )}
         </div>
       </div>
+      {/* File Preview Modal */}
+      <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <File className="h-4 w-4" />
+              {previewFile?.name}
+            </DialogTitle>
+          </DialogHeader>
+          {previewFile && (
+            <div className="mt-2">
+              {/\.(jpg|jpeg|png|gif|webp)$/i.test(previewFile.name) ? (
+                <img src={previewFile.url} alt={previewFile.name} className="w-full rounded-lg" />
+              ) : /\.pdf$/i.test(previewFile.name) ? (
+                <iframe src={previewFile.url} className="w-full h-[70vh] rounded-lg border" title={previewFile.name} />
+              ) : (
+                <div className="text-center py-12 space-y-4">
+                  <FileText className="h-12 w-12 text-stone-300 mx-auto" />
+                  <p className="text-stone-500">Preview not available for this file type.</p>
+                  <a
+                    href={previewFile.url}
+                    download
+                    className="inline-flex items-center gap-2 text-sm text-amber-700 hover:text-amber-900 underline"
+                  >
+                    Download {previewFile.name}
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -9,8 +9,11 @@ export interface RfiFieldConfig {
   required?: boolean;
   options?: string[];
   width?: "full" | "half";
-  accept?: string; // for file_upload: e.g. ".pdf,.dwg,.jpg,.png"
-  maxFiles?: number; // for file_upload
+  accept?: string;
+  maxFiles?: number;
+  /** If true, this field group (from this heading to the next heading) is repeatable */
+  repeatableGroup?: boolean;
+  maxRepeatGroup?: number;
 }
 
 export interface RfiSectionConfig {
@@ -69,7 +72,6 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
       { id: "floors", label: "Floor(s)", type: "text", width: "half" },
       { id: "apt_numbers", label: "Apt #(s)", type: "text", width: "half" },
       { id: "sq_ft", label: "Area (sq ft)", type: "number", width: "half" },
-      { id: "ownership_type", label: "Ownership Type", type: "select", options: ["Individual", "Corporation", "Partnership", "Condo/Co-op", "Non-profit", "Government"], width: "half" },
       { id: "scope_heading", label: "Scope of Work & Cost Breakdown", type: "heading" },
       { id: "job_description", label: "Job Description", type: "textarea", required: true, width: "full", placeholder: "Describe the work in detail..." },
       { id: "work_types", label: "Select Applicable Work Types", type: "work_type_picker", width: "full", options: ["Architectural", "Structural", "Mechanical", "Plumbing", "Sprinkler", "Fire Alarm", "Fire Suppression", "Standpipe", "Fuel Burning", "Boiler", "Fuel Storage", "Curb Cut", "Other"] },
@@ -82,21 +84,27 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
     title: "Applicant & Building Owner",
     description: "Licensed professional and building owner details",
     fields: [
-      { id: "applicant_heading", label: "Applicant (Architect / Engineer)", type: "heading" },
-      { id: "applicant_name", label: "Name", type: "text", required: true, width: "half" },
-      { id: "applicant_company", label: "Company", type: "text", width: "half" },
+      { id: "applicant_heading", label: "Applicant (Architect / Engineer)", type: "heading", repeatableGroup: true, maxRepeatGroup: 5 },
+      { id: "applicant_name", label: "Full Name", type: "text", required: true, width: "half" },
+      { id: "applicant_business_name", label: "Business Name", type: "text", width: "half" },
+      { id: "applicant_business_address", label: "Business Address", type: "text", width: "full" },
       { id: "applicant_phone", label: "Phone", type: "phone", width: "half" },
       { id: "applicant_email", label: "Email", type: "email", width: "half" },
       { id: "applicant_nys_lic", label: "NYS License #", type: "text", width: "half" },
+      { id: "applicant_lic_type", label: "License Type", type: "select", options: ["RA", "PE", "Expeditor"], width: "half" },
       { id: "applicant_work_types", label: "Work Types", type: "checkbox_group", width: "full", options: [] },
       { id: "owner_heading", label: "Building Owner", type: "heading" },
-      { id: "owner_name", label: "Name", type: "text", required: true, width: "half" },
+      { id: "ownership_type", label: "Ownership Type", type: "select", options: ["Individual", "Corporation", "Partnership", "Condo/Co-op", "Non-profit", "Government"], width: "half" },
+      { id: "non_profit", label: "Non-Profit?", type: "select", options: ["Yes", "No"], width: "half" },
+      { id: "owner_name", label: "Owner Name", type: "text", required: true, width: "half" },
       { id: "owner_title", label: "Title", type: "text", width: "half" },
-      { id: "owner_company", label: "Company", type: "text", width: "full" },
+      { id: "owner_company", label: "Company / Entity Name", type: "text", width: "full" },
       { id: "owner_address", label: "Address", type: "text", width: "full" },
       { id: "owner_email", label: "Email", type: "email", width: "half" },
       { id: "owner_phone", label: "Phone", type: "phone", width: "half" },
-      { id: "non_profit", label: "Non-Profit?", type: "select", options: ["Yes", "No"], width: "half" },
+      { id: "corp_officer_heading", label: "Corporate Officer (if Corp/Partnership)", type: "heading" },
+      { id: "corp_officer_name", label: "Officer Name", type: "text", width: "half" },
+      { id: "corp_officer_title", label: "Officer Title", type: "text", width: "half" },
     ],
     repeatable: false,
   },
