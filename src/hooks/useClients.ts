@@ -34,6 +34,7 @@ export interface ClientFormInput {
   notes?: string | null;
   lead_owner_id?: string | null;
   tax_id?: string | null;
+  client_type?: string | null;
   ibm_number?: string | null;
   ibm_number_expiration?: string | null;
   hic_license?: string | null;
@@ -106,6 +107,7 @@ export function useCreateClient() {
           notes: input.notes || null,
           lead_owner_id: input.lead_owner_id || null,
           tax_id: input.tax_id || null,
+          client_type: input.client_type || null,
           ibm_number: input.ibm_number || null,
           ibm_number_expiration: input.ibm_number_expiration || null,
           hic_license: input.hic_license || null,
@@ -179,6 +181,7 @@ export function useUpdateClient() {
           notes: input.notes || null,
           lead_owner_id: input.lead_owner_id || null,
           tax_id: input.tax_id || null,
+          client_type: input.client_type || null,
           ibm_number: input.ibm_number || null,
           ibm_number_expiration: input.ibm_number_expiration || null,
           hic_license: input.hic_license || null,

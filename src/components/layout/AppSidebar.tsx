@@ -29,7 +29,7 @@ const mainNav = [
 ];
 
 const secondaryNav = [
-  { title: "Clients", icon: Users, href: "/clients" },
+  { title: "Companies", icon: Users, href: "/clients" },
   { title: "Settings", icon: Settings, href: "/settings" },
 ];
 

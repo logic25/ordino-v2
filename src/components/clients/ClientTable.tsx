@@ -75,6 +75,7 @@ export function ClientTable({
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
+            <TableHead>Type</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Phone</TableHead>
             <TableHead>Address</TableHead>
@@ -90,6 +91,9 @@ export function ClientTable({
               onClick={() => onView(client)}
             >
               <TableCell className="font-medium">{client.name}</TableCell>
+              <TableCell className="text-muted-foreground">
+                {(client as any).client_type || "—"}
+              </TableCell>
               <TableCell className="text-muted-foreground">{client.email || "—"}</TableCell>
               <TableCell className="text-muted-foreground">{formatPhone(client.phone) || "—"}</TableCell>
               <TableCell className="text-muted-foreground max-w-[200px] truncate">
@@ -135,10 +139,10 @@ export function ClientTable({
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Client?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Company?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the
-              client record.
+              company record.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
