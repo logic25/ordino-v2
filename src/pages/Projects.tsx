@@ -110,16 +110,14 @@ export default function Projects() {
 
   const handleSendRfi = async (project: ProjectWithRelations) => {
     try {
-      // Use default template or first available
-      const defaultTemplate = rfiTemplates?.find((t) => t.is_default) || rfiTemplates?.[0];
-      const sections = defaultTemplate?.sections || DEFAULT_PIS_SECTIONS;
+      // Always use the latest default sections — ignore stale DB templates
+      const sections = DEFAULT_PIS_SECTIONS;
 
       const rfi = await createRfi.mutateAsync({
         project_id: project.id,
         property_id: project.property_id,
         title: `PIS — ${project.properties?.address || project.name || "Project"}`,
         sections,
-        template_id: defaultTemplate?.id,
       });
 
       const rfiUrl = `${window.location.origin}/rfi?token=${rfi.access_token}`;
