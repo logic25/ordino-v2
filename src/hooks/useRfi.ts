@@ -331,7 +331,7 @@ export function useCreateRfiRequest() {
   });
 }
 
-// Public: fetch an RFI by access token (no auth required - uses service role via edge function)
+// Public: fetch an RFI by access token with property data
 export function useRfiByToken(token: string | null) {
   return useQuery({
     queryKey: ["rfi-public", token],
@@ -339,11 +339,16 @@ export function useRfiByToken(token: string | null) {
       if (!token) return null;
       const { data, error } = await supabase
         .from("rfi_requests" as any)
-        .select("*")
+        .select("*, properties(*)")
         .eq("access_token", token)
         .maybeSingle();
       if (error) throw error;
-      return data as unknown as RfiRequest | null;
+      if (!data) return null;
+      const { properties, ...rfi } = data as any;
+      return {
+        rfi: rfi as RfiRequest,
+        property: properties as { address: string; borough: string | null; block: string | null; lot: string | null } | null,
+      };
     },
     enabled: !!token,
   });
