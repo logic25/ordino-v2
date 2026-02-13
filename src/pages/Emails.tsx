@@ -22,6 +22,7 @@ export default function Emails() {
   const [activeTab, setActiveTab] = useState<EmailFilterTab>("all");
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [tagDialogOpen, setTagDialogOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const connectGmail = useConnectGmail();
@@ -86,8 +87,10 @@ export default function Emails() {
   }, []);
 
   const handleOpenTagDialog = useCallback(() => {
-    // Tag dialog opens from detail sheet
-  }, []);
+    if (selectedEmail) {
+      setTagDialogOpen(true);
+    }
+  }, [selectedEmail]);
 
   const handleFocusReply = useCallback(() => {
     const textarea = document.querySelector("[data-reply-textarea]") as HTMLTextAreaElement;
@@ -192,6 +195,8 @@ export default function Emails() {
         open={!!selectedEmail}
         onOpenChange={(open) => !open && setSelectedEmail(null)}
         onArchived={() => setSelectedEmail(null)}
+        tagDialogOpen={tagDialogOpen}
+        onTagDialogOpenChange={setTagDialogOpen}
       />
 
       <KeyboardShortcutsDialog

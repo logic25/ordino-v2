@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { Paperclip, Tag, Mail, Reply, FolderOpen, Circle } from "lucide-react";
+import { Paperclip, Tag, Mail, Reply, FolderOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -100,22 +100,16 @@ export function EmailList({ emails, selectedId, highlightedIndex, onSelect }: Em
                   {email.date ? format(new Date(email.date), "MMM d") : ""}
                 </span>
                 {/* Status indicators */}
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap justify-end">
                   {!email.is_read && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Circle className="h-2.5 w-2.5 fill-info text-info" />
-                      </TooltipTrigger>
-                      <TooltipContent side="left"><p>Unread</p></TooltipContent>
-                    </Tooltip>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-info/10 text-info border-info/30">
+                      New
+                    </Badge>
                   )}
                   {urgent && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Circle className="h-2.5 w-2.5 fill-destructive text-destructive" />
-                      </TooltipTrigger>
-                      <TooltipContent side="left"><p>Urgent</p></TooltipContent>
-                    </Tooltip>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-destructive/10 text-destructive border-destructive/30">
+                      Urgent
+                    </Badge>
                   )}
                   {projectCount > 0 && (
                     <Tooltip>
@@ -135,9 +129,6 @@ export function EmailList({ emails, selectedId, highlightedIndex, onSelect }: Em
                       </TooltipTrigger>
                       <TooltipContent side="left"><p>Replied</p></TooltipContent>
                     </Tooltip>
-                  )}
-                  {projectCount === 0 && !urgent && !replied && email.is_read && (
-                    <Tag className="h-3 w-3 text-muted-foreground/40" />
                   )}
                 </div>
               </div>

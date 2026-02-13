@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import { Tag, Paperclip, X, Reply, Send, Loader2, ChevronDown, ChevronUp, MessageSquare, Download, Eye, Archive, ArchiveRestore } from "lucide-react";
+import { Tag, Paperclip, X, Reply, Send, Loader2, ChevronDown, ChevronUp, MessageSquare, Download, Eye, Archive, ArchiveRestore, Forward } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EmailWithTags } from "@/hooks/useEmails";
 import { useUntagEmail, useThreadEmails, useArchiveEmail, useSnoozeEmail } from "@/hooks/useEmails";
@@ -30,6 +30,8 @@ interface EmailDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onArchived?: () => void;
+  tagDialogOpen?: boolean;
+  onTagDialogOpenChange?: (open: boolean) => void;
 }
 
 const categoryColors: Record<string, string> = {
@@ -165,10 +167,13 @@ function ThreadMessage({
   );
 }
 
-export function EmailDetailSheet({ email, open, onOpenChange, onArchived }: EmailDetailSheetProps) {
-  const [tagDialogOpen, setTagDialogOpen] = useState(false);
-  const [showReply, setShowReply] = useState(false);
+export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDialogOpen: externalTagDialogOpen, onTagDialogOpenChange }: EmailDetailSheetProps) {
+  const [internalTagDialogOpen, setInternalTagDialogOpen] = useState(false);
+  const tagDialogOpen = externalTagDialogOpen ?? internalTagDialogOpen;
+  const setTagDialogOpen = onTagDialogOpenChange ?? setInternalTagDialogOpen;
+  const [replyMode, setReplyMode] = useState<"reply" | "forward" | null>(null);
   const [replyBody, setReplyBody] = useState("");
+  const [forwardTo, setForwardTo] = useState("");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const untagEmail = useUntagEmail();
   const archiveEmail = useArchiveEmail();
@@ -253,21 +258,27 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived }: Emai
   const handleReply = async () => {
     if (!replyBody.trim()) return;
     try {
-      const replyTo = replyToEmail.from_email || "";
-      const subject = replyToEmail.subject?.startsWith("Re:")
-        ? replyToEmail.subject
-        : `Re: ${replyToEmail.subject || "(no subject)"}`;
+      const isForward = replyMode === "forward";
+      const toAddr = isForward ? forwardTo : (replyToEmail.from_email || "");
+      const subject = isForward
+        ? (replyToEmail.subject?.startsWith("Fwd:") ? replyToEmail.subject : `Fwd: ${replyToEmail.subject || "(no subject)"}`)
+        : (replyToEmail.subject?.startsWith("Re:") ? replyToEmail.subject : `Re: ${replyToEmail.subject || "(no subject)"}`);
+
+      const forwardBody = isForward
+        ? `<div>${replyBody.replace(/\n/g, "<br/>")}</div><br/><hr/><p><strong>---------- Forwarded message ----------</strong><br/>From: ${replyToEmail.from_name || replyToEmail.from_email}<br/>Subject: ${replyToEmail.subject || ""}<br/></p>${replyToEmail.body_html || replyToEmail.body_text || ""}`
+        : `<div>${replyBody.replace(/\n/g, "<br/>")}</div>`;
 
       await sendEmail.mutateAsync({
-        to: replyTo,
+        to: toAddr,
         subject,
-        html_body: `<div>${replyBody.replace(/\n/g, "<br/>")}</div>`,
-        reply_to_email_id: replyToEmail.id,
+        html_body: forwardBody,
+        reply_to_email_id: isForward ? undefined : replyToEmail.id,
       });
 
-      toast({ title: "Reply Sent", description: `Reply sent to ${replyTo}` });
+      toast({ title: isForward ? "Forwarded" : "Reply Sent", description: `Sent to ${toAddr}` });
       setReplyBody("");
-      setShowReply(false);
+      setForwardTo("");
+      setReplyMode(null);
     } catch (err: any) {
       toast({ title: "Send Failed", description: err.message, variant: "destructive" });
     }
@@ -277,7 +288,7 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived }: Emai
     <>
       <Sheet open={open} onOpenChange={(o) => {
         if (!o) {
-          setShowReply(false);
+          setReplyMode(null);
           setReplyBody("");
           setExpandedIds(new Set());
         }
@@ -394,25 +405,49 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived }: Emai
             </div>
           </ScrollArea>
 
-          {/* Reply Section */}
+          {/* Reply / Forward Section */}
           <div className="border-t px-6 py-3 space-y-3">
-            {!showReply ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowReply(true)}
-                className="w-full"
-              >
-                <Reply className="h-4 w-4 mr-2" />
-                Reply
-              </Button>
+            {!replyMode ? (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setReplyMode("reply")}
+                  className="flex-1"
+                >
+                  <Reply className="h-4 w-4 mr-2" />
+                  Reply
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setReplyMode("forward")}
+                  className="flex-1"
+                >
+                  <Forward className="h-4 w-4 mr-2" />
+                  Forward
+                </Button>
+              </div>
             ) : (
               <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">
-                  Reply to <span className="font-medium text-foreground">{replyToEmail.from_email}</span>
-                </p>
+                {replyMode === "forward" ? (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-muted-foreground">Forward to:</p>
+                    <input
+                      type="email"
+                      placeholder="recipient@example.com"
+                      value={forwardTo}
+                      onChange={(e) => setForwardTo(e.target.value)}
+                      className="w-full px-3 py-1.5 text-sm border rounded-md bg-background"
+                    />
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Reply to <span className="font-medium text-foreground">{replyToEmail.from_email}</span>
+                  </p>
+                )}
                 <Textarea
-                  placeholder="Type your reply..."
+                  placeholder={replyMode === "forward" ? "Add a message..." : "Type your reply..."}
                   value={replyBody}
                   onChange={(e) => setReplyBody(e.target.value)}
                   rows={4}
@@ -420,16 +455,22 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived }: Emai
                   data-reply-textarea
                 />
                 <div className="flex items-center justify-end gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => { setShowReply(false); setReplyBody(""); }}>
+                  <Button variant="ghost" size="sm" onClick={() => { setReplyMode(null); setReplyBody(""); setForwardTo(""); }}>
                     Cancel
                   </Button>
-                  <Button size="sm" onClick={handleReply} disabled={!replyBody.trim() || sendEmail.isPending}>
+                  <Button
+                    size="sm"
+                    onClick={handleReply}
+                    disabled={!replyBody.trim() || (replyMode === "forward" && !forwardTo.trim()) || sendEmail.isPending}
+                  >
                     {sendEmail.isPending ? (
                       <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : replyMode === "forward" ? (
+                      <Forward className="h-4 w-4 mr-1" />
                     ) : (
                       <Send className="h-4 w-4 mr-1" />
                     )}
-                    Send Reply
+                    {replyMode === "forward" ? "Forward" : "Send Reply"}
                   </Button>
                 </div>
               </div>
