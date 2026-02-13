@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { useRfiByToken, type RfiSectionConfig, type RfiFieldConfig } from "@/hooks/useRfi";
+import { useRfiByToken, DEFAULT_PIS_SECTIONS, type RfiRequest, type RfiSectionConfig, type RfiFieldConfig } from "@/hooks/useRfi";
 import {
   CheckCircle2,
   ChevronLeft,
@@ -39,9 +39,42 @@ import {
 export default function RfiForm() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
-  const { data: rfiData, isLoading, error } = useRfiByToken(token);
-  const rfi = rfiData?.rfi;
-  const property = rfiData?.property;
+  const isDemo = searchParams.get("demo") === "true";
+
+  const { data: rfiData, isLoading, error } = useRfiByToken(isDemo ? null : token);
+
+  // Demo mode mock data
+  const demoRfi: RfiRequest | null = isDemo ? {
+    id: "demo",
+    company_id: "demo",
+    template_id: null,
+    project_id: null,
+    proposal_id: null,
+    property_id: null,
+    title: "Project Information Sheet",
+    recipient_name: "Demo User",
+    recipient_email: null,
+    status: "sent",
+    access_token: "demo",
+    sections: DEFAULT_PIS_SECTIONS,
+    responses: {},
+    submitted_at: null,
+    sent_at: null,
+    viewed_at: null,
+    created_by: null,
+    created_at: null,
+    updated_at: null,
+  } : null;
+
+  const demoProperty = isDemo ? {
+    address: "123 Broadway, New York, NY 10007",
+    borough: "Manhattan",
+    block: "00089",
+    lot: "0001",
+  } : null;
+
+  const rfi = isDemo ? demoRfi : rfiData?.rfi;
+  const property = isDemo ? demoProperty : rfiData?.property;
 
   const [currentStep, setCurrentStep] = useState(-1); // -1 = welcome screen
   const [responses, setResponses] = useState<Record<string, any>>({});
@@ -54,7 +87,8 @@ export default function RfiForm() {
 
   // File upload handler
   const handleFileUpload = async (key: string, files: FileList | null, accept?: string, maxFiles?: number) => {
-    if (!files || !rfi || !token) return;
+    if (!files || !rfi || (!token && !isDemo)) return;
+    if (isDemo) { alert("File uploads are disabled in demo mode."); return; }
     const max = maxFiles || 5;
     const existing: { name: string; path: string }[] = responses[key] || [];
     if (existing.length + files.length > max) {
@@ -260,8 +294,8 @@ export default function RfiForm() {
   const startForm = () => {
     setDirection("forward");
     setCurrentStep(0);
-    // Mark as viewed
-    if (rfi && token) {
+    // Mark as viewed (skip in demo mode)
+    if (rfi && token && !isDemo) {
       (supabase.from("rfi_requests" as any) as any)
         .update({ viewed_at: new Date().toISOString(), status: "viewed" })
         .eq("access_token", token)
@@ -270,7 +304,12 @@ export default function RfiForm() {
   };
 
   const handleSubmit = async () => {
-    if (!rfi || !token) return;
+    if (!rfi) return;
+    if (isDemo) {
+      setSubmitted(true);
+      return;
+    }
+    if (!token) return;
     setSubmitting(true);
     try {
       await (supabase.from("rfi_requests" as any) as any)
@@ -522,8 +561,8 @@ export default function RfiForm() {
     );
   };
 
-  // Loading state
-  if (isLoading) {
+  // Loading state (skip for demo)
+  if (isLoading && !isDemo) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
