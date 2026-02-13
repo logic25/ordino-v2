@@ -11,11 +11,14 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import { Tag, Paperclip, X, Reply, Send, Loader2, ChevronDown, ChevronUp, MessageSquare } from "lucide-react";
+import { Tag, Paperclip, X, Reply, Send, Loader2, ChevronDown, ChevronUp, MessageSquare, Download, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EmailWithTags } from "@/hooks/useEmails";
 import { useUntagEmail, useThreadEmails } from "@/hooks/useEmails";
 import { useSendEmail } from "@/hooks/useGmailConnection";
+import { useAttachmentDownload } from "@/hooks/useAttachmentDownload";
+import { useProjects } from "@/hooks/useProjects";
+import { useProjectSuggestions } from "@/hooks/useProjectSuggestions";
 import { EmailTagDialog } from "./EmailTagDialog";
 import { useToast } from "@/hooks/use-toast";
 
@@ -46,13 +49,20 @@ function ThreadMessage({
   isExpanded,
   onToggle,
   isLatest,
+  onDownloadAttachment,
+  downloadingId,
 }: {
   email: EmailWithTags;
   isExpanded: boolean;
   onToggle: () => void;
   isLatest: boolean;
+  onDownloadAttachment: (att: any, gmailMessageId: string) => void;
+  downloadingId: string | null;
 }) {
   const attachments = email.email_attachments || [];
+
+  const isPreviewable = (mimeType: string | null) =>
+    /^(image\/(png|jpeg|gif|webp|svg)|application\/pdf)$/i.test(mimeType || "");
 
   return (
     <div className={cn(
@@ -102,18 +112,30 @@ function ThreadMessage({
           {attachments.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {attachments.map((att) => (
-                <div
+                <button
                   key={att.id}
-                  className="flex items-center gap-2 px-2.5 py-1 border rounded bg-muted/30 text-xs"
+                  onClick={() => onDownloadAttachment(att, email.gmail_message_id)}
+                  disabled={downloadingId === att.id}
+                  className={cn(
+                    "flex items-center gap-2 px-2.5 py-1.5 border rounded text-xs transition-colors",
+                    "hover:bg-primary/10 hover:border-primary/30 cursor-pointer",
+                    downloadingId === att.id && "opacity-50 cursor-wait"
+                  )}
                 >
-                  <Paperclip className="h-3 w-3 text-muted-foreground" />
+                  {downloadingId === att.id ? (
+                    <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                  ) : isPreviewable(att.mime_type) ? (
+                    <Eye className="h-3 w-3 text-primary" />
+                  ) : (
+                    <Download className="h-3 w-3 text-primary" />
+                  )}
                   <span className="truncate max-w-[180px]">{att.filename}</span>
                   {att.size_bytes && (
                     <span className="text-muted-foreground">
                       {(att.size_bytes / 1024).toFixed(0)}KB
                     </span>
                   )}
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -146,7 +168,11 @@ export function EmailDetailSheet({ email, open, onOpenChange }: EmailDetailSheet
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const untagEmail = useUntagEmail();
   const sendEmail = useSendEmail();
+  const { downloadAttachment, downloadingId } = useAttachmentDownload();
   const { toast } = useToast();
+
+  const { data: projects = [] } = useProjects();
+  const suggestions = useProjectSuggestions(email, projects);
 
   const { data: threadEmails = [] } = useThreadEmails(email?.thread_id);
 
@@ -273,6 +299,28 @@ export function EmailDetailSheet({ email, open, onOpenChange }: EmailDetailSheet
             </Button>
           </div>
 
+          {/* Auto-suggest */}
+          {suggestions.length > 0 && tags.length === 0 && (
+            <div className="px-6 pb-2">
+              <p className="text-xs text-muted-foreground mb-1.5">💡 Suggested projects:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {suggestions.slice(0, 3).map((p) => (
+                  <Badge
+                    key={p.id}
+                    variant="outline"
+                    className="text-xs cursor-pointer hover:bg-primary/10 hover:border-primary/30 transition-colors"
+                    onClick={() => {
+                      setTagDialogOpen(true);
+                    }}
+                  >
+                    <span className="font-mono mr-1">{p.project_number}</span>
+                    {p.name || p.properties?.address || ""}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
           <Separator />
 
           <ScrollArea className="flex-1">
@@ -284,6 +332,8 @@ export function EmailDetailSheet({ email, open, onOpenChange }: EmailDetailSheet
                   isExpanded={isExpanded(threadEmail.id)}
                   onToggle={() => toggleExpanded(threadEmail.id)}
                   isLatest={threadEmail.id === latestEmail?.id}
+                  onDownloadAttachment={downloadAttachment}
+                  downloadingId={downloadingId}
                 />
               ))}
             </div>
@@ -348,6 +398,7 @@ export function EmailDetailSheet({ email, open, onOpenChange }: EmailDetailSheet
         onOpenChange={setTagDialogOpen}
         emailId={email.id}
         emailSubject={email.subject || undefined}
+        emailForMatching={email}
       />
     </>
   );
