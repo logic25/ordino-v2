@@ -121,13 +121,25 @@ Deno.serve(async (req) => {
     }
 
     // Download attachment from Gmail
-    const attachRes = await fetch(
-      `https://www.googleapis.com/gmail/v1/users/me/messages/${gmail_message_id}/attachments/${gmail_attachment_id}`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
+    const attachUrl = `https://www.googleapis.com/gmail/v1/users/me/messages/${gmail_message_id}/attachments/${gmail_attachment_id}`;
+    console.log("Fetching attachment:", attachUrl);
+    
+    const attachRes = await fetch(attachUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!attachRes.ok) {
+      const errText = await attachRes.text();
+      console.error("Gmail API error:", attachRes.status, errText);
+      return new Response(JSON.stringify({ error: `Gmail API error: ${attachRes.status}` }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const attachData = await attachRes.json();
     if (attachData.error) {
+      console.error("Attachment error:", JSON.stringify(attachData.error));
       return new Response(JSON.stringify({ error: attachData.error.message }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
