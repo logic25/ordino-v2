@@ -48,9 +48,9 @@ export default function Emails() {
 
   return (
     <AppLayout>
-      <div className="space-y-4">
+      <div className="flex flex-col h-[calc(100vh-theme(spacing.16))]">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Email</h1>
             <p className="text-sm text-muted-foreground">
@@ -61,7 +61,7 @@ export default function Emails() {
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap mb-4">
           <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -91,18 +91,20 @@ export default function Emails() {
           </div>
         </div>
 
-        {/* Email List */}
-        <div className="border rounded-lg bg-card overflow-hidden">
+        {/* Email List - scrollable */}
+        <div className="border rounded-lg bg-card overflow-hidden flex-1 min-h-0">
           {isLoading ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
               Loading emails...
             </div>
           ) : (
-            <EmailList
-              emails={emails}
-              selectedId={selectedEmail?.id}
-              onSelect={setSelectedEmail}
-            />
+            <div className="overflow-y-auto h-full">
+              <EmailList
+                emails={emails}
+                selectedId={selectedEmail?.id}
+                onSelect={setSelectedEmail}
+              />
+            </div>
           )}
         </div>
       </div>
