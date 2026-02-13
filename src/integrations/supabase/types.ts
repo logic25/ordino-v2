@@ -556,6 +556,51 @@ export type Database = {
           },
         ]
       }
+      email_notes: {
+        Row: {
+          company_id: string
+          created_at: string
+          email_id: string
+          id: string
+          note_text: string
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          email_id: string
+          id?: string
+          note_text: string
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          email_id?: string
+          id?: string
+          note_text?: string
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_notes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_notes_email_id_fkey"
+            columns: ["email_id"]
+            isOneToOne: false
+            referencedRelation: "emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_project_tags: {
         Row: {
           category: string
@@ -620,6 +665,10 @@ export type Database = {
       }
       emails: {
         Row: {
+          archived_at: string | null
+          assigned_at: string | null
+          assigned_by: string | null
+          assigned_to: string | null
           body_html: string | null
           body_text: string | null
           company_id: string
@@ -632,14 +681,21 @@ export type Database = {
           id: string
           is_read: boolean
           labels: Json | null
+          replied_at: string | null
           snippet: string | null
+          snoozed_until: string | null
           subject: string | null
           synced_at: string
+          tags: string[] | null
           thread_id: string | null
           to_emails: Json | null
           user_id: string
         }
         Insert: {
+          archived_at?: string | null
+          assigned_at?: string | null
+          assigned_by?: string | null
+          assigned_to?: string | null
           body_html?: string | null
           body_text?: string | null
           company_id: string
@@ -652,14 +708,21 @@ export type Database = {
           id?: string
           is_read?: boolean
           labels?: Json | null
+          replied_at?: string | null
           snippet?: string | null
+          snoozed_until?: string | null
           subject?: string | null
           synced_at?: string
+          tags?: string[] | null
           thread_id?: string | null
           to_emails?: Json | null
           user_id: string
         }
         Update: {
+          archived_at?: string | null
+          assigned_at?: string | null
+          assigned_by?: string | null
+          assigned_to?: string | null
           body_html?: string | null
           body_text?: string | null
           company_id?: string
@@ -672,9 +735,12 @@ export type Database = {
           id?: string
           is_read?: boolean
           labels?: Json | null
+          replied_at?: string | null
           snippet?: string | null
+          snoozed_until?: string | null
           subject?: string | null
           synced_at?: string
+          tags?: string[] | null
           thread_id?: string | null
           to_emails?: Json | null
           user_id?: string

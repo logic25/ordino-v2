@@ -47,6 +47,8 @@ export interface EmailFilters {
   projectId?: string;
   dateFrom?: string;
   dateTo?: string;
+  includeArchived?: boolean;
+  includeSnoozed?: boolean;
 }
 
 export function useEmails(filters: EmailFilters = {}) {
@@ -79,6 +81,16 @@ export function useEmails(filters: EmailFilters = {}) {
       }
       if (filters.dateTo) {
         query = query.lte("date", filters.dateTo);
+      }
+
+      // Server-side: exclude archived unless specifically requested
+      if (!filters.includeArchived) {
+        query = query.is("archived_at", null);
+      }
+
+      // Server-side: exclude snoozed unless specifically requested
+      if (!filters.includeSnoozed) {
+        query = query.or("snoozed_until.is.null,snoozed_until.lte." + new Date().toISOString());
       }
 
       const { data, error } = await query;
@@ -218,6 +230,40 @@ export function useUntagEmail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["emails"] });
       queryClient.invalidateQueries({ queryKey: ["project-emails"] });
+    },
+  });
+}
+
+export function useArchiveEmail() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ emailId, archive }: { emailId: string; archive: boolean }) => {
+      const { error } = await supabase
+        .from("emails")
+        .update({ archived_at: archive ? new Date().toISOString() : null } as any)
+        .eq("id", emailId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["emails"] });
+    },
+  });
+}
+
+export function useSnoozeEmail() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ emailId, until }: { emailId: string; until: Date | null }) => {
+      const { error } = await supabase
+        .from("emails")
+        .update({ snoozed_until: until ? until.toISOString() : null } as any)
+        .eq("id", emailId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["emails"] });
     },
   });
 }

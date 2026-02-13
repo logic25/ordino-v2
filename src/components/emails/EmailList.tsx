@@ -1,24 +1,30 @@
 import { format } from "date-fns";
-import { Paperclip, Tag, Mail } from "lucide-react";
+import { Paperclip, Tag, Mail, Reply, FolderOpen, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { EmailWithTags } from "@/hooks/useEmails";
+import { getTagColor } from "@/hooks/useQuickTags";
 
 interface EmailListProps {
   emails: EmailWithTags[];
   selectedId?: string;
+  highlightedIndex?: number;
   onSelect: (email: EmailWithTags) => void;
 }
 
-const categoryColors: Record<string, string> = {
-  objection: "bg-destructive/15 text-destructive border-destructive/30",
-  agency: "bg-info/15 text-info border-info/30",
-  client: "bg-accent/15 text-accent-foreground border-accent/30",
-  submission: "bg-success/15 text-success border-success/30",
-  other: "bg-muted text-muted-foreground border-border",
-};
+const URGENT_KEYWORDS = [
+  "objection", "disapproved", "violation", "deadline",
+  "final", "expires", "required", "immediately", "asap",
+  "c of o", "certificate of occupancy",
+];
 
-export function EmailList({ emails, selectedId, onSelect }: EmailListProps) {
+function isUrgent(email: EmailWithTags): boolean {
+  const text = `${email.subject || ""} ${email.snippet || ""}`.toLowerCase();
+  return URGENT_KEYWORDS.some((kw) => text.includes(kw));
+}
+
+export function EmailList({ emails, selectedId, highlightedIndex, onSelect }: EmailListProps) {
   if (emails.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
@@ -31,18 +37,25 @@ export function EmailList({ emails, selectedId, onSelect }: EmailListProps) {
 
   return (
     <div className="divide-y divide-border">
-      {emails.map((email) => {
+      {emails.map((email, index) => {
         const isSelected = selectedId === email.id;
+        const isHighlighted = highlightedIndex === index;
         const tags = email.email_project_tags || [];
-        const isTagged = tags.length > 0;
+        const quickTags: string[] = (email as any).tags || [];
+        const projectCount = tags.length;
+        const urgent = isUrgent(email);
+        const replied = !!(email as any).replied_at;
 
         return (
           <button
             key={email.id}
+            data-email-index={index}
             onClick={() => onSelect(email)}
             className={cn(
               "w-full text-left px-4 py-3 transition-colors hover:bg-muted/50",
               isSelected && "bg-muted",
+              isHighlighted && !isSelected && "bg-accent/10 border-l-4 border-l-primary",
+              !isHighlighted && "border-l-4 border-l-transparent",
               !email.is_read && "bg-accent/5"
             )}
           >
@@ -62,21 +75,23 @@ export function EmailList({ emails, selectedId, onSelect }: EmailListProps) {
                 <p className="text-xs text-muted-foreground truncate mt-0.5">
                   {email.snippet}
                 </p>
-                {isTagged && (
+                {/* Quick tags */}
+                {quickTags.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1.5">
-                    {tags.map((tag) => (
+                    {quickTags.slice(0, 3).map((t) => (
                       <Badge
-                        key={tag.id}
+                        key={t}
                         variant="outline"
-                        className={cn(
-                          "text-[10px] px-1.5 py-0",
-                          categoryColors[tag.category] || categoryColors.other
-                        )}
+                        className={cn("text-[10px] px-1.5 py-0", getTagColor(t))}
                       >
-                        {tag.projects?.project_number || tag.projects?.name || "Project"}
-                        {tag.category !== "other" && ` · ${tag.category}`}
+                        {t}
                       </Badge>
                     ))}
+                    {quickTags.length > 3 && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                        +{quickTags.length - 3}
+                      </Badge>
+                    )}
                   </div>
                 )}
               </div>
@@ -84,9 +99,47 @@ export function EmailList({ emails, selectedId, onSelect }: EmailListProps) {
                 <span className="text-xs text-muted-foreground whitespace-nowrap">
                   {email.date ? format(new Date(email.date), "MMM d") : ""}
                 </span>
-                {!isTagged && (
-                  <Tag className="h-3 w-3 text-muted-foreground/40" />
-                )}
+                {/* Status indicators */}
+                <div className="flex items-center gap-1.5">
+                  {!email.is_read && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Circle className="h-2.5 w-2.5 fill-info text-info" />
+                      </TooltipTrigger>
+                      <TooltipContent side="left"><p>Unread</p></TooltipContent>
+                    </Tooltip>
+                  )}
+                  {urgent && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Circle className="h-2.5 w-2.5 fill-destructive text-destructive" />
+                      </TooltipTrigger>
+                      <TooltipContent side="left"><p>Urgent</p></TooltipContent>
+                    </Tooltip>
+                  )}
+                  {projectCount > 0 && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="flex items-center gap-0.5">
+                          <FolderOpen className="h-3 w-3 text-info" />
+                          <span className="text-[10px] font-medium text-info">{projectCount}</span>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="left"><p>Tagged to {projectCount} project(s)</p></TooltipContent>
+                    </Tooltip>
+                  )}
+                  {replied && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Reply className="h-3 w-3 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent side="left"><p>Replied</p></TooltipContent>
+                    </Tooltip>
+                  )}
+                  {projectCount === 0 && !urgent && !replied && email.is_read && (
+                    <Tag className="h-3 w-3 text-muted-foreground/40" />
+                  )}
+                </div>
               </div>
             </div>
           </button>
