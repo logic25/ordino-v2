@@ -269,6 +269,17 @@ export function ProposalDialog({
     });
   };
 
+  // Switch to the tab containing the first validation error
+  const onFormError = (errors: any) => {
+    if (errors.property_id || errors.title || errors.project_type || errors.lead_source || errors.client_id || errors.client_name || errors.client_email || errors.sales_person_id || errors.billed_to_name || errors.billed_to_email) {
+      setActiveTab("details");
+    } else if (errors.items) {
+      setActiveTab("services");
+    } else if (errors.payment_terms || errors.terms_conditions || errors.notes) {
+      setActiveTab("terms");
+    }
+  };
+
   const handleSubmit = async (data: FormData) => {
     const validItems = data.items.filter(i => i.name);
 
@@ -326,7 +337,7 @@ export function ProposalDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(handleSubmit, onFormError)} className="space-y-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="details">Details</TabsTrigger>

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FolderKanban, Search, Loader2, Plus } from "lucide-react";
+import { FolderKanban, Search, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ProjectTable } from "@/components/projects/ProjectTable";
@@ -145,14 +145,6 @@ export default function Projects() {
               Manage active projects converted from proposals
             </p>
           </div>
-          <Button
-            size="sm"
-            className="bg-accent text-accent-foreground hover:bg-accent/90"
-            onClick={handleOpenCreate}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            New Project
-          </Button>
         </div>
 
         <div className="grid gap-4 md:grid-cols-4">
@@ -233,15 +225,8 @@ export default function Projects() {
                 <FolderKanban className="h-12 w-12 text-muted-foreground/50 mb-4" />
                 <h3 className="text-lg font-medium">No projects yet</h3>
                 <p className="text-muted-foreground mt-1 mb-4 max-w-sm">
-                  Projects are created when proposals are signed, or you can create one manually.
+                  Projects are created when proposals are signed. Create a proposal first, then sign it to generate a project.
                 </p>
-                <Button
-                  className="bg-accent text-accent-foreground hover:bg-accent/90"
-                  onClick={handleOpenCreate}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Project
-                </Button>
               </div>
             ) : (
               <ProjectTable
