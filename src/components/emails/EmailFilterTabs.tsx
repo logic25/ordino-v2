@@ -1,0 +1,135 @@
+import { cn } from "@/lib/utils";
+import type { EmailWithTags } from "@/hooks/useEmails";
+
+export type EmailFilterTab =
+  | "all"
+  | "agencies"
+  | "clients"
+  | "urgent"
+  | "untagged"
+  | "snoozed"
+  | "archived";
+
+const AGENCY_DOMAINS = [
+  "@nyc.gov",
+  "@buildings.nyc.gov",
+  "@fdny.nyc.gov",
+  "@dep.nyc.gov",
+  "@lpc.nyc.gov",
+  "@planning.nyc.gov",
+];
+
+const URGENT_KEYWORDS = [
+  "objection", "disapproved", "violation", "deadline",
+  "final", "expires", "required", "immediately", "asap",
+  "c of o", "certificate of occupancy",
+];
+
+function isAgencyEmail(email: EmailWithTags): boolean {
+  const from = (email.from_email || "").toLowerCase();
+  return AGENCY_DOMAINS.some((d) => from.includes(d));
+}
+
+function isUrgentEmail(email: EmailWithTags): boolean {
+  const text = `${email.subject || ""} ${email.snippet || ""}`.toLowerCase();
+  return URGENT_KEYWORDS.some((kw) => text.includes(kw));
+}
+
+export function getFilteredEmails(
+  emails: EmailWithTags[],
+  tab: EmailFilterTab
+): EmailWithTags[] {
+  switch (tab) {
+    case "agencies":
+      return emails.filter(isAgencyEmail);
+    case "clients":
+      return emails.filter(
+        (e) => e.email_project_tags && e.email_project_tags.length > 0
+      );
+    case "urgent":
+      return emails.filter(isUrgentEmail);
+    case "untagged":
+      return emails.filter(
+        (e) => !e.email_project_tags || e.email_project_tags.length === 0
+      );
+    case "snoozed":
+      return emails.filter(
+        (e) => (e as any).snoozed_until && new Date((e as any).snoozed_until) > new Date()
+      );
+    case "archived":
+      return emails.filter((e) => !!(e as any).archived_at);
+    default:
+      return emails;
+  }
+}
+
+export function getTabCounts(emails: EmailWithTags[]): Record<EmailFilterTab, number> {
+  return {
+    all: emails.length,
+    agencies: emails.filter(isAgencyEmail).length,
+    clients: emails.filter(
+      (e) => e.email_project_tags && e.email_project_tags.length > 0
+    ).length,
+    urgent: emails.filter(isUrgentEmail).length,
+    untagged: emails.filter(
+      (e) => !e.email_project_tags || e.email_project_tags.length === 0
+    ).length,
+    snoozed: emails.filter(
+      (e) => (e as any).snoozed_until && new Date((e as any).snoozed_until) > new Date()
+    ).length,
+    archived: emails.filter((e) => !!(e as any).archived_at).length,
+  };
+}
+
+const TAB_CONFIG: { key: EmailFilterTab; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "agencies", label: "Agencies" },
+  { key: "clients", label: "Clients" },
+  { key: "urgent", label: "Urgent" },
+  { key: "untagged", label: "Untagged" },
+  { key: "snoozed", label: "Snoozed" },
+  { key: "archived", label: "Archived" },
+];
+
+interface EmailFilterTabsProps {
+  activeTab: EmailFilterTab;
+  onTabChange: (tab: EmailFilterTab) => void;
+  counts: Record<EmailFilterTab, number>;
+}
+
+export function EmailFilterTabs({ activeTab, onTabChange, counts }: EmailFilterTabsProps) {
+  return (
+    <div className="flex items-center gap-1 border-b border-border bg-card rounded-t-lg px-2 overflow-x-auto scrollbar-hide">
+      {TAB_CONFIG.map(({ key, label }) => {
+        const isActive = activeTab === key;
+        const count = counts[key];
+        return (
+          <button
+            key={key}
+            onClick={() => onTabChange(key)}
+            className={cn(
+              "px-3 py-2 text-sm whitespace-nowrap transition-colors relative",
+              "hover:text-foreground",
+              isActive
+                ? "text-foreground font-semibold"
+                : "text-muted-foreground"
+            )}
+          >
+            {label}
+            {count > 0 && key !== "all" && (
+              <span className={cn(
+                "ml-1.5 text-xs tabular-nums",
+                isActive ? "text-foreground" : "text-muted-foreground/60"
+              )}>
+                {count}
+              </span>
+            )}
+            {isActive && (
+              <span className="absolute bottom-0 left-1 right-1 h-0.5 bg-primary rounded-full" />
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}

@@ -11,21 +11,25 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import { Tag, Paperclip, X, Reply, Send, Loader2, ChevronDown, ChevronUp, MessageSquare, Download, Eye } from "lucide-react";
+import { Tag, Paperclip, X, Reply, Send, Loader2, ChevronDown, ChevronUp, MessageSquare, Download, Eye, Archive, ArchiveRestore } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EmailWithTags } from "@/hooks/useEmails";
-import { useUntagEmail, useThreadEmails } from "@/hooks/useEmails";
+import { useUntagEmail, useThreadEmails, useArchiveEmail, useSnoozeEmail } from "@/hooks/useEmails";
 import { useSendEmail } from "@/hooks/useGmailConnection";
 import { useAttachmentDownload } from "@/hooks/useAttachmentDownload";
 import { useProjects } from "@/hooks/useProjects";
 import { useProjectSuggestions } from "@/hooks/useProjectSuggestions";
+import { useUpdateQuickTags, detectAutoTags } from "@/hooks/useQuickTags";
 import { EmailTagDialog } from "./EmailTagDialog";
+import { QuickTagSection } from "./QuickTagSection";
+import { SnoozeMenu } from "./SnoozeMenu";
 import { useToast } from "@/hooks/use-toast";
 
 interface EmailDetailSheetProps {
   email: EmailWithTags | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onArchived?: () => void;
 }
 
 const categoryColors: Record<string, string> = {
@@ -161,56 +165,84 @@ function ThreadMessage({
   );
 }
 
-export function EmailDetailSheet({ email, open, onOpenChange }: EmailDetailSheetProps) {
+export function EmailDetailSheet({ email, open, onOpenChange, onArchived }: EmailDetailSheetProps) {
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
   const [showReply, setShowReply] = useState(false);
   const [replyBody, setReplyBody] = useState("");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const untagEmail = useUntagEmail();
+  const archiveEmail = useArchiveEmail();
+  const snoozeEmail = useSnoozeEmail();
+  const updateQuickTags = useUpdateQuickTags();
   const sendEmail = useSendEmail();
   const { downloadAttachment, downloadingId } = useAttachmentDownload();
   const { toast } = useToast();
 
   const { data: projects = [] } = useProjects();
   const suggestions = useProjectSuggestions(email, projects);
-
   const { data: threadEmails = [] } = useThreadEmails(email?.thread_id);
 
-  // Determine which emails to show — thread if available, otherwise just the single email
   const hasThread = threadEmails.length > 1;
   const displayEmails = hasThread ? threadEmails : email ? [email] : [];
-
-  // Auto-expand the latest message when thread loads
   const latestEmail = displayEmails[displayEmails.length - 1];
 
   const toggleExpanded = (id: string) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   };
 
   const isExpanded = (id: string) => {
-    // Latest message is expanded by default; others are collapsed by default
-    if (latestEmail && id === latestEmail.id) {
-      return !expandedIds.has(id); // toggle inverts default-open
-    }
+    if (latestEmail && id === latestEmail.id) return !expandedIds.has(id);
     return expandedIds.has(id);
   };
 
   if (!email) return null;
 
   const tags = email.email_project_tags || [];
+  const quickTags: string[] = (email as any).tags || [];
+  const isArchived = !!(email as any).archived_at;
 
   const handleUntag = async (tagId: string) => {
     try {
       await untagEmail.mutateAsync(tagId);
       toast({ title: "Tag removed" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleArchive = async () => {
+    try {
+      await archiveEmail.mutateAsync({ emailId: email.id, archive: !isArchived });
+      toast({ title: isArchived ? "Email unarchived" : "Email archived" });
+      if (!isArchived) {
+        onOpenChange(false);
+        onArchived?.();
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleSnooze = async (until: Date) => {
+    try {
+      await snoozeEmail.mutateAsync({ emailId: email.id, until });
+      toast({ title: "Email snoozed", description: `Returns ${format(until, "MMM d, h:mm a")}` });
+      onOpenChange(false);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleToggleQuickTag = async (tag: string) => {
+    const newTags = quickTags.includes(tag)
+      ? quickTags.filter((t) => t !== tag)
+      : [...quickTags, tag];
+    try {
+      await updateQuickTags.mutateAsync({ emailId: email.id, tags: newTags });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
@@ -266,8 +298,45 @@ export function EmailDetailSheet({ email, open, onOpenChange }: EmailDetailSheet
 
           <Separator />
 
-          {/* Tags */}
-          <div className="px-6 py-3 flex flex-wrap items-center gap-2">
+          {/* Action bar */}
+          <div className="px-6 py-2 flex items-center gap-2 flex-wrap">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleArchive}
+              disabled={archiveEmail.isPending}
+            >
+              {isArchived ? (
+                <><ArchiveRestore className="h-4 w-4 mr-1.5" /> Unarchive</>
+              ) : (
+                <><Archive className="h-4 w-4 mr-1.5" /> Archive</>
+              )}
+            </Button>
+            <SnoozeMenu onSnooze={handleSnooze} disabled={snoozeEmail.isPending} />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setTagDialogOpen(true)}
+            >
+              <Tag className="h-4 w-4 mr-1.5" />
+              Tag
+            </Button>
+          </div>
+
+          <Separator />
+
+          {/* Quick Tags */}
+          <div className="px-6 py-3">
+            <p className="text-xs font-medium text-muted-foreground mb-2">Quick Tags</p>
+            <QuickTagSection
+              activeTags={quickTags}
+              onToggle={handleToggleQuickTag}
+              disabled={updateQuickTags.isPending}
+            />
+          </div>
+
+          {/* Project Tags */}
+          <div className="px-6 pb-3 flex flex-wrap items-center gap-2">
             {tags.map((tag) => (
               <Badge
                 key={tag.id}
@@ -280,23 +349,11 @@ export function EmailDetailSheet({ email, open, onOpenChange }: EmailDetailSheet
                 {tag.projects?.project_number || tag.projects?.name || "Project"}
                 {" · "}
                 {categoryLabels[tag.category] || tag.category}
-                <button
-                  onClick={() => handleUntag(tag.id)}
-                  className="ml-0.5 hover:opacity-70"
-                >
+                <button onClick={() => handleUntag(tag.id)} className="ml-0.5 hover:opacity-70">
                   <X className="h-3 w-3" />
                 </button>
               </Badge>
             ))}
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-6 text-xs"
-              onClick={() => setTagDialogOpen(true)}
-            >
-              <Tag className="h-3 w-3 mr-1" />
-              Tag to Project
-            </Button>
           </div>
 
           {/* Auto-suggest */}
@@ -309,9 +366,7 @@ export function EmailDetailSheet({ email, open, onOpenChange }: EmailDetailSheet
                     key={p.id}
                     variant="outline"
                     className="text-xs cursor-pointer hover:bg-primary/10 hover:border-primary/30 transition-colors"
-                    onClick={() => {
-                      setTagDialogOpen(true);
-                    }}
+                    onClick={() => setTagDialogOpen(true)}
                   >
                     <span className="font-mono mr-1">{p.project_number}</span>
                     {p.name || p.properties?.address || ""}
@@ -362,23 +417,13 @@ export function EmailDetailSheet({ email, open, onOpenChange }: EmailDetailSheet
                   onChange={(e) => setReplyBody(e.target.value)}
                   rows={4}
                   className="resize-none text-sm"
+                  data-reply-textarea
                 />
                 <div className="flex items-center justify-end gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setShowReply(false);
-                      setReplyBody("");
-                    }}
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => { setShowReply(false); setReplyBody(""); }}>
                     Cancel
                   </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleReply}
-                    disabled={!replyBody.trim() || sendEmail.isPending}
-                  >
+                  <Button size="sm" onClick={handleReply} disabled={!replyBody.trim() || sendEmail.isPending}>
                     {sendEmail.isPending ? (
                       <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                     ) : (
