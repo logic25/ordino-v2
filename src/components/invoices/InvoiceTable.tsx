@@ -173,11 +173,6 @@ export function InvoiceTable({
 
   return (
     <div>
-      <div className="flex justify-end -mt-1 mb-0">
-        <Button variant="ghost" size="sm" onClick={toggleExpandAll} className="text-xs text-muted-foreground h-7 px-2">
-          {allExpanded ? "Collapse All" : "Expand All"}
-        </Button>
-      </div>
       <Table>
       <TableHeader>
         <TableRow>
@@ -190,7 +185,11 @@ export function InvoiceTable({
           <TableHead>Status</TableHead>
           <TableHead>Delivery</TableHead>
           <TableHead>Date</TableHead>
-          <TableHead className="w-10"></TableHead>
+          <TableHead className="w-10 text-right">
+            <Button variant="ghost" size="sm" onClick={toggleExpandAll} className="text-xs text-muted-foreground h-6 px-1.5">
+              {allExpanded ? "Collapse" : "Expand"}
+            </Button>
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
