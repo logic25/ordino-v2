@@ -259,12 +259,13 @@ export function ComposeEmailDialog({ open, onOpenChange }: ComposeEmailDialogPro
               <Button
                 type="button"
                 variant="ghost"
-                size="icon"
-                className="h-8 w-8"
+                size="sm"
+                className="h-8 gap-1.5 text-xs text-muted-foreground"
                 onClick={() => fileInputRef.current?.click()}
-                title="Attach files"
+                title="Attach files (or drag & drop)"
               >
                 <Paperclip className="h-4 w-4" />
+                <span>Attach or drop files</span>
               </Button>
               <input
                 ref={fileInputRef}
