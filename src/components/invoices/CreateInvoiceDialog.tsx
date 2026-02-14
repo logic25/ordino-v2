@@ -8,12 +8,15 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { LineItemsEditor } from "./LineItemsEditor";
 import { useCreateInvoice, type LineItem } from "@/hooks/useInvoices";
 import { useProjects } from "@/hooks/useProjects";
 import { useClients } from "@/hooks/useClients";
+import { useClientRetainer, useApplyRetainer } from "@/hooks/useRetainers";
 import { toast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Wallet } from "lucide-react";
 
 interface CreateInvoiceDialogProps {
   open: boolean;
@@ -29,10 +32,14 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
   const [lineItems, setLineItems] = useState<LineItem[]>([
     { description: "", quantity: 1, rate: 0, amount: 0 },
   ]);
+  const [applyRetainer, setApplyRetainer] = useState(false);
+  const [retainerAmount, setRetainerAmount] = useState("");
 
   const { data: projects } = useProjects();
   const { data: clients } = useClients();
   const createInvoice = useCreateInvoice();
+  const { data: activeRetainer } = useClientRetainer(clientId || undefined);
+  const applyRetainerMutation = useApplyRetainer();
 
   // Auto-fill client when project is selected
   useEffect(() => {
@@ -45,7 +52,14 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
   }, [projectId, projects]);
 
   const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
-  const totalDue = subtotal;
+  const retainerAppliedAmount = applyRetainer ? Math.min(parseFloat(retainerAmount) || 0, subtotal, activeRetainer?.current_balance || 0) : 0;
+  const totalDue = subtotal - retainerAppliedAmount;
+
+  // Reset retainer when client changes
+  useEffect(() => {
+    setApplyRetainer(false);
+    setRetainerAmount("");
+  }, [clientId]);
 
   const handleSubmit = async (status: "draft" | "ready_to_send") => {
     if (lineItems.every((i) => !i.description && i.amount === 0)) {
@@ -54,7 +68,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
     }
 
     try {
-      await createInvoice.mutateAsync({
+      const invoice = await createInvoice.mutateAsync({
         project_id: projectId || null,
         client_id: clientId || null,
         line_items: lineItems.filter((i) => i.description || i.amount > 0),
@@ -64,7 +78,22 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
         payment_terms: paymentTerms,
         due_date: dueDate || null,
         special_instructions: specialInstructions || null,
+        retainer_applied: retainerAppliedAmount > 0 ? retainerAppliedAmount : 0,
       });
+
+      // Apply retainer draw-down if applicable
+      if (retainerAppliedAmount > 0 && activeRetainer && invoice) {
+        try {
+          await applyRetainerMutation.mutateAsync({
+            retainer_id: activeRetainer.id,
+            invoice_id: (invoice as any).id,
+            amount: retainerAppliedAmount,
+          });
+        } catch (err: any) {
+          toast({ title: "Invoice created but retainer draw-down failed", description: err.message, variant: "destructive" });
+        }
+      }
+
       toast({ title: `Invoice ${status === "draft" ? "saved as draft" : "marked ready to send"}` });
       onOpenChange(false);
       resetForm();
@@ -80,6 +109,8 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
     setDueDate("");
     setSpecialInstructions("");
     setLineItems([{ description: "", quantity: 1, rate: 0, amount: 0 }]);
+    setApplyRetainer(false);
+    setRetainerAmount("");
   };
 
   return (
@@ -133,11 +164,56 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
 
           <Separator />
 
+          {/* Retainer */}
+          {activeRetainer && activeRetainer.current_balance > 0 && (
+            <div className="rounded-lg border p-3 space-y-3 bg-muted/30">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-primary" />
+                  <Label className="text-sm font-medium">Apply Retainer</Label>
+                  <Badge variant="secondary" className="text-[10px]">
+                    Balance: ${Number(activeRetainer.current_balance).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  </Badge>
+                </div>
+                <Switch checked={applyRetainer} onCheckedChange={setApplyRetainer} />
+              </div>
+              {applyRetainer && (
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Amount to apply</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={Math.min(subtotal, activeRetainer.current_balance)}
+                    step={0.01}
+                    value={retainerAmount}
+                    onChange={(e) => setRetainerAmount(e.target.value)}
+                    placeholder={`Up to $${Math.min(subtotal, activeRetainer.current_balance).toFixed(2)}`}
+                    className="w-48"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs h-6"
+                    onClick={() => setRetainerAmount(Math.min(subtotal, activeRetainer.current_balance).toFixed(2))}
+                  >
+                    Apply max
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex justify-end">
             <div className="text-right space-y-1">
               <div className="text-sm text-muted-foreground">
                 Subtotal: <span className="font-mono font-medium text-foreground">${subtotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
               </div>
+              {retainerAppliedAmount > 0 && (
+                <div className="text-sm text-emerald-600 dark:text-emerald-400">
+                  Retainer: <span className="font-mono font-medium">-${retainerAppliedAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                </div>
+              )}
               <div className="text-lg font-bold">
                 Total Due: <span className="font-mono">${totalDue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
               </div>

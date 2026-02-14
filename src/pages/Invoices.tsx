@@ -14,6 +14,7 @@ import { SendInvoiceModal } from "@/components/invoices/SendInvoiceModal";
 import { SendToBillingDialog } from "@/components/invoices/SendToBillingDialog";
 import { CollectionsView } from "@/components/invoices/CollectionsView";
 import { PromisesView } from "@/components/invoices/PromisesView";
+import { RetainersView } from "@/components/invoices/RetainersView";
 import { AnalyticsView } from "@/components/invoices/AnalyticsView";
 import { AutomationActivityPanel } from "@/components/invoices/AutomationActivityPanel";
 import {
@@ -31,7 +32,7 @@ export default function Invoices() {
   const [sendInvoice, setSendInvoice] = useState<InvoiceWithRelations | null>(null);
   const [billingOpen, setBillingOpen] = useState(false);
 
-  const isSpecialTab = ["collections", "promises", "analytics"].includes(activeFilter);
+  const isSpecialTab = ["collections", "promises", "retainers", "analytics"].includes(activeFilter);
   const queryFilter = activeFilter === "collections" ? "overdue" : isSpecialTab ? "all" : activeFilter;
   const { data: invoices = [], isLoading } = useInvoices(queryFilter as InvoiceStatus | "all");
   const { data: counts } = useInvoiceCounts();
@@ -168,6 +169,8 @@ export default function Invoices() {
               </div>
             ) : activeFilter === "promises" ? (
               <PromisesView />
+            ) : activeFilter === "retainers" ? (
+              <RetainersView />
             ) : activeFilter === "analytics" ? (
               <AnalyticsView />
             ) : (
