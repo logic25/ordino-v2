@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   Loader2, MapPin, Search, X, Plus, CheckCircle, AlertTriangle,
-  Calendar, FileText, Building2, DollarSign, ExternalLink,
+  Calendar, FileText, Building2, DollarSign,
 } from "lucide-react";
 import { useNotableApplications, useUpdateApplicationRfpInfo } from "@/hooks/useRfpContent";
 import { useToast } from "@/hooks/use-toast";
@@ -65,7 +65,13 @@ export function NotableProjectsTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Notable Projects ({filtered.length})</h3>
+        <div className="flex items-center gap-2">
+          <div className="w-2.5 h-2.5 rounded-full bg-accent shadow-amber" />
+          <h3 className="text-lg font-semibold">Notable Projects</h3>
+          <Badge variant="outline" className="text-xs bg-accent/10 text-accent border-accent/30 tabular-nums">
+            {filtered.length}
+          </Badge>
+        </div>
         <div className="relative w-64">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -82,7 +88,7 @@ export function NotableProjectsTab() {
       </p>
 
       {filtered.length === 0 ? (
-        <Card>
+        <Card className="border-dashed">
           <CardContent className="py-8 text-center text-muted-foreground text-sm">
             {projects.length === 0
               ? 'No notable projects yet. Mark applications as "Notable" to showcase them in RFPs.'
@@ -103,19 +109,18 @@ export function NotableProjectsTab() {
             return (
               <Card
                 key={proj.id}
-                className="overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+                className="overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 border-l-4 border-l-accent"
               >
-                {/* Accent top bar */}
-                <div className="h-1 bg-accent w-full" />
                 <CardContent className="py-4">
                   <div className="space-y-3">
                     {/* Header row */}
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
+                          <Building2 className="h-4 w-4 text-accent flex-shrink-0" />
                           <p className="font-semibold text-base">{props?.address || "Unknown Address"}</p>
                           {proj.application_type && (
-                            <Badge variant="outline" className="text-xs font-normal">
+                            <Badge className="text-xs font-normal bg-info/10 text-info border-info/30" variant="outline">
                               <FileText className="h-3 w-3 mr-1" />
                               {proj.application_type}
                             </Badge>
@@ -127,6 +132,8 @@ export function NotableProjectsTab() {
                                   ? "bg-success/15 text-success border-success/30"
                                   : proj.status === "under_review" || proj.status === "inspection"
                                   ? "bg-warning/15 text-warning border-warning/30"
+                                  : proj.status === "filed"
+                                  ? "bg-info/15 text-info border-info/30"
                                   : "bg-muted text-muted-foreground"
                               }`}
                               variant="outline"
@@ -137,25 +144,25 @@ export function NotableProjectsTab() {
                         </div>
 
                         {/* Key info row */}
-                        <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1 flex-wrap">
-                          <span className="flex items-center gap-1">
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1.5 flex-wrap">
+                          <span className="flex items-center gap-1 text-info">
                             <MapPin className="h-3.5 w-3.5" />
                             {props?.borough || "NYC"}
                           </span>
                           {proj.job_number && (
-                            <span className="flex items-center gap-1 font-mono text-xs">
+                            <span className="flex items-center gap-1 font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
                               Job #{proj.job_number}
                             </span>
                           )}
                           {proj.estimated_value && (
-                            <span className="flex items-center gap-1">
+                            <span className="flex items-center gap-1 text-success font-medium tabular-nums">
                               <DollarSign className="h-3.5 w-3.5" />
                               {proj.estimated_value.toLocaleString()}
                             </span>
                           )}
                           {proj.filed_date && (
                             <span className="flex items-center gap-1">
-                              <Calendar className="h-3.5 w-3.5" />
+                              <Calendar className="h-3.5 w-3.5 text-accent" />
                               Filed {format(new Date(proj.filed_date), "MMM yyyy")}
                             </span>
                           )}
@@ -171,7 +178,7 @@ export function NotableProjectsTab() {
                             ) : (
                               <AlertTriangle className="h-3.5 w-3.5 text-warning" />
                             )}
-                            <span className="text-muted-foreground">
+                            <span className="text-muted-foreground font-medium">
                               {proj.reference_contact_name}
                             </span>
                           </div>
@@ -186,7 +193,7 @@ export function NotableProjectsTab() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-xs h-6 mt-1 px-2"
+                          className="text-xs h-6 mt-1 px-2 text-accent hover:text-accent"
                           onClick={() => setExpandedId(isExpanded ? null : proj.id)}
                         >
                           {isExpanded ? "Less" : "More"} details
@@ -203,46 +210,46 @@ export function NotableProjectsTab() {
 
                     {/* Expanded details */}
                     {isExpanded && (
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-3 rounded-lg bg-muted/50 text-sm animate-fade-in">
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-4 rounded-xl bg-primary/5 border border-primary/10 text-sm animate-fade-in">
                         {proj.approved_date && (
-                          <div>
-                            <p className="text-xs text-muted-foreground">Approved</p>
+                          <div className="space-y-0.5">
+                            <p className="text-[10px] uppercase tracking-wider text-success font-semibold">Approved</p>
                             <p className="font-medium">{format(new Date(proj.approved_date), "MMM d, yyyy")}</p>
                           </div>
                         )}
                         {proj.permit_issued_date && (
-                          <div>
-                            <p className="text-xs text-muted-foreground">Permit Issued</p>
+                          <div className="space-y-0.5">
+                            <p className="text-[10px] uppercase tracking-wider text-info font-semibold">Permit Issued</p>
                             <p className="font-medium">{format(new Date(proj.permit_issued_date), "MMM d, yyyy")}</p>
                           </div>
                         )}
                         {proj.examiner_name && (
-                          <div>
-                            <p className="text-xs text-muted-foreground">Examiner</p>
+                          <div className="space-y-0.5">
+                            <p className="text-[10px] uppercase tracking-wider text-accent font-semibold">Examiner</p>
                             <p className="font-medium">{proj.examiner_name}</p>
                           </div>
                         )}
                         {proj.reference_contact_title && (
-                          <div>
-                            <p className="text-xs text-muted-foreground">Contact Title</p>
+                          <div className="space-y-0.5">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Contact Title</p>
                             <p className="font-medium">{proj.reference_contact_title}</p>
                           </div>
                         )}
                         {proj.reference_contact_email && (
-                          <div>
-                            <p className="text-xs text-muted-foreground">Contact Email</p>
+                          <div className="space-y-0.5">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Contact Email</p>
                             <p className="font-medium">{proj.reference_contact_email}</p>
                           </div>
                         )}
                         {proj.reference_contact_phone && (
-                          <div>
-                            <p className="text-xs text-muted-foreground">Contact Phone</p>
+                          <div className="space-y-0.5">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Contact Phone</p>
                             <p className="font-medium">{proj.reference_contact_phone}</p>
                           </div>
                         )}
                         {proj.reference_notes && (
-                          <div className="col-span-full">
-                            <p className="text-xs text-muted-foreground">Reference Notes</p>
+                          <div className="col-span-full space-y-0.5">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Reference Notes</p>
                             <p className="text-sm">{proj.reference_notes}</p>
                           </div>
                         )}
@@ -252,7 +259,7 @@ export function NotableProjectsTab() {
                     {/* Tags */}
                     <div className="flex flex-wrap gap-1.5 items-center">
                       {tags.map((tag) => (
-                        <Badge key={tag} variant="secondary" className="text-xs gap-1">
+                        <Badge key={tag} className="text-xs gap-1 bg-accent/10 text-accent border border-accent/20 hover:bg-accent/20" variant="outline">
                           {tag}
                           <button
                             onClick={() => removeTag(proj.id, tags, tag)}
@@ -299,7 +306,7 @@ export function NotableProjectsTab() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-6 px-1.5 text-xs"
+                          className="h-6 px-1.5 text-xs text-accent hover:text-accent hover:bg-accent/10"
                           onClick={() => {
                             setEditingTagsId(proj.id);
                             setNewTag("");
