@@ -5,13 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Plus, Search, Send, Trash2 } from "lucide-react";
 import { InvoiceSummaryCards } from "@/components/invoices/InvoiceSummaryCards";
-import { InvoiceFilterTabs } from "@/components/invoices/InvoiceFilterTabs";
+import { InvoiceFilterTabs, type BillingTab } from "@/components/invoices/InvoiceFilterTabs";
 import { InvoiceTable } from "@/components/invoices/InvoiceTable";
 import { CreateInvoiceDialog } from "@/components/invoices/CreateInvoiceDialog";
 import { InvoiceDetailSheet } from "@/components/invoices/InvoiceDetailSheet";
 import { QBOConnectionWidget } from "@/components/invoices/QBOConnectionWidget";
 import { SendInvoiceModal } from "@/components/invoices/SendInvoiceModal";
 import { CollectionsView } from "@/components/invoices/CollectionsView";
+import { PromisesView } from "@/components/invoices/PromisesView";
+import { AnalyticsView } from "@/components/invoices/AnalyticsView";
 import {
   useInvoices, useInvoiceCounts, useDeleteInvoice,
   type InvoiceStatus, type InvoiceWithRelations,
@@ -19,14 +21,15 @@ import {
 import { toast } from "@/hooks/use-toast";
 
 export default function Invoices() {
-  const [activeFilter, setActiveFilter] = useState<InvoiceStatus | "all" | "collections">("all");
+  const [activeFilter, setActiveFilter] = useState<BillingTab>("all");
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [detailInvoice, setDetailInvoice] = useState<InvoiceWithRelations | null>(null);
   const [sendInvoice, setSendInvoice] = useState<InvoiceWithRelations | null>(null);
 
-  const queryFilter = activeFilter === "collections" ? "overdue" : activeFilter;
+  const isSpecialTab = ["collections", "promises", "analytics"].includes(activeFilter);
+  const queryFilter = activeFilter === "collections" ? "overdue" : isSpecialTab ? "all" : activeFilter;
   const { data: invoices = [], isLoading } = useInvoices(queryFilter as InvoiceStatus | "all");
   const { data: counts } = useInvoiceCounts();
   const deleteInvoice = useDeleteInvoice();
@@ -103,7 +106,7 @@ export default function Invoices() {
         <InvoiceSummaryCards
           counts={defaultCounts}
           totals={totals}
-          activeFilter={activeFilter === "collections" ? "overdue" : activeFilter}
+          activeFilter={isSpecialTab ? "all" : activeFilter as InvoiceStatus | "all"}
           onFilterChange={(f) => setActiveFilter(f)}
         />
 
@@ -155,6 +158,10 @@ export default function Invoices() {
                 onViewInvoice={(inv) => setDetailInvoice(inv)}
                 onSendReminder={handleSendInvoice}
               />
+            ) : activeFilter === "promises" ? (
+              <PromisesView />
+            ) : activeFilter === "analytics" ? (
+              <AnalyticsView />
             ) : (
               <InvoiceTable
                 invoices={filteredInvoices}

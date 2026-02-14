@@ -1,28 +1,32 @@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { InvoiceStatus } from "@/hooks/useInvoices";
 
+export type BillingTab = InvoiceStatus | "all" | "collections" | "promises" | "analytics";
+
 interface InvoiceFilterTabsProps {
-  activeTab: InvoiceStatus | "all" | "collections";
-  onTabChange: (tab: InvoiceStatus | "all" | "collections") => void;
+  activeTab: BillingTab;
+  onTabChange: (tab: BillingTab) => void;
   counts: { [key: string]: number; total: number };
 }
 
-const tabs: { value: string; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "ready_to_send", label: "Ready to Send" },
-  { value: "needs_review", label: "Needs Review" },
-  { value: "sent", label: "Sent" },
-  { value: "overdue", label: "Overdue" },
-  { value: "paid", label: "Paid" },
+const tabs: { value: string; label: string; showCount?: boolean }[] = [
+  { value: "all", label: "All", showCount: true },
+  { value: "ready_to_send", label: "Ready to Send", showCount: true },
+  { value: "needs_review", label: "Needs Review", showCount: true },
+  { value: "sent", label: "Sent", showCount: true },
+  { value: "overdue", label: "Overdue", showCount: true },
+  { value: "paid", label: "Paid", showCount: true },
   { value: "collections", label: "Collections" },
+  { value: "promises", label: "Promises" },
+  { value: "analytics", label: "Analytics" },
 ];
 
 export function InvoiceFilterTabs({ activeTab, onTabChange, counts }: InvoiceFilterTabsProps) {
   return (
-    <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as any)}>
+    <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as BillingTab)}>
       <TabsList className="h-auto bg-transparent p-0 gap-0">
         {tabs.map((tab) => {
-          const count = tab.value === "all" ? counts.total : counts[tab.value] || 0;
+          const count = tab.showCount ? (tab.value === "all" ? counts.total : counts[tab.value] || 0) : 0;
           return (
             <TabsTrigger
               key={tab.value}

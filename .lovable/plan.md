@@ -27,39 +27,26 @@ All tables have RLS with company isolation (is_company_member for SELECT, is_adm
 
 ---
 
-## 🔲 Phase 2: Enhanced Collections UI (NEXT)
+## ✅ Phase 2: Enhanced Collections UI (COMPLETE)
 
-### 2A. Risk Score Badges on Collection Cards
-- Add colored risk badge to each invoice card in CollectionsView
-- Show predicted payment date below days overdue
-
-### 2B. AI Worklist Mode Toggle
-- Toggle at top of CollectionsView: "Urgency Groups" vs "AI Priority"
-- AI mode sorts by priority, shows recommendations
-
-### 2C. AI Message Generation in Reminder Dialog
-- "Generate with AI" button in existing reminder dialog
-- Tone/urgency selectors, payment plan offer toggle
-
-### 2D. Promise-to-Pay in Note Forms
-- "Log Promise" toggle in CollectionsView quick note and InvoiceDetailSheet note form
-- Reveals structured fields: amount, date, method
-
-### 2E. Client Payment Analytics in Detail Sheet
-- Add reliability score, avg days, lifetime value below Client Info
+### 2A–2E: All Complete
+- Risk score badges, AI worklist toggle, AI message generation
+- Promise-to-pay logging, client payment analytics in detail sheet
 
 ---
 
-## 🔲 Phase 3: Promises Tab & Analytics Tab
+## ✅ Phase 3: Promises Tab & Analytics Tab (COMPLETE)
 
 ### Promises Tab
-- Grouped by due date: Today, Tomorrow, This Week, Overdue
-- Status badges, mark received/follow up/reschedule actions
+- Summary cards (Pending, Expected $, Kept, Broken)
+- Status filter buttons (All, Pending, Kept, Broken, Rescheduled)
+- Grouped by due date: Overdue, Today, Tomorrow, This Week, Later
+- Actions: Mark as Received, Mark as Broken, Follow Up
 
 ### Analytics Tab
-- Collections rate, avg days to pay metrics
-- Collections by age chart (recharts)
-- Cash flow forecast display
+- KPI cards: Collections Rate, Avg Days to Pay, Outstanding, Collected, Overdue count, Promise Kept %
+- Collections by Age bar chart (1-30, 31-60, 61-90, 90+ days)
+- Invoice Status Distribution donut chart
 
 ---
 
