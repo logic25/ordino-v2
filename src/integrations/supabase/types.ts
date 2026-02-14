@@ -562,6 +562,143 @@ export type Database = {
           },
         ]
       }
+      calendar_events: {
+        Row: {
+          all_day: boolean | null
+          application_id: string | null
+          client_id: string | null
+          company_id: string
+          created_at: string
+          description: string | null
+          end_time: string
+          event_type: string | null
+          google_calendar_id: string | null
+          google_event_id: string | null
+          id: string
+          last_synced_at: string | null
+          location: string | null
+          metadata: Json | null
+          project_id: string | null
+          property_id: string | null
+          recurrence_rule: string | null
+          reminder_minutes: number[] | null
+          reminder_sent_at: string | null
+          source_email_id: string | null
+          start_time: string
+          status: string | null
+          sync_status: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          all_day?: boolean | null
+          application_id?: string | null
+          client_id?: string | null
+          company_id: string
+          created_at?: string
+          description?: string | null
+          end_time: string
+          event_type?: string | null
+          google_calendar_id?: string | null
+          google_event_id?: string | null
+          id?: string
+          last_synced_at?: string | null
+          location?: string | null
+          metadata?: Json | null
+          project_id?: string | null
+          property_id?: string | null
+          recurrence_rule?: string | null
+          reminder_minutes?: number[] | null
+          reminder_sent_at?: string | null
+          source_email_id?: string | null
+          start_time: string
+          status?: string | null
+          sync_status?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          all_day?: boolean | null
+          application_id?: string | null
+          client_id?: string | null
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          end_time?: string
+          event_type?: string | null
+          google_calendar_id?: string | null
+          google_event_id?: string | null
+          id?: string
+          last_synced_at?: string | null
+          location?: string | null
+          metadata?: Json | null
+          project_id?: string | null
+          property_id?: string | null
+          recurrence_rule?: string | null
+          reminder_minutes?: number[] | null
+          reminder_sent_at?: string | null
+          source_email_id?: string | null
+          start_time?: string
+          status?: string | null
+          sync_status?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "dob_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_source_email_id_fkey"
+            columns: ["source_email_id"]
+            isOneToOne: false
+            referencedRelation: "emails"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cash_forecasts: {
         Row: {
           company_id: string

@@ -10,6 +10,7 @@ import {
   FolderKanban,
   Receipt,
   Mail,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -28,6 +29,7 @@ const mainNav = [
   { title: "Proposals", icon: FileText, href: "/proposals" },
   { title: "Billing", icon: Receipt, href: "/invoices" },
   { title: "Email", icon: Mail, href: "/emails" },
+  { title: "Calendar", icon: CalendarDays, href: "/calendar" },
 ];
 
 const secondaryNav = [

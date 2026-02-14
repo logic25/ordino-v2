@@ -20,6 +20,7 @@ import Settings from "./pages/Settings";
 import RfiForm from "./pages/RfiForm";
 import ClientDetail from "./pages/ClientDetail";
 import Emails from "./pages/Emails";
+import Calendar from "./pages/Calendar";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -127,6 +128,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Emails />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/calendar"
+        element={
+          <ProtectedRoute>
+            <Calendar />
           </ProtectedRoute>
         }
       />
