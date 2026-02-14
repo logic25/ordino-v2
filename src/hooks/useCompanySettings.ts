@@ -16,6 +16,32 @@ export interface CompanySettings {
   company_types?: string[];
   review_categories?: string[];
   demand_letter_template?: string;
+  // Company info for PDF header
+  company_address?: string;
+  company_phone?: string;
+  company_fax?: string;
+  company_email?: string;
+  company_website?: string;
+  // Payment methods
+  payment_check_address?: string;
+  payment_wire_bank_name?: string;
+  payment_wire_routing?: string;
+  payment_wire_account?: string;
+  payment_zelle_id?: string;
+  payment_cc_enabled?: boolean;
+  payment_cc_url?: string;
+  // Collections settings
+  collections_first_reminder_days?: number;
+  collections_second_reminder_days?: number;
+  collections_demand_letter_days?: number;
+  collections_auto_reminders?: boolean;
+  collections_early_payment_discount?: boolean;
+  collections_early_payment_discount_percent?: number;
+  // Email templates
+  invoice_email_subject_template?: string;
+  invoice_email_body_template?: string;
+  // QBO sync
+  qbo_sync_frequency?: string;
 }
 
 export function useCompanySettings() {
@@ -62,11 +88,9 @@ export function useUpdateCompanySettings() {
 
       const mergedSettings: Json = {
         ...currentSettings,
-        service_catalog: settings.service_catalog as unknown as Json,
-        default_terms: settings.default_terms,
-        company_types: settings.company_types as unknown as Json,
-        review_categories: settings.review_categories as unknown as Json,
-        demand_letter_template: settings.demand_letter_template,
+        ...Object.fromEntries(
+          Object.entries(settings).filter(([, v]) => v !== undefined).map(([k, v]) => [k, v as unknown as Json])
+        ),
       };
 
       const { error } = await supabase
