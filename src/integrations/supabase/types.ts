@@ -1707,6 +1707,7 @@ export type Database = {
           invoice_number: string
           line_items: Json
           paid_at: string | null
+          parent_invoice_id: string | null
           payment_amount: number | null
           payment_method: string | null
           payment_terms: string | null
@@ -1738,6 +1739,7 @@ export type Database = {
           invoice_number: string
           line_items?: Json
           paid_at?: string | null
+          parent_invoice_id?: string | null
           payment_amount?: number | null
           payment_method?: string | null
           payment_terms?: string | null
@@ -1769,6 +1771,7 @@ export type Database = {
           invoice_number?: string
           line_items?: Json
           paid_at?: string | null
+          parent_invoice_id?: string | null
           payment_amount?: number | null
           payment_method?: string | null
           payment_terms?: string | null
@@ -1820,6 +1823,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_parent_invoice_id_fkey"
+            columns: ["parent_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
           {

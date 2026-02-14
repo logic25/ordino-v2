@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface ExtractedTask {
@@ -11,6 +11,20 @@ export interface ExtractedTask {
   ai_recommended_action: string;
 }
 
+export interface DetectedPromise {
+  id: string | null;
+  promised_amount: number;
+  promised_date: string;
+  payment_method: string;
+  confidence: string;
+  summary: string;
+}
+
+export interface ExtractionResult {
+  tasks: ExtractedTask[];
+  promises: DetectedPromise[];
+}
+
 interface ExtractTasksParams {
   note_text: string;
   invoice_id: string;
@@ -21,14 +35,25 @@ interface ExtractTasksParams {
 }
 
 export function useExtractTasks() {
+  const queryClient = useQueryClient();
+
   return useMutation({
-    mutationFn: async (params: ExtractTasksParams): Promise<ExtractedTask[]> => {
+    mutationFn: async (params: ExtractTasksParams): Promise<ExtractionResult> => {
       const { data, error } = await supabase.functions.invoke("extract-tasks", {
         body: params,
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      return data?.tasks || [];
+      return {
+        tasks: data?.tasks || [],
+        promises: data?.promises || [],
+      };
+    },
+    onSuccess: (result, variables) => {
+      if (result.promises.length > 0) {
+        queryClient.invalidateQueries({ queryKey: ["payment-promises", variables.invoice_id] });
+        queryClient.invalidateQueries({ queryKey: ["all-payment-promises"] });
+      }
     },
   });
 }

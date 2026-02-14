@@ -397,11 +397,17 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
           amount_due: Number(noteInv.total_due),
         },
         {
-          onSuccess: (tasks) => {
-            if (tasks.length > 0) {
+          onSuccess: (result) => {
+            if (result.tasks.length > 0) {
               toast({
-                title: `✨ ${tasks.length} task${tasks.length > 1 ? "s" : ""} extracted`,
-                description: tasks.map((t) => t.title).join(" · "),
+                title: `✨ ${result.tasks.length} task${result.tasks.length > 1 ? "s" : ""} extracted`,
+                description: result.tasks.map((t) => t.title).join(" · "),
+              });
+            }
+            if (result.promises.length > 0) {
+              toast({
+                title: `🤝 ${result.promises.length} promise${result.promises.length > 1 ? "s" : ""} detected`,
+                description: result.promises.map((p) => p.summary).join(" · "),
               });
             }
           },
