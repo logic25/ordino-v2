@@ -15,6 +15,7 @@ export interface CompanySettings {
   default_terms?: string;
   company_types?: string[];
   review_categories?: string[];
+  demand_letter_template?: string;
 }
 
 export function useCompanySettings() {
@@ -65,6 +66,7 @@ export function useUpdateCompanySettings() {
         default_terms: settings.default_terms,
         company_types: settings.company_types as unknown as Json,
         review_categories: settings.review_categories as unknown as Json,
+        demand_letter_template: settings.demand_letter_template,
       };
 
       const { error } = await supabase

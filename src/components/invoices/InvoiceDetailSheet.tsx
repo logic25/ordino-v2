@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
@@ -14,12 +14,14 @@ import { InvoiceStatusBadge } from "./InvoiceStatusBadge";
 import { LineItemsEditor } from "./LineItemsEditor";
 import { useUpdateInvoice, type InvoiceWithRelations, type LineItem } from "@/hooks/useInvoices";
 import { useInvoiceFollowUps, useInvoiceActivityLog } from "@/hooks/useInvoiceFollowUps";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import {
   Edit2, Save, X, Send, Mail, MailOpen, Clock, FileWarning, Trash2, Loader2,
-  MessageSquare, Activity,
+  MessageSquare, Activity, Eye, Edit3,
 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/hooks/use-toast";
 
 interface InvoiceDetailSheetProps {
@@ -37,13 +39,40 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
   const [activeAction, setActiveAction] = useState<WorkflowAction>(null);
   const [actionNote, setActionNote] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [demandStep, setDemandStep] = useState<"edit" | "preview">("edit");
+  const [demandLetterText, setDemandLetterText] = useState("");
   const updateInvoice = useUpdateInvoice();
   const { data: followUps } = useInvoiceFollowUps(invoice?.id);
   const { data: activityLog } = useInvoiceActivityLog(invoice?.id);
+  const { data: companyData } = useCompanySettings();
 
   if (!invoice) return null;
 
   const lineItems: LineItem[] = Array.isArray(invoice.line_items) ? invoice.line_items : [];
+
+  const daysOverdue = invoice.due_date
+    ? Math.max(0, differenceInDays(new Date(), new Date(invoice.due_date)))
+    : 0;
+
+  const mergeDemandTemplate = (template: string) => {
+    return template
+      .replace(/\{\{client_name\}\}/g, invoice.clients?.name || "Client")
+      .replace(/\{\{invoice_number\}\}/g, invoice.invoice_number)
+      .replace(/\{\{invoice_date\}\}/g, invoice.created_at ? format(new Date(invoice.created_at), "MMMM d, yyyy") : "—")
+      .replace(/\{\{amount_due\}\}/g, `$${Number(invoice.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}`)
+      .replace(/\{\{due_date\}\}/g, invoice.due_date ? format(new Date(invoice.due_date), "MMMM d, yyyy") : "—")
+      .replace(/\{\{days_overdue\}\}/g, String(daysOverdue))
+      .replace(/\{\{company_name\}\}/g, companyData?.settings?.default_terms ? "Your Company" : "Your Company")
+      .replace(/\{\{project_name\}\}/g, invoice.projects?.name || "—");
+  };
+
+  const openDemandLetter = () => {
+    const defaultTemplate = `Dear {{client_name}},\n\nThis letter serves as a formal demand for payment of the outstanding balance on invoice {{invoice_number}}, dated {{invoice_date}}, in the amount of {{amount_due}}.\n\nPayment was due on {{due_date}} and is now {{days_overdue}} days past due.\n\nDespite previous reminders, we have not received payment or a response regarding this matter. We respectfully request that full payment be remitted within ten (10) business days of the date of this letter.\n\nFailure to remit payment may result in further collection action, including but not limited to referral to a collections agency or legal proceedings.\n\nSincerely,\nYour Company`;
+    const template = companyData?.settings?.demand_letter_template || defaultTemplate;
+    setDemandLetterText(mergeDemandTemplate(template));
+    setDemandStep("preview");
+    setActiveAction("demand");
+  };
 
   const startEdit = () => {
     setEditItems([...lineItems]);
@@ -101,8 +130,9 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
         toast({ title: "Payment reminder sent", description: `Reminder sent for ${invoice.invoice_number}` });
       } else if (activeAction === "demand") {
         await new Promise((r) => setTimeout(r, 1200));
-        await logFollowUp("demand_letter", `Demand letter sent. ${actionNote}`);
+        await logFollowUp("demand_letter", `Demand letter sent.\n\n${demandLetterText}`);
         toast({ title: "Demand letter sent", description: `Formal demand issued for ${invoice.invoice_number}` });
+        setDemandStep("edit");
       } else if (activeAction === "writeoff") {
         await updateInvoice.mutateAsync({ id: invoice.id, status: "paid" } as any);
         await logFollowUp("write_off", `Invoice written off. Amount: $${Number(invoice.total_due).toFixed(2)}`);
@@ -392,7 +422,7 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
                       variant="outline"
                       size="sm"
                       className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10"
-                      onClick={() => { setActiveAction("demand"); setActionNote(""); }}
+                      onClick={openDemandLetter}
                     >
                       <FileWarning className="h-3.5 w-3.5 mr-1.5" /> Demand Letter
                     </Button>
@@ -414,12 +444,12 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
         </SheetContent>
       </Sheet>
 
-      {/* Workflow Action Dialog */}
-      {activeAction && (
+      {/* Reminder / Write-Off Dialog */}
+      {activeAction && activeAction !== "demand" && (
         <Dialog open={!!activeAction} onOpenChange={(o) => !o && setActiveAction(null)}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle className={activeAction !== "reminder" ? "text-destructive" : ""}>
+              <DialogTitle className={activeAction === "writeoff" ? "text-destructive" : ""}>
                 {actionDialogConfig[activeAction].title}
               </DialogTitle>
               <DialogDescription>
@@ -438,12 +468,8 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
                     ${Number(invoice.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                   </span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Client</span>
-                  <span className="font-medium">{invoice.clients?.name || "—"}</span>
-                </div>
               </div>
-              {activeAction !== "writeoff" && (
+              {activeAction === "reminder" && (
                 <div className="space-y-2">
                   <Label>Notes</Label>
                   <Textarea
@@ -471,6 +497,79 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
                 {actionDialogConfig[activeAction].buttonIcon}
                 {actionDialogConfig[activeAction].buttonLabel}
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Demand Letter Preview Dialog */}
+      {activeAction === "demand" && (
+        <Dialog open onOpenChange={(o) => { if (!o) { setActiveAction(null); setDemandStep("edit"); } }}>
+          <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="text-destructive">
+                {demandStep === "preview" ? "Preview Demand Letter" : "Edit Demand Letter"}
+              </DialogTitle>
+              <DialogDescription>
+                {demandStep === "preview"
+                  ? "Review the letter below before sending. Click Edit to make changes."
+                  : "Make edits to the demand letter. Click Preview when ready."}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto space-y-4">
+              <div className="rounded-lg border p-3 bg-muted/50 space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">To</span>
+                  <span className="font-medium">{invoice.clients?.name || "—"}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Re: Invoice</span>
+                  <span className="font-mono font-medium">{invoice.invoice_number}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Amount</span>
+                  <span className="font-mono font-bold text-destructive">
+                    ${Number(invoice.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Days Overdue</span>
+                  <span className="font-bold text-destructive">{daysOverdue}</span>
+                </div>
+              </div>
+
+              {demandStep === "preview" ? (
+                <div className="rounded-lg border p-6 bg-background whitespace-pre-wrap text-sm leading-relaxed font-serif min-h-[200px]">
+                  {demandLetterText}
+                </div>
+              ) : (
+                <Textarea
+                  value={demandLetterText}
+                  onChange={(e) => setDemandLetterText(e.target.value)}
+                  rows={16}
+                  className="font-mono text-sm"
+                />
+              )}
+            </div>
+            <DialogFooter className="flex-shrink-0">
+              <Button variant="outline" onClick={() => { setActiveAction(null); setDemandStep("edit"); }}>
+                Cancel
+              </Button>
+              {demandStep === "preview" ? (
+                <>
+                  <Button variant="outline" onClick={() => setDemandStep("edit")}>
+                    <Edit3 className="h-4 w-4 mr-2" /> Edit
+                  </Button>
+                  <Button variant="destructive" onClick={handleAction} disabled={processing}>
+                    {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    <FileWarning className="h-4 w-4 mr-2" /> Send Demand Letter
+                  </Button>
+                </>
+              ) : (
+                <Button onClick={() => setDemandStep("preview")}>
+                  <Eye className="h-4 w-4 mr-2" /> Preview
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
