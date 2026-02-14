@@ -17,7 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   AlertTriangle, AlertOctagon, Clock, Mail, FileWarning, Trash2, Loader2,
   CheckCircle, StickyNote, Plus, Brain, Sparkles, HandCoins, ShieldAlert,
-  TrendingUp, ToggleLeft, ToggleRight, Calendar, DollarSign,
+  TrendingUp, ToggleLeft, ToggleRight, Calendar, DollarSign, SplitSquareVertical,
 } from "lucide-react";
 import { differenceInDays, format } from "date-fns";
 import { useUpdateInvoice, type InvoiceWithRelations } from "@/hooks/useInvoices";
@@ -29,6 +29,7 @@ import { usePaymentPromises, useCreatePaymentPromise } from "@/hooks/usePaymentP
 import { useGenerateCollectionMessage } from "@/hooks/useCollectionMessage";
 import { useClientPaymentAnalytics } from "@/hooks/useClientAnalytics";
 import { useExtractTasks } from "@/hooks/useExtractTasks";
+import { PaymentPlanDialog } from "./PaymentPlanDialog";
 
 interface CollectionsViewProps {
   invoices: InvoiceWithRelations[];
@@ -162,6 +163,7 @@ function InvoiceCard({
   onOpenNote,
   onOpenAction,
   onOpenPromise,
+  onOpenPaymentPlan,
   showAiInfo,
 }: {
   inv: GroupedInvoice;
@@ -170,6 +172,7 @@ function InvoiceCard({
   onOpenNote: (inv: GroupedInvoice) => void;
   onOpenAction: (action: WorkflowAction, inv: GroupedInvoice) => void;
   onOpenPromise: (inv: GroupedInvoice) => void;
+  onOpenPaymentPlan: (inv: GroupedInvoice) => void;
   showAiInfo: boolean;
 }) {
   return (
@@ -234,15 +237,26 @@ function InvoiceCard({
             <Mail className="h-3.5 w-3.5" />
           </Button>
           {(level === "critical" || level === "urgent") && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 text-destructive"
-              onClick={() => onOpenAction("demand", inv)}
-              title="Send Demand Letter"
-            >
-              <FileWarning className="h-3.5 w-3.5" />
-            </Button>
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-primary"
+                onClick={() => onOpenPaymentPlan(inv)}
+                title="Payment Plan"
+              >
+                <SplitSquareVertical className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-destructive"
+                onClick={() => onOpenAction("demand", inv)}
+                title="Send Demand Letter"
+              >
+                <FileWarning className="h-3.5 w-3.5" />
+              </Button>
+            </>
           )}
           {level === "critical" && (
             <Button
@@ -274,6 +288,8 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
   const [savingQuickNote, setSavingQuickNote] = useState(false);
   // Promise dialog
   const [promiseInvoice, setPromiseInvoice] = useState<GroupedInvoice | null>(null);
+  // Payment plan dialog
+  const [paymentPlanInvoice, setPaymentPlanInvoice] = useState<GroupedInvoice | null>(null);
   const [promiseAmount, setPromiseAmount] = useState("");
   const [promiseDate, setPromiseDate] = useState("");
   const [promiseMethod, setPromiseMethod] = useState("check");
@@ -619,6 +635,7 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
                         onOpenNote={(inv) => { setQuickNoteInvoice(inv); setQuickNoteText(""); setQuickNoteMethod("phone_call"); }}
                         onOpenAction={openAction}
                         onOpenPromise={openPromise}
+                        onOpenPaymentPlan={(inv) => setPaymentPlanInvoice(inv)}
                         showAiInfo={true}
                       />
                     ))}
@@ -662,6 +679,7 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
                   onOpenNote={(inv) => { setQuickNoteInvoice(inv); setQuickNoteText(""); setQuickNoteMethod("phone_call"); }}
                   onOpenAction={openAction}
                   onOpenPromise={openPromise}
+                  onOpenPaymentPlan={(inv) => setPaymentPlanInvoice(inv)}
                   showAiInfo={true}
                 />
               ))}
@@ -945,6 +963,18 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Payment Plan Dialog */}
+      {paymentPlanInvoice && (
+        <PaymentPlanDialog
+          open={!!paymentPlanInvoice}
+          onOpenChange={(o) => !o && setPaymentPlanInvoice(null)}
+          invoiceId={paymentPlanInvoice.id}
+          invoiceNumber={paymentPlanInvoice.invoice_number}
+          totalDue={Number(paymentPlanInvoice.total_due)}
+          clientId={paymentPlanInvoice.client_id}
+          clientName={paymentPlanInvoice.clients?.name}
+        />
+      )}
     </div>
   );
 }

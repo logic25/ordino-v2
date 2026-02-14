@@ -1831,6 +1831,133 @@ export type Database = {
           },
         ]
       }
+      payment_plan_installments: {
+        Row: {
+          amount: number
+          company_id: string
+          created_at: string
+          due_date: string
+          id: string
+          installment_number: number
+          notes: string | null
+          paid_amount: number | null
+          paid_at: string | null
+          plan_id: string
+          status: string
+        }
+        Insert: {
+          amount: number
+          company_id: string
+          created_at?: string
+          due_date: string
+          id?: string
+          installment_number: number
+          notes?: string | null
+          paid_amount?: number | null
+          paid_at?: string | null
+          plan_id: string
+          status?: string
+        }
+        Update: {
+          amount?: number
+          company_id?: string
+          created_at?: string
+          due_date?: string
+          id?: string
+          installment_number?: number
+          notes?: string | null
+          paid_amount?: number | null
+          paid_at?: string | null
+          plan_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_plan_installments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_plan_installments_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "payment_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_plans: {
+        Row: {
+          client_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          down_payment: number | null
+          id: string
+          interest_rate: number | null
+          invoice_id: string
+          notes: string | null
+          num_installments: number
+          status: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          client_id?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          down_payment?: number | null
+          id?: string
+          interest_rate?: number | null
+          invoice_id: string
+          notes?: string | null
+          num_installments?: number
+          status?: string
+          total_amount: number
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          down_payment?: number | null
+          id?: string
+          interest_rate?: number | null
+          invoice_id?: string
+          notes?: string | null
+          num_installments?: number
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_plans_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_plans_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_plans_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_predictions: {
         Row: {
           client_id: string | null
@@ -2952,6 +3079,38 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -2966,7 +3125,18 @@ export type Database = {
         }
         Returns: string
       }
+      get_user_app_roles: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"][]
+      }
       get_user_company_id: { Args: never; Returns: string }
+      has_app_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           required_role: Database["public"]["Enums"]["user_role"]
@@ -2996,6 +3166,7 @@ export type Database = {
         | "meeting"
         | "site_visit"
         | "document"
+      app_role: "admin" | "production" | "accounting"
       application_status:
         | "draft"
         | "filed"
@@ -3159,6 +3330,7 @@ export const Constants = {
         "site_visit",
         "document",
       ],
+      app_role: ["admin", "production", "accounting"],
       application_status: [
         "draft",
         "filed",
