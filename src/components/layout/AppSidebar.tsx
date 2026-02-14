@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Building2,
@@ -21,28 +21,40 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions, type ResourceKey } from "@/hooks/usePermissions";
 
 const mainNav = [
-  { title: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-  { title: "Projects", icon: FolderKanban, href: "/projects" },
-  { title: "Properties", icon: Building2, href: "/properties" },
-  { title: "Time", icon: Clock, href: "/time" },
-  { title: "Proposals", icon: FileText, href: "/proposals" },
-  { title: "Billing", icon: Receipt, href: "/invoices" },
-  { title: "Email", icon: Mail, href: "/emails" },
-  { title: "Calendar", icon: CalendarDays, href: "/calendar" },
+  { title: "Dashboard", icon: LayoutDashboard, href: "/dashboard", resource: "dashboard" as ResourceKey },
+  { title: "Projects", icon: FolderKanban, href: "/projects", resource: "projects" as ResourceKey },
+  { title: "Properties", icon: Building2, href: "/properties", resource: "properties" as ResourceKey },
+  { title: "Time", icon: Clock, href: "/time", resource: "time_logs" as ResourceKey },
+  { title: "Proposals", icon: FileText, href: "/proposals", resource: "proposals" as ResourceKey },
+  { title: "Billing", icon: Receipt, href: "/invoices", resource: "invoices" as ResourceKey },
+  { title: "Email", icon: Mail, href: "/emails", resource: "emails" as ResourceKey },
+  { title: "Calendar", icon: CalendarDays, href: "/calendar", resource: "calendar" as ResourceKey },
 ];
 
 const secondaryNav = [
-  { title: "Companies", icon: Users, href: "/clients" },
-  { title: "Documents", icon: FileArchive, href: "/documents" },
-  { title: "Settings", icon: Settings, href: "/settings" },
+  { title: "Companies", icon: Users, href: "/clients", resource: "clients" as ResourceKey },
+  { title: "Documents", icon: FileArchive, href: "/documents", resource: "documents" as ResourceKey },
+  { title: "Settings", icon: Settings, href: "/settings", resource: "settings" as ResourceKey },
 ];
 
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const { toast } = useToast();
+  const { canAccess, loading: permLoading } = usePermissions();
+
+  const filteredMainNav = useMemo(() =>
+    mainNav.filter((item) => canAccess(item.resource)),
+    [canAccess]
+  );
+
+  const filteredSecondaryNav = useMemo(() =>
+    secondaryNav.filter((item) => canAccess(item.resource)),
+    [canAccess]
+  );
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -78,7 +90,7 @@ export function AppSidebar() {
 
       {/* Main Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-hide">
-        {mainNav.map((item) => {
+        {filteredMainNav.map((item) => {
           const isActive = location.pathname === item.href || 
             (item.href !== "/dashboard" && location.pathname.startsWith(item.href));
           
@@ -101,7 +113,7 @@ export function AppSidebar() {
 
         <Separator className="my-4 bg-sidebar-border" />
 
-        {secondaryNav.map((item) => {
+        {filteredSecondaryNav.map((item) => {
           const isActive = location.pathname === item.href;
           
           return (

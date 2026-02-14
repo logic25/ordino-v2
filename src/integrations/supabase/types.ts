@@ -1932,6 +1932,70 @@ export type Database = {
           },
         ]
       }
+      employee_reviews: {
+        Row: {
+          category_ratings: Json | null
+          comments: string | null
+          company_id: string
+          created_at: string | null
+          employee_id: string
+          id: string
+          overall_rating: number | null
+          previous_rating: number | null
+          review_period: string
+          reviewer_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          category_ratings?: Json | null
+          comments?: string | null
+          company_id: string
+          created_at?: string | null
+          employee_id: string
+          id?: string
+          overall_rating?: number | null
+          previous_rating?: number | null
+          review_period: string
+          reviewer_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          category_ratings?: Json | null
+          comments?: string | null
+          company_id?: string
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          overall_rating?: number | null
+          previous_rating?: number | null
+          review_period?: string
+          reviewer_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_reviews_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_reviews_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_reviews_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gmail_connections: {
         Row: {
           access_token: string | null
@@ -2665,7 +2729,9 @@ export type Database = {
       }
       profiles: {
         Row: {
+          about: string | null
           avatar_url: string | null
+          carrier: string | null
           company_id: string
           created_at: string | null
           display_name: string | null
@@ -2673,7 +2739,9 @@ export type Database = {
           hourly_rate: number | null
           id: string
           is_active: boolean | null
+          job_title: string | null
           last_name: string | null
+          monthly_goal: number | null
           phone: string | null
           phone_extension: string | null
           preferences: Json | null
@@ -2683,7 +2751,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          about?: string | null
           avatar_url?: string | null
+          carrier?: string | null
           company_id: string
           created_at?: string | null
           display_name?: string | null
@@ -2691,7 +2761,9 @@ export type Database = {
           hourly_rate?: number | null
           id?: string
           is_active?: boolean | null
+          job_title?: string | null
           last_name?: string | null
+          monthly_goal?: number | null
           phone?: string | null
           phone_extension?: string | null
           preferences?: Json | null
@@ -2701,7 +2773,9 @@ export type Database = {
           user_id: string
         }
         Update: {
+          about?: string | null
           avatar_url?: string | null
+          carrier?: string | null
           company_id?: string
           created_at?: string | null
           display_name?: string | null
@@ -2709,7 +2783,9 @@ export type Database = {
           hourly_rate?: number | null
           id?: string
           is_active?: boolean | null
+          job_title?: string | null
           last_name?: string | null
+          monthly_goal?: number | null
           phone?: string | null
           phone_extension?: string | null
           preferences?: Json | null
@@ -3543,6 +3619,53 @@ export type Database = {
           },
         ]
       }
+      role_permissions: {
+        Row: {
+          can_create: boolean | null
+          can_delete: boolean | null
+          can_list: boolean | null
+          can_show: boolean | null
+          can_update: boolean | null
+          company_id: string
+          enabled: boolean | null
+          id: string
+          resource: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          can_create?: boolean | null
+          can_delete?: boolean | null
+          can_list?: boolean | null
+          can_show?: boolean | null
+          can_update?: boolean | null
+          company_id: string
+          enabled?: boolean | null
+          id?: string
+          resource: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          can_create?: boolean | null
+          can_delete?: boolean | null
+          can_list?: boolean | null
+          can_show?: boolean | null
+          can_update?: boolean | null
+          company_id?: string
+          enabled?: boolean | null
+          id?: string
+          resource?: string
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scheduled_emails: {
         Row: {
           company_id: string
@@ -3843,6 +3966,10 @@ export type Database = {
       is_company_member: {
         Args: { target_company_id: string }
         Returns: boolean
+      }
+      seed_role_permissions: {
+        Args: { target_company_id: string }
+        Returns: undefined
       }
     }
     Enums: {

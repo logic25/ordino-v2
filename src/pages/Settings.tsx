@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Settings as SettingsIcon, User, Building, Package, ChevronLeft, FileText, Receipt, Zap, Users, ListChecks } from "lucide-react";
+import { Settings as SettingsIcon, User, Building, Package, ChevronLeft, FileText, Receipt, Zap, Users, ListChecks, ShieldCheck } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ServiceCatalogSettings } from "@/components/settings/ServiceCatalogSettings";
 import { RfiTemplateSettings } from "@/components/settings/RfiTemplateSettings";
@@ -12,8 +12,10 @@ import { TeamSettings } from "@/components/settings/TeamSettings";
 import { ProfileSettings } from "@/components/settings/ProfileSettings";
 import { CompanySettings } from "@/components/settings/CompanySettings";
 import { ListsAndLookupsSettings } from "@/components/settings/ListsAndLookupsSettings";
+import { RolesSettings } from "@/components/settings/RolesSettings";
+import { useIsAdmin } from "@/hooks/useUserRoles";
 
-type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists";
+type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists" | "roles";
 
 const settingsSections = [
   {
@@ -64,10 +66,18 @@ const settingsSections = [
     description: "Configure auto-reminders, escalations, and collection workflows",
     icon: Zap,
   },
+  {
+    id: "roles" as const,
+    title: "Roles & Permissions",
+    description: "Configure what each role can access across the system",
+    icon: ShieldCheck,
+    adminOnly: true,
+  },
 ];
 
 export default function Settings() {
   const [activeSection, setActiveSection] = useState<SettingsSection>("main");
+  const isAdmin = useIsAdmin();
 
   const renderContent = () => {
     switch (activeSection) {
@@ -87,11 +97,15 @@ export default function Settings() {
         return <InvoiceSettings />;
       case "automation":
         return <AutomationRulesSettings />;
+      case "roles":
+        return <RolesSettings />;
       default:
         return (
           <>
             <div className="grid gap-4">
-              {settingsSections.map((section) => (
+              {settingsSections
+                .filter((section) => !(section as any).adminOnly || isAdmin)
+                .map((section) => (
                 <Card
                   key={section.id}
                   className="card-hover cursor-pointer"
