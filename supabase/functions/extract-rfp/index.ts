@@ -77,8 +77,8 @@ serve(async (req) => {
 
 Extract the following information from the RFP text. Return ONLY a JSON object with these fields:
 - title: string (the project/RFP title)
-- rfp_number: string | null (RFP or PIN number)
-- agency: string | null (issuing agency name)
+- rfp_number: string | null (The RFP identifier — look for any of these labels: "RFP Number", "PIN", "Contract No.", "Contract Number", "Project Code", "Solicitation Number", "Bid Number". If multiple identifiers exist, prefer the Contract Number. Include the full number.)
+- agency: string | null (issuing agency name — look for logos, headers, or mentions like "NYCEDC", "NYC EDC", "NYC Economic Development Corporation", etc.)
 - due_date: string | null (ISO date format YYYY-MM-DD if found)
 - contract_value: number | null (estimated contract value in dollars - if not explicitly stated, estimate based on the scope of work, required personnel, duration, and typical government consulting rates for this type of work. Consider: number of staff needed, project duration, complexity level, and typical hourly rates of $150-300/hr for engineering/architecture consulting)
 - contract_value_source: string (either "stated" if the value was explicitly in the document, or "estimated" if you inferred it)
