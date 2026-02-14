@@ -152,16 +152,16 @@ function ThreadMessage({
 
           <Separator />
 
-          <div className="email-content overflow-x-auto max-w-full" style={{ minWidth: 0 }}>
+          <div className="email-content w-full max-w-full overflow-hidden" style={{ contain: 'inline-size' }}>
             {email.body_html ? (
               <div
-                className="prose prose-sm max-w-none text-foreground break-words overflow-hidden
-                  [&_a]:text-accent [&_a]:break-all [&_img]:max-w-full [&_img]:h-auto [&_table]:text-sm [&_table]:max-w-full [&_table]:table-fixed [&_table]:overflow-hidden [&_pre]:overflow-x-auto [&_pre]:whitespace-pre-wrap [&_div]:max-w-full [&_td]:overflow-hidden [&_td]:break-words [&_*]:max-w-full"
+                className="prose prose-sm max-w-none text-foreground overflow-hidden
+                  [&_*]:!max-w-full [&_*]:!overflow-hidden [&_a]:text-accent [&_a]:break-all [&_img]:!max-w-full [&_img]:h-auto [&_table]:!max-w-full [&_table]:table-fixed [&_pre]:whitespace-pre-wrap"
                 style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
                 dangerouslySetInnerHTML={{ __html: email.body_html }}
               />
             ) : (
-              <pre className="whitespace-pre-wrap text-sm font-sans text-foreground break-words">
+              <pre className="whitespace-pre-wrap text-sm font-sans text-foreground break-words overflow-hidden">
                 {email.body_text || email.snippet || "No content"}
               </pre>
             )}
@@ -436,8 +436,8 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
 
           <Separator />
 
-          <ScrollArea className="flex-1 min-w-0">
-            <div className="px-6 py-4 space-y-3 overflow-hidden">
+          <ScrollArea className="flex-1 min-w-0 [&>[data-radix-scroll-area-viewport]>div]:!block">
+            <div className="px-6 py-4 space-y-3 w-full max-w-full overflow-hidden" style={{ contain: 'inline-size' }}>
               {displayEmails.map((threadEmail) => (
                 <ThreadMessage
                   key={threadEmail.id}
