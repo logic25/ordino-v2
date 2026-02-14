@@ -174,127 +174,147 @@ Deno.serve(async (req) => {
         .eq("id", connection.id);
     }
 
-    // Fetch message list (last 50)
-    const listRes = await fetch(
-      `https://www.googleapis.com/gmail/v1/users/me/messages?maxResults=50`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    const listData = await listRes.json();
-
-    if (!listData.messages || listData.messages.length === 0) {
-      await supabaseAdmin
-        .from("gmail_connections")
-        .update({ last_sync_at: new Date().toISOString() })
-        .eq("id", connection.id);
-
-      return new Response(
-        JSON.stringify({ synced: 0, message: "No messages found" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // Parse optional maxPages from request body (default 5 pages = ~250 messages)
+    let maxPages = 5;
+    try {
+      const body = await req.json();
+      if (body?.maxPages) maxPages = Math.min(body.maxPages, 20);
+    } catch { /* no body is fine */ }
 
     let syncedCount = 0;
+    let totalChecked = 0;
+    let pageToken: string | undefined = undefined;
+    let pagesProcessed = 0;
+    let consecutiveExisting = 0;
+    const MAX_CONSECUTIVE_EXISTING = 20; // stop if 20 in a row already synced
 
-    // Process each message
-    for (const msg of listData.messages) {
-      // Check if already synced
-      const { data: existing } = await supabaseAdmin
-        .from("emails")
-        .select("id")
-        .eq("gmail_message_id", msg.id)
-        .eq("company_id", profile.company_id)
-        .maybeSingle();
+    while (pagesProcessed < maxPages) {
+      const url = new URL("https://www.googleapis.com/gmail/v1/users/me/messages");
+      url.searchParams.set("maxResults", "50");
+      if (pageToken) url.searchParams.set("pageToken", pageToken);
 
-      if (existing) continue;
+      const listRes = await fetch(url.toString(), {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const listData = await listRes.json();
 
-      // Fetch full message
-      const msgRes = await fetch(
-        `https://www.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=full`,
-        { headers: { Authorization: `Bearer ${accessToken}` } }
-      );
-      const msgData = await msgRes.json();
+      if (!listData.messages || listData.messages.length === 0) break;
 
-      if (!msgData.payload) {
-        console.error("No payload for message:", msg.id, JSON.stringify(msgData).substring(0, 500));
-        continue;
-      }
+      for (const msg of listData.messages) {
+        totalChecked++;
 
-      const headers = msgData.payload?.headers || [];
-      if (headers.length === 0) {
-        console.error("No headers for message:", msg.id, "payload keys:", Object.keys(msgData.payload), "payload.headers:", msgData.payload?.headers);
-      }
-      const fromRaw = getHeader(headers, "From");
-      const fromMatch = fromRaw.match(/^(.*?)\s*<(.+?)>$/);
-      const from_name = fromMatch ? fromMatch[1].replace(/"/g, "").trim() : fromRaw;
-      const from_email = fromMatch ? fromMatch[2] : fromRaw;
+        // Check if already synced
+        const { data: existing } = await supabaseAdmin
+          .from("emails")
+          .select("id")
+          .eq("gmail_message_id", msg.id)
+          .eq("company_id", profile.company_id)
+          .maybeSingle();
 
-      const toRaw = getHeader(headers, "To");
-      const to_emails = toRaw
-        .split(",")
-        .map((e: string) => e.trim())
-        .filter(Boolean);
-
-      const { body_text, body_html, attachments } = extractEmailParts(msgData.payload);
-
-      const dateStr = getHeader(headers, "Date");
-      let emailDate: string | null = null;
-      try {
-        const parsed = new Date(dateStr);
-        if (!isNaN(parsed.getTime())) {
-          emailDate = parsed.toISOString();
-        } else {
-          emailDate = new Date(parseInt(msgData.internalDate)).toISOString();
+        if (existing) {
+          consecutiveExisting++;
+          if (consecutiveExisting >= MAX_CONSECUTIVE_EXISTING) break;
+          continue;
         }
-      } catch {
+        consecutiveExisting = 0;
+
+        // Fetch full message
+        const msgRes = await fetch(
+          `https://www.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=full`,
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+        const msgData = await msgRes.json();
+
+        if (!msgData.payload) {
+          console.error("No payload for message:", msg.id, JSON.stringify(msgData).substring(0, 500));
+          continue;
+        }
+
+        const headers = msgData.payload?.headers || [];
+        if (headers.length === 0) {
+          console.error("No headers for message:", msg.id);
+        }
+        const fromRaw = getHeader(headers, "From");
+        const fromMatch = fromRaw.match(/^(.*?)\s*<(.+?)>$/);
+        const from_name = fromMatch ? fromMatch[1].replace(/"/g, "").trim() : fromRaw;
+        const from_email = fromMatch ? fromMatch[2] : fromRaw;
+
+        const toRaw = getHeader(headers, "To");
+        const to_emails = toRaw
+          .split(",")
+          .map((e: string) => e.trim())
+          .filter(Boolean);
+
+        const { body_text, body_html, attachments } = extractEmailParts(msgData.payload);
+
+        const dateStr = getHeader(headers, "Date");
+        let emailDate: string | null = null;
         try {
-          emailDate = new Date(parseInt(msgData.internalDate)).toISOString();
+          const parsed = new Date(dateStr);
+          if (!isNaN(parsed.getTime())) {
+            emailDate = parsed.toISOString();
+          } else {
+            emailDate = new Date(parseInt(msgData.internalDate)).toISOString();
+          }
         } catch {
-          emailDate = new Date().toISOString();
+          try {
+            emailDate = new Date(parseInt(msgData.internalDate)).toISOString();
+          } catch {
+            emailDate = new Date().toISOString();
+          }
         }
+
+        const { data: inserted, error: insertError } = await supabaseAdmin
+          .from("emails")
+          .insert({
+            company_id: profile.company_id,
+            user_id: profile.id,
+            gmail_message_id: msg.id,
+            thread_id: msg.threadId,
+            subject: getHeader(headers, "Subject") || "(no subject)",
+            from_email,
+            from_name,
+            to_emails,
+            date: emailDate,
+            body_text,
+            body_html,
+            snippet: msgData.snippet || "",
+            has_attachments: attachments.length > 0,
+            labels: msgData.labelIds || [],
+            is_read: !(msgData.labelIds || []).includes("UNREAD"),
+          })
+          .select("id")
+          .single();
+
+        if (insertError) {
+          console.error("Insert error:", insertError);
+          continue;
+        }
+
+        // Insert attachments
+        if (attachments.length > 0 && inserted) {
+          const attachmentRows = attachments.map((a: any) => ({
+            email_id: inserted.id,
+            company_id: profile.company_id,
+            filename: a.filename,
+            mime_type: a.mime_type,
+            size_bytes: a.size_bytes,
+            gmail_attachment_id: a.gmail_attachment_id,
+          }));
+
+          await supabaseAdmin.from("email_attachments").insert(attachmentRows);
+        }
+
+        syncedCount++;
       }
 
-      const { data: inserted, error: insertError } = await supabaseAdmin
-        .from("emails")
-        .insert({
-          company_id: profile.company_id,
-          user_id: profile.id,
-          gmail_message_id: msg.id,
-          thread_id: msg.threadId,
-          subject: getHeader(headers, "Subject") || "(no subject)",
-          from_email,
-          from_name,
-          to_emails,
-          date: emailDate,
-          body_text,
-          body_html,
-          snippet: msgData.snippet || "",
-          has_attachments: attachments.length > 0,
-          labels: msgData.labelIds || [],
-          is_read: !(msgData.labelIds || []).includes("UNREAD"),
-        })
-        .select("id")
-        .single();
+      // Stop early if we hit many consecutive existing emails
+      if (consecutiveExisting >= MAX_CONSECUTIVE_EXISTING) break;
 
-      if (insertError) {
-        console.error("Insert error:", insertError);
-        continue;
-      }
-
-      // Insert attachments
-      if (attachments.length > 0 && inserted) {
-        const attachmentRows = attachments.map((a: any) => ({
-          email_id: inserted.id,
-          company_id: profile.company_id,
-          filename: a.filename,
-          mime_type: a.mime_type,
-          size_bytes: a.size_bytes,
-          gmail_attachment_id: a.gmail_attachment_id,
-        }));
-
-        await supabaseAdmin.from("email_attachments").insert(attachmentRows);
-      }
-
-      syncedCount++;
+      // Move to next page
+      pageToken = listData.nextPageToken;
+      if (!pageToken) break;
+      pagesProcessed++;
     }
 
     // Update last sync
@@ -304,7 +324,7 @@ Deno.serve(async (req) => {
       .eq("id", connection.id);
 
     return new Response(
-      JSON.stringify({ synced: syncedCount, total_checked: listData.messages.length }),
+      JSON.stringify({ synced: syncedCount, total_checked: totalChecked, pages_processed: pagesProcessed + 1 }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {

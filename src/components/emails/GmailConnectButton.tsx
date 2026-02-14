@@ -37,7 +37,7 @@ export function GmailConnectButton() {
       const result = await sync.mutateAsync();
       toast({
         title: "Sync Complete",
-        description: `Synced ${result.synced} new emails`,
+        description: `Synced ${result.synced} new emails (checked ${result.total_checked || "?"})`,
       });
     } catch (err: any) {
       toast({ title: "Sync Failed", description: err.message, variant: "destructive" });
