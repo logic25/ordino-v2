@@ -11,6 +11,7 @@ import { createQBODraft } from "@/lib/mockQBO";
 import { type InvoiceWithRelations } from "@/hooks/useInvoices";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { toast } from "@/hooks/use-toast";
 
 interface SendInvoiceModalProps {
@@ -26,22 +27,74 @@ export function SendInvoiceModal({ invoice, open, onOpenChange, onSent }: SendIn
   const [step, setStep] = useState<SendStep>("confirm");
   const [ccEmail, setCcEmail] = useState("");
   const queryClient = useQueryClient();
+  const { data: companyData } = useCompanySettings();
 
   if (!invoice) return null;
 
   const recipientEmail =
     invoice.billed_to_contact?.email ||
-    invoice.clients?.name?.toLowerCase().replace(/\s+/g, ".") + "@example.com";
+    invoice.clients?.email ||
+    "";
 
   const handleSend = async () => {
-    try {
-      // Step 1: Generate PDF (mock)
-      setStep("generating");
-      await new Promise((r) => setTimeout(r, 1000));
+    if (!recipientEmail) {
+      toast({ title: "No email address", description: "Client or billing contact has no email on file.", variant: "destructive" });
+      return;
+    }
 
-      // Step 2: Send email (mock)
+    try {
+      // Step 1: Generate PDF
+      setStep("generating");
+      const { generateInvoicePDFBlob } = await import("@/components/invoices/InvoicePDFPreview");
+      const pdfBlob = await generateInvoicePDFBlob(invoice, companyData?.settings);
+
+      // Convert blob to base64
+      const arrayBuffer = await pdfBlob.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      let binary = "";
+      for (let i = 0; i < uint8Array.length; i++) {
+        binary += String.fromCharCode(uint8Array[i]);
+      }
+      const pdfBase64 = btoa(binary);
+
+      // Step 2: Send email via Gmail
       setStep("sending");
-      await new Promise((r) => setTimeout(r, 1200));
+      const companyName = "Green Light Expediting";
+      const amount = `$${Number(invoice.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
+      const subject = companyData?.settings?.invoice_email_subject_template
+        ? companyData.settings.invoice_email_subject_template
+            .replace(/\{\{invoice_number\}\}/g, invoice.invoice_number)
+            .replace(/\{\{amount\}\}/g, amount)
+        : `Invoice ${invoice.invoice_number} — ${amount} from ${companyName}`;
+
+      const bodyTemplate = companyData?.settings?.invoice_email_body_template || 
+        `Dear ${invoice.clients?.name || "Client"},\n\nPlease find attached invoice ${invoice.invoice_number} for ${amount}.\n\nPayment terms: ${invoice.payment_terms || "Net 30"}\n${invoice.due_date ? `Due date: ${new Date(invoice.due_date).toLocaleDateString("en-US")}\n` : ""}\nThank you for your business.\n\nBest regards,\n${companyName}`;
+
+      const { wrapBillingEmailHtml, sendBillingEmail } = await import("@/hooks/useBillingEmail");
+      const htmlBody = wrapBillingEmailHtml({
+        companyName,
+        body: bodyTemplate,
+        footer: [
+          companyData?.settings?.company_email ? `Email: ${companyData.settings.company_email}` : null,
+          companyData?.settings?.company_phone ? `Phone: ${companyData.settings.company_phone}` : null,
+        ].filter(Boolean).join(" | "),
+      });
+
+      const { data: sendResult, error: sendError } = await supabase.functions.invoke("gmail-send", {
+        body: {
+          to: recipientEmail,
+          cc: ccEmail || undefined,
+          subject,
+          html_body: htmlBody,
+          attachments: [{
+            filename: `${invoice.invoice_number}.pdf`,
+            content: pdfBase64,
+            mime_type: "application/pdf",
+          }],
+        },
+      });
+      if (sendError) throw sendError;
+      if (sendResult?.error) throw new Error(sendResult.error);
 
       // Step 3: Sync to QBO (mock)
       setStep("syncing");
@@ -59,7 +112,11 @@ export function SendInvoiceModal({ invoice, open, onOpenChange, onSent }: SendIn
       const now = new Date().toISOString();
       await supabase
         .from("invoices")
-        .update({ status: "sent", sent_at: now } as any)
+        .update({
+          status: "sent",
+          sent_at: now,
+          gmail_message_id: sendResult?.message_id || null,
+        } as any)
         .eq("id", invoice.id);
 
       // Log activity
@@ -73,7 +130,7 @@ export function SendInvoiceModal({ invoice, open, onOpenChange, onSent }: SendIn
           company_id: profile.company_id,
           invoice_id: invoice.id,
           action: "sent",
-          details: `Invoice sent to ${recipientEmail}. QBO draft: ${qboDraft.qboInvoiceId}`,
+          details: `Invoice emailed to ${recipientEmail}${ccEmail ? ` (cc: ${ccEmail})` : ""}. QBO draft: ${qboDraft.qboInvoiceId}`,
           performed_by: profile.id,
         } as any);
       }

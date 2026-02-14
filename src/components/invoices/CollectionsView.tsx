@@ -388,9 +388,24 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
     if (!actionInvoice) return;
     setProcessing(true);
     try {
-      await new Promise((r) => setTimeout(r, 800));
-      await logFollowUp(actionInvoice.id, "reminder_email", `Payment reminder sent. ${reminderNote}`);
-      toast({ title: "Payment reminder sent", description: `Reminder sent for ${actionInvoice.invoice_number}` });
+      const recipientEmail = actionInvoice.billed_to_contact?.email || actionInvoice.clients?.email;
+      if (!recipientEmail) {
+        toast({ title: "No email address", description: "Client or billing contact has no email on file.", variant: "destructive" });
+        setProcessing(false);
+        return;
+      }
+      const { buildReminderEmail, sendBillingEmail } = await import("@/hooks/useBillingEmail");
+      const { subject, htmlBody } = buildReminderEmail({
+        invoiceNumber: actionInvoice.invoice_number,
+        totalDue: Number(actionInvoice.total_due),
+        daysOverdue: actionInvoice.daysOverdue,
+        clientName: actionInvoice.clients?.name || "Client",
+        companyName: "Green Light Expediting",
+        customMessage: reminderNote || undefined,
+      });
+      await sendBillingEmail({ to: recipientEmail, subject, htmlBody });
+      await logFollowUp(actionInvoice.id, "reminder_email", `Payment reminder emailed to ${recipientEmail}. ${reminderNote}`);
+      toast({ title: "Payment reminder sent", description: `Reminder emailed to ${recipientEmail}` });
       setActiveAction(null);
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -403,9 +418,24 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
     if (!actionInvoice) return;
     setProcessing(true);
     try {
-      await new Promise((r) => setTimeout(r, 1200));
-      await logFollowUp(actionInvoice.id, "demand_letter", `Demand letter sent. ${demandNote}`);
-      toast({ title: "Demand letter sent", description: `Formal demand issued for ${actionInvoice.invoice_number}` });
+      const recipientEmail = actionInvoice.billed_to_contact?.email || actionInvoice.clients?.email;
+      if (!recipientEmail) {
+        toast({ title: "No email address", description: "Client or billing contact has no email on file.", variant: "destructive" });
+        setProcessing(false);
+        return;
+      }
+      const { buildDemandLetterEmail, sendBillingEmail } = await import("@/hooks/useBillingEmail");
+      const { subject, htmlBody } = buildDemandLetterEmail({
+        invoiceNumber: actionInvoice.invoice_number,
+        totalDue: Number(actionInvoice.total_due),
+        daysOverdue: actionInvoice.daysOverdue,
+        clientName: actionInvoice.clients?.name || "Client",
+        companyName: "Green Light Expediting",
+        letterText: demandNote,
+      });
+      await sendBillingEmail({ to: recipientEmail, subject, htmlBody });
+      await logFollowUp(actionInvoice.id, "demand_letter", `Demand letter emailed to ${recipientEmail}. ${demandNote}`);
+      toast({ title: "Demand letter sent", description: `Formal demand emailed to ${recipientEmail}` });
       setActiveAction(null);
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });

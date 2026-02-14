@@ -197,14 +197,50 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
     if (!activeAction) return;
     setProcessing(true);
     try {
+      const recipientEmail = invoice.billed_to_contact?.email || invoice.clients?.email;
+      const clientName = invoice.clients?.name || "Client";
+      const companyName = companyData?.settings?.company_email ? "Green Light Expediting" : "Green Light Expediting";
+
       if (activeAction === "reminder") {
-        await new Promise((r) => setTimeout(r, 800));
-        await logFollowUp("reminder_email", `Payment reminder sent. ${actionNote}`);
-        toast({ title: "Payment reminder sent", description: `Reminder sent for ${invoice.invoice_number}` });
+        if (!recipientEmail) {
+          toast({ title: "No email address", description: "Client or billing contact has no email on file.", variant: "destructive" });
+          setProcessing(false);
+          return;
+        }
+        const { buildReminderEmail, sendBillingEmail } = await import("@/hooks/useBillingEmail");
+        const { subject, htmlBody } = buildReminderEmail({
+          invoiceNumber: invoice.invoice_number,
+          totalDue: Number(invoice.total_due),
+          daysOverdue,
+          clientName,
+          companyName,
+          customMessage: actionNote || undefined,
+          companyEmail: companyData?.settings?.company_email,
+          companyPhone: companyData?.settings?.company_phone,
+        });
+        await sendBillingEmail({ to: recipientEmail, subject, htmlBody });
+        await logFollowUp("reminder_email", `Payment reminder sent to ${recipientEmail}. ${actionNote}`);
+        toast({ title: "Payment reminder sent", description: `Reminder emailed to ${recipientEmail}` });
       } else if (activeAction === "demand") {
-        await new Promise((r) => setTimeout(r, 1200));
-        await logFollowUp("demand_letter", `Demand letter sent.\n\n${demandLetterText}`);
-        toast({ title: "Demand letter sent", description: `Formal demand issued for ${invoice.invoice_number}` });
+        if (!recipientEmail) {
+          toast({ title: "No email address", description: "Client or billing contact has no email on file.", variant: "destructive" });
+          setProcessing(false);
+          return;
+        }
+        const { buildDemandLetterEmail, sendBillingEmail } = await import("@/hooks/useBillingEmail");
+        const { subject, htmlBody } = buildDemandLetterEmail({
+          invoiceNumber: invoice.invoice_number,
+          totalDue: Number(invoice.total_due),
+          daysOverdue,
+          clientName,
+          companyName,
+          letterText: demandLetterText,
+          companyEmail: companyData?.settings?.company_email,
+          companyPhone: companyData?.settings?.company_phone,
+        });
+        await sendBillingEmail({ to: recipientEmail, subject, htmlBody });
+        await logFollowUp("demand_letter", `Demand letter emailed to ${recipientEmail}.\n\n${demandLetterText}`);
+        toast({ title: "Demand letter sent", description: `Formal demand emailed to ${recipientEmail}` });
         setDemandStep("edit");
       } else if (activeAction === "writeoff") {
         await updateInvoice.mutateAsync({ id: invoice.id, status: "paid" } as any);
