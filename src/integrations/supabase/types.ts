@@ -1942,6 +1942,7 @@ export type Database = {
           id: string
           overall_rating: number | null
           previous_rating: number | null
+          raise_pct: number | null
           review_period: string
           reviewer_id: string
           updated_at: string | null
@@ -1955,6 +1956,7 @@ export type Database = {
           id?: string
           overall_rating?: number | null
           previous_rating?: number | null
+          raise_pct?: number | null
           review_period: string
           reviewer_id: string
           updated_at?: string | null
@@ -1968,6 +1970,7 @@ export type Database = {
           id?: string
           overall_rating?: number | null
           previous_rating?: number | null
+          raise_pct?: number | null
           review_period?: string
           reviewer_id?: string
           updated_at?: string | null
