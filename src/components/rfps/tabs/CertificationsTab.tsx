@@ -11,10 +11,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Loader2, Plus, Pencil, Trash2, Award, AlertTriangle } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Award, AlertTriangle, Upload, FileText, FolderOpen } from "lucide-react";
 import { useRfpContent, useCreateRfpContent, useUpdateRfpContent, useDeleteRfpContent } from "@/hooks/useRfpContent";
+import { useUniversalDocuments } from "@/hooks/useUniversalDocuments";
 import { useToast } from "@/hooks/use-toast";
 import { format, isPast, differenceInDays } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CertContent {
   cert_type: string;
@@ -23,10 +25,13 @@ interface CertContent {
   issue_date: string;
   expiration_date: string;
   holder_name?: string;
+  document_path?: string;
+  document_name?: string;
 }
 
 export function CertificationsTab() {
   const { data: items = [], isLoading } = useRfpContent("certification");
+  const { data: universalDocs = [] } = useUniversalDocuments();
   const createMutation = useCreateRfpContent();
   const updateMutation = useUpdateRfpContent();
   const deleteMutation = useDeleteRfpContent();
@@ -34,6 +39,8 @@ export function CertificationsTab() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [showDocPicker, setShowDocPicker] = useState(false);
   const [form, setForm] = useState<CertContent & { title: string }>({
     title: "",
     cert_type: "",
@@ -42,11 +49,17 @@ export function CertificationsTab() {
     issue_date: "",
     expiration_date: "",
     holder_name: "",
+    document_path: "",
+    document_name: "",
   });
+
+  const certDocs = universalDocs.filter(
+    (d) => d.category === "certification" || d.category === "license" || d.tags?.some((t) => ["cert", "mbe", "wbe", "mwbe", "license", "certification"].includes(t.toLowerCase()))
+  );
 
   const openNew = () => {
     setEditingId(null);
-    setForm({ title: "", cert_type: "", cert_number: "", issuing_agency: "", issue_date: "", expiration_date: "", holder_name: "" });
+    setForm({ title: "", cert_type: "", cert_number: "", issuing_agency: "", issue_date: "", expiration_date: "", holder_name: "", document_path: "", document_name: "" });
     setDialogOpen(true);
   };
 
@@ -61,8 +74,31 @@ export function CertificationsTab() {
       issue_date: c.issue_date || "",
       expiration_date: c.expiration_date || "",
       holder_name: c.holder_name || "",
+      document_path: c.document_path || "",
+      document_name: c.document_name || "",
     });
     setDialogOpen(true);
+  };
+
+  const handleFileUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const path = `certifications/${Date.now()}-${file.name}`;
+      const { error } = await supabase.storage.from("rfp-documents").upload(path, file);
+      if (error) throw error;
+      setForm({ ...form, document_path: path, document_name: file.name });
+      toast({ title: "Document uploaded" });
+    } catch (e: any) {
+      toast({ title: "Upload failed", description: e.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handlePickUniversalDoc = (doc: typeof universalDocs[0]) => {
+    setForm({ ...form, document_path: doc.storage_path, document_name: doc.filename });
+    setShowDocPicker(false);
+    toast({ title: `Linked "${doc.title}"` });
   };
 
   const handleSave = async () => {
@@ -136,7 +172,7 @@ export function CertificationsTab() {
                         {c.issuing_agency && (
                           <p className="text-xs text-muted-foreground mt-0.5">{c.issuing_agency}</p>
                         )}
-                        <div className="flex gap-2 mt-1.5">
+                        <div className="flex gap-2 mt-1.5 flex-wrap">
                           {c.expiration_date && (
                             <Badge
                               variant={expired ? "destructive" : daysLeft !== null && daysLeft < 90 ? "secondary" : "outline"}
@@ -149,6 +185,11 @@ export function CertificationsTab() {
                               ) : (
                                 `Expires ${format(new Date(c.expiration_date), "MMM d, yyyy")}`
                               )}
+                            </Badge>
+                          )}
+                          {c.document_name && (
+                            <Badge variant="outline" className="text-xs">
+                              <FileText className="h-3 w-3 mr-1" /> {c.document_name}
                             </Badge>
                           )}
                         </div>
@@ -183,7 +224,7 @@ export function CertificationsTab() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Certification" : "Add Certification"}</DialogTitle>
           </DialogHeader>
@@ -220,6 +261,56 @@ export function CertificationsTab() {
                 <Input type="date" value={form.expiration_date} onChange={(e) => setForm({ ...form, expiration_date: e.target.value })} />
               </div>
             </div>
+
+            {/* Document Upload Section */}
+            <div className="space-y-2">
+              <Label>Supporting Document</Label>
+              {form.document_name ? (
+                <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm flex-1 truncate">{form.document_name}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7"
+                    onClick={() => setForm({ ...form, document_path: "", document_name: "" })}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <label className="flex-1 cursor-pointer">
+                    <Button variant="outline" size="sm" className="w-full" asChild disabled={uploading}>
+                      <span>
+                        {uploading ? (
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        ) : (
+                          <Upload className="h-4 w-4 mr-1" />
+                        )}
+                        Upload File
+                      </span>
+                    </Button>
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload(file);
+                      }}
+                    />
+                  </label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowDocPicker(true)}
+                  >
+                    <FolderOpen className="h-4 w-4 mr-1" /> From Documents
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
@@ -230,6 +321,37 @@ export function CertificationsTab() {
               {editingId ? "Save" : "Add Certification"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Universal Documents Picker */}
+      <Dialog open={showDocPicker} onOpenChange={setShowDocPicker}>
+        <DialogContent className="sm:max-w-[500px] max-h-[70vh]">
+          <DialogHeader>
+            <DialogTitle>Select from Documents</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 overflow-y-auto max-h-[50vh]">
+            {universalDocs.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No documents found. Upload documents in the Documents section first.
+              </p>
+            ) : (
+              universalDocs.map((doc) => (
+                <button
+                  key={doc.id}
+                  onClick={() => handlePickUniversalDoc(doc)}
+                  className="w-full flex items-center gap-3 p-3 border rounded-md hover:bg-accent transition-colors text-left"
+                >
+                  <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{doc.title}</p>
+                    <p className="text-xs text-muted-foreground truncate">{doc.filename}</p>
+                  </div>
+                  <Badge variant="outline" className="text-xs flex-shrink-0">{doc.category}</Badge>
+                </button>
+              ))
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
