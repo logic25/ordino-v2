@@ -1,3 +1,4 @@
+import React, { Fragment } from "react";
 import {
   Table,
   TableBody,
@@ -162,11 +163,10 @@ export function ClientTable({
           {clients.map((client) => {
             const isExpanded = expandedIds.has(client.id);
             return (
-              <>
+              <Fragment key={client.id}>
                 <TableRow
-                  key={client.id}
                   className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => onView(client)}
+                  onClick={() => toggleExpand(client.id)}
                 >
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
@@ -228,7 +228,7 @@ export function ClientTable({
                   </TableCell>
                 </TableRow>
                 {isExpanded && <ContactRows clientId={client.id} />}
-              </>
+              </Fragment>
             );
           })}
         </TableBody>
