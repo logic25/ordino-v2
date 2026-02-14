@@ -73,24 +73,33 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are a task extraction assistant for a billing/collections team at a construction expediting firm. Extract actionable follow-up tasks from notes logged by project managers after client interactions about invoices.
+            content: `You are an intelligent assistant for a billing/collections team at a construction expediting firm. You have TWO jobs:
+
+1. TASK EXTRACTION: Extract actionable follow-up tasks from notes logged by project managers after client interactions about invoices. Only extract tasks when the note clearly implies an action. Do NOT fabricate tasks from generic notes.
+
+2. PROMISE-TO-PAY DETECTION: Detect if the client has made any promise to pay. Look for language like:
+- "will pay by [date]"
+- "promised to send payment [date]"
+- "said they'd pay $X by [date]"
+- "committed to paying"
+- "check will be mailed by [date]"
+- "wire transfer coming [date]"
+- Any indication of a specific payment commitment with a date and/or amount
 
 Today's date: ${today}
-Context: Invoice ${invoice_number || "unknown"} for client ${client_name || "unknown"}, $${amount_due || 0} outstanding, ${days_overdue || 0} days overdue.
-
-Extract 0-3 concrete tasks. Only extract tasks when the note clearly implies an action. Do NOT fabricate tasks from generic notes like "left voicemail" unless there's a specific follow-up implied.`,
+Context: Invoice ${invoice_number || "unknown"} for client ${client_name || "unknown"}, $${amount_due || 0} outstanding, ${days_overdue || 0} days overdue.`,
           },
           {
             role: "user",
-            content: `Extract tasks from this follow-up note:\n\n"${note_text}"`,
+            content: `Analyze this follow-up note for tasks AND payment promises:\n\n"${note_text}"`,
           },
         ],
         tools: [
           {
             type: "function",
             function: {
-              name: "extract_tasks",
-              description: "Extract actionable follow-up tasks from the note.",
+              name: "extract_tasks_and_promises",
+              description: "Extract actionable follow-up tasks and detect payment promises from the note.",
               parameters: {
                 type: "object",
                 properties: {
@@ -99,24 +108,40 @@ Extract 0-3 concrete tasks. Only extract tasks when the note clearly implies an 
                     items: {
                       type: "object",
                       properties: {
-                        title: { type: "string", description: "Short action-oriented task title (e.g., 'Send updated invoice to AP dept')" },
-                        task_type: { type: "string", enum: ["follow_up_call", "send_email", "send_document", "internal_review", "escalation", "other"], description: "Type of task" },
+                        title: { type: "string", description: "Short action-oriented task title" },
+                        task_type: { type: "string", enum: ["follow_up_call", "send_email", "send_document", "internal_review", "escalation", "other"] },
                         priority: { type: "integer", description: "1=critical, 2=high, 3=medium, 4=low" },
                         due_in_days: { type: "integer", description: "Days from today the task should be due" },
-                        ai_recommended_action: { type: "string", description: "Brief explanation of why this task was extracted and what to do" },
+                        ai_recommended_action: { type: "string", description: "Brief explanation of why this task was extracted" },
                       },
                       required: ["title", "task_type", "priority", "due_in_days", "ai_recommended_action"],
                       additionalProperties: false,
                     },
                   },
+                  promises: {
+                    type: "array",
+                    description: "Payment promises detected in the note. Empty array if none found.",
+                    items: {
+                      type: "object",
+                      properties: {
+                        promised_amount: { type: "number", description: "Amount promised. Use the invoice total if not specified." },
+                        promised_date: { type: "string", description: "ISO date string (YYYY-MM-DD) of when they promised to pay" },
+                        payment_method: { type: "string", enum: ["check", "wire", "ach", "credit_card", "cash", "unknown"], description: "Payment method mentioned" },
+                        confidence: { type: "string", enum: ["high", "medium", "low"], description: "How confident you are this is a real promise" },
+                        summary: { type: "string", description: "Brief summary of the promise for display" },
+                      },
+                      required: ["promised_amount", "promised_date", "payment_method", "confidence", "summary"],
+                      additionalProperties: false,
+                    },
+                  },
                 },
-                required: ["tasks"],
+                required: ["tasks", "promises"],
                 additionalProperties: false,
               },
             },
           },
         ],
-        tool_choice: { type: "function", function: { name: "extract_tasks" } },
+        tool_choice: { type: "function", function: { name: "extract_tasks_and_promises" } },
       }),
     });
 
@@ -144,7 +169,7 @@ Extract 0-3 concrete tasks. Only extract tasks when the note clearly implies an 
     const aiData = await aiResponse.json();
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall) {
-      return new Response(JSON.stringify({ tasks: [] }), {
+      return new Response(JSON.stringify({ tasks: [], promises: [] }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -153,52 +178,98 @@ Extract 0-3 concrete tasks. Only extract tasks when the note clearly implies an 
     try {
       extracted = JSON.parse(toolCall.function.arguments);
     } catch {
-      return new Response(JSON.stringify({ tasks: [] }), {
+      return new Response(JSON.stringify({ tasks: [], promises: [] }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const tasks = extracted.tasks || [];
-    if (tasks.length === 0) {
-      return new Response(JSON.stringify({ tasks: [] }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const promises = extracted.promises || [];
 
     // Insert tasks into collection_tasks
-    const insertRows = tasks.map((t: any) => {
-      const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + (t.due_in_days || 1));
-      return {
-        invoice_id: invoice_id,
-        company_id: profile.company_id,
-        assigned_to: profile.id,
-        priority: t.priority || 3,
-        task_type: t.task_type || "other",
-        due_date: dueDate.toISOString().split("T")[0],
-        ai_recommended_action: t.ai_recommended_action || t.title,
-        ai_suggested_message: null,
-        status: "pending",
-      };
-    });
+    let insertedTasks: any[] = [];
+    if (tasks.length > 0) {
+      const insertRows = tasks.map((t: any) => {
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + (t.due_in_days || 1));
+        return {
+          invoice_id: invoice_id,
+          company_id: profile.company_id,
+          assigned_to: profile.id,
+          priority: t.priority || 3,
+          task_type: t.task_type || "other",
+          due_date: dueDate.toISOString().split("T")[0],
+          ai_recommended_action: t.ai_recommended_action || t.title,
+          ai_suggested_message: null,
+          status: "pending",
+        };
+      });
 
-    const { data: insertedTasks, error: insertError } = await supabaseAdmin
-      .from("collection_tasks")
-      .insert(insertRows)
-      .select();
+      const { data, error: insertError } = await supabaseAdmin
+        .from("collection_tasks")
+        .insert(insertRows)
+        .select();
 
-    if (insertError) {
-      console.error("Insert error:", insertError);
-      // Still return the extracted tasks even if insert fails
+      if (insertError) {
+        console.error("Task insert error:", insertError);
+      } else {
+        insertedTasks = data || [];
+      }
     }
 
-    const result = tasks.map((t: any, i: number) => ({
+    // Insert promises into payment_promises (only medium/high confidence)
+    let insertedPromises: any[] = [];
+    if (promises.length > 0) {
+      // Get client_id from invoice
+      const { data: invoiceData } = await supabaseAdmin
+        .from("invoices")
+        .select("client_id")
+        .eq("id", invoice_id)
+        .single();
+
+      const promiseRows = promises
+        .filter((p: any) => p.confidence !== "low")
+        .map((p: any) => ({
+          invoice_id: invoice_id,
+          company_id: profile.company_id,
+          client_id: invoiceData?.client_id || null,
+          promised_amount: p.promised_amount || amount_due || 0,
+          promised_date: p.promised_date,
+          payment_method: p.payment_method === "unknown" ? null : p.payment_method,
+          source: "ai_detected",
+          captured_by: profile.id,
+          notes: `[AI detected] ${p.summary}`,
+          status: "pending",
+        }));
+
+      if (promiseRows.length > 0) {
+        const { data, error: promiseError } = await supabaseAdmin
+          .from("payment_promises")
+          .insert(promiseRows)
+          .select();
+
+        if (promiseError) {
+          console.error("Promise insert error:", promiseError);
+        } else {
+          insertedPromises = data || [];
+        }
+      }
+    }
+
+    const taskResult = tasks.map((t: any, i: number) => ({
       ...t,
       id: insertedTasks?.[i]?.id || null,
-      due_date: insertRows[i].due_date,
+      due_date: new Date(Date.now() + (t.due_in_days || 1) * 86400000).toISOString().split("T")[0],
     }));
 
-    return new Response(JSON.stringify({ tasks: result }), {
+    const promiseResult = promises
+      .filter((p: any) => p.confidence !== "low")
+      .map((p: any, i: number) => ({
+        ...p,
+        id: insertedPromises?.[i]?.id || null,
+      }));
+
+    return new Response(JSON.stringify({ tasks: taskResult, promises: promiseResult }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
