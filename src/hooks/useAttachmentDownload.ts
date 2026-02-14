@@ -2,8 +2,15 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+interface PreviewState {
+  url: string;
+  filename: string;
+  mimeType: string;
+}
+
 export function useAttachmentDownload() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [preview, setPreview] = useState<PreviewState | null>(null);
   const { toast } = useToast();
 
   const downloadAttachment = async (attachment: {
@@ -43,11 +50,10 @@ export function useAttachmentDownload() {
       const blob = new Blob([bytes], { type: mimeType });
       const url = URL.createObjectURL(blob);
 
-      // For previewable types, open in new tab; otherwise download
       const previewable = /^(image\/(png|jpeg|gif|webp|svg)|application\/pdf)$/i.test(mimeType);
 
       if (previewable) {
-        window.open(url, "_blank");
+        setPreview({ url, filename: attachment.filename, mimeType });
       } else {
         const a = document.createElement("a");
         a.href = url;
@@ -55,10 +61,8 @@ export function useAttachmentDownload() {
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
       }
-
-      // Clean up after a delay
-      setTimeout(() => URL.revokeObjectURL(url), 30000);
     } catch (err: any) {
       toast({
         title: "Download failed",
@@ -70,5 +74,12 @@ export function useAttachmentDownload() {
     }
   };
 
-  return { downloadAttachment, downloadingId };
+  const closePreview = () => {
+    if (preview?.url) {
+      URL.revokeObjectURL(preview.url);
+    }
+    setPreview(null);
+  };
+
+  return { downloadAttachment, downloadingId, preview, closePreview };
 }
