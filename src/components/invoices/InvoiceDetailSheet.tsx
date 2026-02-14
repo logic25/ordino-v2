@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { InvoiceStatusBadge } from "./InvoiceStatusBadge";
 import { LineItemsEditor } from "./LineItemsEditor";
+import { InvoicePDFPreview } from "./InvoicePDFPreview";
 import { useUpdateInvoice, type InvoiceWithRelations, type LineItem } from "@/hooks/useInvoices";
 import { useInvoiceFollowUps, useInvoiceActivityLog } from "@/hooks/useInvoiceFollowUps";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
@@ -24,7 +25,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format, differenceInDays } from "date-fns";
 import {
   Edit2, Save, X, Send, Mail, MailOpen, Clock, FileWarning, Trash2, Loader2,
-  MessageSquare, Activity, Eye, Edit3, Plus, Phone, StickyNote,
+  MessageSquare, Activity, Eye, Edit3, Plus, Phone, StickyNote, Download, FileText,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/hooks/use-toast";
@@ -42,6 +43,7 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
   const [editing, setEditing] = useState(false);
   const [editItems, setEditItems] = useState<LineItem[]>([]);
   const [activeAction, setActiveAction] = useState<WorkflowAction>(null);
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   const [actionNote, setActionNote] = useState("");
   const [processing, setProcessing] = useState(false);
   const [demandStep, setDemandStep] = useState<"edit" | "preview">("edit");
@@ -580,6 +582,16 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
 
             {/* Actions */}
             <div className="flex flex-col gap-2">
+              {/* PDF Actions */}
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => setPdfPreviewOpen(true)}>
+                  <Eye className="h-4 w-4 mr-2" /> Preview PDF
+                </Button>
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => setPdfPreviewOpen(true)}>
+                  <Download className="h-4 w-4 mr-2" /> Download
+                </Button>
+              </div>
+
               {(invoice.status === "draft" || invoice.status === "ready_to_send") && onSendInvoice && (
                 <Button
                   onClick={() => onSendInvoice(invoice)}
@@ -757,6 +769,12 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
           </DialogContent>
         </Dialog>
       )}
+
+      <InvoicePDFPreview
+        invoice={invoice}
+        open={pdfPreviewOpen}
+        onOpenChange={setPdfPreviewOpen}
+      />
     </>
   );
 }
