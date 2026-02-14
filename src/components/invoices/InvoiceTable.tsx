@@ -173,8 +173,8 @@ export function InvoiceTable({
 
   return (
     <div>
-      <div className="flex justify-end mb-2">
-        <Button variant="ghost" size="sm" onClick={toggleExpandAll} className="text-xs text-muted-foreground">
+      <div className="flex justify-end -mt-1 mb-0">
+        <Button variant="ghost" size="sm" onClick={toggleExpandAll} className="text-xs text-muted-foreground h-7 px-2">
           {allExpanded ? "Collapse All" : "Expand All"}
         </Button>
       </div>
