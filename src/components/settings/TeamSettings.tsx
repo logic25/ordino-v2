@@ -875,39 +875,39 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                         label="Billing %"
                         value={displayStats?.hasGoal ? displayStats.billingPct : "—"}
                         suffix={displayStats?.hasGoal ? "%" : ""}
-                        tooltip="How much you've billed compared to your monthly goal"
+                        tooltip="Total invoiced on your projects ÷ Monthly Goal (× number of months in period). Example: $50k billed ÷ $40k goal = 125%."
                       />
                       <StatCard
                         icon={AlertCircle}
                         label="Non-Billable COs"
                         value="$0"
-                        tooltip="Change orders that couldn't be billed to the client"
+                        tooltip="Sum of change orders that could not be billed to the client during the selected period. Currently tracked manually."
                       />
                       <StatCard
                         icon={CheckCircle}
                         label="Timelog Completion"
                         value={displayStats?.timelogCompletion || 0}
                         suffix="%"
-                        tooltip="Percentage of days you clocked in that also have time logged"
+                        tooltip="Days with time entries ÷ Days clocked in. If you clocked in 20 days and logged time on 15, completion = 75%."
                       />
                       <StatCard
                         icon={BarChart3}
                         label="Accuracy"
                         value="N/A"
-                        tooltip="How close your estimated dates are to actual completion dates"
+                        tooltip="Measures how close estimated completion dates are to actual dates. This metric is not yet active."
                       />
                       <StatCard
                         icon={Zap}
                         label="Efficiency Rating"
                         value={displayStats?.efficiency || 0}
                         suffix="%"
-                        tooltip="Overall performance score based on billing, timelog, and other metrics"
+                        tooltip="Weighted composite: Billing % × 53% + Timelog Completion × 40% + Non-Billable CO factor × 7%. Example: 126% billing × 0.53 + 75% timelog × 0.40 + 100 × 0.07 = ~104%."
                       />
                       <StatCard
                         icon={Award}
                         label="Potential Bonus"
                         value={`$${displayStats?.potentialBonus || 0}`}
-                        tooltip="Estimated bonus based on how much you've billed toward your goal"
+                        tooltip="Based on Billing % tiers: 100–110% → $250, 111–125% → $500, 126%+ → $1,000. Tiers are configurable in Settings → Invoices & Billing."
                       />
                     </div>
                   </>
