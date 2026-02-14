@@ -46,6 +46,7 @@ export interface ApplicationFormInput {
   permit_issued_date?: string | null;
   estimated_value?: number | null;
   notes?: string | null;
+  notable?: boolean;
 }
 
 export function useApplications() {
@@ -118,6 +119,7 @@ export function useCreateApplication() {
           permit_issued_date: application.permit_issued_date || null,
           estimated_value: application.estimated_value || null,
           notes: application.notes || null,
+          notable: application.notable ?? false,
         })
         .select()
         .single();
@@ -150,6 +152,7 @@ export function useUpdateApplication() {
           permit_issued_date: updates.permit_issued_date || null,
           estimated_value: updates.estimated_value || null,
           notes: updates.notes || null,
+          notable: updates.notable ?? false,
         })
         .eq("id", id)
         .select()
