@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Send, Loader2, Paperclip, X, FileIcon } from "lucide-react";
-import { useSendEmail } from "@/hooks/useGmailConnection";
+import { useUndoableSend } from "@/hooks/useUndoableSend";
 import { useCreateScheduledEmail } from "@/hooks/useScheduledEmails";
 import { ScheduleSendDropdown } from "./ScheduleSendDropdown";
 import { RecipientInput } from "./RecipientInput";
@@ -40,7 +40,7 @@ export function ComposeEmailDialog({ open, onOpenChange }: ComposeEmailDialogPro
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const sendEmail = useSendEmail();
+  const { send: undoableSend, isPending: isSending } = useUndoableSend();
   const scheduleEmail = useCreateScheduledEmail();
   const { toast } = useToast();
 
@@ -111,23 +111,22 @@ export function ComposeEmailDialog({ open, onOpenChange }: ComposeEmailDialogPro
         mime_type: a.file.type || "application/octet-stream",
       }));
 
-  const handleSend = async () => {
+  const handleSend = () => {
     if (to.length === 0 || !subject.trim() || !body.trim()) return;
-    try {
-      await sendEmail.mutateAsync({
+    undoableSend(
+      {
         to: to.join(", "),
         cc: cc.length > 0 ? cc.join(", ") : undefined,
         bcc: bcc.length > 0 ? bcc.join(", ") : undefined,
         subject: subject.trim(),
         html_body: body,
         attachments: buildAttachmentsPayload(),
-      });
-      toast({ title: "Email Sent", description: `Sent to ${to.join(", ")}` });
-      resetForm();
-      onOpenChange(false);
-    } catch (err: any) {
-      toast({ title: "Send Failed", description: err.message, variant: "destructive" });
-    }
+      },
+      () => {
+        resetForm();
+        onOpenChange(false);
+      }
+    );
   };
 
   const handleSchedule = async (date: Date) => {
@@ -155,7 +154,7 @@ export function ComposeEmailDialog({ open, onOpenChange }: ComposeEmailDialogPro
     }
   };
 
-  const canSend = to.length > 0 && subject.trim() && body.trim();
+  const canSend = to.length > 0 && subject.trim() && body.trim() && !isSending;
 
   const formatSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes}B`;
@@ -285,9 +284,9 @@ export function ComposeEmailDialog({ open, onOpenChange }: ComposeEmailDialogPro
               />
               <Button
                 onClick={handleSend}
-                disabled={!canSend || sendEmail.isPending}
+                disabled={!canSend}
               >
-                {sendEmail.isPending ? (
+                {isSending ? (
                   <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
                 ) : (
                   <Send className="h-4 w-4 mr-1.5" />
