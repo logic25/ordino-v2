@@ -25,6 +25,7 @@ import { useUpdateQuickTags, detectAutoTags } from "@/hooks/useQuickTags";
 import { EmailTagDialog } from "./EmailTagDialog";
 import { QuickTagSection } from "./QuickTagSection";
 import { SnoozeMenu } from "./SnoozeMenu";
+import { ReminderButton } from "./ReminderButton";
 import { ScheduleSendDropdown } from "./ScheduleSendDropdown";
 import { useToast } from "@/hooks/use-toast";
 
@@ -345,6 +346,7 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
               )}
             </Button>
             <SnoozeMenu onSnooze={handleSnooze} disabled={snoozeEmail.isPending} />
+            <ReminderButton emailId={email.id} />
             <Button
               variant="ghost"
               size="sm"

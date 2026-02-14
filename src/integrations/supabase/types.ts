@@ -663,6 +663,67 @@ export type Database = {
           },
         ]
       }
+      email_reminders: {
+        Row: {
+          cancelled_at: string | null
+          company_id: string
+          condition: string
+          created_at: string
+          email_id: string
+          id: string
+          remind_at: string
+          reminded_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          cancelled_at?: string | null
+          company_id: string
+          condition?: string
+          created_at?: string
+          email_id: string
+          id?: string
+          remind_at: string
+          reminded_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          cancelled_at?: string | null
+          company_id?: string
+          condition?: string
+          created_at?: string
+          email_id?: string
+          id?: string
+          remind_at?: string
+          reminded_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_reminders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_reminders_email_id_fkey"
+            columns: ["email_id"]
+            isOneToOne: false
+            referencedRelation: "emails"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_reminders_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       emails: {
         Row: {
           archived_at: string | null

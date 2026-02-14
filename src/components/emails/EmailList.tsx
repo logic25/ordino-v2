@@ -1,10 +1,11 @@
 import { format, isToday, isThisYear } from "date-fns";
-import { Paperclip, Tag, Mail, Reply, FolderOpen } from "lucide-react";
+import { Paperclip, Tag, Mail, Reply, FolderOpen, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { EmailWithTags } from "@/hooks/useEmails";
 import { getTagColor } from "@/hooks/useQuickTags";
+import { useAllPendingReminders } from "@/hooks/useEmailReminders";
 
 interface EmailListProps {
   emails: EmailWithTags[];
@@ -25,6 +26,9 @@ function isUrgent(email: EmailWithTags): boolean {
 }
 
 export function EmailList({ emails, selectedId, highlightedIndex, onSelect }: EmailListProps) {
+  const { data: allReminders = [] } = useAllPendingReminders();
+  const reminderEmailIds = new Set(allReminders.map((r) => r.email_id));
+
   if (emails.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
@@ -45,6 +49,7 @@ export function EmailList({ emails, selectedId, highlightedIndex, onSelect }: Em
         const projectCount = tags.length;
         const urgent = isUrgent(email);
         const replied = !!(email as any).replied_at;
+        const hasReminder = reminderEmailIds.has(email.id);
 
         return (
           <button
@@ -126,6 +131,14 @@ export function EmailList({ emails, selectedId, highlightedIndex, onSelect }: Em
                         </span>
                       </TooltipTrigger>
                       <TooltipContent side="left"><p>Tagged to {projectCount} project(s)</p></TooltipContent>
+                    </Tooltip>
+                  )}
+                  {hasReminder && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Bell className="h-3 w-3 text-warning fill-warning" />
+                      </TooltipTrigger>
+                      <TooltipContent side="left"><p>Reminder set</p></TooltipContent>
                     </Tooltip>
                   )}
                   {replied && (
