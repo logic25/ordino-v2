@@ -140,24 +140,31 @@ If information is not found, use null. Be precise with dates and numbers. For co
 
     // Parse JSON from AI response (may be wrapped in markdown code block)
     let parsed;
+    
+    const repairJson = (str: string): string => {
+      // Fix keys missing closing quote: "mwbe_goal_min: 30 → "mwbe_goal_min": 30
+      str = str.replace(/"(\w+):\s/g, '"$1": ');
+      // Remove trailing commas before } or ]
+      str = str.replace(/,\s*([\]}])/g, '$1');
+      return str;
+    };
+
     try {
       const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, content];
-      let jsonStr = jsonMatch[1]!.trim();
-      // Fix common AI JSON errors: unquoted keys missing closing quote
-      jsonStr = jsonStr.replace(/"(\w+):\s/g, '"$1": ');
+      let jsonStr = repairJson(jsonMatch[1]!.trim());
       parsed = JSON.parse(jsonStr);
     } catch (e1) {
-      // Second attempt: more aggressive fix
       try {
         let jsonStr = content;
         const m = jsonStr.match(/\{[\s\S]*\}/);
         if (m) jsonStr = m[0];
-        // Fix missing quotes on keys
-        jsonStr = jsonStr.replace(/"(\w+):\s/g, '"$1": ');
+        jsonStr = repairJson(jsonStr);
         parsed = JSON.parse(jsonStr);
       } catch {
+        // Last resort: tell AI to return clean JSON by responding with partial data
         console.error("Failed to parse AI response:", content);
-        throw new Error("AI returned unparseable response");
+        // Return empty extracted data instead of failing
+        parsed = { title: null, rfp_number: null, agency: null, notes: "Extraction encountered a parsing error. Please fill in fields manually." };
       }
     }
 
