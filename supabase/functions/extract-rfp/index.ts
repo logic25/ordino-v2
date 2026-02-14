@@ -111,7 +111,7 @@ If information is not found, use null. Be precise with dates and numbers. For co
               content: `Analyze this RFP document and extract the structured information:\n\n${extractedText}`,
             },
           ],
-          temperature: 0.1,
+          temperature: 0,
         }),
       }
     );
@@ -142,10 +142,23 @@ If information is not found, use null. Be precise with dates and numbers. For co
     let parsed;
     try {
       const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, content];
-      parsed = JSON.parse(jsonMatch[1]!.trim());
-    } catch {
-      console.error("Failed to parse AI response:", content);
-      throw new Error("AI returned unparseable response");
+      let jsonStr = jsonMatch[1]!.trim();
+      // Fix common AI JSON errors: unquoted keys missing closing quote
+      jsonStr = jsonStr.replace(/"(\w+):\s/g, '"$1": ');
+      parsed = JSON.parse(jsonStr);
+    } catch (e1) {
+      // Second attempt: more aggressive fix
+      try {
+        let jsonStr = content;
+        const m = jsonStr.match(/\{[\s\S]*\}/);
+        if (m) jsonStr = m[0];
+        // Fix missing quotes on keys
+        jsonStr = jsonStr.replace(/"(\w+):\s/g, '"$1": ');
+        parsed = JSON.parse(jsonStr);
+      } catch {
+        console.error("Failed to parse AI response:", content);
+        throw new Error("AI returned unparseable response");
+      }
     }
 
     return new Response(JSON.stringify({ extracted: parsed, textLength: extractedText.length }), {
