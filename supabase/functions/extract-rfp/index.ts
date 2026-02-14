@@ -31,68 +31,37 @@ serve(async (req) => {
       .download(storagePath);
     if (dlError) throw new Error(`Download failed: ${dlError.message}`);
 
-    // Convert to text (for PDFs we extract what we can)
+    // Convert PDF to base64 for multimodal AI
     const arrayBuffer = await fileData.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
     
-    // Try to extract text from PDF
-    let extractedText = "";
-    const textDecoder = new TextDecoder("utf-8", { fatal: false });
-    const rawText = textDecoder.decode(bytes);
-    
-    // Extract readable strings from PDF content
-    const textMatches = rawText.match(/\(([^)]+)\)/g);
-    if (textMatches) {
-      extractedText = textMatches
-        .map((m) => m.slice(1, -1))
-        .filter((t) => t.length > 2 && /[a-zA-Z]/.test(t))
-        .join(" ");
+    // Base64 encode the PDF
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
     }
-    
-    // Also try stream content
-    const streamMatches = rawText.match(/BT[\s\S]*?ET/g);
-    if (streamMatches) {
-      const streamText = streamMatches
-        .join(" ")
-        .replace(/[^\x20-\x7E\n]/g, " ")
-        .replace(/\s+/g, " ");
-      if (streamText.length > extractedText.length) {
-        extractedText = streamText;
-      }
-    }
-
-    // Fallback: just use printable characters
-    if (extractedText.length < 100) {
-      extractedText = rawText
-        .replace(/[^\x20-\x7E\n]/g, " ")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 15000);
-    }
-
-    // Truncate to reasonable size for AI
-    extractedText = extractedText.slice(0, 12000);
+    const base64Pdf = btoa(binary);
 
     const systemPrompt = `You are an expert at analyzing government RFP (Request for Proposal) documents for engineering/architecture consulting firms.
 
-Extract the following information from the RFP text. Return ONLY a JSON object with these fields:
+Extract the following information from the RFP document. Return ONLY valid JSON (no markdown, no code blocks) with these fields:
 - title: string (the project/RFP title)
-- rfp_number: string | null (The RFP identifier — look for any of these labels: "RFP Number", "PIN", "Contract No.", "Contract Number", "Project Code", "Solicitation Number", "Bid Number". If multiple identifiers exist, prefer the Contract Number. Include the full number.)
-- agency: string | null (issuing agency name — look for logos, headers, or mentions like "NYCEDC", "NYC EDC", "NYC Economic Development Corporation", etc.)
-- due_date: string | null (ISO date format YYYY-MM-DD if found)
-- contract_value: number | null (estimated contract value in dollars - if not explicitly stated, estimate based on the scope of work, required personnel, duration, and typical government consulting rates for this type of work. Consider: number of staff needed, project duration, complexity level, and typical hourly rates of $150-300/hr for engineering/architecture consulting)
-- contract_value_source: string (either "stated" if the value was explicitly in the document, or "estimated" if you inferred it)
+- rfp_number: string | null (The RFP identifier — look for "RFP Number", "PIN", "Contract No.", "Contract Number", "Project Code", "Solicitation Number", "Bid Number". Prefer Contract Number if multiple exist. Include the full identifier.)
+- agency: string | null (issuing agency name — look for logos, letterheads, headers, or mentions of city/state agencies)
+- due_date: string | null (ISO date YYYY-MM-DD)
+- contract_value: number | null (dollar value — if not stated, estimate from scope, staff, duration, and typical govt consulting rates of $150-300/hr)
+- contract_value_source: "stated" | "estimated"
 - mwbe_goal_min: number | null (M/WBE participation goal percentage)
-- submission_method: string | null (one of: "email", "portal", "in-person", "mail")
+- submission_method: string | null ("email", "portal", "in-person", or "mail")
 - scope_summary: string (2-3 sentence summary of the scope of work)
-- insurance_requirements: object | null (keys like general_liability, workers_comp, umbrella, professional_liability with coverage amount strings)
-- key_dates: array of {label: string, date: string} (important milestones like pre-bid conference, Q&A deadline)
-- required_sections: array of strings (what sections the RFP asks for in the response, e.g. "Organization Chart", "Key Personnel", "Similar Projects")
-- estimated_staff_count: number | null (how many personnel are needed based on scope)
-- estimated_duration_months: number | null (project duration in months)
-- notes: string | null (any other important notes or unusual requirements)
+- insurance_requirements: object | null (keys: general_liability, workers_comp, umbrella, professional_liability)
+- key_dates: array of {label: string, date: string} (milestones like pre-bid conference, Q&A deadline)
+- required_sections: array of strings (sections the RFP asks for in the response)
+- estimated_staff_count: number | null
+- estimated_duration_months: number | null
+- notes: string | null (other important notes or unusual requirements)
 
-If information is not found, use null. Be precise with dates and numbers. For contract_value, always try to provide an estimate even if not stated - use the scope details and industry knowledge.`;
+CRITICAL: Output ONLY the raw JSON object. No markdown. No code fences. Every key must have proper double quotes.`;
 
     const aiResponse = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -103,15 +72,27 @@ If information is not found, use null. Be precise with dates and numbers. For co
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: "google/gemini-2.5-flash",
           messages: [
             { role: "system", content: systemPrompt },
             {
               role: "user",
-              content: `Analyze this RFP document and extract the structured information:\n\n${extractedText}`,
+              content: [
+                {
+                  type: "text",
+                  text: "Extract structured RFP information from this PDF document as JSON.",
+                },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: `data:application/pdf;base64,${base64Pdf}`,
+                  },
+                },
+              ],
             },
           ],
           temperature: 0,
+          response_format: { type: "json_object" },
         }),
       }
     );
@@ -126,7 +107,7 @@ If information is not found, use null. Be precise with dates and numbers. For co
       }
       if (status === 402) {
         return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Please add funds in Settings → Workspace → Usage." }),
+          JSON.stringify({ error: "AI credits exhausted." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -138,37 +119,42 @@ If information is not found, use null. Be precise with dates and numbers. For co
     const aiData = await aiResponse.json();
     const content = aiData.choices?.[0]?.message?.content || "";
 
-    // Parse JSON from AI response (may be wrapped in markdown code block)
+    // Parse JSON from AI response
     let parsed;
-    
-    const repairJson = (str: string): string => {
-      // Fix keys missing closing quote: "mwbe_goal_min: 30 → "mwbe_goal_min": 30
-      str = str.replace(/"(\w+):\s/g, '"$1": ');
-      // Remove trailing commas before } or ]
-      str = str.replace(/,\s*([\]}])/g, '$1');
-      return str;
-    };
-
     try {
-      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, content];
-      let jsonStr = repairJson(jsonMatch[1]!.trim());
-      parsed = JSON.parse(jsonStr);
-    } catch (e1) {
+      // Try direct parse first (response_format should give clean JSON)
+      parsed = JSON.parse(content);
+    } catch {
       try {
-        let jsonStr = content;
-        const m = jsonStr.match(/\{[\s\S]*\}/);
-        if (m) jsonStr = m[0];
-        jsonStr = repairJson(jsonStr);
-        parsed = JSON.parse(jsonStr);
+        // Try extracting from code block
+        const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonMatch) {
+          parsed = JSON.parse(jsonMatch[1].trim());
+        } else {
+          // Try extracting any JSON object
+          const m = content.match(/\{[\s\S]*\}/);
+          if (m) {
+            // Repair common issues
+            let jsonStr = m[0];
+            jsonStr = jsonStr.replace(/"(\w+):\s/g, '"$1": ');
+            jsonStr = jsonStr.replace(/,\s*([\]}])/g, '$1');
+            parsed = JSON.parse(jsonStr);
+          } else {
+            throw new Error("No JSON found");
+          }
+        }
       } catch {
-        // Last resort: tell AI to return clean JSON by responding with partial data
-        console.error("Failed to parse AI response:", content);
-        // Return empty extracted data instead of failing
-        parsed = { title: null, rfp_number: null, agency: null, notes: "Extraction encountered a parsing error. Please fill in fields manually." };
+        console.error("Failed to parse AI response:", content.slice(0, 500));
+        parsed = {
+          title: null,
+          rfp_number: null,
+          agency: null,
+          notes: "Extraction encountered a parsing error. Please fill in fields manually.",
+        };
       }
     }
 
-    return new Response(JSON.stringify({ extracted: parsed, textLength: extractedText.length }), {
+    return new Response(JSON.stringify({ extracted: parsed }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
