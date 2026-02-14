@@ -1,98 +1,74 @@
 
+# RFP Page: Summary Cards + Collapsible Table Cleanup
 
-# RFP Tracker Enhancements: Table View, Notes, and Insurance Tracking
-
-## What We're Building
-
-Three improvements to the `/rfps` page:
-
-1. **Kanban / Table view toggle** -- add a table/list view alongside the existing Kanban so users can see all RFPs in a sortable, date-focused format
-2. **Add a `notes` column to `rfps`** -- for ongoing tracking notes (e.g., "they want higher umbrella insurance", "waiting on M/WBE sub quotes")
-3. **Add an `insurance_requirements` JSONB column** -- to track specific insurance asks per RFP (general liability, workers comp, umbrella amounts)
-4. **More seed data** -- add 5-8 more RFPs across statuses with realistic notes and insurance details so both views look populated
+## Summary
+Add win ratio and pipeline value summary cards at the top of the RFPs page, and restructure the table view to be cleaner with collapsible row details instead of cramming 10 columns into one wide table.
 
 ---
 
-## Database Migration
+## 1. Summary Cards (new component)
 
-Add two new columns to the `rfps` table:
+Create `src/components/rfps/RfpSummaryCards.tsx` -- a row of 4 compact stat cards computed from the `rfps` data:
 
-- `notes text` -- free-form internal notes
-- `insurance_requirements jsonb` -- structured insurance data like `{ general_liability: "$1M", workers_comp: "Statutory", umbrella: "$5M" }`
+| Card | Value | Detail |
+|------|-------|--------|
+| Total RFPs | Count of all | Breakdown by active (prospect+drafting+submitted) vs closed (won+lost) |
+| Win Rate | Won / (Won + Lost) as % | e.g. "2 of 5 decided" underneath |
+| Pipeline Value | Sum of `contract_value` for prospect + drafting + submitted | Label: "Active Pipeline" |
+| Won Value | Sum of `contract_value` for won RFPs | Label: "Secured" |
 
-Insert 6 additional sample RFPs with varied statuses, dates, notes, and insurance requirements. Update the existing 5 RFPs to also have notes and insurance data.
+Cards use the existing `Card` component with small icons (Trophy, TrendingUp, DollarSign, Target). Values use `tabular-nums` per project conventions.
+
+The component receives `rfps: Rfp[]` as a prop so it doesn't duplicate the query -- `Rfps.tsx` will pass the data down.
 
 ---
 
-## UI Changes
+## 2. Collapsible Table Rows (cleaner layout)
 
-### View Toggle (Kanban vs. Table)
+The current table has 10 columns and doesn't fit well. Restructure to show **6 primary columns** with the rest collapsible:
 
-Add a toggle in the `/rfps` page header (using `LayoutGrid` / `List` icons) to switch between Kanban and Table views. State stored locally with `useState`.
+**Primary row** (always visible):
+- Title (clickable to expand)
+- RFP # 
+- Agency
+- Status badge
+- Due Date (with urgency indicator)
+- Value
 
-### Table View (`RfpTableView` component)
+**Expanded section** (shown on click, uses Collapsible):
+- Insurance requirements (badges)
+- M/WBE goal
+- Notes (editable inline)
+- Status change action
 
-A sortable table with these columns:
+This keeps the table compact and responsive. Clicking a row expands a detail panel below it (similar to the collapsible hierarchy pattern used in the Companies module).
 
-| Column | Details |
-|--------|---------|
-| Title | RFP name, clickable (future: links to detail) |
-| RFP # | Monospace font |
-| Agency | Agency name |
-| Status | Color-coded badge (reuse `RfpStatusBadge`) |
-| Due Date | Formatted date + urgency indicator (overdue in red, upcoming in yellow) |
-| Submitted | Date submitted (if applicable) |
-| M/WBE Goal | Min-Max % range |
-| Insurance | Summary badges showing key requirements |
-| Contract Value | For won RFPs, tabular-nums |
-| Notes | Truncated preview, full text on hover via tooltip |
-| Actions | Status dropdown to change status inline |
+---
 
-Sortable by due date (default), status, agency. Search/filter bar for title and RFP number.
+## 3. Page Layout Update
 
-### Notes Column in Both Views
+Update `src/pages/Rfps.tsx`:
+- Fetch `useRfps()` at the page level (instead of inside each view component)
+- Pass `rfps` data to `RfpSummaryCards` and to the active view
+- Summary cards always visible above the view toggle
+- Both `RfpTableView` and `RfpKanbanBoard` accept `rfps` and `isLoading` as props
 
-- **Table view**: Shows first ~60 chars with a tooltip for full text; click to open inline edit
-- **Kanban cards**: Show a small note icon + truncated note text if notes exist
+---
 
-### Insurance Requirements Display
+## Files
 
-- **Table view**: Show as compact badges (e.g., "GL $1M", "WC Statutory", "Umb $5M")
-- **Kanban cards**: Show a shield icon if insurance requirements exist
+### Created
+- `src/components/rfps/RfpSummaryCards.tsx` -- 4 stat cards
+
+### Modified
+- `src/pages/Rfps.tsx` -- lift `useRfps` up, add summary cards, pass data to children
+- `src/components/rfps/RfpTableView.tsx` -- reduce to 6 columns, add collapsible expanded row with insurance/notes/M/WBE details
+- `src/components/rfps/RfpKanbanBoard.tsx` -- accept `rfps` and `isLoading` as props instead of calling `useRfps` internally
 
 ---
 
 ## Technical Details
 
-### Files Modified
-- `src/pages/Rfps.tsx` -- Add view toggle state, render either Kanban or Table
-- `src/components/rfps/RfpKanbanBoard.tsx` -- Add notes preview and insurance icon to cards
-- `src/hooks/useRfps.ts` -- Add `useUpdateRfpNotes` mutation
-
-### Files Created
-- `src/components/rfps/RfpTableView.tsx` -- Full table view component with sorting, filtering, inline notes, insurance badges
-
-### Database Migration
-- `ALTER TABLE rfps ADD COLUMN notes text, ADD COLUMN insurance_requirements jsonb`
-- `UPDATE` existing 5 RFPs with notes and insurance data
-- `INSERT` 6 new RFPs with varied statuses, agencies, dates, notes, and insurance requirements
-
-### Sample Data (11 total RFPs after seeding)
-
-Existing updates:
-- NYCEDC Expeditor: notes = "Need to confirm umbrella coverage increase to $10M. Check with broker."
-- NYCHA Queensbridge: notes = "Pre-bid conference Feb 20. Bring M/WBE sub list."
-- Columbia Phase 3 (won): notes = "Excellent relationship. They requested we bid Phase 4."
-- Parks Pavilion (lost): notes = "Lost to firm with LPC specialist. Consider partnering with LPC consultant next time."
-- DOE PS 234 (submitted): notes = "Submitted 3 days early. Waiting for shortlist notification."
-
-New RFPs:
-1. NYCEDC Willets Point Infrastructure (prospect, due Apr 2026)
-2. SCA School Safety Upgrades (drafting, due Mar 2026)
-3. MTA Station Accessibility (prospect, due May 2026)
-4. NYCHA Red Hook Boiler Replacement (submitted, due Jan 2026)
-5. Private - 520 Fifth Ave Lobby Renovation (won, $42K)
-6. HPD Affordable Housing Compliance (lost)
-
-Each will have realistic notes and insurance requirements.
-
+- Collapsible rows use a local `expandedIds: Set<string>` state. Clicking a row toggles its ID in the set. The expanded content renders as a second `TableRow` with `colSpan={6}` containing a grid layout of the detail fields.
+- Summary card calculations are done with `useMemo` to avoid recalculating on every render.
+- No database changes needed -- all data already exists in the `rfps` table.
