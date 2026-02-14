@@ -3,13 +3,16 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Library, Upload, LayoutGrid, List } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useRfps } from "@/hooks/useRfps";
 import { RfpKanbanBoard } from "@/components/rfps/RfpKanbanBoard";
 import { RfpTableView } from "@/components/rfps/RfpTableView";
+import { RfpSummaryCards } from "@/components/rfps/RfpSummaryCards";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 export default function Rfps() {
   const navigate = useNavigate();
   const [view, setView] = useState<"kanban" | "table">("table");
+  const { data: rfps = [], isLoading } = useRfps();
 
   return (
     <AppLayout>
@@ -39,7 +42,13 @@ export default function Rfps() {
           </div>
         </div>
 
-        {view === "kanban" ? <RfpKanbanBoard /> : <RfpTableView />}
+        <RfpSummaryCards rfps={rfps} />
+
+        {view === "kanban" ? (
+          <RfpKanbanBoard rfps={rfps} isLoading={isLoading} />
+        ) : (
+          <RfpTableView rfps={rfps} isLoading={isLoading} />
+        )}
       </div>
     </AppLayout>
   );

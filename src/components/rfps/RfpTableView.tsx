@@ -1,15 +1,13 @@
 import { useState, useMemo } from "react";
-import { useRfps, useUpdateRfpStatus, useUpdateRfpNotes, type Rfp, type RfpStatus } from "@/hooks/useRfps";
+import { useUpdateRfpStatus, useUpdateRfpNotes, type Rfp, type RfpStatus } from "@/hooks/useRfps";
 import { RfpStatusBadge } from "./RfpStatusBadge";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Loader2, ArrowUpDown, Search, StickyNote, Shield, DollarSign, Calendar, AlertTriangle } from "lucide-react";
+import { Loader2, ArrowUpDown, Search, StickyNote, Shield, DollarSign, Calendar, AlertTriangle, ChevronRight } from "lucide-react";
 import { format, differenceInDays, isPast } from "date-fns";
 
 type SortKey = "due_date" | "status" | "agency" | "title";
@@ -17,17 +15,16 @@ type SortDir = "asc" | "desc";
 
 const statusOrder: Record<string, number> = { prospect: 0, drafting: 1, submitted: 2, won: 3, lost: 4 };
 
+interface RfpTableViewProps {
+  rfps: Rfp[];
+  isLoading: boolean;
+}
+
 function InsuranceBadges({ insurance }: { insurance: Record<string, string> | null }) {
-  if (!insurance || Object.keys(insurance).length === 0) return null;
+  if (!insurance || Object.keys(insurance).length === 0) return <span className="text-muted-foreground text-sm">None</span>;
   const labels: Record<string, string> = {
-    general_liability: "GL",
-    workers_comp: "WC",
-    umbrella: "Umb",
-    professional_liability: "Prof",
-    pollution: "Poll",
-    auto: "Auto",
-    cyber_liability: "Cyber",
-    railroad_protective: "RR",
+    general_liability: "GL", workers_comp: "WC", umbrella: "Umb", professional_liability: "Prof",
+    pollution: "Poll", auto: "Auto", cyber_liability: "Cyber", railroad_protective: "RR",
   };
   return (
     <div className="flex flex-wrap gap-1">
@@ -45,15 +42,13 @@ function DueDateCell({ dueDate }: { dueDate: string | null }) {
   const date = new Date(dueDate);
   const daysUntil = differenceInDays(date, new Date());
   const overdue = isPast(date);
-
   return (
     <div className="flex items-center gap-1.5 text-sm">
       <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
       <span>{format(date, "MMM d, yyyy")}</span>
       {overdue ? (
         <span className="text-destructive font-medium text-xs flex items-center gap-0.5">
-          <AlertTriangle className="h-3 w-3" />
-          {Math.abs(daysUntil)}d overdue
+          <AlertTriangle className="h-3 w-3" />{Math.abs(daysUntil)}d overdue
         </span>
       ) : daysUntil <= 14 ? (
         <span className="text-yellow-600 dark:text-yellow-400 font-medium text-xs">{daysUntil}d left</span>
@@ -62,7 +57,7 @@ function DueDateCell({ dueDate }: { dueDate: string | null }) {
   );
 }
 
-function NotesCell({ rfp }: { rfp: Rfp }) {
+function InlineNotes({ rfp }: { rfp: Rfp }) {
   const updateNotes = useUpdateRfpNotes();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(rfp.notes || "");
@@ -72,56 +67,92 @@ function NotesCell({ rfp }: { rfp: Rfp }) {
     setEditing(false);
   };
 
-  if (!rfp.notes && !editing) {
+  if (!editing) {
     return (
-      <Popover open={editing} onOpenChange={setEditing}>
-        <PopoverTrigger asChild>
-          <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-7">
-            <StickyNote className="h-3 w-3 mr-1" /> Add note
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-72">
-          <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Add a note..." rows={3} className="text-sm" />
-          <div className="flex justify-end gap-2 mt-2">
-            <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
-            <Button size="sm" onClick={save}>Save</Button>
-          </div>
-        </PopoverContent>
-      </Popover>
+      <div className="flex items-start gap-2">
+        <StickyNote className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
+        <button
+          onClick={() => { setDraft(rfp.notes || ""); setEditing(true); }}
+          className="text-sm text-left text-muted-foreground hover:text-foreground cursor-pointer"
+        >
+          {rfp.notes || "Add a note..."}
+        </button>
+      </div>
     );
   }
 
   return (
-    <Popover open={editing} onOpenChange={(open) => { setEditing(open); if (open) setDraft(rfp.notes || ""); }}>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <PopoverTrigger asChild>
-              <button className="text-left text-sm max-w-[200px] truncate hover:text-foreground text-muted-foreground cursor-pointer">
-                {rfp.notes}
-              </button>
-            </PopoverTrigger>
-          </TooltipTrigger>
-          <TooltipContent side="top" className="max-w-xs text-sm">{rfp.notes}</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-      <PopoverContent className="w-72">
-        <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={3} className="text-sm" />
-        <div className="flex justify-end gap-2 mt-2">
-          <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
-          <Button size="sm" onClick={save}>Save</Button>
-        </div>
-      </PopoverContent>
-    </Popover>
+    <div className="space-y-2">
+      <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={2} className="text-sm" autoFocus />
+      <div className="flex gap-2">
+        <Button size="sm" onClick={save}>Save</Button>
+        <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
+      </div>
+    </div>
   );
 }
 
-export function RfpTableView() {
-  const { data: rfps = [], isLoading } = useRfps();
+function ExpandedRow({ rfp }: { rfp: Rfp }) {
   const updateStatus = useUpdateRfpStatus();
+  const insurance = rfp.insurance_requirements as Record<string, string> | null;
+
+  return (
+    <TableRow className="bg-muted/30 hover:bg-muted/40">
+      <TableCell colSpan={6} className="py-4 px-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="space-y-1.5">
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Insurance Requirements</div>
+            <InsuranceBadges insurance={insurance} />
+          </div>
+          <div className="space-y-1.5">
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">M/WBE Goal</div>
+            <p className="text-sm">
+              {rfp.mwbe_goal_min || rfp.mwbe_goal_max
+                ? `${rfp.mwbe_goal_min}–${rfp.mwbe_goal_max}%`
+                : "—"}
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Change Status</div>
+            <Select
+              value={rfp.status}
+              onValueChange={(val) => updateStatus.mutate({ id: rfp.id, status: val as RfpStatus })}
+            >
+              <SelectTrigger className="h-8 w-[140px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="prospect">Prospect</SelectItem>
+                <SelectItem value="drafting">Drafting</SelectItem>
+                <SelectItem value="submitted">Submitted</SelectItem>
+                <SelectItem value="won">Won</SelectItem>
+                <SelectItem value="lost">Lost</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="md:col-span-3 space-y-1.5">
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notes</div>
+            <InlineNotes rfp={rfp} />
+          </div>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+export function RfpTableView({ rfps, isLoading }: RfpTableViewProps) {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("due_date");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -135,15 +166,10 @@ export function RfpTableView() {
     );
     list.sort((a, b) => {
       let cmp = 0;
-      if (sortKey === "due_date") {
-        cmp = (a.due_date || "9999").localeCompare(b.due_date || "9999");
-      } else if (sortKey === "status") {
-        cmp = (statusOrder[a.status] ?? 5) - (statusOrder[b.status] ?? 5);
-      } else if (sortKey === "agency") {
-        cmp = (a.agency || "").localeCompare(b.agency || "");
-      } else {
-        cmp = a.title.localeCompare(b.title);
-      }
+      if (sortKey === "due_date") cmp = (a.due_date || "9999").localeCompare(b.due_date || "9999");
+      else if (sortKey === "status") cmp = (statusOrder[a.status] ?? 5) - (statusOrder[b.status] ?? 5);
+      else if (sortKey === "agency") cmp = (a.agency || "").localeCompare(b.agency || "");
+      else cmp = a.title.localeCompare(b.title);
       return sortDir === "desc" ? -cmp : cmp;
     });
     return list;
@@ -159,8 +185,7 @@ export function RfpTableView() {
 
   const SortHeader = ({ label, field }: { label: string; field: SortKey }) => (
     <button className="flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort(field)}>
-      {label}
-      <ArrowUpDown className="h-3 w-3" />
+      {label}<ArrowUpDown className="h-3 w-3" />
     </button>
   );
 
@@ -175,65 +200,48 @@ export function RfpTableView() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-8"></TableHead>
               <TableHead><SortHeader label="Title" field="title" /></TableHead>
               <TableHead>RFP #</TableHead>
               <TableHead><SortHeader label="Agency" field="agency" /></TableHead>
               <TableHead><SortHeader label="Status" field="status" /></TableHead>
               <TableHead><SortHeader label="Due Date" field="due_date" /></TableHead>
-              <TableHead>M/WBE</TableHead>
-              <TableHead>Insurance</TableHead>
               <TableHead>Value</TableHead>
-              <TableHead>Notes</TableHead>
-              <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.map((rfp) => {
-              const insurance = rfp.insurance_requirements as Record<string, string> | null;
+              const isExpanded = expandedIds.has(rfp.id);
               return (
-                <TableRow key={rfp.id}>
-                  <TableCell className="font-medium max-w-[220px]">
-                    <span className="truncate block">{rfp.title}</span>
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
-                    {rfp.rfp_number || "—"}
-                  </TableCell>
-                  <TableCell className="text-sm">{rfp.agency || "—"}</TableCell>
-                  <TableCell><RfpStatusBadge status={rfp.status} /></TableCell>
-                  <TableCell><DueDateCell dueDate={rfp.due_date} /></TableCell>
-                  <TableCell className="text-sm whitespace-nowrap">
-                    {rfp.mwbe_goal_min || rfp.mwbe_goal_max
-                      ? `${rfp.mwbe_goal_min}–${rfp.mwbe_goal_max}%`
-                      : "—"}
-                  </TableCell>
-                  <TableCell><InsuranceBadges insurance={insurance} /></TableCell>
-                  <TableCell className="tabular-nums text-sm">
-                    {rfp.contract_value ? `$${rfp.contract_value.toLocaleString()}` : "—"}
-                  </TableCell>
-                  <TableCell><NotesCell rfp={rfp} /></TableCell>
-                  <TableCell>
-                    <Select
-                      value={rfp.status}
-                      onValueChange={(val) => updateStatus.mutate({ id: rfp.id, status: val as RfpStatus })}
-                    >
-                      <SelectTrigger className="h-8 w-[120px] text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="prospect">Prospect</SelectItem>
-                        <SelectItem value="drafting">Drafting</SelectItem>
-                        <SelectItem value="submitted">Submitted</SelectItem>
-                        <SelectItem value="won">Won</SelectItem>
-                        <SelectItem value="lost">Lost</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                </TableRow>
+                <>
+                  <TableRow
+                    key={rfp.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => toggleExpand(rfp.id)}
+                  >
+                    <TableCell className="w-8 px-2">
+                      <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                    </TableCell>
+                    <TableCell className="font-medium max-w-[220px]">
+                      <span className="truncate block">{rfp.title}</span>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
+                      {rfp.rfp_number || "—"}
+                    </TableCell>
+                    <TableCell className="text-sm">{rfp.agency || "—"}</TableCell>
+                    <TableCell><RfpStatusBadge status={rfp.status} /></TableCell>
+                    <TableCell><DueDateCell dueDate={rfp.due_date} /></TableCell>
+                    <TableCell className="tabular-nums text-sm">
+                      {rfp.contract_value ? `$${rfp.contract_value.toLocaleString()}` : "—"}
+                    </TableCell>
+                  </TableRow>
+                  {isExpanded && <ExpandedRow key={`${rfp.id}-detail`} rfp={rfp} />}
+                </>
               );
             })}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                   No RFPs found.
                 </TableCell>
               </TableRow>
