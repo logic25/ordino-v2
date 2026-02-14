@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.gmail-search]
 verify_jwt = false
+
+[functions.process-scheduled-emails]
+verify_jwt = false

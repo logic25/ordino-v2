@@ -11,11 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import { Tag, Paperclip, X, Reply, Send, Loader2, ChevronDown, ChevronUp, MessageSquare, Download, Eye, Archive, ArchiveRestore, Forward } from "lucide-react";
+import { Tag, Paperclip, X, Reply, Send, Loader2, ChevronDown, ChevronUp, MessageSquare, Download, Eye, Archive, ArchiveRestore, Forward, MailOpen, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EmailWithTags } from "@/hooks/useEmails";
-import { useUntagEmail, useThreadEmails, useArchiveEmail, useSnoozeEmail } from "@/hooks/useEmails";
+import { useUntagEmail, useThreadEmails, useArchiveEmail, useSnoozeEmail, useMarkReadUnread } from "@/hooks/useEmails";
 import { useSendEmail } from "@/hooks/useGmailConnection";
+import { useCreateScheduledEmail } from "@/hooks/useScheduledEmails";
 import { useAttachmentDownload } from "@/hooks/useAttachmentDownload";
 import { AttachmentPreviewModal } from "./AttachmentPreviewModal";
 import { useProjects } from "@/hooks/useProjects";
@@ -24,6 +25,8 @@ import { useUpdateQuickTags, detectAutoTags } from "@/hooks/useQuickTags";
 import { EmailTagDialog } from "./EmailTagDialog";
 import { QuickTagSection } from "./QuickTagSection";
 import { SnoozeMenu } from "./SnoozeMenu";
+import { EmailNotesSection } from "./EmailNotesSection";
+import { ScheduleSendDropdown } from "./ScheduleSendDropdown";
 import { useToast } from "@/hooks/use-toast";
 
 interface EmailDetailSheetProps {
@@ -185,6 +188,8 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
   const snoozeEmail = useSnoozeEmail();
   const updateQuickTags = useUpdateQuickTags();
   const sendEmail = useSendEmail();
+  const scheduleEmail = useCreateScheduledEmail();
+  const markReadUnread = useMarkReadUnread();
   const { downloadAttachment, downloadingId, preview, closePreview } = useAttachmentDownload();
   const { toast } = useToast();
 
@@ -349,6 +354,25 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
               <Tag className="h-4 w-4 mr-1.5" />
               Tag
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={async () => {
+                try {
+                  await markReadUnread.mutateAsync({ emailId: email.id, isRead: !email.is_read });
+                  toast({ title: email.is_read ? "Marked as unread" : "Marked as read" });
+                } catch (err: any) {
+                  toast({ title: "Error", description: err.message, variant: "destructive" });
+                }
+              }}
+              disabled={markReadUnread.isPending}
+            >
+              {email.is_read ? (
+                <><Mail className="h-4 w-4 mr-1.5" /> Unread</>
+              ) : (
+                <><MailOpen className="h-4 w-4 mr-1.5" /> Read</>
+              )}
+            </Button>
           </div>
 
           <Separator />
@@ -409,6 +433,9 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
               </div>
             </div>
           )}
+
+          {/* Team Notes */}
+          <EmailNotesSection emailId={email.id} />
 
           <Separator />
 
@@ -513,6 +540,37 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
                   <Button variant="ghost" size="sm" onClick={() => { setReplyMode(null); setReplyBody(""); setForwardTo(""); setCcField(""); setBccField(""); setShowCcBcc(false); }}>
                     Cancel
                   </Button>
+                  <ScheduleSendDropdown
+                    onSchedule={async (date) => {
+                      if (!replyBody.trim()) return;
+                      try {
+                        const isForward = replyMode === "forward";
+                        const toAddr = isForward ? forwardTo : (replyToEmail.from_email || "");
+                        const subj = isForward
+                          ? (replyToEmail.subject?.startsWith("Fwd:") ? replyToEmail.subject : `Fwd: ${replyToEmail.subject || "(no subject)"}`)
+                          : (replyToEmail.subject?.startsWith("Re:") ? replyToEmail.subject : `Re: ${replyToEmail.subject || "(no subject)"}`);
+                        const fwdBody = isForward
+                          ? `<div>${replyBody.replace(/\n/g, "<br/>")}</div><br/><hr/><p><strong>---------- Forwarded message ----------</strong><br/>From: ${replyToEmail.from_name || replyToEmail.from_email}<br/>Subject: ${replyToEmail.subject || ""}<br/></p>${replyToEmail.body_html || replyToEmail.body_text || ""}`
+                          : `<div>${replyBody.replace(/\n/g, "<br/>")}</div>`;
+                        await scheduleEmail.mutateAsync({
+                          emailDraft: {
+                            to: toAddr,
+                            cc: ccField.trim() || undefined,
+                            bcc: bccField.trim() || undefined,
+                            subject: subj,
+                            html_body: fwdBody,
+                            reply_to_email_id: isForward ? undefined : replyToEmail.id,
+                          },
+                          scheduledSendTime: date,
+                        });
+                        toast({ title: "Email Scheduled", description: `Sends ${format(date, "MMM d, h:mm a")}` });
+                        setReplyBody(""); setForwardTo(""); setCcField(""); setBccField(""); setShowCcBcc(false); setReplyMode(null);
+                      } catch (err: any) {
+                        toast({ title: "Schedule Failed", description: err.message, variant: "destructive" });
+                      }
+                    }}
+                    disabled={!replyBody.trim() || (replyMode === "forward" && !forwardTo.trim()) || scheduleEmail.isPending}
+                  />
                   <Button
                     size="sm"
                     onClick={handleReply}

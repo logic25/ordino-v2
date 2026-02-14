@@ -1569,6 +1569,73 @@ export type Database = {
           },
         ]
       }
+      scheduled_emails: {
+        Row: {
+          company_id: string
+          created_at: string
+          email_draft: Json
+          error_message: string | null
+          gmail_message_id: string | null
+          id: string
+          project_id: string | null
+          scheduled_send_time: string
+          sent_at: string | null
+          status: string
+          timezone: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          email_draft?: Json
+          error_message?: string | null
+          gmail_message_id?: string | null
+          id?: string
+          project_id?: string | null
+          scheduled_send_time: string
+          sent_at?: string | null
+          status?: string
+          timezone?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          email_draft?: Json
+          error_message?: string | null
+          gmail_message_id?: string | null
+          id?: string
+          project_id?: string | null
+          scheduled_send_time?: string
+          sent_at?: string | null
+          status?: string
+          timezone?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_emails_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_emails_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_emails_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       services: {
         Row: {
           actual_hours: number | null

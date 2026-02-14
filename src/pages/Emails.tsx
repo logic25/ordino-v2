@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, X, HelpCircle, Globe, Loader2 } from "lucide-react";
+import { Search, X, HelpCircle, Globe, Loader2, Plus, Clock, Trash2 } from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,9 @@ import { EmailList } from "@/components/emails/EmailList";
 import { EmailDetailSheet } from "@/components/emails/EmailDetailSheet";
 import { EmailFilterTabs, getFilteredEmails, getTabCounts, type EmailFilterTab } from "@/components/emails/EmailFilterTabs";
 import { KeyboardShortcutsDialog } from "@/components/emails/KeyboardShortcutsDialog";
+import { ComposeEmailDialog } from "@/components/emails/ComposeEmailDialog";
 import { useEmails, type EmailWithTags, type EmailFilters } from "@/hooks/useEmails";
+import { useScheduledEmails, useCancelScheduledEmail } from "@/hooks/useScheduledEmails";
 import { useEmailKeyboardShortcuts } from "@/hooks/useEmailKeyboardShortcuts";
 import { useConnectGmail } from "@/hooks/useGmailConnection";
 import { useNewEmailNotifications } from "@/hooks/useNewEmailNotifications";
@@ -25,9 +28,12 @@ export default function Emails() {
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
+  const [composeOpen, setComposeOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const connectGmail = useConnectGmail();
+  const { data: scheduledEmails = [] } = useScheduledEmails();
+  const cancelScheduled = useCancelScheduledEmail();
   const { results: gmailResults, isSearching: isGmailSearching, hasSearched: hasGmailSearched, search: searchGmail, clearSearch: clearGmailSearch } = useGmailSearch();
 
   // Real-time notifications
@@ -75,7 +81,7 @@ export default function Emails() {
     [allEmails, activeTab]
   );
 
-  const tabCounts = useMemo(() => getTabCounts(allEmails), [allEmails]);
+  const tabCounts = useMemo(() => getTabCounts(allEmails, scheduledEmails.length), [allEmails, scheduledEmails.length]);
 
   // Auto-scroll highlighted email into view
   useEffect(() => {
@@ -144,6 +150,13 @@ export default function Emails() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => setComposeOpen(true)}
+            >
+              <Plus className="h-4 w-4 mr-1.5" />
+              Compose
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -256,6 +269,59 @@ export default function Emails() {
             <div className="p-8 text-center text-sm text-muted-foreground">
               Loading emails...
             </div>
+          ) : activeTab === "scheduled" ? (
+            <div className="p-4 space-y-2">
+              {scheduledEmails.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                  <Clock className="h-12 w-12 mb-3 opacity-40" />
+                  <p className="text-sm font-medium">No scheduled emails</p>
+                  <p className="text-xs mt-1">Use "Send Later" when composing to schedule emails</p>
+                </div>
+              ) : (
+                scheduledEmails.map((se) => {
+                  const draft = se.email_draft;
+                  return (
+                    <div
+                      key={se.id}
+                      className="border rounded-lg p-3 flex items-start justify-between gap-3 bg-card"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">
+                          To: {draft.to}
+                        </p>
+                        <p className="text-sm text-foreground/80 truncate">
+                          {draft.subject}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Clock className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">
+                            Sends {formatDistanceToNow(new Date(se.scheduled_send_time), { addSuffix: true })}
+                            {" · "}
+                            {format(new Date(se.scheduled_send_time), "MMM d, h:mm a")}
+                          </span>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={async () => {
+                          try {
+                            await cancelScheduled.mutateAsync(se.id);
+                            toast({ title: "Scheduled email cancelled" });
+                          } catch (err: any) {
+                            toast({ title: "Error", description: err.message, variant: "destructive" });
+                          }
+                        }}
+                        disabled={cancelScheduled.isPending}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           ) : (
             <div className="overflow-y-auto flex-1">
               <EmailList
@@ -284,6 +350,11 @@ export default function Emails() {
       <KeyboardShortcutsDialog
         open={shortcutsOpen}
         onOpenChange={setShortcutsOpen}
+      />
+
+      <ComposeEmailDialog
+        open={composeOpen}
+        onOpenChange={setComposeOpen}
       />
     </AppLayout>
   );

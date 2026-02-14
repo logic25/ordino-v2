@@ -8,7 +8,8 @@ export type EmailFilterTab =
   | "urgent"
   | "untagged"
   | "snoozed"
-  | "archived";
+  | "archived"
+  | "scheduled";
 
 const AGENCY_DOMAINS = [
   "@nyc.gov",
@@ -63,7 +64,10 @@ export function getFilteredEmails(
   }
 }
 
-export function getTabCounts(emails: EmailWithTags[]): Record<EmailFilterTab, number> {
+export function getTabCounts(
+  emails: EmailWithTags[],
+  scheduledCount?: number
+): Record<EmailFilterTab, number> {
   return {
     all: emails.length,
     agencies: emails.filter(isAgencyEmail).length,
@@ -77,6 +81,7 @@ export function getTabCounts(emails: EmailWithTags[]): Record<EmailFilterTab, nu
     snoozed: emails.filter(
       (e) => (e as any).snoozed_until && new Date((e as any).snoozed_until) > new Date()
     ).length,
+    scheduled: scheduledCount ?? 0,
     archived: emails.filter((e) => !!(e as any).archived_at).length,
   };
 }
@@ -88,6 +93,7 @@ const TAB_CONFIG: { key: EmailFilterTab; label: string }[] = [
   { key: "urgent", label: "Urgent" },
   { key: "untagged", label: "Untagged" },
   { key: "snoozed", label: "Snoozed" },
+  { key: "scheduled", label: "Scheduled" },
   { key: "archived", label: "Archived" },
 ];
 
