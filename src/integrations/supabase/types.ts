@@ -552,6 +552,8 @@ export type Database = {
           created_by: string | null
           id: string
           invoice_id: string
+          package_generated_at: string | null
+          package_storage_path: string | null
           status: string
           updated_at: string
         }
@@ -563,6 +565,8 @@ export type Database = {
           created_by?: string | null
           id?: string
           invoice_id: string
+          package_generated_at?: string | null
+          package_storage_path?: string | null
           status?: string
           updated_at?: string
         }
@@ -574,6 +578,8 @@ export type Database = {
           created_by?: string | null
           id?: string
           invoice_id?: string
+          package_generated_at?: string | null
+          package_storage_path?: string | null
           status?: string
           updated_at?: string
         }
