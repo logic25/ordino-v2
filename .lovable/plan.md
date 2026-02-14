@@ -50,8 +50,34 @@ All tables have RLS with company isolation (is_company_member for SELECT, is_adm
 
 ---
 
-## 🔲 Phase 4: Customer Portal (Future)
-## 🔲 Phase 5: Automation Rules (Future)
+## ✅ Phase 5: Automation Rules (COMPLETE)
+
+### Database
+- `automation_rules` — configurable triggers with type, conditions, cooldowns, limits
+- `automation_logs` — execution log with approval workflow
+- RLS: company member read, admin/manager write
+
+### Settings UI
+- Full CRUD for automation rules in Settings → Automation Rules
+- Quick Templates: 30-day friendly, 60-day firm, 90-day escalation, broken promise alert
+- Configurable: trigger type/value, action type, tone, escalation target, conditions, cooldowns
+
+### Edge Function
+- `process-automation-rules` — evaluates rules against overdue invoices
+- Generates AI reminders via Lovable AI (Gemini 3 Flash)
+- Respects cooldowns, max executions, dispute exclusions, min amounts
+- Logs all executions with awaiting_approval status for PM review
+
+### Collections Integration
+- AutomationActivityPanel shows pending approvals and recent activity in Collections tab
+- Approve/Decline workflow for AI-generated messages
+- Preview dialog for reviewing AI content before approval
+
+### Key Design Decisions
+- PM ALWAYS approves before any automated message is sent (per constitution)
+- Rules support: days_overdue, days_since_last_contact, promise_broken triggers
+- Actions: generate_reminder (AI), escalate (to manager), notify
+- Cooldown prevents spam (default 72h between re-triggers per invoice)
 
 ---
 

@@ -14,6 +14,7 @@ import { SendInvoiceModal } from "@/components/invoices/SendInvoiceModal";
 import { CollectionsView } from "@/components/invoices/CollectionsView";
 import { PromisesView } from "@/components/invoices/PromisesView";
 import { AnalyticsView } from "@/components/invoices/AnalyticsView";
+import { AutomationActivityPanel } from "@/components/invoices/AutomationActivityPanel";
 import {
   useInvoices, useInvoiceCounts, useDeleteInvoice,
   type InvoiceStatus, type InvoiceWithRelations,
@@ -153,11 +154,14 @@ export default function Invoices() {
           )}
           <CardContent className="pt-0 px-4">
             {activeFilter === "collections" ? (
-              <CollectionsView
-                invoices={allInvoices}
-                onViewInvoice={(inv) => setDetailInvoice(inv)}
-                onSendReminder={handleSendInvoice}
-              />
+              <div className="space-y-6">
+                <AutomationActivityPanel />
+                <CollectionsView
+                  invoices={allInvoices}
+                  onViewInvoice={(inv) => setDetailInvoice(inv)}
+                  onSendReminder={handleSendInvoice}
+                />
+              </div>
             ) : activeFilter === "promises" ? (
               <PromisesView />
             ) : activeFilter === "analytics" ? (

@@ -2,15 +2,16 @@ import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Settings as SettingsIcon, User, Building, Bell, CreditCard, Shield, Package, ChevronLeft, FileText, Tags, MessageSquare, Receipt } from "lucide-react";
+import { Settings as SettingsIcon, User, Building, Bell, CreditCard, Shield, Package, ChevronLeft, FileText, Tags, MessageSquare, Receipt, Zap } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ServiceCatalogSettings } from "@/components/settings/ServiceCatalogSettings";
 import { RfiTemplateSettings } from "@/components/settings/RfiTemplateSettings";
 import { CompanyTypeSettings } from "@/components/settings/CompanyTypeSettings";
 import { ReviewCategorySettings } from "@/components/settings/ReviewCategorySettings";
 import { InvoiceSettings } from "@/components/settings/InvoiceSettings";
+import { AutomationRulesSettings } from "@/components/settings/AutomationRulesSettings";
 
-type SettingsSection = "main" | "profile" | "company" | "proposals" | "company_types" | "review_categories" | "rfi_templates" | "invoices" | "notifications" | "billing" | "security";
+type SettingsSection = "main" | "profile" | "company" | "proposals" | "company_types" | "review_categories" | "rfi_templates" | "invoices" | "automation" | "notifications" | "billing" | "security";
 
 const settingsSections = [
   {
@@ -56,6 +57,12 @@ const settingsSections = [
     icon: Receipt,
   },
   {
+    id: "automation" as const,
+    title: "Automation Rules",
+    description: "Configure auto-reminders, escalations, and collection workflows",
+    icon: Zap,
+  },
+  {
     id: "notifications" as const,
     title: "Notifications",
     description: "Email, push, and in-app notifications",
@@ -90,6 +97,8 @@ export default function Settings() {
         return <RfiTemplateSettings />;
       case "invoices":
         return <InvoiceSettings />;
+      case "automation":
+        return <AutomationRulesSettings />;
       case "profile":
       case "company":
       case "notifications":
