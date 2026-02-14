@@ -3,7 +3,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Plus, Search, Send, Trash2, Receipt } from "lucide-react";
+import { Plus, Search, Send, Trash2 } from "lucide-react";
 import { InvoiceSummaryCards } from "@/components/invoices/InvoiceSummaryCards";
 import { InvoiceFilterTabs } from "@/components/invoices/InvoiceFilterTabs";
 import { InvoiceTable } from "@/components/invoices/InvoiceTable";
@@ -12,7 +12,6 @@ import { InvoiceDetailSheet } from "@/components/invoices/InvoiceDetailSheet";
 import { QBOConnectionWidget } from "@/components/invoices/QBOConnectionWidget";
 import { SendInvoiceModal } from "@/components/invoices/SendInvoiceModal";
 import { CollectionsView } from "@/components/invoices/CollectionsView";
-import { SendToBillingDialog } from "@/components/invoices/SendToBillingDialog";
 import {
   useInvoices, useInvoiceCounts, useDeleteInvoice,
   type InvoiceStatus, type InvoiceWithRelations,
@@ -24,7 +23,6 @@ export default function Invoices() {
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
-  const [billingOpen, setBillingOpen] = useState(false);
   const [detailInvoice, setDetailInvoice] = useState<InvoiceWithRelations | null>(null);
   const [sendInvoice, setSendInvoice] = useState<InvoiceWithRelations | null>(null);
 
@@ -88,24 +86,14 @@ export default function Invoices() {
               Track billing and payment status
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setBillingOpen(true)}
-            >
-              <Receipt className="h-4 w-4 mr-2" />
-              Send to Billing
-            </Button>
-            <Button
-              size="sm"
-              className="bg-accent text-accent-foreground hover:bg-accent/90"
-              onClick={() => setCreateOpen(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Create Invoice
-            </Button>
-          </div>
+          <Button
+            size="sm"
+            className="bg-accent text-accent-foreground hover:bg-accent/90"
+            onClick={() => setCreateOpen(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Invoice
+          </Button>
         </div>
 
         {/* QBO Connection Status */}
@@ -181,7 +169,6 @@ export default function Invoices() {
       </div>
 
       <CreateInvoiceDialog open={createOpen} onOpenChange={setCreateOpen} />
-      <SendToBillingDialog open={billingOpen} onOpenChange={setBillingOpen} />
 
       <InvoiceDetailSheet
         invoice={detailInvoice}
