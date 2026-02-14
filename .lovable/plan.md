@@ -1,260 +1,195 @@
 
-
-# Complete Team Detail View + Role Permissions System
+# RFP Response Automation System
 
 ## Summary
+Build an AI-powered RFP response system that lets users upload RFP PDFs, auto-extract requirements, generate response packages from a stored content library, review/edit sections, and track submission outcomes -- all integrated into the existing Ordino platform.
 
-This plan consolidates everything discussed across multiple conversations into one implementation. There are three major workstreams: (A) fix the team detail stat cards and metrics, (B) add the employee reviews system and enhanced edit form, and (C) build the granular role permissions system with visibility controls.
+## Phased Approach
 
----
-
-## Part A: Corrected Stat Cards with Tooltips
-
-### What's Wrong Today
-- **Billing %** calculates billable minutes / total minutes. Should be: **revenue billed vs. monthly goal** (e.g., $27K billed / $39K goal = 69%)
-- **Timelog Completion** divides by estimated business days. Should use: **attendance_logs** (days with time entries / days clocked in)
-- **Efficiency Rating** divides billable minutes by 8hr standard. Should be: **weighted composite** of multiple metrics
-- **Potential Bonus** is hardcoded at $5/hr if >75%. Should be: **progressive tiers based on goal attainment**
-- **No tooltips** explaining what each card means
-
-### Corrected Metric Formulas
-
-| Card | New Formula | Tooltip |
-|---|---|---|
-| Billing % | `sum(invoices.total_due where project.assigned_pm_id = user) / profiles.monthly_goal x 100` | "Revenue billed on your projects vs. your monthly goal" |
-| Non-Billable COs | Shows $0 (placeholder until change orders table exists) | "Dollar value of change orders caused by mistakes that couldn't be billed to the client" |
-| Timelog Completion | `distinct days with time entries / distinct days clocked in (from attendance_logs) x 100` | "Of the days you clocked in, what % had time logged? PTO/sick days excluded" |
-| Accuracy | Shows "N/A" (placeholder until estimated dates on services) | "How accurate your estimated completion dates are vs. actual. Available when estimated dates are added to services" |
-| Efficiency Rating | Weighted composite: Billing 40%, Timelog 30%, Accuracy 25%, CO 5%. When Accuracy is N/A, redistributes proportionally | "Weighted composite of your performance metrics. Weights are configurable" |
-| Potential Bonus | Progressive tiers based on Billing %: 0-99% = $0, 100-110% = $250, 111-125% = $500, 126%+ = $1,000 | "Estimated bonus based on monthly billing goal attainment" |
-
-### Billing Chart (Enhanced)
-- 12-month bar chart using Recharts (already installed)
-- Three series: Billed (green bars), Estimated (yellow bars), Monthly Goal (line)
-- Year dropdown to compare different years
-- Summary table below chart: Year, Month, QTY (invoice count), Amount, Goal, Goal %
-
-### Proposals Tab (Enhanced)
-- Summary stat cards at top: Total Written, Converted, Conversion Rate, Total Value
-- Year/period dropdown for comparison
-- Existing proposals table below
+Given the scale of this feature (3 new database tables, new columns on `dob_applications`, 2 new edge functions, 10+ new components, 3 new routes), this will be built in **4 phases** to keep each deliverable testable.
 
 ---
 
-## Part B: Employee Reviews + Expanded Edit Form
+### Phase 1: Database + Content Library (`/rfps/library`)
+**Goal**: Create the data foundation and the content management UI.
 
-### New Database Table: `employee_reviews`
+**Database migrations**:
+- Add columns to `dob_applications`: `notable`, `rfp_tags`, `reference_contact_name`, `reference_contact_title`, `reference_contact_email`, `reference_contact_phone`, `reference_notes`, `reference_last_verified` with GIN index on `rfp_tags`
+- Create `rfp_content` table (id, company_id FK, content_type, title, content JSONB, tags, file_url, timestamps) with indexes
+- Create `rfps` table (id, company_id FK, title, agency, rfp_number, due_date, status, uploaded_pdf_url, requirements JSONB, mwbe goals, response tracking fields, timestamps) with indexes
+- Create `rfp_sections` table (id, rfp_id FK, section_type, content JSONB, ai_generated, reviewed, display_order, timestamps)
+- RLS policies scoped to `company_id` using `get_user_company_id()` for all new tables
+- Add `rfps` resource to `role_permissions` seed
 
-| Column | Type | Purpose |
-|---|---|---|
-| id | uuid PK | |
-| company_id | uuid FK companies | Multi-tenant isolation |
-| employee_id | uuid FK profiles | Person being reviewed |
-| reviewer_id | uuid FK profiles | Manager writing the review |
-| review_period | date | Month/quarter being reviewed |
-| overall_rating | numeric | 0-100 composite score |
-| previous_rating | numeric | Snapshot from prior period |
-| category_ratings | jsonb | e.g., `{"Technical Knowledge": 4, "Quality of Work": 3}` |
-| comments | text | Free-form feedback |
-| created_at / updated_at | timestamptz | |
+**Frontend -- Content Library** (`/rfps/library`):
+- New page with 6 tabs: Company Info, Staff Bios, Notable Projects, Narratives, Pricing, Certifications
+- CRUD dialogs for each content type backed by `rfp_content` table
+- Notable Projects tab: filtered view of `dob_applications` where `notable = true`, inline tag editor, contact fields
+- Pricing tab: editable rate tables with multi-year escalation preview
+- Narratives tab: rich text editor (Tiptap, already installed) with variable placeholders
+- Certifications tab: list with file upload, expiration tracking
 
-RLS: company-isolated reads/writes. Unique constraint on `(employee_id, review_period)`.
-
-### Reviews Tab Change
-Currently shows client reviews this user *authored*. Changes to show **performance reviews OF this employee** written by managers. Includes:
-- "Add Review" button (admin/manager only)
-- Review dialog: period picker, category rating table (uses existing `review_categories` from settings), overall rating, previous rating auto-populated, comments
-- Each review displays as a card with category breakdown, reviewer name, and period
-
-### New Profile Columns
-
-| Column | Type | Purpose |
-|---|---|---|
-| monthly_goal | numeric | Dollar target per month (critical for Billing %) |
-| about | text | Bio/description |
-| carrier | varchar | Mobile carrier |
-| job_title | varchar | Position title |
-
-### Expanded Edit Form (Two Columns)
-
-**Left column:** First Name, Last Name, Email (read-only), About (textarea)
-
-**Right column:** Job Title, Role (dropdown), Monthly Goal ($), Hourly Rate ($/hr), Mobile Number + Extension, Carrier, Active/Inactive toggle, Signature preview + upload
+**New files**:
+- `src/pages/RfpLibrary.tsx`
+- `src/hooks/useRfpContent.ts`
+- `src/components/rfps/ContentLibraryTabs.tsx` (and sub-components for each tab)
+- Updated `ApplicationDialog.tsx` to include "RFP Reference Info" collapsible section
 
 ---
 
-## Part C: Granular Role Permissions
+### Phase 2: RFP List + Upload + Parsing (`/rfps`)
+**Goal**: Kanban board for tracking RFPs, PDF upload, AI-powered requirement extraction.
 
-### Current State
-- `user_roles` table exists with `app_role` enum: `admin`, `production`, `accounting`
-- `useUserRoles.ts` hook exists with `useIsAdmin()`, `useCanAccessBilling()`, etc.
-- Sidebar shows all nav items to all users (no filtering)
-- No `role_permissions` table exists yet
+**Frontend -- RFP Kanban**:
+- Kanban board with columns: Prospect, Drafting, Submitted, Won, Lost
+- Cards showing title, RFP number, due date, agency, overdue warnings
+- Drag-and-drop between columns (using native drag or a lightweight approach with state management)
+- Confirmation modals for Won/Lost transitions
+- Filters: agency, date range, status
+- Search by title/RFP number
 
-### New Database Table: `role_permissions`
+**Edge Function -- `parse-rfp`**:
+- Accepts uploaded PDF text content
+- Calls Lovable AI (google/gemini-3-flash-preview) with tool calling to extract structured data: title, agency, RFP number, due date, required forms, scope of work, selection criteria, M/WBE goals
+- Returns structured JSON
+- Handles rate limits (429) and payment errors (402)
 
-| Column | Type | Default | Purpose |
-|---|---|---|---|
-| id | uuid PK | | |
-| company_id | uuid FK | | Multi-tenant |
-| role | app_role | | admin / production / accounting |
-| resource | varchar | | e.g., "projects", "invoices", "users" |
-| enabled | boolean | false | Can access this resource at all? |
-| can_list | boolean | false | Can see the list view? |
-| can_show | boolean | false | Can view individual records? |
-| can_create | boolean | false | Can create new records? |
-| can_update | boolean | false | Can edit existing records? |
-| can_delete | boolean | false | Can delete records? |
+**Frontend -- Upload Flow**:
+- Upload modal with drag-and-drop zone
+- PDF stored in backend file storage (`rfp-uploads` bucket)
+- Loading state while AI parses
+- Confirmation screen showing extracted requirements (editable)
+- Save creates new `rfps` record
 
-Unique constraint on `(company_id, role, resource)`. RLS: company-isolated, only admins can update.
+**New files**:
+- `src/pages/Rfps.tsx`
+- `src/hooks/useRfps.ts`
+- `src/components/rfps/RfpKanbanBoard.tsx`
+- `src/components/rfps/RfpCard.tsx`
+- `src/components/rfps/UploadRfpDialog.tsx`
+- `src/components/rfps/RfpStatusBadge.tsx`
+- `supabase/functions/parse-rfp/index.ts`
 
-### Default Permission Seeds
+---
 
-**Resources**: dashboard, projects, properties, proposals, invoices, time_logs, emails, calendar, documents, clients, settings, users, roles, reports
+### Phase 3: RFP Detail + AI Response Generation (`/rfps/:id`)
+**Goal**: View extracted requirements, generate AI response sections, review/edit in a builder UI.
 
-| Role | Full Access | Read-Only | No Access |
-|---|---|---|---|
-| admin | Everything | -- | -- |
-| production | projects, properties, proposals, time_logs, calendar, documents, dashboard | invoices, clients | users, roles, settings, reports |
-| accounting | invoices, time_logs, clients, dashboard | projects, proposals | properties, users, roles, settings, reports |
+**Frontend -- RFP Detail Page** (4 tabs):
+1. **Overview**: Uploaded PDF link, editable extracted requirements, required forms checklist, selection criteria visualization, M/WBE goal display
+2. **Response Builder**: Section checklist, preview cards for each section (approach narrative, M/WBE narrative, staff bios, project experience, contractor info, pricing), edit/regenerate/mark-reviewed actions, reorderable sections
+3. **Generated Files**: List of exported documents with download links
+4. **Debrief** (visible when Won/Lost): Outcome form, contract value, notes, lessons learned tags
 
-A database seed function initializes these defaults per company. Called on first access or company creation.
+**Edge Function -- `generate-rfp-response`**:
+- Fetches all relevant `rfp_content` for the company
+- Selects notable projects using relevance scoring algorithm (agency match, service match, recency, verified contacts)
+- Generates AI narratives via Lovable AI for: Approach Statement, M/WBE Narrative, Project Experience
+- Structures non-AI sections (Contractor Info, Price Proposal, Staff Bios) from stored data
+- Saves all sections to `rfp_sections` table
+- Supports per-section regeneration with tone/length/emphasis parameters
 
-### Roles Settings UI
-New "Roles" card in Settings page. The UI matches the legacy screenshots:
-- Tabs or dropdown to select role (Admin is read-only/all-on to prevent lockout)
-- Table with rows = resources, columns = Enabled | List | Show | Create | Update | Delete
-- Switch toggles for each cell
-- Saves immediately on toggle
+**Edge Function -- `analyze-rfp-outcome`**:
+- When RFP marked Won/Lost, analyzes debrief notes
+- Returns 2-3 actionable AI suggestions for future submissions
+- Saves to `rfps.lessons_learned`
 
-### Team Detail Visibility Rules
+**New files**:
+- `src/pages/RfpDetail.tsx`
+- `src/hooks/useRfpSections.ts`
+- `src/components/rfps/RfpOverviewTab.tsx`
+- `src/components/rfps/ResponseBuilderTab.tsx`
+- `src/components/rfps/SectionPreviewCard.tsx`
+- `src/components/rfps/RegenerateModal.tsx`
+- `src/components/rfps/ProjectSelector.tsx`
+- `src/components/rfps/DebriefTab.tsx`
+- `src/components/rfps/GeneratedFilesTab.tsx`
+- `supabase/functions/generate-rfp-response/index.ts`
+- `supabase/functions/analyze-rfp-outcome/index.ts`
 
-**Employee viewing their own profile (non-admin):**
-- Profile card: read-only (no edit button)
-- Stats: can see their own Billing %, Timelog, Efficiency, Bonus
-- Tabs: can see their own Proposals and Projects
-- Cannot see: hourly rate, other users' detail views, edit controls, role dropdown
-- Reviews: can see reviews of themselves (read-only)
+---
 
-**Admin/Manager viewing any profile:**
-- Full edit form with all fields
-- All stats visible including hourly rate
-- Can write employee reviews
-- Can change roles, active status
-- Can view any team member
+### Phase 4: Export + Polish
+**Goal**: Word document export, verification emails, and final polish.
 
-**Non-admin viewing another user:**
-- Blocked -- clicking other users in the list does nothing (or shows limited public info like name/role/phone)
+**Word Export**:
+- Since `docx` library is Node.js-only and edge functions run Deno, export will be handled by generating a formatted HTML document that can be downloaded, or by using a Deno-compatible approach
+- Alternative: Generate a well-formatted PDF using `@react-pdf/renderer` (already installed) with cover page, section headers, rate tables, and flowing narrative text
+- Store generated files in backend storage (`rfp-responses` bucket)
+- Version history of exports
 
-### Sidebar Enforcement
-`AppSidebar.tsx` uses the new `usePermissions` hook to filter nav items. If `canAccess("invoices")` is false for a production user, the Billing nav item is hidden.
+**Contact Verification**:
+- "Send Verification Email" button on notable projects
+- Uses existing Gmail integration (`gmail-send` edge function) to send templated verification emails
+- Updates `reference_last_verified` timestamp
+- Visual indicators: green check (verified < 90 days), warning (> 90 days or never)
 
-### Route Guard Enforcement
-`ProtectedRoute` in `RouteGuards.tsx` accepts an optional `resource` prop. If the user lacks access, redirects to dashboard with a toast message.
+**Navigation Integration**:
+- Add "RFPs" item to sidebar navigation under main nav
+- Add `rfps` to permission resources
+- Route guards for `/rfps`, `/rfps/library`, `/rfps/:id`
 
 ---
 
 ## Technical Details
 
-### Database Migrations
+### Database Schema Summary
 
-**Migration 1: Profile columns**
-```sql
-ALTER TABLE profiles
-  ADD COLUMN IF NOT EXISTS monthly_goal numeric,
-  ADD COLUMN IF NOT EXISTS about text,
-  ADD COLUMN IF NOT EXISTS carrier varchar,
-  ADD COLUMN IF NOT EXISTS job_title varchar;
+```text
+dob_applications (ALTER - add columns)
++-- notable boolean DEFAULT false
++-- rfp_tags text[]
++-- reference_contact_name text
++-- reference_contact_title text
++-- reference_contact_email text
++-- reference_contact_phone text
++-- reference_notes text
++-- reference_last_verified timestamptz
+
+rfp_content (NEW)
++-- id uuid PK
++-- company_id uuid FK -> companies
++-- content_type text (firm_history, staff_bio, pricing, narrative_template, certification, company_info)
++-- title text
++-- content jsonb
++-- tags text[]
++-- file_url text
++-- timestamps
+
+rfps (NEW)
++-- id uuid PK
++-- company_id uuid FK -> companies
++-- title, agency, rfp_number, due_date
++-- status text (prospect, drafting, submitted, won, lost)
++-- uploaded_pdf_url, requirements jsonb
++-- mwbe_goal_min/max numeric
++-- response_draft_url, submitted_at, outcome, contract_value
++-- debrief_notes, lessons_learned jsonb
++-- created_by uuid FK -> profiles
++-- timestamps
+
+rfp_sections (NEW)
++-- id uuid PK
++-- rfp_id uuid FK -> rfps (CASCADE)
++-- section_type, content jsonb
++-- ai_generated, reviewed boolean
++-- display_order integer
++-- timestamps
 ```
 
-**Migration 2: Employee reviews table**
-```sql
-CREATE TABLE employee_reviews (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  company_id uuid NOT NULL REFERENCES companies(id),
-  employee_id uuid NOT NULL REFERENCES profiles(id),
-  reviewer_id uuid NOT NULL REFERENCES profiles(id),
-  review_period date NOT NULL,
-  overall_rating numeric,
-  previous_rating numeric,
-  category_ratings jsonb DEFAULT '{}',
-  comments text,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now(),
-  UNIQUE(employee_id, review_period)
-);
+### AI Integration
+- All AI calls use Lovable AI gateway (`google/gemini-3-flash-preview`)
+- PDF parsing uses tool calling for structured extraction
+- Narrative generation uses streaming for progress feedback
+- Edge functions handle 429/402 errors gracefully
 
-ALTER TABLE employee_reviews ENABLE ROW LEVEL SECURITY;
+### RLS Policies
+All new tables use company-scoped RLS:
+- SELECT/INSERT/UPDATE/DELETE restricted to users whose `get_user_company_id()` matches `company_id`
+- `rfp_sections` inherits access through `rfp_id` join to `rfps.company_id`
 
--- RLS policies using existing is_company_member function
-CREATE POLICY "Company members can view reviews"
-  ON employee_reviews FOR SELECT TO authenticated
-  USING (is_company_member(company_id));
-
-CREATE POLICY "Admins can manage reviews"
-  ON employee_reviews FOR ALL TO authenticated
-  USING (is_company_admin(company_id));
-```
-
-**Migration 3: Role permissions table + seed**
-```sql
-CREATE TABLE role_permissions (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  company_id uuid NOT NULL REFERENCES companies(id),
-  role app_role NOT NULL,
-  resource varchar NOT NULL,
-  enabled boolean DEFAULT false,
-  can_list boolean DEFAULT false,
-  can_show boolean DEFAULT false,
-  can_create boolean DEFAULT false,
-  can_update boolean DEFAULT false,
-  can_delete boolean DEFAULT false,
-  UNIQUE(company_id, role, resource)
-);
-
-ALTER TABLE role_permissions ENABLE ROW LEVEL SECURITY;
-
--- RLS: company members can read, admins can write
-CREATE POLICY "Company members can view permissions"
-  ON role_permissions FOR SELECT TO authenticated
-  USING (is_company_member(company_id));
-
-CREATE POLICY "Admins can manage permissions"
-  ON role_permissions FOR ALL TO authenticated
-  USING (is_company_admin(company_id));
-
--- Seed function to initialize defaults for a company
-CREATE OR REPLACE FUNCTION seed_role_permissions(target_company_id uuid)
-RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
--- Inserts default permission rows for admin/production/accounting
--- across all 14 resources
-$$;
-```
-
-### New Files
-
-| File | Purpose |
-|---|---|
-| `src/hooks/useEmployeeReviews.ts` | CRUD hook for employee_reviews table |
-| `src/hooks/usePermissions.ts` | Fetch role_permissions, provide canAccess/canList/canCreate/canUpdate/canDelete helpers |
-| `src/components/settings/RolesSettings.tsx` | Permission matrix UI with toggle table |
-
-### Modified Files
-
-| File | Change |
-|---|---|
-| `src/components/settings/TeamSettings.tsx` | Rewrite billing stats hook (goal-based), add tooltips to StatCard, add billing chart, enhance proposals tab with summary cards, replace reviews tab with employee reviews, expand edit form to two columns with all new fields, add self-view vs admin-view visibility logic |
-| `src/pages/Settings.tsx` | Add "Roles" section to settings menu (new section type + card) |
-| `src/components/layout/AppSidebar.tsx` | Filter nav items using usePermissions hook |
-| `src/components/routing/RouteGuards.tsx` | Add optional `resource` prop for permission-based route guarding |
-| `src/hooks/useProfiles.ts` | Add `useAllCompanyProfiles()` that includes inactive users |
-
-### Implementation Order
-1. Database migrations (profile columns, employee_reviews, role_permissions + seed)
-2. `usePermissions` hook + `useEmployeeReviews` hook
-3. TeamSettings.tsx -- corrected metrics, tooltips, billing chart, expanded edit form, employee reviews tab, visibility rules
-4. RolesSettings.tsx -- permission matrix UI
-5. Settings.tsx -- add Roles section
-6. AppSidebar.tsx -- filter nav items by permissions
-7. RouteGuards.tsx -- permission-based route blocking
-
+### Recommended Build Order
+1. Phase 1 first (database + library) -- foundation everything depends on
+2. Phase 2 next (kanban + upload) -- the entry point for the feature
+3. Phase 3 (detail + AI generation) -- the core value
+4. Phase 4 (export + polish) -- finishing touches
