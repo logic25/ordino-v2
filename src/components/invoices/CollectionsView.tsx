@@ -18,6 +18,7 @@ import {
   AlertTriangle, AlertOctagon, Clock, Mail, FileWarning, Trash2, Loader2,
   CheckCircle, StickyNote, Plus, Brain, Sparkles, HandCoins, ShieldAlert,
   TrendingUp, ToggleLeft, ToggleRight, Calendar, DollarSign, SplitSquareVertical,
+  Gavel,
 } from "lucide-react";
 import { differenceInDays, format } from "date-fns";
 import { useUpdateInvoice, type InvoiceWithRelations } from "@/hooks/useInvoices";
@@ -30,6 +31,7 @@ import { useGenerateCollectionMessage } from "@/hooks/useCollectionMessage";
 import { useClientPaymentAnalytics } from "@/hooks/useClientAnalytics";
 import { useExtractTasks } from "@/hooks/useExtractTasks";
 import { PaymentPlanDialog } from "./PaymentPlanDialog";
+import { ClaimFlowDialog } from "./ClaimFlowDialog";
 
 interface CollectionsViewProps {
   invoices: InvoiceWithRelations[];
@@ -164,6 +166,7 @@ function InvoiceCard({
   onOpenAction,
   onOpenPromise,
   onOpenPaymentPlan,
+  onOpenClaimFlow,
   showAiInfo,
 }: {
   inv: GroupedInvoice;
@@ -173,6 +176,7 @@ function InvoiceCard({
   onOpenAction: (action: WorkflowAction, inv: GroupedInvoice) => void;
   onOpenPromise: (inv: GroupedInvoice) => void;
   onOpenPaymentPlan: (inv: GroupedInvoice) => void;
+  onOpenClaimFlow: (inv: GroupedInvoice) => void;
   showAiInfo: boolean;
 }) {
   return (
@@ -258,6 +262,17 @@ function InvoiceCard({
               </Button>
             </>
           )}
+          {(level === "critical" || level === "urgent") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-primary"
+              onClick={() => onOpenClaimFlow(inv)}
+              title="ClaimFlow — Small Claims Referral"
+            >
+              <Gavel className="h-3.5 w-3.5" />
+            </Button>
+          )}
           {level === "critical" && (
             <Button
               variant="ghost"
@@ -290,6 +305,8 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
   const [promiseInvoice, setPromiseInvoice] = useState<GroupedInvoice | null>(null);
   // Payment plan dialog
   const [paymentPlanInvoice, setPaymentPlanInvoice] = useState<GroupedInvoice | null>(null);
+  // ClaimFlow dialog
+  const [claimFlowInvoice, setClaimFlowInvoice] = useState<GroupedInvoice | null>(null);
   const [promiseAmount, setPromiseAmount] = useState("");
   const [promiseDate, setPromiseDate] = useState("");
   const [promiseMethod, setPromiseMethod] = useState("check");
@@ -642,6 +659,7 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
                         onOpenAction={openAction}
                         onOpenPromise={openPromise}
                         onOpenPaymentPlan={(inv) => setPaymentPlanInvoice(inv)}
+                        onOpenClaimFlow={(inv) => setClaimFlowInvoice(inv)}
                         showAiInfo={true}
                       />
                     ))}
@@ -686,6 +704,7 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
                   onOpenAction={openAction}
                   onOpenPromise={openPromise}
                   onOpenPaymentPlan={(inv) => setPaymentPlanInvoice(inv)}
+                  onOpenClaimFlow={(inv) => setClaimFlowInvoice(inv)}
                   showAiInfo={true}
                 />
               ))}
@@ -979,6 +998,19 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
           totalDue={Number(paymentPlanInvoice.total_due)}
           clientId={paymentPlanInvoice.client_id}
           clientName={paymentPlanInvoice.clients?.name}
+        />
+      )}
+      {/* ClaimFlow Dialog */}
+      {claimFlowInvoice && (
+        <ClaimFlowDialog
+          open={!!claimFlowInvoice}
+          onOpenChange={(o) => !o && setClaimFlowInvoice(null)}
+          invoiceId={claimFlowInvoice.id}
+          invoiceNumber={claimFlowInvoice.invoice_number}
+          totalDue={Number(claimFlowInvoice.total_due)}
+          dueDate={claimFlowInvoice.due_date}
+          clientId={claimFlowInvoice.client_id}
+          clientName={claimFlowInvoice.clients?.name}
         />
       )}
     </div>

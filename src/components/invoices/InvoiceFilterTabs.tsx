@@ -16,6 +16,7 @@ const tabs: { value: string; label: string; showCount?: boolean }[] = [
   { value: "sent", label: "Sent", showCount: true },
   { value: "overdue", label: "Overdue", showCount: true },
   { value: "paid", label: "Paid", showCount: true },
+  { value: "legal_hold", label: "Legal Hold", showCount: true },
   { value: "collections", label: "Collections" },
   { value: "promises", label: "Promises" },
   { value: "analytics", label: "Analytics" },

@@ -161,3 +161,66 @@ export function useCreatePaymentPlan() {
     },
   });
 }
+
+export interface SaveACHAuthInput {
+  payment_plan_id: string;
+  invoice_id: string;
+  client_id?: string | null;
+  client_name: string;
+  bank_name?: string;
+  routing_last4?: string;
+  account_last4?: string;
+  account_type: "checking" | "savings";
+  authorization_text: string;
+  signature_data: string;
+}
+
+export function useSaveACHAuthorization() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: SaveACHAuthInput) => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, company_id")
+        .single();
+      if (!profile?.company_id) throw new Error("No company found");
+
+      const { data, error } = await supabase
+        .from("ach_authorizations")
+        .insert({
+          company_id: profile.company_id,
+          payment_plan_id: input.payment_plan_id,
+          invoice_id: input.invoice_id,
+          client_id: input.client_id || null,
+          client_name: input.client_name,
+          bank_name: input.bank_name || null,
+          routing_number_last4: input.routing_last4 || null,
+          account_number_last4: input.account_last4 || null,
+          account_type: input.account_type,
+          authorization_text: input.authorization_text,
+          signature_data: input.signature_data,
+          status: "active",
+        } as any)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Log activity
+      await supabase.from("invoice_activity_log").insert({
+        company_id: profile.company_id,
+        invoice_id: input.invoice_id,
+        action: "ach_authorization_signed",
+        details: `ACH authorization signed by ${input.client_name}`,
+        performed_by: profile.id,
+      } as any);
+
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["payment-plan", variables.invoice_id] });
+      queryClient.invalidateQueries({ queryKey: ["invoice-activity-log"] });
+    },
+  });
+}

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-export type InvoiceStatus = "draft" | "ready_to_send" | "needs_review" | "sent" | "overdue" | "paid";
+export type InvoiceStatus = "draft" | "ready_to_send" | "needs_review" | "sent" | "overdue" | "paid" | "legal_hold";
 
 export interface Invoice {
   id: string;
