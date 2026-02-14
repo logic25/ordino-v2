@@ -4,11 +4,22 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
 import { InvoiceStatusBadge } from "./InvoiceStatusBadge";
 import { LineItemsEditor } from "./LineItemsEditor";
 import { useUpdateInvoice, type InvoiceWithRelations, type LineItem } from "@/hooks/useInvoices";
+import { useInvoiceFollowUps, useInvoiceActivityLog } from "@/hooks/useInvoiceFollowUps";
+import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { Edit2, Save, X, Send } from "lucide-react";
+import {
+  Edit2, Save, X, Send, Mail, MailOpen, Clock, FileWarning, Trash2, Loader2,
+  MessageSquare, Activity,
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface InvoiceDetailSheetProps {
@@ -18,10 +29,17 @@ interface InvoiceDetailSheetProps {
   onSendInvoice?: (invoice: InvoiceWithRelations) => void;
 }
 
+type WorkflowAction = null | "reminder" | "demand" | "writeoff";
+
 export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice }: InvoiceDetailSheetProps) {
   const [editing, setEditing] = useState(false);
   const [editItems, setEditItems] = useState<LineItem[]>([]);
+  const [activeAction, setActiveAction] = useState<WorkflowAction>(null);
+  const [actionNote, setActionNote] = useState("");
+  const [processing, setProcessing] = useState(false);
   const updateInvoice = useUpdateInvoice();
+  const { data: followUps } = useInvoiceFollowUps(invoice?.id);
+  const { data: activityLog } = useInvoiceActivityLog(invoice?.id);
 
   if (!invoice) return null;
 
@@ -53,138 +71,410 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
     }
   };
 
+  const logFollowUp = async (method: string, notes: string) => {
+    const { data: profile } = await supabase.from("profiles").select("id, company_id").single();
+    if (!profile) return;
+    await supabase.from("invoice_follow_ups").insert({
+      company_id: profile.company_id,
+      invoice_id: invoice.id,
+      follow_up_date: new Date().toISOString().split("T")[0],
+      contact_method: method,
+      notes,
+      contacted_by: profile.id,
+    } as any);
+    await supabase.from("invoice_activity_log").insert({
+      company_id: profile.company_id,
+      invoice_id: invoice.id,
+      action: method,
+      details: notes,
+      performed_by: profile.id,
+    } as any);
+  };
+
+  const handleAction = async () => {
+    if (!activeAction) return;
+    setProcessing(true);
+    try {
+      if (activeAction === "reminder") {
+        await new Promise((r) => setTimeout(r, 800));
+        await logFollowUp("reminder_email", `Payment reminder sent. ${actionNote}`);
+        toast({ title: "Payment reminder sent", description: `Reminder sent for ${invoice.invoice_number}` });
+      } else if (activeAction === "demand") {
+        await new Promise((r) => setTimeout(r, 1200));
+        await logFollowUp("demand_letter", `Demand letter sent. ${actionNote}`);
+        toast({ title: "Demand letter sent", description: `Formal demand issued for ${invoice.invoice_number}` });
+      } else if (activeAction === "writeoff") {
+        await updateInvoice.mutateAsync({ id: invoice.id, status: "paid" } as any);
+        await logFollowUp("write_off", `Invoice written off. Amount: $${Number(invoice.total_due).toFixed(2)}`);
+        toast({ title: "Invoice written off", description: `${invoice.invoice_number} marked as written off` });
+      }
+      setActiveAction(null);
+      setActionNote("");
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const pmName = invoice.created_by_profile
     ? `${invoice.created_by_profile.first_name || ""} ${invoice.created_by_profile.last_name || ""}`.trim()
     : "—";
 
+  const isOverdue = invoice.status === "overdue";
+  const isSent = invoice.status === "sent";
+
+  const actionDialogConfig = {
+    reminder: {
+      title: "Send Payment Reminder",
+      description: `Send a reminder for invoice ${invoice.invoice_number}`,
+      buttonLabel: "Send Reminder",
+      buttonIcon: <Mail className="h-4 w-4 mr-2" />,
+      variant: "default" as const,
+      placeholder: "Add a personal note to the reminder...",
+    },
+    demand: {
+      title: "Send Demand Letter",
+      description: `Send a formal demand letter for invoice ${invoice.invoice_number}. This is a serious escalation.`,
+      buttonLabel: "Send Demand Letter",
+      buttonIcon: <FileWarning className="h-4 w-4 mr-2" />,
+      variant: "destructive" as const,
+      placeholder: "Reference contract terms, prior communications, etc.",
+    },
+    writeoff: {
+      title: "Write Off Invoice",
+      description: `Permanently write off invoice ${invoice.invoice_number} ($${Number(invoice.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}). This cannot be undone.`,
+      buttonLabel: "Write Off",
+      buttonIcon: <Trash2 className="h-4 w-4 mr-2" />,
+      variant: "destructive" as const,
+      placeholder: "",
+    },
+  };
+
+  const methodLabels: Record<string, string> = {
+    reminder_email: "Reminder Sent",
+    demand_letter: "Demand Letter",
+    write_off: "Written Off",
+    created: "Created",
+    sent: "Sent",
+    paid: "Paid",
+  };
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-        <SheetHeader className="space-y-1">
-          <div className="flex items-center justify-between">
-            <SheetTitle className="font-mono text-lg">
-              {invoice.invoice_number}
-            </SheetTitle>
-            <InvoiceStatusBadge status={invoice.status} />
-          </div>
-        </SheetHeader>
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader className="space-y-1 pr-8">
+            <div className="flex items-center gap-3">
+              <SheetTitle className="font-mono text-lg">
+                {invoice.invoice_number}
+              </SheetTitle>
+              <InvoiceStatusBadge status={invoice.status} />
+            </div>
+          </SheetHeader>
 
-        <div className="mt-6 space-y-6">
-          {/* Project Info */}
-          <section>
-            <h4 className="text-sm font-medium text-muted-foreground mb-2">Project</h4>
-            <p className="text-sm font-medium">
-              {invoice.projects
-                ? `${invoice.projects.project_number || ""} - ${invoice.projects.name || "Untitled"}`
-                : "No project linked"}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Client: {invoice.clients?.name || "—"}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Created by: {pmName} • {invoice.created_at ? format(new Date(invoice.created_at), "M/d/yyyy h:mm a") : "—"}
-            </p>
-          </section>
+          <div className="mt-6 space-y-6">
+            {/* Project Info */}
+            <section>
+              <h4 className="text-sm font-medium text-muted-foreground mb-2">Project</h4>
+              <p className="text-sm font-medium">
+                {invoice.projects
+                  ? `${invoice.projects.project_number || ""} - ${invoice.projects.name || "Untitled"}`
+                  : "No project linked"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Client: {invoice.clients?.name || "—"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Created by: {pmName} • {invoice.created_at ? format(new Date(invoice.created_at), "M/d/yyyy h:mm a") : "—"}
+              </p>
+            </section>
 
-          <Separator />
+            <Separator />
 
-          {/* Bill To */}
-          <section>
-            <h4 className="text-sm font-medium text-muted-foreground mb-2">Bill To</h4>
-            <p className="text-sm font-medium">
-              {invoice.billed_to_contact?.name || invoice.clients?.name || "—"}
-            </p>
-            {invoice.billed_to_contact?.email && (
-              <p className="text-sm text-muted-foreground">{invoice.billed_to_contact.email}</p>
+            {/* Delivery Status */}
+            <section>
+              <h4 className="text-sm font-medium text-muted-foreground mb-2">Delivery Status</h4>
+              {invoice.sent_at ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Mail className="h-4 w-4 text-primary" />
+                    <span>Sent on {format(new Date(invoice.sent_at), "MMMM d, yyyy 'at' h:mm a")}</span>
+                  </div>
+                  {invoice.paid_at && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <MailOpen className="h-4 w-4 text-success" />
+                      <span>Paid on {format(new Date(invoice.paid_at), "MMMM d, yyyy 'at' h:mm a")}</span>
+                    </div>
+                  )}
+                  {isOverdue && invoice.due_date && (
+                    <div className="flex items-center gap-2 text-sm text-destructive">
+                      <Clock className="h-4 w-4" />
+                      <span>
+                        Overdue since {format(new Date(invoice.due_date), "MMMM d, yyyy")}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Not yet sent</p>
+              )}
+            </section>
+
+            <Separator />
+
+            {/* Bill To */}
+            <section>
+              <h4 className="text-sm font-medium text-muted-foreground mb-2">Bill To</h4>
+              <p className="text-sm font-medium">
+                {invoice.billed_to_contact?.name || invoice.clients?.name || "—"}
+              </p>
+              {invoice.billed_to_contact?.email && (
+                <p className="text-sm text-muted-foreground">{invoice.billed_to_contact.email}</p>
+              )}
+            </section>
+
+            <Separator />
+
+            {/* Line Items */}
+            <section>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-medium text-muted-foreground">Line Items</h4>
+                {!editing && (invoice.status === "draft" || invoice.status === "ready_to_send" || invoice.status === "needs_review") && (
+                  <Button variant="ghost" size="sm" onClick={startEdit}>
+                    <Edit2 className="h-3 w-3 mr-1" /> Edit
+                  </Button>
+                )}
+                {editing && (
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="sm" onClick={cancelEdit}>
+                      <X className="h-3 w-3 mr-1" /> Cancel
+                    </Button>
+                    <Button size="sm" onClick={saveEdit} disabled={updateInvoice.isPending}>
+                      <Save className="h-3 w-3 mr-1" /> Save
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <LineItemsEditor
+                items={editing ? editItems : lineItems}
+                onChange={setEditItems}
+                readOnly={!editing}
+              />
+            </section>
+
+            <Separator />
+
+            {/* Totals */}
+            <section className="space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span className="font-mono">${Number(invoice.subtotal).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+              </div>
+              {Number(invoice.retainer_applied) > 0 && (
+                <div className="flex justify-between text-success">
+                  <span>Retainer Applied</span>
+                  <span className="font-mono">-${Number(invoice.retainer_applied).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-base font-bold pt-1 border-t">
+                <span>Total Due</span>
+                <span className="font-mono">${Number(invoice.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+              </div>
+            </section>
+
+            {/* Payment Terms */}
+            <section>
+              <h4 className="text-sm font-medium text-muted-foreground mb-1">Payment Terms</h4>
+              <p className="text-sm">{invoice.payment_terms || "Net 30"}</p>
+              {invoice.due_date && (
+                <p className="text-sm text-muted-foreground">
+                  Due: {format(new Date(invoice.due_date), "MMMM d, yyyy")}
+                </p>
+              )}
+            </section>
+
+            {/* Special Instructions */}
+            {invoice.special_instructions && (
+              <>
+                <Separator />
+                <section>
+                  <h4 className="text-sm font-medium text-muted-foreground mb-1">Special Instructions</h4>
+                  <p className="text-sm">{invoice.special_instructions}</p>
+                </section>
+              </>
             )}
-          </section>
 
-          <Separator />
+            <Separator />
 
-          {/* Line Items */}
-          <section>
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-medium text-muted-foreground">Line Items</h4>
-              {!editing && (invoice.status === "draft" || invoice.status === "ready_to_send" || invoice.status === "needs_review") && (
-                <Button variant="ghost" size="sm" onClick={startEdit}>
-                  <Edit2 className="h-3 w-3 mr-1" /> Edit
+            {/* Follow-Up Notes */}
+            <section>
+              <div className="flex items-center gap-2 mb-2">
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                <h4 className="text-sm font-medium text-muted-foreground">Follow-Up Notes</h4>
+              </div>
+              {followUps && followUps.length > 0 ? (
+                <div className="space-y-2">
+                  {followUps.map((fu) => (
+                    <div key={fu.id} className="rounded-md border p-2.5 text-sm space-y-1">
+                      <div className="flex items-center justify-between">
+                        <Badge variant="outline" className="text-[10px]">
+                          {methodLabels[fu.contact_method || ""] || fu.contact_method}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(fu.created_at), "M/d/yyyy h:mm a")}
+                        </span>
+                      </div>
+                      {fu.notes && <p className="text-muted-foreground">{fu.notes}</p>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No follow-up notes yet</p>
+              )}
+            </section>
+
+            <Separator />
+
+            {/* Activity Log */}
+            <section>
+              <div className="flex items-center gap-2 mb-2">
+                <Activity className="h-4 w-4 text-muted-foreground" />
+                <h4 className="text-sm font-medium text-muted-foreground">Activity Log</h4>
+              </div>
+              {activityLog && activityLog.length > 0 ? (
+                <div className="space-y-1.5">
+                  {activityLog.map((entry) => (
+                    <div key={entry.id} className="flex items-start gap-2 text-xs">
+                      <span className="text-muted-foreground whitespace-nowrap">
+                        {format(new Date(entry.created_at), "M/d/yy h:mm a")}
+                      </span>
+                      <span className="font-medium">
+                        {methodLabels[entry.action] || entry.action}
+                      </span>
+                      {entry.details && (
+                        <span className="text-muted-foreground truncate">— {entry.details}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No activity recorded</p>
+              )}
+            </section>
+
+            <Separator />
+
+            {/* Actions */}
+            <div className="flex flex-col gap-2">
+              {(invoice.status === "draft" || invoice.status === "ready_to_send") && onSendInvoice && (
+                <Button
+                  onClick={() => onSendInvoice(invoice)}
+                  className="bg-accent text-accent-foreground hover:bg-accent/90"
+                >
+                  <Send className="h-4 w-4 mr-2" /> Send Invoice
                 </Button>
               )}
-              {editing && (
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="sm" onClick={cancelEdit}>
-                    <X className="h-3 w-3 mr-1" /> Cancel
-                  </Button>
-                  <Button size="sm" onClick={saveEdit} disabled={updateInvoice.isPending}>
-                    <Save className="h-3 w-3 mr-1" /> Save
-                  </Button>
+
+              {(isOverdue || isSent) && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-muted-foreground">Collections Actions</h4>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => { setActiveAction("reminder"); setActionNote(""); }}
+                    >
+                      <Mail className="h-3.5 w-3.5 mr-1.5" /> Send Reminder
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                      onClick={() => { setActiveAction("demand"); setActionNote(""); }}
+                    >
+                      <FileWarning className="h-3.5 w-3.5 mr-1.5" /> Demand Letter
+                    </Button>
+                  </div>
+                  {isOverdue && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-muted-foreground"
+                      onClick={() => { setActiveAction("writeoff"); setActionNote(""); }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Write Off
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
-            <LineItemsEditor
-              items={editing ? editItems : lineItems}
-              onChange={setEditItems}
-              readOnly={!editing}
-            />
-          </section>
-
-          <Separator />
-
-          {/* Totals */}
-          <section className="space-y-1 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Subtotal</span>
-              <span className="font-mono">${Number(invoice.subtotal).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
-            </div>
-            {Number(invoice.retainer_applied) > 0 && (
-              <div className="flex justify-between text-success">
-                <span>Retainer Applied</span>
-                <span className="font-mono">-${Number(invoice.retainer_applied).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
-              </div>
-            )}
-            <div className="flex justify-between text-base font-bold pt-1 border-t">
-              <span>Total Due</span>
-              <span className="font-mono">${Number(invoice.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
-            </div>
-          </section>
-
-          {/* Payment Terms */}
-          <section>
-            <h4 className="text-sm font-medium text-muted-foreground mb-1">Payment Terms</h4>
-            <p className="text-sm">{invoice.payment_terms || "Net 30"}</p>
-            {invoice.due_date && (
-              <p className="text-sm text-muted-foreground">
-                Due: {format(new Date(invoice.due_date), "MMMM d, yyyy")}
-              </p>
-            )}
-          </section>
-
-          {/* Special Instructions */}
-          {invoice.special_instructions && (
-            <>
-              <Separator />
-              <section>
-                <h4 className="text-sm font-medium text-muted-foreground mb-1">Special Instructions</h4>
-                <p className="text-sm">{invoice.special_instructions}</p>
-              </section>
-            </>
-          )}
-
-          <Separator />
-
-          {/* Actions */}
-          <div className="flex gap-2">
-            {(invoice.status === "draft" || invoice.status === "ready_to_send") && onSendInvoice && (
-              <Button
-                onClick={() => onSendInvoice(invoice)}
-                className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
-              >
-                <Send className="h-4 w-4 mr-2" /> Send Invoice
-              </Button>
-            )}
           </div>
-        </div>
-      </SheetContent>
-    </Sheet>
+        </SheetContent>
+      </Sheet>
+
+      {/* Workflow Action Dialog */}
+      {activeAction && (
+        <Dialog open={!!activeAction} onOpenChange={(o) => !o && setActiveAction(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className={activeAction !== "reminder" ? "text-destructive" : ""}>
+                {actionDialogConfig[activeAction].title}
+              </DialogTitle>
+              <DialogDescription>
+                {actionDialogConfig[activeAction].description}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="rounded-lg border p-3 bg-muted/50 space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Invoice</span>
+                  <span className="font-mono font-medium">{invoice.invoice_number}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Amount</span>
+                  <span className="font-mono font-medium">
+                    ${Number(invoice.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Client</span>
+                  <span className="font-medium">{invoice.clients?.name || "—"}</span>
+                </div>
+              </div>
+              {activeAction !== "writeoff" && (
+                <div className="space-y-2">
+                  <Label>Notes</Label>
+                  <Textarea
+                    value={actionNote}
+                    onChange={(e) => setActionNote(e.target.value)}
+                    placeholder={actionDialogConfig[activeAction].placeholder}
+                    rows={3}
+                  />
+                </div>
+              )}
+              {activeAction === "writeoff" && (
+                <p className="text-sm text-destructive/80">
+                  ⚠️ This will mark the invoice as closed with zero collection. The amount will be reflected as a loss.
+                </p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setActiveAction(null)}>Cancel</Button>
+              <Button
+                variant={actionDialogConfig[activeAction].variant}
+                onClick={handleAction}
+                disabled={processing}
+              >
+                {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {actionDialogConfig[activeAction].buttonIcon}
+                {actionDialogConfig[activeAction].buttonLabel}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }
