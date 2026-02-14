@@ -27,7 +27,7 @@ interface PaymentPlanDialogProps {
 export function PaymentPlanDialog({
   open, onOpenChange, invoiceId, invoiceNumber, totalDue, clientId, clientName,
 }: PaymentPlanDialogProps) {
-  const [numInstallments, setNumInstallments] = useState(3);
+  const [numInstallmentsStr, setNumInstallmentsStr] = useState("3");
   const [useCustomAmounts, setUseCustomAmounts] = useState(false);
   const [interestRateStr, setInterestRateStr] = useState("0");
   const [startDate, setStartDate] = useState(format(addMonths(new Date(), 1), "yyyy-MM-dd"));
@@ -35,6 +35,7 @@ export function PaymentPlanDialog({
   const [customInstallments, setCustomInstallments] = useState<{ amount: string; due_date: string }[]>([]);
   const createPlan = useCreatePaymentPlan();
 
+  const numInstallments = Math.max(2, Math.min(24, parseInt(numInstallmentsStr) || 2));
   const interestRate = parseFloat(interestRateStr) || 0;
   const totalWithInterest = totalDue * (1 + interestRate / 100);
 
@@ -145,8 +146,8 @@ export function PaymentPlanDialog({
                 type="number"
                 min={2}
                 max={24}
-                value={numInstallments}
-                onChange={(e) => setNumInstallments(Math.max(2, Math.min(24, parseInt(e.target.value) || 2)))}
+                value={numInstallmentsStr}
+                onChange={(e) => setNumInstallmentsStr(e.target.value)}
               />
             </div>
             <div className="space-y-2">
