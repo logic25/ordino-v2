@@ -1,0 +1,131 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+
+export interface PaymentPlanInstallment {
+  id: string;
+  plan_id: string;
+  company_id: string;
+  installment_number: number;
+  amount: number;
+  due_date: string;
+  status: "pending" | "paid" | "overdue" | "waived";
+  paid_at: string | null;
+  paid_amount: number | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface PaymentPlan {
+  id: string;
+  company_id: string;
+  invoice_id: string;
+  client_id: string | null;
+  total_amount: number;
+  num_installments: number;
+  interest_rate: number;
+  down_payment: number;
+  status: "active" | "completed" | "defaulted" | "cancelled";
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  installments?: PaymentPlanInstallment[];
+}
+
+export function usePaymentPlan(invoiceId: string | undefined) {
+  return useQuery({
+    queryKey: ["payment-plan", invoiceId],
+    enabled: !!invoiceId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("payment_plans")
+        .select("*, payment_plan_installments(*)")
+        .eq("invoice_id", invoiceId!)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      return {
+        ...data,
+        installments: (data as any).payment_plan_installments || [],
+      } as unknown as PaymentPlan;
+    },
+  });
+}
+
+export interface CreatePaymentPlanInput {
+  invoice_id: string;
+  client_id?: string | null;
+  total_amount: number;
+  num_installments: number;
+  interest_rate?: number;
+  down_payment?: number;
+  notes?: string;
+  installments: { amount: number; due_date: string }[];
+}
+
+export function useCreatePaymentPlan() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: CreatePaymentPlanInput) => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, company_id")
+        .single();
+      if (!profile?.company_id) throw new Error("No company found");
+
+      const totalWithInterest = input.total_amount * (1 + (input.interest_rate || 0) / 100);
+
+      const { data: plan, error: planError } = await supabase
+        .from("payment_plans")
+        .insert({
+          company_id: profile.company_id,
+          invoice_id: input.invoice_id,
+          client_id: input.client_id || null,
+          total_amount: totalWithInterest,
+          num_installments: input.num_installments,
+          interest_rate: input.interest_rate || 0,
+          down_payment: input.down_payment || 0,
+          status: "active",
+          notes: input.notes || null,
+          created_by: profile.id,
+        } as any)
+        .select()
+        .single();
+
+      if (planError) throw planError;
+
+      const installmentRows = input.installments.map((inst, idx) => ({
+        plan_id: (plan as any).id,
+        company_id: profile.company_id,
+        installment_number: idx + 1,
+        amount: inst.amount,
+        due_date: inst.due_date,
+        status: "pending",
+      }));
+
+      const { error: instError } = await supabase
+        .from("payment_plan_installments")
+        .insert(installmentRows as any);
+
+      if (instError) throw instError;
+
+      // Log activity
+      await supabase.from("invoice_activity_log").insert({
+        company_id: profile.company_id,
+        invoice_id: input.invoice_id,
+        action: "payment_plan_created",
+        details: `${input.num_installments}-installment plan for $${totalWithInterest.toFixed(2)}`,
+        performed_by: profile.id,
+      } as any);
+
+      return plan;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["payment-plan", variables.invoice_id] });
+      queryClient.invalidateQueries({ queryKey: ["invoice-activity-log"] });
+    },
+  });
+}
