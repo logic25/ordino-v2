@@ -1,0 +1,35 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import type { Tables, TablesUpdate } from "@/integrations/supabase/types";
+
+export type Rfp = Tables<"rfps">;
+
+export type RfpStatus = "prospect" | "drafting" | "submitted" | "won" | "lost";
+
+export function useRfps() {
+  return useQuery({
+    queryKey: ["rfps"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("rfps")
+        .select("*")
+        .order("due_date", { ascending: true });
+      if (error) throw error;
+      return data as Rfp[];
+    },
+  });
+}
+
+export function useUpdateRfpStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status, ...extra }: { id: string; status: RfpStatus } & Partial<TablesUpdate<"rfps">>) => {
+      const { error } = await supabase
+        .from("rfps")
+        .update({ status, ...extra, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["rfps"] }),
+  });
+}
