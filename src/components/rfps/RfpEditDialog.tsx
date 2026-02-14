@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Rfp, RfpStatus } from "@/hooks/useRfps";
 import { useUpdateRfp } from "@/hooks/useRfps";
 import { format } from "date-fns";
+import { AgencyCombobox } from "./AgencyCombobox";
 
 interface RfpEditDialogProps {
   rfp: Rfp | null;
@@ -89,7 +90,7 @@ export function RfpEditDialog({ rfp, open, onOpenChange }: RfpEditDialogProps) {
             </div>
             <div className="space-y-1.5">
               <Label>Agency</Label>
-              <Input value={form.agency} onChange={(e) => update("agency", e.target.value)} />
+              <AgencyCombobox value={form.agency} onChange={(v) => update("agency", v)} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">

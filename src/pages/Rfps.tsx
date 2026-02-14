@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Rfp } from "@/hooks/useRfps";
+import { AgencyCombobox } from "@/components/rfps/AgencyCombobox";
 
 export default function Rfps() {
   const navigate = useNavigate();
@@ -232,7 +233,7 @@ export default function Rfps() {
               </div>
               <div className="space-y-1.5">
                 <Label>Agency</Label>
-                <Input value={form.agency} onChange={(e) => setForm({ ...form, agency: e.target.value })} />
+                <AgencyCombobox value={form.agency} onChange={(v) => setForm({ ...form, agency: v })} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
