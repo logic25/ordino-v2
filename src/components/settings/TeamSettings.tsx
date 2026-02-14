@@ -77,7 +77,7 @@ function useUserProposals(userId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("proposals")
-        .select("id, proposal_number, project_name, status, total_amount, created_at")
+        .select("id, proposal_number, title, status, total_amount, created_at")
         .or(`sales_person_id.eq.${userId},internal_signed_by.eq.${userId}`)
         .order("created_at", { ascending: false })
         .limit(200);
@@ -1069,7 +1069,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                         {proposals.map((p: any) => (
                           <TableRow key={p.id}>
                             <TableCell className="font-mono text-xs">{p.proposal_number || "—"}</TableCell>
-                            <TableCell className="text-sm">{p.project_name || "—"}</TableCell>
+                            <TableCell className="text-sm">{p.title || "—"}</TableCell>
                             <TableCell>
                               <Badge variant="outline" className="text-xs capitalize">{p.status}</Badge>
                             </TableCell>
