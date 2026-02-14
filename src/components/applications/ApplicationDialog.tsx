@@ -21,7 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Star } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { ApplicationWithProperty, ApplicationFormInput, APPLICATION_STATUSES } from "@/hooks/useApplications";
 import { useProperties } from "@/hooks/useProperties";
 import { useAssignableProfiles } from "@/hooks/useProfiles";
@@ -36,6 +37,7 @@ const applicationSchema = z.object({
   filed_date: z.string().optional(),
   estimated_value: z.string().optional(),
   notes: z.string().optional(),
+  notable: z.boolean().optional(),
 });
 
 type FormData = z.infer<typeof applicationSchema>;
@@ -101,6 +103,7 @@ export function ApplicationDialog({
       filed_date: "",
       estimated_value: "",
       notes: "",
+      notable: false,
     },
   });
 
@@ -116,6 +119,7 @@ export function ApplicationDialog({
         filed_date: application.filed_date || "",
         estimated_value: application.estimated_value?.toString() || "",
         notes: application.notes || "",
+        notable: application.notable ?? false,
       });
     } else {
       form.reset({
@@ -128,6 +132,7 @@ export function ApplicationDialog({
         filed_date: "",
         estimated_value: "",
         notes: "",
+        notable: false,
       });
     }
   }, [application, form, defaultPropertyId]);
@@ -143,6 +148,7 @@ export function ApplicationDialog({
       filed_date: data.filed_date || null,
       estimated_value: data.estimated_value ? parseFloat(data.estimated_value) : null,
       notes: data.notes || null,
+      notable: data.notable ?? false,
     };
     await onSubmit(formData);
     form.reset();
@@ -291,6 +297,18 @@ export function ApplicationDialog({
               rows={3}
               {...form.register("notes")}
             />
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="notable"
+              checked={form.watch("notable")}
+              onCheckedChange={(checked) => form.setValue("notable", checked === true)}
+            />
+            <Label htmlFor="notable" className="flex items-center gap-1.5 text-sm font-medium cursor-pointer">
+              <Star className="h-4 w-4 text-amber-500" />
+              Notable Project — include in RFP Content Library
+            </Label>
           </div>
 
           <DialogFooter>
