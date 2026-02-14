@@ -5,7 +5,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { InvoiceStatusBadge } from "./InvoiceStatusBadge";
-import { MoreHorizontal, Eye, Send, Trash2, ChevronRight, ChevronDown, Mail, MailOpen } from "lucide-react";
+import { MoreHorizontal, Eye, Send, Trash2, ChevronRight, ChevronDown, Mail, MailOpen, ChevronsUpDown, ChevronsDownUp } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -186,8 +186,8 @@ export function InvoiceTable({
           <TableHead>Delivery</TableHead>
           <TableHead>Date</TableHead>
           <TableHead className="w-10 text-right">
-            <Button variant="ghost" size="sm" onClick={toggleExpandAll} className="text-xs text-muted-foreground h-6 px-1.5">
-              {allExpanded ? "Collapse" : "Expand"}
+            <Button variant="ghost" size="icon" onClick={toggleExpandAll} className="h-7 w-7 text-muted-foreground" title={allExpanded ? "Collapse all" : "Expand all"}>
+              {allExpanded ? <ChevronsDownUp className="h-4 w-4" /> : <ChevronsUpDown className="h-4 w-4" />}
             </Button>
           </TableHead>
         </TableRow>
