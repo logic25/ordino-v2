@@ -2,38 +2,36 @@ import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Settings as SettingsIcon, User, Building, Bell, CreditCard, Shield, Package, ChevronLeft, FileText, Tags, MessageSquare, Receipt, Zap, Target, Users } from "lucide-react";
+import { Settings as SettingsIcon, User, Building, Package, ChevronLeft, FileText, Receipt, Zap, Users, ListChecks } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ServiceCatalogSettings } from "@/components/settings/ServiceCatalogSettings";
 import { RfiTemplateSettings } from "@/components/settings/RfiTemplateSettings";
-import { CompanyTypeSettings } from "@/components/settings/CompanyTypeSettings";
-import { ReviewCategorySettings } from "@/components/settings/ReviewCategorySettings";
 import { InvoiceSettings } from "@/components/settings/InvoiceSettings";
 import { AutomationRulesSettings } from "@/components/settings/AutomationRulesSettings";
-import { LeadSourceSettings } from "@/components/settings/LeadSourceSettings";
 import { TeamSettings } from "@/components/settings/TeamSettings";
 import { ProfileSettings } from "@/components/settings/ProfileSettings";
 import { CompanySettings } from "@/components/settings/CompanySettings";
+import { ListsAndLookupsSettings } from "@/components/settings/ListsAndLookupsSettings";
 
-type SettingsSection = "main" | "profile" | "company" | "proposals" | "company_types" | "review_categories" | "rfi_templates" | "invoices" | "automation" | "lead_sources" | "team" | "notifications" | "billing" | "security";
+type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists";
 
 const settingsSections = [
   {
     id: "profile" as const,
     title: "Profile",
-    description: "Your personal information and preferences",
+    description: "Your personal information, hourly rate, and signature",
     icon: User,
   },
   {
     id: "company" as const,
     title: "Company",
-    description: "Organization name, address, and contact info",
+    description: "Organization name, address, logo, and contact info",
     icon: Building,
   },
   {
     id: "team" as const,
     title: "Team & Users",
-    description: "View team members, roles, and activity",
+    description: "View team members, roles, proposals, and project assignments",
     icon: Users,
   },
   {
@@ -43,22 +41,10 @@ const settingsSections = [
     icon: Package,
   },
   {
-    id: "company_types" as const,
-    title: "Company Types",
-    description: "Define types like Architect, Plumber, GC for sorting and filtering",
-    icon: Tags,
-  },
-  {
-    id: "review_categories" as const,
-    title: "Review Categories",
-    description: "Rating criteria for internal company reviews",
-    icon: MessageSquare,
-  },
-  {
-    id: "lead_sources" as const,
-    title: "Lead Sources",
-    description: "Track how clients and prospects find your company",
-    icon: Target,
+    id: "lists" as const,
+    title: "Lists & Lookups",
+    description: "Company types, review categories, and lead sources",
+    icon: ListChecks,
   },
   {
     id: "rfi_templates" as const,
@@ -78,24 +64,6 @@ const settingsSections = [
     description: "Configure auto-reminders, escalations, and collection workflows",
     icon: Zap,
   },
-  {
-    id: "notifications" as const,
-    title: "Notifications",
-    description: "Email, push, and in-app notifications",
-    icon: Bell,
-  },
-  {
-    id: "billing" as const,
-    title: "Subscription & Plan",
-    description: "Subscription and payment settings for your Ordino account",
-    icon: CreditCard,
-  },
-  {
-    id: "security" as const,
-    title: "Security",
-    description: "Password, 2FA, and session management",
-    icon: Shield,
-  },
 ];
 
 export default function Settings() {
@@ -111,30 +79,14 @@ export default function Settings() {
         return <TeamSettings />;
       case "proposals":
         return <ServiceCatalogSettings />;
-      case "company_types":
-        return <CompanyTypeSettings />;
-      case "review_categories":
-        return <ReviewCategorySettings />;
+      case "lists":
+        return <ListsAndLookupsSettings />;
       case "rfi_templates":
         return <RfiTemplateSettings />;
       case "invoices":
         return <InvoiceSettings />;
       case "automation":
         return <AutomationRulesSettings />;
-      case "lead_sources":
-        return <LeadSourceSettings />;
-      case "notifications":
-      case "billing":
-      case "security":
-        return (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">
-                {activeSection.charAt(0).toUpperCase() + activeSection.slice(1)} settings coming soon.
-              </p>
-            </CardContent>
-          </Card>
-        );
       default:
         return (
           <>
