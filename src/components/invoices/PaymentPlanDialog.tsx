@@ -329,6 +329,7 @@ export function PaymentPlanDialog({
               onBack={() => setStep(1)}
               onSign={handleACHSign}
               isLoading={createPlan.isPending || saveACH.isPending}
+              achTemplate={companyData?.settings?.ach_authorization_template}
             />
           </>
         )}

@@ -16,6 +16,7 @@ export interface CompanySettings {
   company_types?: string[];
   review_categories?: string[];
   demand_letter_template?: string;
+  ach_authorization_template?: string;
   // Company info for PDF header
   company_address?: string;
   company_phone?: string;
