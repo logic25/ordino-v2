@@ -2,13 +2,15 @@ import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Plus, Search, Send, Trash2 } from "lucide-react";
 import { InvoiceSummaryCards } from "@/components/invoices/InvoiceSummaryCards";
 import { InvoiceFilterTabs } from "@/components/invoices/InvoiceFilterTabs";
 import { InvoiceTable } from "@/components/invoices/InvoiceTable";
 import { CreateInvoiceDialog } from "@/components/invoices/CreateInvoiceDialog";
 import { InvoiceDetailSheet } from "@/components/invoices/InvoiceDetailSheet";
+import { QBOConnectionWidget } from "@/components/invoices/QBOConnectionWidget";
+import { SendInvoiceModal } from "@/components/invoices/SendInvoiceModal";
 import {
   useInvoices, useInvoiceCounts, useDeleteInvoice,
   type InvoiceStatus, type InvoiceWithRelations,
@@ -21,14 +23,13 @@ export default function Invoices() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [detailInvoice, setDetailInvoice] = useState<InvoiceWithRelations | null>(null);
+  const [sendInvoice, setSendInvoice] = useState<InvoiceWithRelations | null>(null);
 
-  // For tab/card filtering, map "collections" to "overdue" for the query
   const queryFilter = activeFilter === "collections" ? "overdue" : activeFilter;
   const { data: invoices = [], isLoading } = useInvoices(queryFilter as InvoiceStatus | "all");
   const { data: counts } = useInvoiceCounts();
   const deleteInvoice = useDeleteInvoice();
 
-  // Compute totals per status from all invoices (query "all" for totals)
   const { data: allInvoices = [] } = useInvoices("all");
   const totals = useMemo(() => {
     const t: Record<InvoiceStatus, number> = {
@@ -42,7 +43,6 @@ export default function Invoices() {
     return t;
   }, [allInvoices]);
 
-  // Search filtering
   const filteredInvoices = useMemo(() => {
     if (!search) return invoices;
     const q = search.toLowerCase();
@@ -63,6 +63,11 @@ export default function Invoices() {
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
+  };
+
+  const handleSendInvoice = (inv: InvoiceWithRelations) => {
+    setDetailInvoice(null);
+    setSendInvoice(inv);
   };
 
   const defaultCounts = counts || {
@@ -89,6 +94,9 @@ export default function Invoices() {
             Create Invoice
           </Button>
         </div>
+
+        {/* QBO Connection Status */}
+        <QBOConnectionWidget />
 
         {/* Summary Cards */}
         <InvoiceSummaryCards
@@ -118,7 +126,6 @@ export default function Invoices() {
               </div>
             </div>
 
-            {/* Bulk actions */}
             {selectedIds.length > 0 && (
               <div className="flex items-center gap-2 pt-2">
                 <span className="text-sm text-muted-foreground">
@@ -143,6 +150,7 @@ export default function Invoices() {
               invoices={filteredInvoices}
               isLoading={isLoading}
               onViewInvoice={(inv) => setDetailInvoice(inv)}
+              onSendInvoice={handleSendInvoice}
               onDeleteInvoice={handleDelete}
               selectedIds={selectedIds}
               onSelectionChange={setSelectedIds}
@@ -151,14 +159,20 @@ export default function Invoices() {
         </Card>
       </div>
 
-      {/* Create Dialog */}
       <CreateInvoiceDialog open={createOpen} onOpenChange={setCreateOpen} />
 
-      {/* Detail Sheet */}
       <InvoiceDetailSheet
         invoice={detailInvoice}
         open={!!detailInvoice}
         onOpenChange={(open) => !open && setDetailInvoice(null)}
+        onSendInvoice={handleSendInvoice}
+      />
+
+      <SendInvoiceModal
+        invoice={sendInvoice}
+        open={!!sendInvoice}
+        onOpenChange={(open) => !open && setSendInvoice(null)}
+        onSent={() => setSendInvoice(null)}
       />
     </AppLayout>
   );
