@@ -24,7 +24,7 @@ export default function Emails() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedEmail, setSelectedEmail] = useState<EmailWithTags | null>(null);
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<EmailFilterTab>("all");
+  const [activeTab, setActiveTab] = useState<EmailFilterTab>("inbox");
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
