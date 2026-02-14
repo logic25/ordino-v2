@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
+import type { Rfp } from "@/hooks/useRfps";
 
 export type BillingCalendarItem = {
   id: string;
@@ -130,6 +131,32 @@ export function useBillingCalendarItems(startDate: string, endDate: string, enab
           invoice_id: p.invoice_id,
           client_name: p.clients?.name,
           amount: p.promised_amount,
+        });
+      });
+
+      // RFP due dates
+      const { data: rfps } = await supabase
+        .from("rfps")
+        .select("id, title, rfp_number, agency, due_date, status, contract_value")
+        .not("due_date", "is", null)
+        .gte("due_date", startDate.split("T")[0])
+        .lte("due_date", endDate.split("T")[0])
+        .not("status", "in", '("won","lost")');
+
+      rfps?.forEach((rfp: any) => {
+        items.push({
+          id: `rfp-due-${rfp.id}`,
+          title: `📋 RFP Due: ${rfp.title}`,
+          start_time: `${rfp.due_date}T00:00:00`,
+          end_time: `${rfp.due_date}T23:59:59`,
+          all_day: true,
+          event_type: "rfp_deadline",
+          location: null,
+          description: `${rfp.agency || "Unknown agency"} • ${rfp.rfp_number || ""} • ${rfp.status}${rfp.contract_value ? ` • $${Number(rfp.contract_value).toLocaleString()}` : ""}`,
+          is_billing: true,
+          billing_type: "invoice_due" as any,
+          client_name: rfp.agency,
+          amount: rfp.contract_value,
         });
       });
 

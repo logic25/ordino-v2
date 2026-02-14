@@ -49,6 +49,7 @@ const EVENT_TYPE_COLORS: Record<string, string> = {
   follow_up: "bg-amber-500/20 text-amber-700 border-amber-300",
   installment: "bg-cyan-500/20 text-cyan-700 border-cyan-300",
   promise: "bg-violet-500/20 text-violet-700 border-violet-300",
+  rfp_deadline: "bg-rose-500/20 text-rose-700 border-rose-300",
 };
 
 type UnifiedEvent = (CalendarEvent | BillingCalendarItem) & { is_billing?: boolean };
@@ -152,9 +153,9 @@ export default function Calendar() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Calendar</h1>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">Calendar</h1>
             <p className="text-sm text-muted-foreground">
-              DOB appointments, inspections & project milestones
+              Appointments, inspections, RFP deadlines & project milestones
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -196,7 +197,7 @@ export default function Calendar() {
         </div>
 
         {/* Month nav */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center justify-between bg-card border border-border rounded-xl px-5 py-3">
           <Button
             variant="ghost"
             size="icon"
@@ -204,23 +205,30 @@ export default function Calendar() {
           >
             <ChevronLeft className="h-5 w-5" />
           </Button>
-          <h2 className="text-lg font-semibold text-foreground min-w-[180px] text-center">
-            {format(currentMonth, "MMMM yyyy")}
-          </h2>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-          >
-            <ChevronRight className="h-5 w-5" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentMonth(new Date())}
-          >
-            Today
-          </Button>
+          <div className="text-center">
+            <h2 className="text-xl font-bold text-foreground tracking-tight">
+              {format(currentMonth, "MMMM yyyy")}
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              {allEvents.length} event{allEvents.length !== 1 ? "s" : ""} this month
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentMonth(new Date())}
+            >
+              Today
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
 
         {/* Legend */}
@@ -239,6 +247,7 @@ export default function Calendar() {
                   { type: "follow_up", label: "Follow-up" },
                   { type: "installment", label: "Installment" },
                   { type: "promise", label: "Promise" },
+                  { type: "rfp_deadline", label: "RFP Deadline" },
                 ]
               : []),
           ].map((item) => (
@@ -271,13 +280,14 @@ export default function Calendar() {
             </div>
 
             {/* Day cells */}
-            <div className="grid grid-cols-7 border border-border rounded-lg overflow-hidden">
+            <div className="grid grid-cols-7 bg-card border border-border rounded-xl overflow-hidden shadow-sm">
               {days.map((day) => {
                 const key = format(day, "yyyy-MM-dd");
                 const dayEvents = eventsByDay[key] || [];
                 const inMonth = isSameMonth(day, currentMonth);
                 const today = isToday(day);
                 const selected = selectedDate && isSameDay(day, selectedDate);
+                const hasEvents = dayEvents.length > 0;
 
                 return (
                   <div
@@ -286,21 +296,31 @@ export default function Calendar() {
                       setSelectedDate(day);
                     }}
                     className={cn(
-                      "min-h-[100px] p-1.5 border-b border-r border-border cursor-pointer transition-colors",
-                      !inMonth && "bg-muted/30",
-                      selected && "bg-accent/50",
-                      "hover:bg-accent/30"
+                      "min-h-[110px] p-1.5 border-b border-r border-border/50 cursor-pointer transition-all duration-150",
+                      !inMonth && "bg-muted/20",
+                      inMonth && "bg-card",
+                      selected && "bg-primary/5 ring-1 ring-primary/30 ring-inset",
+                      !selected && "hover:bg-accent/20"
                     )}
                   >
-                    <div
-                      className={cn(
-                        "text-xs font-medium mb-1 w-6 h-6 flex items-center justify-center rounded-full",
-                        !inMonth && "text-muted-foreground/50",
-                        today && "bg-primary text-primary-foreground",
-                        inMonth && !today && "text-foreground"
+                    <div className="flex items-center justify-between mb-1">
+                      <div
+                        className={cn(
+                          "text-xs font-semibold w-7 h-7 flex items-center justify-center rounded-full transition-colors",
+                          !inMonth && "text-muted-foreground/40",
+                          today && "bg-primary text-primary-foreground shadow-sm",
+                          inMonth && !today && "text-foreground"
+                        )}
+                      >
+                        {format(day, "d")}
+                      </div>
+                      {hasEvents && !today && (
+                        <span className="flex gap-0.5">
+                          {dayEvents.slice(0, 3).map((_, i) => (
+                            <span key={i} className="w-1.5 h-1.5 rounded-full bg-primary/50" />
+                          ))}
+                        </span>
                       )}
-                    >
-                      {format(day, "d")}
                     </div>
                     <div className="space-y-0.5">
                       {dayEvents.slice(0, 3).map((ev) => (
@@ -314,16 +334,16 @@ export default function Calendar() {
                             }
                           }}
                           className={cn(
-                            "w-full text-left text-[10px] leading-tight px-1 py-0.5 rounded border truncate",
+                            "w-full text-left text-[10px] leading-tight px-1.5 py-0.5 rounded-md border truncate font-medium",
                             EVENT_TYPE_COLORS[ev.event_type] || EVENT_TYPE_COLORS.general,
                             ev.is_billing && "italic"
                           )}
                         >
-                          {ev.is_billing && "💲 "}{ev.title}
+                          {ev.title}
                         </button>
                       ))}
                       {dayEvents.length > 3 && (
-                        <span className="text-[10px] text-muted-foreground pl-1">
+                        <span className="text-[10px] text-muted-foreground pl-1 font-medium">
                           +{dayEvents.length - 3} more
                         </span>
                       )}
@@ -336,10 +356,12 @@ export default function Calendar() {
 
           {/* Day detail sidebar */}
           <div className="w-72 shrink-0">
-            <div className="rounded-lg border border-border bg-card p-4">
+            <div className="rounded-xl border border-border bg-card p-4 shadow-sm sticky top-6">
               <div className="flex items-center gap-2 mb-4">
-                <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                <h3 className="font-semibold text-sm text-foreground">
+                <div className="p-1.5 rounded-lg bg-primary/10">
+                  <CalendarDays className="h-4 w-4 text-primary" />
+                </div>
+                <h3 className="font-bold text-sm text-foreground">
                   {selectedDate
                     ? format(selectedDate, "EEEE, MMM d")
                     : "Select a day"}
@@ -359,34 +381,48 @@ export default function Calendar() {
                   </Button>
 
                   {selectedDayEvents.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-6">
-                      No events
-                    </p>
+                    <div className="text-center py-8">
+                      <CalendarDays className="h-8 w-8 mx-auto text-muted-foreground/30 mb-2" />
+                      <p className="text-sm text-muted-foreground">
+                        No events scheduled
+                      </p>
+                      <p className="text-xs text-muted-foreground/60 mt-1">
+                        Click "Add Event" to create one
+                      </p>
+                    </div>
                   ) : (
                     <div className="space-y-3">
                       {selectedDayEvents.map((ev) => (
                         <div
                           key={ev.id}
-                          className="rounded-lg border border-border p-3 space-y-1.5 hover:bg-accent/30 transition-colors"
+                          className={cn(
+                            "rounded-lg border p-3 space-y-1.5 transition-colors",
+                            EVENT_TYPE_COLORS[ev.event_type] || "border-border hover:bg-accent/30"
+                          )}
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <span className="text-sm font-medium text-foreground leading-tight">
+                            <span className="text-sm font-semibold text-foreground leading-tight">
                               {ev.title}
                             </span>
                             <Badge
                               variant="outline"
                               className={cn(
-                                "text-[10px] shrink-0",
+                                "text-[10px] shrink-0 capitalize",
                                 EVENT_TYPE_COLORS[ev.event_type] || EVENT_TYPE_COLORS.general
                               )}
                             >
-                              {ev.event_type}
+                              {ev.event_type?.replace(/_/g, " ")}
                             </Badge>
                           </div>
                           {!ev.all_day && (
-                            <p className="text-xs text-muted-foreground">
-                              {format(new Date(ev.start_time), "h:mm a")} –{" "}
+                            <p className="text-xs text-muted-foreground font-medium">
+                              🕐 {format(new Date(ev.start_time), "h:mm a")} –{" "}
                               {format(new Date(ev.end_time), "h:mm a")}
+                            </p>
+                          )}
+                          {ev.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-2">
+                              {ev.description}
                             </p>
                           )}
                           {ev.location && (
@@ -420,7 +456,7 @@ export default function Calendar() {
                           )}
                           {ev.is_billing && (
                             <p className="text-[10px] text-muted-foreground italic pt-1">
-                              From Billing
+                              Auto-generated from {ev.event_type === "rfp_deadline" ? "RFPs" : "Billing"}
                             </p>
                           )}
                         </div>
