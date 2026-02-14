@@ -173,6 +173,7 @@ export interface SaveACHAuthInput {
   account_type: "checking" | "savings";
   authorization_text: string;
   signature_data: string;
+  payment_method?: "ach" | "credit_card";
 }
 
 export function useSaveACHAuthorization() {
@@ -200,6 +201,7 @@ export function useSaveACHAuthorization() {
           account_type: input.account_type,
           authorization_text: input.authorization_text,
           signature_data: input.signature_data,
+          payment_method: input.payment_method || "ach",
           status: "active",
         } as any)
         .select()

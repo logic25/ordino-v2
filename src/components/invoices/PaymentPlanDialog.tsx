@@ -105,6 +105,7 @@ export function PaymentPlanDialog({
     accountType: "checking" | "savings";
     authorizationText: string;
     signatureData: string;
+    paymentMethod: "ach" | "credit_card";
   }) => {
     try {
       // 1. Create the payment plan
@@ -130,6 +131,7 @@ export function PaymentPlanDialog({
         account_type: achData.accountType,
         authorization_text: achData.authorizationText,
         signature_data: achData.signatureData,
+        payment_method: achData.paymentMethod,
       });
 
       toast({

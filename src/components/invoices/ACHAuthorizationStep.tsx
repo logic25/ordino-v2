@@ -14,6 +14,8 @@ interface Installment {
   due_date: string;
 }
 
+type PaymentMethod = "ach" | "credit_card";
+
 interface ACHAuthorizationStepProps {
   companyName: string;
   clientName: string;
@@ -29,6 +31,7 @@ interface ACHAuthorizationStepProps {
     accountType: "checking" | "savings";
     authorizationText: string;
     signatureData: string;
+    paymentMethod: PaymentMethod;
   }) => void;
   isLoading?: boolean;
 }
@@ -51,6 +54,7 @@ export function ACHAuthorizationStep({
   const [routingNumber, setRoutingNumber] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [accountType, setAccountType] = useState<"checking" | "savings">("checking");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("ach");
 
   const authorizationText = buildAuthText(companyName, invoiceNumber, installments, totalAmount);
 
@@ -125,12 +129,13 @@ export function ACHAuthorizationStep({
     const signatureData = canvasRef.current.toDataURL("image/png");
     onSign({
       clientName: signerName.trim(),
-      bankName: bankName.trim(),
-      routingLast4: routingNumber.slice(-4),
-      accountLast4: accountNumber.slice(-4),
+      bankName: paymentMethod === "ach" ? bankName.trim() : "",
+      routingLast4: paymentMethod === "ach" ? routingNumber.slice(-4) : "",
+      accountLast4: paymentMethod === "ach" ? accountNumber.slice(-4) : "",
       accountType,
       authorizationText,
       signatureData,
+      paymentMethod,
     });
   };
 
@@ -153,6 +158,37 @@ export function ACHAuthorizationStep({
         <span className="text-sm font-medium">ACH Authorization Agreement</span>
       </div>
 
+      {/* Payment method selector */}
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Payment Method</Label>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setPaymentMethod("ach")}
+            className={`flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-colors text-sm ${
+              paymentMethod === "ach"
+                ? "border-primary bg-primary/5"
+                : "border-muted hover:border-muted-foreground/30"
+            }`}
+          >
+            <span className="font-medium">ACH / Bank Transfer</span>
+            <span className="text-xs text-emerald-600 dark:text-emerald-400">No fee</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setPaymentMethod("credit_card")}
+            className={`flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-colors text-sm ${
+              paymentMethod === "credit_card"
+                ? "border-primary bg-primary/5"
+                : "border-muted hover:border-muted-foreground/30"
+            }`}
+          >
+            <span className="font-medium">Credit Card</span>
+            <span className="text-xs text-warning">3% processing fee</span>
+          </button>
+        </div>
+      </div>
+
       {/* Agreement text */}
       <div className="rounded-md border bg-muted/30 p-3 max-h-48 overflow-y-auto">
         <p className="text-xs leading-relaxed whitespace-pre-line text-muted-foreground">
@@ -170,63 +206,75 @@ export function ACHAuthorizationStep({
         />
       </div>
 
-      {/* Bank info */}
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Bank Information</Label>
-        <p className="text-xs text-muted-foreground">
-          Only the last 4 digits will be stored. Full processing deferred until payment processor is connected.
-        </p>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs">Bank Name</Label>
-            <Input
-              value={bankName}
-              onChange={(e) => setBankName(e.target.value)}
-              placeholder="Chase, BofA..."
-            />
+      {/* Bank info — only for ACH */}
+      {paymentMethod === "ach" ? (
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Bank Information</Label>
+          <p className="text-xs text-muted-foreground">
+            Only the last 4 digits will be stored. Full processing deferred until payment processor is connected.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Bank Name</Label>
+              <Input
+                value={bankName}
+                onChange={(e) => setBankName(e.target.value)}
+                placeholder="Chase, BofA..."
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Account Type</Label>
+              <Select value={accountType} onValueChange={(v) => setAccountType(v as "checking" | "savings")}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="checking">Checking</SelectItem>
+                  <SelectItem value="savings">Savings</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Account Type</Label>
-            <Select value={accountType} onValueChange={(v) => setAccountType(v as "checking" | "savings")}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="checking">Checking</SelectItem>
-                <SelectItem value="savings">Savings</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Routing Number</Label>
+              <Input
+                type="password"
+                value={routingNumber}
+                onChange={(e) => setRoutingNumber(e.target.value.replace(/\D/g, "").slice(0, 9))}
+                placeholder="•••••••••"
+                maxLength={9}
+              />
+              {routingNumber.length > 0 && (
+                <p className="text-[10px] text-muted-foreground">Last 4: {routingNumber.slice(-4)}</p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Account Number</Label>
+              <Input
+                type="password"
+                value={accountNumber}
+                onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, "").slice(0, 17))}
+                placeholder="••••••••••••"
+                maxLength={17}
+              />
+              {accountNumber.length > 0 && (
+                <p className="text-[10px] text-muted-foreground">Last 4: {accountNumber.slice(-4)}</p>
+              )}
+            </div>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs">Routing Number</Label>
-            <Input
-              type="password"
-              value={routingNumber}
-              onChange={(e) => setRoutingNumber(e.target.value.replace(/\D/g, "").slice(0, 9))}
-              placeholder="•••••••••"
-              maxLength={9}
-            />
-            {routingNumber.length > 0 && (
-              <p className="text-[10px] text-muted-foreground">Last 4: {routingNumber.slice(-4)}</p>
-            )}
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Account Number</Label>
-            <Input
-              type="password"
-              value={accountNumber}
-              onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, "").slice(0, 17))}
-              placeholder="••••••••••••"
-              maxLength={17}
-            />
-            {accountNumber.length > 0 && (
-              <p className="text-[10px] text-muted-foreground">Last 4: {accountNumber.slice(-4)}</p>
-            )}
-          </div>
+      ) : (
+        <div className="rounded-md border border-warning/30 bg-warning/5 p-3 space-y-1.5">
+          <p className="text-sm font-medium">Credit Card Payment</p>
+          <p className="text-xs text-muted-foreground">
+            Credit card details will be collected when the self-service payment portal is available. A <strong>3% processing surcharge</strong> will be applied to each installment.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            By signing below, the client acknowledges and agrees to the 3% credit card processing fee on all installment payments.
+          </p>
         </div>
-      </div>
+      )}
 
       {/* Signature pad */}
       <div className="space-y-2">
