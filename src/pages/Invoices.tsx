@@ -278,9 +278,9 @@ export default function Invoices() {
             </div>
           )}
           <CardContent className="pt-0 px-4">
-            {activeFilter === "collections" ? (
+            {activeFilter === "collections" || activeFilter === "overdue" ? (
               <div className="space-y-6">
-                <AutomationActivityPanel />
+                {activeFilter === "collections" && <AutomationActivityPanel />}
                 <CollectionsView
                   invoices={allInvoicesAll}
                   onViewInvoice={(inv) => setDetailInvoice(inv)}
