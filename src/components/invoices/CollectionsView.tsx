@@ -6,13 +6,17 @@ import { InvoiceStatusBadge } from "./InvoiceStatusBadge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { AlertTriangle, AlertOctagon, Clock, Mail, FileWarning, Trash2, Loader2, CheckCircle } from "lucide-react";
+import { AlertTriangle, AlertOctagon, Clock, Mail, FileWarning, Trash2, Loader2, CheckCircle, StickyNote, Plus } from "lucide-react";
 import { differenceInDays } from "date-fns";
 import { useUpdateInvoice, type InvoiceWithRelations } from "@/hooks/useInvoices";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -70,7 +74,12 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
   const [reminderNote, setReminderNote] = useState("");
   const [demandNote, setDemandNote] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [quickNoteInvoice, setQuickNoteInvoice] = useState<GroupedInvoice | null>(null);
+  const [quickNoteText, setQuickNoteText] = useState("");
+  const [quickNoteMethod, setQuickNoteMethod] = useState("phone_call");
+  const [savingQuickNote, setSavingQuickNote] = useState(false);
   const updateInvoice = useUpdateInvoice();
+  const queryClient = useQueryClient();
 
   const grouped = useMemo(() => {
     const now = new Date();
@@ -124,6 +133,23 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
       details: notes,
       performed_by: profile.id,
     } as any);
+  };
+
+  const handleQuickNote = async () => {
+    if (!quickNoteInvoice || !quickNoteText.trim()) return;
+    setSavingQuickNote(true);
+    try {
+      await logFollowUp(quickNoteInvoice.id, quickNoteMethod, quickNoteText.trim());
+      queryClient.invalidateQueries({ queryKey: ["invoice-follow-ups", quickNoteInvoice.id] });
+      queryClient.invalidateQueries({ queryKey: ["invoice-activity-log", quickNoteInvoice.id] });
+      toast({ title: "Note added", description: `Note logged for ${quickNoteInvoice.invoice_number}` });
+      setQuickNoteInvoice(null);
+      setQuickNoteText("");
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setSavingQuickNote(false);
+    }
   };
 
   const handleSendReminder = async () => {
@@ -264,6 +290,15 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
                         ${Number(inv.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                       </span>
                       <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8"
+                          onClick={() => { setQuickNoteInvoice(inv); setQuickNoteText(""); setQuickNoteMethod("phone_call"); }}
+                          title="Add Note"
+                        >
+                          <StickyNote className="h-3.5 w-3.5" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -431,6 +466,50 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
             <Button variant="destructive" onClick={handleWriteOff} disabled={processing}>
               {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               <Trash2 className="h-4 w-4 mr-2" /> Write Off
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Note Dialog */}
+      <Dialog open={!!quickNoteInvoice} onOpenChange={(o) => !o && setQuickNoteInvoice(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Follow-Up Note</DialogTitle>
+            <DialogDescription>
+              Log a note for invoice {quickNoteInvoice?.invoice_number} — {quickNoteInvoice?.clients?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Contact Method</Label>
+              <Select value={quickNoteMethod} onValueChange={setQuickNoteMethod}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="phone_call">Phone Call</SelectItem>
+                  <SelectItem value="left_message">Left Message (LM)</SelectItem>
+                  <SelectItem value="reminder_email">Email</SelectItem>
+                  <SelectItem value="note">General Note</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Notes</Label>
+              <Textarea
+                value={quickNoteText}
+                onChange={(e) => setQuickNoteText(e.target.value)}
+                placeholder="Called AP, spoke with Jane — said check is being processed..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setQuickNoteInvoice(null)}>Cancel</Button>
+            <Button onClick={handleQuickNote} disabled={savingQuickNote || !quickNoteText.trim()}>
+              {savingQuickNote && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <StickyNote className="h-4 w-4 mr-2" /> Save Note
             </Button>
           </DialogFooter>
         </DialogContent>
