@@ -255,3 +255,19 @@ PM completes service
 - **Phases H-I**: PM flow + settings -- buildable after core is done
 
 Recommend starting with **Phases A through D** as one implementation block.
+
+---
+
+### Phase K: AI Follow-Up Reminders & Task Board
+
+When a user logs a follow-up note like "he said he'll pay next week," the system should:
+
+1. **AI-Powered Date Extraction**: Use AI to parse natural language dates from notes (e.g., "next week" → specific date, "by end of month" → last business day).
+2. **Auto-Create Follow-Up Reminder**: Prompt the user to confirm a follow-up reminder based on the extracted date.
+3. **Follow-Up Task Board**: A dedicated view (sidebar or page) showing upcoming follow-up tasks across all invoices, grouped by date — "Today", "This Week", "Upcoming".
+4. **Notifications**: Surface reminders via in-app notifications or toast when a follow-up date arrives.
+5. **Snooze/Complete**: Users can snooze or mark follow-ups as done from the task board.
+
+**DB changes**: New `invoice_follow_up_reminders` table with `reminder_date`, `status`, `follow_up_id`, `invoice_id`, `assigned_to`.
+
+**Dependencies**: Lovable AI gateway for date extraction, optional edge function cron for daily reminder checks.

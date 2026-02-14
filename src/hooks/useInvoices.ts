@@ -37,7 +37,7 @@ export interface Invoice {
 export interface InvoiceWithRelations extends Invoice {
   projects?: { id: string; name: string | null; project_number: string | null } | null;
   clients?: { id: string; name: string; phone: string | null; email: string | null; address: string | null } | null;
-  billed_to_contact?: { id: string; name: string; email: string | null; phone: string | null; mobile: string | null } | null;
+  billed_to_contact?: { id: string; name: string; email: string | null; phone: string | null; mobile: string | null; title: string | null; company_name: string | null; first_name: string | null; last_name: string | null } | null;
   created_by_profile?: { id: string; first_name: string | null; last_name: string | null } | null;
 }
 
@@ -84,7 +84,7 @@ export function useInvoices(statusFilter?: InvoiceStatus | "all") {
           *,
           projects (id, name, project_number),
           clients (id, name, phone, email, address),
-          billed_to_contact:client_contacts!invoices_billed_to_contact_id_fkey (id, name, email, phone, mobile),
+          billed_to_contact:client_contacts!invoices_billed_to_contact_id_fkey (id, name, first_name, last_name, email, phone, mobile, title, company_name),
           created_by_profile:profiles!invoices_created_by_fkey (id, first_name, last_name)
         `)
         .order("created_at", { ascending: false });
