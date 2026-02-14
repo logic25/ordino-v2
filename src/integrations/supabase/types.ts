@@ -3744,9 +3744,11 @@ export type Database = {
           debrief_notes: string | null
           due_date: string | null
           id: string
+          insurance_requirements: Json | null
           lessons_learned: Json | null
           mwbe_goal_max: number | null
           mwbe_goal_min: number | null
+          notes: string | null
           outcome: string | null
           requirements: Json | null
           response_draft_url: string | null
@@ -3766,9 +3768,11 @@ export type Database = {
           debrief_notes?: string | null
           due_date?: string | null
           id?: string
+          insurance_requirements?: Json | null
           lessons_learned?: Json | null
           mwbe_goal_max?: number | null
           mwbe_goal_min?: number | null
+          notes?: string | null
           outcome?: string | null
           requirements?: Json | null
           response_draft_url?: string | null
@@ -3788,9 +3792,11 @@ export type Database = {
           debrief_notes?: string | null
           due_date?: string | null
           id?: string
+          insurance_requirements?: Json | null
           lessons_learned?: Json | null
           mwbe_goal_max?: number | null
           mwbe_goal_min?: number | null
+          notes?: string | null
           outcome?: string | null
           requirements?: Json | null
           response_draft_url?: string | null

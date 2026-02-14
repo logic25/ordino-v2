@@ -33,3 +33,17 @@ export function useUpdateRfpStatus() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["rfps"] }),
   });
 }
+
+export function useUpdateRfpNotes() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, notes }: { id: string; notes: string }) => {
+      const { error } = await supabase
+        .from("rfps")
+        .update({ notes, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["rfps"] }),
+  });
+}
