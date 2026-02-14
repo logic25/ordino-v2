@@ -1,7 +1,8 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Library } from "lucide-react";
+import { Library, Upload } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { RfpKanbanBoard } from "@/components/rfps/RfpKanbanBoard";
 
 export default function Rfps() {
   const navigate = useNavigate();
@@ -20,17 +21,13 @@ export default function Rfps() {
             <Button variant="outline" onClick={() => navigate("/rfps/library")}>
               <Library className="h-4 w-4 mr-2" /> Content Library
             </Button>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-center py-24 border-2 border-dashed rounded-lg">
-          <div className="text-center space-y-2">
-            <p className="text-muted-foreground">RFP Kanban board coming in Phase 2</p>
-            <Button variant="outline" onClick={() => navigate("/rfps/library")}>
-              Set Up Content Library First →
+            <Button>
+              <Upload className="h-4 w-4 mr-2" /> New RFP
             </Button>
           </div>
         </div>
+
+        <RfpKanbanBoard />
       </div>
     </AppLayout>
   );
