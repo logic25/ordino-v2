@@ -76,6 +76,7 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
   const generateMessage = useGenerateCollectionMessage();
   const [aiGenerating, setAiGenerating] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const extractTasks = useExtractTasks();
 
   if (!invoice) return null;
 
@@ -151,7 +152,6 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
     } as any);
   };
 
-  const extractTasks = useExtractTasks();
 
   const handleAddNote = async () => {
     if (!newNoteText.trim()) return;
