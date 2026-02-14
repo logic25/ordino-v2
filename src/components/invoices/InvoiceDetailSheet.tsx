@@ -28,6 +28,7 @@ import { useClientPaymentAnalytics } from "@/hooks/useClientAnalytics";
 import { usePaymentPrediction } from "@/hooks/usePaymentPredictions";
 import { usePaymentPromises } from "@/hooks/usePaymentPromises";
 import { useGenerateCollectionMessage } from "@/hooks/useCollectionMessage";
+import { useExtractTasks } from "@/hooks/useExtractTasks";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { format, differenceInDays } from "date-fns";
@@ -150,16 +151,44 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
     } as any);
   };
 
+  const extractTasks = useExtractTasks();
+
   const handleAddNote = async () => {
     if (!newNoteText.trim()) return;
     setSavingNote(true);
     try {
-      await logFollowUp(newNoteMethod, newNoteText.trim());
+      const noteText = newNoteText.trim();
+      await logFollowUp(newNoteMethod, noteText);
       queryClient.invalidateQueries({ queryKey: ["invoice-follow-ups", invoice.id] });
       queryClient.invalidateQueries({ queryKey: ["invoice-activity-log", invoice.id] });
       toast({ title: "Note added" });
       setNewNoteText("");
       setAddingNote(false);
+
+      // AI task extraction in background
+      const daysOverdue = invoice.due_date
+        ? Math.max(0, differenceInDays(new Date(), new Date(invoice.due_date)))
+        : 0;
+      extractTasks.mutate(
+        {
+          note_text: noteText,
+          invoice_id: invoice.id,
+          client_name: invoice.clients?.name || undefined,
+          invoice_number: invoice.invoice_number,
+          days_overdue: daysOverdue,
+          amount_due: Number(invoice.total_due),
+        },
+        {
+          onSuccess: (tasks) => {
+            if (tasks.length > 0) {
+              toast({
+                title: `✨ ${tasks.length} task${tasks.length > 1 ? "s" : ""} extracted`,
+                description: tasks.map((t) => t.title).join(" · "),
+              });
+            }
+          },
+        }
+      );
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {

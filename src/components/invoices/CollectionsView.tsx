@@ -28,6 +28,7 @@ import { usePaymentPrediction } from "@/hooks/usePaymentPredictions";
 import { usePaymentPromises, useCreatePaymentPromise } from "@/hooks/usePaymentPromises";
 import { useGenerateCollectionMessage } from "@/hooks/useCollectionMessage";
 import { useClientPaymentAnalytics } from "@/hooks/useClientAnalytics";
+import { useExtractTasks } from "@/hooks/useExtractTasks";
 
 interface CollectionsViewProps {
   invoices: InvoiceWithRelations[];
@@ -285,7 +286,7 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
   const queryClient = useQueryClient();
   const createPromise = useCreatePaymentPromise();
   const generateMessage = useGenerateCollectionMessage();
-
+  const extractTasks = useExtractTasks();
   const allOverdue = useMemo(() => {
     const now = new Date();
     return invoices
@@ -363,8 +364,36 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
       queryClient.invalidateQueries({ queryKey: ["invoice-follow-ups", quickNoteInvoice.id] });
       queryClient.invalidateQueries({ queryKey: ["invoice-activity-log", quickNoteInvoice.id] });
       toast({ title: "Note added", description: `Note logged for ${quickNoteInvoice.invoice_number}` });
+
+      // Fire AI task extraction in the background
+      const noteInv = quickNoteInvoice;
+      const noteText = quickNoteText.trim();
       setQuickNoteInvoice(null);
       setQuickNoteText("");
+
+      extractTasks.mutate(
+        {
+          note_text: noteText,
+          invoice_id: noteInv.id,
+          client_name: noteInv.clients?.name || undefined,
+          invoice_number: noteInv.invoice_number,
+          days_overdue: noteInv.daysOverdue,
+          amount_due: Number(noteInv.total_due),
+        },
+        {
+          onSuccess: (tasks) => {
+            if (tasks.length > 0) {
+              toast({
+                title: `✨ ${tasks.length} task${tasks.length > 1 ? "s" : ""} extracted`,
+                description: tasks.map((t) => t.title).join(" · "),
+              });
+            }
+          },
+          onError: () => {
+            // Silently fail — note was already saved successfully
+          },
+        }
+      );
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
