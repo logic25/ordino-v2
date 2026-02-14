@@ -7,6 +7,10 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -16,10 +20,11 @@ import { useUpdateInvoice, type InvoiceWithRelations, type LineItem } from "@/ho
 import { useInvoiceFollowUps, useInvoiceActivityLog } from "@/hooks/useInvoiceFollowUps";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { format, differenceInDays } from "date-fns";
 import {
   Edit2, Save, X, Send, Mail, MailOpen, Clock, FileWarning, Trash2, Loader2,
-  MessageSquare, Activity, Eye, Edit3,
+  MessageSquare, Activity, Eye, Edit3, Plus, Phone, StickyNote,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/hooks/use-toast";
@@ -41,7 +46,12 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
   const [processing, setProcessing] = useState(false);
   const [demandStep, setDemandStep] = useState<"edit" | "preview">("edit");
   const [demandLetterText, setDemandLetterText] = useState("");
+  const [addingNote, setAddingNote] = useState(false);
+  const [newNoteText, setNewNoteText] = useState("");
+  const [newNoteMethod, setNewNoteMethod] = useState("phone_call");
+  const [savingNote, setSavingNote] = useState(false);
   const updateInvoice = useUpdateInvoice();
+  const queryClient = useQueryClient();
   const { data: followUps } = useInvoiceFollowUps(invoice?.id);
   const { data: activityLog } = useInvoiceActivityLog(invoice?.id);
   const { data: companyData } = useCompanySettings();
@@ -120,6 +130,23 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
     } as any);
   };
 
+  const handleAddNote = async () => {
+    if (!newNoteText.trim()) return;
+    setSavingNote(true);
+    try {
+      await logFollowUp(newNoteMethod, newNoteText.trim());
+      queryClient.invalidateQueries({ queryKey: ["invoice-follow-ups", invoice.id] });
+      queryClient.invalidateQueries({ queryKey: ["invoice-activity-log", invoice.id] });
+      toast({ title: "Note added" });
+      setNewNoteText("");
+      setAddingNote(false);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
   const handleAction = async () => {
     if (!activeAction) return;
     setProcessing(true);
@@ -185,6 +212,9 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
     reminder_email: "Reminder Sent",
     demand_letter: "Demand Letter",
     write_off: "Written Off",
+    phone_call: "Phone Call",
+    left_message: "Left Message",
+    note: "Note",
     created: "Created",
     sent: "Sent",
     paid: "Paid",
@@ -389,10 +419,57 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
 
             {/* Follow-Up Notes */}
             <section>
-              <div className="flex items-center gap-2 mb-2">
-                <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                <h4 className="text-sm font-medium text-muted-foreground">Follow-Up Notes</h4>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                  <h4 className="text-sm font-medium text-muted-foreground">Follow-Up Notes</h4>
+                </div>
+                {!addingNote && (
+                  <Button variant="ghost" size="sm" onClick={() => setAddingNote(true)}>
+                    <Plus className="h-3 w-3 mr-1" /> Add Note
+                  </Button>
+                )}
               </div>
+
+              {/* Inline Add Note Form */}
+              {addingNote && (
+                <div className="rounded-lg border p-3 mb-3 space-y-3 bg-muted/30">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Contact Method</Label>
+                    <Select value={newNoteMethod} onValueChange={setNewNoteMethod}>
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="phone_call">Phone Call</SelectItem>
+                        <SelectItem value="left_message">Left Message (LM)</SelectItem>
+                        <SelectItem value="reminder_email">Email</SelectItem>
+                        <SelectItem value="note">General Note</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Notes</Label>
+                    <Textarea
+                      value={newNoteText}
+                      onChange={(e) => setNewNoteText(e.target.value)}
+                      placeholder="Called Rudin's office, spoke to AP dept..."
+                      rows={2}
+                      className="text-sm"
+                    />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button variant="ghost" size="sm" onClick={() => { setAddingNote(false); setNewNoteText(""); }}>
+                      Cancel
+                    </Button>
+                    <Button size="sm" onClick={handleAddNote} disabled={savingNote || !newNoteText.trim()}>
+                      {savingNote && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                      Save Note
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {followUps && followUps.length > 0 ? (
                 <div className="space-y-2">
                   {followUps.map((fu) => (
@@ -410,7 +487,7 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No follow-up notes yet</p>
+                !addingNote && <p className="text-sm text-muted-foreground">No follow-up notes yet</p>
               )}
             </section>
 
@@ -446,11 +523,16 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
                 }
                 // Show paid if paid_at exists and no explicit "paid" log entry
                 if (invoice.paid_at && !(activityLog || []).some((e) => e.action === "paid")) {
+                  const paymentDetails = [
+                    "Payment received",
+                    invoice.payment_method ? `via ${invoice.payment_method}` : null,
+                    invoice.payment_amount ? `$${Number(invoice.payment_amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}` : null,
+                  ].filter(Boolean).join(" — ");
                   syntheticEntries.push({
                     id: "syn-paid",
                     created_at: invoice.paid_at,
                     action: "paid",
-                    details: "Payment received",
+                    details: paymentDetails,
                   });
                 }
 
