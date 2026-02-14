@@ -232,7 +232,7 @@ export function InvoiceTable({
                     </Badge>
                   </div>
                 </TableCell>
-                <TableCell className="text-right font-mono font-bold">
+                <TableCell className="text-right tabular-nums font-bold">
                   ${clientGroup.totalDue.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                 </TableCell>
                 <TableCell></TableCell>
@@ -267,7 +267,7 @@ export function InvoiceTable({
                           </Badge>
                         </div>
                       </TableCell>
-                      <TableCell className="text-right font-mono text-sm font-medium">
+                      <TableCell className="text-right tabular-nums text-sm font-medium">
                         ${projGroup.totalDue.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                       </TableCell>
                       <TableCell></TableCell>
@@ -295,7 +295,7 @@ export function InvoiceTable({
                             {inv.invoice_number}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right font-mono text-sm">
+                        <TableCell className="text-right tabular-nums text-sm">
                           ${Number(inv.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                         </TableCell>
                         <TableCell>

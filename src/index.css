@@ -215,4 +215,9 @@
   .animation-delay-100 { animation-delay: 100ms; }
   .animation-delay-200 { animation-delay: 200ms; }
   .animation-delay-300 { animation-delay: 300ms; }
+
+  /* Tabular numbers - keeps Inter font but aligns digits like mono */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
 }

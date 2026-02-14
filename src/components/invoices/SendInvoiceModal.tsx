@@ -198,14 +198,14 @@ export function SendInvoiceModal({ invoice, open, onOpenChange, onSent }: SendIn
             <div className="space-y-1">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Amount</span>
-                <span className="font-mono font-medium">
+                <span className="tabular-nums font-medium">
                   ${Number(invoice.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                 </span>
               </div>
               {Number(invoice.retainer_applied) > 0 && (
                 <div className="flex justify-between text-sm text-success">
                   <span>Retainer applied</span>
-                  <span className="font-mono">
+                  <span className="tabular-nums">
                     -${Number(invoice.retainer_applied).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                   </span>
                 </div>
