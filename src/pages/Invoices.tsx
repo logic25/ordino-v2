@@ -87,20 +87,12 @@ export default function Invoices() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Invoices</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Billing</h1>
             <p className="text-muted-foreground mt-1">
-              Track billing and payment status
+              Track invoices, collections, and payment status
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setBillingOpen(true)}
-            >
-              <Receipt className="h-4 w-4 mr-2" />
-              Send to Billing
-            </Button>
             <Button
               size="sm"
               className="bg-accent text-accent-foreground hover:bg-accent/90"
