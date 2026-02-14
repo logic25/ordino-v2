@@ -1,9 +1,10 @@
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, X, HelpCircle } from "lucide-react";
+import { Search, X, HelpCircle, Globe, Loader2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { GmailConnectButton } from "@/components/emails/GmailConnectButton";
 import { EmailList } from "@/components/emails/EmailList";
 import { EmailDetailSheet } from "@/components/emails/EmailDetailSheet";
@@ -12,8 +13,9 @@ import { KeyboardShortcutsDialog } from "@/components/emails/KeyboardShortcutsDi
 import { useEmails, type EmailWithTags, type EmailFilters } from "@/hooks/useEmails";
 import { useEmailKeyboardShortcuts } from "@/hooks/useEmailKeyboardShortcuts";
 import { useConnectGmail } from "@/hooks/useGmailConnection";
+import { useNewEmailNotifications } from "@/hooks/useNewEmailNotifications";
+import { useGmailSearch } from "@/hooks/useGmailSearch";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect } from "react";
 
 export default function Emails() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -26,6 +28,10 @@ export default function Emails() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const connectGmail = useConnectGmail();
+  const { results: gmailResults, isSearching: isGmailSearching, hasSearched: hasGmailSearched, search: searchGmail, clearSearch: clearGmailSearch } = useGmailSearch();
+
+  // Real-time notifications
+  useNewEmailNotifications();
 
   // Handle OAuth callback
   useEffect(() => {
@@ -149,19 +155,85 @@ export default function Emails() {
               ref={searchInputRef}
               placeholder="Search emails..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                if (!e.target.value) clearGmailSearch();
+              }}
               className="pl-9"
             />
             {search && (
               <button
-                onClick={() => setSearch("")}
+                onClick={() => { setSearch(""); clearGmailSearch(); }}
                 className="absolute right-3 top-1/2 -translate-y-1/2"
               >
                 <X className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
             )}
           </div>
+          {search && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => searchGmail(search)}
+              disabled={isGmailSearching}
+            >
+              {isGmailSearching ? (
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              ) : (
+                <Globe className="h-4 w-4 mr-1.5" />
+              )}
+              Search all Gmail
+            </Button>
+          )}
         </div>
+
+        {/* Gmail Search Results */}
+        {hasGmailSearched && (
+          <div className="border rounded-lg bg-card mb-3 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium">
+                Gmail Search Results
+                <Badge variant="secondary" className="ml-2">{gmailResults.length}</Badge>
+              </p>
+              <Button variant="ghost" size="sm" onClick={clearGmailSearch}>
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            {isGmailSearching ? (
+              <div className="py-4 text-center text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
+                Searching Gmail...
+              </div>
+            ) : gmailResults.length === 0 ? (
+              <p className="py-2 text-sm text-muted-foreground">No results found in Gmail.</p>
+            ) : (
+              <div className="divide-y max-h-60 overflow-y-auto">
+                {gmailResults.map((r, i) => (
+                  <div
+                    key={r.gmail_message_id || i}
+                    className="py-2 px-1 flex items-start justify-between gap-2 text-sm"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium truncate">{r.from_name || r.from_email}</span>
+                        {r.source === "synced" ? (
+                          <Badge variant="outline" className="text-[10px] px-1.5">Synced</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-[10px] px-1.5">Gmail only</Badge>
+                        )}
+                      </div>
+                      <p className="truncate text-foreground">{r.subject}</p>
+                      <p className="truncate text-xs text-muted-foreground">{r.snippet}</p>
+                    </div>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      {r.date ? new Date(r.date).toLocaleDateString() : ""}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Filter Tabs + Email List */}
         <div className="border rounded-lg bg-card overflow-hidden flex-1 min-h-0 flex flex-col">
