@@ -192,15 +192,35 @@ One migration for the `client_billing_rules` table with RLS policies matching th
 
 ## Implementation Order
 
-1. **Company Settings expansion** -- Add payment info, collections persistence, email template fields to settings
-2. **Client Billing Rules table + CRUD** -- Database migration + hooks + Settings UI
-3. **Invoice PDF component** -- Build the PDF layout using company settings data
-4. **PDF Preview + Download** -- Wire into InvoiceDetailSheet
-5. **Email template integration** -- Use template in SendInvoiceModal
-6. **QBO Settings enhancement** -- Expand sync config UI
+1. ✅ **Company Settings expansion** -- Add payment info, collections persistence, email template fields to settings
+2. ✅ **Client Billing Rules table + CRUD** -- Database migration + hooks + Settings UI (with vendor_id, property_id, portal URL)
+3. 🔜 **Invoice PDF component** -- ROADMAPPED: requires server-side (edge function) PDF generation to avoid auth/session issues with client-side rendering in popout windows. Will use edge function + Supabase storage to generate and serve PDFs.
+4. 🔜 **PDF Preview + Download** -- Blocked by #3. Buttons disabled in UI until edge function approach is implemented.
+5. 🔜 **Email template integration** -- Use template in SendInvoiceModal (depends on PDF attachment from #3)
+6. ✅ **QBO Settings enhancement** -- Expand sync config UI
+
+---
+
+## Phase L: Server-Side PDF Generation (Roadmapped)
+
+**Problem:** Client-side PDF generation via `@react-pdf/renderer` fails when the preview is popped out to a new window (different auth session, no data). The `BlobProvider` approach also has rendering reliability issues in the iframe environment.
+
+**Solution:** Move PDF generation to a backend function:
+1. Create `generate-invoice-pdf` edge function that:
+   - Accepts invoice ID
+   - Fetches invoice + company settings + contact data server-side
+   - Uses a PDF library (e.g., `jspdf` or server-side `@react-pdf/renderer`) to generate the PDF
+   - Returns the PDF blob or stores it in Supabase Storage and returns a signed URL
+2. Update "Preview PDF" button to fetch the signed URL and open in a new tab
+3. Update "Download" button to trigger a direct download from the signed URL
+4. Update SendInvoiceModal to attach the generated PDF to the Gmail send
+
+**Status:** Planned — requires edge function implementation
 
 ---
 
 ## Roadmap Update
 
-After this implementation, the plan.md will be updated to mark Phase I (Settings) and Phase J (Client Billing Rules) as complete, and Phase G (live QBO) remains the next major milestone requiring external API credentials.
+- Phase I (Settings) and Phase J (Client Billing Rules): ✅ Complete
+- Phase G (live QBO): Next major milestone, requires external API credentials
+- Phase L (Server-side PDF): Planned, unblocks invoice sending workflow
