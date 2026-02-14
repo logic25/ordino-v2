@@ -21,6 +21,8 @@ import RfiForm from "./pages/RfiForm";
 import ClientDetail from "./pages/ClientDetail";
 import Emails from "./pages/Emails";
 import Calendar from "./pages/Calendar";
+import Documents from "./pages/Documents";
+import TeamMembers from "./pages/TeamMembers";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -136,6 +138,22 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Calendar />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/documents"
+        element={
+          <ProtectedRoute>
+            <Documents />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/team"
+        element={
+          <ProtectedRoute>
+            <TeamMembers />
           </ProtectedRoute>
         }
       />
