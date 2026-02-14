@@ -3,7 +3,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Plus, Search, Send, Trash2, Receipt } from "lucide-react";
+import { Plus, Search, Send, Trash2, Receipt, Wallet } from "lucide-react";
 import { InvoiceSummaryCards } from "@/components/invoices/InvoiceSummaryCards";
 import { InvoiceFilterTabs, type BillingTab } from "@/components/invoices/InvoiceFilterTabs";
 import { InvoiceTable } from "@/components/invoices/InvoiceTable";
@@ -21,6 +21,7 @@ import {
   useInvoices, useInvoiceCounts, useDeleteInvoice,
   type InvoiceStatus, type InvoiceWithRelations,
 } from "@/hooks/useInvoices";
+import { useRetainers } from "@/hooks/useRetainers";
 import { toast } from "@/hooks/use-toast";
 
 // ── Mock invoice data ────────────────────────────────────────────
@@ -98,7 +99,20 @@ export default function Invoices() {
   const queryFilter = activeFilter === "collections" ? "overdue" : isSpecialTab ? "all" : activeFilter;
   const { data: dbInvoices = [], isLoading } = useInvoices(queryFilter as InvoiceStatus | "all");
   const { data: dbCounts } = useInvoiceCounts();
+  const { data: dbRetainers = [] } = useRetainers();
   const deleteInvoice = useDeleteInvoice();
+
+  // Mock retainer totals (same data as RetainersView)
+  const retainerSummary = useMemo(() => {
+    const mockBalance = 204690; // sum of mock retainer balances
+    const mockCount = 5; // active mock retainers
+    const realActive = dbRetainers.filter(r => r.status === "active");
+    const realBalance = realActive.reduce((s, r) => s + Number(r.current_balance), 0);
+    return {
+      totalBalance: realBalance + mockBalance,
+      activeCount: realActive.length + mockCount,
+    };
+  }, [dbRetainers]);
 
   // Merge mock + real invoices
   const allInvoices = useMemo(() => {
@@ -197,6 +211,30 @@ export default function Invoices() {
           activeFilter={isSpecialTab ? "all" : activeFilter as InvoiceStatus | "all"}
           onFilterChange={(f) => setActiveFilter(f)}
         />
+
+        {/* Retainer Summary Card */}
+        <Card
+          className={`cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${
+            activeFilter === "retainers" ? "ring-2 ring-accent border-accent" : ""
+          }`}
+          onClick={() => setActiveFilter(activeFilter === "retainers" ? "all" : "retainers")}
+        >
+          <CardContent className="flex items-center gap-4 py-4">
+            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+              <Wallet className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-muted-foreground">Active Retainers</p>
+              <p className="text-2xl font-bold tabular-nums">
+                ${retainerSummary.totalBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm font-medium tabular-nums">{retainerSummary.activeCount}</p>
+              <p className="text-xs text-muted-foreground">clients</p>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Filter Tabs + Search */}
         <Card>
