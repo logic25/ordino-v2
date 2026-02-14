@@ -13,12 +13,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { AlertTriangle, AlertOctagon, Clock, Mail, FileWarning, Trash2, Loader2, CheckCircle, StickyNote, Plus } from "lucide-react";
-import { differenceInDays } from "date-fns";
+import { Switch } from "@/components/ui/switch";
+import {
+  AlertTriangle, AlertOctagon, Clock, Mail, FileWarning, Trash2, Loader2,
+  CheckCircle, StickyNote, Plus, Brain, Sparkles, HandCoins, ShieldAlert,
+  TrendingUp, ToggleLeft, ToggleRight, Calendar, DollarSign,
+} from "lucide-react";
+import { differenceInDays, format } from "date-fns";
 import { useUpdateInvoice, type InvoiceWithRelations } from "@/hooks/useInvoices";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { usePaymentPrediction } from "@/hooks/usePaymentPredictions";
+import { usePaymentPromises, useCreatePaymentPromise } from "@/hooks/usePaymentPromises";
+import { useGenerateCollectionMessage } from "@/hooks/useCollectionMessage";
 
 interface CollectionsViewProps {
   invoices: InvoiceWithRelations[];
@@ -31,7 +39,7 @@ interface GroupedInvoice extends InvoiceWithRelations {
 }
 
 type UrgencyLevel = "critical" | "urgent" | "attention";
-
+type ViewMode = "urgency" | "ai_priority";
 type WorkflowAction = null | "reminder" | "demand" | "writeoff";
 
 const urgencyConfig: Record<UrgencyLevel, {
@@ -68,7 +76,163 @@ const urgencyConfig: Record<UrgencyLevel, {
   },
 };
 
+function RiskBadge({ invoiceId }: { invoiceId: string }) {
+  const { data: prediction } = usePaymentPrediction(invoiceId);
+  if (!prediction) return null;
+  const score = prediction.risk_score;
+  const color = score >= 80 ? "text-destructive bg-destructive/10 border-destructive/30"
+    : score >= 60 ? "text-warning bg-warning/10 border-warning/30"
+    : score >= 40 ? "text-amber-600 bg-amber-50 border-amber-200 dark:text-amber-400 dark:bg-amber-950 dark:border-amber-800"
+    : "text-emerald-600 bg-emerald-50 border-emerald-200 dark:text-emerald-400 dark:bg-emerald-950 dark:border-emerald-800";
+  return (
+    <Badge variant="outline" className={`text-[10px] font-mono ${color}`}>
+      <TrendingUp className="h-2.5 w-2.5 mr-0.5" />
+      Risk {score}
+    </Badge>
+  );
+}
+
+function PromiseBadge({ invoiceId }: { invoiceId: string }) {
+  const { data: promises } = usePaymentPromises(invoiceId);
+  if (!promises || promises.length === 0) return null;
+  const latest = promises[0];
+  if (latest.status === "broken") {
+    return (
+      <Badge variant="outline" className="text-[10px] text-destructive bg-destructive/10 border-destructive/30">
+        <ShieldAlert className="h-2.5 w-2.5 mr-0.5" />
+        Broken Promise
+      </Badge>
+    );
+  }
+  if (latest.status === "pending") {
+    const isPast = new Date(latest.promised_date) < new Date();
+    return (
+      <Badge variant="outline" className={`text-[10px] ${isPast ? "text-destructive bg-destructive/10 border-destructive/30" : "text-primary bg-primary/10 border-primary/30"}`}>
+        <HandCoins className="h-2.5 w-2.5 mr-0.5" />
+        Promise: {format(new Date(latest.promised_date), "MMM d")}
+      </Badge>
+    );
+  }
+  return null;
+}
+
+function PredictionInfo({ invoiceId }: { invoiceId: string }) {
+  const { data: prediction } = usePaymentPrediction(invoiceId);
+  if (!prediction) return null;
+  return (
+    <span className="text-[10px] text-muted-foreground">
+      Est. pay: {prediction.predicted_payment_date ? format(new Date(prediction.predicted_payment_date), "MMM d") : "—"}
+    </span>
+  );
+}
+
+function InvoiceCard({
+  inv,
+  level,
+  onViewInvoice,
+  onOpenNote,
+  onOpenAction,
+  onOpenPromise,
+  showAiInfo,
+}: {
+  inv: GroupedInvoice;
+  level: UrgencyLevel;
+  onViewInvoice: (inv: InvoiceWithRelations) => void;
+  onOpenNote: (inv: GroupedInvoice) => void;
+  onOpenAction: (action: WorkflowAction, inv: GroupedInvoice) => void;
+  onOpenPromise: (inv: GroupedInvoice) => void;
+  showAiInfo: boolean;
+}) {
+  return (
+    <div
+      key={inv.id}
+      className="flex items-center justify-between p-3 rounded-md border hover:bg-muted/50 cursor-pointer transition-colors"
+      onClick={() => onViewInvoice(inv)}
+    >
+      <div className="flex items-center gap-4 min-w-0">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-mono text-sm font-medium">{inv.invoice_number}</span>
+            <InvoiceStatusBadge status={inv.status} />
+            <Badge variant="secondary" className="text-[10px]">
+              {inv.daysOverdue} days
+            </Badge>
+            {showAiInfo && <RiskBadge invoiceId={inv.id} />}
+            <PromiseBadge invoiceId={inv.id} />
+          </div>
+          <p className="text-sm text-muted-foreground truncate mt-0.5">
+            {inv.clients?.name || "Unknown client"}
+            {inv.projects?.name ? ` • ${inv.projects.name}` : ""}
+          </p>
+          {showAiInfo && (
+            <div className="mt-0.5">
+              <PredictionInfo invoiceId={inv.id} />
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="font-mono font-medium text-sm">
+          ${Number(inv.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+        </span>
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8"
+            onClick={() => onOpenNote(inv)}
+            title="Add Note"
+          >
+            <StickyNote className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8"
+            onClick={() => onOpenPromise(inv)}
+            title="Log Promise"
+          >
+            <HandCoins className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8"
+            onClick={() => onOpenAction("reminder", inv)}
+            title="Send Reminder"
+          >
+            <Mail className="h-3.5 w-3.5" />
+          </Button>
+          {(level === "critical" || level === "urgent") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-destructive"
+              onClick={() => onOpenAction("demand", inv)}
+              title="Send Demand Letter"
+            >
+              <FileWarning className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {level === "critical" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-muted-foreground"
+              onClick={() => onOpenAction("writeoff", inv)}
+              title="Write Off"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: CollectionsViewProps) {
+  const [viewMode, setViewMode] = useState<ViewMode>("urgency");
   const [activeAction, setActiveAction] = useState<WorkflowAction>(null);
   const [actionInvoice, setActionInvoice] = useState<GroupedInvoice | null>(null);
   const [reminderNote, setReminderNote] = useState("");
@@ -78,12 +242,24 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
   const [quickNoteText, setQuickNoteText] = useState("");
   const [quickNoteMethod, setQuickNoteMethod] = useState("phone_call");
   const [savingQuickNote, setSavingQuickNote] = useState(false);
+  // Promise dialog
+  const [promiseInvoice, setPromiseInvoice] = useState<GroupedInvoice | null>(null);
+  const [promiseAmount, setPromiseAmount] = useState("");
+  const [promiseDate, setPromiseDate] = useState("");
+  const [promiseMethod, setPromiseMethod] = useState("check");
+  const [promiseSource, setPromiseSource] = useState("phone_call");
+  const [promiseNotes, setPromiseNotes] = useState("");
+  // AI message
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiMessage, setAiMessage] = useState<{ subject: string; body: string } | null>(null);
   const updateInvoice = useUpdateInvoice();
   const queryClient = useQueryClient();
+  const createPromise = useCreatePaymentPromise();
+  const generateMessage = useGenerateCollectionMessage();
 
-  const grouped = useMemo(() => {
+  const allOverdue = useMemo(() => {
     const now = new Date();
-    const withDays: GroupedInvoice[] = invoices
+    return invoices
       .filter((inv) => inv.status === "overdue" || inv.status === "sent")
       .map((inv) => ({
         ...inv,
@@ -92,27 +268,42 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
           : differenceInDays(now, new Date(inv.created_at)),
       }))
       .filter((inv) => inv.daysOverdue >= 30)
-      .sort((a, b) => b.daysOverdue - a.daysOverdue);
-
-    return {
-      critical: withDays.filter((i) => i.daysOverdue >= 90),
-      urgent: withDays.filter((i) => i.daysOverdue >= 60 && i.daysOverdue < 90),
-      attention: withDays.filter((i) => i.daysOverdue >= 30 && i.daysOverdue < 60),
-    };
+      .sort((a, b) => b.daysOverdue - a.daysOverdue) as GroupedInvoice[];
   }, [invoices]);
 
-  const totalAmount = useMemo(() => {
-    const all = [...grouped.critical, ...grouped.urgent, ...grouped.attention];
-    return all.reduce((sum, inv) => sum + Number(inv.total_due), 0);
-  }, [grouped]);
+  const grouped = useMemo(() => ({
+    critical: allOverdue.filter((i) => i.daysOverdue >= 90),
+    urgent: allOverdue.filter((i) => i.daysOverdue >= 60 && i.daysOverdue < 90),
+    attention: allOverdue.filter((i) => i.daysOverdue >= 30 && i.daysOverdue < 60),
+  }), [allOverdue]);
 
-  const totalCount = grouped.critical.length + grouped.urgent.length + grouped.attention.length;
+  const totalAmount = useMemo(() => {
+    return allOverdue.reduce((sum, inv) => sum + Number(inv.total_due), 0);
+  }, [allOverdue]);
+
+  const totalCount = allOverdue.length;
+
+  const getUrgencyLevel = (daysOverdue: number): UrgencyLevel => {
+    if (daysOverdue >= 90) return "critical";
+    if (daysOverdue >= 60) return "urgent";
+    return "attention";
+  };
 
   const openAction = (action: WorkflowAction, inv: GroupedInvoice) => {
     setActionInvoice(inv);
     setActiveAction(action);
     setReminderNote("");
     setDemandNote("");
+    setAiMessage(null);
+  };
+
+  const openPromise = (inv: GroupedInvoice) => {
+    setPromiseInvoice(inv);
+    setPromiseAmount(String(inv.total_due));
+    setPromiseDate("");
+    setPromiseMethod("check");
+    setPromiseSource("phone_call");
+    setPromiseNotes("");
   };
 
   const logFollowUp = async (invoiceId: string, method: string, notes: string) => {
@@ -152,11 +343,52 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
     }
   };
 
+  const handleSavePromise = async () => {
+    if (!promiseInvoice || !promiseDate || !promiseAmount) return;
+    try {
+      await createPromise.mutateAsync({
+        invoice_id: promiseInvoice.id,
+        client_id: promiseInvoice.client_id,
+        promised_amount: parseFloat(promiseAmount),
+        promised_date: promiseDate,
+        payment_method: promiseMethod,
+        source: promiseSource,
+        notes: promiseNotes,
+      });
+      await logFollowUp(promiseInvoice.id, promiseSource, `Promise to pay $${parseFloat(promiseAmount).toLocaleString()} by ${promiseDate} via ${promiseMethod}. ${promiseNotes}`);
+      queryClient.invalidateQueries({ queryKey: ["invoice-follow-ups", promiseInvoice.id] });
+      toast({ title: "Promise logged", description: `Payment promise recorded for ${promiseInvoice.invoice_number}` });
+      setPromiseInvoice(null);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleGenerateAI = async () => {
+    if (!actionInvoice) return;
+    setAiGenerating(true);
+    try {
+      const urgency = actionInvoice.daysOverdue >= 90 ? "high" : actionInvoice.daysOverdue >= 60 ? "medium" : "low";
+      const result = await generateMessage.mutateAsync({
+        invoiceId: actionInvoice.id,
+        companyId: actionInvoice.company_id,
+        tone: "professional",
+        urgency,
+      });
+      setAiMessage(result);
+      setReminderNote(result.body);
+    } catch (err: any) {
+      toast({ title: "AI Generation Failed", description: err.message, variant: "destructive" });
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
   const handleSendReminder = async () => {
     if (!actionInvoice) return;
     setProcessing(true);
     try {
-      await new Promise((r) => setTimeout(r, 800)); // mock email send
+      await new Promise((r) => setTimeout(r, 800));
       await logFollowUp(actionInvoice.id, "reminder_email", `Payment reminder sent. ${reminderNote}`);
       toast({ title: "Payment reminder sent", description: `Reminder sent for ${actionInvoice.invoice_number}` });
       setActiveAction(null);
@@ -171,7 +403,7 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
     if (!actionInvoice) return;
     setProcessing(true);
     try {
-      await new Promise((r) => setTimeout(r, 1200)); // mock
+      await new Promise((r) => setTimeout(r, 1200));
       await logFollowUp(actionInvoice.id, "demand_letter", `Demand letter sent. ${demandNote}`);
       toast({ title: "Demand letter sent", description: `Formal demand issued for ${actionInvoice.invoice_number}` });
       setActiveAction(null);
@@ -221,126 +453,136 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
             ${totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </p>
         </div>
-        <div className="flex gap-4 text-sm">
-          <div className="text-center">
-            <p className="text-destructive font-bold text-lg">{grouped.critical.length}</p>
-            <p className="text-muted-foreground text-xs">Critical</p>
+        <div className="flex items-center gap-6">
+          <div className="flex gap-4 text-sm">
+            <div className="text-center">
+              <p className="text-destructive font-bold text-lg">{grouped.critical.length}</p>
+              <p className="text-muted-foreground text-xs">Critical</p>
+            </div>
+            <div className="text-center">
+              <p className="text-warning font-bold text-lg">{grouped.urgent.length}</p>
+              <p className="text-muted-foreground text-xs">Urgent</p>
+            </div>
+            <div className="text-center">
+              <p className="text-muted-foreground font-bold text-lg">{grouped.attention.length}</p>
+              <p className="text-muted-foreground text-xs">Attention</p>
+            </div>
           </div>
-          <div className="text-center">
-            <p className="text-warning font-bold text-lg">{grouped.urgent.length}</p>
-            <p className="text-muted-foreground text-xs">Urgent</p>
-          </div>
-          <div className="text-center">
-            <p className="text-muted-foreground font-bold text-lg">{grouped.attention.length}</p>
-            <p className="text-muted-foreground text-xs">Attention</p>
+          <Separator orientation="vertical" className="h-10" />
+          {/* View mode toggle */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant={viewMode === "urgency" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => setViewMode("urgency")}
+            >
+              <Clock className="h-3.5 w-3.5 mr-1" />
+              Urgency
+            </Button>
+            <Button
+              variant={viewMode === "ai_priority" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => setViewMode("ai_priority")}
+            >
+              <Brain className="h-3.5 w-3.5 mr-1" />
+              AI Priority
+            </Button>
           </div>
         </div>
       </div>
 
-      {/* Urgency groups */}
-      {(["critical", "urgent", "attention"] as UrgencyLevel[]).map((level) => {
-        const items = grouped[level];
-        if (items.length === 0) return null;
-        const config = urgencyConfig[level];
-        const Icon = config.icon;
+      {/* View: Urgency Groups */}
+      {viewMode === "urgency" && (
+        <>
+          {(["critical", "urgent", "attention"] as UrgencyLevel[]).map((level) => {
+            const items = grouped[level];
+            if (items.length === 0) return null;
+            const config = urgencyConfig[level];
+            const Icon = config.icon;
 
-        return (
-          <Card key={level} className={`border ${config.borderClass}`}>
-            <CardHeader className={`pb-3 ${config.bgClass} rounded-t-lg`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Icon className={`h-5 w-5 ${config.colorClass}`} />
-                  <div>
-                    <CardTitle className={`text-sm font-semibold ${config.colorClass}`}>
-                      {config.label}
-                    </CardTitle>
-                    <p className="text-xs text-muted-foreground">{config.description}</p>
+            return (
+              <Card key={level} className={`border ${config.borderClass}`}>
+                <CardHeader className={`pb-3 ${config.bgClass} rounded-t-lg`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Icon className={`h-5 w-5 ${config.colorClass}`} />
+                      <div>
+                        <CardTitle className={`text-sm font-semibold ${config.colorClass}`}>
+                          {config.label}
+                        </CardTitle>
+                        <p className="text-xs text-muted-foreground">{config.description}</p>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className={config.colorClass}>
+                      {items.length} invoice{items.length !== 1 ? "s" : ""}
+                    </Badge>
                   </div>
+                </CardHeader>
+                <CardContent className="pt-3">
+                  <div className="space-y-2">
+                    {items.map((inv) => (
+                      <InvoiceCard
+                        key={inv.id}
+                        inv={inv}
+                        level={level}
+                        onViewInvoice={onViewInvoice}
+                        onOpenNote={(inv) => { setQuickNoteInvoice(inv); setQuickNoteText(""); setQuickNoteMethod("phone_call"); }}
+                        onOpenAction={openAction}
+                        onOpenPromise={openPromise}
+                        showAiInfo={true}
+                      />
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </>
+      )}
+
+      {/* View: AI Priority - sorted by risk score */}
+      {viewMode === "ai_priority" && (
+        <Card>
+          <CardHeader className="pb-3 bg-primary/5 rounded-t-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Brain className="h-5 w-5 text-primary" />
+                <div>
+                  <CardTitle className="text-sm font-semibold text-primary">
+                    AI-Prioritized Worklist
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    Sorted by risk score — highest risk first
+                  </p>
                 </div>
-                <Badge variant="outline" className={config.colorClass}>
-                  {items.length} invoice{items.length !== 1 ? "s" : ""}
-                </Badge>
               </div>
-            </CardHeader>
-            <CardContent className="pt-3">
-              <div className="space-y-2">
-                {items.map((inv) => (
-                  <div
-                    key={inv.id}
-                    className="flex items-center justify-between p-3 rounded-md border hover:bg-muted/50 cursor-pointer transition-colors"
-                    onClick={() => onViewInvoice(inv)}
-                  >
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm font-medium">{inv.invoice_number}</span>
-                          <InvoiceStatusBadge status={inv.status} />
-                          <Badge variant="secondary" className="text-[10px]">
-                            {inv.daysOverdue} days
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground truncate mt-0.5">
-                          {inv.clients?.name || "Unknown client"}
-                          {inv.projects?.name ? ` • ${inv.projects.name}` : ""}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono font-medium text-sm">
-                        ${Number(inv.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                      </span>
-                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8"
-                          onClick={() => { setQuickNoteInvoice(inv); setQuickNoteText(""); setQuickNoteMethod("phone_call"); }}
-                          title="Add Note"
-                        >
-                          <StickyNote className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8"
-                          onClick={() => openAction("reminder", inv)}
-                          title="Send Reminder"
-                        >
-                          <Mail className="h-3.5 w-3.5" />
-                        </Button>
-                        {(level === "critical" || level === "urgent") && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 text-destructive"
-                            onClick={() => openAction("demand", inv)}
-                            title="Send Demand Letter"
-                          >
-                            <FileWarning className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                        {level === "critical" && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 text-muted-foreground"
-                            onClick={() => openAction("writeoff", inv)}
-                            title="Write Off"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
+              <Badge variant="outline" className="text-primary">
+                {allOverdue.length} invoice{allOverdue.length !== 1 ? "s" : ""}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-3">
+            <div className="space-y-2">
+              {allOverdue.map((inv) => (
+                <InvoiceCard
+                  key={inv.id}
+                  inv={inv}
+                  level={getUrgencyLevel(inv.daysOverdue)}
+                  onViewInvoice={onViewInvoice}
+                  onOpenNote={(inv) => { setQuickNoteInvoice(inv); setQuickNoteText(""); setQuickNoteMethod("phone_call"); }}
+                  onOpenAction={openAction}
+                  onOpenPromise={openPromise}
+                  showAiInfo={true}
+                />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Reminder Dialog */}
+      {/* Reminder Dialog - Enhanced with AI */}
       <Dialog open={activeAction === "reminder"} onOpenChange={(o) => !o && setActiveAction(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -367,12 +609,33 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Additional Note (optional)</Label>
+              <div className="flex items-center justify-between">
+                <Label>Message</Label>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={handleGenerateAI}
+                  disabled={aiGenerating}
+                >
+                  {aiGenerating ? (
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3 w-3 mr-1" />
+                  )}
+                  Generate with AI
+                </Button>
+              </div>
+              {aiMessage && (
+                <div className="text-xs text-muted-foreground bg-primary/5 rounded p-2 border border-primary/20">
+                  <span className="font-medium">Subject: </span>{aiMessage.subject}
+                </div>
+              )}
               <Textarea
                 value={reminderNote}
                 onChange={(e) => setReminderNote(e.target.value)}
                 placeholder="Add a personal note to the reminder..."
-                rows={3}
+                rows={aiMessage ? 8 : 3}
               />
             </div>
           </div>
@@ -510,6 +773,86 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
             <Button onClick={handleQuickNote} disabled={savingQuickNote || !quickNoteText.trim()}>
               {savingQuickNote && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               <StickyNote className="h-4 w-4 mr-2" /> Save Note
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Promise-to-Pay Dialog */}
+      <Dialog open={!!promiseInvoice} onOpenChange={(o) => !o && setPromiseInvoice(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Log Promise to Pay</DialogTitle>
+            <DialogDescription>
+              Record a payment commitment for {promiseInvoice?.invoice_number} — {promiseInvoice?.clients?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Promised Amount</Label>
+                <Input
+                  type="number"
+                  value={promiseAmount}
+                  onChange={(e) => setPromiseAmount(e.target.value)}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Promise Date</Label>
+                <Input
+                  type="date"
+                  value={promiseDate}
+                  onChange={(e) => setPromiseDate(e.target.value)}
+                  className="h-9"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Payment Method</Label>
+                <Select value={promiseMethod} onValueChange={setPromiseMethod}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="check">Check</SelectItem>
+                    <SelectItem value="wire">Wire Transfer</SelectItem>
+                    <SelectItem value="ach">ACH</SelectItem>
+                    <SelectItem value="credit_card">Credit Card</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Source</Label>
+                <Select value={promiseSource} onValueChange={setPromiseSource}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="phone_call">Phone Call</SelectItem>
+                    <SelectItem value="email">Email</SelectItem>
+                    <SelectItem value="in_person">In Person</SelectItem>
+                    <SelectItem value="portal">Portal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Notes</Label>
+              <Textarea
+                value={promiseNotes}
+                onChange={(e) => setPromiseNotes(e.target.value)}
+                placeholder="Who committed, any conditions..."
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPromiseInvoice(null)}>Cancel</Button>
+            <Button onClick={handleSavePromise} disabled={createPromise.isPending || !promiseDate}>
+              {createPromise.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <HandCoins className="h-4 w-4 mr-2" /> Save Promise
             </Button>
           </DialogFooter>
         </DialogContent>
