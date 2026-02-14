@@ -55,7 +55,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsAdmin } from "@/hooks/useUserRoles";
-import { useEmployeeReviews, useCreateEmployeeReview } from "@/hooks/useEmployeeReviews";
+import { useEmployeeReviews, useCreateEmployeeReview, useUpdateEmployeeReview } from "@/hooks/useEmployeeReviews";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend, Line, ComposedChart, Tooltip as RechartsTooltip } from "recharts";
 
 const ROLE_COLORS: Record<string, string> = {
@@ -346,17 +346,40 @@ const DEFAULT_REVIEW_CATEGORIES = [
   "Teamwork",
 ];
 
+/* ─── Rating → Default Raise % mapping ─── */
+function getDefaultRaisePct(overallRating: number): number {
+  if (overallRating >= 90) return 5;
+  if (overallRating >= 80) return 3;
+  if (overallRating >= 70) return 2;
+  if (overallRating >= 60) return 1;
+  return 0;
+}
+
 /* ─── Add Review Dialog ─── */
 function AddReviewDialog({ employeeId, onSuccess }: { employeeId: string; onSuccess: () => void }) {
   const [open, setOpen] = useState(false);
   const [period, setPeriod] = useState(format(new Date(), "yyyy-MM-dd"));
   const [rating, setRating] = useState("75");
+  const [raisePct, setRaisePct] = useState(String(getDefaultRaisePct(75)));
+  const [raiseOverridden, setRaiseOverridden] = useState(false);
   const [comments, setComments] = useState("");
   const [categoryRatings, setCategoryRatings] = useState<Record<string, number>>(
     Object.fromEntries(DEFAULT_REVIEW_CATEGORIES.map((c) => [c, 3]))
   );
   const createReview = useCreateEmployeeReview();
   const { toast } = useToast();
+
+  const handleRatingChange = (val: string) => {
+    setRating(val);
+    if (!raiseOverridden) {
+      setRaisePct(String(getDefaultRaisePct(parseInt(val) || 0)));
+    }
+  };
+
+  const handleRaisePctChange = (val: string) => {
+    setRaisePct(val);
+    setRaiseOverridden(true);
+  };
 
   const handleSubmit = async () => {
     try {
@@ -366,10 +389,14 @@ function AddReviewDialog({ employeeId, onSuccess }: { employeeId: string; onSucc
         overall_rating: parseInt(rating),
         category_ratings: categoryRatings,
         comments: comments || undefined,
+        raise_pct: parseFloat(raisePct) || 0,
       });
       toast({ title: "Review added" });
       setOpen(false);
       setComments("");
+      setRating("75");
+      setRaisePct(String(getDefaultRaisePct(75)));
+      setRaiseOverridden(false);
       setCategoryRatings(Object.fromEntries(DEFAULT_REVIEW_CATEGORIES.map((c) => [c, 3])));
       onSuccess();
     } catch (err: any) {
@@ -419,10 +446,23 @@ function AddReviewDialog({ employeeId, onSuccess }: { employeeId: string; onSucc
             </div>
           </div>
 
-          <div>
-            <Label>Overall Rating (0-100)</Label>
-            <Input type="number" min="0" max="100" value={rating} onChange={(e) => setRating(e.target.value)} />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Overall Rating (0-100)</Label>
+              <Input type="number" min="0" max="100" value={rating} onChange={(e) => handleRatingChange(e.target.value)} />
+            </div>
+            <div>
+              <Label className="flex items-center gap-1">
+                Raise %
+                {raiseOverridden && <Badge variant="secondary" className="text-[9px] px-1 py-0">Override</Badge>}
+              </Label>
+              <Input type="number" min="0" max="20" step="0.5" value={raisePct} onChange={(e) => handleRaisePctChange(e.target.value)} />
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Default: {getDefaultRaisePct(parseInt(rating) || 0)}% for rating {rating}
+              </p>
+            </div>
           </div>
+
           <div>
             <Label>Comments</Label>
             <Textarea value={comments} onChange={(e) => setComments(e.target.value)} placeholder="Performance notes..." />
@@ -436,6 +476,127 @@ function AddReviewDialog({ employeeId, onSuccess }: { employeeId: string; onSucc
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/* ─── Review Card with Raise % ─── */
+function ReviewCard({ review, isMock, isAdmin, employeeId, onUpdate }: {
+  review: any; isMock: boolean; isAdmin: boolean; employeeId: string; onUpdate: () => void;
+}) {
+  const [editingRaise, setEditingRaise] = useState(false);
+  const [raiseVal, setRaiseVal] = useState("");
+  const updateReview = useUpdateEmployeeReview();
+  const { toast } = useToast();
+
+  const reviewerName = review.reviewer?.display_name ||
+    [review.reviewer?.first_name, review.reviewer?.last_name].filter(Boolean).join(" ") || "Unknown";
+  const cats = review.category_ratings as Record<string, number> | null;
+  const currentRaise = review.raise_pct != null ? review.raise_pct : getDefaultRaisePct(review.overall_rating || 0);
+  const isOverridden = review.raise_pct != null && review.raise_pct !== getDefaultRaisePct(review.overall_rating || 0);
+
+  const handleSaveRaise = async () => {
+    if (isMock) {
+      setEditingRaise(false);
+      return;
+    }
+    try {
+      await updateReview.mutateAsync({ id: review.id, employeeId, raise_pct: parseFloat(raiseVal) || 0 });
+      toast({ title: "Raise updated" });
+      setEditingRaise(false);
+      onUpdate();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="font-medium text-sm">
+              {format(new Date(review.review_period), "MMMM yyyy")}
+            </p>
+            <p className="text-xs text-muted-foreground">by {reviewerName}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant={
+              (review.overall_rating || 0) >= 80 ? "default" :
+                (review.overall_rating || 0) >= 60 ? "secondary" : "destructive"
+            }>
+              {review.overall_rating}/100
+            </Badge>
+            {review.previous_rating !== null && review.previous_rating !== undefined && (
+              <span className={cn("text-xs",
+                (review.overall_rating || 0) > review.previous_rating ? "text-green-600" : "text-red-500"
+              )}>
+                {(review.overall_rating || 0) > review.previous_rating ? "↑" : "↓"} from {review.previous_rating}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Raise % Section */}
+        <div className="mt-3 flex items-center gap-2 p-2 rounded-md bg-muted/50 border border-border/50">
+          <TrendingUp className="h-4 w-4 text-green-600 shrink-0" />
+          <span className="text-sm font-medium">Raise:</span>
+          {editingRaise ? (
+            <div className="flex items-center gap-1">
+              <Input
+                type="number"
+                min="0"
+                max="20"
+                step="0.5"
+                className="h-7 w-[70px] text-xs"
+                value={raiseVal}
+                onChange={(e) => setRaiseVal(e.target.value)}
+                autoFocus
+              />
+              <span className="text-sm">%</span>
+              <Button size="sm" variant="ghost" className="h-7 px-2" onClick={handleSaveRaise} disabled={updateReview.isPending}>
+                <Save className="h-3 w-3" />
+              </Button>
+              <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditingRaise(false)}>
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          ) : (
+            <>
+              <span className="text-sm font-bold text-green-600 tabular-nums">{currentRaise}%</span>
+              {isOverridden && <Badge variant="outline" className="text-[9px] px-1 py-0">Overridden</Badge>}
+              <span className="text-[10px] text-muted-foreground">
+                (default: {getDefaultRaisePct(review.overall_rating || 0)}% for score {review.overall_rating})
+              </span>
+              {isAdmin && (
+                <Button size="sm" variant="ghost" className="h-6 px-1.5 ml-auto" onClick={() => { setRaiseVal(String(currentRaise)); setEditingRaise(true); }}>
+                  <Pencil className="h-3 w-3" />
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+
+        {cats && Object.keys(cats).length > 0 && (
+          <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1">
+            {Object.entries(cats).map(([category, score]) => (
+              <div key={category} className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">{category}</span>
+                <div className="flex gap-0.5">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Star key={n} className={cn("h-3 w-3", n <= score ? "fill-primary text-primary" : "text-muted-foreground/30")} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {review.comments && <p className="text-sm mt-3 text-muted-foreground">{review.comments}</p>}
+        <p className="text-[10px] text-muted-foreground mt-2">
+          {review.created_at ? format(new Date(review.created_at), "MMM d, yyyy") : ""}
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -823,8 +984,8 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                             />
                             <Legend wrapperStyle={{ fontSize: 11 }} />
                             <Bar dataKey="billed" fill="hsl(var(--primary))" name="Billed" radius={[4, 4, 0, 0]} />
-                            <Bar dataKey="estimated" fill="hsl(var(--accent))" name="Estimated" radius={[4, 4, 0, 0]} />
-                            <Line dataKey="goal" stroke="hsl(var(--destructive))" strokeDasharray="5 5" name="Goal" dot={false} strokeWidth={2} />
+                            <Bar dataKey="estimated" fill="hsl(142 71% 45%)" name="Estimated" radius={[4, 4, 0, 0]} opacity={0.6} />
+                            <Line type="monotone" dataKey="goal" stroke="hsl(0 84% 60%)" strokeDasharray="8 4" name="Monthly Goal" dot={false} strokeWidth={3} />
                           </ComposedChart>
                         </ResponsiveContainer>
                       </div>
@@ -980,6 +1141,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                         review_period: "2026-01-01",
                         overall_rating: 82,
                         previous_rating: 75,
+                        raise_pct: 3,
                         category_ratings: { "Technical Knowledge": 4, "Quality of Work": 4, "Time Management": 3, "Communication": 5, "Initiative": 4, "Teamwork": 4 },
                         comments: "Strong quarter. Improved communication with clients and consistently hit deadlines. Could improve time management on larger projects.",
                         reviewer: { display_name: "Sarah Chen", first_name: "Sarah", last_name: "Chen" },
@@ -990,6 +1152,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                         review_period: "2025-10-01",
                         overall_rating: 75,
                         previous_rating: 70,
+                        raise_pct: 2,
                         category_ratings: { "Technical Knowledge": 4, "Quality of Work": 3, "Time Management": 3, "Communication": 4, "Initiative": 3, "Teamwork": 4 },
                         comments: "Good progress overall. Technical skills are solid. Needs to focus on proactive problem-solving.",
                         reviewer: { display_name: "Michael Torres", first_name: "Michael", last_name: "Torres" },
@@ -1004,60 +1167,16 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                         {isMock && (
                           <p className="text-xs text-muted-foreground italic">Showing sample reviews for preview purposes.</p>
                         )}
-                        {displayReviews.map((r: any) => {
-                          const reviewerName = r.reviewer?.display_name ||
-                            [r.reviewer?.first_name, r.reviewer?.last_name].filter(Boolean).join(" ") || "Unknown";
-                          const cats = r.category_ratings as Record<string, number> | null;
-                          return (
-                            <Card key={r.id}>
-                              <CardContent className="p-4">
-                                <div className="flex items-start justify-between">
-                                  <div>
-                                    <p className="font-medium text-sm">
-                                      {format(new Date(r.review_period), "MMMM yyyy")}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">by {reviewerName}</p>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Badge variant={
-                                      (r.overall_rating || 0) >= 80 ? "default" :
-                                        (r.overall_rating || 0) >= 60 ? "secondary" : "destructive"
-                                    }>
-                                      {r.overall_rating}/100
-                                    </Badge>
-                                    {r.previous_rating !== null && r.previous_rating !== undefined && (
-                                      <span className={cn("text-xs",
-                                        (r.overall_rating || 0) > r.previous_rating ? "text-green-600" : "text-red-500"
-                                      )}>
-                                        {(r.overall_rating || 0) > r.previous_rating ? "↑" : "↓"} from {r.previous_rating}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {cats && Object.keys(cats).length > 0 && (
-                                  <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1">
-                                    {Object.entries(cats).map(([category, score]) => (
-                                      <div key={category} className="flex items-center justify-between text-xs">
-                                        <span className="text-muted-foreground">{category}</span>
-                                        <div className="flex gap-0.5">
-                                          {[1, 2, 3, 4, 5].map((n) => (
-                                            <Star key={n} className={cn("h-3 w-3", n <= score ? "fill-primary text-primary" : "text-muted-foreground/30")} />
-                                          ))}
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-
-                                {r.comments && <p className="text-sm mt-3 text-muted-foreground">{r.comments}</p>}
-                                <p className="text-[10px] text-muted-foreground mt-2">
-                                  {r.created_at ? format(new Date(r.created_at), "MMM d, yyyy") : ""}
-                                </p>
-                              </CardContent>
-                            </Card>
-                          );
-                        })}
+                        {displayReviews.map((r: any) => (
+                          <ReviewCard
+                            key={r.id}
+                            review={r}
+                            isMock={isMock}
+                            isAdmin={isViewerAdmin}
+                            employeeId={user.id}
+                            onUpdate={() => refetchReviews()}
+                          />
+                        ))}
                       </div>
                     );
                   })()}

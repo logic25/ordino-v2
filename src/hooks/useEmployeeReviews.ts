@@ -12,6 +12,7 @@ export interface EmployeeReview {
   previous_rating: number | null;
   category_ratings: Record<string, number> | null;
   comments: string | null;
+  raise_pct: number | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -44,6 +45,7 @@ export function useCreateEmployeeReview() {
       previous_rating?: number | null;
       category_ratings?: Record<string, number>;
       comments?: string;
+      raise_pct?: number | null;
     }) => {
       // Get current profile
       const { data: profile } = await supabase
@@ -63,12 +65,31 @@ export function useCreateEmployeeReview() {
         previous_rating: review.previous_rating ?? null,
         category_ratings: review.category_ratings ?? {},
         comments: review.comments ?? null,
+        raise_pct: review.raise_pct ?? null,
       } as any);
 
       if (error) throw error;
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ["employee-reviews", variables.employee_id] });
+    },
+  });
+}
+
+export function useUpdateEmployeeReview() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, employeeId, raise_pct }: { id: string; employeeId: string; raise_pct: number | null }) => {
+      const { error } = await supabase
+        .from("employee_reviews")
+        .update({ raise_pct } as any)
+        .eq("id", id);
+      if (error) throw error;
+      return employeeId;
+    },
+    onSuccess: (employeeId) => {
+      qc.invalidateQueries({ queryKey: ["employee-reviews", employeeId] });
     },
   });
 }
