@@ -1,92 +1,109 @@
-# AI Collections Upgrade — Implementation Progress
 
-## ✅ Phase 1: Database Foundation (COMPLETE)
 
-### Tables Created
-- `payment_predictions` — AI risk scores per invoice
-- `client_payment_analytics` — Aggregated payment behavior per client
-- `collection_tasks` — AI-prioritized worklist items
-- `payment_promises` — Promise-to-pay commitments
-- `invoice_disputes` — Dispute tracking
-- `dispute_messages` — Threaded dispute conversations
-- `cash_forecasts` — Daily forecast snapshots
-- Added `write_off_amount` column to `invoices`
+# Payment Plan ACH Authorization + ClaimFlow Button
 
-All tables have RLS with company isolation (is_company_member for SELECT, is_admin_or_manager for ALL).
+## Overview
 
-### Edge Functions Deployed
-- `analyze-client-payments` — Aggregates client payment history into analytics
-- `predict-payment-risk` — AI risk scoring via Gemini 3 Flash
-- `generate-collection-message` — AI contextual email generation
+Two additions to the collections and payment plan workflow:
 
-### Hooks Created
-- `usePaymentPredictions` — Fetch/request risk scores
-- `useClientAnalytics` — Fetch/refresh client payment analytics
-- `usePaymentPromises` — CRUD for payment promises
-- `useCollectionMessage` — Generate AI collection messages
+1. **ACH Authorization Agreement** -- When creating a payment plan, add a step where the client must sign an ACH authorization form. This uses a canvas-based signature pad (same pattern as the existing proposal signature). The signed agreement is stored and attached to the plan. The actual auto-debit processing (Stripe/QBO) is deferred.
+
+2. **ClaimFlow Button** -- A new escalation action on critical/urgent collection cards (and the invoice detail sheet) branded "ClaimFlow" that packages the invoice for small claims referral. This replaces the previously discussed "Refer to Attorney" concept.
 
 ---
 
-## ✅ Phase 2: Enhanced Collections UI (COMPLETE)
+## 1. ACH Authorization in Payment Plan
 
-### 2A–2E: All Complete
-- Risk score badges, AI worklist toggle, AI message generation
-- Promise-to-pay logging, client payment analytics in detail sheet
+### What the user sees
 
----
+After configuring installments in the Payment Plan Dialog, a second step appears:
 
-## ✅ Phase 3: Promises Tab & Analytics Tab (COMPLETE)
+- **ACH Authorization Agreement** text (NACHA-compliant language including: company name, authorization to debit, right to revoke, installment schedule summary)
+- **Client name** and **bank info fields** (routing number, account number, account type) -- these are collected but not processed until a payment processor is connected
+- **Canvas signature pad** (reusing the same drawing logic from SignatureDialog)
+- **"I Agree & Sign" button** that saves the authorization
 
-### Promises Tab
-- Summary cards (Pending, Expected $, Kept, Broken)
-- Status filter buttons (All, Pending, Kept, Broken, Rescheduled)
-- Grouped by due date: Overdue, Today, Tomorrow, This Week, Later
-- Actions: Mark as Received, Mark as Broken, Follow Up
+### Database changes
 
-### Analytics Tab
-- KPI cards: Collections Rate, Avg Days to Pay, Outstanding, Collected, Overdue count, Promise Kept %
-- Collections by Age bar chart (1-30, 31-60, 61-90, 90+ days)
-- Invoice Status Distribution donut chart
+- New table: `ach_authorizations`
+  - `id`, `company_id`, `payment_plan_id`, `invoice_id`, `client_id`
+  - `client_name` (text), `bank_name` (text, nullable)
+  - `routing_number_last4` (text, nullable -- only store last 4 for security)
+  - `account_number_last4` (text, nullable)
+  - `account_type` (text: "checking" or "savings")
+  - `authorization_text` (text -- the full agreement they signed)
+  - `signature_data` (text -- base64 PNG from canvas)
+  - `signed_at` (timestamptz)
+  - `ip_address` (text, nullable)
+  - `status` ("active", "revoked")
+  - `created_at`, `updated_at`
+  - RLS: scoped to company_id
 
----
+### Files to create
 
-## ✅ Phase 5: Automation Rules (COMPLETE)
+- `src/components/invoices/ACHAuthorizationStep.tsx` -- The authorization form with agreement text, bank info fields, and signature canvas. Reuses the same canvas drawing pattern from `SignatureDialog.tsx`.
 
-### Database
-- `automation_rules` — configurable triggers with type, conditions, cooldowns, limits
-- `automation_logs` — execution log with approval workflow
-- RLS: company member read, admin/manager write
+### Files to modify
 
-### Settings UI
-- Full CRUD for automation rules in Settings → Automation Rules
-- Quick Templates: 30-day friendly, 60-day firm, 90-day escalation, broken promise alert
-- Configurable: trigger type/value, action type, tone, escalation target, conditions, cooldowns
-
-### Edge Function
-- `process-automation-rules` — evaluates rules against overdue invoices
-- Generates AI reminders via Lovable AI (Gemini 3 Flash)
-- Respects cooldowns, max executions, dispute exclusions, min amounts
-- Logs all executions with awaiting_approval status for PM review
-
-### Collections Integration
-- AutomationActivityPanel shows pending approvals and recent activity in Collections tab
-- Approve/Decline workflow for AI-generated messages
-- Preview dialog for reviewing AI content before approval
-
-### Key Design Decisions
-- PM ALWAYS approves before any automated message is sent (per constitution)
-- Rules support: days_overdue, days_since_last_contact, promise_broken triggers
-- Actions: generate_reminder (AI), escalate (to manager), notify
-- Cooldown prevents spam (default 72h between re-triggers per invoice)
+- `src/components/invoices/PaymentPlanDialog.tsx` -- Add a second step after installment configuration. Step 1 = current installment setup. Step 2 = ACH authorization. The "Create Plan" button moves to step 2 and saves both the plan and the signed authorization.
+- `src/hooks/usePaymentPlans.ts` -- Add mutation to save ACH authorization after plan creation.
 
 ---
 
-## Overlap Resolutions (Reference)
+## 2. ClaimFlow Button
 
-See previous conversation for full overlap analysis. Key decisions:
-1. Follow-up notes enhanced with optional promise fields (not replaced)
-2. Reminder dialog enhanced with AI generation (not separate composer)
-3. Collections view gets toggle, not separate worklist page
-4. Activity log extended with automation labels
-5. Disputes managed within invoice detail sheet
-6. Collections settings evolve into automation rules in Phase 5
+### What the user sees
+
+On critical and urgent collection invoice cards, a new button appears with a "ClaimFlow" label and a gavel/scale icon. Clicking it opens a dialog that:
+
+- Shows the invoice summary (client, amount, days overdue)
+- Lists what will be included in the legal package (invoice PDFs, follow-up history, demand letters, payment promises)
+- Has a "Send to ClaimFlow" button that logs the action and changes invoice status to `legal_hold`
+- For now, the action is logged and the invoice is flagged -- future integration with the ClaimFlow app will be added later
+
+### Database changes
+
+- Add `legal_hold` to the invoice status options (via a new status value in the app -- since the DB column is text, no enum migration needed)
+- New table: `claimflow_referrals`
+  - `id`, `company_id`, `invoice_id`, `client_id`
+  - `case_notes` (text, nullable)
+  - `status` ("pending", "filed", "resolved", "dismissed")
+  - `created_by` (uuid, references profiles)
+  - `created_at`, `updated_at`
+  - RLS: scoped to company_id
+
+### Files to create
+
+- `src/components/invoices/ClaimFlowDialog.tsx` -- Dialog showing invoice summary, package contents checklist, case notes field, and "Send to ClaimFlow" button.
+- `src/hooks/useClaimFlow.ts` -- Hook for creating referrals and querying status.
+
+### Files to modify
+
+- `src/hooks/useInvoices.ts` -- Add `legal_hold` to the `InvoiceStatus` type.
+- `src/components/invoices/InvoiceStatusBadge.tsx` -- Add badge style for `legal_hold` (purple/indigo theme).
+- `src/components/invoices/CollectionsView.tsx` -- Add ClaimFlow button to critical and urgent tier invoice cards (next to the demand letter button). Import and render `ClaimFlowDialog`.
+- `src/components/invoices/InvoiceDetailSheet.tsx` -- Add "ClaimFlow" button in the Collections Actions section for overdue invoices.
+- `src/components/invoices/InvoiceFilterTabs.tsx` -- Account for `legal_hold` status in filters if needed.
+
+---
+
+## Technical Details
+
+### ACH Authorization Agreement Text (Template)
+
+The agreement will include standard NACHA-compliant language:
+- Company name and authorization scope
+- Installment schedule summary (amounts, dates)
+- Right to revoke with written notice
+- Effective date and client signature
+
+Bank details (routing/account numbers) are collected via masked inputs and only the last 4 digits are stored in the database. Full numbers are not persisted until a payment processor is integrated.
+
+### Sequencing
+
+1. Create `ach_authorizations` and `claimflow_referrals` tables with RLS policies
+2. Build `ACHAuthorizationStep` component
+3. Add step 2 to `PaymentPlanDialog`
+4. Build `ClaimFlowDialog` component and `useClaimFlow` hook
+5. Add ClaimFlow button to `CollectionsView` and `InvoiceDetailSheet`
+6. Update `InvoiceStatusBadge` with `legal_hold` style
