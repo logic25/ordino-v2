@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.gmail-attachments]
 verify_jwt = false
+
+[functions.gmail-search]
+verify_jwt = false
