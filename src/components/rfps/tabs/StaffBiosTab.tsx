@@ -50,7 +50,6 @@ const emptyBio: StaffBioContent = {
 function OrgChart({ items }: { items: { id: string; content: StaffBioContent }[] }) {
   const eligible = items.filter((i) => i.content.include_in_org_chart !== false);
   
-  // Build hierarchy: people with no reports_to are top-level
   const byName = new Map(eligible.map((i) => [i.content.name, i]));
   const children = new Map<string, typeof eligible>();
   const roots: typeof eligible = [];
@@ -87,18 +86,27 @@ function OrgChart({ items }: { items: { id: string; content: StaffBioContent }[]
     return (
       <div key={item.id} className="flex flex-col items-center">
         <div
-          className={`relative rounded-xl px-5 py-3 text-center min-w-[160px] transition-all duration-200 ${
+          className={`relative rounded-xl px-5 py-3.5 text-center min-w-[170px] transition-all duration-200 ${
             isRoot
-              ? "bg-accent text-accent-foreground shadow-amber border-0"
-              : "bg-card border border-border shadow-md hover:shadow-lg hover:-translate-y-0.5"
+              ? "bg-primary text-primary-foreground shadow-lg border-0"
+              : depth === 1
+              ? "bg-accent/10 border-2 border-accent/40 shadow-md hover:shadow-amber hover:border-accent"
+              : "bg-card border border-border shadow-sm hover:shadow-md hover:-translate-y-0.5"
           }`}
         >
+          {/* Accent dot indicator - GLE style */}
+          <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${
+            isRoot ? "bg-accent shadow-amber" : depth === 1 ? "bg-success" : "bg-info"
+          }`} />
+          
           {/* Avatar circle */}
           <div
-            className={`mx-auto mb-1.5 w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold ${
+            className={`mx-auto mb-2 w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold ring-2 ${
               isRoot
-                ? "bg-accent-foreground/20 text-accent-foreground"
-                : "bg-accent/15 text-accent"
+                ? "bg-accent text-accent-foreground ring-accent/50"
+                : depth === 1
+                ? "bg-accent/20 text-accent ring-accent/30"
+                : "bg-info/15 text-info ring-info/30"
             }`}
           >
             {initials}
@@ -106,28 +114,33 @@ function OrgChart({ items }: { items: { id: string; content: StaffBioContent }[]
           <p className={`font-semibold text-sm ${isRoot ? "" : "text-foreground"}`}>
             {item.content.name}
           </p>
-          <p className={`text-xs ${isRoot ? "text-accent-foreground/70" : "text-muted-foreground"}`}>
+          <p className={`text-xs mt-0.5 ${isRoot ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
             {item.content.title}
           </p>
           {item.content.years_experience && (
-            <p className={`text-[10px] mt-0.5 ${isRoot ? "text-accent-foreground/50" : "text-muted-foreground/70"}`}>
-              {item.content.years_experience} yrs experience
-            </p>
+            <Badge
+              variant="outline"
+              className={`text-[10px] mt-1.5 px-1.5 py-0 h-4 ${
+                isRoot ? "border-primary-foreground/30 text-primary-foreground/60" : "border-accent/30 text-accent"
+              }`}
+            >
+              {item.content.years_experience} yrs
+            </Badge>
           )}
         </div>
         {kids.length > 0 && (
           <>
-            <div className="w-0.5 h-6 bg-accent/40" />
+            <div className="w-0.5 h-6 bg-accent/50" />
             <div className="flex gap-6 relative">
               {kids.length > 1 && (
                 <div
-                  className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 bg-accent/30 rounded-full"
+                  className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 bg-accent/40 rounded-full"
                   style={{ width: `${(kids.length - 1) * 100}%` }}
                 />
               )}
               {kids.map((child) => (
                 <div key={child.id} className="flex flex-col items-center">
-                  <div className="w-0.5 h-6 bg-accent/30" />
+                  <div className="w-0.5 h-6 bg-accent/40" />
                   {renderNode(child, depth + 1)}
                 </div>
               ))}
@@ -139,7 +152,7 @@ function OrgChart({ items }: { items: { id: string; content: StaffBioContent }[]
   };
 
   return (
-    <div className="flex justify-center gap-10 overflow-x-auto py-6 px-4">
+    <div className="flex justify-center gap-10 overflow-x-auto py-8 px-6 bg-primary/5 rounded-xl border border-primary/10">
       {roots.map((r) => renderNode(r, 0))}
     </div>
   );
@@ -267,11 +280,18 @@ export function StaffBiosTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Staff Bios ({items.length})</h3>
+        <div className="flex items-center gap-2">
+          <div className="w-2.5 h-2.5 rounded-full bg-accent shadow-amber" />
+          <h3 className="text-lg font-semibold">Staff Bios</h3>
+          <Badge variant="outline" className="text-xs bg-accent/10 text-accent border-accent/30">
+            {items.length}
+          </Badge>
+        </div>
         <div className="flex gap-2">
           <Button
             variant={showOrgChart ? "default" : "outline"}
             size="sm"
+            className={showOrgChart ? "bg-accent text-accent-foreground hover:bg-accent/90 shadow-amber" : ""}
             onClick={() => setShowOrgChart(!showOrgChart)}
           >
             <GitBranch className="h-4 w-4 mr-1" /> Org Chart
@@ -281,25 +301,28 @@ export function StaffBiosTab() {
               <Download className="h-4 w-4 mr-1" /> Import from Team ({importableProfiles.length})
             </Button>
           )}
-          <Button size="sm" onClick={openNew}>
+          <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90" onClick={openNew}>
             <Plus className="h-4 w-4 mr-1" /> Add Staff Bio
           </Button>
         </div>
       </div>
 
       {showOrgChart && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Organization Chart</CardTitle>
+        <Card className="border-accent/20 overflow-hidden">
+          <CardHeader className="bg-primary/5 border-b border-primary/10 py-3">
+            <div className="flex items-center gap-2">
+              <GitBranch className="h-4 w-4 text-accent" />
+              <CardTitle className="text-base">Organization Chart</CardTitle>
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             <OrgChart items={parsedItems} />
           </CardContent>
         </Card>
       )}
 
       {items.length === 0 ? (
-        <Card>
+        <Card className="border-dashed">
           <CardContent className="py-8 text-center text-muted-foreground text-sm">
             No staff bios yet. Add your team members to include in RFP responses.
           </CardContent>
@@ -309,39 +332,39 @@ export function StaffBiosTab() {
           {items.map((item) => {
             const c = item.content as unknown as StaffBioContent;
             return (
-              <Card key={item.id}>
+              <Card key={item.id} className="border-l-4 border-l-accent/60 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
                 <CardContent className="py-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                        <User className="h-5 w-5 text-muted-foreground" />
+                      <div className="w-10 h-10 rounded-full bg-accent/15 flex items-center justify-center ring-2 ring-accent/20">
+                        <User className="h-5 w-5 text-accent" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="font-semibold">{c.name}</p>
                           {c.include_in_org_chart !== false && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/30">
                               <GitBranch className="h-3 w-3 mr-0.5" /> Org Chart
                             </Badge>
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground">{c.title}</p>
                         {c.reports_to && (
-                          <p className="text-xs text-muted-foreground">Reports to: {c.reports_to}</p>
+                          <p className="text-xs text-muted-foreground">Reports to: <span className="text-info">{c.reports_to}</span></p>
                         )}
-                        <div className="flex gap-2 mt-1 flex-wrap">
+                        <div className="flex gap-2 mt-1.5 flex-wrap">
                           {c.years_experience && (
-                            <Badge variant="secondary" className="text-xs">
+                            <Badge variant="secondary" className="text-xs bg-accent/10 text-accent border border-accent/20">
                               {c.years_experience} yrs exp
                             </Badge>
                           )}
                           {c.hourly_rate && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className="text-xs tabular-nums text-success border-success/30">
                               ${c.hourly_rate}/hr
                             </Badge>
                           )}
                           {c.certifications?.map((cert, i) => (
-                            <Badge key={i} variant="secondary" className="text-xs">
+                            <Badge key={i} variant="secondary" className="text-xs bg-info/10 text-info border border-info/20">
                               {cert.type}
                             </Badge>
                           ))}
@@ -450,7 +473,7 @@ export function StaffBiosTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={createMutation.isPending || updateMutation.isPending}>
+            <Button onClick={handleSave} disabled={createMutation.isPending || updateMutation.isPending} className="bg-accent text-accent-foreground hover:bg-accent/90">
               {(createMutation.isPending || updateMutation.isPending) && (
                 <Loader2 className="h-4 w-4 mr-1 animate-spin" />
               )}
