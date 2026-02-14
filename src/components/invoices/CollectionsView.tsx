@@ -152,7 +152,7 @@ function InvoiceCard({
       <div className="flex items-center gap-4 min-w-0">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono text-sm font-medium">{inv.invoice_number}</span>
+            <span className="text-sm font-medium">{inv.invoice_number}</span>
             <InvoiceStatusBadge status={inv.status} />
             <Badge variant="secondary" className="text-[10px]">
               {inv.daysOverdue} days

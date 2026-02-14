@@ -308,7 +308,7 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader className="space-y-1 pr-8">
             <div className="flex items-center gap-3">
-              <SheetTitle className="font-mono text-lg">
+              <SheetTitle className="text-lg tracking-tight">
                 {invoice.invoice_number}
               </SheetTitle>
               <InvoiceStatusBadge status={invoice.status} />

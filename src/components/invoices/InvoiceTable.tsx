@@ -291,9 +291,16 @@ export function InvoiceTable({
                         </TableCell>
                         <TableCell></TableCell>
                         <TableCell>
-                          <span className="font-mono text-sm font-medium pl-6">
-                            {inv.invoice_number}
-                          </span>
+                          <div className="pl-6">
+                            <span className="text-sm font-medium">
+                              {inv.invoice_number}
+                            </span>
+                            {inv.billed_to_contact?.name && (
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                → {inv.billed_to_contact.name}
+                              </p>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-right tabular-nums text-sm">
                           ${Number(inv.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}
