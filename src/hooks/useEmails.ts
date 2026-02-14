@@ -268,6 +268,23 @@ export function useSnoozeEmail() {
   });
 }
 
+export function useMarkReadUnread() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ emailId, isRead }: { emailId: string; isRead: boolean }) => {
+      const { error } = await supabase
+        .from("emails")
+        .update({ is_read: isRead })
+        .eq("id", emailId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["emails"] });
+    },
+  });
+}
+
 export function useProjectEmails(projectId: string | undefined) {
   return useQuery({
     queryKey: ["project-emails", projectId],
