@@ -9,9 +9,13 @@ export function useCompanyProfiles() {
   return useQuery({
     queryKey: ["company-profiles"],
     queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
       const { data: currentProfile } = await supabase
         .from("profiles")
         .select("company_id")
+        .eq("user_id", user.id)
         .single();
 
       if (!currentProfile?.company_id) {
@@ -36,9 +40,13 @@ export function useAssignableProfiles() {
   return useQuery({
     queryKey: ["assignable-profiles"],
     queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
       const { data: currentProfile } = await supabase
         .from("profiles")
         .select("company_id")
+        .eq("user_id", user.id)
         .single();
 
       if (!currentProfile?.company_id) {
