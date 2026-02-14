@@ -185,8 +185,7 @@ Deno.serve(async (req) => {
     let totalChecked = 0;
     let pageToken: string | undefined = undefined;
     let pagesProcessed = 0;
-    let consecutiveExisting = 0;
-    const MAX_CONSECUTIVE_EXISTING = 20; // stop if 20 in a row already synced
+    let fullyExistingPages = 0; // stop after 2 consecutive pages with zero new emails
 
     while (pagesProcessed < maxPages) {
       const url = new URL("https://www.googleapis.com/gmail/v1/users/me/messages");
@@ -200,6 +199,7 @@ Deno.serve(async (req) => {
 
       if (!listData.messages || listData.messages.length === 0) break;
 
+      let newOnThisPage = 0;
       for (const msg of listData.messages) {
         totalChecked++;
 
@@ -211,12 +211,7 @@ Deno.serve(async (req) => {
           .eq("company_id", profile.company_id)
           .maybeSingle();
 
-        if (existing) {
-          consecutiveExisting++;
-          if (consecutiveExisting >= MAX_CONSECUTIVE_EXISTING) break;
-          continue;
-        }
-        consecutiveExisting = 0;
+        if (existing) continue;
 
         // Fetch full message
         const msgRes = await fetch(
@@ -305,11 +300,19 @@ Deno.serve(async (req) => {
           await supabaseAdmin.from("email_attachments").insert(attachmentRows);
         }
 
+        newOnThisPage++;
         syncedCount++;
       }
 
-      // Stop early if we hit many consecutive existing emails
-      if (consecutiveExisting >= MAX_CONSECUTIVE_EXISTING) break;
+      // Track pages with no new emails
+      if (newOnThisPage === 0) {
+        fullyExistingPages++;
+      } else {
+        fullyExistingPages = 0;
+      }
+
+      // Stop if 2 consecutive pages had nothing new (we've caught up)
+      if (fullyExistingPages >= 2) break;
 
       // Move to next page
       pageToken = listData.nextPageToken;
