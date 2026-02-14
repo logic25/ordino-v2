@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Trophy, TrendingUp, DollarSign, Target } from "lucide-react";
+import { Trophy, TrendingUp, DollarSign, Target, Sigma } from "lucide-react";
 import type { Rfp } from "@/hooks/useRfps";
 
 interface RfpSummaryCardsProps {
@@ -14,6 +14,7 @@ export function RfpSummaryCards({ rfps }: RfpSummaryCardsProps) {
     const lost = rfps.filter((r) => r.status === "lost");
     const decided = won.length + lost.length;
     const winRate = decided > 0 ? Math.round((won.length / decided) * 100) : 0;
+    const totalValue = rfps.reduce((sum, r) => sum + (r.contract_value || 0), 0);
     const pipelineValue = active.reduce((sum, r) => sum + (r.contract_value || 0), 0);
     const wonValue = won.reduce((sum, r) => sum + (r.contract_value || 0), 0);
 
@@ -25,6 +26,7 @@ export function RfpSummaryCards({ rfps }: RfpSummaryCardsProps) {
       wonCount: won.length,
       decided,
       pipelineValue,
+      totalValue,
       wonValue,
     };
   }, [rfps]);
@@ -43,6 +45,12 @@ export function RfpSummaryCards({ rfps }: RfpSummaryCardsProps) {
       icon: Trophy,
     },
     {
+      label: "Total Value",
+      value: `$${stats.totalValue.toLocaleString()}`,
+      detail: "All RFPs combined",
+      icon: Sigma,
+    },
+    {
       label: "Active Pipeline",
       value: `$${stats.pipelineValue.toLocaleString()}`,
       detail: `${stats.activeCount} opportunities`,
@@ -57,7 +65,7 @@ export function RfpSummaryCards({ rfps }: RfpSummaryCardsProps) {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
       {cards.map((card) => (
         <Card key={card.label}>
           <CardContent className="p-4">
