@@ -1,65 +1,81 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Send, AlertTriangle, CheckCircle, Clock } from "lucide-react";
+import { FileText, Send, AlertTriangle, CheckCircle, Clock, Wallet } from "lucide-react";
 import type { InvoiceStatus, InvoiceCounts } from "@/hooks/useInvoices";
+import type { BillingTab } from "@/components/invoices/InvoiceFilterTabs";
 
 interface InvoiceSummaryCardsProps {
   counts: InvoiceCounts;
   totals: Record<InvoiceStatus, number>;
-  activeFilter: InvoiceStatus | "all";
-  onFilterChange: (filter: InvoiceStatus | "all") => void;
+  activeFilter: BillingTab;
+  onFilterChange: (filter: BillingTab) => void;
+  retainerSummary?: { totalBalance: number; activeCount: number };
 }
 
-export function InvoiceSummaryCards({ counts, totals, activeFilter, onFilterChange }: InvoiceSummaryCardsProps) {
-  const cards = [
+export function InvoiceSummaryCards({ counts, totals, activeFilter, onFilterChange, retainerSummary }: InvoiceSummaryCardsProps) {
+  const cards: {
+    key: BillingTab;
+    label: string;
+    icon: typeof FileText;
+    amount: number;
+    subtitle: string;
+    colorClass: string;
+  }[] = [
     {
-      key: "draft" as const,
+      key: "draft",
       label: "Draft",
       icon: FileText,
-      count: counts.draft + counts.ready_to_send,
       amount: totals.draft + totals.ready_to_send,
       subtitle: counts.ready_to_send > 0 ? `${counts.ready_to_send} ready, ${counts.draft} drafts` : `${counts.draft} invoices`,
       colorClass: "text-muted-foreground",
     },
     {
-      key: "sent" as const,
+      key: "sent",
       label: "Sent",
       icon: Send,
-      count: counts.sent,
       amount: totals.sent,
       subtitle: `${counts.sent} invoices`,
       colorClass: "text-primary",
     },
     {
-      key: "overdue" as const,
+      key: "overdue",
       label: "Overdue",
       icon: AlertTriangle,
-      count: counts.overdue,
       amount: totals.overdue,
       subtitle: `${counts.overdue} invoices`,
       colorClass: "text-destructive",
     },
     {
-      key: "paid" as const,
+      key: "paid",
       label: "Paid",
       icon: CheckCircle,
-      count: counts.paid,
       amount: totals.paid,
       subtitle: "This month",
       colorClass: "text-success",
     },
     {
-      key: "needs_review" as const,
+      key: "needs_review",
       label: "Needs Review",
       icon: Clock,
-      count: counts.needs_review,
       amount: totals.needs_review,
       subtitle: counts.needs_review > 0 ? "Requires action" : "All clear",
       colorClass: "text-warning",
     },
   ];
 
+  // Add retainer card if data provided
+  if (retainerSummary) {
+    cards.push({
+      key: "retainers",
+      label: "Retainers",
+      icon: Wallet,
+      amount: retainerSummary.totalBalance,
+      subtitle: `${retainerSummary.activeCount} clients`,
+      colorClass: "text-primary",
+    });
+  }
+
   return (
-    <div className="grid gap-4 md:grid-cols-5">
+    <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
       {cards.map((card) => {
         const Icon = card.icon;
         const isActive = activeFilter === card.key;
