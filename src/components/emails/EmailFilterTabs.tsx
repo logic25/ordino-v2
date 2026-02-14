@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import type { EmailWithTags } from "@/hooks/useEmails";
 
 export type EmailFilterTab =
-  | "all"
+  | "inbox"
   | "sent"
   | "agencies"
   | "clients"
@@ -47,6 +47,19 @@ export function getFilteredEmails(
   tab: EmailFilterTab
 ): EmailWithTags[] {
   switch (tab) {
+    case "inbox": {
+      // Exclude sent-only, archived, snoozed — then sort unread first
+      const inbox = emails.filter((e) => {
+        if ((e as any).archived_at) return false;
+        if ((e as any).snoozed_until && new Date((e as any).snoozed_until) > new Date()) return false;
+        return true;
+      });
+      return inbox.sort((a, b) => {
+        if (!a.is_read && b.is_read) return -1;
+        if (a.is_read && !b.is_read) return 1;
+        return 0; // preserve existing date order within each group
+      });
+    }
     case "sent":
       return emails.filter(isSentEmail);
     case "agencies":
@@ -77,7 +90,7 @@ export function getTabCounts(
   scheduledCount?: number
 ): Record<EmailFilterTab, number> {
   return {
-    all: emails.length,
+    inbox: emails.length,
     sent: emails.filter(isSentEmail).length,
     agencies: emails.filter(isAgencyEmail).length,
     clients: emails.filter(
@@ -96,7 +109,7 @@ export function getTabCounts(
 }
 
 const TAB_CONFIG: { key: EmailFilterTab; label: string }[] = [
-  { key: "all", label: "All" },
+  { key: "inbox", label: "Inbox" },
   { key: "sent", label: "Sent" },
   { key: "agencies", label: "Agencies" },
   { key: "clients", label: "Clients" },
@@ -132,7 +145,7 @@ export function EmailFilterTabs({ activeTab, onTabChange, counts }: EmailFilterT
             )}
           >
             {label}
-            {count > 0 && key !== "all" && (
+            {count > 0 && key !== "inbox" && (
               <span className={cn(
                 "ml-1.5 text-xs tabular-nums",
                 isActive ? "text-foreground" : "text-muted-foreground/60"
