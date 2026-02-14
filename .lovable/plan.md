@@ -1,93 +1,134 @@
-# Time Tracking -- Legacy-Style Clock In/Out + Project Attribution
 
-## Overview
+# Reimagined Settings: From 13 Sections to 8 Focused Modules
 
-Replicate the legacy Ordino pattern: **auto clock-in on login, 5 PM reminder to clock out, simple attendance log showing who, when, and from where** -- then layer on the new value: **what project, what service, how long**.
+## The Problem Today
 
-1. **Business Rules & Edge Cases**
-  ### **Employment Types**
-  - **Current**: All exempt (salaried) employees — no overtime tracking needed
-  - **Future**: Part-time hourly workers may be added → system should support this but doesn't enforce punch-in/out strictness yet
-  - **Implication**: Attendance logs are primarily for **accountability & project attribution**, not legal timekeeping (for now)
-  ### **Permissions & Roles**
-  - **Admin-only** for all sensitive operations:
-    - Edit/delete anyone's attendance logs
-    - View IP addresses & location data
-    - Adjust billable rates & service types
-  - **Regular users** can:
-    - View their own attendance history
-    - Log/edit their own time entries
-    - Clock out manually anytime
-  - **Managers** (if role exists): Same as regular users for MVP — admin handles corrections
-  ### **Billable vs Non-Billable** *(deferred enforcement)*
-  - Services table has a `billable` boolean, but **no hard validation** on time entries yet
-  - Users can mark individual time entries as billable/non-billable when logging
-  - **Future consideration**: Some services (e.g., "Plan Examination") should inherit billable=true by default, others (e.g., "Internal Meeting") should default to false
-  - For now: **user's choice at time-entry creation**
-  ### **Partial Day Attribution (Gap Detection)**
-  - **Primary goal**: Surface unaccounted-for time so users can see what's not attributed to projects
-  - **How it works**:
-    - Attendance log shows total clocked time (e.g., 8.5 hours)
-    - Time entries (project breakdowns) sum to attributed time (e.g., 6 hours)
-    - **Gap = 2.5 hours** → display this prominently in the Time page
-    - Show a warning badge: "2.5h unattributed" with a "Log Time" quick-action
-  - **No blocking**: Users can clock out with gaps — this is a visibility feature, not enforcement
-  - **Admin view**: Managers/admins can see team-wide gaps in a summary report (future)
-  ### **Forgot to Clock Out?**
-  - **Auto-close at midnight**: If an attendance log is still open (no `clock_out`) at 11:59 PM, system auto-sets `clock_out = 11:59 PM` and flags the record with `auto_closed: true`
-  - **Next day**: User sees a notification: "Yesterday's log was auto-closed at midnight — please verify your hours"
-  - **Manual correction**: User (or admin) can edit the clock-out time retroactively
-  ### **Multiple Logins Per Day**
-  - **MVP behavior**: Only **one attendance log per user per day**
-  - If user logs out at lunch and logs back in at 2 PM, the existing attendance log remains open (doesn't create a second entry)
-  - **Implication**: `clock_in` reflects first login of the day, `clock_out` reflects final logout
-  - **Future**: If you need to track lunch breaks separately, add `break_minutes` column or create pause/resume logic
-  ### **5 PM Reminder Modal Behavior**
-  - **Trigger**: Modal appears at 5:00 PM **only if**:
-    - User has an open attendance log for today
-    - User hasn't dismissed the modal today already
-  - **Dismiss action**: Closes modal, sets a `dismissed_at` timestamp in localStorage → won't re-appear today
-  - **Snooze option**: "Remind me in 30 min" button → re-triggers modal at 5:30 PM (max 2 snoozes)
-  - **If ignored**: Modal stays in background (non-blocking) but shows a persistent "You're still clocked in" badge in the header
-  ### **Manual Clock-Out Flow**
-  - **From Time page**: User clicks "Clock Out" button → same modal as 5 PM reminder (shows total hours, prompts for project attribution)
-  - **Attribution is optional**: User can skip project breakdown and just clock out (creates gap, but allowed)
-  - **If already attributed time earlier**: Modal pre-fills with existing entries, shows remaining unattributed hours
-  ### **Mobile Responsiveness**
-  - **All components must work on mobile** (most staff is remote, but DOB visits = phone use)
-  - Clock-in/out buttons: Large touch targets
-  - Time entry dialog: Single-column layout on mobile
-  - Attendance table: Horizontal scroll or card-based layout on small screens
-  - 5 PM modal: Full-screen on mobile (not a small dialog)
-  ### **Weekend/Holiday Handling**
-  - **No special logic for MVP**: System allows clock-in any day
-  - Users working weekends can clock in normally
-  - **Future**: Add company calendar integration to mark non-work days, skip auto-clock-in on those days
-  ### **Data Validation**
-  - **Max hours warning**: If total clocked time > 14 hours, show a warning: "This seems high — verify your clock-out time"
-  - **Overlapping entries**: When creating time entries, check if duration would overlap with other entries for the same day (warn, but don't block)
-  - **Service/project mismatch**: Validate that selected service is linked to selected project via `service_availability` table (block if invalid)
-  ---
-  ## **Reporting Hooks (Deferred but Planned)**
-  Even though export/reporting is Phase 2, define the **data points** now so hooks are in place:
-  ### **Weekly Summary Email** *(future)*
-  - Sent Monday 9 AM: "Last week: 42 hours clocked, 35 billable, 7 unattributed"
-  - Links to Time page to fill gaps
-  ### **Manager Dashboard** *(future)*
-  - Real-time: Who's clocked in right now, total hours this week per team member
-  - Flags: Team members with >10% unattributed time
-  ### **Export Format** *(future)*
-  - CSV columns: `User, Date, Clock In, Clock Out, Total Hours, Project, Service, Duration, Billable, Notes`
-  - Filters: Date range, team member, project, billable status
-  - Access: Admin-only
-  ### **Mobile App Considerations** *(way future)*
-  - If you build a native app, use the same `attendance_logs` + `activities` tables
-  - Push notification for 5 PM reminder instead of modal
-  - GPS-based location capture (more accurate than IP geolocation)
-2. **Mount ClockOutModal globally**: In AppLayout
+The current settings page has **13 cards** that feel like a filing cabinet -- some drawers are empty, some duplicate each other, and small utility lists get the same visual weight as complex configuration systems. It's hard to find what you need quickly.
 
-## What This Does NOT Build Yet
+### What's Wrong Specifically
 
-- **Services management UI**: The `services` table exists but there's no dedicated UI to manage the service catalog per project. Users will select from existing services linked to their projects. The service catalog in Settings already partially covers this.
-- **Timesheet grid view**: Weekly grid (rows=projects, cols=days) is deferred -- the attendance log + time entry dialog covers the core need first.
-- **Export/reporting**: Deferred to a later phase.
+| Current Section | Lines of Code | Problem |
+|---|---|---|
+| Profile | 100 | Missing phone extension, hourly rate, signature from legacy |
+| Company | 125 | Good, but duplicated inside Invoice Settings |
+| Team & Users | 230 | Too basic -- slide-out sheet instead of full detail view |
+| Proposals & Services | 209 | Solid -- keep as-is |
+| Company Types | 105 | Tiny tag list -- doesn't deserve its own card |
+| Review Categories | 102 | Tiny tag list -- doesn't deserve its own card |
+| Lead Sources | 155 | Small list -- same category as above |
+| RFI Templates | 517 | Solid -- keep as-is |
+| Invoices & Billing | **891** | Bloated: has Company Info (duplicate), Payment Methods, Terms, Email Templates, Collections, Demand Letters, ACH Templates, Logo, Billing Rules, QBO -- all in one |
+| Automation Rules | 474 | Solid -- keep as-is |
+| Notifications | 0 | Empty placeholder |
+| Subscription & Plan | 0 | Empty placeholder |
+| Security | 0 | Empty placeholder |
+
+---
+
+## The Reimagined Structure: 8 Modules
+
+### 1. Profile (enhanced)
+Your personal info -- what exists now, plus:
+- **Phone extension** field (legacy had this -- e.g., "x12")
+- **Hourly rate** (needed for billing calculations and the team detail view)
+- **Signature** (draw or upload -- used on proposals and internal approvals)
+
+### 2. Company (single source of truth)
+Organization details: name, email, phone, fax, address, website. One place for this data. The duplicate inside Invoice Settings gets removed -- Invoice PDFs will pull from here automatically.
+
+Also adds:
+- **Company logo upload** (moved from Invoice Settings -- logo is a company asset, not an invoice setting)
+- **Tax ID / EIN** field (useful for formal documents)
+
+### 3. Team & Users (full detail view)
+Replace the basic table + slide-out with:
+- Same table list with search, active/inactive counts
+- Clicking a member opens an **in-page detail view** (not a sheet) with:
+  - Profile card: avatar, name, role, phone + extension, hourly rate, member since, signature preview
+  - **Proposals tab**: all proposals where they're the salesperson
+  - **Projects tab**: all projects where they're assigned PM or senior PM
+  - Back button to return to the list
+- Show inactive users (greyed out) so admins can see the full roster
+
+### 4. Proposals & Services (unchanged)
+Service catalog and default terms/conditions. Works well today.
+
+### 5. Lists & Lookups (merged)
+Combines three small list managers into one tabbed section:
+- **Company Types** tab (Architect, GC, Plumber, etc.)
+- **Review Categories** tab (Responsiveness, Fair Price, etc.)
+- **Lead Sources** tab (Referral, Website, etc.)
+
+Each tab keeps its existing UI -- just wrapped in a single card with tabs instead of three separate settings cards.
+
+### 6. RFI Templates (unchanged)
+Questionnaire configuration. Works well today.
+
+### 7. Invoices & Billing (streamlined)
+Remove the Company Info section (now in Company settings). Keep:
+- Invoice header/footer text (PDF-specific branding)
+- Payment Methods (check, wire, Zelle, CC)
+- Default Payment Terms
+- Invoice Email Template (subject + body with merge fields)
+- Collections Timeline (reminder days, auto-reminders, early payment discount)
+- Demand Letter Template
+- ACH Authorization Template
+- Client Billing Rules
+- QBO Integration
+
+### 8. Automation Rules (unchanged)
+Collection workflows and auto-reminders. Works well today.
+
+### Removed (for now)
+- **Notifications** -- empty placeholder, no value
+- **Subscription & Plan** -- empty placeholder, no value
+- **Security** -- empty placeholder, no value
+
+These come back when they have actual functionality behind them.
+
+---
+
+## Route Cleanup
+
+Add a redirect so the old `/team` URL doesn't 404:
+```text
+/team --> redirects to /settings
+```
+
+---
+
+## Database Changes
+
+Add three columns to the `profiles` table:
+
+| Column | Type | Purpose |
+|---|---|---|
+| phone_extension | varchar | Office extension (e.g., "12") |
+| hourly_rate | numeric | Billing rate for time tracking |
+| signature_data | text | Base64 signature image or SVG data |
+
+---
+
+## Files to Modify
+
+- **Database**: Migration to add 3 columns to `profiles`
+- **`src/pages/Settings.tsx`**: Restructure from 13 sections to 8, remove placeholders, add Lists & Lookups
+- **`src/components/settings/ProfileSettings.tsx`**: Add phone extension, hourly rate, signature upload/draw
+- **`src/components/settings/TeamSettings.tsx`**: Replace sheet with in-page detail view, add Proposals/Projects tabs, show inactive users
+- **`src/components/settings/InvoiceSettings.tsx`**: Remove Company Info section (lines 381-444), move logo to Company settings
+- **`src/components/settings/CompanySettings.tsx`**: Add logo upload, Tax ID field
+- **`src/hooks/useProfiles.ts`**: Add `useAllCompanyProfiles()` that includes inactive users
+- **`src/App.tsx`**: Add `/team` redirect route
+
+## New Files
+
+- **`src/components/settings/ListsAndLookupsSettings.tsx`**: Wrapper component with tabs for Company Types, Review Categories, and Lead Sources
+
+## Unchanged Files
+
+- `CompanyTypeSettings.tsx` -- reused inside Lists & Lookups
+- `ReviewCategorySettings.tsx` -- reused inside Lists & Lookups
+- `LeadSourceSettings.tsx` -- reused inside Lists & Lookups
+- `RfiTemplateSettings.tsx` -- no changes
+- `AutomationRulesSettings.tsx` -- no changes
+- `CollapsibleSettingsCard.tsx` -- no changes
