@@ -1,4 +1,4 @@
-import { Bell, Search, User } from "lucide-react";
+import { Bell, LogOut, Search, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,9 +10,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function TopBar() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
 
   return (
     <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6">
@@ -30,17 +31,21 @@ export function TopBar() {
 
       {/* Actions */}
       <div className="flex items-center gap-2">
-        {/* Quick Timer */}
-        <Button variant="default" size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90 glow-amber">
-          <span className="font-mono text-sm">00:00:00</span>
-          <span className="ml-2 text-xs">Start</span>
-        </Button>
-
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
           <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
         </Button>
+
+        {/* Logout */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" onClick={() => signOut()}>
+              <LogOut className="h-5 w-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Sign out</TooltipContent>
+        </Tooltip>
 
         {/* User Menu */}
         <DropdownMenu>
