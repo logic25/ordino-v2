@@ -44,11 +44,9 @@ export function TimeEntriesTable({ dateRange }: TimeEntriesTableProps) {
         <TableHeader>
           <TableRow>
             <TableHead>Date</TableHead>
-            <TableHead>Type</TableHead>
             <TableHead>Project</TableHead>
             <TableHead>Service</TableHead>
             <TableHead className="text-right">Duration</TableHead>
-            <TableHead>Billable</TableHead>
             <TableHead>Notes</TableHead>
             <TableHead className="w-10" />
           </TableRow>
@@ -61,11 +59,6 @@ export function TimeEntriesTable({ dateRange }: TimeEntriesTableProps) {
                   ? format(new Date(entry.activity_date), "MMM d")
                   : "—"}
               </TableCell>
-              <TableCell>
-                <Badge variant="secondary" className="text-xs capitalize">
-                  {entry.activity_type?.replace("_", " ")}
-                </Badge>
-              </TableCell>
               <TableCell className="max-w-[180px] truncate">
                 {entry.dob_applications?.properties?.address ??
                   entry.dob_applications?.job_number ??
@@ -76,13 +69,6 @@ export function TimeEntriesTable({ dateRange }: TimeEntriesTableProps) {
                 {entry.duration_minutes
                   ? formatMinutes(entry.duration_minutes)
                   : "—"}
-              </TableCell>
-              <TableCell>
-                {entry.billable ? (
-                  <Badge className="status-approved text-xs">Yes</Badge>
-                ) : (
-                  <Badge variant="outline" className="text-xs">No</Badge>
-                )}
               </TableCell>
               <TableCell className="max-w-[200px] truncate text-muted-foreground text-sm">
                 {entry.description ?? "—"}

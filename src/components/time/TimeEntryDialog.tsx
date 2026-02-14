@@ -9,15 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { useCreateTimeEntry } from "@/hooks/useTimeEntries";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Constants } from "@/integrations/supabase/types";
-
-const ACTIVITY_TYPES = Constants.public.Enums.activity_type;
 
 interface TimeEntryDialogProps {
   open: boolean;
@@ -29,18 +25,15 @@ export function TimeEntryDialog({ open, onOpenChange }: TimeEntryDialogProps) {
   const { toast } = useToast();
   const createEntry = useCreateTimeEntry();
 
-  const [activityType, setActivityType] = useState<string>("time_log");
   const [applicationId, setApplicationId] = useState<string>("");
   const [serviceId, setServiceId] = useState<string>("");
   const [durationHours, setDurationHours] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
   const [description, setDescription] = useState("");
-  const [billable, setBillable] = useState(true);
   const [activityDate, setActivityDate] = useState(
     new Date().toISOString().split("T")[0]
   );
 
-  // Fetch applications (projects) for the company
   const { data: applications } = useQuery({
     queryKey: ["applications-for-time", profile?.company_id],
     queryFn: async () => {
@@ -57,7 +50,6 @@ export function TimeEntryDialog({ open, onOpenChange }: TimeEntryDialogProps) {
     enabled: !!profile?.company_id && open,
   });
 
-  // Fetch services for selected application
   const { data: services } = useQuery({
     queryKey: ["services-for-time", applicationId],
     queryFn: async () => {
@@ -74,13 +66,11 @@ export function TimeEntryDialog({ open, onOpenChange }: TimeEntryDialogProps) {
   });
 
   const reset = () => {
-    setActivityType("time_log");
     setApplicationId("");
     setServiceId("");
     setDurationHours("");
     setDurationMinutes("");
     setDescription("");
-    setBillable(true);
     setActivityDate(new Date().toISOString().split("T")[0]);
   };
 
@@ -95,12 +85,11 @@ export function TimeEntryDialog({ open, onOpenChange }: TimeEntryDialogProps) {
 
     try {
       await createEntry.mutateAsync({
-        activity_type: activityType as any,
+        activity_type: "time_log",
         application_id: applicationId || null,
         service_id: serviceId || null,
         duration_minutes: totalMinutes,
         description: description || null,
-        billable,
         activity_date: activityDate,
       });
       toast({ title: "Time logged", description: `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m recorded.` });
@@ -119,7 +108,6 @@ export function TimeEntryDialog({ open, onOpenChange }: TimeEntryDialogProps) {
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* Date */}
           <div className="space-y-1.5">
             <Label>Date</Label>
             <Input
@@ -129,22 +117,6 @@ export function TimeEntryDialog({ open, onOpenChange }: TimeEntryDialogProps) {
             />
           </div>
 
-          {/* Activity Type */}
-          <div className="space-y-1.5">
-            <Label>Activity Type</Label>
-            <Select value={activityType} onValueChange={setActivityType}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {ACTIVITY_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {t.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Project / Application */}
           <div className="space-y-1.5">
             <Label>Project</Label>
             <Select value={applicationId} onValueChange={(v) => { setApplicationId(v); setServiceId(""); }}>
@@ -161,7 +133,6 @@ export function TimeEntryDialog({ open, onOpenChange }: TimeEntryDialogProps) {
             </Select>
           </div>
 
-          {/* Service */}
           {applicationId && (
             <div className="space-y-1.5">
               <Label>Service</Label>
@@ -178,7 +149,6 @@ export function TimeEntryDialog({ open, onOpenChange }: TimeEntryDialogProps) {
             </div>
           )}
 
-          {/* Duration */}
           <div className="space-y-1.5">
             <Label>Duration</Label>
             <div className="flex gap-2 items-center">
@@ -204,19 +174,12 @@ export function TimeEntryDialog({ open, onOpenChange }: TimeEntryDialogProps) {
             </div>
           </div>
 
-          {/* Billable Toggle */}
-          <div className="flex items-center justify-between">
-            <Label>Billable</Label>
-            <Switch checked={billable} onCheckedChange={setBillable} />
-          </div>
-
-          {/* Description */}
           <div className="space-y-1.5">
-            <Label>Notes</Label>
+            <Label>What did you work on?</Label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="What did you work on?"
+              placeholder="Reviewed plans, filed DOB application, site visit…"
               rows={2}
             />
           </div>

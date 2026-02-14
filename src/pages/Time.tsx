@@ -1,34 +1,41 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Clock, Plus, Users } from "lucide-react";
+import { Clock, Plus, Users, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { ActiveTimerBar } from "@/components/time/ActiveTimerBar";
 import { AttendanceTable } from "@/components/time/AttendanceTable";
 import { TimeEntriesTable } from "@/components/time/TimeEntriesTable";
 import { TimeEntryDialog } from "@/components/time/TimeEntryDialog";
 import { ClockOutModal } from "@/components/time/ClockOutModal";
+import { WeeklyTimesheet } from "@/components/time/WeeklyTimesheet";
+import { QuickTimeLog } from "@/components/time/QuickTimeLog";
+import { addDays, startOfWeek, format } from "date-fns";
 
 export default function Time() {
   const [logTimeOpen, setLogTimeOpen] = useState(false);
-  const [clockOutOpen, setClockOutOpen] = useState(false);
+  const [weekOffset, setWeekOffset] = useState(0);
 
-  const now = new Date();
-  const day = now.getDay();
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - ((day + 6) % 7));
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
+  const weekStart = useMemo(() => {
+    const now = new Date();
+    const monday = startOfWeek(now, { weekStartsOn: 1 });
+    return addDays(monday, weekOffset * 7);
+  }, [weekOffset]);
+
+  const weekEnd = addDays(weekStart, 6);
 
   const weekRange = {
-    from: monday.toISOString().split("T")[0],
-    to: sunday.toISOString().split("T")[0],
+    from: format(weekStart, "yyyy-MM-dd"),
+    to: format(weekEnd, "yyyy-MM-dd"),
   };
+
+  const weekLabel = `${format(weekStart, "MMM d")} – ${format(weekEnd, "MMM d, yyyy")}`;
 
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
+        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Time Tracking</h1>
@@ -45,30 +52,65 @@ export default function Time() {
           </Button>
         </div>
 
-        <ActiveTimerBar onClockOut={() => setClockOutOpen(true)} />
+        {/* Active Timer */}
+        <ActiveTimerBar />
 
-        <Tabs defaultValue="attendance" className="space-y-4">
+        {/* Quick Log */}
+        <QuickTimeLog />
+
+        {/* Week Navigation */}
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="icon" onClick={() => setWeekOffset((o) => o - 1)}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setWeekOffset(0)}
+            className="text-sm font-medium"
+          >
+            {weekOffset === 0 ? "This Week" : weekLabel}
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setWeekOffset((o) => o + 1)}
+            disabled={weekOffset >= 0}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          {weekOffset !== 0 && (
+            <span className="text-xs text-muted-foreground">{weekLabel}</span>
+          )}
+        </div>
+
+        {/* Tabbed Views */}
+        <Tabs defaultValue="timesheet" className="space-y-4">
           <TabsList>
+            <TabsTrigger value="timesheet" className="flex items-center gap-2">
+              <CalendarDays className="h-4 w-4" />
+              Weekly Timesheet
+            </TabsTrigger>
+            <TabsTrigger value="entries" className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Time Entries
+            </TabsTrigger>
             <TabsTrigger value="attendance" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Attendance Log
             </TabsTrigger>
-            <TabsTrigger value="entries" className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              My Time Entries
-            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="attendance">
+          <TabsContent value="timesheet">
             <Card>
               <CardHeader>
-                <CardTitle>Team Attendance</CardTitle>
+                <CardTitle>Weekly Timesheet</CardTitle>
                 <CardDescription>
-                  Clock-in/out records for your team this week
+                  Hours logged per project for {weekLabel}
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
-                <AttendanceTable dateRange={weekRange} />
+                <WeeklyTimesheet weekStart={weekStart} />
               </CardContent>
             </Card>
           </TabsContent>
@@ -86,9 +128,24 @@ export default function Time() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="attendance">
+            <Card>
+              <CardHeader>
+                <CardTitle>Team Attendance</CardTitle>
+                <CardDescription>
+                  Clock-in/out records for your team — {weekLabel}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <AttendanceTable dateRange={weekRange} />
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
 
+      {/* Dialogs */}
       <TimeEntryDialog open={logTimeOpen} onOpenChange={setLogTimeOpen} />
       <ClockOutModal />
     </AppLayout>
