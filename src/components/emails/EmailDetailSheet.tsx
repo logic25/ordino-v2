@@ -175,6 +175,9 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
   const [replyMode, setReplyMode] = useState<"reply" | "forward" | null>(null);
   const [replyBody, setReplyBody] = useState("");
   const [forwardTo, setForwardTo] = useState("");
+  const [ccField, setCcField] = useState("");
+  const [bccField, setBccField] = useState("");
+  const [showCcBcc, setShowCcBcc] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [localQuickTags, setLocalQuickTags] = useState<string[]>([]);
   const untagEmail = useUntagEmail();
@@ -279,6 +282,8 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
 
       await sendEmail.mutateAsync({
         to: toAddr,
+        cc: ccField.trim() || undefined,
+        bcc: bccField.trim() || undefined,
         subject,
         html_body: forwardBody,
         reply_to_email_id: isForward ? undefined : replyToEmail.id,
@@ -287,6 +292,9 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
       toast({ title: isForward ? "Forwarded" : "Reply Sent", description: `Sent to ${toAddr}` });
       setReplyBody("");
       setForwardTo("");
+      setCcField("");
+      setBccField("");
+      setShowCcBcc(false);
       setReplyMode(null);
     } catch (err: any) {
       toast({ title: "Send Failed", description: err.message, variant: "destructive" });
@@ -461,6 +469,38 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
                     Reply to <span className="font-medium text-foreground">{replyToEmail.from_email}</span>
                   </p>
                 )}
+                {/* CC/BCC toggle and fields */}
+                {!showCcBcc ? (
+                  <button
+                    onClick={() => setShowCcBcc(true)}
+                    className="text-xs text-primary hover:underline self-start"
+                  >
+                    + Cc/Bcc
+                  </button>
+                ) : (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-medium text-muted-foreground w-8">Cc</label>
+                      <input
+                        type="text"
+                        placeholder="cc@example.com, ..."
+                        value={ccField}
+                        onChange={(e) => setCcField(e.target.value)}
+                        className="flex-1 px-3 py-1.5 text-sm border rounded-md bg-background"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-medium text-muted-foreground w-8">Bcc</label>
+                      <input
+                        type="text"
+                        placeholder="bcc@example.com, ..."
+                        value={bccField}
+                        onChange={(e) => setBccField(e.target.value)}
+                        className="flex-1 px-3 py-1.5 text-sm border rounded-md bg-background"
+                      />
+                    </div>
+                  </div>
+                )}
                 <Textarea
                   placeholder={replyMode === "forward" ? "Add a message..." : "Type your reply..."}
                   value={replyBody}
@@ -470,7 +510,7 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
                   data-reply-textarea
                 />
                 <div className="flex items-center justify-end gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => { setReplyMode(null); setReplyBody(""); setForwardTo(""); }}>
+                  <Button variant="ghost" size="sm" onClick={() => { setReplyMode(null); setReplyBody(""); setForwardTo(""); setCcField(""); setBccField(""); setShowCcBcc(false); }}>
                     Cancel
                   </Button>
                   <Button

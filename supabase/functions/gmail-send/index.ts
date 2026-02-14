@@ -28,6 +28,8 @@ async function refreshAccessToken(
 
 function createMimeMessage({
   to,
+  cc,
+  bcc,
   from,
   subject,
   body,
@@ -36,6 +38,8 @@ function createMimeMessage({
   thread_id,
 }: {
   to: string;
+  cc?: string;
+  bcc?: string;
   from: string;
   subject: string;
   body: string;
@@ -51,6 +55,13 @@ function createMimeMessage({
     `MIME-Version: 1.0`,
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
   ];
+
+  if (cc) {
+    headers.splice(1, 0, `Cc: ${cc}`);
+  }
+  if (bcc) {
+    headers.splice(cc ? 2 : 1, 0, `Bcc: ${bcc}`);
+  }
 
   if (in_reply_to) {
     headers.push(`In-Reply-To: ${in_reply_to}`);
@@ -139,7 +150,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { to, subject, html_body, reply_to_email_id } = body;
+    const { to, cc, bcc, subject, html_body, reply_to_email_id } = body;
 
     if (!to || !subject || !html_body) {
       return new Response(
@@ -223,6 +234,8 @@ Deno.serve(async (req) => {
     // Create and send the email
     const raw = createMimeMessage({
       to,
+      cc: cc || undefined,
+      bcc: bcc || undefined,
       from: connection.email_address,
       subject,
       body: html_body,
