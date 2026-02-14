@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Building2, Calendar, DollarSign, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, Building2, Calendar, DollarSign, AlertTriangle, CheckCircle2, XCircle, StickyNote, Shield } from "lucide-react";
 import { useRfps, useUpdateRfpStatus, type Rfp, type RfpStatus } from "@/hooks/useRfps";
 import { RfpStatusBadge } from "./RfpStatusBadge";
 import { format, differenceInDays, isPast } from "date-fns";
@@ -50,6 +50,8 @@ function DueDateDisplay({ dueDate }: { dueDate: string | null }) {
 function RfpCard({ rfp, onDragStart }: { rfp: Rfp; onDragStart: (e: React.DragEvent, rfp: Rfp) => void }) {
   const requirements = rfp.requirements as Record<string, any> | null;
   const scopeItems = requirements?.scope_of_work?.length || 0;
+  const insurance = rfp.insurance_requirements as Record<string, string> | null;
+  const hasInsurance = insurance && Object.keys(insurance).length > 0;
 
   return (
     <Card
@@ -72,7 +74,7 @@ function RfpCard({ rfp, onDragStart }: { rfp: Rfp; onDragStart: (e: React.DragEv
           <DueDateDisplay dueDate={rfp.due_date} />
         </div>
         {rfp.contract_value && rfp.status === "won" && (
-          <div className="flex items-center gap-1 text-xs text-green-700 dark:text-green-400 font-medium">
+          <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
             <DollarSign className="h-3 w-3" />
             {rfp.contract_value.toLocaleString()}
           </div>
@@ -80,10 +82,23 @@ function RfpCard({ rfp, onDragStart }: { rfp: Rfp; onDragStart: (e: React.DragEv
         {scopeItems > 0 && (
           <div className="text-xs text-muted-foreground">{scopeItems} scope items</div>
         )}
-        {(rfp.mwbe_goal_min || rfp.mwbe_goal_max) && (
-          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-            M/WBE {rfp.mwbe_goal_min}–{rfp.mwbe_goal_max}%
-          </Badge>
+        <div className="flex flex-wrap gap-1.5 items-center">
+          {(rfp.mwbe_goal_min || rfp.mwbe_goal_max) && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+              M/WBE {rfp.mwbe_goal_min}–{rfp.mwbe_goal_max}%
+            </Badge>
+          )}
+          {hasInsurance && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+              <Shield className="h-2.5 w-2.5 mr-0.5" /> Insurance
+            </Badge>
+          )}
+        </div>
+        {rfp.notes && (
+          <div className="flex items-start gap-1 text-xs text-muted-foreground">
+            <StickyNote className="h-3 w-3 mt-0.5 shrink-0" />
+            <span className="line-clamp-2">{rfp.notes}</span>
+          </div>
         )}
       </CardContent>
     </Card>
