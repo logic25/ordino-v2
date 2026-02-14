@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Settings as SettingsIcon, User, Building, Bell, CreditCard, Shield, Package, ChevronLeft, FileText, Tags, MessageSquare, Receipt, Zap, Target } from "lucide-react";
+import { Settings as SettingsIcon, User, Building, Bell, CreditCard, Shield, Package, ChevronLeft, FileText, Tags, MessageSquare, Receipt, Zap, Target, Users } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ServiceCatalogSettings } from "@/components/settings/ServiceCatalogSettings";
 import { RfiTemplateSettings } from "@/components/settings/RfiTemplateSettings";
@@ -11,8 +11,11 @@ import { ReviewCategorySettings } from "@/components/settings/ReviewCategorySett
 import { InvoiceSettings } from "@/components/settings/InvoiceSettings";
 import { AutomationRulesSettings } from "@/components/settings/AutomationRulesSettings";
 import { LeadSourceSettings } from "@/components/settings/LeadSourceSettings";
+import { TeamSettings } from "@/components/settings/TeamSettings";
+import { ProfileSettings } from "@/components/settings/ProfileSettings";
+import { CompanySettings } from "@/components/settings/CompanySettings";
 
-type SettingsSection = "main" | "profile" | "company" | "proposals" | "company_types" | "review_categories" | "rfi_templates" | "invoices" | "automation" | "lead_sources" | "notifications" | "billing" | "security";
+type SettingsSection = "main" | "profile" | "company" | "proposals" | "company_types" | "review_categories" | "rfi_templates" | "invoices" | "automation" | "lead_sources" | "team" | "notifications" | "billing" | "security";
 
 const settingsSections = [
   {
@@ -24,8 +27,14 @@ const settingsSections = [
   {
     id: "company" as const,
     title: "Company",
-    description: "Organization settings and team management",
+    description: "Organization name, address, and contact info",
     icon: Building,
+  },
+  {
+    id: "team" as const,
+    title: "Team & Users",
+    description: "View team members, roles, and activity",
+    icon: Users,
   },
   {
     id: "proposals" as const,
@@ -46,6 +55,12 @@ const settingsSections = [
     icon: MessageSquare,
   },
   {
+    id: "lead_sources" as const,
+    title: "Lead Sources",
+    description: "Track how clients and prospects find your company",
+    icon: Target,
+  },
+  {
     id: "rfi_templates" as const,
     title: "RFI Templates",
     description: "Configure client questionnaire forms",
@@ -62,12 +77,6 @@ const settingsSections = [
     title: "Automation Rules",
     description: "Configure auto-reminders, escalations, and collection workflows",
     icon: Zap,
-  },
-  {
-    id: "lead_sources" as const,
-    title: "Lead Sources",
-    description: "Track how clients and prospects find your company",
-    icon: Target,
   },
   {
     id: "notifications" as const,
@@ -94,6 +103,12 @@ export default function Settings() {
 
   const renderContent = () => {
     switch (activeSection) {
+      case "profile":
+        return <ProfileSettings />;
+      case "company":
+        return <CompanySettings />;
+      case "team":
+        return <TeamSettings />;
       case "proposals":
         return <ServiceCatalogSettings />;
       case "company_types":
@@ -108,8 +123,6 @@ export default function Settings() {
         return <AutomationRulesSettings />;
       case "lead_sources":
         return <LeadSourceSettings />;
-      case "profile":
-      case "company":
       case "notifications":
       case "billing":
       case "security":
