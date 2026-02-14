@@ -103,6 +103,175 @@ export type Database = {
           },
         ]
       }
+      automation_logs: {
+        Row: {
+          action_taken: string
+          approved_at: string | null
+          approved_by: string | null
+          client_id: string | null
+          company_id: string
+          created_at: string
+          escalated_to: string | null
+          generated_message: string | null
+          id: string
+          invoice_id: string
+          metadata: Json | null
+          result: string
+          rule_id: string
+          sent_at: string | null
+        }
+        Insert: {
+          action_taken: string
+          approved_at?: string | null
+          approved_by?: string | null
+          client_id?: string | null
+          company_id: string
+          created_at?: string
+          escalated_to?: string | null
+          generated_message?: string | null
+          id?: string
+          invoice_id: string
+          metadata?: Json | null
+          result?: string
+          rule_id: string
+          sent_at?: string | null
+        }
+        Update: {
+          action_taken?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          client_id?: string | null
+          company_id?: string
+          created_at?: string
+          escalated_to?: string | null
+          generated_message?: string | null
+          id?: string
+          invoice_id?: string
+          metadata?: Json | null
+          result?: string
+          rule_id?: string
+          sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_logs_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_logs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_logs_escalated_to_fkey"
+            columns: ["escalated_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_logs_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_logs_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "automation_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_rules: {
+        Row: {
+          action_config: Json
+          action_type: string
+          company_id: string
+          conditions: Json
+          cooldown_hours: number
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_enabled: boolean
+          max_executions: number | null
+          name: string
+          priority: number
+          rule_type: string
+          trigger_type: string
+          trigger_value: number
+          updated_at: string
+        }
+        Insert: {
+          action_config?: Json
+          action_type?: string
+          company_id: string
+          conditions?: Json
+          cooldown_hours?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_enabled?: boolean
+          max_executions?: number | null
+          name: string
+          priority?: number
+          rule_type?: string
+          trigger_type?: string
+          trigger_value?: number
+          updated_at?: string
+        }
+        Update: {
+          action_config?: Json
+          action_type?: string
+          company_id?: string
+          conditions?: Json
+          cooldown_hours?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_enabled?: boolean
+          max_executions?: number | null
+          name?: string
+          priority?: number
+          rule_type?: string
+          trigger_type?: string
+          trigger_value?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_rules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_rules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       billing_requests: {
         Row: {
           billed_to_contact_id: string | null
