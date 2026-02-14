@@ -75,9 +75,9 @@ export function AgencyCombobox({ value, onChange }: AgencyComboboxProps) {
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full justify-between font-normal h-9"
+            className="w-full justify-between font-normal h-9 overflow-hidden"
           >
-            {value || "Select agency..."}
+            <span className="truncate">{value || "Select agency..."}</span>
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
