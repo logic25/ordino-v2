@@ -103,6 +103,154 @@ export type Database = {
           },
         ]
       }
+      billing_requests: {
+        Row: {
+          billed_to_contact_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          invoice_id: string | null
+          project_id: string | null
+          services: Json
+          status: string
+          total_amount: number
+        }
+        Insert: {
+          billed_to_contact_id?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_id?: string | null
+          project_id?: string | null
+          services?: Json
+          status?: string
+          total_amount?: number
+        }
+        Update: {
+          billed_to_contact_id?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_id?: string | null
+          project_id?: string | null
+          services?: Json
+          status?: string
+          total_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_requests_billed_to_contact_id_fkey"
+            columns: ["billed_to_contact_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_requests_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_requests_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_requests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_billing_rules: {
+        Row: {
+          cc_markup: number | null
+          client_id: string
+          company_id: string
+          created_at: string
+          id: string
+          portal_url: string | null
+          property_id: string | null
+          require_pay_app: boolean | null
+          require_waiver: boolean | null
+          special_instructions: string | null
+          special_portal_required: boolean | null
+          updated_at: string
+          vendor_id: string | null
+          wire_fee: number | null
+        }
+        Insert: {
+          cc_markup?: number | null
+          client_id: string
+          company_id: string
+          created_at?: string
+          id?: string
+          portal_url?: string | null
+          property_id?: string | null
+          require_pay_app?: boolean | null
+          require_waiver?: boolean | null
+          special_instructions?: string | null
+          special_portal_required?: boolean | null
+          updated_at?: string
+          vendor_id?: string | null
+          wire_fee?: number | null
+        }
+        Update: {
+          cc_markup?: number | null
+          client_id?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          portal_url?: string | null
+          property_id?: string | null
+          require_pay_app?: boolean | null
+          require_waiver?: boolean | null
+          special_instructions?: string | null
+          special_portal_required?: boolean | null
+          updated_at?: string
+          vendor_id?: string | null
+          wire_fee?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_billing_rules_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_billing_rules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_billing_rules_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_contacts: {
         Row: {
           address_1: string | null
@@ -960,6 +1108,249 @@ export type Database = {
           },
         ]
       }
+      invoice_activity_log: {
+        Row: {
+          action: string
+          company_id: string
+          created_at: string
+          details: string | null
+          id: string
+          invoice_id: string
+          performed_by: string | null
+        }
+        Insert: {
+          action: string
+          company_id: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          invoice_id: string
+          performed_by?: string | null
+        }
+        Update: {
+          action?: string
+          company_id?: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          invoice_id?: string
+          performed_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_activity_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_activity_log_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_activity_log_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_follow_ups: {
+        Row: {
+          company_id: string
+          contact_method: string | null
+          contacted_by: string | null
+          created_at: string
+          follow_up_date: string
+          id: string
+          invoice_id: string
+          notes: string | null
+        }
+        Insert: {
+          company_id: string
+          contact_method?: string | null
+          contacted_by?: string | null
+          created_at?: string
+          follow_up_date: string
+          id?: string
+          invoice_id: string
+          notes?: string | null
+        }
+        Update: {
+          company_id?: string
+          contact_method?: string | null
+          contacted_by?: string | null
+          created_at?: string
+          follow_up_date?: string
+          id?: string
+          invoice_id?: string
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_follow_ups_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_follow_ups_contacted_by_fkey"
+            columns: ["contacted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_follow_ups_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          billed_to_contact_id: string | null
+          billing_request_id: string | null
+          client_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          fees: Json | null
+          gmail_message_id: string | null
+          id: string
+          invoice_number: string
+          line_items: Json
+          paid_at: string | null
+          payment_amount: number | null
+          payment_method: string | null
+          payment_terms: string | null
+          project_id: string | null
+          qbo_invoice_id: string | null
+          qbo_payment_status: string | null
+          qbo_synced_at: string | null
+          retainer_applied: number | null
+          review_reason: string | null
+          sent_at: string | null
+          special_instructions: string | null
+          status: string
+          subtotal: number
+          total_due: number
+          updated_at: string
+        }
+        Insert: {
+          billed_to_contact_id?: string | null
+          billing_request_id?: string | null
+          client_id?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          fees?: Json | null
+          gmail_message_id?: string | null
+          id?: string
+          invoice_number: string
+          line_items?: Json
+          paid_at?: string | null
+          payment_amount?: number | null
+          payment_method?: string | null
+          payment_terms?: string | null
+          project_id?: string | null
+          qbo_invoice_id?: string | null
+          qbo_payment_status?: string | null
+          qbo_synced_at?: string | null
+          retainer_applied?: number | null
+          review_reason?: string | null
+          sent_at?: string | null
+          special_instructions?: string | null
+          status?: string
+          subtotal?: number
+          total_due?: number
+          updated_at?: string
+        }
+        Update: {
+          billed_to_contact_id?: string | null
+          billing_request_id?: string | null
+          client_id?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          fees?: Json | null
+          gmail_message_id?: string | null
+          id?: string
+          invoice_number?: string
+          line_items?: Json
+          paid_at?: string | null
+          payment_amount?: number | null
+          payment_method?: string | null
+          payment_terms?: string | null
+          project_id?: string | null
+          qbo_invoice_id?: string | null
+          qbo_payment_status?: string | null
+          qbo_synced_at?: string | null
+          retainer_applied?: number | null
+          review_reason?: string | null
+          sent_at?: string | null
+          special_instructions?: string | null
+          status?: string
+          subtotal?: number
+          total_due?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_billed_to_contact_id_fkey"
+            columns: ["billed_to_contact_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_billing_request_id_fkey"
+            columns: ["billing_request_id"]
+            isOneToOne: false
+            referencedRelation: "billing_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1036,6 +1427,10 @@ export type Database = {
           project_type: string | null
           property_id: string
           proposal_id: string | null
+          qbo_customer_id: string | null
+          retainer_amount: number | null
+          retainer_balance: number | null
+          retainer_received_date: string | null
           senior_pm_id: string | null
           status: Database["public"]["Enums"]["project_status"]
           updated_at: string | null
@@ -1059,6 +1454,10 @@ export type Database = {
           project_type?: string | null
           property_id: string
           proposal_id?: string | null
+          qbo_customer_id?: string | null
+          retainer_amount?: number | null
+          retainer_balance?: number | null
+          retainer_received_date?: string | null
           senior_pm_id?: string | null
           status?: Database["public"]["Enums"]["project_status"]
           updated_at?: string | null
@@ -1082,6 +1481,10 @@ export type Database = {
           project_type?: string | null
           property_id?: string
           proposal_id?: string | null
+          qbo_customer_id?: string | null
+          retainer_amount?: number | null
+          retainer_balance?: number | null
+          retainer_received_date?: string | null
           senior_pm_id?: string | null
           status?: Database["public"]["Enums"]["project_status"]
           updated_at?: string | null
@@ -1553,6 +1956,50 @@ export type Database = {
             columns: ["sales_person_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      qbo_connections: {
+        Row: {
+          access_token: string | null
+          company_id: string
+          company_name: string | null
+          connected_at: string | null
+          expires_at: string | null
+          id: string
+          last_sync_at: string | null
+          realm_id: string | null
+          refresh_token: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          company_id: string
+          company_name?: string | null
+          connected_at?: string | null
+          expires_at?: string | null
+          id?: string
+          last_sync_at?: string | null
+          realm_id?: string | null
+          refresh_token?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          company_id?: string
+          company_name?: string | null
+          connected_at?: string | null
+          expires_at?: string | null
+          id?: string
+          last_sync_at?: string | null
+          realm_id?: string | null
+          refresh_token?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qbo_connections_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
