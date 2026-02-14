@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/sheet";
 import {
   useRetainers, useRetainerTransactions, useCreateRetainer, useAddRetainerFunds,
-  type ClientRetainer,
+  type ClientRetainer, type RetainerTransaction,
 } from "@/hooks/useRetainers";
 import { useClients } from "@/hooks/useClients";
 import { toast } from "@/hooks/use-toast";
@@ -25,8 +25,68 @@ import {
   Plus, Wallet, ArrowDownLeft, ArrowUpRight, DollarSign, Loader2, TrendingDown,
 } from "lucide-react";
 
+// ── Mock retainer data for demo ──────────────────────────────────
+const MOCK_RETAINERS: ClientRetainer[] = [
+  {
+    id: "mock-ret-1", company_id: "mock", client_id: "c1",
+    original_amount: 75000, current_balance: 52340,
+    status: "active", notes: "Annual retainer for expediting services — 340 Park Ave", qbo_credit_memo_id: null,
+    created_by: null, created_at: "2025-09-15T10:00:00Z", updated_at: "2026-02-01T10:00:00Z",
+    clients: { name: "Rudin Management" },
+  },
+  {
+    id: "mock-ret-2", company_id: "mock", client_id: "c2",
+    original_amount: 50000, current_balance: 41200,
+    status: "active", notes: "Retainer for ongoing DOB filings — Hudson Yards", qbo_credit_memo_id: null,
+    created_by: null, created_at: "2025-11-01T10:00:00Z", updated_at: "2026-01-28T10:00:00Z",
+    clients: { name: "Related Companies" },
+  },
+  {
+    id: "mock-ret-3", company_id: "mock", client_id: "c3",
+    original_amount: 40000, current_balance: 33750,
+    status: "active", notes: "Fire alarm & sprinkler filing retainer", qbo_credit_memo_id: null,
+    created_by: null, created_at: "2025-10-20T10:00:00Z", updated_at: "2026-02-10T10:00:00Z",
+    clients: { name: "Brookfield Properties" },
+  },
+  {
+    id: "mock-ret-4", company_id: "mock", client_id: "c4",
+    original_amount: 60000, current_balance: 48500,
+    status: "active", notes: "Elevator & escalator filing retainer", qbo_credit_memo_id: null,
+    created_by: null, created_at: "2025-08-05T10:00:00Z", updated_at: "2026-01-15T10:00:00Z",
+    clients: { name: "SL Green Realty" },
+  },
+  {
+    id: "mock-ret-5", company_id: "mock", client_id: "c5",
+    original_amount: 35000, current_balance: 28900,
+    status: "active", notes: "Violation resolution & expediting", qbo_credit_memo_id: null,
+    created_by: null, created_at: "2025-12-01T10:00:00Z", updated_at: "2026-02-12T10:00:00Z",
+    clients: { name: "Vornado Realty Trust" },
+  },
+  {
+    id: "mock-ret-6", company_id: "mock", client_id: "c6",
+    original_amount: 25000, current_balance: 0,
+    status: "depleted", notes: "One-time retainer for 200 Park Ave reno", qbo_credit_memo_id: null,
+    created_by: null, created_at: "2025-03-10T10:00:00Z", updated_at: "2025-11-22T10:00:00Z",
+    clients: { name: "Tishman Speyer" },
+  },
+];
+
+const MOCK_TRANSACTIONS: Record<string, RetainerTransaction[]> = {
+  "mock-ret-1": [
+    { id: "mt-1a", company_id: "mock", retainer_id: "mock-ret-1", invoice_id: null, type: "deposit", amount: 75000, balance_after: 75000, description: "Initial retainer deposit", performed_by: null, created_at: "2025-09-15T10:00:00Z", invoices: null, profiles: null },
+    { id: "mt-1b", company_id: "mock", retainer_id: "mock-ret-1", invoice_id: "i1", type: "draw_down", amount: 8500, balance_after: 66500, description: "Applied to invoice", performed_by: null, created_at: "2025-10-22T10:00:00Z", invoices: { invoice_number: "INV-00087" }, profiles: null },
+    { id: "mt-1c", company_id: "mock", retainer_id: "mock-ret-1", invoice_id: "i2", type: "draw_down", amount: 6750, balance_after: 59750, description: "Applied to invoice", performed_by: null, created_at: "2025-12-05T10:00:00Z", invoices: { invoice_number: "INV-00112" }, profiles: null },
+    { id: "mt-1d", company_id: "mock", retainer_id: "mock-ret-1", invoice_id: "i3", type: "draw_down", amount: 7410, balance_after: 52340, description: "Applied to invoice", performed_by: null, created_at: "2026-02-01T10:00:00Z", invoices: { invoice_number: "INV-00145" }, profiles: null },
+  ],
+  "mock-ret-2": [
+    { id: "mt-2a", company_id: "mock", retainer_id: "mock-ret-2", invoice_id: null, type: "deposit", amount: 50000, balance_after: 50000, description: "Initial retainer deposit", performed_by: null, created_at: "2025-11-01T10:00:00Z", invoices: null, profiles: null },
+    { id: "mt-2b", company_id: "mock", retainer_id: "mock-ret-2", invoice_id: "i4", type: "draw_down", amount: 4300, balance_after: 45700, description: "Applied to invoice", performed_by: null, created_at: "2025-12-15T10:00:00Z", invoices: { invoice_number: "INV-00119" }, profiles: null },
+    { id: "mt-2c", company_id: "mock", retainer_id: "mock-ret-2", invoice_id: "i5", type: "draw_down", amount: 4500, balance_after: 41200, description: "Applied to invoice", performed_by: null, created_at: "2026-01-28T10:00:00Z", invoices: { invoice_number: "INV-00138" }, profiles: null },
+  ],
+};
+
 export function RetainersView() {
-  const { data: retainers = [], isLoading } = useRetainers();
+  const { data: dbRetainers = [], isLoading } = useRetainers();
   const { data: clients = [] } = useClients();
   const createRetainer = useCreateRetainer();
   const addFunds = useAddRetainerFunds();
@@ -44,6 +104,11 @@ export function RetainersView() {
   // Add funds form
   const [fundsAmount, setFundsAmount] = useState("");
   const [fundsDescription, setFundsDescription] = useState("");
+
+  // Merge mock + real data
+  const retainers = useMemo(() => {
+    return [...dbRetainers, ...MOCK_RETAINERS];
+  }, [dbRetainers]);
 
   const activeRetainers = retainers.filter((r) => r.status === "active");
   const depletedRetainers = retainers.filter((r) => r.status !== "active");
@@ -347,7 +412,15 @@ function RetainerDetailSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { data: transactions = [], isLoading } = useRetainerTransactions(retainer?.id);
+  const { data: dbTransactions = [], isLoading: txLoading } = useRetainerTransactions(
+    retainer?.id?.startsWith("mock-") ? undefined : retainer?.id
+  );
+
+  // Use mock transactions for mock retainers
+  const transactions = retainer?.id?.startsWith("mock-")
+    ? (MOCK_TRANSACTIONS[retainer.id] || [])
+    : dbTransactions;
+  const isLoading = retainer?.id?.startsWith("mock-") ? false : txLoading;
 
   if (!retainer) return null;
 
