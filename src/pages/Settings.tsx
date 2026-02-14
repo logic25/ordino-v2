@@ -63,8 +63,8 @@ const settingsSections = [
   },
   {
     id: "billing" as const,
-    title: "Billing",
-    description: "Subscription and payment settings",
+    title: "Subscription & Plan",
+    description: "Subscription and payment settings for your Ordino account",
     icon: CreditCard,
   },
   {

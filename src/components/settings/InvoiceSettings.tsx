@@ -13,8 +13,9 @@ import {
 } from "@/components/ui/dialog";
 import {
   CheckCircle, Save, Plus, Trash2, Eye, Loader2, CreditCard, Building2,
-  Mail, RefreshCw, Clock,
+  Mail, RefreshCw, Clock, Upload, Image,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useCompanySettings, useUpdateCompanySettings, type CompanySettings } from "@/hooks/useCompanySettings";
 import {
@@ -117,6 +118,11 @@ export function InvoiceSettings() {
   const [emailBody, setEmailBody] = useState(DEFAULT_EMAIL_BODY);
   // QBO
   const [qboSyncFreq, setQboSyncFreq] = useState("daily");
+  // Logo & PDF branding
+  const [logoUrl, setLogoUrl] = useState("");
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [headerText, setHeaderText] = useState("");
+  const [footerText, setFooterText] = useState("");
   // Billing rule dialog
   const [addRuleOpen, setAddRuleOpen] = useState(false);
   const [newRuleClientId, setNewRuleClientId] = useState("");
@@ -157,6 +163,9 @@ export function InvoiceSettings() {
     if (st.invoice_email_subject_template) setEmailSubject(st.invoice_email_subject_template);
     if (st.invoice_email_body_template) setEmailBody(st.invoice_email_body_template);
     if (st.qbo_sync_frequency) setQboSyncFreq(st.qbo_sync_frequency);
+    if (st.company_logo_url) setLogoUrl(st.company_logo_url);
+    if (st.invoice_header_text) setHeaderText(st.invoice_header_text);
+    if (st.invoice_footer_text) setFooterText(st.invoice_footer_text);
   }, [companyData]);
 
   const saveAll = async () => {
@@ -189,6 +198,9 @@ export function InvoiceSettings() {
           invoice_email_subject_template: emailSubject,
           invoice_email_body_template: emailBody,
           qbo_sync_frequency: qboSyncFreq,
+          company_logo_url: logoUrl,
+          invoice_header_text: headerText,
+          invoice_footer_text: footerText,
         },
       });
       toast({ title: "All invoice settings saved" });
@@ -243,6 +255,27 @@ export function InvoiceSettings() {
     }
   };
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !companyData) return;
+    setLogoUploading(true);
+    try {
+      const ext = file.name.split('.').pop();
+      const path = `${companyData.companyId}/logo.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from('company-assets')
+        .upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from('company-assets').getPublicUrl(path);
+      setLogoUrl(urlData.publicUrl);
+      toast({ title: "Logo uploaded" });
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
   const demandPreviewText = demandTemplate
     .replace(/\{\{client_name\}\}/g, "Rudin Management")
     .replace(/\{\{invoice_number\}\}/g, "INV-00042")
@@ -264,6 +297,27 @@ export function InvoiceSettings() {
           <CardDescription>This information appears on your invoice PDF header</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Logo Upload */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2"><Image className="h-3.5 w-3.5" /> Company Logo</Label>
+            <div className="flex items-center gap-4">
+              {logoUrl ? (
+                <img src={logoUrl} alt="Company logo" className="h-14 w-auto max-w-[200px] object-contain rounded border p-1 bg-white" />
+              ) : (
+                <div className="h-14 w-32 rounded border border-dashed flex items-center justify-center text-xs text-muted-foreground">No logo</div>
+              )}
+              <label className="cursor-pointer">
+                <Button variant="outline" size="sm" asChild disabled={logoUploading}>
+                  <span>
+                    {logoUploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                    {logoUploading ? "Uploading..." : "Upload Logo"}
+                  </span>
+                </Button>
+                <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+              </label>
+            </div>
+          </div>
+          <Separator />
           <div className="space-y-2">
             <Label>Address</Label>
             <Textarea value={companyAddress} onChange={(e) => setCompanyAddress(e.target.value)} rows={2} placeholder="26 Broadway, 3rd Fl&#10;New York, NY 10004" />
@@ -287,6 +341,15 @@ export function InvoiceSettings() {
               <Label>Website</Label>
               <Input value={companyWebsite} onChange={(e) => setCompanyWebsite(e.target.value)} placeholder="www.company.com" />
             </div>
+          </div>
+          <Separator />
+          <div className="space-y-2">
+            <Label>Invoice Header Text</Label>
+            <Input value={headerText} onChange={(e) => setHeaderText(e.target.value)} placeholder="Optional text above invoice content" />
+          </div>
+          <div className="space-y-2">
+            <Label>Invoice Footer Text</Label>
+            <Textarea value={footerText} onChange={(e) => setFooterText(e.target.value)} rows={2} placeholder="Thank you for your business. Payment due within terms specified above." />
           </div>
         </CardContent>
       </Card>

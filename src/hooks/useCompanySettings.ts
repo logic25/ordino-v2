@@ -42,6 +42,10 @@ export interface CompanySettings {
   invoice_email_body_template?: string;
   // QBO sync
   qbo_sync_frequency?: string;
+  // Logo & PDF branding
+  company_logo_url?: string;
+  invoice_header_text?: string;
+  invoice_footer_text?: string;
 }
 
 export function useCompanySettings() {

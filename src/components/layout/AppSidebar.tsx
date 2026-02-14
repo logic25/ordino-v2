@@ -26,7 +26,7 @@ const mainNav = [
   { title: "Properties", icon: Building2, href: "/properties" },
   { title: "Time", icon: Clock, href: "/time" },
   { title: "Proposals", icon: FileText, href: "/proposals" },
-  { title: "Invoices", icon: Receipt, href: "/invoices" },
+  { title: "Billing", icon: Receipt, href: "/invoices" },
   { title: "Email", icon: Mail, href: "/emails" },
 ];
 
