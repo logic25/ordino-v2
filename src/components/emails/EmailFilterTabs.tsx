@@ -89,8 +89,14 @@ export function getTabCounts(
   emails: EmailWithTags[],
   scheduledCount?: number
 ): Record<EmailFilterTab, number> {
+  const inboxEmails = emails.filter((e) => {
+    if ((e as any).archived_at) return false;
+    if ((e as any).snoozed_until && new Date((e as any).snoozed_until) > new Date()) return false;
+    return true;
+  });
+  const unreadCount = inboxEmails.filter((e) => !e.is_read).length;
   return {
-    inbox: emails.length,
+    inbox: unreadCount,
     sent: emails.filter(isSentEmail).length,
     agencies: emails.filter(isAgencyEmail).length,
     clients: emails.filter(
@@ -145,7 +151,7 @@ export function EmailFilterTabs({ activeTab, onTabChange, counts }: EmailFilterT
             )}
           >
             {label}
-            {count > 0 && key !== "inbox" && (
+            {count > 0 && (
               <span className={cn(
                 "ml-1.5 text-xs tabular-nums",
                 isActive ? "text-foreground" : "text-muted-foreground/60"
