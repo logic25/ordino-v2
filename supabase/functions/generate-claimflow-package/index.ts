@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     }
 
     // Fetch all related data in parallel
-    const [invoiceRes, clientRes, followUpsRes, activityRes, companyRes, promisesRes] =
+    const [invoiceRes, clientRes, followUpsRes, activityRes, companyRes, promisesRes, proposalRes] =
       await Promise.all([
         supabase
           .from("invoices")
@@ -83,6 +83,13 @@ Deno.serve(async (req) => {
           .select("*")
           .eq("invoice_id", referral.invoice_id)
           .order("created_at", { ascending: false }),
+        // Try to find a proposal linked to the project
+        supabase
+          .from("proposals")
+          .select("*, proposal_contacts(*)")
+          .eq("company_id", referral.company_id)
+          .order("created_at", { ascending: false })
+          .limit(5),
       ]);
 
     const invoice = invoiceRes.data;
@@ -91,7 +98,7 @@ Deno.serve(async (req) => {
     const activity = activityRes.data || [];
     const company = companyRes.data;
     const promises = promisesRes.data || [];
-
+    const proposals = proposalRes.data || [];
     if (!invoice) throw new Error("Invoice not found");
 
     // Generate PDF
@@ -362,12 +369,185 @@ Deno.serve(async (req) => {
     }
     y += 10;
 
-    // Section 6: Activity Log
+    // Section 6: Contract / Proposal
     checkPageBreak(40);
     drawLine();
     doc.setFontSize(12);
     doc.setTextColor(30);
-    doc.text("6. ACTIVITY LOG", margin, y);
+    doc.text("6. CONTRACT / PROPOSAL", margin, y);
+    y += 18;
+
+    // Find matching proposal (by project or client)
+    const matchingProposal = proposals.find((p: any) =>
+      (invoice.project_id && p.project_id === invoice.project_id) ||
+      (invoice.client_id && p.client_id === invoice.client_id)
+    ) || proposals[0]; // fallback to most recent
+
+    if (matchingProposal) {
+      const propFields = [
+        ["Proposal #", (matchingProposal as any).proposal_number || "—"],
+        ["Status", ((matchingProposal as any).status || "draft").toUpperCase()],
+        ["Scope", (matchingProposal as any).scope_of_work ? String((matchingProposal as any).scope_of_work).substring(0, 120) : "—"],
+        ["Total", `$${Number((matchingProposal as any).total || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}`],
+        ["Deposit Required", `$${Number((matchingProposal as any).deposit_required || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}`],
+        ["Date", (matchingProposal as any).created_at ? new Date((matchingProposal as any).created_at).toLocaleDateString("en-US") : "—"],
+      ];
+      doc.setFontSize(10);
+      for (const [label, value] of propFields) {
+        checkPageBreak(16);
+        doc.setTextColor(100);
+        doc.text(`${label}:`, margin + 10, y);
+        doc.setTextColor(30);
+        const displayVal = String(value);
+        doc.text(displayVal.substring(0, 70), margin + 140, y);
+        y += 16;
+      }
+
+      // Terms
+      if ((matchingProposal as any).terms) {
+        y += 5;
+        doc.setFontSize(9);
+        doc.setTextColor(100);
+        doc.text("CONTRACT TERMS", margin + 10, y);
+        y += 14;
+        doc.setTextColor(50);
+        const termsText = String((matchingProposal as any).terms).substring(0, 500);
+        const termsLines = doc.splitTextToSize(termsText, contentWidth - 20);
+        checkPageBreak(termsLines.length * 11 + 10);
+        doc.text(termsLines, margin + 10, y);
+        y += termsLines.length * 11 + 10;
+      }
+    } else {
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text("No signed contract or proposal on file.", margin + 10, y);
+      y += 16;
+    }
+    y += 10;
+
+    // Section 7: Invoice Copy (formatted reproduction)
+    addPage();
+    doc.setFontSize(10);
+    doc.setTextColor(120);
+    doc.text("EXHIBIT A — INVOICE COPY", pageWidth / 2, y, { align: "center" });
+    y += 20;
+
+    // Invoice header
+    doc.setFontSize(14);
+    doc.setTextColor(30);
+    doc.text("INVOICE", margin, y);
+    doc.setFontSize(20);
+    doc.text(invoice.invoice_number, pageWidth - margin, y, { align: "right" });
+    y += 25;
+
+    // From / To columns
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text("FROM", margin, y);
+    doc.text("BILL TO", margin + 260, y);
+    y += 14;
+    doc.setFontSize(10);
+    doc.setTextColor(30);
+    doc.text(company?.name || "—", margin, y);
+    doc.text(client?.name || "—", margin + 260, y);
+    y += 13;
+    doc.setFontSize(9);
+    doc.setTextColor(80);
+    if (company?.address) { doc.text(company.address, margin, y); y += 12; } else { y += 12; }
+    const billingContact2 = invoice.billed_to_contact;
+    if (billingContact2) {
+      doc.text(`Attn: ${billingContact2.name}`, margin + 260, y - 12);
+    }
+    if (client?.address) { doc.text(client.address, margin + 260, y); }
+    y += 16;
+
+    // Invoice details
+    doc.setDrawColor(220);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 14;
+    const invDetailFields = [
+      ["Invoice Date", invoice.created_at ? new Date(invoice.created_at).toLocaleDateString("en-US") : "—"],
+      ["Due Date", invoice.due_date ? new Date(invoice.due_date).toLocaleDateString("en-US") : "—"],
+      ["Terms", invoice.payment_terms || "Net 30"],
+      ["Project", invoice.projects ? `${invoice.projects.project_number} — ${invoice.projects.name}` : "—"],
+    ];
+    doc.setFontSize(9);
+    for (const [label, value] of invDetailFields) {
+      doc.setTextColor(100);
+      doc.text(`${label}:`, margin, y);
+      doc.setTextColor(30);
+      doc.text(String(value), margin + 90, y);
+      y += 14;
+    }
+    y += 10;
+
+    // Line items table (invoice copy)
+    doc.setDrawColor(180);
+    doc.setFillColor(245, 245, 245);
+    doc.rect(margin, y, contentWidth, 18, "F");
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 13;
+    doc.setFontSize(8);
+    doc.setTextColor(80);
+    doc.text("DESCRIPTION", margin + 5, y);
+    doc.text("QTY", margin + 300, y, { align: "right" });
+    doc.text("RATE", margin + 370, y, { align: "right" });
+    doc.text("AMOUNT", contentWidth + margin - 5, y, { align: "right" });
+    y += 8;
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 12;
+
+    doc.setFontSize(9);
+    doc.setTextColor(30);
+    for (const item of lineItems as any[]) {
+      checkPageBreak(16);
+      doc.text(String(item.description || "Service").substring(0, 50), margin + 5, y);
+      doc.text(String(item.quantity || 1), margin + 300, y, { align: "right" });
+      doc.text(`$${Number(item.rate || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}`, margin + 370, y, { align: "right" });
+      doc.text(`$${Number(item.amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}`, contentWidth + margin - 5, y, { align: "right" });
+      y += 16;
+    }
+
+    // Totals
+    y += 5;
+    doc.line(margin + 300, y, pageWidth - margin, y);
+    y += 16;
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text("Subtotal:", margin + 310, y);
+    doc.setTextColor(30);
+    doc.text(`$${Number(invoice.subtotal).toLocaleString("en-US", { minimumFractionDigits: 2 })}`, contentWidth + margin - 5, y, { align: "right" });
+    y += 14;
+    if (Number(invoice.retainer_applied) > 0) {
+      doc.setTextColor(100);
+      doc.text("Retainer Applied:", margin + 310, y);
+      doc.setTextColor(30);
+      doc.text(`-$${Number(invoice.retainer_applied).toLocaleString("en-US", { minimumFractionDigits: 2 })}`, contentWidth + margin - 5, y, { align: "right" });
+      y += 14;
+    }
+    doc.setFontSize(11);
+    doc.setTextColor(30);
+    doc.text("TOTAL DUE:", margin + 310, y);
+    doc.text(`$${Number(invoice.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}`, contentWidth + margin - 5, y, { align: "right" });
+    y += 25;
+
+    // Special instructions
+    if (invoice.special_instructions) {
+      doc.setFontSize(8);
+      doc.setTextColor(100);
+      doc.text("Special Instructions:", margin, y);
+      y += 12;
+      doc.setTextColor(60);
+      const instrLines = doc.splitTextToSize(invoice.special_instructions, contentWidth);
+      doc.text(instrLines, margin, y);
+      y += instrLines.length * 10 + 10;
+    }
+
+    // Section 8: Activity Log
+    addPage();
+    doc.setFontSize(12);
+    doc.setTextColor(30);
+    doc.text("7. ACTIVITY LOG", margin, y);
     y += 18;
 
     if (activity.length > 0) {
@@ -395,13 +575,13 @@ Deno.serve(async (req) => {
     }
     y += 10;
 
-    // Section 7: Case Notes
+    // Section 8: Case Notes
     if (referral.case_notes) {
       checkPageBreak(50);
       drawLine();
       doc.setFontSize(12);
       doc.setTextColor(30);
-      doc.text("7. CASE NOTES", margin, y);
+      doc.text("8. CASE NOTES", margin, y);
       y += 18;
       doc.setFontSize(10);
       doc.setTextColor(50);

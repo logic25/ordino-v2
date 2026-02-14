@@ -2,8 +2,8 @@ import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Plus, Search, Send, Trash2, Receipt, Wallet } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Plus, Search, Send, Trash2, Receipt } from "lucide-react";
 import { InvoiceSummaryCards } from "@/components/invoices/InvoiceSummaryCards";
 import { InvoiceFilterTabs, type BillingTab } from "@/components/invoices/InvoiceFilterTabs";
 import { InvoiceTable } from "@/components/invoices/InvoiceTable";
@@ -204,37 +204,14 @@ export default function Invoices() {
         {/* QBO Connection Status */}
         <QBOConnectionWidget />
 
-        {/* Summary Cards */}
+        {/* Summary Cards (including retainers) */}
         <InvoiceSummaryCards
           counts={counts}
           totals={totals}
-          activeFilter={isSpecialTab ? "all" : activeFilter as InvoiceStatus | "all"}
+          activeFilter={activeFilter}
           onFilterChange={(f) => setActiveFilter(f)}
+          retainerSummary={retainerSummary}
         />
-
-        {/* Retainer Summary Card */}
-        <Card
-          className={`cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${
-            activeFilter === "retainers" ? "ring-2 ring-accent border-accent" : ""
-          }`}
-          onClick={() => setActiveFilter(activeFilter === "retainers" ? "all" : "retainers")}
-        >
-          <CardContent className="flex items-center gap-4 py-4">
-            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-              <Wallet className="h-5 w-5 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-muted-foreground">Active Retainers</p>
-              <p className="text-2xl font-bold tabular-nums">
-                ${retainerSummary.totalBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm font-medium tabular-nums">{retainerSummary.activeCount}</p>
-              <p className="text-xs text-muted-foreground">clients</p>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Filter Tabs + Search */}
         <Card>
