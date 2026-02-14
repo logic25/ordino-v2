@@ -76,12 +76,12 @@ function ThreadMessage({
 
   return (
     <div className={cn(
-      "border rounded-lg transition-colors",
+      "border rounded-lg transition-colors overflow-hidden",
       isLatest ? "border-primary/30 bg-primary/5" : "border-border"
     )}>
       <button
         onClick={onToggle}
-        className="w-full text-left px-4 py-3 flex items-start justify-between gap-2 hover:bg-muted/30 rounded-t-lg"
+        className="w-full text-left px-4 py-3 flex items-start justify-between gap-2 hover:bg-muted/30 rounded-t-lg min-w-0 overflow-hidden"
       >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -315,7 +315,7 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
         }
         onOpenChange(o);
       }}>
-        <SheetContent className="w-full sm:max-w-2xl p-0 flex flex-col overflow-hidden">
+        <SheetContent className="w-full sm:max-w-2xl p-0 flex flex-col overflow-hidden [&>*]:min-w-0">
           <SheetHeader className="px-6 pt-6 pb-4">
             <SheetTitle className="text-lg leading-tight pr-8">
               {email.subject || "(no subject)"}
@@ -436,8 +436,8 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
 
           <Separator />
 
-          <ScrollArea className="flex-1">
-            <div className="px-6 py-4 space-y-3">
+          <ScrollArea className="flex-1 min-w-0">
+            <div className="px-6 py-4 space-y-3 overflow-hidden">
               {displayEmails.map((threadEmail) => (
                 <ThreadMessage
                   key={threadEmail.id}
