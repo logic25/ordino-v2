@@ -120,10 +120,12 @@ export function InvoiceSettings() {
   // Billing rule dialog
   const [addRuleOpen, setAddRuleOpen] = useState(false);
   const [newRuleClientId, setNewRuleClientId] = useState("");
+  const [newRuleVendorId, setNewRuleVendorId] = useState("");
+  const [newRulePropertyId, setNewRulePropertyId] = useState("");
   const [newRuleWaiver, setNewRuleWaiver] = useState(false);
   const [newRulePayApp, setNewRulePayApp] = useState(false);
-  const [newRuleWireFee, setNewRuleWireFee] = useState("15");
-  const [newRuleCcMarkup, setNewRuleCcMarkup] = useState("4");
+  const [newRuleWireFee, setNewRuleWireFee] = useState("");
+  const [newRuleCcMarkup, setNewRuleCcMarkup] = useState("");
   const [newRulePortal, setNewRulePortal] = useState(false);
   const [newRulePortalUrl, setNewRulePortalUrl] = useState("");
   const [newRuleInstructions, setNewRuleInstructions] = useState("");
@@ -201,12 +203,12 @@ export function InvoiceSettings() {
       await createRule.mutateAsync({
         company_id: companyData.companyId,
         client_id: newRuleClientId,
-        vendor_id: null,
-        property_id: null,
+        vendor_id: newRuleVendorId || null,
+        property_id: newRulePropertyId || null,
         require_waiver: newRuleWaiver,
         require_pay_app: newRulePayApp,
-        wire_fee: parseFloat(newRuleWireFee) || 0,
-        cc_markup: parseInt(newRuleCcMarkup) || 0,
+        wire_fee: newRuleWireFee ? parseFloat(newRuleWireFee) : null,
+        cc_markup: newRuleCcMarkup ? parseInt(newRuleCcMarkup) : null,
         special_portal_required: newRulePortal,
         portal_url: newRulePortalUrl || null,
         special_instructions: newRuleInstructions || null,
@@ -221,10 +223,12 @@ export function InvoiceSettings() {
 
   const resetRuleForm = () => {
     setNewRuleClientId("");
+    setNewRuleVendorId("");
+    setNewRulePropertyId("");
     setNewRuleWaiver(false);
     setNewRulePayApp(false);
-    setNewRuleWireFee("15");
-    setNewRuleCcMarkup("4");
+    setNewRuleWireFee("");
+    setNewRuleCcMarkup("");
     setNewRulePortal(false);
     setNewRulePortalUrl("");
     setNewRuleInstructions("");
@@ -522,6 +526,12 @@ export function InvoiceSettings() {
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
+                  {(rule.vendor_id || rule.property_id) && (
+                    <div className="flex gap-3 text-xs text-muted-foreground">
+                      {rule.vendor_id && <span>Vendor ID: <span className="font-mono">{rule.vendor_id}</span></span>}
+                      {rule.property_id && <span>Property ID: <span className="font-mono">{rule.property_id}</span></span>}
+                    </div>
+                  )}
                   <div className="flex flex-wrap gap-1.5">
                     {rule.require_waiver && <Badge variant="secondary" className="text-[10px]">Waiver Required</Badge>}
                     {rule.require_pay_app && <Badge variant="secondary" className="text-[10px]">Pay App Required</Badge>}
@@ -529,8 +539,11 @@ export function InvoiceSettings() {
                     {(rule.cc_markup ?? 0) > 0 && <Badge variant="secondary" className="text-[10px]">CC Markup: {rule.cc_markup}%</Badge>}
                     {rule.special_portal_required && <Badge variant="secondary" className="text-[10px]">Portal Required</Badge>}
                   </div>
+                  {rule.portal_url && (
+                    <p className="text-xs text-muted-foreground">Portal: <a href={rule.portal_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{rule.portal_url}</a></p>
+                  )}
                   {rule.special_instructions && (
-                    <p className="text-xs text-muted-foreground">{rule.special_instructions}</p>
+                    <p className="text-xs text-muted-foreground whitespace-pre-wrap">{rule.special_instructions}</p>
                   )}
                 </div>
               ))}
@@ -546,7 +559,7 @@ export function InvoiceSettings() {
             <DialogTitle>Add Client Billing Rule</DialogTitle>
             <DialogDescription>Configure special billing procedures for a client.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
             <div className="space-y-2">
               <Label>Client</Label>
               <Select value={newRuleClientId} onValueChange={setNewRuleClientId}>
@@ -558,6 +571,17 @@ export function InvoiceSettings() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm">Vendor ID</Label>
+                <Input value={newRuleVendorId} onChange={(e) => setNewRuleVendorId(e.target.value)} placeholder="e.g. 06GRLIEX" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm">Property ID</Label>
+                <Input value={newRulePropertyId} onChange={(e) => setNewRulePropertyId(e.target.value)} placeholder="e.g. NY109" />
+              </div>
+            </div>
+            <Separator />
             <div className="grid grid-cols-2 gap-4">
               <div className="flex items-center justify-between">
                 <Label className="text-sm">Require Waiver</Label>
@@ -571,11 +595,11 @@ export function InvoiceSettings() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-sm">Wire Fee ($)</Label>
-                <Input type="number" value={newRuleWireFee} onChange={(e) => setNewRuleWireFee(e.target.value)} />
+                <Input type="number" value={newRuleWireFee} onChange={(e) => setNewRuleWireFee(e.target.value)} placeholder="15" />
               </div>
               <div className="space-y-2">
                 <Label className="text-sm">CC Markup (%)</Label>
-                <Input type="number" value={newRuleCcMarkup} onChange={(e) => setNewRuleCcMarkup(e.target.value)} />
+                <Input type="number" value={newRuleCcMarkup} onChange={(e) => setNewRuleCcMarkup(e.target.value)} placeholder="4" />
               </div>
             </div>
             <div className="flex items-center justify-between">
@@ -585,12 +609,12 @@ export function InvoiceSettings() {
             {newRulePortal && (
               <div className="space-y-2">
                 <Label className="text-sm">Portal URL</Label>
-                <Input value={newRulePortalUrl} onChange={(e) => setNewRulePortalUrl(e.target.value)} placeholder="https://..." />
+                <Input value={newRulePortalUrl} onChange={(e) => setNewRulePortalUrl(e.target.value)} placeholder="https://connectedbynexus.com/..." />
               </div>
             )}
             <div className="space-y-2">
               <Label className="text-sm">Special Instructions</Label>
-              <Textarea value={newRuleInstructions} onChange={(e) => setNewRuleInstructions(e.target.value)} rows={3} placeholder="Payment notes, PO requirements..." />
+              <Textarea value={newRuleInstructions} onChange={(e) => setNewRuleInstructions(e.target.value)} rows={4} placeholder="e.g. Email invoices to specific address, submit by 15th of each month, CC Antonio on all invoices..." />
             </div>
           </div>
           <DialogFooter>

@@ -587,7 +587,20 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
                 <Button variant="outline" size="sm" className="flex-1" onClick={() => setPdfPreviewOpen(true)}>
                   <Eye className="h-4 w-4 mr-2" /> Preview PDF
                 </Button>
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => setPdfPreviewOpen(true)}>
+                <Button variant="outline" size="sm" className="flex-1" onClick={async () => {
+                  try {
+                    const { generateInvoicePDFBlob } = await import("./InvoicePDFPreview");
+                    const blob = await generateInvoicePDFBlob(invoice, companyData?.settings);
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `${invoice.invoice_number}.pdf`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  } catch (err: any) {
+                    toast({ title: "Download failed", description: err.message, variant: "destructive" });
+                  }
+                }}>
                   <Download className="h-4 w-4 mr-2" /> Download
                 </Button>
               </div>
