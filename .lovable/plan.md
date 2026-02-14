@@ -191,8 +191,20 @@ Create the following tables with RLS policies using `company_id` isolation (matc
 - Add Invoice Settings section to existing `/settings` page:
   - Collections timeline (reminder days)
   - Default payment terms
-  - Client billing rules management (CRUD)
+  - Demand letter template editor with merge fields & preview ✅
+  - Client billing rules management (full CRUD — add/edit/delete rules per client)
   - QBO connection management
+
+### Phase J: Client Billing Rules Builder
+
+**Priority: Next up**
+
+Build full CRUD for per-client billing rules directly from Settings:
+- **Add Rule**: Select client, configure waiver/pay-app requirements, wire fee, CC markup, portal URL, special instructions
+- **Edit Rule**: Inline or modal editing of existing rules
+- **Delete Rule**: Remove rules with confirmation
+- **Auto-apply**: When creating invoices for a client, auto-apply their billing rules (route to "Needs Review" if special procedures required)
+- **Invoice Detail**: Show active billing rules in the invoice detail sheet so billing team knows what's required
 
 ---
 

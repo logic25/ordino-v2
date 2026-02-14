@@ -253,14 +253,64 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
 
             <Separator />
 
-            {/* Bill To */}
+            {/* Client & Billing Contact */}
             <section>
-              <h4 className="text-sm font-medium text-muted-foreground mb-2">Bill To</h4>
-              <p className="text-sm font-medium">
-                {invoice.billed_to_contact?.name || invoice.clients?.name || "—"}
-              </p>
-              {invoice.billed_to_contact?.email && (
-                <p className="text-sm text-muted-foreground">{invoice.billed_to_contact.email}</p>
+              <h4 className="text-sm font-medium text-muted-foreground mb-2">Client Info</h4>
+              <div className="rounded-lg border p-3 space-y-2">
+                <p className="text-sm font-medium">{invoice.clients?.name || "—"}</p>
+                {invoice.clients?.phone && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">Phone:</span>
+                    <a href={`tel:${invoice.clients.phone}`} className="text-primary hover:underline">
+                      {invoice.clients.phone}
+                    </a>
+                  </div>
+                )}
+                {invoice.clients?.email && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">Email:</span>
+                    <a href={`mailto:${invoice.clients.email}`} className="text-primary hover:underline">
+                      {invoice.clients.email}
+                    </a>
+                  </div>
+                )}
+                {invoice.clients?.address && (
+                  <p className="text-xs text-muted-foreground">{invoice.clients.address}</p>
+                )}
+              </div>
+
+              {/* Billing Contact (if different from client) */}
+              {invoice.billed_to_contact && (
+                <div className="mt-3">
+                  <h4 className="text-xs font-medium text-muted-foreground mb-1.5">Billing Contact</h4>
+                  <div className="rounded-lg border p-3 space-y-1">
+                    <p className="text-sm font-medium">{invoice.billed_to_contact.name}</p>
+                    {invoice.billed_to_contact.email && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-muted-foreground">Email:</span>
+                        <a href={`mailto:${invoice.billed_to_contact.email}`} className="text-primary hover:underline">
+                          {invoice.billed_to_contact.email}
+                        </a>
+                      </div>
+                    )}
+                    {invoice.billed_to_contact.phone && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-muted-foreground">Office:</span>
+                        <a href={`tel:${invoice.billed_to_contact.phone}`} className="text-primary hover:underline">
+                          {invoice.billed_to_contact.phone}
+                        </a>
+                      </div>
+                    )}
+                    {invoice.billed_to_contact.mobile && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-muted-foreground">Mobile:</span>
+                        <a href={`tel:${invoice.billed_to_contact.mobile}`} className="text-primary hover:underline">
+                          {invoice.billed_to_contact.mobile}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
             </section>
 
