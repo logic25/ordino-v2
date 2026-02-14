@@ -91,17 +91,21 @@ export function useSendEmail() {
   return useMutation({
     mutationFn: async ({
       to,
+      cc,
+      bcc,
       subject,
       html_body,
       reply_to_email_id,
     }: {
       to: string;
+      cc?: string;
+      bcc?: string;
       subject: string;
       html_body: string;
       reply_to_email_id?: string;
     }) => {
       const { data, error } = await supabase.functions.invoke("gmail-send", {
-        body: { to, subject, html_body, reply_to_email_id },
+        body: { to, cc, bcc, subject, html_body, reply_to_email_id },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
