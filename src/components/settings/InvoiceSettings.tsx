@@ -51,6 +51,32 @@ const DEMAND_MERGE_FIELDS = [
   { key: "{{project_name}}", label: "Project Name" },
 ];
 
+const DEFAULT_ACH_TEMPLATE = `ACH DEBIT AUTHORIZATION AGREEMENT
+
+I hereby authorize {{company_name}} ("Company") to initiate electronic debit entries to my bank account indicated below for payment of amounts owed under invoice {{invoice_number}}.
+
+PAYMENT SCHEDULE:
+Total Amount: {{total_amount}}
+{{payment_schedule}}
+
+TERMS & CONDITIONS:
+1. This authorization is to remain in full force and effect until the Company has received written notification from me of its termination in such time and manner as to afford the Company a reasonable opportunity to act on it.
+2. I understand that if any debit is returned unpaid, I may be subject to a return fee.
+3. I may revoke this authorization at any time by providing written notice to the Company at least 3 business days prior to the next scheduled debit date.
+4. The Company will provide at least 10 days advance notice of any changes to the debit amount or schedule.
+
+This authorization is provided in compliance with the National Automated Clearing House Association (NACHA) Operating Rules.
+
+Effective Date: {{effective_date}}`;
+
+const ACH_MERGE_FIELDS = [
+  { key: "{{company_name}}", label: "Company Name" },
+  { key: "{{invoice_number}}", label: "Invoice Number" },
+  { key: "{{total_amount}}", label: "Total Amount" },
+  { key: "{{payment_schedule}}", label: "Payment Schedule" },
+  { key: "{{effective_date}}", label: "Effective Date" },
+];
+
 const EMAIL_MERGE_FIELDS = [
   { key: "{{client_name}}", label: "Client Name" },
   { key: "{{contact_name}}", label: "Contact Name" },
@@ -98,7 +124,7 @@ export function InvoiceSettings() {
     setAllExpanded(next);
     setSectionStates({
       company: next, payment: next, terms: next, email: next,
-      collections: next, demand: next, rules: next, qbo: next,
+      collections: next, demand: next, ach: next, rules: next, qbo: next,
     });
   }, [allExpanded]);
 
@@ -132,6 +158,9 @@ export function InvoiceSettings() {
   // Demand letter
   const [demandTemplate, setDemandTemplate] = useState(DEFAULT_DEMAND_TEMPLATE);
   const [showDemandPreview, setShowDemandPreview] = useState(false);
+  // ACH template
+  const [achTemplate, setAchTemplate] = useState(DEFAULT_ACH_TEMPLATE);
+  const [showAchPreview, setShowAchPreview] = useState(false);
   // Email template
   const [emailSubject, setEmailSubject] = useState(DEFAULT_EMAIL_SUBJECT);
   const [emailBody, setEmailBody] = useState(DEFAULT_EMAIL_BODY);
@@ -180,6 +209,7 @@ export function InvoiceSettings() {
     if (st.collections_early_payment_discount !== undefined) setEarlyDiscount(st.collections_early_payment_discount);
     if (st.collections_early_payment_discount_percent) setEarlyDiscountPct(String(st.collections_early_payment_discount_percent));
     if (st.demand_letter_template) setDemandTemplate(st.demand_letter_template);
+    if (st.ach_authorization_template) setAchTemplate(st.ach_authorization_template);
     if (st.invoice_email_subject_template) setEmailSubject(st.invoice_email_subject_template);
     if (st.invoice_email_body_template) setEmailBody(st.invoice_email_body_template);
     if (st.qbo_sync_frequency) setQboSyncFreq(st.qbo_sync_frequency);
@@ -215,6 +245,7 @@ export function InvoiceSettings() {
           collections_early_payment_discount: earlyDiscount,
           collections_early_payment_discount_percent: parseFloat(earlyDiscountPct) || 2,
           demand_letter_template: demandTemplate,
+          ach_authorization_template: achTemplate,
           invoice_email_subject_template: emailSubject,
           invoice_email_body_template: emailBody,
           qbo_sync_frequency: qboSyncFreq,
@@ -329,6 +360,13 @@ export function InvoiceSettings() {
     .replace(/\{\{days_overdue\}\}/g, "62")
     .replace(/\{\{company_name\}\}/g, "Green Light Expediting LLC")
     .replace(/\{\{project_name\}\}/g, "340 Park Ave - Lehman Reno");
+
+  const achPreviewText = achTemplate
+    .replace(/\{\{company_name\}\}/g, "Green Light Expediting LLC")
+    .replace(/\{\{invoice_number\}\}/g, "INV-00042")
+    .replace(/\{\{total_amount\}\}/g, "$2,950.00")
+    .replace(/\{\{payment_schedule\}\}/g, "  1. $983.34 due March 1, 2026\n  2. $983.33 due April 1, 2026\n  3. $983.33 due May 1, 2026")
+    .replace(/\{\{effective_date\}\}/g, "February 14, 2026");
 
   return (
     <div className="space-y-4">
@@ -608,6 +646,54 @@ export function InvoiceSettings() {
           </DialogHeader>
           <div className="rounded-lg border p-6 bg-background whitespace-pre-wrap text-sm leading-relaxed font-serif">
             {demandPreviewText}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ACH Authorization Template */}
+      <CollapsibleSettingsCard
+        title="ACH Authorization Template"
+        description="Customize the ACH debit authorization agreement for payment plans"
+        isOpen={sectionStates.ach ?? true}
+        onOpenChange={(o) => setSectionOpen("ach", o)}
+        headerAction={
+          <Button variant="outline" size="sm" onClick={() => setShowAchPreview(true)}>
+            <Eye className="h-4 w-4 mr-1" /> Preview
+          </Button>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <Label className="text-xs text-muted-foreground mb-2 block">Available Merge Fields</Label>
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {ACH_MERGE_FIELDS.map((f) => (
+                <Badge
+                  key={f.key} variant="secondary"
+                  className="text-[10px] cursor-pointer hover:bg-primary/20 transition-colors"
+                  onClick={() => setAchTemplate((p) => p + f.key)}
+                  title={`Click to insert ${f.label}`}
+                >
+                  {f.key}
+                </Badge>
+              ))}
+            </div>
+          </div>
+          <Textarea value={achTemplate} onChange={(e) => setAchTemplate(e.target.value)} rows={14} className="font-mono text-sm" />
+          <Button size="sm" variant="ghost" onClick={() => setAchTemplate(DEFAULT_ACH_TEMPLATE)}>
+            Reset to Default
+          </Button>
+        </div>
+      </CollapsibleSettingsCard>
+
+      {/* ACH Authorization Preview Dialog */}
+      <Dialog open={showAchPreview} onOpenChange={setShowAchPreview}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>ACH Authorization Preview</DialogTitle>
+            <DialogDescription>This is how the authorization will look with sample data.</DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border p-6 bg-background whitespace-pre-wrap text-sm leading-relaxed font-serif">
+            {achPreviewText}
           </div>
         </DialogContent>
       </Dialog>

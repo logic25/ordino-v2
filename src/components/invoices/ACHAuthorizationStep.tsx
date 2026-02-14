@@ -34,6 +34,7 @@ interface ACHAuthorizationStepProps {
     paymentMethod: PaymentMethod;
   }) => void;
   isLoading?: boolean;
+  achTemplate?: string;
 }
 
 export function ACHAuthorizationStep({
@@ -45,6 +46,7 @@ export function ACHAuthorizationStep({
   onBack,
   onSign,
   isLoading,
+  achTemplate,
 }: ACHAuthorizationStepProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -56,7 +58,7 @@ export function ACHAuthorizationStep({
   const [accountType, setAccountType] = useState<"checking" | "savings">("checking");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("ach");
 
-  const authorizationText = buildAuthText(companyName, invoiceNumber, installments, totalAmount);
+  const authorizationText = buildAuthText(companyName, invoiceNumber, installments, totalAmount, achTemplate);
 
   useEffect(() => {
     if (canvasRef.current) {
@@ -332,17 +334,30 @@ function buildAuthText(
   invoiceNumber: string,
   installments: { amount: number; due_date: string }[],
   totalAmount: number,
+  customTemplate?: string,
 ): string {
   const scheduleLines = installments
     .map((inst, i) => `  ${i + 1}. $${inst.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })} due ${format(new Date(inst.due_date), "MMMM d, yyyy")}`)
     .join("\n");
+
+  const effectiveDate = format(new Date(), "MMMM d, yyyy");
+  const totalFormatted = `$${totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
+
+  if (customTemplate) {
+    return customTemplate
+      .replace(/\{\{company_name\}\}/g, companyName || "[Company]")
+      .replace(/\{\{invoice_number\}\}/g, invoiceNumber)
+      .replace(/\{\{total_amount\}\}/g, totalFormatted)
+      .replace(/\{\{payment_schedule\}\}/g, scheduleLines)
+      .replace(/\{\{effective_date\}\}/g, effectiveDate);
+  }
 
   return `ACH DEBIT AUTHORIZATION AGREEMENT
 
 I hereby authorize ${companyName || "[Company]"} ("Company") to initiate electronic debit entries to my bank account indicated below for payment of amounts owed under invoice ${invoiceNumber}.
 
 PAYMENT SCHEDULE:
-Total Amount: $${totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+Total Amount: ${totalFormatted}
 ${scheduleLines}
 
 TERMS & CONDITIONS:
@@ -353,5 +368,5 @@ TERMS & CONDITIONS:
 
 This authorization is provided in compliance with the National Automated Clearing House Association (NACHA) Operating Rules.
 
-Effective Date: ${format(new Date(), "MMMM d, yyyy")}`;
+Effective Date: ${effectiveDate}`;
 }
