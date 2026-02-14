@@ -152,16 +152,16 @@ function ThreadMessage({
 
           <Separator />
 
-          <div className="email-content w-full max-w-full overflow-hidden" style={{ contain: 'inline-size' }}>
+          <div className="email-content w-full overflow-x-auto overflow-y-hidden">
             {email.body_html ? (
               <div
-                className="prose prose-sm max-w-none text-foreground overflow-hidden
-                  [&_*]:!max-w-full [&_*]:!overflow-hidden [&_a]:text-accent [&_a]:break-all [&_img]:!max-w-full [&_img]:h-auto [&_table]:!max-w-full [&_table]:table-fixed [&_pre]:whitespace-pre-wrap"
+                className="prose prose-sm max-w-none text-foreground
+                  [&_a]:text-accent [&_a]:break-all [&_img]:h-auto [&_pre]:whitespace-pre-wrap"
                 style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
                 dangerouslySetInnerHTML={{ __html: email.body_html }}
               />
             ) : (
-              <pre className="whitespace-pre-wrap text-sm font-sans text-foreground break-words overflow-hidden">
+              <pre className="whitespace-pre-wrap text-sm font-sans text-foreground break-words">
                 {email.body_text || email.snippet || "No content"}
               </pre>
             )}
