@@ -15,6 +15,7 @@ import {
   Property,
 } from "@/hooks/useProperties";
 import { useApplications } from "@/hooks/useApplications";
+import { useProjects } from "@/hooks/useProjects";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Properties() {
@@ -26,19 +27,21 @@ export default function Properties() {
 
   const { data: properties = [], isLoading: propertiesLoading } = useProperties();
   const { data: applications = [], isLoading: applicationsLoading } = useApplications();
+  const { data: projects = [] } = useProjects();
   const createProperty = useCreateProperty();
   const updateProperty = useUpdateProperty();
   const deleteProperty = useDeleteProperty();
 
   const isLoading = propertiesLoading || applicationsLoading;
 
-  // Merge properties with their applications
+  // Merge properties with their applications and projects
   const propertiesWithApplications = useMemo(() => {
     return properties.map((property) => ({
       ...property,
       applications: applications.filter((app) => app.property_id === property.id),
+      projects: projects.filter((proj) => proj.property_id === property.id),
     }));
-  }, [properties, applications]);
+  }, [properties, applications, projects]);
 
   const filteredProperties = propertiesWithApplications.filter((p) => {
     const query = searchQuery.toLowerCase();

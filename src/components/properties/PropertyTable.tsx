@@ -31,12 +31,14 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { MoreHorizontal, Pencil, Trash2, Building2, MapPin, ChevronDown, ChevronRight, FolderKanban, FileText } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Building2, MapPin, ChevronDown, ChevronRight, FolderKanban, FileText, Briefcase } from "lucide-react";
 import type { Property } from "@/hooks/useProperties";
 import type { ApplicationWithProperty } from "@/hooks/useApplications";
+import type { Project } from "@/hooks/useProjects";
 
 interface PropertyWithApplications extends Property {
   applications?: ApplicationWithProperty[];
+  projects?: Project[];
 }
 
 interface PropertyTableProps {
@@ -128,13 +130,15 @@ export function PropertyTable({
               properties.map((property) => {
                 const isExpanded = expandedRows.has(property.id);
                 const applicationCount = property.applications?.length || 0;
+                const projectCount = property.projects?.length || 0;
+                const hasChildren = applicationCount > 0 || projectCount > 0;
 
                 return (
                   <Collapsible key={property.id} asChild open={isExpanded}>
                     <>
                       <TableRow className="hover:bg-accent/5">
                         <TableCell className="p-2">
-                          {applicationCount > 0 && (
+                          {hasChildren && (
                             <CollapsibleTrigger asChild>
                               <Button
                                 variant="ghost"
@@ -193,7 +197,12 @@ export function PropertyTable({
                           )}
                         </TableCell>
                         <TableCell>
-                          {applicationCount > 0 ? (
+                          {projectCount > 0 ? (
+                            <Badge variant="outline" className="gap-1">
+                              <Briefcase className="h-3 w-3" />
+                              {projectCount}
+                            </Badge>
+                          ) : applicationCount > 0 ? (
                             <Badge variant="outline" className="gap-1">
                               <FolderKanban className="h-3 w-3" />
                               {applicationCount}
@@ -230,44 +239,88 @@ export function PropertyTable({
                           </DropdownMenu>
                         </TableCell>
                       </TableRow>
-                      {applicationCount > 0 && (
+                      {hasChildren && (
                         <CollapsibleContent asChild>
                           <TableRow className="bg-muted/30 hover:bg-muted/30">
                             <TableCell colSpan={8} className="p-0">
-                              <div className="px-12 py-3 space-y-2">
-                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                                  Related Projects
-                                </p>
-                                <div className="grid gap-2">
-                                  {property.applications?.map((app) => (
-                                    <div
-                                      key={app.id}
-                                      className="flex items-center justify-between bg-background rounded-md border px-3 py-2"
-                                    >
-                                      <div className="flex items-center gap-3">
-                                        <FolderKanban className="h-4 w-4 text-muted-foreground" />
-                                        <div>
-                                          <p className="text-sm font-medium">
-                                            {app.application_type || "DOB Application"}
-                                            {app.job_number && (
-                                              <span className="text-muted-foreground font-normal ml-2">
-                                                #{app.job_number}
-                                              </span>
-                                            )}
-                                          </p>
-                                          {app.description && (
-                                            <p className="text-xs text-muted-foreground truncate max-w-md">
-                                              {app.description}
-                                            </p>
-                                          )}
+                              <div className="px-12 py-3 space-y-4">
+                                {/* Projects */}
+                                {projectCount > 0 && (
+                                  <div className="space-y-2">
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                      Projects ({projectCount})
+                                    </p>
+                                    <div className="grid gap-2">
+                                      {property.projects?.map((proj) => (
+                                        <div
+                                          key={proj.id}
+                                          className="flex items-center justify-between bg-background rounded-md border px-3 py-2"
+                                        >
+                                          <div className="flex items-center gap-3">
+                                            <Briefcase className="h-4 w-4 text-muted-foreground" />
+                                            <div>
+                                              <p className="text-sm font-medium">
+                                                {proj.project_number || "—"}
+                                                {proj.name && (
+                                                  <span className="text-muted-foreground font-normal ml-2">
+                                                    {proj.name}
+                                                  </span>
+                                                )}
+                                              </p>
+                                              {proj.project_type && (
+                                                <p className="text-xs text-muted-foreground">
+                                                  {proj.project_type}
+                                                </p>
+                                              )}
+                                            </div>
+                                          </div>
+                                          <Badge className={proj.status === "open" ? "bg-emerald-500/10 text-emerald-600" : "bg-muted text-muted-foreground"}>
+                                            {proj.status.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                                          </Badge>
                                         </div>
-                                      </div>
-                                      <Badge className={STATUS_COLORS[app.status || "draft"]}>
-                                        {formatStatus(app.status)}
-                                      </Badge>
+                                      ))}
                                     </div>
-                                  ))}
-                                </div>
+                                  </div>
+                                )}
+
+                                {/* DOB Applications */}
+                                {applicationCount > 0 && (
+                                  <div className="space-y-2">
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                      DOB Applications ({applicationCount})
+                                    </p>
+                                    <div className="grid gap-2">
+                                      {property.applications?.map((app) => (
+                                        <div
+                                          key={app.id}
+                                          className="flex items-center justify-between bg-background rounded-md border px-3 py-2"
+                                        >
+                                          <div className="flex items-center gap-3">
+                                            <FolderKanban className="h-4 w-4 text-muted-foreground" />
+                                            <div>
+                                              <p className="text-sm font-medium">
+                                                {app.application_type || "DOB Application"}
+                                                {app.job_number && (
+                                                  <span className="text-muted-foreground font-normal ml-2">
+                                                    #{app.job_number}
+                                                  </span>
+                                                )}
+                                              </p>
+                                              {app.description && (
+                                                <p className="text-xs text-muted-foreground truncate max-w-md">
+                                                  {app.description}
+                                                </p>
+                                              )}
+                                            </div>
+                                          </div>
+                                          <Badge className={STATUS_COLORS[app.status || "draft"]}>
+                                            {formatStatus(app.status)}
+                                          </Badge>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </TableCell>
                           </TableRow>
