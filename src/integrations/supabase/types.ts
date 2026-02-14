@@ -3754,6 +3754,7 @@ export type Database = {
           response_draft_url: string | null
           rfp_number: string | null
           status: string
+          submission_method: string | null
           submitted_at: string | null
           title: string
           updated_at: string
@@ -3778,6 +3779,7 @@ export type Database = {
           response_draft_url?: string | null
           rfp_number?: string | null
           status?: string
+          submission_method?: string | null
           submitted_at?: string | null
           title: string
           updated_at?: string
@@ -3802,6 +3804,7 @@ export type Database = {
           response_draft_url?: string | null
           rfp_number?: string | null
           status?: string
+          submission_method?: string | null
           submitted_at?: string | null
           title?: string
           updated_at?: string

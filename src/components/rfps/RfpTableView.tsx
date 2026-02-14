@@ -1,14 +1,16 @@
 import { useState, useMemo } from "react";
 import { useUpdateRfpStatus, useUpdateRfpNotes, type Rfp, type RfpStatus } from "@/hooks/useRfps";
 import { RfpStatusBadge } from "./RfpStatusBadge";
+import { RfpEditDialog } from "./RfpEditDialog";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, ArrowUpDown, Search, StickyNote, Shield, DollarSign, Calendar, AlertTriangle, ChevronRight } from "lucide-react";
+import { Loader2, ArrowUpDown, Search, StickyNote, Shield, Calendar, AlertTriangle, ChevronRight, Pencil } from "lucide-react";
 import { format, differenceInDays, isPast } from "date-fns";
+import type { RfpFilter } from "./RfpSummaryCards";
 
 type SortKey = "due_date" | "status" | "agency" | "title";
 type SortDir = "asc" | "desc";
@@ -18,6 +20,7 @@ const statusOrder: Record<string, number> = { prospect: 0, drafting: 1, submitte
 interface RfpTableViewProps {
   rfps: Rfp[];
   isLoading: boolean;
+  cardFilter: RfpFilter;
 }
 
 function InsuranceBadges({ insurance }: { insurance: Record<string, string> | null }) {
@@ -72,7 +75,7 @@ function InlineNotes({ rfp }: { rfp: Rfp }) {
       <div className="flex items-start gap-2">
         <StickyNote className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
         <button
-          onClick={() => { setDraft(rfp.notes || ""); setEditing(true); }}
+          onClick={(e) => { e.stopPropagation(); setDraft(rfp.notes || ""); setEditing(true); }}
           className="text-sm text-left text-muted-foreground hover:text-foreground cursor-pointer"
         >
           {rfp.notes || "Add a note..."}
@@ -82,7 +85,7 @@ function InlineNotes({ rfp }: { rfp: Rfp }) {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
       <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={2} className="text-sm" autoFocus />
       <div className="flex gap-2">
         <Button size="sm" onClick={save}>Save</Button>
@@ -92,33 +95,31 @@ function InlineNotes({ rfp }: { rfp: Rfp }) {
   );
 }
 
-function ExpandedRow({ rfp }: { rfp: Rfp }) {
+function ExpandedRow({ rfp, onEdit }: { rfp: Rfp; onEdit: (rfp: Rfp) => void }) {
   const updateStatus = useUpdateRfpStatus();
   const insurance = rfp.insurance_requirements as Record<string, string> | null;
 
   return (
     <TableRow className="bg-muted/30 hover:bg-muted/40">
-      <TableCell colSpan={6} className="py-4 px-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <TableCell colSpan={7} className="py-4 px-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="space-y-1.5">
-            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Insurance Requirements</div>
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Insurance</div>
             <InsuranceBadges insurance={insurance} />
           </div>
           <div className="space-y-1.5">
             <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">M/WBE Goal</div>
             <p className="text-sm">
-              {rfp.mwbe_goal_min || rfp.mwbe_goal_max
-                ? `${rfp.mwbe_goal_min}–${rfp.mwbe_goal_max}%`
-                : "—"}
+              {rfp.mwbe_goal_min || rfp.mwbe_goal_max ? `${rfp.mwbe_goal_min}–${rfp.mwbe_goal_max}%` : "—"}
             </p>
           </div>
           <div className="space-y-1.5">
-            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Change Status</div>
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</div>
             <Select
               value={rfp.status}
               onValueChange={(val) => updateStatus.mutate({ id: rfp.id, status: val as RfpStatus })}
             >
-              <SelectTrigger className="h-8 w-[140px] text-xs">
+              <SelectTrigger className="h-8 w-[140px] text-xs" onClick={(e) => e.stopPropagation()}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -130,9 +131,27 @@ function ExpandedRow({ rfp }: { rfp: Rfp }) {
               </SelectContent>
             </Select>
           </div>
+          <div className="space-y-1.5">
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Submitted</div>
+            <p className="text-sm">
+              {rfp.submitted_at ? format(new Date(rfp.submitted_at), "MMM d, yyyy") : "—"}
+              {(rfp as any).submission_method && (
+                <span className="text-muted-foreground ml-1">via {(rfp as any).submission_method}</span>
+              )}
+            </p>
+          </div>
           <div className="md:col-span-3 space-y-1.5">
             <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notes</div>
             <InlineNotes rfp={rfp} />
+          </div>
+          <div className="flex items-end">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => { e.stopPropagation(); onEdit(rfp); }}
+            >
+              <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit RFP
+            </Button>
           </div>
         </div>
       </TableCell>
@@ -140,11 +159,14 @@ function ExpandedRow({ rfp }: { rfp: Rfp }) {
   );
 }
 
-export function RfpTableView({ rfps, isLoading }: RfpTableViewProps) {
+const activeStatuses = ["prospect", "drafting", "submitted"];
+
+export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps) {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("due_date");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [editingRfp, setEditingRfp] = useState<Rfp | null>(null);
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
@@ -161,9 +183,13 @@ export function RfpTableView({ rfps, isLoading }: RfpTableViewProps) {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    let list = rfps.filter((r) =>
-      !q || r.title.toLowerCase().includes(q) || (r.rfp_number || "").toLowerCase().includes(q) || (r.agency || "").toLowerCase().includes(q)
-    );
+    let list = rfps.filter((r) => {
+      if (q && !r.title.toLowerCase().includes(q) && !(r.rfp_number || "").toLowerCase().includes(q) && !(r.agency || "").toLowerCase().includes(q)) return false;
+      if (cardFilter === "active") return activeStatuses.includes(r.status);
+      if (cardFilter === "won") return r.status === "won";
+      if (cardFilter === "lost") return r.status === "lost";
+      return true;
+    });
     list.sort((a, b) => {
       let cmp = 0;
       if (sortKey === "due_date") cmp = (a.due_date || "9999").localeCompare(b.due_date || "9999");
@@ -173,7 +199,7 @@ export function RfpTableView({ rfps, isLoading }: RfpTableViewProps) {
       return sortDir === "desc" ? -cmp : cmp;
     });
     return list;
-  }, [rfps, search, sortKey, sortDir]);
+  }, [rfps, search, sortKey, sortDir, cardFilter]);
 
   if (isLoading) {
     return (
@@ -189,11 +215,20 @@ export function RfpTableView({ rfps, isLoading }: RfpTableViewProps) {
     </button>
   );
 
+  const filterLabel = cardFilter === "active" ? "active" : cardFilter === "won" ? "won" : cardFilter === "lost" ? "lost" : null;
+
   return (
     <div className="space-y-4">
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search RFPs..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+      <div className="flex items-center gap-3">
+        <div className="relative max-w-sm flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Search RFPs..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        </div>
+        {filterLabel && (
+          <Badge variant="secondary" className="text-xs">
+            Showing: {filterLabel}
+          </Badge>
+        )}
       </div>
 
       <div className="rounded-md border">
@@ -235,7 +270,7 @@ export function RfpTableView({ rfps, isLoading }: RfpTableViewProps) {
                       {rfp.contract_value ? `$${rfp.contract_value.toLocaleString()}` : "—"}
                     </TableCell>
                   </TableRow>
-                  {isExpanded && <ExpandedRow key={`${rfp.id}-detail`} rfp={rfp} />}
+                  {isExpanded && <ExpandedRow key={`${rfp.id}-detail`} rfp={rfp} onEdit={setEditingRfp} />}
                 </>
               );
             })}
@@ -249,6 +284,8 @@ export function RfpTableView({ rfps, isLoading }: RfpTableViewProps) {
           </TableBody>
         </Table>
       </div>
+
+      <RfpEditDialog rfp={editingRfp} open={!!editingRfp} onOpenChange={(open) => !open && setEditingRfp(null)} />
     </div>
   );
 }

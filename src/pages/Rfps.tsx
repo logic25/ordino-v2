@@ -6,12 +6,13 @@ import { useNavigate } from "react-router-dom";
 import { useRfps } from "@/hooks/useRfps";
 import { RfpKanbanBoard } from "@/components/rfps/RfpKanbanBoard";
 import { RfpTableView } from "@/components/rfps/RfpTableView";
-import { RfpSummaryCards } from "@/components/rfps/RfpSummaryCards";
+import { RfpSummaryCards, type RfpFilter } from "@/components/rfps/RfpSummaryCards";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 export default function Rfps() {
   const navigate = useNavigate();
   const [view, setView] = useState<"kanban" | "table">("table");
+  const [cardFilter, setCardFilter] = useState<RfpFilter>(null);
   const { data: rfps = [], isLoading } = useRfps();
 
   return (
@@ -42,12 +43,12 @@ export default function Rfps() {
           </div>
         </div>
 
-        <RfpSummaryCards rfps={rfps} />
+        <RfpSummaryCards rfps={rfps} activeFilter={cardFilter} onFilterChange={setCardFilter} />
 
         {view === "kanban" ? (
           <RfpKanbanBoard rfps={rfps} isLoading={isLoading} />
         ) : (
-          <RfpTableView rfps={rfps} isLoading={isLoading} />
+          <RfpTableView rfps={rfps} isLoading={isLoading} cardFilter={cardFilter} />
         )}
       </div>
     </AppLayout>
