@@ -13,14 +13,14 @@ import {
 } from "@/components/ui/dialog";
 import {
   CheckCircle, Save, Plus, Trash2, Eye, Loader2, CreditCard, Building2,
-  Mail, RefreshCw, Clock, Upload, Image,
+  Mail, RefreshCw, Clock, Upload, Image, Pencil,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useCompanySettings, useUpdateCompanySettings, type CompanySettings } from "@/hooks/useCompanySettings";
 import {
   useClientBillingRules, useCreateClientBillingRule,
-  useDeleteClientBillingRule, type ClientBillingRule,
+  useUpdateClientBillingRule, useDeleteClientBillingRule, type ClientBillingRule,
 } from "@/hooks/useClientBillingRules";
 import { useClients } from "@/hooks/useClients";
 
@@ -82,6 +82,7 @@ export function InvoiceSettings() {
   const updateSettings = useUpdateCompanySettings();
   const { data: billingRules = [] } = useClientBillingRules();
   const createRule = useCreateClientBillingRule();
+  const updateRule = useUpdateClientBillingRule();
   const deleteRule = useDeleteClientBillingRule();
   const { data: clients = [] } = useClients();
 
@@ -125,6 +126,7 @@ export function InvoiceSettings() {
   const [footerText, setFooterText] = useState("");
   // Billing rule dialog
   const [addRuleOpen, setAddRuleOpen] = useState(false);
+  const [editingRule, setEditingRule] = useState<ClientBillingRule | null>(null);
   const [newRuleClientId, setNewRuleClientId] = useState("");
   const [newRuleVendorId, setNewRuleVendorId] = useState("");
   const [newRulePropertyId, setNewRulePropertyId] = useState("");
@@ -209,29 +211,7 @@ export function InvoiceSettings() {
     }
   };
 
-  const handleAddRule = async () => {
-    if (!newRuleClientId || !companyData) return;
-    try {
-      await createRule.mutateAsync({
-        company_id: companyData.companyId,
-        client_id: newRuleClientId,
-        vendor_id: newRuleVendorId || null,
-        property_id: newRulePropertyId || null,
-        require_waiver: newRuleWaiver,
-        require_pay_app: newRulePayApp,
-        wire_fee: newRuleWireFee ? parseFloat(newRuleWireFee) : null,
-        cc_markup: newRuleCcMarkup ? parseInt(newRuleCcMarkup) : null,
-        special_portal_required: newRulePortal,
-        portal_url: newRulePortalUrl || null,
-        special_instructions: newRuleInstructions || null,
-      });
-      toast({ title: "Billing rule added" });
-      setAddRuleOpen(false);
-      resetRuleForm();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    }
-  };
+  // handleAddRule removed — replaced by handleSaveRule below
 
   const resetRuleForm = () => {
     setNewRuleClientId("");
@@ -250,6 +230,52 @@ export function InvoiceSettings() {
     try {
       await deleteRule.mutateAsync(id);
       toast({ title: "Billing rule removed" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const openEditRule = (rule: ClientBillingRule) => {
+    setEditingRule(rule);
+    setNewRuleClientId(rule.client_id);
+    setNewRuleVendorId(rule.vendor_id || "");
+    setNewRulePropertyId(rule.property_id || "");
+    setNewRuleWaiver(rule.require_waiver || false);
+    setNewRulePayApp(rule.require_pay_app || false);
+    setNewRuleWireFee(rule.wire_fee ? String(rule.wire_fee) : "");
+    setNewRuleCcMarkup(rule.cc_markup ? String(rule.cc_markup) : "");
+    setNewRulePortal(rule.special_portal_required || false);
+    setNewRulePortalUrl(rule.portal_url || "");
+    setNewRuleInstructions(rule.special_instructions || "");
+    setAddRuleOpen(true);
+  };
+
+  const handleSaveRule = async () => {
+    if (!newRuleClientId || !companyData) return;
+    const payload = {
+      company_id: companyData.companyId,
+      client_id: newRuleClientId,
+      vendor_id: newRuleVendorId || null,
+      property_id: newRulePropertyId || null,
+      require_waiver: newRuleWaiver,
+      require_pay_app: newRulePayApp,
+      wire_fee: newRuleWireFee ? parseFloat(newRuleWireFee) : null,
+      cc_markup: newRuleCcMarkup ? parseInt(newRuleCcMarkup) : null,
+      special_portal_required: newRulePortal,
+      portal_url: newRulePortalUrl || null,
+      special_instructions: newRuleInstructions || null,
+    };
+    try {
+      if (editingRule) {
+        await updateRule.mutateAsync({ id: editingRule.id, ...payload });
+        toast({ title: "Billing rule updated" });
+      } else {
+        await createRule.mutateAsync(payload);
+        toast({ title: "Billing rule added" });
+      }
+      setAddRuleOpen(false);
+      setEditingRule(null);
+      resetRuleForm();
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
@@ -585,9 +611,14 @@ export function InvoiceSettings() {
                 <div key={rule.id} className="rounded-lg border p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-medium">{rule.clients?.name || "Unknown Client"}</h4>
-                    <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive" onClick={() => handleDeleteRule(rule.id)}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => openEditRule(rule)}>
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive" onClick={() => handleDeleteRule(rule.id)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
                   {(rule.vendor_id || rule.property_id) && (
                     <div className="flex gap-3 text-xs text-muted-foreground">
@@ -615,17 +646,17 @@ export function InvoiceSettings() {
         </CardContent>
       </Card>
 
-      {/* Add Billing Rule Dialog */}
-      <Dialog open={addRuleOpen} onOpenChange={setAddRuleOpen}>
+      {/* Add/Edit Billing Rule Dialog */}
+      <Dialog open={addRuleOpen} onOpenChange={(open) => { setAddRuleOpen(open); if (!open) { setEditingRule(null); resetRuleForm(); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Client Billing Rule</DialogTitle>
+            <DialogTitle>{editingRule ? "Edit" : "Add"} Client Billing Rule</DialogTitle>
             <DialogDescription>Configure special billing procedures for a client.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
             <div className="space-y-2">
               <Label>Client</Label>
-              <Select value={newRuleClientId} onValueChange={setNewRuleClientId}>
+              <Select value={newRuleClientId} onValueChange={setNewRuleClientId} disabled={!!editingRule}>
                 <SelectTrigger><SelectValue placeholder="Select client" /></SelectTrigger>
                 <SelectContent>
                   {clients.map((c) => (
@@ -682,9 +713,9 @@ export function InvoiceSettings() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddRuleOpen(false)}>Cancel</Button>
-            <Button onClick={handleAddRule} disabled={!newRuleClientId || createRule.isPending}>
-              {createRule.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Add Rule
+            <Button onClick={handleSaveRule} disabled={!newRuleClientId || createRule.isPending || updateRule.isPending}>
+              {(createRule.isPending || updateRule.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {editingRule ? "Save Changes" : "Add Rule"}
             </Button>
           </DialogFooter>
         </DialogContent>
