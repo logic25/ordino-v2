@@ -61,6 +61,9 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
   const [newNoteText, setNewNoteText] = useState("");
   const [newNoteMethod, setNewNoteMethod] = useState("phone_call");
   const [savingNote, setSavingNote] = useState(false);
+  const [editingClient, setEditingClient] = useState(false);
+  const [clientEdits, setClientEdits] = useState({ name: "", email: "", phone: "", address: "" });
+  const [savingClient, setSavingClient] = useState(false);
   const updateInvoice = useUpdateInvoice();
   const queryClient = useQueryClient();
   const { data: followUps } = useInvoiceFollowUps(invoice?.id);
@@ -161,6 +164,32 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
       setSavingNote(false);
+    }
+  };
+
+  const handleSaveClient = async () => {
+    if (!invoice.client_id) return;
+    setSavingClient(true);
+    try {
+      const updates: Record<string, string> = {};
+      if (clientEdits.name.trim()) updates.name = clientEdits.name.trim();
+      if (clientEdits.email !== (invoice.clients?.email || "")) updates.email = clientEdits.email.trim() || null as any;
+      if (clientEdits.phone !== (invoice.clients?.phone || "")) updates.phone = clientEdits.phone.trim() || null as any;
+      if (clientEdits.address !== (invoice.clients?.address || "")) updates.address = clientEdits.address.trim() || null as any;
+
+      const { error } = await supabase
+        .from("clients")
+        .update(updates)
+        .eq("id", invoice.client_id);
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      toast({ title: "Client info updated" });
+      setEditingClient(false);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setSavingClient(false);
     }
   };
 
@@ -302,29 +331,92 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
 
             {/* Client & Billing Contact */}
             <section>
-              <h4 className="text-sm font-medium text-muted-foreground mb-2">Client Info</h4>
-              <div className="rounded-lg border p-3 space-y-2">
-                <p className="text-sm font-medium">{invoice.clients?.name || "—"}</p>
-                {invoice.clients?.phone && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Phone className="h-3 w-3 text-muted-foreground" />
-                    <a href={`tel:${invoice.clients.phone}`} className="text-primary hover:underline">
-                      {invoice.clients.phone}
-                    </a>
-                  </div>
-                )}
-                {invoice.clients?.email && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Mail className="h-3 w-3 text-muted-foreground" />
-                    <a href={`mailto:${invoice.clients.email}`} className="text-primary hover:underline">
-                      {invoice.clients.email}
-                    </a>
-                  </div>
-                )}
-                {invoice.clients?.address && (
-                  <p className="text-xs text-muted-foreground">{invoice.clients.address}</p>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-medium text-muted-foreground">Client Info</h4>
+                {!editingClient && (
+                  <Button variant="ghost" size="sm" onClick={() => {
+                    setEditingClient(true);
+                    setClientEdits({
+                      name: invoice.clients?.name || "",
+                      email: invoice.clients?.email || "",
+                      phone: invoice.clients?.phone || "",
+                      address: invoice.clients?.address || "",
+                    });
+                  }}>
+                    <Edit2 className="h-3 w-3 mr-1" /> Edit
+                  </Button>
                 )}
               </div>
+
+              {editingClient ? (
+                <div className="rounded-lg border p-3 space-y-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Name</Label>
+                    <Input
+                      value={clientEdits.name}
+                      onChange={(e) => setClientEdits((p) => ({ ...p, name: e.target.value }))}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Email</Label>
+                    <Input
+                      type="email"
+                      value={clientEdits.email}
+                      onChange={(e) => setClientEdits((p) => ({ ...p, email: e.target.value }))}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Phone</Label>
+                    <Input
+                      value={clientEdits.phone}
+                      onChange={(e) => setClientEdits((p) => ({ ...p, phone: e.target.value }))}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Address</Label>
+                    <Input
+                      value={clientEdits.address}
+                      onChange={(e) => setClientEdits((p) => ({ ...p, address: e.target.value }))}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button variant="ghost" size="sm" onClick={() => setEditingClient(false)}>
+                      Cancel
+                    </Button>
+                    <Button size="sm" disabled={savingClient} onClick={handleSaveClient}>
+                      {savingClient && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-lg border p-3 space-y-2">
+                  <p className="text-sm font-medium">{invoice.clients?.name || "—"}</p>
+                  {invoice.clients?.phone && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Phone className="h-3 w-3 text-muted-foreground" />
+                      <a href={`tel:${invoice.clients.phone}`} className="text-primary hover:underline">
+                        {invoice.clients.phone}
+                      </a>
+                    </div>
+                  )}
+                  {invoice.clients?.email && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Mail className="h-3 w-3 text-muted-foreground" />
+                      <a href={`mailto:${invoice.clients.email}`} className="text-primary hover:underline">
+                        {invoice.clients.email}
+                      </a>
+                    </div>
+                  )}
+                  {invoice.clients?.address && (
+                    <p className="text-xs text-muted-foreground">{invoice.clients.address}</p>
+                  )}
+                </div>
+              )}
 
               {/* Sent To / Billing Contact — always show */}
               <div className="mt-3">
