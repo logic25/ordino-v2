@@ -17,6 +17,7 @@ import type { EmailWithTags } from "@/hooks/useEmails";
 import { useUntagEmail, useThreadEmails, useArchiveEmail, useSnoozeEmail } from "@/hooks/useEmails";
 import { useSendEmail } from "@/hooks/useGmailConnection";
 import { useAttachmentDownload } from "@/hooks/useAttachmentDownload";
+import { AttachmentPreviewModal } from "./AttachmentPreviewModal";
 import { useProjects } from "@/hooks/useProjects";
 import { useProjectSuggestions } from "@/hooks/useProjectSuggestions";
 import { useUpdateQuickTags, detectAutoTags } from "@/hooks/useQuickTags";
@@ -180,7 +181,7 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
   const snoozeEmail = useSnoozeEmail();
   const updateQuickTags = useUpdateQuickTags();
   const sendEmail = useSendEmail();
-  const { downloadAttachment, downloadingId } = useAttachmentDownload();
+  const { downloadAttachment, downloadingId, preview, closePreview } = useAttachmentDownload();
   const { toast } = useToast();
 
   const { data: projects = [] } = useProjects();
@@ -478,6 +479,14 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
           </div>
         </SheetContent>
       </Sheet>
+
+      <AttachmentPreviewModal
+        open={!!preview}
+        onOpenChange={(open) => { if (!open) closePreview(); }}
+        url={preview?.url ?? null}
+        filename={preview?.filename ?? ""}
+        mimeType={preview?.mimeType ?? ""}
+      />
 
       <EmailTagDialog
         open={tagDialogOpen}
