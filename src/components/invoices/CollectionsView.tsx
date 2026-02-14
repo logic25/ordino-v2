@@ -18,8 +18,11 @@ import {
   AlertTriangle, AlertOctagon, Clock, Mail, FileWarning, Trash2, Loader2,
   CheckCircle, StickyNote, Plus, Brain, Sparkles, HandCoins, ShieldAlert,
   TrendingUp, ToggleLeft, ToggleRight, Calendar, DollarSign, SplitSquareVertical,
-  Gavel,
+  Gavel, MoreHorizontal,
 } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { differenceInDays, format } from "date-fns";
 import { useUpdateInvoice, type InvoiceWithRelations } from "@/hooks/useInvoices";
 import { useQueryClient } from "@tanstack/react-query";
@@ -240,49 +243,38 @@ function InvoiceCard({
           >
             <Mail className="h-3.5 w-3.5" />
           </Button>
-          {(level === "critical" || level === "urgent") && (
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 text-primary"
-                onClick={() => onOpenPaymentPlan(inv)}
-                title="Payment Plan"
-              >
-                <SplitSquareVertical className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 text-destructive"
-                onClick={() => onOpenAction("demand", inv)}
-                title="Send Demand Letter"
-              >
-                <FileWarning className="h-3.5 w-3.5" />
-              </Button>
-            </>
-          )}
-          {(level === "critical" || level === "urgent") && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 text-primary"
-              onClick={() => onOpenClaimFlow(inv)}
-              title="ClaimFlow — Small Claims Referral"
-            >
-              <Gavel className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          {level === "critical" && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 text-muted-foreground"
-              onClick={() => onOpenAction("writeoff", inv)}
-              title="Write Off"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+          {(level === "critical" || level === "urgent" || level === "attention") && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8" title="More actions">
+                  <MoreHorizontal className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => onOpenPaymentPlan(inv)}>
+                  <SplitSquareVertical className="h-3.5 w-3.5 mr-2" />
+                  Payment Plan
+                </DropdownMenuItem>
+                {(level === "critical" || level === "urgent") && (
+                  <DropdownMenuItem onClick={() => onOpenAction("demand", inv)}>
+                    <FileWarning className="h-3.5 w-3.5 mr-2" />
+                    Demand Letter
+                  </DropdownMenuItem>
+                )}
+                {(level === "critical" || level === "urgent") && (
+                  <DropdownMenuItem onClick={() => onOpenClaimFlow(inv)}>
+                    <Gavel className="h-3.5 w-3.5 mr-2" />
+                    ClaimFlow
+                  </DropdownMenuItem>
+                )}
+                {level === "critical" && (
+                  <DropdownMenuItem onClick={() => onOpenAction("writeoff", inv)} className="text-destructive">
+                    <Trash2 className="h-3.5 w-3.5 mr-2" />
+                    Write Off
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </div>

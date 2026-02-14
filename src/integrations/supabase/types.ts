@@ -27,6 +27,7 @@ export type Database = {
           id: string
           invoice_id: string
           ip_address: string | null
+          payment_method: string
           payment_plan_id: string
           routing_number_last4: string | null
           signature_data: string
@@ -46,6 +47,7 @@ export type Database = {
           id?: string
           invoice_id: string
           ip_address?: string | null
+          payment_method?: string
           payment_plan_id: string
           routing_number_last4?: string | null
           signature_data: string
@@ -65,6 +67,7 @@ export type Database = {
           id?: string
           invoice_id?: string
           ip_address?: string | null
+          payment_method?: string
           payment_plan_id?: string
           routing_number_last4?: string | null
           signature_data?: string

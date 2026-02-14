@@ -10,8 +10,11 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCreateClaimFlowReferral } from "@/hooks/useClaimFlow";
 import { toast } from "@/hooks/use-toast";
-import { Gavel, Loader2, FileText, Mail, HandCoins, Clock } from "lucide-react";
-import { differenceInDays, format } from "date-fns";
+import {
+  Gavel, Loader2, FileText, Mail, HandCoins, Clock,
+  FileSignature, Users, Scale, AlertCircle, CheckCircle2,
+} from "lucide-react";
+import { differenceInDays, format, addYears } from "date-fns";
 
 interface ClaimFlowDialogProps {
   open: boolean;
@@ -22,6 +25,7 @@ interface ClaimFlowDialogProps {
   dueDate: string | null;
   clientId?: string | null;
   clientName?: string;
+  companyName?: string;
 }
 
 const packageItems = [
@@ -29,10 +33,12 @@ const packageItems = [
   { id: "followups", label: "Follow-up history & notes", icon: Mail },
   { id: "demands", label: "Demand letters sent", icon: Clock },
   { id: "promises", label: "Payment promises (kept & broken)", icon: HandCoins },
+  { id: "proposal", label: "Signed proposal / contract (if available)", icon: FileSignature },
+  { id: "contacts", label: "Client contact information & billing details", icon: Users },
 ];
 
 export function ClaimFlowDialog({
-  open, onOpenChange, invoiceId, invoiceNumber, totalDue, dueDate, clientId, clientName,
+  open, onOpenChange, invoiceId, invoiceNumber, totalDue, dueDate, clientId, clientName, companyName,
 }: ClaimFlowDialogProps) {
   const [caseNotes, setCaseNotes] = useState("");
   const [confirmed, setConfirmed] = useState(false);
@@ -41,6 +47,10 @@ export function ClaimFlowDialog({
   const daysOverdue = dueDate
     ? Math.max(0, differenceInDays(new Date(), new Date(dueDate)))
     : 0;
+
+  const filingDeadline = dueDate
+    ? addYears(new Date(dueDate), 6)
+    : null;
 
   const handleSubmit = async () => {
     try {
@@ -63,7 +73,7 @@ export function ClaimFlowDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Gavel className="h-5 w-5 text-primary" />
@@ -110,6 +120,68 @@ export function ClaimFlowDialog({
           </div>
 
           <Separator />
+
+          {/* Package Preview Card */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Package Preview</Label>
+            <div className="rounded-lg border-2 border-dashed border-muted-foreground/20 p-4 space-y-3 bg-background">
+              <div className="text-center space-y-0.5">
+                <p className="text-xs uppercase tracking-widest text-muted-foreground">ClaimFlow Legal Package</p>
+                <p className="text-sm font-semibold">{companyName || "Your Company"}</p>
+              </div>
+              <Separator />
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="text-muted-foreground">Client:</span>
+                  <p className="font-medium">{clientName || "—"}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Invoice:</span>
+                  <p className="font-medium">{invoiceNumber}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Amount Owed:</span>
+                  <p className="font-medium font-mono">${totalDue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Days Overdue:</span>
+                  <p className="font-medium">{daysOverdue}</p>
+                </div>
+                {filingDeadline && (
+                  <div className="col-span-2">
+                    <span className="text-muted-foreground">Filing Deadline (est.):</span>
+                    <p className="font-medium">{format(filingDeadline, "MMMM d, yyyy")}</p>
+                  </div>
+                )}
+              </div>
+              <Separator />
+              <div className="space-y-1">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Enclosed Documents</p>
+                {packageItems.map((item) => (
+                  <div key={item.id} className="flex items-center gap-1.5 text-xs">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                    <span>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Statute of limitations reminder */}
+          <div className="flex items-start gap-2.5 rounded-md border border-primary/20 bg-primary/5 p-3">
+            <Scale className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+            <div className="space-y-1">
+              <p className="text-xs font-medium">NY Statute of Limitations</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                You have up to <strong>6 years</strong> from the breach date to file a small claims action for written contracts in New York.
+                {filingDeadline && (
+                  <> Estimated deadline: <strong>{format(filingDeadline, "MMMM d, yyyy")}</strong>.</>
+                )}
+              </p>
+            </div>
+          </div>
 
           {/* Case notes */}
           <div className="space-y-2">

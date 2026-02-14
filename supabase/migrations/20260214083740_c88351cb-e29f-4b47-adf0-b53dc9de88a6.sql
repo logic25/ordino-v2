@@ -1,0 +1,1 @@
+ALTER TABLE ach_authorizations ADD COLUMN payment_method text NOT NULL DEFAULT 'ach';
