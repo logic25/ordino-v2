@@ -3,9 +3,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, X } from "lucide-react";
+import { Download } from "lucide-react";
 
 interface AttachmentPreviewModalProps {
   open: boolean;
@@ -39,14 +40,17 @@ export function AttachmentPreviewModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0">
-        <DialogHeader className="px-6 pt-6 pb-3 flex flex-row items-center justify-between">
-          <DialogTitle className="text-sm font-medium truncate pr-4">
-            {filename}
-          </DialogTitle>
-          <Button variant="outline" size="sm" onClick={handleDownload}>
-            <Download className="h-4 w-4 mr-1.5" />
-            Download
-          </Button>
+        <DialogHeader className="px-6 pt-6 pb-3">
+          <div className="flex items-center justify-between gap-4 pr-8">
+            <DialogTitle className="text-sm font-medium truncate">
+              {filename}
+            </DialogTitle>
+            <Button variant="outline" size="sm" onClick={handleDownload} className="shrink-0">
+              <Download className="h-4 w-4 mr-1.5" />
+              Download
+            </Button>
+          </div>
+          <DialogDescription className="sr-only">Preview of {filename}</DialogDescription>
         </DialogHeader>
         <div className="flex-1 overflow-auto px-6 pb-6 min-h-0">
           {isImage && (
