@@ -27,6 +27,7 @@ import { toast } from "@/hooks/use-toast";
 import { usePaymentPrediction } from "@/hooks/usePaymentPredictions";
 import { usePaymentPromises, useCreatePaymentPromise } from "@/hooks/usePaymentPromises";
 import { useGenerateCollectionMessage } from "@/hooks/useCollectionMessage";
+import { useClientPaymentAnalytics } from "@/hooks/useClientAnalytics";
 
 interface CollectionsViewProps {
   invoices: InvoiceWithRelations[];
@@ -126,6 +127,33 @@ function PredictionInfo({ invoiceId }: { invoiceId: string }) {
   );
 }
 
+function ClientValueInfo({ clientId }: { clientId: string | undefined }) {
+  const { data: analytics } = useClientPaymentAnalytics(clientId);
+  if (!analytics) return null;
+  const reliability = analytics.payment_reliability_score;
+  const ltv = analytics.total_lifetime_value || 0;
+  const reliabilityColor = reliability != null
+    ? reliability >= 80 ? "text-emerald-600 dark:text-emerald-400"
+    : reliability >= 50 ? "text-amber-600 dark:text-amber-400"
+    : "text-destructive"
+    : "text-muted-foreground";
+  return (
+    <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+      {reliability != null && (
+        <span className={reliabilityColor}>
+          Reliability: {reliability}/100
+        </span>
+      )}
+      {ltv > 0 && (
+        <span>LTV: ${ltv.toLocaleString("en-US", { minimumFractionDigits: 0 })}</span>
+      )}
+      {analytics.avg_days_to_payment != null && (
+        <span>Avg Pay: {analytics.avg_days_to_payment}d</span>
+      )}
+    </div>
+  );
+}
+
 function InvoiceCard({
   inv,
   level,
@@ -165,8 +193,9 @@ function InvoiceCard({
             {inv.projects?.name ? ` • ${inv.projects.name}` : ""}
           </p>
           {showAiInfo && (
-            <div className="mt-0.5">
+            <div className="mt-0.5 flex flex-col gap-0.5">
               <PredictionInfo invoiceId={inv.id} />
+              <ClientValueInfo clientId={inv.client_id || undefined} />
             </div>
           )}
         </div>
