@@ -356,25 +356,31 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
           </div>
 
           {/* Project Tags */}
-          <div className="px-6 pb-3 flex flex-wrap items-center gap-2">
-            {tags.map((tag) => (
-              <Badge
-                key={tag.id}
-                variant="outline"
-                className={cn(
-                  "text-xs gap-1",
-                  categoryColors[tag.category] || categoryColors.other
-                )}
-              >
-                {tag.projects?.project_number || tag.projects?.name || "Project"}
-                {" · "}
-                {categoryLabels[tag.category] || tag.category}
-                <button onClick={() => handleUntag(tag.id)} className="ml-0.5 hover:opacity-70">
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))}
-          </div>
+          {tags.length > 0 && (
+            <div className="px-6 pb-3">
+              <p className="text-xs font-medium text-muted-foreground mb-2">Project Tags</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {tags.map((tag) => (
+                  <Badge
+                    key={tag.id}
+                    variant="outline"
+                    className={cn(
+                      "text-xs gap-1 py-1",
+                      categoryColors[tag.category] || categoryColors.other
+                    )}
+                  >
+                    <Tag className="h-3 w-3" />
+                    {tag.projects?.project_number || tag.projects?.name || "Project"}
+                    {" · "}
+                    {categoryLabels[tag.category] || tag.category}
+                    <button onClick={() => handleUntag(tag.id)} className="ml-0.5 hover:opacity-70">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Auto-suggest */}
           {suggestions.length > 0 && tags.length === 0 && (
