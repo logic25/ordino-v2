@@ -80,16 +80,19 @@ Extract the following information from the RFP text. Return ONLY a JSON object w
 - rfp_number: string | null (RFP or PIN number)
 - agency: string | null (issuing agency name)
 - due_date: string | null (ISO date format YYYY-MM-DD if found)
-- contract_value: number | null (estimated contract value in dollars)
+- contract_value: number | null (estimated contract value in dollars - if not explicitly stated, estimate based on the scope of work, required personnel, duration, and typical government consulting rates for this type of work. Consider: number of staff needed, project duration, complexity level, and typical hourly rates of $150-300/hr for engineering/architecture consulting)
+- contract_value_source: string (either "stated" if the value was explicitly in the document, or "estimated" if you inferred it)
 - mwbe_goal_min: number | null (M/WBE participation goal percentage)
 - submission_method: string | null (one of: "email", "portal", "in-person", "mail")
 - scope_summary: string (2-3 sentence summary of the scope of work)
 - insurance_requirements: object | null (keys like general_liability, workers_comp, umbrella, professional_liability with coverage amount strings)
 - key_dates: array of {label: string, date: string} (important milestones like pre-bid conference, Q&A deadline)
 - required_sections: array of strings (what sections the RFP asks for in the response, e.g. "Organization Chart", "Key Personnel", "Similar Projects")
+- estimated_staff_count: number | null (how many personnel are needed based on scope)
+- estimated_duration_months: number | null (project duration in months)
 - notes: string | null (any other important notes or unusual requirements)
 
-If information is not found, use null. Be precise with dates and numbers.`;
+If information is not found, use null. Be precise with dates and numbers. For contract_value, always try to provide an estimate even if not stated - use the scope details and industry knowledge.`;
 
     const aiResponse = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",

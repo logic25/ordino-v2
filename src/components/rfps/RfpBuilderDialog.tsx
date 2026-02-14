@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   Building2,
   Users,
@@ -20,12 +21,15 @@ import {
   Award,
   GitBranch,
   Eye,
-  GripVertical,
   Loader2,
+  Sparkles,
+  Mail,
+  Download,
 } from "lucide-react";
 import { useRfpContent, useNotableApplications } from "@/hooks/useRfpContent";
-import { useCompanyProfiles } from "@/hooks/useProfiles";
-import type { Rfp } from "@/hooks/useRfps";
+import { useUpdateRfpStatus, type Rfp, type RfpStatus } from "@/hooks/useRfps";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { RfpPreviewModal } from "./RfpPreviewModal";
 
 interface RfpBuilderDialogProps {
@@ -35,6 +39,7 @@ interface RfpBuilderDialogProps {
 }
 
 const SECTION_DEFS = [
+  { id: "cover_letter", label: "Cover Letter", icon: Mail },
   { id: "company_info", label: "Company Information", icon: Building2 },
   { id: "staff_bios", label: "Staff Bios & Qualifications", icon: Users },
   { id: "org_chart", label: "Organization Chart", icon: GitBranch },
@@ -52,6 +57,13 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     SECTION_DEFS.map((s) => s.id)
   );
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [coverLetter, setCoverLetter] = useState("");
+  const [generatingLetter, setGeneratingLetter] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitEmail, setSubmitEmail] = useState("");
+  const [showSubmitForm, setShowSubmitForm] = useState(false);
+  const updateStatus = useUpdateRfpStatus();
+  const { toast } = useToast();
 
   // Fetch all content
   const { data: companyInfo = [] } = useRfpContent("company_info");
@@ -80,7 +92,77 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     });
   };
 
+  const generateCoverLetter = async () => {
+    if (!rfp) return;
+    setGeneratingLetter(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-rfp-cover-letter", {
+        body: {
+          rfp,
+          companyInfo: companyInfo[0]?.content,
+          staffCount: staffBios.length,
+          certifications: certs.map((c) => ({ title: c.title, content: c.content })),
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setCoverLetter(data.letter);
+      toast({ title: "Cover letter generated" });
+    } catch (e: any) {
+      toast({ title: "Error generating cover letter", description: e.message, variant: "destructive" });
+    } finally {
+      setGeneratingLetter(false);
+    }
+  };
+
+  const handleSubmitViaEmail = async () => {
+    if (!submitEmail || !rfp) return;
+    setSubmitting(true);
+    try {
+      // Send via gmail-send edge function
+      const { data, error } = await supabase.functions.invoke("gmail-send", {
+        body: {
+          to: submitEmail,
+          subject: `RFP Response: ${rfp.title}${rfp.rfp_number ? ` (#${rfp.rfp_number})` : ""}`,
+          body: buildEmailBody(),
+        },
+      });
+      if (error) throw error;
+
+      // Update RFP status to submitted
+      await updateStatus.mutateAsync({
+        id: rfp.id,
+        status: "submitted" as RfpStatus,
+        submitted_at: new Date().toISOString(),
+      });
+
+      toast({ title: "RFP response submitted!", description: `Sent to ${submitEmail} and status updated to Submitted.` });
+      setShowSubmitForm(false);
+      onOpenChange(false);
+    } catch (e: any) {
+      toast({ title: "Submit failed", description: e.message, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const buildEmailBody = () => {
+    const parts: string[] = [];
+    if (coverLetter) parts.push(coverLetter);
+    parts.push(`\n\n--- RFP Response: ${rfp?.title} ---\n`);
+    parts.push("Please find our complete RFP response package attached.");
+    parts.push("\nThis response was generated using Ordino RFP Response Builder.");
+    return parts.join("\n");
+  };
+
+  const handleExportPDF = () => {
+    // Open print-friendly preview for PDF export
+    setPreviewOpen(true);
+    toast({ title: "Use your browser's Print function (Ctrl+P) to save as PDF from the preview" });
+  };
+
   const contentCounts: Record<string, number> = {
+    cover_letter: coverLetter ? 1 : 0,
     company_info: companyInfo.length,
     staff_bios: staffBios.length,
     org_chart: staffBios.filter((s) => (s.content as any)?.include_in_org_chart !== false).length,
@@ -99,6 +181,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     narratives: [...firmHistory, ...narratives],
     pricing: pricing[0],
     certs,
+    coverLetter,
   };
 
   return (
@@ -112,11 +195,44 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
           </DialogHeader>
 
           <p className="text-sm text-muted-foreground">
-            Select and order the sections to include in your RFP response package. Toggle sections on/off and reorder them.
+            Select and order the sections to include in your RFP response package.
           </p>
 
+          {/* Cover Letter Section */}
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="py-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-primary" />
+                  <span className="font-medium text-sm">AI Cover Letter</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={generateCoverLetter}
+                  disabled={generatingLetter}
+                >
+                  {generatingLetter ? (
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4 mr-1" />
+                  )}
+                  {coverLetter ? "Regenerate" : "Generate"}
+                </Button>
+              </div>
+              {coverLetter && (
+                <Textarea
+                  value={coverLetter}
+                  onChange={(e) => setCoverLetter(e.target.value)}
+                  rows={6}
+                  className="text-sm"
+                />
+              )}
+            </CardContent>
+          </Card>
+
           <div className="space-y-2 mt-2">
-            {sectionOrder.map((sectionId, idx) => {
+            {sectionOrder.filter((s) => s !== "cover_letter").map((sectionId, idx) => {
               const def = SECTION_DEFS.find((s) => s.id === sectionId);
               if (!def) return null;
               const Icon = def.icon;
@@ -141,7 +257,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
                       <button
                         className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-30"
                         onClick={() => moveSection(sectionId, "down")}
-                        disabled={idx === sectionOrder.length - 1}
+                        disabled={idx === sectionOrder.filter((s) => s !== "cover_letter").length - 1}
                       >
                         ▼
                       </button>
@@ -159,16 +275,55 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
 
           <Separator className="my-2" />
 
+          {/* Submit Form */}
+          {showSubmitForm && (
+            <Card className="border-primary/30">
+              <CardContent className="py-3 space-y-3">
+                <Label className="text-sm font-medium">Submit via Email</Label>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={submitEmail}
+                    onChange={(e) => setSubmitEmail(e.target.value)}
+                    placeholder="agency@email.com"
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleSubmitViaEmail}
+                    disabled={submitting || !submitEmail}
+                  >
+                    {submitting ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <Mail className="h-4 w-4 mr-1" />
+                    )}
+                    Send
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  This will email the response and mark this RFP as "Submitted".
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {selectedSections.length} of {SECTION_DEFS.length} sections selected
+              {selectedSections.length} sections selected
             </p>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button onClick={() => setPreviewOpen(true)}>
-                <Eye className="h-4 w-4 mr-1" /> Preview Response
+              <Button variant="outline" onClick={() => setPreviewOpen(true)}>
+                <Eye className="h-4 w-4 mr-1" /> Preview
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowSubmitForm(!showSubmitForm)}
+              >
+                <Mail className="h-4 w-4 mr-1" /> Email Submit
               </Button>
             </div>
           </div>
