@@ -1456,10 +1456,18 @@ export type Database = {
           id: string
           job_number: string | null
           metadata: Json | null
+          notable: boolean | null
           notes: string | null
           permit_issued_date: string | null
           project_id: string | null
           property_id: string
+          reference_contact_email: string | null
+          reference_contact_name: string | null
+          reference_contact_phone: string | null
+          reference_contact_title: string | null
+          reference_last_verified: string | null
+          reference_notes: string | null
+          rfp_tags: string[] | null
           status: Database["public"]["Enums"]["application_status"] | null
           updated_at: string | null
         }
@@ -1476,10 +1484,18 @@ export type Database = {
           id?: string
           job_number?: string | null
           metadata?: Json | null
+          notable?: boolean | null
           notes?: string | null
           permit_issued_date?: string | null
           project_id?: string | null
           property_id: string
+          reference_contact_email?: string | null
+          reference_contact_name?: string | null
+          reference_contact_phone?: string | null
+          reference_contact_title?: string | null
+          reference_last_verified?: string | null
+          reference_notes?: string | null
+          rfp_tags?: string[] | null
           status?: Database["public"]["Enums"]["application_status"] | null
           updated_at?: string | null
         }
@@ -1496,10 +1512,18 @@ export type Database = {
           id?: string
           job_number?: string | null
           metadata?: Json | null
+          notable?: boolean | null
           notes?: string | null
           permit_issued_date?: string | null
           project_id?: string | null
           property_id?: string
+          reference_contact_email?: string | null
+          reference_contact_name?: string | null
+          reference_contact_phone?: string | null
+          reference_contact_title?: string | null
+          reference_last_verified?: string | null
+          reference_notes?: string | null
+          rfp_tags?: string[] | null
           status?: Database["public"]["Enums"]["application_status"] | null
           updated_at?: string | null
         }
@@ -3618,6 +3642,178 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rfp_content: {
+        Row: {
+          company_id: string
+          content: Json
+          content_type: string
+          created_at: string
+          file_url: string | null
+          id: string
+          tags: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          content?: Json
+          content_type: string
+          created_at?: string
+          file_url?: string | null
+          id?: string
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          content?: Json
+          content_type?: string
+          created_at?: string
+          file_url?: string | null
+          id?: string
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rfp_content_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rfp_sections: {
+        Row: {
+          ai_generated: boolean | null
+          content: Json
+          created_at: string
+          display_order: number
+          id: string
+          reviewed: boolean | null
+          rfp_id: string
+          section_type: string
+          updated_at: string
+        }
+        Insert: {
+          ai_generated?: boolean | null
+          content?: Json
+          created_at?: string
+          display_order?: number
+          id?: string
+          reviewed?: boolean | null
+          rfp_id: string
+          section_type: string
+          updated_at?: string
+        }
+        Update: {
+          ai_generated?: boolean | null
+          content?: Json
+          created_at?: string
+          display_order?: number
+          id?: string
+          reviewed?: boolean | null
+          rfp_id?: string
+          section_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rfp_sections_rfp_id_fkey"
+            columns: ["rfp_id"]
+            isOneToOne: false
+            referencedRelation: "rfps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rfps: {
+        Row: {
+          agency: string | null
+          company_id: string
+          contract_value: number | null
+          created_at: string
+          created_by: string | null
+          debrief_notes: string | null
+          due_date: string | null
+          id: string
+          lessons_learned: Json | null
+          mwbe_goal_max: number | null
+          mwbe_goal_min: number | null
+          outcome: string | null
+          requirements: Json | null
+          response_draft_url: string | null
+          rfp_number: string | null
+          status: string
+          submitted_at: string | null
+          title: string
+          updated_at: string
+          uploaded_pdf_url: string | null
+        }
+        Insert: {
+          agency?: string | null
+          company_id: string
+          contract_value?: number | null
+          created_at?: string
+          created_by?: string | null
+          debrief_notes?: string | null
+          due_date?: string | null
+          id?: string
+          lessons_learned?: Json | null
+          mwbe_goal_max?: number | null
+          mwbe_goal_min?: number | null
+          outcome?: string | null
+          requirements?: Json | null
+          response_draft_url?: string | null
+          rfp_number?: string | null
+          status?: string
+          submitted_at?: string | null
+          title: string
+          updated_at?: string
+          uploaded_pdf_url?: string | null
+        }
+        Update: {
+          agency?: string | null
+          company_id?: string
+          contract_value?: number | null
+          created_at?: string
+          created_by?: string | null
+          debrief_notes?: string | null
+          due_date?: string | null
+          id?: string
+          lessons_learned?: Json | null
+          mwbe_goal_max?: number | null
+          mwbe_goal_min?: number | null
+          outcome?: string | null
+          requirements?: Json | null
+          response_draft_url?: string | null
+          rfp_number?: string | null
+          status?: string
+          submitted_at?: string | null
+          title?: string
+          updated_at?: string
+          uploaded_pdf_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rfps_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfps_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
