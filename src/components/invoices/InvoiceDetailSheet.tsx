@@ -14,18 +14,27 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Collapsible, CollapsibleTrigger, CollapsibleContent,
+} from "@/components/ui/collapsible";
 import { InvoiceStatusBadge } from "./InvoiceStatusBadge";
 import { LineItemsEditor } from "./LineItemsEditor";
 import { InvoicePDFPreview } from "./InvoicePDFPreview";
+import { generateInvoicePDFBlob } from "./InvoicePDFPreview";
 import { useUpdateInvoice, type InvoiceWithRelations, type LineItem } from "@/hooks/useInvoices";
 import { useInvoiceFollowUps, useInvoiceActivityLog } from "@/hooks/useInvoiceFollowUps";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { useClientPaymentAnalytics } from "@/hooks/useClientAnalytics";
+import { usePaymentPrediction } from "@/hooks/usePaymentPredictions";
+import { usePaymentPromises } from "@/hooks/usePaymentPromises";
+import { useGenerateCollectionMessage } from "@/hooks/useCollectionMessage";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { format, differenceInDays } from "date-fns";
 import {
   Edit2, Save, X, Send, Mail, MailOpen, Clock, FileWarning, Trash2, Loader2,
   MessageSquare, Activity, Eye, Edit3, Plus, Phone, StickyNote, Download, FileText,
+  ChevronDown, TrendingUp, HandCoins, ShieldAlert, Sparkles, BarChart3,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/hooks/use-toast";
@@ -57,6 +66,12 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
   const { data: followUps } = useInvoiceFollowUps(invoice?.id);
   const { data: activityLog } = useInvoiceActivityLog(invoice?.id);
   const { data: companyData } = useCompanySettings();
+  const { data: clientAnalytics } = useClientPaymentAnalytics(invoice?.client_id ?? undefined);
+  const { data: prediction } = usePaymentPrediction(invoice?.id ?? undefined);
+  const { data: promises } = usePaymentPromises(invoice?.id ?? undefined);
+  const generateMessage = useGenerateCollectionMessage();
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   if (!invoice) return null;
 
@@ -357,6 +372,150 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
 
             <Separator />
 
+            {/* Client Payment Analytics — Collapsible */}
+            {clientAnalytics && (
+              <Collapsible>
+                <CollapsibleTrigger className="flex items-center justify-between w-full group">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                    <h4 className="text-sm font-medium text-muted-foreground">Payment Analytics</h4>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-2">
+                  <div className="rounded-lg border p-3 space-y-2 bg-muted/30">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-[10px] uppercase text-muted-foreground font-medium">Reliability Score</p>
+                        <p className="text-lg font-bold font-mono">
+                          {clientAnalytics.payment_reliability_score != null ? `${clientAnalytics.payment_reliability_score}/100` : "—"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase text-muted-foreground font-medium">Avg Days to Pay</p>
+                        <p className="text-lg font-bold font-mono">
+                          {clientAnalytics.avg_days_to_payment != null ? `${clientAnalytics.avg_days_to_payment}d` : "—"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase text-muted-foreground font-medium">Lifetime Value</p>
+                        <p className="text-lg font-bold font-mono">
+                          ${(clientAnalytics.total_lifetime_value || 0).toLocaleString("en-US", { minimumFractionDigits: 0 })}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase text-muted-foreground font-medium">Last 12mo</p>
+                        <p className="text-sm font-medium">
+                          {clientAnalytics.last_12mo_paid_on_time ?? 0} on time / {clientAnalytics.last_12mo_late ?? 0} late
+                        </p>
+                      </div>
+                    </div>
+                    {clientAnalytics.longest_days_late != null && clientAnalytics.longest_days_late > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Longest late: {clientAnalytics.longest_days_late} days • 
+                        Responds to reminders: {clientAnalytics.responds_to_reminders ? "Yes" : "No"}
+                      </p>
+                    )}
+                    {clientAnalytics.preferred_contact_method && (
+                      <p className="text-xs text-muted-foreground">
+                        Preferred contact: {clientAnalytics.preferred_contact_method}
+                        {clientAnalytics.best_contact_time ? ` (${clientAnalytics.best_contact_time})` : ""}
+                      </p>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+
+            {/* AI Risk Prediction — Collapsible */}
+            {prediction && (
+              <Collapsible>
+                <CollapsibleTrigger className="flex items-center justify-between w-full group">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                    <h4 className="text-sm font-medium text-muted-foreground">AI Risk Assessment</h4>
+                    <Badge variant="outline" className={`text-[10px] font-mono ${
+                      prediction.risk_score >= 80 ? "text-destructive bg-destructive/10 border-destructive/30"
+                      : prediction.risk_score >= 60 ? "text-warning bg-warning/10 border-warning/30"
+                      : prediction.risk_score >= 40 ? "text-amber-600 bg-amber-50 border-amber-200"
+                      : "text-emerald-600 bg-emerald-50 border-emerald-200"
+                    }`}>
+                      Risk {prediction.risk_score}
+                    </Badge>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-2">
+                  <div className="rounded-lg border p-3 space-y-2 bg-muted/30">
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-[10px] uppercase text-muted-foreground font-medium">Est. Payment</p>
+                        <p className="font-medium">{prediction.predicted_payment_date ? format(new Date(prediction.predicted_payment_date), "MMM d, yyyy") : "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase text-muted-foreground font-medium">Est. Days Late</p>
+                        <p className="font-medium">{prediction.predicted_days_late ?? "—"}</p>
+                      </div>
+                    </div>
+                    {prediction.factors && Object.keys(prediction.factors).length > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-[10px] uppercase text-muted-foreground font-medium">Risk Factors</p>
+                        {Object.entries(prediction.factors).map(([key, val]) => (
+                          <p key={key} className="text-xs text-muted-foreground">• {val}</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+
+            {/* Promises to Pay — Collapsible */}
+            {promises && promises.length > 0 && (
+              <Collapsible>
+                <CollapsibleTrigger className="flex items-center justify-between w-full group">
+                  <div className="flex items-center gap-2">
+                    <HandCoins className="h-4 w-4 text-muted-foreground" />
+                    <h4 className="text-sm font-medium text-muted-foreground">Promises to Pay</h4>
+                    <Badge variant="outline" className="text-[10px]">{promises.length}</Badge>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-2">
+                  <div className="space-y-2">
+                    {promises.map((p) => {
+                      const isPast = new Date(p.promised_date) < new Date();
+                      const statusColor = p.status === "broken" ? "text-destructive"
+                        : p.status === "kept" ? "text-emerald-600"
+                        : isPast ? "text-destructive"
+                        : "text-primary";
+                      return (
+                        <div key={p.id} className="rounded-md border p-2.5 text-sm space-y-1">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className={`text-[10px] ${statusColor}`}>
+                                {p.status === "broken" ? "⚠ Broken" : p.status === "kept" ? "✓ Kept" : isPast ? "⚠ Overdue" : "Pending"}
+                              </Badge>
+                              <span className="font-mono font-medium text-sm">
+                                ${p.promised_amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              by {format(new Date(p.promised_date), "MMM d, yyyy")}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            via {p.payment_method || "—"} • source: {p.source}
+                          </p>
+                          {p.notes && <p className="text-xs text-muted-foreground italic">{p.notes}</p>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+
             {/* Line Items */}
             <section>
               <div className="flex items-center justify-between mb-2">
@@ -582,13 +741,35 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
 
             {/* Actions */}
             <div className="flex flex-col gap-2">
-              {/* PDF Actions — roadmapped, requires server-side generation */}
+              {/* PDF Actions */}
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1" disabled title="PDF generation coming soon">
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => setPdfPreviewOpen(true)}>
                   <Eye className="h-4 w-4 mr-2" /> Preview PDF
                 </Button>
-                <Button variant="outline" size="sm" className="flex-1" disabled title="PDF generation coming soon">
-                  <Download className="h-4 w-4 mr-2" /> Download
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  disabled={downloading}
+                  onClick={async () => {
+                    setDownloading(true);
+                    try {
+                      const blob = await generateInvoicePDFBlob(invoice, companyData?.settings);
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `${invoice.invoice_number}.pdf`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    } catch (err: any) {
+                      toast({ title: "PDF Error", description: err.message, variant: "destructive" });
+                    } finally {
+                      setDownloading(false);
+                    }
+                  }}
+                >
+                  {downloading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                  Download
                 </Button>
               </div>
 
@@ -666,12 +847,44 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
               </div>
               {activeAction === "reminder" && (
                 <div className="space-y-2">
-                  <Label>Notes</Label>
+                  <div className="flex items-center justify-between">
+                    <Label>Message</Label>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={async () => {
+                        setAiGenerating(true);
+                        try {
+                          const urgency = daysOverdue >= 90 ? "high" : daysOverdue >= 60 ? "medium" : "low";
+                          const result = await generateMessage.mutateAsync({
+                            invoiceId: invoice.id,
+                            companyId: invoice.company_id,
+                            tone: "professional",
+                            urgency,
+                          });
+                          setActionNote(result.body);
+                        } catch (err: any) {
+                          toast({ title: "AI Generation Failed", description: err.message, variant: "destructive" });
+                        } finally {
+                          setAiGenerating(false);
+                        }
+                      }}
+                      disabled={aiGenerating}
+                    >
+                      {aiGenerating ? (
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3 w-3 mr-1" />
+                      )}
+                      Generate with AI
+                    </Button>
+                  </div>
                   <Textarea
                     value={actionNote}
                     onChange={(e) => setActionNote(e.target.value)}
                     placeholder={actionDialogConfig[activeAction].placeholder}
-                    rows={3}
+                    rows={aiGenerating ? 6 : 3}
                   />
                 </div>
               )}
