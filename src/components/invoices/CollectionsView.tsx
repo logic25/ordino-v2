@@ -85,7 +85,7 @@ function RiskBadge({ invoiceId }: { invoiceId: string }) {
     : score >= 40 ? "text-amber-600 bg-amber-50 border-amber-200 dark:text-amber-400 dark:bg-amber-950 dark:border-amber-800"
     : "text-emerald-600 bg-emerald-50 border-emerald-200 dark:text-emerald-400 dark:bg-emerald-950 dark:border-emerald-800";
   return (
-    <Badge variant="outline" className={`text-[10px] font-mono ${color}`}>
+    <Badge variant="outline" className={`text-[10px] tabular-nums ${color}`}>
       <TrendingUp className="h-2.5 w-2.5 mr-0.5" />
       Risk {score}
     </Badge>
@@ -172,7 +172,7 @@ function InvoiceCard({
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <span className="font-mono font-medium text-sm">
+        <span className="tabular-nums font-medium text-sm">
           ${Number(inv.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}
         </span>
         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -479,7 +479,7 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
           <p className="text-sm font-medium">
             {totalCount} invoice{totalCount !== 1 ? "s" : ""} in collections
           </p>
-          <p className="text-2xl font-bold font-mono mt-0.5">
+          <p className="text-2xl font-bold tabular-nums mt-0.5">
             ${totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </p>
         </div>

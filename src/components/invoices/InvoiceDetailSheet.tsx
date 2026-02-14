@@ -515,19 +515,19 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <p className="text-[10px] uppercase text-muted-foreground font-medium">Reliability Score</p>
-                        <p className="text-lg font-bold font-mono">
+                        <p className="text-lg font-bold tabular-nums">
                           {clientAnalytics.payment_reliability_score != null ? `${clientAnalytics.payment_reliability_score}/100` : "—"}
                         </p>
                       </div>
                       <div>
                         <p className="text-[10px] uppercase text-muted-foreground font-medium">Avg Days to Pay</p>
-                        <p className="text-lg font-bold font-mono">
+                        <p className="text-lg font-bold tabular-nums">
                           {clientAnalytics.avg_days_to_payment != null ? `${clientAnalytics.avg_days_to_payment}d` : "—"}
                         </p>
                       </div>
                       <div>
                         <p className="text-[10px] uppercase text-muted-foreground font-medium">Lifetime Value</p>
-                        <p className="text-lg font-bold font-mono">
+                        <p className="text-lg font-bold tabular-nums">
                           ${(clientAnalytics.total_lifetime_value || 0).toLocaleString("en-US", { minimumFractionDigits: 0 })}
                         </p>
                       </div>
@@ -562,7 +562,7 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
                   <div className="flex items-center gap-2">
                     <TrendingUp className="h-4 w-4 text-muted-foreground" />
                     <h4 className="text-sm font-medium text-muted-foreground">AI Risk Assessment</h4>
-                    <Badge variant="outline" className={`text-[10px] font-mono ${
+                    <Badge variant="outline" className={`text-[10px] tabular-nums ${
                       prediction.risk_score >= 80 ? "text-destructive bg-destructive/10 border-destructive/30"
                       : prediction.risk_score >= 60 ? "text-warning bg-warning/10 border-warning/30"
                       : prediction.risk_score >= 40 ? "text-amber-600 bg-amber-50 border-amber-200"
@@ -624,7 +624,7 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
                               <Badge variant="outline" className={`text-[10px] ${statusColor}`}>
                                 {p.status === "broken" ? "⚠ Broken" : p.status === "kept" ? "✓ Kept" : isPast ? "⚠ Overdue" : "Pending"}
                               </Badge>
-                              <span className="font-mono font-medium text-sm">
+                              <span className="tabular-nums font-medium text-sm">
                                 ${p.promised_amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                               </span>
                             </div>
@@ -677,17 +677,17 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
             <section className="space-y-1 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span className="font-mono">${Number(invoice.subtotal).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                <span className="tabular-nums">${Number(invoice.subtotal).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
               </div>
               {Number(invoice.retainer_applied) > 0 && (
                 <div className="flex justify-between text-success">
                   <span>Retainer Applied</span>
-                  <span className="font-mono">-${Number(invoice.retainer_applied).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                  <span className="tabular-nums">-${Number(invoice.retainer_applied).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
                 </div>
               )}
               <div className="flex justify-between text-base font-bold pt-1 border-t">
                 <span>Total Due</span>
-                <span className="font-mono">${Number(invoice.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                <span className="tabular-nums">${Number(invoice.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
               </div>
             </section>
 
@@ -968,7 +968,7 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Amount</span>
-                  <span className="font-mono font-medium">
+                  <span className="tabular-nums font-medium">
                     ${Number(invoice.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                   </span>
                 </div>
@@ -1064,7 +1064,7 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Amount</span>
-                  <span className="font-mono font-bold text-destructive">
+                  <span className="tabular-nums font-bold text-destructive">
                     ${Number(invoice.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                   </span>
                 </div>
