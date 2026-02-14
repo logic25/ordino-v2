@@ -105,8 +105,12 @@ function RfpCard({ rfp, onDragStart }: { rfp: Rfp; onDragStart: (e: React.DragEv
   );
 }
 
-export function RfpKanbanBoard() {
-  const { data: rfps = [], isLoading } = useRfps();
+interface RfpKanbanBoardProps {
+  rfps: Rfp[];
+  isLoading: boolean;
+}
+
+export function RfpKanbanBoard({ rfps, isLoading }: RfpKanbanBoardProps) {
   const updateStatus = useUpdateRfpStatus();
   const [draggedRfp, setDraggedRfp] = useState<Rfp | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ rfp: Rfp; newStatus: RfpStatus } | null>(null);
