@@ -7,6 +7,7 @@ import { useRfps, useCreateRfp } from "@/hooks/useRfps";
 import { RfpKanbanBoard } from "@/components/rfps/RfpKanbanBoard";
 import { RfpTableView } from "@/components/rfps/RfpTableView";
 import { RfpSummaryCards, type RfpFilter } from "@/components/rfps/RfpSummaryCards";
+import { RfpBuilderDialog } from "@/components/rfps/RfpBuilderDialog";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import type { Rfp } from "@/hooks/useRfps";
 
 export default function Rfps() {
   const navigate = useNavigate();
@@ -28,6 +30,7 @@ export default function Rfps() {
   const [extracting, setExtracting] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [aiExtracted, setAiExtracted] = useState<any>(null);
+  const [buildingRfp, setBuildingRfp] = useState<Rfp | null>(null);
   const [form, setForm] = useState({
     title: "",
     rfp_number: "",
@@ -109,7 +112,7 @@ export default function Rfps() {
         extraFields.requirements = aiExtracted.requirements;
       }
 
-      await createRfp.mutateAsync({
+      const result = await createRfp.mutateAsync({
         title: form.title,
         rfp_number: form.rfp_number || null,
         agency: form.agency || null,
@@ -121,9 +124,11 @@ export default function Rfps() {
         notes: form.notes || null,
         ...extraFields,
       });
-      toast({ title: "RFP created" });
+      toast({ title: "RFP created — now build your response" });
       setNewOpen(false);
       resetForm();
+      // Open the builder dialog with the newly created RFP
+      setBuildingRfp(result as Rfp);
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     }
@@ -302,6 +307,11 @@ export default function Rfps() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <RfpBuilderDialog
+        rfp={buildingRfp}
+        open={!!buildingRfp}
+        onOpenChange={(open) => !open && setBuildingRfp(null)}
+      />
     </AppLayout>
   );
 }
