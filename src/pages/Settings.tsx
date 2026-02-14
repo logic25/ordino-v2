@@ -2,14 +2,15 @@ import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Settings as SettingsIcon, User, Building, Bell, CreditCard, Shield, Package, ChevronLeft, FileText, Tags, MessageSquare } from "lucide-react";
+import { Settings as SettingsIcon, User, Building, Bell, CreditCard, Shield, Package, ChevronLeft, FileText, Tags, MessageSquare, Receipt } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ServiceCatalogSettings } from "@/components/settings/ServiceCatalogSettings";
 import { RfiTemplateSettings } from "@/components/settings/RfiTemplateSettings";
 import { CompanyTypeSettings } from "@/components/settings/CompanyTypeSettings";
 import { ReviewCategorySettings } from "@/components/settings/ReviewCategorySettings";
+import { InvoiceSettings } from "@/components/settings/InvoiceSettings";
 
-type SettingsSection = "main" | "profile" | "company" | "proposals" | "company_types" | "review_categories" | "rfi_templates" | "notifications" | "billing" | "security";
+type SettingsSection = "main" | "profile" | "company" | "proposals" | "company_types" | "review_categories" | "rfi_templates" | "invoices" | "notifications" | "billing" | "security";
 
 const settingsSections = [
   {
@@ -49,6 +50,12 @@ const settingsSections = [
     icon: FileText,
   },
   {
+    id: "invoices" as const,
+    title: "Invoices & Billing",
+    description: "Payment terms, collections timeline, and client billing rules",
+    icon: Receipt,
+  },
+  {
     id: "notifications" as const,
     title: "Notifications",
     description: "Email, push, and in-app notifications",
@@ -81,6 +88,8 @@ export default function Settings() {
         return <ReviewCategorySettings />;
       case "rfi_templates":
         return <RfiTemplateSettings />;
+      case "invoices":
+        return <InvoiceSettings />;
       case "profile":
       case "company":
       case "notifications":
