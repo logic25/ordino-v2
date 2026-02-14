@@ -155,8 +155,7 @@ function ThreadMessage({
           <div className="email-content w-full overflow-x-auto overflow-y-hidden">
             {email.body_html ? (
               <div
-                className="prose prose-sm max-w-none text-foreground
-                  [&_a]:text-accent [&_a]:break-all [&_img]:h-auto [&_pre]:whitespace-pre-wrap"
+                className="text-sm max-w-none [&_img]:h-auto [&_pre]:whitespace-pre-wrap"
                 style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
                 dangerouslySetInnerHTML={{ __html: email.body_html }}
               />
@@ -436,7 +435,7 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
 
           <Separator />
 
-          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto">
             <div className="px-6 py-4 space-y-3">
               {displayEmails.map((threadEmail) => (
                 <ThreadMessage
