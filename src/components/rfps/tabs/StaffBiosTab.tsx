@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +13,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Loader2, Plus, Pencil, Trash2, User, Download } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, User, Download, GitBranch } from "lucide-react";
 import { useRfpContent, useCreateRfpContent, useUpdateRfpContent, useDeleteRfpContent } from "@/hooks/useRfpContent";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useToast } from "@/hooks/use-toast";
@@ -27,6 +28,8 @@ interface StaffBioContent {
   percentage_on_project: number | null;
   certifications: { type: string; number: string; expires: string }[];
   education: { school: string; degree: string }[];
+  reports_to?: string;
+  include_in_org_chart?: boolean;
 }
 
 const emptyBio: StaffBioContent = {
@@ -39,7 +42,72 @@ const emptyBio: StaffBioContent = {
   percentage_on_project: null,
   certifications: [],
   education: [],
+  reports_to: "",
+  include_in_org_chart: true,
 };
+
+// ── Org Chart Visual ──
+function OrgChart({ items }: { items: { id: string; content: StaffBioContent }[] }) {
+  const eligible = items.filter((i) => i.content.include_in_org_chart !== false);
+  
+  // Build hierarchy: people with no reports_to are top-level
+  const byName = new Map(eligible.map((i) => [i.content.name, i]));
+  const children = new Map<string, typeof eligible>();
+  const roots: typeof eligible = [];
+
+  eligible.forEach((item) => {
+    const parent = item.content.reports_to;
+    if (parent && byName.has(parent)) {
+      const list = children.get(parent) || [];
+      list.push(item);
+      children.set(parent, list);
+    } else {
+      roots.push(item);
+    }
+  });
+
+  if (eligible.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground text-center py-4">
+        No staff members included in org chart. Toggle "Include in Org Chart" on staff bios.
+      </p>
+    );
+  }
+
+  const renderNode = (item: typeof eligible[0], depth: number) => {
+    const kids = children.get(item.content.name) || [];
+    return (
+      <div key={item.id} className="flex flex-col items-center">
+        <div className="border rounded-lg px-4 py-2 bg-card shadow-sm text-center min-w-[140px]">
+          <p className="font-semibold text-sm">{item.content.name}</p>
+          <p className="text-xs text-muted-foreground">{item.content.title}</p>
+        </div>
+        {kids.length > 0 && (
+          <>
+            <div className="w-px h-4 bg-border" />
+            <div className="flex gap-4 relative">
+              {kids.length > 1 && (
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 h-px bg-border" style={{ width: `${(kids.length - 1) * 100}%` }} />
+              )}
+              {kids.map((child) => (
+                <div key={child.id} className="flex flex-col items-center">
+                  <div className="w-px h-4 bg-border" />
+                  {renderNode(child, depth + 1)}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex justify-center gap-8 overflow-x-auto py-4">
+      {roots.map((r) => renderNode(r, 0))}
+    </div>
+  );
+}
 
 export function StaffBiosTab() {
   const { data: items = [], isLoading } = useRfpContent("staff_bio");
@@ -47,26 +115,25 @@ export function StaffBiosTab() {
   const updateMutation = useUpdateRfpContent();
   const deleteMutation = useDeleteRfpContent();
   const { toast } = useToast();
-
   const { data: profiles = [] } = useCompanyProfiles();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<StaffBioContent>(emptyBio);
+  const [showOrgChart, setShowOrgChart] = useState(false);
 
-  // Find profiles not already in staff bios (by name match)
-  const existingNames = new Set(items.map(i => (i.content as unknown as StaffBioContent).name?.toLowerCase()));
-  const importableProfiles = profiles.filter(p => {
-    const fullName = `${p.first_name || ''} ${p.last_name || ''}`.trim().toLowerCase();
+  const existingNames = new Set(items.map((i) => (i.content as unknown as StaffBioContent).name?.toLowerCase()));
+  const importableProfiles = profiles.filter((p) => {
+    const fullName = `${p.first_name || ""} ${p.last_name || ""}`.trim().toLowerCase();
     return fullName && !existingNames.has(fullName);
   });
 
   const handleImportProfile = async (profile: typeof profiles[0]) => {
-    const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+    const fullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim();
     try {
       await createMutation.mutateAsync({
         content_type: "staff_bio",
-        title: `${fullName} - ${profile.job_title || 'Staff'}`,
+        title: `${fullName} - ${profile.job_title || "Staff"}`,
         content: {
           name: fullName,
           title: profile.job_title || "",
@@ -77,6 +144,8 @@ export function StaffBiosTab() {
           percentage_on_project: null,
           certifications: [],
           education: [],
+          reports_to: "",
+          include_in_org_chart: true,
         } as any,
         tags: ["staff"],
       });
@@ -85,6 +154,8 @@ export function StaffBiosTab() {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     }
   };
+
+  const staffNames = items.map((i) => (i.content as unknown as StaffBioContent).name).filter(Boolean);
 
   const openNew = () => {
     setEditingId(null);
@@ -105,6 +176,8 @@ export function StaffBiosTab() {
       percentage_on_project: c.percentage_on_project ?? null,
       certifications: c.certifications || [],
       education: c.education || [],
+      reports_to: c.reports_to || "",
+      include_in_org_chart: c.include_in_org_chart !== false,
     });
     setDialogOpen(true);
   };
@@ -153,11 +226,20 @@ export function StaffBiosTab() {
     );
   }
 
+  const parsedItems = items.map((i) => ({ id: i.id, content: i.content as unknown as StaffBioContent }));
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Staff Bios ({items.length})</h3>
         <div className="flex gap-2">
+          <Button
+            variant={showOrgChart ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowOrgChart(!showOrgChart)}
+          >
+            <GitBranch className="h-4 w-4 mr-1" /> Org Chart
+          </Button>
           {importableProfiles.length > 0 && (
             <Button variant="outline" size="sm" onClick={() => importableProfiles.forEach(handleImportProfile)}>
               <Download className="h-4 w-4 mr-1" /> Import from Team ({importableProfiles.length})
@@ -168,6 +250,17 @@ export function StaffBiosTab() {
           </Button>
         </div>
       </div>
+
+      {showOrgChart && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Organization Chart</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <OrgChart items={parsedItems} />
+          </CardContent>
+        </Card>
+      )}
 
       {items.length === 0 ? (
         <Card>
@@ -188,8 +281,18 @@ export function StaffBiosTab() {
                         <User className="h-5 w-5 text-muted-foreground" />
                       </div>
                       <div>
-                        <p className="font-semibold">{c.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold">{c.name}</p>
+                          {c.include_in_org_chart !== false && (
+                            <Badge variant="outline" className="text-xs">
+                              <GitBranch className="h-3 w-3 mr-0.5" /> Org Chart
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-sm text-muted-foreground">{c.title}</p>
+                        {c.reports_to && (
+                          <p className="text-xs text-muted-foreground">Reports to: {c.reports_to}</p>
+                        )}
                         <div className="flex gap-2 mt-1 flex-wrap">
                           {c.years_experience && (
                             <Badge variant="secondary" className="text-xs">
@@ -213,12 +316,7 @@ export function StaffBiosTab() {
                       <Button variant="ghost" size="icon" onClick={() => openEdit(item)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(item.id)}
-                        disabled={deleteMutation.isPending}
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)} disabled={deleteMutation.isPending}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
@@ -283,6 +381,28 @@ export function StaffBiosTab() {
               </div>
             </div>
             <div className="space-y-1">
+              <Label>Reports To</Label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={form.reports_to || ""}
+                onChange={(e) => setForm({ ...form, reports_to: e.target.value })}
+              >
+                <option value="">None (Top Level)</option>
+                {staffNames
+                  .filter((n) => n !== form.name)
+                  .map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={form.include_in_org_chart !== false}
+                onCheckedChange={(checked) => setForm({ ...form, include_in_org_chart: checked })}
+              />
+              <Label className="text-sm">Include in Org Chart</Label>
+            </div>
+            <div className="space-y-1">
               <Label>Bio</Label>
               <Textarea
                 value={form.bio}
@@ -294,10 +414,7 @@ export function StaffBiosTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button
-              onClick={handleSave}
-              disabled={createMutation.isPending || updateMutation.isPending}
-            >
+            <Button onClick={handleSave} disabled={createMutation.isPending || updateMutation.isPending}>
               {(createMutation.isPending || updateMutation.isPending) && (
                 <Loader2 className="h-4 w-4 mr-1 animate-spin" />
               )}

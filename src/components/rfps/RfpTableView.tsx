@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, ArrowUpDown, Search, StickyNote, Shield, Calendar, AlertTriangle, ChevronRight, Pencil } from "lucide-react";
+import { Loader2, ArrowUpDown, Search, StickyNote, Shield, Calendar, AlertTriangle, ChevronRight, Pencil, FileText } from "lucide-react";
+import { RfpBuilderDialog } from "./RfpBuilderDialog";
 import { format, differenceInDays, isPast } from "date-fns";
 import type { RfpFilter } from "./RfpSummaryCards";
 
@@ -95,7 +96,7 @@ function InlineNotes({ rfp }: { rfp: Rfp }) {
   );
 }
 
-function ExpandedRow({ rfp, onEdit }: { rfp: Rfp; onEdit: (rfp: Rfp) => void }) {
+function ExpandedRow({ rfp, onEdit, onBuild }: { rfp: Rfp; onEdit: (rfp: Rfp) => void; onBuild: (rfp: Rfp) => void }) {
   const updateStatus = useUpdateRfpStatus();
   const insurance = rfp.insurance_requirements as Record<string, string> | null;
 
@@ -145,13 +146,21 @@ function ExpandedRow({ rfp, onEdit }: { rfp: Rfp; onEdit: (rfp: Rfp) => void }) 
             <InlineNotes rfp={rfp} />
           </div>
           <div className="flex items-end">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={(e) => { e.stopPropagation(); onEdit(rfp); }}
-            >
-              <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit RFP
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => { e.stopPropagation(); onEdit(rfp); }}
+              >
+                <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit RFP
+              </Button>
+              <Button
+                size="sm"
+                onClick={(e) => { e.stopPropagation(); onBuild(rfp); }}
+              >
+                <FileText className="h-3.5 w-3.5 mr-1.5" /> Build Response
+              </Button>
+            </div>
           </div>
         </div>
       </TableCell>
@@ -167,6 +176,7 @@ export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps)
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [editingRfp, setEditingRfp] = useState<Rfp | null>(null);
+  const [buildingRfp, setBuildingRfp] = useState<Rfp | null>(null);
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
@@ -270,7 +280,7 @@ export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps)
                       {rfp.contract_value ? `$${rfp.contract_value.toLocaleString()}` : "—"}
                     </TableCell>
                   </TableRow>
-                  {isExpanded && <ExpandedRow key={`${rfp.id}-detail`} rfp={rfp} onEdit={setEditingRfp} />}
+                  {isExpanded && <ExpandedRow key={`${rfp.id}-detail`} rfp={rfp} onEdit={setEditingRfp} onBuild={setBuildingRfp} />}
                 </>
               );
             })}
@@ -286,6 +296,7 @@ export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps)
       </div>
 
       <RfpEditDialog rfp={editingRfp} open={!!editingRfp} onOpenChange={(open) => !open && setEditingRfp(null)} />
+      <RfpBuilderDialog rfp={buildingRfp} open={!!buildingRfp} onOpenChange={(open) => !open && setBuildingRfp(null)} />
     </div>
   );
 }
