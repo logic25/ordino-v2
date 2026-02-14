@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle, Loader2, Mail, RefreshCw, FileText } from "lucide-react";
 import { createQBODraft } from "@/lib/mockQBO";
-import { useUpdateInvoice, type InvoiceWithRelations } from "@/hooks/useInvoices";
+import { type InvoiceWithRelations } from "@/hooks/useInvoices";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 
 interface SendInvoiceModalProps {
@@ -24,7 +25,7 @@ type SendStep = "confirm" | "generating" | "sending" | "syncing" | "done";
 export function SendInvoiceModal({ invoice, open, onOpenChange, onSent }: SendInvoiceModalProps) {
   const [step, setStep] = useState<SendStep>("confirm");
   const [ccEmail, setCcEmail] = useState("");
-  const updateInvoice = useUpdateInvoice();
+  const queryClient = useQueryClient();
 
   if (!invoice) return null;
 
@@ -54,11 +55,12 @@ export function SendInvoiceModal({ invoice, open, onOpenChange, onSent }: SendIn
         totalDue: Number(invoice.total_due),
       });
 
-      // Update invoice status
-      await updateInvoice.mutateAsync({
-        id: invoice.id,
-        status: "sent",
-      } as any);
+      // Update invoice status and sent_at
+      const now = new Date().toISOString();
+      await supabase
+        .from("invoices")
+        .update({ status: "sent", sent_at: now } as any)
+        .eq("id", invoice.id);
 
       // Log activity
       const { data: profile } = await supabase
@@ -78,6 +80,10 @@ export function SendInvoiceModal({ invoice, open, onOpenChange, onSent }: SendIn
 
       setStep("done");
       await new Promise((r) => setTimeout(r, 1500));
+
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["invoice-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["invoice-activity-log"] });
 
       toast({ title: "Invoice sent successfully!" });
       onOpenChange(false);
