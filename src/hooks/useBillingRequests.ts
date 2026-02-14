@@ -34,6 +34,8 @@ export interface BillingRequestInput {
   services: BillingRequestService[];
   total_amount: number;
   billed_to_contact_id?: string | null;
+  fees?: Record<string, number>;
+  special_instructions?: string | null;
 }
 
 export function useBillingRequests(status?: string) {
@@ -108,11 +110,12 @@ export function useCreateBillingRequest() {
           line_items: lineItems as any,
           subtotal: input.total_amount,
           retainer_applied: 0,
-          fees: {} as any,
+          fees: (input.fees || {}) as any,
           total_due: input.total_amount,
           status: "ready_to_send",
           payment_terms: "Net 30",
           billed_to_contact_id: input.billed_to_contact_id || null,
+          special_instructions: input.special_instructions || null,
           created_by: profile.id,
         } as any)
         .select()
