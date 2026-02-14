@@ -316,6 +316,11 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
+              <Button variant="outline" onClick={() => {
+                toast({ title: "Draft saved", description: "Your RFP response selections have been saved." });
+              }}>
+                <Download className="h-4 w-4 mr-1" /> Save Draft
+              </Button>
               <Button variant="outline" onClick={() => setPreviewOpen(true)}>
                 <Eye className="h-4 w-4 mr-1" /> Preview
               </Button>

@@ -76,22 +76,58 @@ function OrgChart({ items }: { items: { id: string; content: StaffBioContent }[]
 
   const renderNode = (item: typeof eligible[0], depth: number) => {
     const kids = children.get(item.content.name) || [];
+    const isRoot = depth === 0;
+    const initials = item.content.name
+      .split(" ")
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+
     return (
       <div key={item.id} className="flex flex-col items-center">
-        <div className="border rounded-lg px-4 py-2 bg-card shadow-sm text-center min-w-[140px]">
-          <p className="font-semibold text-sm">{item.content.name}</p>
-          <p className="text-xs text-muted-foreground">{item.content.title}</p>
+        <div
+          className={`relative rounded-xl px-5 py-3 text-center min-w-[160px] transition-all duration-200 ${
+            isRoot
+              ? "bg-accent text-accent-foreground shadow-amber border-0"
+              : "bg-card border border-border shadow-md hover:shadow-lg hover:-translate-y-0.5"
+          }`}
+        >
+          {/* Avatar circle */}
+          <div
+            className={`mx-auto mb-1.5 w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold ${
+              isRoot
+                ? "bg-accent-foreground/20 text-accent-foreground"
+                : "bg-accent/15 text-accent"
+            }`}
+          >
+            {initials}
+          </div>
+          <p className={`font-semibold text-sm ${isRoot ? "" : "text-foreground"}`}>
+            {item.content.name}
+          </p>
+          <p className={`text-xs ${isRoot ? "text-accent-foreground/70" : "text-muted-foreground"}`}>
+            {item.content.title}
+          </p>
+          {item.content.years_experience && (
+            <p className={`text-[10px] mt-0.5 ${isRoot ? "text-accent-foreground/50" : "text-muted-foreground/70"}`}>
+              {item.content.years_experience} yrs experience
+            </p>
+          )}
         </div>
         {kids.length > 0 && (
           <>
-            <div className="w-px h-4 bg-border" />
-            <div className="flex gap-4 relative">
+            <div className="w-0.5 h-6 bg-accent/40" />
+            <div className="flex gap-6 relative">
               {kids.length > 1 && (
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 h-px bg-border" style={{ width: `${(kids.length - 1) * 100}%` }} />
+                <div
+                  className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 bg-accent/30 rounded-full"
+                  style={{ width: `${(kids.length - 1) * 100}%` }}
+                />
               )}
               {kids.map((child) => (
                 <div key={child.id} className="flex flex-col items-center">
-                  <div className="w-px h-4 bg-border" />
+                  <div className="w-0.5 h-6 bg-accent/30" />
                   {renderNode(child, depth + 1)}
                 </div>
               ))}
@@ -103,7 +139,7 @@ function OrgChart({ items }: { items: { id: string; content: StaffBioContent }[]
   };
 
   return (
-    <div className="flex justify-center gap-8 overflow-x-auto py-4">
+    <div className="flex justify-center gap-10 overflow-x-auto py-6 px-4">
       {roots.map((r) => renderNode(r, 0))}
     </div>
   );
