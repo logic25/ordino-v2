@@ -15,7 +15,7 @@ import { Tag, Paperclip, X, Reply, Send, Loader2, ChevronDown, ChevronUp, Messag
 import { cn } from "@/lib/utils";
 import type { EmailWithTags } from "@/hooks/useEmails";
 import { useUntagEmail, useThreadEmails, useArchiveEmail, useSnoozeEmail, useMarkReadUnread } from "@/hooks/useEmails";
-import { useSendEmail } from "@/hooks/useGmailConnection";
+import { useUndoableSend } from "@/hooks/useUndoableSend";
 import { useCreateScheduledEmail } from "@/hooks/useScheduledEmails";
 import { useAttachmentDownload } from "@/hooks/useAttachmentDownload";
 import { AttachmentPreviewModal } from "./AttachmentPreviewModal";
@@ -187,7 +187,7 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
   const archiveEmail = useArchiveEmail();
   const snoozeEmail = useSnoozeEmail();
   const updateQuickTags = useUpdateQuickTags();
-  const sendEmail = useSendEmail();
+  const { send: undoableSend, isPending: isSending } = useUndoableSend();
   const scheduleEmail = useCreateScheduledEmail();
   const markReadUnread = useMarkReadUnread();
   const { downloadAttachment, downloadingId, preview, closePreview } = useAttachmentDownload();
@@ -272,38 +272,36 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
 
   const replyToEmail = latestEmail || email;
 
-  const handleReply = async () => {
+  const handleReply = () => {
     if (!replyBody.trim()) return;
-    try {
-      const isForward = replyMode === "forward";
-      const toAddr = isForward ? forwardTo : (replyToEmail.from_email || "");
-      const subject = isForward
-        ? (replyToEmail.subject?.startsWith("Fwd:") ? replyToEmail.subject : `Fwd: ${replyToEmail.subject || "(no subject)"}`)
-        : (replyToEmail.subject?.startsWith("Re:") ? replyToEmail.subject : `Re: ${replyToEmail.subject || "(no subject)"}`);
+    const isForward = replyMode === "forward";
+    const toAddr = isForward ? forwardTo : (replyToEmail.from_email || "");
+    const subject = isForward
+      ? (replyToEmail.subject?.startsWith("Fwd:") ? replyToEmail.subject : `Fwd: ${replyToEmail.subject || "(no subject)"}`)
+      : (replyToEmail.subject?.startsWith("Re:") ? replyToEmail.subject : `Re: ${replyToEmail.subject || "(no subject)"}`);
 
-      const forwardBody = isForward
-        ? `<div>${replyBody.replace(/\n/g, "<br/>")}</div><br/><hr/><p><strong>---------- Forwarded message ----------</strong><br/>From: ${replyToEmail.from_name || replyToEmail.from_email}<br/>Subject: ${replyToEmail.subject || ""}<br/></p>${replyToEmail.body_html || replyToEmail.body_text || ""}`
-        : `<div>${replyBody.replace(/\n/g, "<br/>")}</div>`;
+    const forwardBody = isForward
+      ? `<div>${replyBody.replace(/\n/g, "<br/>")}</div><br/><hr/><p><strong>---------- Forwarded message ----------</strong><br/>From: ${replyToEmail.from_name || replyToEmail.from_email}<br/>Subject: ${replyToEmail.subject || ""}<br/></p>${replyToEmail.body_html || replyToEmail.body_text || ""}`
+      : `<div>${replyBody.replace(/\n/g, "<br/>")}</div>`;
 
-      await sendEmail.mutateAsync({
+    undoableSend(
+      {
         to: toAddr,
         cc: ccField.trim() || undefined,
         bcc: bccField.trim() || undefined,
         subject,
         html_body: forwardBody,
         reply_to_email_id: isForward ? undefined : replyToEmail.id,
-      });
-
-      toast({ title: isForward ? "Forwarded" : "Reply Sent", description: `Sent to ${toAddr}` });
-      setReplyBody("");
-      setForwardTo("");
-      setCcField("");
-      setBccField("");
-      setShowCcBcc(false);
-      setReplyMode(null);
-    } catch (err: any) {
-      toast({ title: "Send Failed", description: err.message, variant: "destructive" });
-    }
+      },
+      () => {
+        setReplyBody("");
+        setForwardTo("");
+        setCcField("");
+        setBccField("");
+        setShowCcBcc(false);
+        setReplyMode(null);
+      }
+    );
   };
 
   return (
@@ -572,9 +570,9 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
                   <Button
                     size="sm"
                     onClick={handleReply}
-                    disabled={!replyBody.trim() || (replyMode === "forward" && !forwardTo.trim()) || sendEmail.isPending}
+                    disabled={!replyBody.trim() || (replyMode === "forward" && !forwardTo.trim()) || isSending}
                   >
-                    {sendEmail.isPending ? (
+                    {isSending ? (
                       <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                     ) : replyMode === "forward" ? (
                       <Forward className="h-4 w-4 mr-1" />
