@@ -12,8 +12,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Loader2, Plus, Pencil, Trash2, User } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, User, Download } from "lucide-react";
 import { useRfpContent, useCreateRfpContent, useUpdateRfpContent, useDeleteRfpContent } from "@/hooks/useRfpContent";
+import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useToast } from "@/hooks/use-toast";
 
 interface StaffBioContent {
@@ -47,9 +48,43 @@ export function StaffBiosTab() {
   const deleteMutation = useDeleteRfpContent();
   const { toast } = useToast();
 
+  const { data: profiles = [] } = useCompanyProfiles();
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<StaffBioContent>(emptyBio);
+
+  // Find profiles not already in staff bios (by name match)
+  const existingNames = new Set(items.map(i => (i.content as unknown as StaffBioContent).name?.toLowerCase()));
+  const importableProfiles = profiles.filter(p => {
+    const fullName = `${p.first_name || ''} ${p.last_name || ''}`.trim().toLowerCase();
+    return fullName && !existingNames.has(fullName);
+  });
+
+  const handleImportProfile = async (profile: typeof profiles[0]) => {
+    const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+    try {
+      await createMutation.mutateAsync({
+        content_type: "staff_bio",
+        title: `${fullName} - ${profile.job_title || 'Staff'}`,
+        content: {
+          name: fullName,
+          title: profile.job_title || "",
+          years_experience: null,
+          years_with_company: null,
+          bio: profile.about || "",
+          hourly_rate: profile.hourly_rate ? Number(profile.hourly_rate) : null,
+          percentage_on_project: null,
+          certifications: [],
+          education: [],
+        } as any,
+        tags: ["staff"],
+      });
+      toast({ title: `Imported ${fullName}` });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+  };
 
   const openNew = () => {
     setEditingId(null);
@@ -122,9 +157,16 @@ export function StaffBiosTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Staff Bios ({items.length})</h3>
-        <Button size="sm" onClick={openNew}>
-          <Plus className="h-4 w-4 mr-1" /> Add Staff Bio
-        </Button>
+        <div className="flex gap-2">
+          {importableProfiles.length > 0 && (
+            <Button variant="outline" size="sm" onClick={() => importableProfiles.forEach(handleImportProfile)}>
+              <Download className="h-4 w-4 mr-1" /> Import from Team ({importableProfiles.length})
+            </Button>
+          )}
+          <Button size="sm" onClick={openNew}>
+            <Plus className="h-4 w-4 mr-1" /> Add Staff Bio
+          </Button>
+        </div>
       </div>
 
       {items.length === 0 ? (

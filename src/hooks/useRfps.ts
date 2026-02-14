@@ -48,6 +48,28 @@ export function useUpdateRfpNotes() {
   });
 }
 
+export function useCreateRfp() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (fields: Record<string, any>) => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .maybeSingle();
+      if (!profile?.company_id) throw new Error("No company found");
+
+      const { data, error } = await supabase
+        .from("rfps")
+        .insert({ ...fields, company_id: profile.company_id } as any)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["rfps"] }),
+  });
+}
+
 export function useUpdateRfp() {
   const qc = useQueryClient();
   return useMutation({
