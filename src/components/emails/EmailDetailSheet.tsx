@@ -111,8 +111,8 @@ function ThreadMessage({
       </button>
 
       {isExpanded && (
-        <div className="px-4 pb-4 space-y-3 overflow-hidden">
-          <div className="text-xs text-muted-foreground">
+        <div className="px-4 pb-4 space-y-3 overflow-hidden max-w-full">
+          <div className="text-xs text-muted-foreground break-all">
             <span>From: {email.from_name ? `${email.from_name} <${email.from_email}>` : email.from_email}</span>
             {email.to_emails && Array.isArray(email.to_emails) && (
               <div>To: {(email.to_emails as string[]).join(", ")}</div>
@@ -152,11 +152,12 @@ function ThreadMessage({
 
           <Separator />
 
-          <div className="email-content overflow-x-auto">
+          <div className="email-content overflow-x-auto max-w-full" style={{ minWidth: 0 }}>
             {email.body_html ? (
               <div
-                className="prose prose-sm max-w-none text-foreground break-words
-                  [&_a]:text-accent [&_a]:break-all [&_img]:max-w-full [&_table]:text-sm [&_table]:w-full [&_table]:table-fixed [&_pre]:overflow-x-auto [&_pre]:whitespace-pre-wrap"
+                className="prose prose-sm max-w-none text-foreground break-words overflow-hidden
+                  [&_a]:text-accent [&_a]:break-all [&_img]:max-w-full [&_img]:h-auto [&_table]:text-sm [&_table]:max-w-full [&_table]:table-fixed [&_table]:overflow-hidden [&_pre]:overflow-x-auto [&_pre]:whitespace-pre-wrap [&_div]:max-w-full [&_td]:overflow-hidden [&_td]:break-words [&_*]:max-w-full"
+                style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
                 dangerouslySetInnerHTML={{ __html: email.body_html }}
               />
             ) : (
