@@ -10,7 +10,6 @@ import { TimeEntriesTable } from "@/components/time/TimeEntriesTable";
 import { TimeEntryDialog } from "@/components/time/TimeEntryDialog";
 import { ClockOutModal } from "@/components/time/ClockOutModal";
 import { WeeklyTimesheet } from "@/components/time/WeeklyTimesheet";
-import { QuickTimeLog } from "@/components/time/QuickTimeLog";
 import { addDays, startOfWeek, format } from "date-fns";
 
 export default function Time() {
@@ -54,9 +53,6 @@ export default function Time() {
 
         {/* Active Timer */}
         <ActiveTimerBar />
-
-        {/* Quick Log */}
-        <QuickTimeLog />
 
         {/* Week Navigation */}
         <div className="flex items-center gap-3">
