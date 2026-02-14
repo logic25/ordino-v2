@@ -109,14 +109,16 @@ export default function Invoices() {
 
         {/* Filter Tabs + Search */}
         <Card>
-          <div className="border-b">
-            <div className="flex items-center justify-between px-6 pt-4 pb-0">
-              <InvoiceFilterTabs
-                activeTab={activeFilter}
-                onTabChange={setActiveFilter}
-                counts={defaultCounts as unknown as { [key: string]: number; total: number }}
-              />
-              <div className="relative w-64 shrink-0">
+          <div className="border-b overflow-hidden">
+            <div className="flex items-end justify-between px-6 pt-4 pb-0 gap-4">
+              <div className="min-w-0 overflow-x-auto flex-1">
+                <InvoiceFilterTabs
+                  activeTab={activeFilter}
+                  onTabChange={setActiveFilter}
+                  counts={defaultCounts as unknown as { [key: string]: number; total: number }}
+                />
+              </div>
+              <div className="relative w-56 shrink-0 pb-2">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search invoices..."
