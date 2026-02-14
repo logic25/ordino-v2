@@ -1,273 +1,206 @@
-# Ordino Billing System - Implementation Plan - While we wait for QBO integration use mock data
 
-## Overview
+# Billing System Enhancement: Invoice PDF, Payment Options, and Settings Overhaul
 
-Build a full billing system enhancing the existing `/invoices` placeholder page. The original spec (Epic 8) focused on QBO as the primary workspace; the new spec correctly moves invoice management INTO Ordino with QBO as a sync target.
+## What This Covers
 
-**Strategy**: Build the internal invoice system first (works standalone), then layer QuickBooks integration on top. This way billing is usable immediately while QBO credentials are being set up.
-
----
-
-## Implementation Phases
-
-### Phase A: Database Schema (Foundation)
-
-Create the following tables with RLS policies using `company_id` isolation (matching existing patterns):
-
-`**invoices**` - Core invoice records
-
-- id, company_id, invoice_number, project_id, client_id, billing_request_id
-- line_items (JSONB), subtotal, retainer_applied, fees (JSONB), total_due
-- status: draft | ready_to_send | needs_review | sent | overdue | paid
-- review_reason, payment_terms, due_date
-- billed_to_contact_id (references client_contacts)
-- created_by (references profiles), sent_at, paid_at, payment_amount, payment_method
-- qbo_invoice_id, qbo_synced_at, qbo_payment_status
-- gmail_message_id, special_instructions
-- created_at, updated_at
-
-`**billing_requests**` - PM requests to billing
-
-- id, company_id, project_id, created_by, services (JSONB)
-- total_amount, status (pending | invoiced | cancelled)
-- billed_to_contact_id, invoice_id, created_at
-
-`**client_billing_rules**` - Per-client special procedures
-
-- id, company_id, client_id, vendor_id, property_id
-- require_waiver, require_pay_app, wire_fee, cc_markup
-- special_portal_required, portal_url, special_instructions
-
-`**invoice_activity_log**` - Audit trail
-
-- id, company_id, invoice_id, action, details, performed_by, created_at
-
-`**invoice_follow_ups**` - Collections tracking
-
-- id, company_id, invoice_id, follow_up_date, contact_method, notes, contacted_by
-
-`**qbo_connections**` - QuickBooks OAuth tokens
-
-- id, company_id, access_token, refresh_token, realm_id, company_name
-- expires_at, connected_at, last_sync_at
-
-**Alter existing tables:**
-
-- `projects`: add qbo_customer_id, retainer_balance, retainer_amount, retainer_received_date
-
-**RLS**: All tables use `is_company_member(company_id)` for SELECT, `is_admin_or_manager(company_id)` for mutations (matching existing patterns). Accounting role gets access via `has_role(company_id, 'accounting')`.
-
-**Indexes**: status, client_id, project_id, due_date, qbo_payment_status on invoices.
+This is a significant expansion of the billing system to bridge the gap between what's currently built (basic invoice CRUD, collections, demand letters) and the full Ordino Billing spec. The work breaks into three main areas: (1) Invoice PDF preview/generation, (2) expanded Invoice & Billing Settings, and (3) wiring it all together.
 
 ---
 
-### Phase B: Invoice List UI (Replace Placeholder)
+## Current State
 
-**Files to create/modify:**
+**What exists today:**
+- Invoice list with filter tabs, summary cards, detail sheet, create dialog
+- Send Invoice modal (mock PDF + Gmail + QBO sync steps)
+- Collections view grouped by urgency (30/60/90+ days)
+- Demand letter template editor in Settings with merge fields
+- Basic collections timeline config (reminder days)
+- Client billing rules display (hardcoded mock data, no CRUD)
+- Mock QBO connection widget
+- Follow-up notes and activity log per invoice
 
-- `src/hooks/useInvoices.ts` - CRUD hooks for invoices
-- `src/components/invoices/InvoiceSummaryCards.tsx` - 5 clickable cards (Draft, Sent, Overdue, Paid, Needs Review) with live counts from DB
-- `src/components/invoices/InvoiceTable.tsx` - Table with columns: Select, Invoice #, Client, Project, Amount, Status, Date, Actions
-- `src/components/invoices/InvoiceFilterTabs.tsx` - Tab navigation: All | Ready to Send | Needs Review | Sent | Overdue | Paid | Collections
-- `src/components/invoices/InvoiceStatusBadge.tsx` - Color-coded status badges
-- `src/pages/Invoices.tsx` - Enhanced with real components replacing static content
-
-**Behavior:**
-
-- Clicking a summary card filters the table to that status
-- Tab navigation provides same filtering
-- Search by invoice number, client name, project name
-- Bulk selection with "Approve and Send" / "Export" / "Delete Drafts" actions
-
----
-
-### Phase C: Create Invoice Dialog
-
-**Files to create:**
-
-- `src/components/invoices/CreateInvoiceDialog.tsx` - Modal form with:
-  - Project selector (auto-fills client)
-  - Bill-to contact dropdown
-  - Line items table (add/remove/edit rows: description, qty, rate, amount)
-  - Retainer check button (queries project retainer balance)
-  - Subtotal / retainer applied / fees / total calculation
-  - Payment terms dropdown (Net 30, Net 60, Due on Receipt, etc.)
-  - Save Draft / Preview / Send actions
-- `src/components/invoices/LineItemsEditor.tsx` - Editable line items with auto-calculation
-
-**Auto-numbering**: Generate invoice numbers as `INV-{sequential}` using a DB function.
+**What's missing (and this plan addresses):**
+- No actual invoice PDF preview or generation
+- "Preview PDF" and "Download" buttons in detail sheet do nothing
+- Settings sections are incomplete -- no email templates, no payment method config, no Stripe/Zelle/Wire info, no QBO sync settings
+- Client billing rules are static mock data with no add/edit/delete
+- Collections settings (reminder schedule) don't persist to the database
+- No payment instructions on invoices
 
 ---
 
-### Phase D: Invoice Detail Sheet
+## Implementation Plan
 
-**Files to create:**
+### 1. Invoice PDF Preview and Generation
 
-- `src/components/invoices/InvoiceDetailSheet.tsx` - Slide-over sheet (matching EmailDetailSheet pattern) showing:
-  - Invoice header (number, status badge, edit/send buttons)
-  - Project info section
-  - Bill-to contact details
-  - Line items read-only table
-  - Retainer/fees/total breakdown
-  - Payment terms and due date
-  - Special procedures section (if client has billing rules)
-  - Activity log timeline
-- `src/components/invoices/ActivityLog.tsx` - Timeline of invoice events
-- `src/components/invoices/SpecialProcedures.tsx` - Checklist for client-specific requirements
+Install `@react-pdf/renderer` to generate real invoice PDFs that can be previewed in-browser and downloaded.
 
-**Edit mode**: Toggle to editable fields for line items, contact, terms.
+**New files:**
+- `src/components/invoices/InvoicePDF.tsx` -- React-PDF document component with the full invoice layout:
+  - Company header (logo area, name, address, phone, fax, email)
+  - Invoice number, date, due date
+  - Bill-to section with contact details
+  - Project reference
+  - Line items table (Description, Qty, Rate, Amount)
+  - Subtotal, retainer applied, fees, total due
+  - Payment instructions section (check, wire, Zelle, credit card -- pulled from company settings)
+  - Footer with contact info
+- `src/components/invoices/InvoicePDFPreview.tsx` -- Dialog that renders the PDF in an iframe using `pdf().toBlob()` and `URL.createObjectURL`
 
----
+**Modified files:**
+- `InvoiceDetailSheet.tsx` -- Add "Preview PDF" and "Download PDF" buttons that use the new components
+- `SendInvoiceModal.tsx` -- Replace the mock "Generating PDF..." step with actual PDF generation, attach to the email payload
 
-### Phase E: Send Invoice Flow
+### 2. Company Payment Info (Settings)
 
-**Files to create:**
+Add a new "Payment Methods" card to Invoice Settings where the admin configures how clients can pay. This data gets embedded into every invoice PDF and email.
 
-- `src/components/invoices/SendInvoiceModal.tsx` - Confirmation dialog showing:
-  - Recipient email, optional CC
-  - Amount summary
-  - What will happen (send email, update status)
-  - Processing states with spinners
-- `supabase/functions/send-invoice/index.ts` - Edge function that:
-  - Generates invoice email body (HTML template)
-  - Sends via existing Gmail integration (reuses gmail-send function)
-  - Updates invoice status to 'sent'
-  - Logs activity
+**New settings fields** (stored in `companies.settings` JSON):
+- `payment_check_address` -- Mailing address for checks
+- `payment_wire_bank_name`, `payment_wire_routing`, `payment_wire_account` -- Wire transfer details
+- `payment_zelle_id` -- Zelle email/phone
+- `payment_cc_enabled` -- Whether credit card is accepted
+- `payment_cc_url` -- Stripe payment link (or custom URL)
+- `company_address`, `company_phone`, `company_fax`, `company_email` -- For the PDF header
 
-**Note**: PDF generation deferred to Phase G (QBO integration). Initial send uses HTML email with invoice details inline.
+**Modified files:**
+- `src/hooks/useCompanySettings.ts` -- Extend `CompanySettings` interface with payment fields
+- `src/components/settings/InvoiceSettings.tsx` -- Add three new cards:
+  1. **Company Info** -- Address, phone, fax, email (used in PDF header)
+  2. **Payment Methods** -- Check address, wire details, Zelle, CC toggle + URL
+  3. **Email Templates** -- Customize the invoice email subject and body (with merge fields, similar to demand letter)
 
----
+### 3. Collections Settings Persistence
 
-### Phase F: Collections Tab
+Currently, reminder days and auto-reminders are local state only. Wire them to `companies.settings`:
 
-**Files to create:**
+**New settings fields:**
+- `collections_first_reminder_days` (default 30)
+- `collections_second_reminder_days` (default 60)
+- `collections_demand_letter_days` (default 90)
+- `collections_auto_reminders` (boolean)
+- `collections_early_payment_discount` (boolean + percentage)
 
-- `src/components/invoices/CollectionsView.tsx` - Grouped by urgency:
-  - Critical (90+ days): red indicators, write-off/demand letter options
-  - Urgent (60-90 days): orange
-  - Attention (30-60 days): yellow
-- `src/components/invoices/CollectionActions.tsx` - Send Reminder (opens compose email), Demand Letter, Write Off
-- `src/hooks/useCollections.ts` - Queries overdue invoices with days calculation
+**Modified files:**
+- `src/hooks/useCompanySettings.ts` -- Add fields to interface
+- `src/components/settings/InvoiceSettings.tsx` -- Save button actually persists to DB
 
-**Auto-overdue**: DB function or edge function that runs daily to mark invoices past due_date as 'overdue'.
+### 4. Client Billing Rules CRUD
 
----
+Replace the hardcoded mock rules with real database-backed rules.
 
-### Phase G: QuickBooks Integration (Requires API Credentials)
+**Database changes:**
+- New table `client_billing_rules` (if not already created):
+  - `id`, `company_id`, `client_id` (FK to clients)
+  - `vendor_id`, `property_id` (text)
+  - `require_waiver`, `require_pay_app` (boolean)
+  - `wire_fee` (decimal), `cc_markup` (decimal)
+  - `special_portal_required` (boolean), `portal_url` (text)
+  - `special_instructions` (text)
+  - `lien_release_required` (boolean), `lien_release_threshold` (decimal)
+  - `special_cc_contacts` (text array -- CC these emails on invoices)
+  - RLS: `is_company_member(company_id)` for read, `is_admin_or_manager(company_id)` for write
 
-**Prerequisite**: QuickBooks Developer account with OAuth 2.0 credentials (Client ID, Client Secret).
+**New files:**
+- `src/hooks/useClientBillingRules.ts` -- CRUD hooks for the rules table
 
-**Files to create:**
+**Modified files:**
+- `src/components/settings/InvoiceSettings.tsx` -- Replace mock data with real queries; Add Rule dialog with client selector and all fields; Edit/Delete functionality
+- `src/components/invoices/InvoiceDetailSheet.tsx` -- Show active billing rules for the invoice's client
+- `src/components/invoices/CreateInvoiceDialog.tsx` -- When client is selected, check for rules and auto-flag "needs_review" if special procedures exist
 
-- `supabase/functions/qbo-auth/index.ts` - OAuth flow (get auth URL, exchange code, refresh tokens)
-- `supabase/functions/qbo-sync/index.ts` - Sync customers, push invoices, check payment status
-- `src/components/invoices/QBOConnectionStatus.tsx` - Connection widget (connected/disconnected state)
-- `src/hooks/useQBOConnection.ts` - Connection status and actions
+### 5. Invoice Email Template
 
-**Sync operations:**
+Add a customizable email template (similar to demand letter) for the standard invoice email.
 
-- Customer sync: match QBO customers to Ordino clients
-- Invoice push: create DRAFT in QBO when invoice created in Ordino
-- Payment status pull: check paid/partial status from QBO
-- Retainer balance: query QBO for customer credit balances
+**New settings fields:**
+- `invoice_email_subject_template` -- e.g., `"Invoice #{{invoice_number}} - Project #{{project_number}} ({{project_name}})"`
+- `invoice_email_body_template` -- HTML or plain text with merge fields
 
----
+**Modified files:**
+- `src/components/settings/InvoiceSettings.tsx` -- New "Email Templates" card with subject + body editors and merge field badges
+- `SendInvoiceModal.tsx` -- Use the template to compose the email
 
-### Phase H: Billing Request Flow (PM Side)
+### 6. QBO Settings Section Enhancement
 
-**Files to modify:**
+Expand the QuickBooks section in Settings beyond the basic connected/disconnected display.
 
-- Add "Send to Billing" button in project/service completion flow
-- Creates `billing_request` record
-- Auto-creates invoice with line items from completed services
-- Routes to "Ready to Send" or "Needs Review" based on client billing rules
-
----
-
-### Phase I: Settings
-
-**Files to create:**
-
-- Add Invoice Settings section to existing `/settings` page:
-  - Collections timeline (reminder days)
-  - Default payment terms
-  - Demand letter template editor with merge fields & preview ✅
-  - Client billing rules management (full CRUD — add/edit/delete rules per client)
-  - QBO connection management
-
-### Phase J: Client Billing Rules Builder
-
-**Priority: Next up**
-
-Build full CRUD for per-client billing rules directly from Settings:
-- **Add Rule**: Select client, configure waiver/pay-app requirements, wire fee, CC markup, portal URL, special instructions
-- **Edit Rule**: Inline or modal editing of existing rules
-- **Delete Rule**: Remove rules with confirmation
-- **Auto-apply**: When creating invoices for a client, auto-apply their billing rules (route to "Needs Review" if special procedures required)
-- **Invoice Detail**: Show active billing rules in the invoice detail sheet so billing team knows what's required
+**Modified files:**
+- `src/components/settings/InvoiceSettings.tsx` -- Add:
+  - Sync frequency selector (hourly / every 6 hours / daily / manual only)
+  - Last sync timestamp
+  - Recent sync log preview (mock data for now, real when QBO goes live)
+  - "Sync Now" button (uses existing mock layer)
 
 ---
 
 ## Technical Details
 
-### Sequence for invoice creation
+### PDF Generation Architecture
 
 ```text
-PM completes service
-  --> billing_request created (status: pending)
-  --> auto-create invoice function runs
-    --> checks client_billing_rules for special requirements
-    --> queries project retainer balance
-    --> calculates line items, applies retainer
-    --> if rules require review --> status: needs_review
-    --> else --> status: ready_to_send
-  --> Sai sees invoice in appropriate tab
-  --> Sai reviews, clicks Send
-    --> email sent via Gmail
-    --> QBO draft created (if connected)
-    --> status: sent
-  --> payment received
-    --> QBO webhook or manual mark
-    --> status: paid
+InvoicePDF (React-PDF Document)
+  |
+  +-- Uses company settings for header + payment info
+  +-- Uses invoice data for line items, totals
+  +-- Uses client/contact data for bill-to
+  |
+InvoicePDFPreview (Dialog)
+  |
+  +-- Calls pdf(<InvoicePDF />).toBlob()
+  +-- Renders in <iframe> via URL.createObjectURL
+  +-- Download button creates <a download> link
+  |
+InvoiceDetailSheet
+  +-- "Preview PDF" -> opens InvoicePDFPreview
+  +-- "Download" -> generates blob + triggers download
+  |
+SendInvoiceModal
+  +-- Generates PDF blob during "Generating PDF" step
+  +-- Converts to base64 for email attachment
 ```
 
-### Component patterns
+### Settings Data Flow
 
-- Follow existing patterns: hooks in `src/hooks/`, components in `src/components/invoices/`
-- Use Sheet for detail view (like EmailDetailSheet)
-- Use Dialog for create/send modals
-- Use existing Table components
-- Use existing Badge for status indicators
+```text
+companies.settings (JSONB)
+  |
+  +-- service_catalog[]
+  +-- default_terms
+  +-- company_types[]
+  +-- review_categories[]
+  +-- demand_letter_template
+  +-- NEW: payment_check_address
+  +-- NEW: payment_wire_*
+  +-- NEW: payment_zelle_id
+  +-- NEW: payment_cc_enabled / payment_cc_url
+  +-- NEW: company_address / phone / fax / email
+  +-- NEW: collections_* settings
+  +-- NEW: invoice_email_subject_template
+  +-- NEW: invoice_email_body_template
+```
 
-### Dependencies
+### New Dependency
 
-- No new npm packages needed for Phases A-F
-- QuickBooks OAuth handled via edge functions (Phase G)
+- `@react-pdf/renderer` -- For generating real invoice PDFs client-side
+
+### Database Migration
+
+One migration for the `client_billing_rules` table with RLS policies matching the existing pattern (`is_company_member` for SELECT, `is_admin_or_manager` for INSERT/UPDATE/DELETE).
 
 ---
 
-## Estimated Scope
+## Implementation Order
 
-- **Phases A-D**: Core billing (DB + list + create + detail) -- buildable now
-- **Phase E**: Send flow -- buildable now (uses existing Gmail)
-- **Phase F**: Collections -- buildable now
-- **Phase G**: QBO integration -- requires API credentials from Intuit
-- **Phases H-I**: PM flow + settings -- buildable after core is done
-
-Recommend starting with **Phases A through D** as one implementation block.
+1. **Company Settings expansion** -- Add payment info, collections persistence, email template fields to settings
+2. **Client Billing Rules table + CRUD** -- Database migration + hooks + Settings UI
+3. **Invoice PDF component** -- Build the PDF layout using company settings data
+4. **PDF Preview + Download** -- Wire into InvoiceDetailSheet
+5. **Email template integration** -- Use template in SendInvoiceModal
+6. **QBO Settings enhancement** -- Expand sync config UI
 
 ---
 
-### Phase K: AI Follow-Up Reminders & Task Board
+## Roadmap Update
 
-When a user logs a follow-up note like "he said he'll pay next week," the system should:
-
-1. **AI-Powered Date Extraction**: Use AI to parse natural language dates from notes (e.g., "next week" → specific date, "by end of month" → last business day).
-2. **Auto-Create Follow-Up Reminder**: Prompt the user to confirm a follow-up reminder based on the extracted date.
-3. **Follow-Up Task Board**: A dedicated view (sidebar or page) showing upcoming follow-up tasks across all invoices, grouped by date — "Today", "This Week", "Upcoming".
-4. **Notifications**: Surface reminders via in-app notifications or toast when a follow-up date arrives.
-5. **Snooze/Complete**: Users can snooze or mark follow-ups as done from the task board.
-
-**DB changes**: New `invoice_follow_up_reminders` table with `reminder_date`, `status`, `follow_up_id`, `invoice_id`, `assigned_to`.
-
-**Dependencies**: Lovable AI gateway for date extraction, optional edge function cron for daily reminder checks.
+After this implementation, the plan.md will be updated to mark Phase I (Settings) and Phase J (Client Billing Rules) as complete, and Phase G (live QBO) remains the next major milestone requiring external API credentials.
