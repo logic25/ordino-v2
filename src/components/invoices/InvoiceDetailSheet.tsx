@@ -36,6 +36,7 @@ import {
   Edit2, Save, X, Send, Mail, MailOpen, Clock, FileWarning, Trash2, Loader2,
   MessageSquare, Activity, Eye, Edit3, Plus, Phone, StickyNote, Download, FileText,
   ChevronDown, TrendingUp, HandCoins, ShieldAlert, Sparkles, BarChart3,
+  Gavel,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/hooks/use-toast";
@@ -48,6 +49,9 @@ interface InvoiceDetailSheetProps {
 }
 
 type WorkflowAction = null | "reminder" | "demand" | "writeoff";
+
+// Lazy import for ClaimFlow dialog
+import { ClaimFlowDialog } from "./ClaimFlowDialog";
 
 export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice }: InvoiceDetailSheetProps) {
   const [editing, setEditing] = useState(false);
@@ -77,6 +81,7 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
   const [aiGenerating, setAiGenerating] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const extractTasks = useExtractTasks();
+  const [claimFlowOpen, setClaimFlowOpen] = useState(false);
 
   if (!invoice) return null;
 
@@ -967,14 +972,24 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
                     </Button>
                   </div>
                   {isOverdue && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full text-muted-foreground"
-                      onClick={() => { setActiveAction("writeoff"); setActionNote(""); }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Write Off
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex-1 text-muted-foreground"
+                        onClick={() => { setActiveAction("writeoff"); setActionNote(""); }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Write Off
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setClaimFlowOpen(true)}
+                      >
+                        <Gavel className="h-3.5 w-3.5 mr-1.5" /> ClaimFlow
+                      </Button>
+                    </div>
                   )}
                 </div>
               )}
@@ -1150,6 +1165,17 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
         invoice={invoice}
         open={pdfPreviewOpen}
         onOpenChange={setPdfPreviewOpen}
+      />
+
+      <ClaimFlowDialog
+        open={claimFlowOpen}
+        onOpenChange={setClaimFlowOpen}
+        invoiceId={invoice.id}
+        invoiceNumber={invoice.invoice_number}
+        totalDue={Number(invoice.total_due)}
+        dueDate={invoice.due_date}
+        clientId={invoice.client_id}
+        clientName={invoice.clients?.name}
       />
     </>
   );

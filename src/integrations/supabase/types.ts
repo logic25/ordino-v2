@@ -14,6 +14,88 @@ export type Database = {
   }
   public: {
     Tables: {
+      ach_authorizations: {
+        Row: {
+          account_number_last4: string | null
+          account_type: string
+          authorization_text: string
+          bank_name: string | null
+          client_id: string | null
+          client_name: string
+          company_id: string
+          created_at: string
+          id: string
+          invoice_id: string
+          ip_address: string | null
+          payment_plan_id: string
+          routing_number_last4: string | null
+          signature_data: string
+          signed_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_number_last4?: string | null
+          account_type?: string
+          authorization_text: string
+          bank_name?: string | null
+          client_id?: string | null
+          client_name: string
+          company_id: string
+          created_at?: string
+          id?: string
+          invoice_id: string
+          ip_address?: string | null
+          payment_plan_id: string
+          routing_number_last4?: string | null
+          signature_data: string
+          signed_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          account_number_last4?: string | null
+          account_type?: string
+          authorization_text?: string
+          bank_name?: string | null
+          client_id?: string | null
+          client_name?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          ip_address?: string | null
+          payment_plan_id?: string
+          routing_number_last4?: string | null
+          signature_data?: string
+          signed_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ach_authorizations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ach_authorizations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ach_authorizations_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       activities: {
         Row: {
           activity_date: string | null
@@ -387,6 +469,71 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      claimflow_referrals: {
+        Row: {
+          case_notes: string | null
+          client_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          invoice_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          case_notes?: string | null
+          client_id?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          case_notes?: string | null
+          client_id?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claimflow_referrals_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claimflow_referrals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claimflow_referrals_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claimflow_referrals_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
         ]

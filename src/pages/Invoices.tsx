@@ -40,7 +40,7 @@ export default function Invoices() {
   const { data: allInvoices = [] } = useInvoices("all");
   const totals = useMemo(() => {
     const t: Record<InvoiceStatus, number> = {
-      draft: 0, ready_to_send: 0, needs_review: 0, sent: 0, overdue: 0, paid: 0,
+      draft: 0, ready_to_send: 0, needs_review: 0, sent: 0, overdue: 0, paid: 0, legal_hold: 0,
     };
     allInvoices.forEach((inv) => {
       if (inv.status in t) {
