@@ -188,6 +188,69 @@ export type Database = {
           },
         ]
       }
+      attendance_logs: {
+        Row: {
+          auto_closed: boolean
+          clock_in: string
+          clock_in_location: string | null
+          clock_out: string | null
+          company_id: string
+          created_at: string
+          id: string
+          ip_address: string | null
+          log_date: string
+          notes: string | null
+          total_minutes: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_closed?: boolean
+          clock_in?: string
+          clock_in_location?: string | null
+          clock_out?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          log_date?: string
+          notes?: string | null
+          total_minutes?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_closed?: boolean
+          clock_in?: string
+          clock_in_location?: string | null
+          clock_out?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          log_date?: string
+          notes?: string | null
+          total_minutes?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       automation_logs: {
         Row: {
           action_taken: string

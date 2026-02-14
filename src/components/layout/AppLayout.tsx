@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { AppSidebar } from "./AppSidebar";
 import { TopBar } from "./TopBar";
+import { ClockOutModal } from "@/components/time/ClockOutModal";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -16,6 +17,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           {children}
         </main>
       </div>
+      <ClockOutModal />
     </div>
   );
 }
