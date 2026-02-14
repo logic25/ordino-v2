@@ -786,6 +786,70 @@ export type Database = {
           },
         ]
       }
+      client_retainers: {
+        Row: {
+          client_id: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          current_balance: number
+          id: string
+          notes: string | null
+          original_amount: number
+          qbo_credit_memo_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          current_balance?: number
+          id?: string
+          notes?: string | null
+          original_amount?: number
+          qbo_credit_memo_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          current_balance?: number
+          id?: string
+          notes?: string | null
+          original_amount?: number
+          qbo_credit_memo_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_retainers_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_retainers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_retainers_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           address: string | null
@@ -1866,6 +1930,7 @@ export type Database = {
           qbo_payment_status: string | null
           qbo_synced_at: string | null
           retainer_applied: number | null
+          retainer_id: string | null
           review_reason: string | null
           sent_at: string | null
           special_instructions: string | null
@@ -1898,6 +1963,7 @@ export type Database = {
           qbo_payment_status?: string | null
           qbo_synced_at?: string | null
           retainer_applied?: number | null
+          retainer_id?: string | null
           review_reason?: string | null
           sent_at?: string | null
           special_instructions?: string | null
@@ -1930,6 +1996,7 @@ export type Database = {
           qbo_payment_status?: string | null
           qbo_synced_at?: string | null
           retainer_applied?: number | null
+          retainer_id?: string | null
           review_reason?: string | null
           sent_at?: string | null
           special_instructions?: string | null
@@ -1987,6 +2054,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_retainer_id_fkey"
+            columns: ["retainer_id"]
+            isOneToOne: false
+            referencedRelation: "client_retainers"
             referencedColumns: ["id"]
           },
         ]
@@ -2924,6 +2998,74 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: true
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      retainer_transactions: {
+        Row: {
+          amount: number
+          balance_after: number
+          company_id: string
+          created_at: string
+          description: string | null
+          id: string
+          invoice_id: string | null
+          performed_by: string | null
+          retainer_id: string
+          type: string
+        }
+        Insert: {
+          amount: number
+          balance_after: number
+          company_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          invoice_id?: string | null
+          performed_by?: string | null
+          retainer_id: string
+          type: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          invoice_id?: string | null
+          performed_by?: string | null
+          retainer_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "retainer_transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retainer_transactions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retainer_transactions_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retainer_transactions_retainer_id_fkey"
+            columns: ["retainer_id"]
+            isOneToOne: false
+            referencedRelation: "client_retainers"
             referencedColumns: ["id"]
           },
         ]
