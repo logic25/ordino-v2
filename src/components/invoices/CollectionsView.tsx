@@ -229,15 +229,6 @@ function InvoiceCard({
             variant="ghost"
             size="sm"
             className="h-8"
-            onClick={() => onOpenPromise(inv)}
-            title="Log Promise"
-          >
-            <HandCoins className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8"
             onClick={() => onOpenAction("reminder", inv)}
             title="Send Reminder"
           >
