@@ -1,109 +1,97 @@
 
 
-# Payment Plan ACH Authorization + ClaimFlow Button
+# Collections UX Improvements + ClaimFlow Package + Test Property
 
 ## Overview
 
-Two additions to the collections and payment plan workflow:
-
-1. **ACH Authorization Agreement** -- When creating a payment plan, add a step where the client must sign an ACH authorization form. This uses a canvas-based signature pad (same pattern as the existing proposal signature). The signed agreement is stored and attached to the plan. The actual auto-debit processing (Stripe/QBO) is deferred.
-
-2. **ClaimFlow Button** -- A new escalation action on critical/urgent collection cards (and the invoice detail sheet) branded "ClaimFlow" that packages the invoice for small claims referral. This replaces the previously discussed "Refer to Attorney" concept.
+Four changes: (1) clean up the crowded action icons on collection cards, (2) add CC payment option with fee reminder to the ACH step, (3) add signed proposal/contract to the ClaimFlow legal package and show a statute of limitations reminder, (4) add a test property for 420 Lexington Ave.
 
 ---
 
-## 1. ACH Authorization in Payment Plan
+## 1. Consolidate Collection Card Action Icons
 
-### What the user sees
+Currently critical-tier cards show 7 icon buttons in a row. Collapse the less-frequent actions into a dropdown.
 
-After configuring installments in the Payment Plan Dialog, a second step appears:
+**Keep as direct icons (always visible):**
+- Note (StickyNote)
+- Promise (HandCoins)
+- Reminder (Mail)
 
-- **ACH Authorization Agreement** text (NACHA-compliant language including: company name, authorization to debit, right to revoke, installment schedule summary)
-- **Client name** and **bank info fields** (routing number, account number, account type) -- these are collected but not processed until a payment processor is connected
-- **Canvas signature pad** (reusing the same drawing logic from SignatureDialog)
-- **"I Agree & Sign" button** that saves the authorization
+**Move into a "More" dropdown menu (DropdownMenu):**
+- Payment Plan
+- Demand Letter
+- ClaimFlow
+- Write Off (critical only)
 
-### Database changes
-
-- New table: `ach_authorizations`
-  - `id`, `company_id`, `payment_plan_id`, `invoice_id`, `client_id`
-  - `client_name` (text), `bank_name` (text, nullable)
-  - `routing_number_last4` (text, nullable -- only store last 4 for security)
-  - `account_number_last4` (text, nullable)
-  - `account_type` (text: "checking" or "savings")
-  - `authorization_text` (text -- the full agreement they signed)
-  - `signature_data` (text -- base64 PNG from canvas)
-  - `signed_at` (timestamptz)
-  - `ip_address` (text, nullable)
-  - `status` ("active", "revoked")
-  - `created_at`, `updated_at`
-  - RLS: scoped to company_id
-
-### Files to create
-
-- `src/components/invoices/ACHAuthorizationStep.tsx` -- The authorization form with agreement text, bank info fields, and signature canvas. Reuses the same canvas drawing pattern from `SignatureDialog.tsx`.
-
-### Files to modify
-
-- `src/components/invoices/PaymentPlanDialog.tsx` -- Add a second step after installment configuration. Step 1 = current installment setup. Step 2 = ACH authorization. The "Create Plan" button moves to step 2 and saves both the plan and the signed authorization.
-- `src/hooks/usePaymentPlans.ts` -- Add mutation to save ACH authorization after plan creation.
+**File to modify:**
+- `src/components/invoices/CollectionsView.tsx` — Replace the inline buttons for Payment Plan, Demand Letter, ClaimFlow, and Write Off with a single `MoreHorizontal` icon that opens a `DropdownMenu` with labeled menu items.
 
 ---
 
-## 2. ClaimFlow Button
+## 2. ACH or Credit Card Option with Fee Notice
 
-### What the user sees
+Add a payment method selector at the top of the ACH Authorization Step so clients can choose ACH (no fee) or Credit Card (with a surcharge reminder).
 
-On critical and urgent collection invoice cards, a new button appears with a "ClaimFlow" label and a gavel/scale icon. Clicking it opens a dialog that:
+**What changes:**
+- Add a toggle/radio at the top of `ACHAuthorizationStep`: "ACH (No Fee)" vs "Credit Card (3% processing fee applies)"
+- If CC is selected, hide the bank info fields and show a note: "Credit card details will be collected when the self-service portal is available. The client acknowledges a 3% processing surcharge."
+- Store the selected `payment_method` ("ach" or "credit_card") in the `ach_authorizations` table
 
-- Shows the invoice summary (client, amount, days overdue)
-- Lists what will be included in the legal package (invoice PDFs, follow-up history, demand letters, payment promises)
-- Has a "Send to ClaimFlow" button that logs the action and changes invoice status to `legal_hold`
-- For now, the action is logged and the invoice is flagged -- future integration with the ClaimFlow app will be added later
+**Database change:**
+- Add `payment_method` column (text, default "ach") to `ach_authorizations` table
 
-### Database changes
+**Files to modify:**
+- `src/components/invoices/ACHAuthorizationStep.tsx` — Add payment method selector, conditionally show/hide bank fields, pass method through `onSign` callback
+- `src/components/invoices/PaymentPlanDialog.tsx` — Pass new field through to save mutation
+- `src/hooks/usePaymentPlans.ts` — Include `payment_method` in ACH save mutation
 
-- Add `legal_hold` to the invoice status options (via a new status value in the app -- since the DB column is text, no enum migration needed)
-- New table: `claimflow_referrals`
-  - `id`, `company_id`, `invoice_id`, `client_id`
-  - `case_notes` (text, nullable)
-  - `status` ("pending", "filed", "resolved", "dismissed")
-  - `created_by` (uuid, references profiles)
-  - `created_at`, `updated_at`
-  - RLS: scoped to company_id
+---
 
-### Files to create
+## 3. Enhance ClaimFlow Package with Signed Proposal + Deadline Reminder
 
-- `src/components/invoices/ClaimFlowDialog.tsx` -- Dialog showing invoice summary, package contents checklist, case notes field, and "Send to ClaimFlow" button.
-- `src/hooks/useClaimFlow.ts` -- Hook for creating referrals and querying status.
+The ClaimFlow dialog should:
+- Add "Signed proposal / contract" to the legal package contents list
+- Show a statute of limitations reminder (6 years for written contracts in NY)
+- Display what the "output" looks like — a summary card showing the full package manifest
 
-### Files to modify
+**What changes in ClaimFlowDialog:**
+- Add a `FileSignature` icon row: "Signed proposal / contract (if available)" to the package items list
+- Add a `Scale` icon row: "Client contact information & billing details"
+- Add an info callout at the bottom: "NY Statute of Limitations: You have up to 6 years from breach date to file a small claims action for written contracts."
+- Show a "Package Preview" section with a bordered card that looks like a cover sheet: Company name, Client name, Invoice number, Amount owed, Days overdue, Filing deadline estimate, and a checklist of all included documents
 
-- `src/hooks/useInvoices.ts` -- Add `legal_hold` to the `InvoiceStatus` type.
-- `src/components/invoices/InvoiceStatusBadge.tsx` -- Add badge style for `legal_hold` (purple/indigo theme).
-- `src/components/invoices/CollectionsView.tsx` -- Add ClaimFlow button to critical and urgent tier invoice cards (next to the demand letter button). Import and render `ClaimFlowDialog`.
-- `src/components/invoices/InvoiceDetailSheet.tsx` -- Add "ClaimFlow" button in the Collections Actions section for overdue invoices.
-- `src/components/invoices/InvoiceFilterTabs.tsx` -- Account for `legal_hold` status in filters if needed.
+**File to modify:**
+- `src/components/invoices/ClaimFlowDialog.tsx` — Expand `packageItems` array, add statute reminder, add preview card section
+
+---
+
+## 4. Add Test Property: 420 Lexington Ave
+
+Navigate to the Properties page and add a new property with address "420 Lexington Avenue, New York, NY 10170" (the Graybar Building in Midtown Manhattan). This is a manual action through the UI — no code change needed, just using the existing Add Property flow.
 
 ---
 
 ## Technical Details
 
-### ACH Authorization Agreement Text (Template)
+### Database Migration
+```sql
+ALTER TABLE ach_authorizations 
+  ADD COLUMN payment_method text NOT NULL DEFAULT 'ach';
+```
 
-The agreement will include standard NACHA-compliant language:
-- Company name and authorization scope
-- Installment schedule summary (amounts, dates)
-- Right to revoke with written notice
-- Effective date and client signature
+### Files to Create
+None
 
-Bank details (routing/account numbers) are collected via masked inputs and only the last 4 digits are stored in the database. Full numbers are not persisted until a payment processor is integrated.
+### Files to Modify
+1. `src/components/invoices/CollectionsView.tsx` — Refactor InvoiceCard action buttons into 3 direct icons + MoreHorizontal dropdown
+2. `src/components/invoices/ACHAuthorizationStep.tsx` — Add ACH/CC toggle with fee notice, conditionally show bank fields
+3. `src/components/invoices/PaymentPlanDialog.tsx` — Pass payment_method through
+4. `src/hooks/usePaymentPlans.ts` — Save payment_method to ach_authorizations
+5. `src/components/invoices/ClaimFlowDialog.tsx` — Add signed proposal to package, statute reminder, preview card
 
 ### Sequencing
-
-1. Create `ach_authorizations` and `claimflow_referrals` tables with RLS policies
-2. Build `ACHAuthorizationStep` component
-3. Add step 2 to `PaymentPlanDialog`
-4. Build `ClaimFlowDialog` component and `useClaimFlow` hook
-5. Add ClaimFlow button to `CollectionsView` and `InvoiceDetailSheet`
-6. Update `InvoiceStatusBadge` with `legal_hold` style
+1. Database migration (add payment_method column)
+2. Consolidate collection card icons into dropdown
+3. Add CC option to ACH step
+4. Enhance ClaimFlow dialog with proposal + deadline
+5. Add 420 Lexington property via UI
