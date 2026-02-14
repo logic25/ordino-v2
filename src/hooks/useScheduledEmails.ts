@@ -12,6 +12,7 @@ export interface ScheduledEmail {
     subject: string;
     html_body: string;
     reply_to_email_id?: string;
+    attachments?: Array<{ filename: string; content: string; mime_type: string }>;
   };
   scheduled_send_time: string;
   timezone: string;
