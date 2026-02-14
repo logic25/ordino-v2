@@ -325,12 +325,25 @@ function StatCard({ icon: Icon, label, value, suffix, delta, tooltip, className 
   return content;
 }
 
+/* ─── Review Categories ─── */
+const DEFAULT_REVIEW_CATEGORIES = [
+  "Technical Knowledge",
+  "Quality of Work",
+  "Time Management",
+  "Communication",
+  "Initiative",
+  "Teamwork",
+];
+
 /* ─── Add Review Dialog ─── */
 function AddReviewDialog({ employeeId, onSuccess }: { employeeId: string; onSuccess: () => void }) {
   const [open, setOpen] = useState(false);
   const [period, setPeriod] = useState(format(new Date(), "yyyy-MM-dd"));
   const [rating, setRating] = useState("75");
   const [comments, setComments] = useState("");
+  const [categoryRatings, setCategoryRatings] = useState<Record<string, number>>(
+    Object.fromEntries(DEFAULT_REVIEW_CATEGORIES.map((c) => [c, 3]))
+  );
   const createReview = useCreateEmployeeReview();
   const { toast } = useToast();
 
@@ -340,11 +353,13 @@ function AddReviewDialog({ employeeId, onSuccess }: { employeeId: string; onSucc
         employee_id: employeeId,
         review_period: period,
         overall_rating: parseInt(rating),
+        category_ratings: categoryRatings,
         comments: comments || undefined,
       });
       toast({ title: "Review added" });
       setOpen(false);
       setComments("");
+      setCategoryRatings(Object.fromEntries(DEFAULT_REVIEW_CATEGORIES.map((c) => [c, 3])));
       onSuccess();
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -359,7 +374,7 @@ function AddReviewDialog({ employeeId, onSuccess }: { employeeId: string; onSucc
           Add Review
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Add Performance Review</DialogTitle>
         </DialogHeader>
@@ -368,6 +383,31 @@ function AddReviewDialog({ employeeId, onSuccess }: { employeeId: string; onSucc
             <Label>Review Period</Label>
             <Input type="date" value={period} onChange={(e) => setPeriod(e.target.value)} />
           </div>
+
+          <div>
+            <Label className="mb-2 block">Category Ratings (1-5)</Label>
+            <div className="space-y-2">
+              {DEFAULT_REVIEW_CATEGORIES.map((cat) => (
+                <div key={cat} className="flex items-center justify-between gap-4">
+                  <span className="text-sm">{cat}</span>
+                  <Select
+                    value={String(categoryRatings[cat] || 3)}
+                    onValueChange={(v) => setCategoryRatings({ ...categoryRatings, [cat]: parseInt(v) })}
+                  >
+                    <SelectTrigger className="w-[70px] h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div>
             <Label>Overall Rating (0-100)</Label>
             <Input type="number" min="0" max="100" value={rating} onChange={(e) => setRating(e.target.value)} />
@@ -412,7 +452,6 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
     role: (user.role as string) || "pm",
     job_title: profileAny.job_title || "",
     about: profileAny.about || "",
-    carrier: profileAny.carrier || "",
     monthly_goal: profileAny.monthly_goal ? String(profileAny.monthly_goal) : "",
     is_active: user.is_active,
   });
@@ -445,7 +484,6 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
           role: editForm.role,
           job_title: editForm.job_title.trim() || null,
           about: editForm.about.trim() || null,
-          carrier: editForm.carrier.trim() || null,
           monthly_goal: editForm.monthly_goal ? parseFloat(editForm.monthly_goal) : null,
           is_active: editForm.is_active,
         } as any)
@@ -503,12 +541,6 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                       <a href={`tel:${user.phone}`} className="hover:underline">
                         {user.phone}{profileAny.phone_extension ? ` x${profileAny.phone_extension}` : ""}
                       </a>
-                    </div>
-                  )}
-                  {profileAny.carrier && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Phone className="h-4 w-4" />
-                      <span className="text-xs">{profileAny.carrier}</span>
                     </div>
                   )}
                   <div className="flex items-center gap-2 text-muted-foreground">
@@ -584,10 +616,6 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                     <Input className="h-8 text-xs" placeholder="Ext" value={editForm.phone_extension} onChange={(e) => setEditForm({ ...editForm, phone_extension: e.target.value })} />
                   </div>
                 </div>
-                <div>
-                  <Label className="text-xs">Carrier</Label>
-                  <Input className="h-8 text-xs" placeholder="e.g. Verizon" value={editForm.carrier} onChange={(e) => setEditForm({ ...editForm, carrier: e.target.value })} />
-                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <Label className="text-xs">Monthly Goal ($)</Label>
@@ -648,49 +676,59 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
             <CardContent>
               {statsLoading ? (
                 <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-              ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  <StatCard
-                    icon={Target}
-                    label="Billing %"
-                    value={stats?.hasGoal ? stats.billingPct : "—"}
-                    suffix={stats?.hasGoal ? "%" : ""}
-                    tooltip="Revenue billed on your projects vs. your monthly goal"
-                  />
-                  <StatCard
-                    icon={AlertCircle}
-                    label="Non-Billable COs"
-                    value="$0"
-                    tooltip="Dollar value of change orders caused by mistakes that couldn't be billed to the client"
-                  />
-                  <StatCard
-                    icon={CheckCircle}
-                    label="Timelog Completion"
-                    value={stats?.timelogCompletion || 0}
-                    suffix="%"
-                    tooltip="Of the days you clocked in, what % had time logged? PTO/sick days excluded"
-                  />
-                  <StatCard
-                    icon={BarChart3}
-                    label="Accuracy"
-                    value="N/A"
-                    tooltip="How accurate your estimated completion dates are vs. actual. Available when estimated dates are added to services"
-                  />
-                  <StatCard
-                    icon={Zap}
-                    label="Efficiency Rating"
-                    value={stats?.efficiency || 0}
-                    suffix="%"
-                    tooltip="Weighted composite of your performance metrics. Billing 53%, Timelog 40%, Non-billable CO 7%"
-                  />
-                  <StatCard
-                    icon={Award}
-                    label="Potential Bonus"
-                    value={`$${stats?.potentialBonus || 0}`}
-                    tooltip="Estimated bonus based on monthly billing goal attainment. Tiers: 100-110% = $250, 111-125% = $500, 126%+ = $1,000"
-                  />
-                </div>
-              )}
+              ) : (() => {
+                // Use mock data when no real stats or no goal
+                const hasRealData = stats && (stats.totalBilled > 0 || stats.totalHours > 0);
+                const mockStats = { billingPct: 69, timelogCompletion: 87, efficiency: 72, potentialBonus: 0, hasGoal: true };
+                const displayStats = hasRealData ? stats : { ...stats, ...mockStats };
+                const isMock = !hasRealData;
+                return (
+                  <>
+                    {isMock && <p className="text-xs text-muted-foreground italic mb-2">Showing sample data for preview.</p>}
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      <StatCard
+                        icon={Target}
+                        label="Billing %"
+                        value={displayStats?.hasGoal ? displayStats.billingPct : "—"}
+                        suffix={displayStats?.hasGoal ? "%" : ""}
+                        tooltip="How much you've billed compared to your monthly goal"
+                      />
+                      <StatCard
+                        icon={AlertCircle}
+                        label="Non-Billable COs"
+                        value="$0"
+                        tooltip="Change orders that couldn't be billed to the client"
+                      />
+                      <StatCard
+                        icon={CheckCircle}
+                        label="Timelog Completion"
+                        value={displayStats?.timelogCompletion || 0}
+                        suffix="%"
+                        tooltip="Percentage of days you clocked in that also have time logged"
+                      />
+                      <StatCard
+                        icon={BarChart3}
+                        label="Accuracy"
+                        value="N/A"
+                        tooltip="How close your estimated dates are to actual completion dates"
+                      />
+                      <StatCard
+                        icon={Zap}
+                        label="Efficiency Rating"
+                        value={displayStats?.efficiency || 0}
+                        suffix="%"
+                        tooltip="Overall performance score based on billing, timelog, and other metrics"
+                      />
+                      <StatCard
+                        icon={Award}
+                        label="Potential Bonus"
+                        value={`$${displayStats?.potentialBonus || 0}`}
+                        tooltip="Estimated bonus based on how much you've billed toward your goal"
+                      />
+                    </div>
+                  </>
+                );
+              })()}
             </CardContent>
           </Card>
 
@@ -735,11 +773,24 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
 
                   {chartLoading ? (
                     <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-                  ) : chartData ? (
+                  ) : (() => {
+                    const mockChartData = MONTHS.map((m, i) => ({
+                      month: m,
+                      billed: Math.round(18000 + Math.random() * 25000),
+                      estimated: Math.round(15000 + Math.random() * 20000),
+                      goal: 33000,
+                      qty: Math.floor(2 + Math.random() * 6),
+                      goalPct: Math.round(50 + Math.random() * 80),
+                    }));
+                    const hasRealChart = chartData && chartData.some((d) => d.billed > 0 || d.estimated > 0);
+                    const displayChart = hasRealChart ? chartData : mockChartData;
+                    const isMockChart = !hasRealChart;
+                    return displayChart ? (
                     <>
+                      {isMockChart && <p className="text-xs text-muted-foreground italic mb-2">Showing sample billing data for preview.</p>}
                       <div className="h-[280px]">
                         <ResponsiveContainer width="100%" height="100%">
-                          <ComposedChart data={chartData}>
+                          <ComposedChart data={displayChart}>
                             <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                             <XAxis dataKey="month" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
                             <YAxis className="text-xs" tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
@@ -766,7 +817,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {chartData.map((d) => (
+                          {displayChart.map((d) => (
                             <TableRow key={d.month}>
                               <TableCell className="text-sm">{d.month}</TableCell>
                               <TableCell className="text-right tabular-nums text-sm">{d.qty}</TableCell>
@@ -782,7 +833,8 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                         </TableBody>
                       </Table>
                     </>
-                  ) : null}
+                    ) : null;
+                  })()}
                 </TabsContent>
 
                 {/* Proposals Tab */}
@@ -897,49 +949,95 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
 
                   {reviewsLoading ? (
                     <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-                  ) : empReviews.length === 0 ? (
-                    <p className="text-center py-8 text-muted-foreground text-sm">No performance reviews yet.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {empReviews.map((r) => {
-                        const reviewerName = r.reviewer?.display_name ||
-                          [r.reviewer?.first_name, r.reviewer?.last_name].filter(Boolean).join(" ") || "Unknown";
-                        return (
-                          <Card key={r.id}>
-                            <CardContent className="p-4">
-                              <div className="flex items-start justify-between">
-                                <div>
-                                  <p className="font-medium text-sm">
-                                    {format(new Date(r.review_period), "MMMM yyyy")}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">by {reviewerName}</p>
+                  ) : (() => {
+                    // Mock data when no real reviews exist
+                    const mockReviews = [
+                      {
+                        id: "mock-1",
+                        review_period: "2026-01-01",
+                        overall_rating: 82,
+                        previous_rating: 75,
+                        category_ratings: { "Technical Knowledge": 4, "Quality of Work": 4, "Time Management": 3, "Communication": 5, "Initiative": 4, "Teamwork": 4 },
+                        comments: "Strong quarter. Improved communication with clients and consistently hit deadlines. Could improve time management on larger projects.",
+                        reviewer: { display_name: "Sarah Chen", first_name: "Sarah", last_name: "Chen" },
+                        created_at: "2026-01-15T10:00:00Z",
+                      },
+                      {
+                        id: "mock-2",
+                        review_period: "2025-10-01",
+                        overall_rating: 75,
+                        previous_rating: 70,
+                        category_ratings: { "Technical Knowledge": 4, "Quality of Work": 3, "Time Management": 3, "Communication": 4, "Initiative": 3, "Teamwork": 4 },
+                        comments: "Good progress overall. Technical skills are solid. Needs to focus on proactive problem-solving.",
+                        reviewer: { display_name: "Michael Torres", first_name: "Michael", last_name: "Torres" },
+                        created_at: "2025-10-20T10:00:00Z",
+                      },
+                    ];
+                    const displayReviews = empReviews.length > 0 ? empReviews : mockReviews;
+                    const isMock = empReviews.length === 0;
+
+                    return (
+                      <div className="space-y-3">
+                        {isMock && (
+                          <p className="text-xs text-muted-foreground italic">Showing sample reviews for preview purposes.</p>
+                        )}
+                        {displayReviews.map((r: any) => {
+                          const reviewerName = r.reviewer?.display_name ||
+                            [r.reviewer?.first_name, r.reviewer?.last_name].filter(Boolean).join(" ") || "Unknown";
+                          const cats = r.category_ratings as Record<string, number> | null;
+                          return (
+                            <Card key={r.id}>
+                              <CardContent className="p-4">
+                                <div className="flex items-start justify-between">
+                                  <div>
+                                    <p className="font-medium text-sm">
+                                      {format(new Date(r.review_period), "MMMM yyyy")}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">by {reviewerName}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant={
+                                      (r.overall_rating || 0) >= 80 ? "default" :
+                                        (r.overall_rating || 0) >= 60 ? "secondary" : "destructive"
+                                    }>
+                                      {r.overall_rating}/100
+                                    </Badge>
+                                    {r.previous_rating !== null && r.previous_rating !== undefined && (
+                                      <span className={cn("text-xs",
+                                        (r.overall_rating || 0) > r.previous_rating ? "text-green-600" : "text-red-500"
+                                      )}>
+                                        {(r.overall_rating || 0) > r.previous_rating ? "↑" : "↓"} from {r.previous_rating}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <Badge variant={
-                                    (r.overall_rating || 0) >= 80 ? "default" :
-                                      (r.overall_rating || 0) >= 60 ? "secondary" : "destructive"
-                                  }>
-                                    {r.overall_rating}/100
-                                  </Badge>
-                                  {r.previous_rating !== null && r.previous_rating !== undefined && (
-                                    <span className={cn("text-xs",
-                                      (r.overall_rating || 0) > r.previous_rating ? "text-green-600" : "text-red-500"
-                                    )}>
-                                      {(r.overall_rating || 0) > r.previous_rating ? "↑" : "↓"} from {r.previous_rating}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              {r.comments && <p className="text-sm mt-2 text-muted-foreground">{r.comments}</p>}
-                              <p className="text-[10px] text-muted-foreground mt-2">
-                                {r.created_at ? format(new Date(r.created_at), "MMM d, yyyy") : ""}
-                              </p>
-                            </CardContent>
-                          </Card>
-                        );
-                      })}
-                    </div>
-                  )}
+
+                                {cats && Object.keys(cats).length > 0 && (
+                                  <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1">
+                                    {Object.entries(cats).map(([category, score]) => (
+                                      <div key={category} className="flex items-center justify-between text-xs">
+                                        <span className="text-muted-foreground">{category}</span>
+                                        <div className="flex gap-0.5">
+                                          {[1, 2, 3, 4, 5].map((n) => (
+                                            <Star key={n} className={cn("h-3 w-3", n <= score ? "fill-primary text-primary" : "text-muted-foreground/30")} />
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {r.comments && <p className="text-sm mt-3 text-muted-foreground">{r.comments}</p>}
+                                <p className="text-[10px] text-muted-foreground mt-2">
+                                  {r.created_at ? format(new Date(r.created_at), "MMM d, yyyy") : ""}
+                                </p>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </TabsContent>
               </Tabs>
             </CardContent>
