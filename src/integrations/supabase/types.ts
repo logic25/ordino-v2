@@ -432,6 +432,73 @@ export type Database = {
           },
         ]
       }
+      billing_rule_documents: {
+        Row: {
+          billing_rule_id: string
+          company_id: string
+          created_at: string
+          filename: string
+          id: string
+          mime_type: string | null
+          notes: string | null
+          revised_at: string | null
+          size_bytes: number | null
+          storage_path: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          billing_rule_id: string
+          company_id: string
+          created_at?: string
+          filename: string
+          id?: string
+          mime_type?: string | null
+          notes?: string | null
+          revised_at?: string | null
+          size_bytes?: number | null
+          storage_path: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          billing_rule_id?: string
+          company_id?: string
+          created_at?: string
+          filename?: string
+          id?: string
+          mime_type?: string | null
+          notes?: string | null
+          revised_at?: string | null
+          size_bytes?: number | null
+          storage_path?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_rule_documents_billing_rule_id_fkey"
+            columns: ["billing_rule_id"]
+            isOneToOne: false
+            referencedRelation: "client_billing_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_rule_documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_rule_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cash_forecasts: {
         Row: {
           company_id: string

@@ -24,6 +24,7 @@ import {
   useUpdateClientBillingRule, useDeleteClientBillingRule, type ClientBillingRule,
 } from "@/hooks/useClientBillingRules";
 import { useClients } from "@/hooks/useClients";
+import { BillingRuleDocumentsSection } from "./BillingRuleDocuments";
 
 const DEFAULT_DEMAND_TEMPLATE = `Dear {{client_name}},
 
@@ -746,6 +747,7 @@ export function InvoiceSettings() {
                 {rule.special_instructions && (
                   <p className="text-xs text-muted-foreground whitespace-pre-wrap">{rule.special_instructions}</p>
                 )}
+                <BillingRuleDocumentsSection billingRuleId={rule.id} />
               </div>
             ))}
           </div>
