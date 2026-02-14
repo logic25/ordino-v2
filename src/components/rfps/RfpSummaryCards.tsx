@@ -33,7 +33,7 @@ export function RfpSummaryCards({ rfps, activeFilter, onFilterChange }: RfpSumma
       value: stats.total,
       detail: `$${stats.totalValue.toLocaleString()} total value`,
       icon: Target,
-      tooltip: "All RFPs across every status. Click to show all in the table.",
+      tooltip: "All RFPs. Click to filter.",
     },
     {
       key: "active",
@@ -41,7 +41,7 @@ export function RfpSummaryCards({ rfps, activeFilter, onFilterChange }: RfpSumma
       value: `$${stats.pipelineValue.toLocaleString()}`,
       detail: `${stats.activeCount} active opportunities`,
       icon: TrendingUp,
-      tooltip: "Total contract value of RFPs in Prospect, Drafting, or Submitted status. Click to filter.",
+      tooltip: "Value of RFPs still in play.",
     },
     {
       key: "won",
@@ -49,7 +49,7 @@ export function RfpSummaryCards({ rfps, activeFilter, onFilterChange }: RfpSumma
       value: `$${stats.wonValue.toLocaleString()}`,
       detail: `${stats.wonCount} won · ${stats.winRate}% win rate`,
       icon: DollarSign,
-      tooltip: "Total contract value of won RFPs. Click to filter to won only.",
+      tooltip: "Value of RFPs you won.",
     },
     {
       key: "lost",
@@ -57,7 +57,7 @@ export function RfpSummaryCards({ rfps, activeFilter, onFilterChange }: RfpSumma
       value: `${stats.winRate}%`,
       detail: `${stats.wonCount} won · ${stats.lostCount} lost`,
       icon: Trophy,
-      tooltip: "Percentage of decided RFPs (won + lost) that were won. Click to see lost RFPs.",
+      tooltip: "Wins out of decided RFPs.",
     },
   ];
 
@@ -85,7 +85,7 @@ export function RfpSummaryCards({ rfps, activeFilter, onFilterChange }: RfpSumma
                 </CardContent>
               </Card>
             </TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-[220px] text-center">
+            <TooltipContent side="bottom" className="text-xs">
               {card.tooltip}
             </TooltipContent>
           </Tooltip>
