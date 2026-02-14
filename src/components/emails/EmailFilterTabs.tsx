@@ -94,9 +94,9 @@ export function getTabCounts(
     if ((e as any).snoozed_until && new Date((e as any).snoozed_until) > new Date()) return false;
     return true;
   });
-  const unreadCount = inboxEmails.filter((e) => !e.is_read).length;
+  const unreadCount = inboxEmails.filter((e: EmailWithTags) => !e.is_read).length;
   return {
-    inbox: unreadCount,
+    inbox: unreadCount || inboxEmails.length,
     sent: emails.filter(isSentEmail).length,
     agencies: emails.filter(isAgencyEmail).length,
     clients: emails.filter(

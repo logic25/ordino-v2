@@ -68,7 +68,7 @@ export function useEmails(filters: EmailFilters = {}) {
           )
         `)
         .order("date", { ascending: false })
-        .limit(500);
+        .limit(1000);
 
       if (filters.search) {
         query = query.or(
