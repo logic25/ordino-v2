@@ -21,8 +21,9 @@ export function RfpSummaryCards({ rfps, activeFilter, onFilterChange }: RfpSumma
     const winRate = decided > 0 ? Math.round((won.length / decided) * 100) : 0;
     const pipelineValue = active.reduce((sum, r) => sum + (r.contract_value || 0), 0);
     const wonValue = won.reduce((sum, r) => sum + (r.contract_value || 0), 0);
+    const totalValue = rfps.reduce((sum, r) => sum + (r.contract_value || 0), 0);
 
-    return { total: rfps.length, activeCount: active.length, winRate, wonCount: won.length, lostCount: lost.length, decided, pipelineValue, wonValue };
+    return { total: rfps.length, activeCount: active.length, winRate, wonCount: won.length, lostCount: lost.length, decided, pipelineValue, wonValue, totalValue };
   }, [rfps]);
 
   const cards: { key: RfpFilter; label: string; value: string | number; detail: string; icon: typeof Target; tooltip: string }[] = [
@@ -30,7 +31,7 @@ export function RfpSummaryCards({ rfps, activeFilter, onFilterChange }: RfpSumma
       key: "all",
       label: "Total RFPs",
       value: stats.total,
-      detail: `${stats.activeCount} active · ${stats.decided} decided`,
+      detail: `$${stats.totalValue.toLocaleString()} total value`,
       icon: Target,
       tooltip: "All RFPs across every status. Click to show all in the table.",
     },
