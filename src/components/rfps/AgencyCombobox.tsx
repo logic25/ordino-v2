@@ -53,13 +53,14 @@ export function AgencyCombobox({ value, onChange }: AgencyComboboxProps) {
   const [open, setOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [newAgency, setNewAgency] = useState("");
+  const [search, setSearch] = useState("");
   const { data: agencies = [] } = useAgencies();
   const qc = useQueryClient();
 
-  const handleAddNew = () => {
-    if (!newAgency.trim()) return;
-    onChange(newAgency.trim());
-    // Invalidate so it shows up next time
+  const handleAddNew = (name?: string) => {
+    const val = (name || newAgency).trim();
+    if (!val) return;
+    onChange(val);
     qc.invalidateQueries({ queryKey: ["rfp-agencies"] });
     setNewAgency("");
     setAddOpen(false);
@@ -81,10 +82,29 @@ export function AgencyCombobox({ value, onChange }: AgencyComboboxProps) {
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[280px] p-0" align="start">
-          <Command>
-            <CommandInput placeholder="Search agencies..." />
+          <Command shouldFilter={true}>
+            <CommandInput
+              placeholder="Search agencies..."
+              value={search}
+              onValueChange={setSearch}
+            />
             <CommandList>
-              <CommandEmpty>No agency found.</CommandEmpty>
+              <CommandEmpty>
+                <div className="py-2 text-center">
+                  <p className="text-sm text-muted-foreground mb-2">No agency found.</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setNewAgency(search);
+                      setAddOpen(true);
+                    }}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    Add "{search}"
+                  </Button>
+                </div>
+              </CommandEmpty>
               <CommandGroup>
                 {agencies.map((agency) => (
                   <CommandItem
@@ -109,6 +129,7 @@ export function AgencyCombobox({ value, onChange }: AgencyComboboxProps) {
               <CommandGroup>
                 <CommandItem
                   onSelect={() => {
+                    setNewAgency("");
                     setAddOpen(true);
                   }}
                 >
@@ -142,7 +163,7 @@ export function AgencyCombobox({ value, onChange }: AgencyComboboxProps) {
             <Button variant="outline" onClick={() => setAddOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddNew} disabled={!newAgency.trim()}>
+            <Button onClick={() => handleAddNew()} disabled={!newAgency.trim()}>
               Add Agency
             </Button>
           </DialogFooter>
