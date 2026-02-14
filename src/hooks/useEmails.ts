@@ -58,7 +58,10 @@ export function useEmails(filters: EmailFilters = {}) {
       let query = supabase
         .from("emails")
         .select(`
-          *,
+          id, company_id, user_id, gmail_message_id, thread_id,
+          subject, from_email, from_name, to_emails, date,
+          snippet, has_attachments, labels, is_read, synced_at, created_at,
+          archived_at, snoozed_until, replied_at, assigned_to, assigned_by, assigned_at, tags,
           email_project_tags (
             id, project_id, category, notes, tagged_at,
             projects (id, name, project_number)
