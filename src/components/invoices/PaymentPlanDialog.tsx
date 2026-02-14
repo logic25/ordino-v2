@@ -29,12 +29,13 @@ export function PaymentPlanDialog({
 }: PaymentPlanDialogProps) {
   const [numInstallments, setNumInstallments] = useState(3);
   const [useCustomAmounts, setUseCustomAmounts] = useState(false);
-  const [interestRate, setInterestRate] = useState(0);
+  const [interestRateStr, setInterestRateStr] = useState("0");
   const [startDate, setStartDate] = useState(format(addMonths(new Date(), 1), "yyyy-MM-dd"));
   const [notes, setNotes] = useState("");
   const [customInstallments, setCustomInstallments] = useState<{ amount: string; due_date: string }[]>([]);
   const createPlan = useCreatePaymentPlan();
 
+  const interestRate = parseFloat(interestRateStr) || 0;
   const totalWithInterest = totalDue * (1 + interestRate / 100);
 
   // Generate equal installments
@@ -158,8 +159,8 @@ export function PaymentPlanDialog({
                 min={0}
                 max={50}
                 step={0.5}
-                value={interestRate}
-                onChange={(e) => setInterestRate(parseFloat(e.target.value) || 0)}
+                value={interestRateStr}
+                onChange={(e) => setInterestRateStr(e.target.value)}
               />
             </div>
           </div>
