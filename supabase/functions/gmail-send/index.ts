@@ -26,6 +26,12 @@ async function refreshAccessToken(
   return { access_token: data.access_token, expires_in: data.expires_in };
 }
 
+interface Attachment {
+  filename: string;
+  content: string; // base64
+  mime_type: string;
+}
+
 function createMimeMessage({
   to,
   cc,
@@ -35,7 +41,7 @@ function createMimeMessage({
   body,
   in_reply_to,
   references,
-  thread_id,
+  attachments,
 }: {
   to: string;
   cc?: string;
@@ -45,54 +51,87 @@ function createMimeMessage({
   body: string;
   in_reply_to?: string;
   references?: string;
-  thread_id?: string;
+  attachments?: Attachment[];
 }): string {
+  const hasAttachments = attachments && attachments.length > 0;
   const boundary = "boundary_" + Date.now();
+  const altBoundary = "alt_boundary_" + Date.now();
+
   let headers = [
     `To: ${to}`,
     `From: ${from}`,
     `Subject: ${subject}`,
     `MIME-Version: 1.0`,
-    `Content-Type: multipart/alternative; boundary="${boundary}"`,
   ];
 
-  if (cc) {
-    headers.splice(1, 0, `Cc: ${cc}`);
-  }
-  if (bcc) {
-    headers.splice(cc ? 2 : 1, 0, `Bcc: ${bcc}`);
-  }
-
-  if (in_reply_to) {
-    headers.push(`In-Reply-To: ${in_reply_to}`);
-  }
-  if (references) {
-    headers.push(`References: ${references}`);
-  }
+  if (cc) headers.splice(1, 0, `Cc: ${cc}`);
+  if (bcc) headers.splice(cc ? 2 : 1, 0, `Bcc: ${bcc}`);
+  if (in_reply_to) headers.push(`In-Reply-To: ${in_reply_to}`);
+  if (references) headers.push(`References: ${references}`);
 
   const plainBody = body.replace(/<[^>]*>/g, "");
 
-  const message = [
+  if (!hasAttachments) {
+    // Simple multipart/alternative
+    headers.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
+    const message = [
+      ...headers,
+      "",
+      `--${boundary}`,
+      "Content-Type: text/plain; charset=UTF-8",
+      "",
+      plainBody,
+      `--${boundary}`,
+      "Content-Type: text/html; charset=UTF-8",
+      "",
+      body,
+      `--${boundary}--`,
+    ].join("\r\n");
+
+    return btoa(unescape(encodeURIComponent(message)))
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+  }
+
+  // multipart/mixed with nested multipart/alternative for body
+  headers.push(`Content-Type: multipart/mixed; boundary="${boundary}"`);
+
+  const parts = [
     ...headers,
     "",
     `--${boundary}`,
+    `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
+    "",
+    `--${altBoundary}`,
     "Content-Type: text/plain; charset=UTF-8",
     "",
     plainBody,
-    `--${boundary}`,
+    `--${altBoundary}`,
     "Content-Type: text/html; charset=UTF-8",
     "",
     body,
-    `--${boundary}--`,
-  ].join("\r\n");
+    `--${altBoundary}--`,
+  ];
 
-  // Base64url encode
-  const encoded = btoa(unescape(encodeURIComponent(message)))
+  for (const att of attachments!) {
+    parts.push(
+      `--${boundary}`,
+      `Content-Type: ${att.mime_type}; name="${att.filename}"`,
+      `Content-Disposition: attachment; filename="${att.filename}"`,
+      "Content-Transfer-Encoding: base64",
+      "",
+      att.content
+    );
+  }
+
+  parts.push(`--${boundary}--`);
+
+  const message = parts.join("\r\n");
+  return btoa(unescape(encodeURIComponent(message)))
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/, "");
-
-  return encoded;
 }
 
 Deno.serve(async (req) => {
@@ -149,8 +188,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const body = await req.json();
-    const { to, cc, bcc, subject, html_body, reply_to_email_id } = body;
+    const reqBody = await req.json();
+    const { to, cc, bcc, subject, html_body, reply_to_email_id, attachments } = reqBody;
 
     if (!to || !subject || !html_body) {
       return new Response(
@@ -215,7 +254,6 @@ Deno.serve(async (req) => {
       if (originalEmail) {
         threadId = originalEmail.thread_id || undefined;
 
-        // Get the Message-ID header from Gmail
         const msgRes = await fetch(
           `https://www.googleapis.com/gmail/v1/users/me/messages/${originalEmail.gmail_message_id}?format=metadata&metadataHeaders=Message-ID`,
           { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -241,6 +279,7 @@ Deno.serve(async (req) => {
       body: html_body,
       in_reply_to,
       references,
+      attachments: attachments || undefined,
     });
 
     const sendBody: any = { raw };

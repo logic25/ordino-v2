@@ -25,7 +25,6 @@ import { useUpdateQuickTags, detectAutoTags } from "@/hooks/useQuickTags";
 import { EmailTagDialog } from "./EmailTagDialog";
 import { QuickTagSection } from "./QuickTagSection";
 import { SnoozeMenu } from "./SnoozeMenu";
-import { EmailNotesSection } from "./EmailNotesSection";
 import { ScheduleSendDropdown } from "./ScheduleSendDropdown";
 import { useToast } from "@/hooks/use-toast";
 
@@ -433,9 +432,6 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
               </div>
             </div>
           )}
-
-          {/* Team Notes */}
-          <EmailNotesSection emailId={email.id} />
 
           <Separator />
 
