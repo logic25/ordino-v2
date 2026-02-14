@@ -446,15 +446,15 @@ function AddReviewDialog({ employeeId, onSuccess }: { employeeId: string; onSucc
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 items-start">
             <div>
-              <Label>Overall Rating (0-100)</Label>
+              <Label className="mb-1.5 block">Overall Rating (0-100)</Label>
               <Input type="number" min="0" max="100" value={rating} onChange={(e) => handleRatingChange(e.target.value)} />
             </div>
             <div>
-              <Label className="flex items-center gap-1">
+              <Label className="mb-1.5 flex items-center gap-1">
                 Raise %
-                {raiseOverridden && <Badge variant="secondary" className="text-[9px] px-1 py-0">Override</Badge>}
+                {raiseOverridden && <Badge variant="secondary" className="text-[9px] px-1 py-0 leading-none">Override</Badge>}
               </Label>
               <Input type="number" min="0" max="20" step="0.5" value={raisePct} onChange={(e) => handleRaisePctChange(e.target.value)} />
               <p className="text-[10px] text-muted-foreground mt-0.5">
