@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+import { format, isToday, isThisYear } from "date-fns";
 import { Paperclip, Tag, Mail, Reply, FolderOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -97,7 +97,13 @@ export function EmailList({ emails, selectedId, highlightedIndex, onSelect }: Em
               </div>
               <div className="flex flex-col items-end gap-1 flex-shrink-0">
                 <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  {email.date ? format(new Date(email.date), "MMM d") : ""}
+                  {email.date
+                    ? isToday(new Date(email.date))
+                      ? format(new Date(email.date), "h:mm a")
+                      : isThisYear(new Date(email.date))
+                        ? format(new Date(email.date), "MMM d, h:mm a")
+                        : format(new Date(email.date), "MMM d, yyyy")
+                    : ""}
                 </span>
                 {/* Status indicators */}
                 <div className="flex items-center gap-1.5 flex-wrap justify-end">

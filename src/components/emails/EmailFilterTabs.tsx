@@ -3,6 +3,7 @@ import type { EmailWithTags } from "@/hooks/useEmails";
 
 export type EmailFilterTab =
   | "all"
+  | "sent"
   | "agencies"
   | "clients"
   | "urgent"
@@ -26,6 +27,11 @@ const URGENT_KEYWORDS = [
   "c of o", "certificate of occupancy",
 ];
 
+function isSentEmail(email: EmailWithTags): boolean {
+  const labels = email.labels as string[] | null;
+  return Array.isArray(labels) && labels.some((l: string) => l === "SENT");
+}
+
 function isAgencyEmail(email: EmailWithTags): boolean {
   const from = (email.from_email || "").toLowerCase();
   return AGENCY_DOMAINS.some((d) => from.includes(d));
@@ -41,6 +47,8 @@ export function getFilteredEmails(
   tab: EmailFilterTab
 ): EmailWithTags[] {
   switch (tab) {
+    case "sent":
+      return emails.filter(isSentEmail);
     case "agencies":
       return emails.filter(isAgencyEmail);
     case "clients":
@@ -70,6 +78,7 @@ export function getTabCounts(
 ): Record<EmailFilterTab, number> {
   return {
     all: emails.length,
+    sent: emails.filter(isSentEmail).length,
     agencies: emails.filter(isAgencyEmail).length,
     clients: emails.filter(
       (e) => e.email_project_tags && e.email_project_tags.length > 0
@@ -88,6 +97,7 @@ export function getTabCounts(
 
 const TAB_CONFIG: { key: EmailFilterTab; label: string }[] = [
   { key: "all", label: "All" },
+  { key: "sent", label: "Sent" },
   { key: "agencies", label: "Agencies" },
   { key: "clients", label: "Clients" },
   { key: "urgent", label: "Urgent" },
