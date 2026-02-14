@@ -148,7 +148,7 @@ export default function Invoices() {
               </Button>
             </div>
           )}
-          <CardContent className="pt-0">
+          <CardContent className="pt-0 px-4">
             {activeFilter === "collections" ? (
               <CollectionsView
                 invoices={allInvoices}
