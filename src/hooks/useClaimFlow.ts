@@ -8,6 +8,8 @@ export interface ClaimFlowReferral {
   client_id: string | null;
   case_notes: string | null;
   status: "pending" | "filed" | "resolved" | "dismissed";
+  package_storage_path: string | null;
+  package_generated_at: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -83,6 +85,26 @@ export function useCreateClaimFlowReferral() {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["invoice-counts"] });
       queryClient.invalidateQueries({ queryKey: ["invoice-activity-log"] });
+    },
+  });
+}
+
+export function useGenerateClaimFlowPackage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (referralId: string) => {
+      const { data, error } = await supabase.functions.invoke("generate-claimflow-package", {
+        body: { referral_id: referralId },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      return data as { success: boolean; package_path: string; download_url: string | null };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["claimflow-referral"] });
     },
   });
 }

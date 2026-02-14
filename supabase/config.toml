@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.extract-tasks]
 verify_jwt = false
+
+[functions.generate-claimflow-package]
+verify_jwt = false
