@@ -155,8 +155,30 @@ export function InvoiceTable({
     return null;
   };
 
+  const allClientKeys = clientGroups.map((g) => g.clientId || "__no_client__");
+  const allProjectKeys = clientGroups.flatMap((g) =>
+    g.projects.map((p) => `${g.clientId || "__no_client__"}__${p.projectId || "__no_project__"}`)
+  );
+  const allExpanded = expandedClients.size === allClientKeys.length && expandedProjects.size === allProjectKeys.length;
+
+  const toggleExpandAll = () => {
+    if (allExpanded) {
+      setExpandedClients(new Set());
+      setExpandedProjects(new Set());
+    } else {
+      setExpandedClients(new Set(allClientKeys));
+      setExpandedProjects(new Set(allProjectKeys));
+    }
+  };
+
   return (
-    <Table>
+    <div>
+      <div className="flex justify-end mb-2">
+        <Button variant="ghost" size="sm" onClick={toggleExpandAll} className="text-xs text-muted-foreground">
+          {allExpanded ? "Collapse All" : "Expand All"}
+        </Button>
+      </div>
+      <Table>
       <TableHeader>
         <TableRow>
           <TableHead className="w-10">
@@ -330,5 +352,6 @@ export function InvoiceTable({
         })}
       </TableBody>
     </Table>
+    </div>
   );
 }
