@@ -8,6 +8,7 @@ import {
   Plus,
   RefreshCw,
   CalendarDays,
+  DollarSign,
 } from "lucide-react";
 import {
   addMonths,
@@ -28,6 +29,7 @@ import {
   useDeleteCalendarEvent,
   type CalendarEvent,
 } from "@/hooks/useCalendarEvents";
+import { useBillingCalendarItems, type BillingCalendarItem } from "@/hooks/useBillingCalendarItems";
 import { CalendarEventDialog } from "@/components/calendar/CalendarEventDialog";
 import { useGmailConnection } from "@/hooks/useGmailConnection";
 import { useToast } from "@/hooks/use-toast";
@@ -42,7 +44,13 @@ const EVENT_TYPE_COLORS: Record<string, string> = {
   filing: "bg-purple-500/20 text-purple-700 border-purple-300",
   milestone: "bg-pink-500/20 text-pink-700 border-pink-300",
   general: "bg-muted text-muted-foreground border-border",
+  invoice_due: "bg-emerald-500/20 text-emerald-700 border-emerald-300",
+  follow_up: "bg-amber-500/20 text-amber-700 border-amber-300",
+  installment: "bg-cyan-500/20 text-cyan-700 border-cyan-300",
+  promise: "bg-violet-500/20 text-violet-700 border-violet-300",
 };
+
+type UnifiedEvent = (CalendarEvent | BillingCalendarItem) & { is_billing?: boolean };
 
 export default function Calendar() {
   const { toast } = useToast();
@@ -50,6 +58,7 @@ export default function Calendar() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const [showBilling, setShowBilling] = useState(true);
 
   const { data: gmailConnection } = useGmailConnection();
   const syncCalendar = useSyncCalendar();
@@ -60,22 +69,35 @@ export default function Calendar() {
   const calStart = startOfWeek(monthStart, { weekStartsOn: 0 });
   const calEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
 
-  const { data: events, isLoading } = useCalendarEvents(
+  const { data: events } = useCalendarEvents(
+    calStart.toISOString(),
+    calEnd.toISOString()
+  );
+
+  const { data: billingItems } = useBillingCalendarItems(
     calStart.toISOString(),
     calEnd.toISOString()
   );
 
   const days = eachDayOfInterval({ start: calStart, end: calEnd });
 
+  const allEvents: UnifiedEvent[] = useMemo(() => {
+    const combined: UnifiedEvent[] = [...(events || [])];
+    if (showBilling && billingItems) {
+      combined.push(...billingItems);
+    }
+    return combined;
+  }, [events, billingItems, showBilling]);
+
   const eventsByDay = useMemo(() => {
-    const map: Record<string, CalendarEvent[]> = {};
-    events?.forEach((ev) => {
+    const map: Record<string, UnifiedEvent[]> = {};
+    allEvents.forEach((ev) => {
       const key = format(new Date(ev.start_time), "yyyy-MM-dd");
       if (!map[key]) map[key] = [];
       map[key].push(ev);
     });
     return map;
-  }, [events]);
+  }, [allEvents]);
 
   const handleSync = async () => {
     try {
@@ -133,6 +155,14 @@ export default function Calendar() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant={showBilling ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowBilling(!showBilling)}
+            >
+              <DollarSign className="h-4 w-4 mr-1" />
+              Billing Dates
+            </Button>
             {gmailConnection && (
               <Button
                 variant="outline"
@@ -239,13 +269,20 @@ export default function Calendar() {
                       {dayEvents.slice(0, 3).map((ev) => (
                         <button
                           key={ev.id}
-                          onClick={(e) => handleEventClick(e, ev)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!ev.is_billing) {
+                              setEditingEvent(ev as CalendarEvent);
+                              setDialogOpen(true);
+                            }
+                          }}
                           className={cn(
                             "w-full text-left text-[10px] leading-tight px-1 py-0.5 rounded border truncate",
-                            EVENT_TYPE_COLORS[ev.event_type] || EVENT_TYPE_COLORS.general
+                            EVENT_TYPE_COLORS[ev.event_type] || EVENT_TYPE_COLORS.general,
+                            ev.is_billing && "italic"
                           )}
                         >
-                          {ev.title}
+                          {ev.is_billing && "💲 "}{ev.title}
                         </button>
                       ))}
                       {dayEvents.length > 3 && (
@@ -320,24 +357,35 @@ export default function Calendar() {
                               📍 {ev.location}
                             </p>
                           )}
-                          <div className="flex gap-1 pt-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 text-xs px-2"
-                              onClick={(e) => handleEventClick(e, ev)}
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 text-xs px-2 text-destructive hover:text-destructive"
-                              onClick={() => handleDelete(ev.id)}
-                            >
-                              Delete
-                            </Button>
-                          </div>
+                          {!ev.is_billing && (
+                            <div className="flex gap-1 pt-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 text-xs px-2"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingEvent(ev as CalendarEvent);
+                                  setDialogOpen(true);
+                                }}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 text-xs px-2 text-destructive hover:text-destructive"
+                                onClick={() => handleDelete(ev.id)}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          )}
+                          {ev.is_billing && (
+                            <p className="text-[10px] text-muted-foreground italic pt-1">
+                              From Billing
+                            </p>
+                          )}
                         </div>
                       ))}
                     </div>
