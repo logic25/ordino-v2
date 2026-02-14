@@ -1,0 +1,1 @@
+ALTER TABLE public.rfps ADD COLUMN submission_method text;

@@ -1,73 +1,72 @@
 import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Trophy, TrendingUp, DollarSign, Target, Sigma } from "lucide-react";
+import { Trophy, TrendingUp, DollarSign, Target } from "lucide-react";
 import type { Rfp } from "@/hooks/useRfps";
+
+export type RfpFilter = "all" | "active" | "won" | "lost" | null;
 
 interface RfpSummaryCardsProps {
   rfps: Rfp[];
+  activeFilter: RfpFilter;
+  onFilterChange: (filter: RfpFilter) => void;
 }
 
-export function RfpSummaryCards({ rfps }: RfpSummaryCardsProps) {
+export function RfpSummaryCards({ rfps, activeFilter, onFilterChange }: RfpSummaryCardsProps) {
   const stats = useMemo(() => {
     const active = rfps.filter((r) => ["prospect", "drafting", "submitted"].includes(r.status));
     const won = rfps.filter((r) => r.status === "won");
     const lost = rfps.filter((r) => r.status === "lost");
     const decided = won.length + lost.length;
     const winRate = decided > 0 ? Math.round((won.length / decided) * 100) : 0;
-    const totalValue = rfps.reduce((sum, r) => sum + (r.contract_value || 0), 0);
     const pipelineValue = active.reduce((sum, r) => sum + (r.contract_value || 0), 0);
     const wonValue = won.reduce((sum, r) => sum + (r.contract_value || 0), 0);
 
-    return {
-      total: rfps.length,
-      activeCount: active.length,
-      closedCount: decided,
-      winRate,
-      wonCount: won.length,
-      decided,
-      pipelineValue,
-      totalValue,
-      wonValue,
-    };
+    return { total: rfps.length, activeCount: active.length, winRate, wonCount: won.length, lostCount: lost.length, decided, pipelineValue, wonValue };
   }, [rfps]);
 
-  const cards = [
+  const cards: { key: RfpFilter; label: string; value: string | number; detail: string; icon: typeof Target }[] = [
     {
+      key: "all",
       label: "Total RFPs",
       value: stats.total,
-      detail: `${stats.activeCount} active · ${stats.closedCount} closed`,
+      detail: `${stats.activeCount} active · ${stats.decided} decided`,
       icon: Target,
     },
     {
-      label: "Win Rate",
-      value: `${stats.winRate}%`,
-      detail: `${stats.wonCount} of ${stats.decided} decided`,
-      icon: Trophy,
-    },
-    {
-      label: "Total Value",
-      value: `$${stats.totalValue.toLocaleString()}`,
-      detail: "All RFPs combined",
-      icon: Sigma,
-    },
-    {
-      label: "Active Pipeline",
+      key: "active",
+      label: "Pipeline Value",
       value: `$${stats.pipelineValue.toLocaleString()}`,
-      detail: `${stats.activeCount} opportunities`,
+      detail: `${stats.activeCount} active opportunities`,
       icon: TrendingUp,
     },
     {
+      key: "won",
       label: "Secured",
       value: `$${stats.wonValue.toLocaleString()}`,
-      detail: `${stats.wonCount} won`,
+      detail: `${stats.wonCount} won · ${stats.winRate}% win rate`,
       icon: DollarSign,
+    },
+    {
+      key: "lost",
+      label: "Win Rate",
+      value: `${stats.winRate}%`,
+      detail: `${stats.wonCount} won · ${stats.lostCount} lost`,
+      icon: Trophy,
     },
   ];
 
+  const handleClick = (key: RfpFilter) => {
+    onFilterChange(activeFilter === key ? null : key);
+  };
+
   return (
-    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {cards.map((card) => (
-        <Card key={card.label}>
+        <Card
+          key={card.key}
+          className={`cursor-pointer transition-all hover:shadow-md ${activeFilter === card.key ? "ring-2 ring-primary shadow-md" : ""}`}
+          onClick={() => handleClick(card.key)}
+        >
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium mb-1">
               <card.icon className="h-3.5 w-3.5" />
