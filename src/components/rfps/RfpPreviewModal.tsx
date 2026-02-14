@@ -29,6 +29,7 @@ interface PreviewData {
   narratives: any[];
   pricing: any;
   certs: any[];
+  coverLetter?: string;
 }
 
 interface RfpPreviewModalProps {
@@ -38,7 +39,7 @@ interface RfpPreviewModalProps {
 }
 
 export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalProps) {
-  const { rfp, sections, companyInfo, staffBios, notableProjects, narratives, pricing, certs } = data;
+  const { rfp, sections, companyInfo, staffBios, notableProjects, narratives, pricing, certs, coverLetter } = data;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -60,6 +61,7 @@ export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalPro
           <div className="space-y-8 prose prose-sm max-w-none dark:prose-invert">
             {sections.map((sectionId) => (
               <div key={sectionId}>
+                {sectionId === "cover_letter" && coverLetter && <CoverLetterSection text={coverLetter} />}
                 {sectionId === "company_info" && <CompanyInfoSection data={companyInfo} />}
                 {sectionId === "staff_bios" && <StaffBiosSection data={staffBios} />}
                 {sectionId === "org_chart" && <OrgChartSection data={staffBios} />}
@@ -79,6 +81,15 @@ export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalPro
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return <h3 className="text-lg font-bold border-b pb-1 mb-3">{children}</h3>;
+}
+
+function CoverLetterSection({ text }: { text: string }) {
+  return (
+    <div>
+      <SectionHeading>Cover Letter</SectionHeading>
+      <div className="text-sm whitespace-pre-wrap leading-relaxed">{text}</div>
+    </div>
+  );
 }
 
 function CompanyInfoSection({ data }: { data: any }) {

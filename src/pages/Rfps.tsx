@@ -80,6 +80,9 @@ export default function Rfps() {
         submission_method: ext.submission_method || "",
         notes: [
           ext.scope_summary || "",
+          ext.contract_value_source === "estimated" ? `⚡ Contract value is AI-estimated based on scope analysis` : "",
+          ext.estimated_staff_count ? `Estimated staff needed: ${ext.estimated_staff_count}` : "",
+          ext.estimated_duration_months ? `Estimated duration: ${ext.estimated_duration_months} months` : "",
           ext.notes || "",
           ext.key_dates?.length ? `\nKey Dates:\n${ext.key_dates.map((d: any) => `• ${d.label}: ${d.date}`).join("\n")}` : "",
           ext.required_sections?.length ? `\nRequired Sections: ${ext.required_sections.join(", ")}` : "",
