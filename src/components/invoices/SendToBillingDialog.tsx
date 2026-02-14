@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -7,11 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Plus, Trash2 } from "lucide-react";
-import { useProjects, type ProjectWithRelations } from "@/hooks/useProjects";
-import { useClients } from "@/hooks/useClients";
+import { Loader2, Plus, Trash2, AlertTriangle, Info } from "lucide-react";
+import { useProjects } from "@/hooks/useProjects";
+import { useClients, useClientContacts } from "@/hooks/useClients";
 import { useCreateBillingRequest, type BillingRequestService } from "@/hooks/useBillingRequests";
+import { useClientBillingRulesByClient } from "@/hooks/useClientBillingRules";
 import { toast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 interface SendToBillingDialogProps {
   open: boolean;
@@ -21,6 +23,7 @@ interface SendToBillingDialogProps {
 
 export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId }: SendToBillingDialogProps) {
   const [projectId, setProjectId] = useState(preselectedProjectId || "");
+  const [billedToContactId, setBilledToContactId] = useState("");
   const [services, setServices] = useState<BillingRequestService[]>([
     { name: "", description: "", quantity: 1, rate: 0, amount: 0 },
   ]);
@@ -29,12 +32,34 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId }
   const { data: clients } = useClients();
   const createBillingRequest = useCreateBillingRequest();
 
+  const selectedProject = projects?.find((p) => p.id === projectId);
+  const selectedClient = clients?.find((c) => c.id === selectedProject?.client_id);
+
+  // Fetch contacts for the selected client
+  const { data: contacts } = useClientContacts(selectedProject?.client_id);
+
+  // Fetch billing rules for the selected client
+  const { data: billingRules } = useClientBillingRulesByClient(selectedProject?.client_id);
+  const activeRule = billingRules?.[0]; // primary rule
+
   useEffect(() => {
     if (preselectedProjectId) setProjectId(preselectedProjectId);
   }, [preselectedProjectId]);
 
-  const selectedProject = projects?.find((p) => p.id === projectId);
-  const selectedClient = clients?.find((c) => c.id === selectedProject?.client_id);
+  // Auto-select primary contact when contacts load
+  useEffect(() => {
+    if (contacts && contacts.length > 0 && !billedToContactId) {
+      const primary = contacts.find((c) => c.is_primary);
+      setBilledToContactId(primary?.id || contacts[0].id);
+    }
+  }, [contacts, billedToContactId]);
+
+  // Reset contact when project changes
+  useEffect(() => {
+    setBilledToContactId("");
+  }, [projectId]);
+
+  const selectedContact = contacts?.find((c) => c.id === billedToContactId);
 
   const updateService = (idx: number, field: keyof BillingRequestService, value: string | number) => {
     setServices((prev) => {
@@ -56,7 +81,22 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId }
     setServices((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  const totalAmount = services.reduce((sum, s) => sum + s.amount, 0);
+  const subtotal = services.reduce((sum, s) => sum + s.amount, 0);
+
+  // Calculate fees from billing rules
+  const fees = useMemo(() => {
+    const f: Record<string, number> = {};
+    if (activeRule?.wire_fee && activeRule.wire_fee > 0) {
+      f["Wire Fee"] = activeRule.wire_fee;
+    }
+    if (activeRule?.cc_markup && activeRule.cc_markup > 0) {
+      f["CC Processing Fee"] = +(subtotal * (activeRule.cc_markup / 100)).toFixed(2);
+    }
+    return f;
+  }, [activeRule, subtotal]);
+
+  const totalFees = Object.values(fees).reduce((s, v) => s + v, 0);
+  const totalAmount = subtotal + totalFees;
 
   const handleSubmit = async () => {
     if (!projectId) {
@@ -74,6 +114,9 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId }
         client_id: selectedProject?.client_id,
         services: services.filter((s) => s.name || s.amount > 0),
         total_amount: totalAmount,
+        billed_to_contact_id: billedToContactId || null,
+        fees: Object.keys(fees).length > 0 ? fees : undefined,
+        special_instructions: activeRule?.special_instructions || null,
       });
       toast({ title: "Billing request submitted & invoice created" });
       onOpenChange(false);
@@ -85,6 +128,7 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId }
 
   const resetForm = () => {
     if (!preselectedProjectId) setProjectId("");
+    setBilledToContactId("");
     setServices([{ name: "", description: "", quantity: 1, rate: 0, amount: 0 }]);
   };
 
@@ -124,6 +168,64 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId }
               />
             </div>
           </div>
+
+          {/* Billing Contact Selector */}
+          <div className="space-y-2">
+            <Label>Bill To (Contact)</Label>
+            <Select value={billedToContactId} onValueChange={setBilledToContactId}>
+              <SelectTrigger>
+                <SelectValue placeholder={contacts?.length ? "Select billing contact" : "Select a project first"} />
+              </SelectTrigger>
+              <SelectContent>
+                {(contacts || []).map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}{c.title ? ` — ${c.title}` : ""}{c.is_primary ? " (Primary)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedContact && (
+              <p className="text-xs text-muted-foreground">
+                {selectedContact.email || "No email"}{selectedContact.phone ? ` · ${selectedContact.phone}` : ""}
+              </p>
+            )}
+          </div>
+
+          {/* Client Billing Rules Alert */}
+          {activeRule && (
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <Info className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">Client Billing Rules Applied</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {activeRule.require_waiver && (
+                  <Badge variant="outline" className="text-[10px]">Waiver Required</Badge>
+                )}
+                {activeRule.require_pay_app && (
+                  <Badge variant="outline" className="text-[10px]">Pay App Required</Badge>
+                )}
+                {activeRule.special_portal_required && (
+                  <Badge variant="outline" className="text-[10px]">Portal Upload Required</Badge>
+                )}
+                {activeRule.wire_fee && activeRule.wire_fee > 0 && (
+                  <Badge variant="secondary" className="text-[10px]">Wire Fee: ${activeRule.wire_fee}</Badge>
+                )}
+                {activeRule.cc_markup && activeRule.cc_markup > 0 && (
+                  <Badge variant="secondary" className="text-[10px]">CC Markup: {activeRule.cc_markup}%</Badge>
+                )}
+                {activeRule.vendor_id && (
+                  <Badge variant="outline" className="text-[10px]">Vendor ID: {activeRule.vendor_id}</Badge>
+                )}
+              </div>
+              {activeRule.special_instructions && (
+                <p className="text-xs text-muted-foreground flex items-start gap-1.5">
+                  <AlertTriangle className="h-3 w-3 mt-0.5 text-warning shrink-0" />
+                  {activeRule.special_instructions}
+                </p>
+              )}
+            </div>
+          )}
 
           <Separator />
 
@@ -173,7 +275,7 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId }
                     <Input
                       readOnly
                       value={`$${service.amount.toFixed(2)}`}
-                      className="h-9 bg-muted font-mono text-sm"
+                      className="h-9 bg-muted tabular-nums text-sm"
                     />
                   </div>
                   <Button
@@ -193,11 +295,24 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId }
           <Separator />
 
           <div className="flex justify-end">
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">Total Amount</p>
-              <p className="text-xl font-bold font-mono">
-                ${totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-              </p>
+            <div className="text-right space-y-1">
+              <div className="flex justify-between gap-8 text-sm">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span className="tabular-nums">${subtotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+              </div>
+              {Object.entries(fees).map(([label, amount]) => (
+                <div key={label} className="flex justify-between gap-8 text-sm">
+                  <span className="text-muted-foreground">{label}</span>
+                  <span className="tabular-nums">${amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                </div>
+              ))}
+              {totalFees > 0 && <Separator className="my-1" />}
+              <div className="flex justify-between gap-8">
+                <span className="text-sm text-muted-foreground">Total</span>
+                <span className="text-xl font-bold tabular-nums">
+                  ${totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                </span>
+              </div>
             </div>
           </div>
         </div>
