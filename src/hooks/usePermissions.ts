@@ -6,7 +6,7 @@ import { useUserRoles, type AppRole } from "./useUserRoles";
 export type ResourceKey =
   | "dashboard" | "projects" | "properties" | "proposals" | "invoices"
   | "time_logs" | "emails" | "calendar" | "documents" | "clients"
-  | "settings" | "users" | "roles" | "reports";
+  | "settings" | "users" | "roles" | "reports" | "rfps";
 
 export interface RolePermission {
   id: string;
@@ -36,6 +36,7 @@ export const ALL_RESOURCES: { key: ResourceKey; label: string }[] = [
   { key: "users", label: "Users" },
   { key: "roles", label: "Roles" },
   { key: "reports", label: "Reports" },
+  { key: "rfps", label: "RFPs" },
 ];
 
 // Fetch all role_permissions for the company

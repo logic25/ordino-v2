@@ -15,6 +15,7 @@ import {
   ChevronRight,
   LogOut,
   FileArchive,
+  ScrollText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ const mainNav = [
   { title: "Billing", icon: Receipt, href: "/invoices", resource: "invoices" as ResourceKey },
   { title: "Email", icon: Mail, href: "/emails", resource: "emails" as ResourceKey },
   { title: "Calendar", icon: CalendarDays, href: "/calendar", resource: "calendar" as ResourceKey },
+  { title: "RFPs", icon: ScrollText, href: "/rfps", resource: "rfps" as ResourceKey },
 ];
 
 const secondaryNav = [

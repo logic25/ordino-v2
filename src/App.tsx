@@ -22,6 +22,8 @@ import ClientDetail from "./pages/ClientDetail";
 import Emails from "./pages/Emails";
 import Calendar from "./pages/Calendar";
 import Documents from "./pages/Documents";
+import Rfps from "./pages/Rfps";
+import RfpLibrary from "./pages/RfpLibrary";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -145,6 +147,24 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Documents />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* RFP routes */}
+      <Route
+        path="/rfps"
+        element={
+          <ProtectedRoute>
+            <Rfps />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/rfps/library"
+        element={
+          <ProtectedRoute>
+            <RfpLibrary />
           </ProtectedRoute>
         }
       />
