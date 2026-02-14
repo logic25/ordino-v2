@@ -556,6 +556,83 @@ export type Database = {
           },
         ]
       }
+      email_drafts: {
+        Row: {
+          bcc_recipients: string[] | null
+          body_html: string | null
+          cc_recipients: string[] | null
+          company_id: string
+          created_at: string
+          draft_type: string
+          forward_from_email_id: string | null
+          id: string
+          reply_to_email_id: string | null
+          subject: string | null
+          to_recipients: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bcc_recipients?: string[] | null
+          body_html?: string | null
+          cc_recipients?: string[] | null
+          company_id: string
+          created_at?: string
+          draft_type?: string
+          forward_from_email_id?: string | null
+          id?: string
+          reply_to_email_id?: string | null
+          subject?: string | null
+          to_recipients?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bcc_recipients?: string[] | null
+          body_html?: string | null
+          cc_recipients?: string[] | null
+          company_id?: string
+          created_at?: string
+          draft_type?: string
+          forward_from_email_id?: string | null
+          id?: string
+          reply_to_email_id?: string | null
+          subject?: string | null
+          to_recipients?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_drafts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_drafts_forward_from_email_id_fkey"
+            columns: ["forward_from_email_id"]
+            isOneToOne: false
+            referencedRelation: "emails"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_drafts_reply_to_email_id_fkey"
+            columns: ["reply_to_email_id"]
+            isOneToOne: false
+            referencedRelation: "emails"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_drafts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_notes: {
         Row: {
           company_id: string

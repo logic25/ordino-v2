@@ -146,16 +146,22 @@ export function ReminderButton({ emailId, compact }: ReminderButtonProps) {
               selected={undefined}
               onSelect={(date) => {
                 if (date) {
-                  // Set reminder for 9 AM on the selected date
                   const remindDate = new Date(date);
-                  remindDate.setHours(9, 0, 0, 0);
-                  if (remindDate <= new Date()) {
-                    remindDate.setHours(new Date().getHours() + 1);
+                  const now = new Date();
+                  if (remindDate.toDateString() === now.toDateString()) {
+                    // Today: set 1 hour from now
+                    remindDate.setHours(now.getHours() + 1, now.getMinutes(), 0, 0);
+                  } else {
+                    remindDate.setHours(9, 0, 0, 0);
                   }
                   handleCreate(remindDate);
                 }
               }}
-              disabled={(date) => date < new Date()}
+              disabled={(date) => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                return date < today;
+              }}
               className="rounded-md"
             />
           </div>

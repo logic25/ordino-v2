@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, X, HelpCircle, Globe, Loader2, Plus, Clock, Trash2 } from "lucide-react";
+import { Search, X, HelpCircle, Globe, Loader2, Plus, Clock, Trash2, FileEdit, Pencil } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { KeyboardShortcutsDialog } from "@/components/emails/KeyboardShortcutsDi
 import { ComposeEmailDialog } from "@/components/emails/ComposeEmailDialog";
 import { useEmails, type EmailWithTags, type EmailFilters } from "@/hooks/useEmails";
 import { useScheduledEmails, useCancelScheduledEmail } from "@/hooks/useScheduledEmails";
+import { useEmailDrafts, useDeleteDraft, type EmailDraft } from "@/hooks/useEmailDrafts";
 import { useEmailKeyboardShortcuts } from "@/hooks/useEmailKeyboardShortcuts";
 import { useConnectGmail } from "@/hooks/useGmailConnection";
 import { useNewEmailNotifications } from "@/hooks/useNewEmailNotifications";
@@ -29,11 +30,14 @@ export default function Emails() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
+  const [editingDraft, setEditingDraft] = useState<EmailDraft | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const connectGmail = useConnectGmail();
   const { data: scheduledEmails = [] } = useScheduledEmails();
   const cancelScheduled = useCancelScheduledEmail();
+  const { data: drafts = [] } = useEmailDrafts();
+  const deleteDraft = useDeleteDraft();
   const { results: gmailResults, isSearching: isGmailSearching, hasSearched: hasGmailSearched, search: searchGmail, clearSearch: clearGmailSearch } = useGmailSearch();
 
   // Real-time notifications
@@ -81,7 +85,7 @@ export default function Emails() {
     [allEmails, activeTab]
   );
 
-  const tabCounts = useMemo(() => getTabCounts(allEmails, scheduledEmails.length), [allEmails, scheduledEmails.length]);
+  const tabCounts = useMemo(() => getTabCounts(allEmails, scheduledEmails.length, drafts.length), [allEmails, scheduledEmails.length, drafts.length]);
 
   // Auto-scroll highlighted email into view
   useEffect(() => {
@@ -322,6 +326,58 @@ export default function Emails() {
                 })
               )}
             </div>
+          ) : activeTab === "drafts" ? (
+            <div className="p-4 space-y-2">
+              {drafts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                  <FileEdit className="h-12 w-12 mb-3 opacity-40" />
+                  <p className="text-sm font-medium">No drafts</p>
+                  <p className="text-xs mt-1">Drafts are auto-saved when composing emails</p>
+                </div>
+              ) : (
+                drafts.map((d) => (
+                  <div
+                    key={d.id}
+                    className="border rounded-lg p-3 flex items-start justify-between gap-3 bg-card cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => {
+                      setEditingDraft(d);
+                      setComposeOpen(true);
+                    }}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">
+                        {d.to_recipients.length > 0 ? `To: ${d.to_recipients.join(", ")}` : "No recipients"}
+                      </p>
+                      <p className="text-sm text-foreground/80 truncate">
+                        {d.subject || "(no subject)"}
+                      </p>
+                      <span className="text-xs text-muted-foreground">
+                        Last edited {formatDistanceToNow(new Date(d.updated_at), { addSuffix: true })}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          try {
+                            await deleteDraft.mutateAsync(d.id);
+                            toast({ title: "Draft deleted" });
+                          } catch (err: any) {
+                            toast({ title: "Error", description: err.message, variant: "destructive" });
+                          }
+                        }}
+                        disabled={deleteDraft.isPending}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           ) : (
             <div className="overflow-y-auto flex-1">
               <EmailList
@@ -354,7 +410,11 @@ export default function Emails() {
 
       <ComposeEmailDialog
         open={composeOpen}
-        onOpenChange={setComposeOpen}
+        onOpenChange={(o) => {
+          setComposeOpen(o);
+          if (!o) setEditingDraft(null);
+        }}
+        draft={editingDraft}
       />
     </AppLayout>
   );

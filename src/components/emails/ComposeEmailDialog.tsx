@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Send, Loader2, Paperclip, X, FileIcon } from "lucide-react";
 import { useUndoableSend } from "@/hooks/useUndoableSend";
+import { useSaveDraft, useDeleteDraft, type EmailDraft } from "@/hooks/useEmailDrafts";
 import { useCreateScheduledEmail } from "@/hooks/useScheduledEmails";
 import { ScheduleSendDropdown } from "./ScheduleSendDropdown";
 import { RecipientInput } from "./RecipientInput";
@@ -28,9 +29,10 @@ interface AttachmentFile {
 interface ComposeEmailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  draft?: EmailDraft | null;
 }
 
-export function ComposeEmailDialog({ open, onOpenChange }: ComposeEmailDialogProps) {
+export function ComposeEmailDialog({ open, onOpenChange, draft }: ComposeEmailDialogProps) {
   const [to, setTo] = useState<string[]>([]);
   const [cc, setCc] = useState<string[]>([]);
   const [bcc, setBcc] = useState<string[]>([]);
@@ -39,10 +41,56 @@ export function ComposeEmailDialog({ open, onOpenChange }: ComposeEmailDialogPro
   const [showCcBcc, setShowCcBcc] = useState(false);
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [draftId, setDraftId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { send: undoableSend, isPending: isSending } = useUndoableSend();
+  const saveDraft = useSaveDraft();
+  const removeDraft = useDeleteDraft();
   const scheduleEmail = useCreateScheduledEmail();
   const { toast } = useToast();
+
+  // Load draft data when opening with a draft
+  useEffect(() => {
+    if (draft && open) {
+      setTo(draft.to_recipients || []);
+      setCc(draft.cc_recipients || []);
+      setBcc(draft.bcc_recipients || []);
+      setSubject(draft.subject || "");
+      setBody(draft.body_html || "");
+      setDraftId(draft.id);
+      setShowCcBcc((draft.cc_recipients?.length || 0) > 0 || (draft.bcc_recipients?.length || 0) > 0);
+    }
+  }, [draft, open]);
+
+  // Auto-save draft every 5 seconds when content changes
+  useEffect(() => {
+    if (!open) return;
+    if (!to.length && !subject && !body) return;
+
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(async () => {
+      try {
+        const result = await saveDraft.mutateAsync({
+          id: draftId || undefined,
+          to,
+          cc: cc.length > 0 ? cc : undefined,
+          bcc: bcc.length > 0 ? bcc : undefined,
+          subject,
+          bodyHtml: body,
+        });
+        if (!draftId && result?.id) {
+          setDraftId((result as any).id);
+        }
+      } catch {
+        // Silent fail for auto-save
+      }
+    }, 5000);
+
+    return () => {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    };
+  }, [to, cc, bcc, subject, body, open]);
 
   const resetForm = () => {
     setTo([]);
@@ -53,6 +101,14 @@ export function ComposeEmailDialog({ open, onOpenChange }: ComposeEmailDialogPro
     setShowCcBcc(false);
     setAttachments([]);
     setIsDragOver(false);
+    setDraftId(null);
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+  };
+
+  const cleanupDraftOnSend = async () => {
+    if (draftId) {
+      try { await removeDraft.mutateAsync(draftId); } catch {}
+    }
   };
 
   const readFileAsBase64 = (file: File): Promise<string> =>
@@ -122,7 +178,8 @@ export function ComposeEmailDialog({ open, onOpenChange }: ComposeEmailDialogPro
         html_body: body,
         attachments: buildAttachmentsPayload(),
       },
-      () => {
+      async () => {
+        await cleanupDraftOnSend();
         resetForm();
         onOpenChange(false);
       }
@@ -147,6 +204,7 @@ export function ComposeEmailDialog({ open, onOpenChange }: ComposeEmailDialogPro
         title: "Email Scheduled",
         description: `Will send on ${date.toLocaleDateString()} at ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
       });
+      await cleanupDraftOnSend();
       resetForm();
       onOpenChange(false);
     } catch (err: any) {

@@ -111,7 +111,7 @@ function ThreadMessage({
       </button>
 
       {isExpanded && (
-        <div className="px-4 pb-4 space-y-3">
+        <div className="px-4 pb-4 space-y-3 overflow-hidden">
           <div className="text-xs text-muted-foreground">
             <span>From: {email.from_name ? `${email.from_name} <${email.from_email}>` : email.from_email}</span>
             {email.to_emails && Array.isArray(email.to_emails) && (
@@ -152,15 +152,15 @@ function ThreadMessage({
 
           <Separator />
 
-          <div className="email-content">
+          <div className="email-content overflow-x-auto">
             {email.body_html ? (
               <div
-                className="prose prose-sm max-w-none text-foreground
-                  [&_a]:text-accent [&_img]:max-w-full [&_table]:text-sm"
+                className="prose prose-sm max-w-none text-foreground break-words
+                  [&_a]:text-accent [&_a]:break-all [&_img]:max-w-full [&_table]:text-sm [&_table]:w-full [&_table]:table-fixed [&_pre]:overflow-x-auto [&_pre]:whitespace-pre-wrap"
                 dangerouslySetInnerHTML={{ __html: email.body_html }}
               />
             ) : (
-              <pre className="whitespace-pre-wrap text-sm font-sans text-foreground">
+              <pre className="whitespace-pre-wrap text-sm font-sans text-foreground break-words">
                 {email.body_text || email.snippet || "No content"}
               </pre>
             )}
@@ -314,7 +314,7 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
         }
         onOpenChange(o);
       }}>
-        <SheetContent className="w-full sm:max-w-2xl p-0 flex flex-col">
+        <SheetContent className="w-full sm:max-w-2xl p-0 flex flex-col overflow-hidden">
           <SheetHeader className="px-6 pt-6 pb-4">
             <SheetTitle className="text-lg leading-tight pr-8">
               {email.subject || "(no subject)"}
