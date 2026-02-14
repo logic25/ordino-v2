@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { Textarea } from "@/components/ui/textarea";
 import { Tag, Paperclip, X, Reply, Send, Loader2, ChevronDown, ChevronUp, MessageSquare, Download, Eye, Archive, ArchiveRestore, Forward, MailOpen, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -436,8 +436,8 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
 
           <Separator />
 
-          <ScrollArea className="flex-1 min-w-0 [&>[data-radix-scroll-area-viewport]>div]:!block">
-            <div className="px-6 py-4 space-y-3 w-full max-w-full overflow-hidden" style={{ contain: 'inline-size' }}>
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+            <div className="px-6 py-4 space-y-3">
               {displayEmails.map((threadEmail) => (
                 <ThreadMessage
                   key={threadEmail.id}
@@ -450,7 +450,7 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
                 />
               ))}
             </div>
-          </ScrollArea>
+          </div>
 
           {/* Reply / Forward Section */}
           <div className="border-t px-6 py-3 space-y-3">
