@@ -174,12 +174,18 @@ Deno.serve(async (req) => {
         .eq("id", connection.id);
     }
 
-    // Parse optional maxPages from request body (default 5 pages = ~250 messages)
-    let maxPages = 5;
+    // Determine if this is the first sync (deep) or incremental
+    const isFirstSync = !connection.last_sync_at;
+    
+    // Parse optional maxPages from request body
+    let maxPages = isFirstSync ? 10 : 3; // First sync: 10 pages (~500 msgs), subsequent: 3 pages (~150 msgs)
     try {
       const body = await req.json();
       if (body?.maxPages) maxPages = Math.min(body.maxPages, 20);
     } catch { /* no body is fine */ }
+    
+    // For first sync, allow more consecutive existing pages before stopping
+    const maxFullyExistingPages = isFirstSync ? 5 : 2;
 
     let syncedCount = 0;
     let totalChecked = 0;
@@ -311,8 +317,8 @@ Deno.serve(async (req) => {
         fullyExistingPages = 0;
       }
 
-      // Stop if 2 consecutive pages had nothing new (we've caught up)
-      if (fullyExistingPages >= 2) break;
+      // Stop if enough consecutive pages had nothing new
+      if (fullyExistingPages >= maxFullyExistingPages) break;
 
       // Move to next page
       pageToken = listData.nextPageToken;
