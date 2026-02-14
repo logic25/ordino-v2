@@ -15,7 +15,6 @@ import {
   ChevronRight,
   LogOut,
   FileArchive,
-  UserCog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -37,7 +36,6 @@ const mainNav = [
 const secondaryNav = [
   { title: "Companies", icon: Users, href: "/clients" },
   { title: "Documents", icon: FileArchive, href: "/documents" },
-  { title: "Team", icon: UserCog, href: "/team" },
   { title: "Settings", icon: Settings, href: "/settings" },
 ];
 

@@ -223,7 +223,39 @@ export default function Calendar() {
           </Button>
         </div>
 
+        {/* Legend */}
+        <div className="flex flex-wrap items-center gap-2 text-[11px]">
+          {[
+            { type: "inspection", label: "Inspection" },
+            { type: "hearing", label: "Hearing" },
+            { type: "deadline", label: "Deadline" },
+            { type: "meeting", label: "Meeting" },
+            { type: "site_visit", label: "Site Visit" },
+            { type: "filing", label: "Filing" },
+            { type: "milestone", label: "Milestone" },
+            ...(canAccessBilling && showBilling
+              ? [
+                  { type: "invoice_due", label: "Invoice Due" },
+                  { type: "follow_up", label: "Follow-up" },
+                  { type: "installment", label: "Installment" },
+                  { type: "promise", label: "Promise" },
+                ]
+              : []),
+          ].map((item) => (
+            <span
+              key={item.type}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-2 py-0.5 rounded border",
+                EVENT_TYPE_COLORS[item.type] || EVENT_TYPE_COLORS.general
+              )}
+            >
+              {item.label}
+            </span>
+          ))}
+        </div>
+
         <div className="flex gap-6">
+
           {/* Calendar Grid */}
           <div className="flex-1">
             {/* Day headers */}

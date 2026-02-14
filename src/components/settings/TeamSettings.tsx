@@ -1,8 +1,6 @@
 import { useState } from "react";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -29,7 +27,6 @@ import {
   Shield,
   Clock,
   FolderKanban,
-  Receipt,
 } from "lucide-react";
 import { useCompanyProfiles, type Profile } from "@/hooks/useProfiles";
 import { useQuery } from "@tanstack/react-query";
@@ -49,14 +46,12 @@ function useUserStats(userId: string) {
     queryKey: ["user-stats", userId],
     enabled: !!userId,
     queryFn: async () => {
-      // Active projects assigned
       const { count: projectCount } = await supabase
         .from("projects")
         .select("*", { count: "exact", head: true })
         .or(`assigned_pm_id.eq.${userId}`)
         .in("status", ["open"] as any[]);
 
-      // Time logged this month
       const startOfMonth = new Date();
       startOfMonth.setDate(1);
       startOfMonth.setHours(0, 0, 0, 0);
@@ -69,7 +64,6 @@ function useUserStats(userId: string) {
 
       const totalMinutes = timeEntries?.reduce((sum, e) => sum + (e.duration_minutes || 0), 0) || 0;
 
-      // App roles
       const { data: roles } = await supabase
         .from("user_roles")
         .select("role")
@@ -105,7 +99,6 @@ function UserDetailSheet({ user, open, onClose }: { user: Profile | null; open: 
         </SheetHeader>
 
         <div className="mt-6 space-y-6">
-          {/* Profile header */}
           <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16">
               <AvatarImage src={user.avatar_url || undefined} />
@@ -122,7 +115,6 @@ function UserDetailSheet({ user, open, onClose }: { user: Profile | null; open: 
 
           <Separator />
 
-          {/* Contact info */}
           <div className="space-y-3">
             <h4 className="text-sm font-medium text-muted-foreground">Contact</h4>
             {user.phone && (
@@ -139,7 +131,6 @@ function UserDetailSheet({ user, open, onClose }: { user: Profile | null; open: 
 
           <Separator />
 
-          {/* Stats */}
           {isLoading ? (
             <div className="flex justify-center py-4">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -198,7 +189,7 @@ function UserDetailSheet({ user, open, onClose }: { user: Profile | null; open: 
   );
 }
 
-export default function TeamMembers() {
+export function TeamSettings() {
   const { data: profiles = [], isLoading } = useCompanyProfiles();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
@@ -212,126 +203,115 @@ export default function TeamMembers() {
   const activeCount = profiles.filter((p) => p.is_active).length;
 
   return (
-    <AppLayout>
-      <div className="space-y-6 animate-fade-in">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Team</h1>
-            <p className="text-muted-foreground mt-1">
-              View team members, roles, and activity
-            </p>
-          </div>
-        </div>
-
-        {/* Summary */}
-        <Card>
-          <CardContent className="py-3 px-4">
-            <div className="flex items-center justify-around gap-4 text-center">
-              <div>
-                <p className="text-2xl font-bold">{profiles.length}</p>
-                <p className="text-xs text-muted-foreground">Total Members</p>
-              </div>
-              <div className="h-8 w-px bg-border" />
-              <div>
-                <p className="text-2xl font-bold text-primary">{activeCount}</p>
-                <p className="text-xs text-muted-foreground">Active</p>
-              </div>
-              <div className="h-8 w-px bg-border" />
-              <div>
-                <p className="text-2xl font-bold">{profiles.length - activeCount}</p>
-                <p className="text-xs text-muted-foreground">Inactive</p>
-              </div>
+    <div className="space-y-4">
+      {/* Summary */}
+      <Card>
+        <CardContent className="py-3 px-4">
+          <div className="flex items-center justify-around gap-4 text-center">
+            <div>
+              <p className="text-2xl font-bold">{profiles.length}</p>
+              <p className="text-xs text-muted-foreground">Total Members</p>
             </div>
-          </CardContent>
-        </Card>
+            <div className="h-8 w-px bg-border" />
+            <div>
+              <p className="text-2xl font-bold text-primary">{activeCount}</p>
+              <p className="text-xs text-muted-foreground">Active</p>
+            </div>
+            <div className="h-8 w-px bg-border" />
+            <div>
+              <p className="text-2xl font-bold">{profiles.length - activeCount}</p>
+              <p className="text-xs text-muted-foreground">Inactive</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search team members..."
-            className="pl-9"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Team Members
-              <span className="text-muted-foreground font-normal text-sm">({filteredProfiles.length})</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : filteredProfiles.length === 0 ? (
-              <p className="text-center py-8 text-muted-foreground">No team members found.</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Joined</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredProfiles.map((profile) => {
-                    const initials = [profile.first_name, profile.last_name]
-                      .filter(Boolean)
-                      .map((n) => n?.[0])
-                      .join("")
-                      .toUpperCase() || "?";
-                    const displayName = profile.display_name ||
-                      [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Unknown";
-
-                    return (
-                      <TableRow
-                        key={profile.id}
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => setSelectedUser(profile)}
-                      >
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage src={profile.avatar_url || undefined} />
-                              <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-                            </Avatar>
-                            <span className="font-medium">{displayName}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={cn("text-xs", ROLE_COLORS[profile.role] || ROLE_COLORS.staff)}>
-                            {profile.role}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-sm">{profile.phone || "—"}</TableCell>
-                        <TableCell>
-                          <Badge variant={profile.is_active ? "default" : "secondary"} className="text-xs">
-                            {profile.is_active ? "Active" : "Inactive"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-sm">
-                          {profile.created_at ? format(new Date(profile.created_at), "MMM d, yyyy") : "—"}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          type="search"
+          placeholder="Search team members..."
+          className="pl-9"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
       </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Team Members
+            <span className="text-muted-foreground font-normal text-sm">({filteredProfiles.length})</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredProfiles.length === 0 ? (
+            <p className="text-center py-8 text-muted-foreground">No team members found.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Joined</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredProfiles.map((profile) => {
+                  const initials = [profile.first_name, profile.last_name]
+                    .filter(Boolean)
+                    .map((n) => n?.[0])
+                    .join("")
+                    .toUpperCase() || "?";
+                  const displayName = profile.display_name ||
+                    [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Unknown";
+
+                  return (
+                    <TableRow
+                      key={profile.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => setSelectedUser(profile)}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={profile.avatar_url || undefined} />
+                            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+                          </Avatar>
+                          <span className="font-medium">{displayName}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={cn("text-xs", ROLE_COLORS[profile.role] || ROLE_COLORS.staff)}>
+                          {profile.role}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{profile.phone || "—"}</TableCell>
+                      <TableCell>
+                        <Badge variant={profile.is_active ? "default" : "secondary"} className="text-xs">
+                          {profile.is_active ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {profile.created_at ? format(new Date(profile.created_at), "MMM d, yyyy") : "—"}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
       <UserDetailSheet user={selectedUser} open={!!selectedUser} onClose={() => setSelectedUser(null)} />
-    </AppLayout>
+    </div>
   );
 }
