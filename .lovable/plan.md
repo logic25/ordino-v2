@@ -1,226 +1,244 @@
 
-# Billing System Enhancement: Invoice PDF, Payment Options, and Settings Overhaul
 
-## What This Covers
+# Overlap Analysis: Existing Features vs. Planned Enhancements
 
-This is a significant expansion of the billing system to bridge the gap between what's currently built (basic invoice CRUD, collections, demand letters) and the full Ordino Billing spec. The work breaks into three main areas: (1) Invoice PDF preview/generation, (2) expanded Invoice & Billing Settings, and (3) wiring it all together.
-
----
-
-## Current State
-
-**What exists today:**
-- Invoice list with filter tabs, summary cards, detail sheet, create dialog
-- Send Invoice modal (mock PDF + Gmail + QBO sync steps)
-- Collections view grouped by urgency (30/60/90+ days)
-- Demand letter template editor in Settings with merge fields
-- Basic collections timeline config (reminder days)
-- Client billing rules display (hardcoded mock data, no CRUD)
-- Mock QBO connection widget
-- Follow-up notes and activity log per invoice
-
-**What's missing (and this plan addresses):**
-- No actual invoice PDF preview or generation
-- "Preview PDF" and "Download" buttons in detail sheet do nothing
-- Settings sections are incomplete -- no email templates, no payment method config, no Stripe/Zelle/Wire info, no QBO sync settings
-- Client billing rules are static mock data with no add/edit/delete
-- Collections settings (reminder schedule) don't persist to the database
-- No payment instructions on invoices
+This document identifies every area where the planned AI Collections upgrade overlaps with what already exists, so we avoid rebuilding or duplicating functionality.
 
 ---
 
-## Implementation Plan
+## 1. Follow-Up Notes vs. Promise-to-Pay
 
-### 1. Invoice PDF Preview and Generation
+**What exists:**
+- `invoice_follow_ups` table with `contact_method`, `notes`, `contacted_by`, `follow_up_date`
+- Follow-up note capture in both `CollectionsView.tsx` (quick note dialog) and `InvoiceDetailSheet.tsx` (inline add note form)
+- Contact methods: phone_call, left_message, reminder_email, note
 
-Install `@react-pdf/renderer` to generate real invoice PDFs that can be previewed in-browser and downloaded.
+**What's planned:**
+- `payment_promises` table with `promised_amount`, `promised_date`, `payment_method`, `status` (pending/kept/broken)
 
-**New files:**
-- `src/components/invoices/InvoicePDF.tsx` -- React-PDF document component with the full invoice layout:
-  - Company header (logo area, name, address, phone, fax, email)
-  - Invoice number, date, due date
-  - Bill-to section with contact details
-  - Project reference
-  - Line items table (Description, Qty, Rate, Amount)
-  - Subtotal, retainer applied, fees, total due
-  - Payment instructions section (check, wire, Zelle, credit card -- pulled from company settings)
-  - Footer with contact info
-- `src/components/invoices/InvoicePDFPreview.tsx` -- Dialog that renders the PDF in an iframe using `pdf().toBlob()` and `URL.createObjectURL`
+**The overlap:**
+A promise-to-pay logged during a phone call is currently just a follow-up note with free-text like "Spoke with John, check coming Friday." The new system adds structured fields (amount, date, method, status tracking). These are NOT the same thing -- promises are a subset of follow-ups with enforceable data.
 
-**Modified files:**
-- `InvoiceDetailSheet.tsx` -- Add "Preview PDF" and "Download PDF" buttons that use the new components
-- `SendInvoiceModal.tsx` -- Replace the mock "Generating PDF..." step with actual PDF generation, attach to the email payload
-
-### 2. Company Payment Info (Settings)
-
-Add a new "Payment Methods" card to Invoice Settings where the admin configures how clients can pay. This data gets embedded into every invoice PDF and email.
-
-**New settings fields** (stored in `companies.settings` JSON):
-- `payment_check_address` -- Mailing address for checks
-- `payment_wire_bank_name`, `payment_wire_routing`, `payment_wire_account` -- Wire transfer details
-- `payment_zelle_id` -- Zelle email/phone
-- `payment_cc_enabled` -- Whether credit card is accepted
-- `payment_cc_url` -- Stripe payment link (or custom URL)
-- `company_address`, `company_phone`, `company_fax`, `company_email` -- For the PDF header
-
-**Modified files:**
-- `src/hooks/useCompanySettings.ts` -- Extend `CompanySettings` interface with payment fields
-- `src/components/settings/InvoiceSettings.tsx` -- Add three new cards:
-  1. **Company Info** -- Address, phone, fax, email (used in PDF header)
-  2. **Payment Methods** -- Check address, wire details, Zelle, CC toggle + URL
-  3. **Email Templates** -- Customize the invoice email subject and body (with merge fields, similar to demand letter)
-
-### 3. Collections Settings Persistence
-
-Currently, reminder days and auto-reminders are local state only. Wire them to `companies.settings`:
-
-**New settings fields:**
-- `collections_first_reminder_days` (default 30)
-- `collections_second_reminder_days` (default 60)
-- `collections_demand_letter_days` (default 90)
-- `collections_auto_reminders` (boolean)
-- `collections_early_payment_discount` (boolean + percentage)
-
-**Modified files:**
-- `src/hooks/useCompanySettings.ts` -- Add fields to interface
-- `src/components/settings/InvoiceSettings.tsx` -- Save button actually persists to DB
-
-### 4. Client Billing Rules CRUD
-
-Replace the hardcoded mock rules with real database-backed rules.
-
-**Database changes:**
-- New table `client_billing_rules` (if not already created):
-  - `id`, `company_id`, `client_id` (FK to clients)
-  - `vendor_id`, `property_id` (text)
-  - `require_waiver`, `require_pay_app` (boolean)
-  - `wire_fee` (decimal), `cc_markup` (decimal)
-  - `special_portal_required` (boolean), `portal_url` (text)
-  - `special_instructions` (text)
-  - `lien_release_required` (boolean), `lien_release_threshold` (decimal)
-  - `special_cc_contacts` (text array -- CC these emails on invoices)
-  - RLS: `is_company_member(company_id)` for read, `is_admin_or_manager(company_id)` for write
-
-**New files:**
-- `src/hooks/useClientBillingRules.ts` -- CRUD hooks for the rules table
-
-**Modified files:**
-- `src/components/settings/InvoiceSettings.tsx` -- Replace mock data with real queries; Add Rule dialog with client selector and all fields; Edit/Delete functionality
-- `src/components/invoices/InvoiceDetailSheet.tsx` -- Show active billing rules for the invoice's client
-- `src/components/invoices/CreateInvoiceDialog.tsx` -- When client is selected, check for rules and auto-flag "needs_review" if special procedures exist
-
-### 5. Invoice Email Template
-
-Add a customizable email template (similar to demand letter) for the standard invoice email.
-
-**New settings fields:**
-- `invoice_email_subject_template` -- e.g., `"Invoice #{{invoice_number}} - Project #{{project_number}} ({{project_name}})"`
-- `invoice_email_body_template` -- HTML or plain text with merge fields
-
-**Modified files:**
-- `src/components/settings/InvoiceSettings.tsx` -- New "Email Templates" card with subject + body editors and merge field badges
-- `SendInvoiceModal.tsx` -- Use the template to compose the email
-
-### 6. QBO Settings Section Enhancement
-
-Expand the QuickBooks section in Settings beyond the basic connected/disconnected display.
-
-**Modified files:**
-- `src/components/settings/InvoiceSettings.tsx` -- Add:
-  - Sync frequency selector (hourly / every 6 hours / daily / manual only)
-  - Last sync timestamp
-  - Recent sync log preview (mock data for now, real when QBO goes live)
-  - "Sync Now" button (uses existing mock layer)
+**Resolution:**
+- Keep `invoice_follow_ups` as-is for general notes
+- Add `payment_promises` as a new table that links to follow-ups when the source is a phone call or note
+- In the UI, the "Add Note" form gets an optional "Log Promise" toggle that reveals the structured fields (amount, date, method). When saved, it creates BOTH a follow-up note AND a promise record
+- No duplication -- one interaction, two records when needed
 
 ---
 
-## Technical Details
+## 2. Reminder Email (Collections) vs. AI Message Composer
 
-### PDF Generation Architecture
+**What exists:**
+- "Send Reminder" button on each collection card and in InvoiceDetailSheet
+- Opens a dialog with invoice summary and an optional free-text note
+- Logs to `invoice_follow_ups` as `reminder_email`
+- Currently a mock send (setTimeout, no actual email)
 
-```text
-InvoicePDF (React-PDF Document)
-  |
-  +-- Uses company settings for header + payment info
-  +-- Uses invoice data for line items, totals
-  +-- Uses client/contact data for bill-to
-  |
-InvoicePDFPreview (Dialog)
-  |
-  +-- Calls pdf(<InvoicePDF />).toBlob()
-  +-- Renders in <iframe> via URL.createObjectURL
-  +-- Download button creates <a download> link
-  |
-InvoiceDetailSheet
-  +-- "Preview PDF" -> opens InvoicePDFPreview
-  +-- "Download" -> generates blob + triggers download
-  |
-SendInvoiceModal
-  +-- Generates PDF blob during "Generating PDF" step
-  +-- Converts to base64 for email attachment
-```
+**What's planned:**
+- AI Message Composer that generates contextual emails with tone/urgency controls
+- "Use AI Message" button on worklist cards
 
-### Settings Data Flow
+**The overlap:**
+Both produce reminder emails. The AI composer is a smarter version of the existing reminder dialog.
 
-```text
-companies.settings (JSONB)
-  |
-  +-- service_catalog[]
-  +-- default_terms
-  +-- company_types[]
-  +-- review_categories[]
-  +-- demand_letter_template
-  +-- NEW: payment_check_address
-  +-- NEW: payment_wire_*
-  +-- NEW: payment_zelle_id
-  +-- NEW: payment_cc_enabled / payment_cc_url
-  +-- NEW: company_address / phone / fax / email
-  +-- NEW: collections_* settings
-  +-- NEW: invoice_email_subject_template
-  +-- NEW: invoice_email_body_template
-```
-
-### New Dependency
-
-- `@react-pdf/renderer` -- For generating real invoice PDFs client-side
-
-### Database Migration
-
-One migration for the `client_billing_rules` table with RLS policies matching the existing pattern (`is_company_member` for SELECT, `is_admin_or_manager` for INSERT/UPDATE/DELETE).
+**Resolution:**
+- Enhance the existing reminder dialog rather than creating a separate composer
+- Add a "Generate with AI" button inside the current reminder dialog
+- When clicked, it calls the edge function and populates the note/message area with AI-generated content
+- User can edit before sending
+- The dialog keeps its current simple mode (manual note) but gains an AI assist option
+- No new separate "AI Composer" component needed
 
 ---
 
-## Implementation Order
+## 3. Demand Letter (Existing) vs. AI Collections Escalation
 
-1. ✅ **Company Settings expansion** -- Add payment info, collections persistence, email template fields to settings
-2. ✅ **Client Billing Rules table + CRUD** -- Database migration + hooks + Settings UI (with vendor_id, property_id, portal URL)
-3. 🔜 **Invoice PDF component** -- ROADMAPPED: requires server-side (edge function) PDF generation to avoid auth/session issues with client-side rendering in popout windows. Will use edge function + Supabase storage to generate and serve PDFs.
-4. 🔜 **PDF Preview + Download** -- Blocked by #3. Buttons disabled in UI until edge function approach is implemented.
-5. 🔜 **Email template integration** -- Use template in SendInvoiceModal (depends on PDF attachment from #3)
-6. ✅ **QBO Settings enhancement** -- Expand sync config UI
+**What exists:**
+- Full demand letter workflow: template in Settings with merge fields, preview/edit dialog, send action
+- Template stored in `companies.settings.demand_letter_template`
+- Merge fields: client_name, invoice_number, amount_due, days_overdue, etc.
+- Available on critical/urgent invoices in Collections and in InvoiceDetailSheet
 
----
+**What's planned:**
+- AI-recommended escalation actions in the worklist
+- AI message generation for urgent follow-ups
 
-## Phase L: Server-Side PDF Generation (Roadmapped)
+**The overlap:**
+The demand letter is already the escalation path. AI recommendations should suggest USING the existing demand letter flow, not create a parallel one.
 
-**Problem:** Client-side PDF generation via `@react-pdf/renderer` fails when the preview is popped out to a new window (different auth session, no data). The `BlobProvider` approach also has rendering reliability issues in the iframe environment.
-
-**Solution:** Move PDF generation to a backend function:
-1. Create `generate-invoice-pdf` edge function that:
-   - Accepts invoice ID
-   - Fetches invoice + company settings + contact data server-side
-   - Uses a PDF library (e.g., `jspdf` or server-side `@react-pdf/renderer`) to generate the PDF
-   - Returns the PDF blob or stores it in Supabase Storage and returns a signed URL
-2. Update "Preview PDF" button to fetch the signed URL and open in a new tab
-3. Update "Download" button to trigger a direct download from the signed URL
-4. Update SendInvoiceModal to attach the generated PDF to the Gmail send
-
-**Status:** Planned — requires edge function implementation
+**Resolution:**
+- AI worklist tasks of type "escalation" should link to the existing demand letter dialog
+- AI can suggest modifications to the demand letter text (via the generate-collection-message edge function) but uses the same template system
+- No new escalation UI needed
 
 ---
 
-## Roadmap Update
+## 4. Collections View Grouping vs. AI Worklist
 
-- Phase I (Settings) and Phase J (Client Billing Rules): ✅ Complete
-- Phase G (live QBO): Next major milestone, requires external API credentials
-- Phase L (Server-side PDF): Planned, unblocks invoice sending workflow
+**What exists:**
+- `CollectionsView.tsx`: Groups overdue invoices by urgency (30-60, 60-90, 90+ days)
+- Summary banner with total count and amount
+- Per-card actions: Add Note, Send Reminder, Demand Letter, Write Off
+- Quick note dialog with contact method selector
+
+**What's planned:**
+- AI Worklist mode as a toggle on the same view
+- Cards sorted by AI priority instead of age
+
+**The overlap:**
+Both show the same invoices with the same actions. The worklist is just a different sort order with AI annotations.
+
+**Resolution:**
+- Add a view toggle (Urgency Groups / AI Priority) at the top of CollectionsView
+- In AI Priority mode, reuse the same card component but add: risk score badge, AI recommended action text, suggested message preview
+- Same action buttons (Note, Reminder, Demand, Write Off) plus new ones (Log Promise, Use AI Message)
+- One component, two sort modes -- not two separate views
+
+---
+
+## 5. Invoice Activity Log vs. Automation Execution Log
+
+**What exists:**
+- `invoice_activity_log` table with `action`, `details`, `performed_by`
+- Combined timeline in InvoiceDetailSheet merging synthetic entries (created, sent, paid) with explicit log entries
+- Method labels: reminder_email, demand_letter, write_off, phone_call, etc.
+
+**What's planned:**
+- `automation_executions` table logging rule triggers and actions
+
+**The overlap:**
+Automation executions are just another type of activity. When an automation rule sends a reminder, that should appear in the same activity log.
+
+**Resolution:**
+- Automation executions get their own table for rule-specific tracking (which rule, success/failure)
+- BUT each execution also writes to `invoice_activity_log` so the invoice timeline stays complete
+- Add new method labels: `auto_reminder`, `auto_sms`, `auto_escalation`, `ai_risk_update`
+- No separate activity view needed
+
+---
+
+## 6. Collections Settings vs. Automation Rules
+
+**What exists (in InvoiceSettings.tsx):**
+- Collections timeline: First reminder days, Second reminder days, Demand letter days
+- Auto-reminders toggle
+- Early payment discount toggle + percentage
+- All stored in `companies.settings` JSONB
+
+**What's planned:**
+- `automation_rules` table with trigger conditions and actions
+- Rule builder UI in Settings
+
+**The overlap:**
+The current collections settings ARE a simple version of automation rules. "Send reminder at 30 days" is just a rule with trigger `days_overdue = 30` and action `send_email`.
+
+**Resolution:**
+- Phase 4 (Automation Rules) replaces the current simple collections timeline settings with the full rule builder
+- During Phases 1-3, the existing settings continue to work as-is
+- When Phase 4 lands, migrate the existing settings values into automation_rules records and remove the old fields
+- The "Collections Timeline" card in Settings evolves into the "Automation Rules" card
+- Don't build both systems simultaneously
+
+---
+
+## 7. Write-Off vs. Dispute Resolution
+
+**What exists:**
+- Write-off action on critical invoices: marks status as "paid" and logs it
+- Available in both CollectionsView and InvoiceDetailSheet
+
+**What's planned:**
+- Dispute management with resolution actions including "Issue Credit" and "Adjust Invoice Amount"
+
+**The overlap:**
+A write-off is effectively a dispute resolution where the company absorbs the loss. A credit adjustment is a partial write-off.
+
+**Resolution:**
+- Keep write-off as a standalone action (it's a business decision, not a dispute)
+- Dispute resolution actions (adjust amount, issue credit) are separate from write-off
+- Add a `write_off_amount` field to invoices so partial write-offs are tracked
+- When a dispute is resolved with "Issue Credit," it creates a credit memo, not a write-off
+- Different workflows, but both update the invoice and log to activity
+
+---
+
+## 8. Client Info Card vs. Client Payment Analytics
+
+**What exists (InvoiceDetailSheet):**
+- Client Info section: name, phone (clickable), email (clickable), address
+- Billing contact section: name, title, office phone, mobile, email
+
+**What's planned:**
+- `client_payment_analytics`: avg_days_to_payment, reliability_score, lifetime_value, preferred_contact_method, best_contact_time
+
+**The overlap:**
+Both show client context on the invoice detail. Analytics enriches the existing card rather than replacing it.
+
+**Resolution:**
+- Add a "Payment History" sub-section below the existing Client Info card
+- Show: reliability score badge, avg days to pay, lifetime value
+- Show "Best time to call" and "Responds to reminders" as small indicators
+- Same section, enriched -- not a separate panel
+
+---
+
+## 9. Send Invoice Modal vs. Portal Link Sharing
+
+**What exists (SendInvoiceModal.tsx):**
+- 4-step flow: Generate PDF, Send via Gmail, Sync to QBO, Update status
+- CC email field
+- Mock implementation for all steps
+
+**What's planned:**
+- Customer portal with `/pay/:token` route
+- "Copy Portal Link" button
+
+**The overlap:**
+Sending an invoice email could include the portal link. These complement each other.
+
+**Resolution:**
+- Add the portal link to the invoice email body (using the email template merge field `{{portal_link}}`)
+- Add "Copy Portal Link" as a new action in InvoiceDetailSheet (next to Preview PDF / Download)
+- Portal link generation happens when invoice is first sent (auto-create token)
+- No changes to SendInvoiceModal flow -- it just includes the link in the email content
+
+---
+
+## Summary: What's Truly New vs. What's an Enhancement
+
+| Feature | Status | Approach |
+|---------|--------|----------|
+| Follow-up notes | EXISTS | Enhance with optional promise fields |
+| Reminder emails | EXISTS | Add AI generation inside existing dialog |
+| Demand letters | EXISTS | AI suggests using existing flow |
+| Collections grouping | EXISTS | Add AI priority toggle to same view |
+| Activity log | EXISTS | Extend with automation entries |
+| Collections settings | EXISTS | Evolve into automation rules (Phase 4) |
+| Write-off | EXISTS | Keep as-is, separate from disputes |
+| Client info card | EXISTS | Enrich with payment analytics |
+| Send invoice flow | EXISTS | Add portal link to email template |
+| Risk scoring | NEW | New tables + edge function + badges |
+| AI message generation | NEW | Edge function, surfaced in existing dialogs |
+| Payment promises | NEW | New table, integrated into note form |
+| Customer portal | NEW | New public route + token system |
+| Disputes | NEW | New table, section in detail sheet |
+| Payment plans | NEW | New tables, portal + staff approval |
+| Cash flow forecasting | NEW | New edge function + Analytics tab |
+| Automation rules | NEW | Replaces simple collections settings |
+
+---
+
+## Recommended Implementation Approach
+
+Build in layers that enhance existing UI before adding new surfaces:
+
+1. **Database tables first** (all new tables in one migration)
+2. **Edge functions** (risk scoring, AI messages, analytics aggregation)
+3. **Enhance existing components** (risk badges on collection cards, AI button in reminder dialog, promise toggle in note form, analytics in client card)
+4. **New sections in detail sheet** (disputes, promises -- within the existing sheet, not new pages)
+5. **New tabs last** (Promises dashboard, Analytics dashboard -- only after the data is flowing)
+6. **Portal and automation** (future phases, fully new features)
+
+This way nothing gets rebuilt, and every enhancement feels like a natural extension of what users already know.
+
