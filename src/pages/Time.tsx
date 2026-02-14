@@ -1,87 +1,105 @@
+import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock, Play, Calendar, BarChart3 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Clock, Plus, Users } from "lucide-react";
+import { TimeSummaryCards } from "@/components/time/TimeSummaryCards";
+import { ActiveTimerBar } from "@/components/time/ActiveTimerBar";
+import { AttendanceTable } from "@/components/time/AttendanceTable";
+import { TimeEntriesTable } from "@/components/time/TimeEntriesTable";
+import { TimeEntryDialog } from "@/components/time/TimeEntryDialog";
+import { ClockOutModal } from "@/components/time/ClockOutModal";
 
 export default function Time() {
+  const [logTimeOpen, setLogTimeOpen] = useState(false);
+  const [clockOutOpen, setClockOutOpen] = useState(false);
+
+  // Date range for queries - default to this week
+  const now = new Date();
+  const day = now.getDay();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((day + 6) % 7));
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+
+  const weekRange = {
+    from: monday.toISOString().split("T")[0],
+    to: sunday.toISOString().split("T")[0],
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
+        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Time Tracking</h1>
             <p className="text-muted-foreground mt-1">
-              Log and manage your billable hours
+              Track your hours and attribute time to projects
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
-              <Calendar className="h-4 w-4 mr-2" />
-              This Week
-            </Button>
-            <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90 glow-amber">
-              <Play className="h-4 w-4 mr-2" />
-              Start Timer
-            </Button>
-          </div>
+          <Button
+            onClick={() => setLogTimeOpen(true)}
+            className="bg-accent text-accent-foreground hover:bg-accent/90 glow-amber"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Log Time
+          </Button>
         </div>
+
+        {/* Active Timer */}
+        <ActiveTimerBar onClockOut={() => setClockOutOpen(true)} />
 
         {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Today</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold font-mono">4:30</div>
-              <p className="text-xs text-muted-foreground mt-1">Target: 8:00</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">This Week</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold font-mono">22:15</div>
-              <p className="text-xs text-muted-foreground mt-1">Target: 40:00</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Billable Rate</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">87%</div>
-              <p className="text-xs text-muted-foreground mt-1">Industry avg: 75%</p>
-            </CardContent>
-          </Card>
-        </div>
+        <TimeSummaryCards />
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Time Entries
-            </CardTitle>
-            <CardDescription>
-              Your logged time for the selected period
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <BarChart3 className="h-12 w-12 text-muted-foreground/50 mb-4" />
-              <h3 className="text-lg font-medium">No time entries yet</h3>
-              <p className="text-muted-foreground mt-1 mb-4">
-                Start a timer or log time manually to track your work
-              </p>
-              <Button className="bg-accent text-accent-foreground hover:bg-accent/90">
-                <Play className="h-4 w-4 mr-2" />
-                Start Timer
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Tabbed Views */}
+        <Tabs defaultValue="entries" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="entries" className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              My Time Entries
+            </TabsTrigger>
+            <TabsTrigger value="attendance" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Attendance Log
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="entries">
+            <Card>
+              <CardHeader>
+                <CardTitle>Time Entries</CardTitle>
+                <CardDescription>
+                  Your logged time broken down by project and service
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <TimeEntriesTable dateRange={weekRange} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="attendance">
+            <Card>
+              <CardHeader>
+                <CardTitle>Team Attendance</CardTitle>
+                <CardDescription>
+                  Clock-in/out records for your team this week
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <AttendanceTable dateRange={weekRange} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
+
+      {/* Dialogs */}
+      <TimeEntryDialog open={logTimeOpen} onOpenChange={setLogTimeOpen} />
+      <ClockOutModal />
     </AppLayout>
   );
 }

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -24,6 +24,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const clockedInRef = useRef(false);
+
+  // Auto clock-in helper
+  const autoClockIn = useCallback(async (userId: string, companyId: string) => {
+    if (clockedInRef.current) return;
+    clockedInRef.current = true;
+    try {
+      let ipAddress: string | null = null;
+      try {
+        const res = await fetch("https://api.ipify.org?format=json");
+        const json = await res.json();
+        ipAddress = json.ip;
+      } catch { /* non-critical */ }
+
+      await (supabase as any)
+        .from("attendance_logs")
+        .insert({
+          user_id: userId,
+          company_id: companyId,
+          clock_in_location: "Auto",
+          ip_address: ipAddress,
+        });
+      // Ignore 23505 (unique violation) — already clocked in today
+    } catch { /* non-critical */ }
+  }, []);
 
   const fetchProfile = useCallback(async (userId: string) => {
     const { data, error } = await supabase
@@ -58,6 +83,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             fetchProfile(session.user.id).then((profileData) => {
               setProfile(profileData);
               setLoading(false);
+              if (profileData && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+                autoClockIn(session.user.id, profileData.company_id);
+              }
             });
           }, 0);
         } else {
@@ -76,6 +104,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         fetchProfile(session.user.id).then((profileData) => {
           setProfile(profileData);
           setLoading(false);
+          if (profileData) {
+            autoClockIn(session.user.id, profileData.company_id);
+          }
         });
       } else {
         setLoading(false);
@@ -83,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, [fetchProfile]);
+  }, [fetchProfile, autoClockIn]);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
