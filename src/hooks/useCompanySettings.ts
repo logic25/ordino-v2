@@ -47,6 +47,8 @@ export interface CompanySettings {
   company_logo_url?: string;
   invoice_header_text?: string;
   invoice_footer_text?: string;
+  // Bonus tiers
+  bonus_tiers?: { min_pct: number; max_pct: number; amount: number }[];
 }
 
 export function useCompanySettings() {

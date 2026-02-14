@@ -124,7 +124,15 @@ function getPeriodRange(period: Period) {
   }
 }
 
-function useUserBillingStats(userId: string, period: Period, monthlyGoal: number | null) {
+interface BonusTier { min_pct: number; max_pct: number; amount: number; }
+
+const DEFAULT_BONUS_TIERS: BonusTier[] = [
+  { min_pct: 100, max_pct: 110, amount: 250 },
+  { min_pct: 111, max_pct: 125, amount: 500 },
+  { min_pct: 126, max_pct: 999, amount: 1000 },
+];
+
+function useUserBillingStats(userId: string, period: Period, monthlyGoal: number | null, bonusTiers?: BonusTier[]) {
   const range = getPeriodRange(period);
 
   return useQuery({
@@ -192,11 +200,14 @@ function useUserBillingStats(userId: string, period: Period, monthlyGoal: number
       // Billing 53%, Timelog 40%, Non-billable CO 7% (Accuracy is N/A so weights redistribute)
       const efficiency = Math.round(billingPct * 0.53 + timelogCompletion * 0.40 + 100 * 0.07);
 
-      // 6. Potential Bonus (tier-based on Billing %)
+      // 6. Potential Bonus (configurable tier-based on Billing %)
+      const tiers = bonusTiers && bonusTiers.length > 0 ? bonusTiers : DEFAULT_BONUS_TIERS;
       let potentialBonus = 0;
-      if (billingPct >= 126) potentialBonus = 1000;
-      else if (billingPct >= 111) potentialBonus = 500;
-      else if (billingPct >= 100) potentialBonus = 250;
+      for (const tier of tiers) {
+        if (billingPct >= tier.min_pct && billingPct <= tier.max_pct) {
+          potentialBonus = tier.amount;
+        }
+      }
 
       return {
         totalBilled,
@@ -458,7 +469,19 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
 
   const monthlyGoal = profileAny.monthly_goal ? Number(profileAny.monthly_goal) : null;
 
-  const { data: stats, isLoading: statsLoading } = useUserBillingStats(user.id, period, monthlyGoal);
+  // Get company settings for configurable bonus tiers
+  const { data: companySettings } = useQuery({
+    queryKey: ["company-bonus-tiers"],
+    queryFn: async () => {
+      const { data: prof } = await supabase.from("profiles").select("company_id").eq("id", user.id).single();
+      if (!prof?.company_id) return null;
+      const { data } = await supabase.from("companies").select("settings").eq("id", prof.company_id).single();
+      return data?.settings as any;
+    },
+  });
+  const bonusTiers: BonusTier[] = companySettings?.bonus_tiers || DEFAULT_BONUS_TIERS;
+
+  const { data: stats, isLoading: statsLoading } = useUserBillingStats(user.id, period, monthlyGoal, bonusTiers);
   const { data: proposals = [], isLoading: proposalsLoading } = useUserProposals(user.id);
   const { data: projects = [], isLoading: projectsLoading } = useUserProjects(user.id);
   const { data: empReviews = [], isLoading: reviewsLoading, refetch: refetchReviews } = useEmployeeReviews(user.id);

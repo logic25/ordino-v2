@@ -179,6 +179,12 @@ export function InvoiceSettings() {
   const [newRulePortal, setNewRulePortal] = useState(false);
   const [newRulePortalUrl, setNewRulePortalUrl] = useState("");
   const [newRuleInstructions, setNewRuleInstructions] = useState("");
+  // Bonus tiers
+  const [bonusTiers, setBonusTiers] = useState([
+    { min_pct: 100, max_pct: 110, amount: 250 },
+    { min_pct: 111, max_pct: 125, amount: 500 },
+    { min_pct: 126, max_pct: 999, amount: 1000 },
+  ]);
 
   // Hydrate from settings
   useEffect(() => {
@@ -206,6 +212,7 @@ export function InvoiceSettings() {
     if (st.company_logo_url) setLogoUrl(st.company_logo_url);
     if (st.invoice_header_text) setHeaderText(st.invoice_header_text);
     if (st.invoice_footer_text) setFooterText(st.invoice_footer_text);
+    if (st.bonus_tiers && Array.isArray(st.bonus_tiers)) setBonusTiers(st.bonus_tiers);
   }, [companyData]);
 
   const saveAll = async () => {
@@ -237,6 +244,7 @@ export function InvoiceSettings() {
           company_logo_url: logoUrl,
           invoice_header_text: headerText,
           invoice_footer_text: footerText,
+          bonus_tiers: bonusTiers,
         },
       });
       toast({ title: "All invoice settings saved" });
@@ -795,6 +803,85 @@ export function InvoiceSettings() {
               </div>
             </div>
           </div>
+        </div>
+      </CollapsibleSettingsCard>
+
+      {/* Bonus Tiers */}
+      <CollapsibleSettingsCard
+        title="Bonus Tiers"
+        description="Configure performance bonus amounts based on billing goal attainment"
+        defaultOpen={allExpanded}
+        isOpen={sectionStates["bonus"]}
+        onOpenChange={(open) => setSectionStates((s) => ({ ...s, bonus: open }))}
+      >
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Set bonus amounts for each billing % range. Employees hitting these thresholds earn the corresponding bonus.
+          </p>
+          {bonusTiers.map((tier, idx) => (
+            <div key={idx} className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                <Input
+                  type="number"
+                  className="w-[70px] h-8 text-xs"
+                  value={tier.min_pct}
+                  onChange={(e) => {
+                    const updated = [...bonusTiers];
+                    updated[idx] = { ...updated[idx], min_pct: parseInt(e.target.value) || 0 };
+                    setBonusTiers(updated);
+                  }}
+                />
+                <span className="text-xs text-muted-foreground">% –</span>
+                <Input
+                  type="number"
+                  className="w-[70px] h-8 text-xs"
+                  value={tier.max_pct}
+                  onChange={(e) => {
+                    const updated = [...bonusTiers];
+                    updated[idx] = { ...updated[idx], max_pct: parseInt(e.target.value) || 0 };
+                    setBonusTiers(updated);
+                  }}
+                />
+                <span className="text-xs text-muted-foreground">%</span>
+              </div>
+              <span className="text-xs text-muted-foreground">=</span>
+              <div className="flex items-center gap-1">
+                <span className="text-xs">$</span>
+                <Input
+                  type="number"
+                  className="w-[90px] h-8 text-xs"
+                  value={tier.amount}
+                  onChange={(e) => {
+                    const updated = [...bonusTiers];
+                    updated[idx] = { ...updated[idx], amount: parseInt(e.target.value) || 0 };
+                    setBonusTiers(updated);
+                  }}
+                />
+              </div>
+              {bonusTiers.length > 1 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setBonusTiers(bonusTiers.filter((_, i) => i !== idx))}
+                >
+                  <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                </Button>
+              )}
+            </div>
+          ))}
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1"
+            onClick={() => {
+              const lastTier = bonusTiers[bonusTiers.length - 1];
+              setBonusTiers([...bonusTiers, { min_pct: (lastTier?.max_pct || 125) + 1, max_pct: 999, amount: 0 }]);
+            }}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add Tier
+          </Button>
         </div>
       </CollapsibleSettingsCard>
 
