@@ -19,12 +19,12 @@ export type BillingCalendarItem = {
   amount?: number;
 };
 
-export function useBillingCalendarItems(startDate: string, endDate: string) {
+export function useBillingCalendarItems(startDate: string, endDate: string, enabled: boolean = true) {
   const { profile } = useAuth();
 
   return useQuery({
     queryKey: ["billing-calendar-items", startDate, endDate],
-    enabled: !!profile?.company_id,
+    enabled: !!profile?.company_id && enabled,
     queryFn: async () => {
       const items: BillingCalendarItem[] = [];
 
