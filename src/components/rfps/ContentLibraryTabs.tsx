@@ -10,7 +10,7 @@ import { CertificationsTab } from "./tabs/CertificationsTab";
 export function ContentLibraryTabs() {
   return (
     <Tabs defaultValue="company_info" className="space-y-4">
-      <TabsList className="grid w-full grid-cols-6">
+      <TabsList className="flex w-full overflow-x-auto">
         <TabsTrigger value="company_info" className="flex items-center gap-1.5 text-xs">
           <Building2 className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">Company</span>
