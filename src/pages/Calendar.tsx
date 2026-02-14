@@ -32,6 +32,7 @@ import {
 import { useBillingCalendarItems, type BillingCalendarItem } from "@/hooks/useBillingCalendarItems";
 import { CalendarEventDialog } from "@/components/calendar/CalendarEventDialog";
 import { useGmailConnection } from "@/hooks/useGmailConnection";
+import { useCanAccessBilling } from "@/hooks/useUserRoles";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +55,7 @@ type UnifiedEvent = (CalendarEvent | BillingCalendarItem) & { is_billing?: boole
 
 export default function Calendar() {
   const { toast } = useToast();
+  const canAccessBilling = useCanAccessBilling();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -76,7 +78,8 @@ export default function Calendar() {
 
   const { data: billingItems } = useBillingCalendarItems(
     calStart.toISOString(),
-    calEnd.toISOString()
+    calEnd.toISOString(),
+    canAccessBilling
   );
 
   const days = eachDayOfInterval({ start: calStart, end: calEnd });
@@ -155,14 +158,16 @@ export default function Calendar() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant={showBilling ? "default" : "outline"}
-              size="sm"
-              onClick={() => setShowBilling(!showBilling)}
-            >
-              <DollarSign className="h-4 w-4 mr-1" />
-              Billing Dates
-            </Button>
+            {canAccessBilling && (
+              <Button
+                variant={showBilling ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowBilling(!showBilling)}
+              >
+                <DollarSign className="h-4 w-4 mr-1" />
+                Billing Dates
+              </Button>
+            )}
             {gmailConnection && (
               <Button
                 variant="outline"
