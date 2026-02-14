@@ -59,6 +59,16 @@ export default function Emails() {
 
   const { data: allEmails = [], isLoading } = useEmails(filters);
 
+  // Keep selectedEmail in sync with fresh data
+  useEffect(() => {
+    if (selectedEmail && allEmails.length > 0) {
+      const fresh = allEmails.find((e) => e.id === selectedEmail.id);
+      if (fresh && fresh !== selectedEmail) {
+        setSelectedEmail(fresh);
+      }
+    }
+  }, [allEmails]);
+
   // Apply client-side tab filtering
   const filteredEmails = useMemo(
     () => getFilteredEmails(allEmails, activeTab),
