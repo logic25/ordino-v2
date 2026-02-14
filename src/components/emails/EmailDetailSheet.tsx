@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import {
   Sheet,
@@ -176,6 +176,7 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
   const [replyBody, setReplyBody] = useState("");
   const [forwardTo, setForwardTo] = useState("");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [localQuickTags, setLocalQuickTags] = useState<string[]>([]);
   const untagEmail = useUntagEmail();
   const archiveEmail = useArchiveEmail();
   const snoozeEmail = useSnoozeEmail();
@@ -187,6 +188,13 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
   const { data: projects = [] } = useProjects();
   const suggestions = useProjectSuggestions(email, projects);
   const { data: threadEmails = [] } = useThreadEmails(email?.thread_id);
+
+  const serverQuickTags: string[] = (email as any)?.tags || [];
+
+  // Sync local state when server data or email changes
+  useEffect(() => {
+    setLocalQuickTags(serverQuickTags);
+  }, [email?.id, JSON.stringify(serverQuickTags)]);
 
   const hasThread = threadEmails.length > 1;
   const displayEmails = hasThread ? threadEmails : email ? [email] : [];
@@ -208,7 +216,6 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
   if (!email) return null;
 
   const tags = email.email_project_tags || [];
-  const quickTags: string[] = (email as any).tags || [];
   const isArchived = !!(email as any).archived_at;
 
   const handleUntag = async (tagId: string) => {
@@ -244,9 +251,10 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
   };
 
   const handleToggleQuickTag = async (tag: string) => {
-    const newTags = quickTags.includes(tag)
-      ? quickTags.filter((t) => t !== tag)
-      : [...quickTags, tag];
+    const newTags = localQuickTags.includes(tag)
+      ? localQuickTags.filter((t) => t !== tag)
+      : [...localQuickTags, tag];
+    setLocalQuickTags(newTags);
     try {
       await updateQuickTags.mutateAsync({ emailId: email.id, tags: newTags });
     } catch (err: any) {
@@ -341,7 +349,7 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
           <div className="px-6 py-3">
             <p className="text-xs font-medium text-muted-foreground mb-2">Quick Tags</p>
             <QuickTagSection
-              activeTags={quickTags}
+              activeTags={localQuickTags}
               onToggle={handleToggleQuickTag}
               disabled={updateQuickTags.isPending}
             />
