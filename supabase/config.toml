@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.process-automation-rules]
 verify_jwt = false
+
+[functions.extract-tasks]
+verify_jwt = false
