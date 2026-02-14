@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2 } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Loader2, DollarSign, PenLine } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +19,8 @@ export function ProfileSettings() {
   const [lastName, setLastName] = useState(profile?.last_name || "");
   const [displayName, setDisplayName] = useState(profile?.display_name || "");
   const [phone, setPhone] = useState(profile?.phone || "");
+  const [phoneExtension, setPhoneExtension] = useState((profile as any)?.phone_extension || "");
+  const [hourlyRate, setHourlyRate] = useState((profile as any)?.hourly_rate ? String((profile as any).hourly_rate) : "");
 
   const initials = [firstName, lastName]
     .filter(Boolean)
@@ -36,6 +39,8 @@ export function ProfileSettings() {
           last_name: lastName.trim() || null,
           display_name: displayName.trim() || [firstName.trim(), lastName.trim()].filter(Boolean).join(" ") || null,
           phone: phone.trim() || null,
+          phone_extension: phoneExtension.trim() || null,
+          hourly_rate: hourlyRate ? parseFloat(hourlyRate) : null,
         })
         .eq("id", profile.id);
       if (error) throw error;
@@ -93,9 +98,34 @@ export function ProfileSettings() {
             <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="How your name appears to others" />
           </div>
 
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2 col-span-2">
+              <Label>Phone</Label>
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(555) 555-5555" />
+            </div>
+            <div className="space-y-2">
+              <Label>Extension</Label>
+              <Input value={phoneExtension} onChange={(e) => setPhoneExtension(e.target.value)} placeholder="x12" />
+            </div>
+          </div>
+
+          <Separator />
+
           <div className="space-y-2">
-            <Label>Phone</Label>
-            <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(555) 555-5555" />
+            <Label className="flex items-center gap-2">
+              <DollarSign className="h-3.5 w-3.5" />
+              Hourly Rate
+            </Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={hourlyRate}
+              onChange={(e) => setHourlyRate(e.target.value)}
+              placeholder="0.00"
+              className="max-w-[200px]"
+            />
+            <p className="text-xs text-muted-foreground">Used for billing calculations and time tracking reports</p>
           </div>
 
           <Button onClick={handleSave} disabled={saving}>

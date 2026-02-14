@@ -152,6 +152,9 @@ function AppRoutes() {
       {/* Public RFI form - no auth required */}
       <Route path="/rfi" element={<RfiForm />} />
 
+      {/* Legacy redirects */}
+      <Route path="/team" element={<Navigate to="/settings" replace />} />
+
       {/* Catch-all */}
       <Route path="*" element={<NotFound />} />
     </Routes>

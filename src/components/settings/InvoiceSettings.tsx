@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { CollapsibleSettingsCard } from "./CollapsibleSettingsCard";
 import {
-  CheckCircle, Save, Plus, Trash2, Eye, Loader2, CreditCard, Building2,
+  CheckCircle, Save, Plus, Trash2, Eye, Loader2, CreditCard,
   Mail, RefreshCw, Clock, Upload, Image, Pencil,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -124,7 +124,7 @@ export function InvoiceSettings() {
     const next = !allExpanded;
     setAllExpanded(next);
     setSectionStates({
-      company: next, payment: next, terms: next, email: next,
+      payment: next, terms: next, email: next,
       collections: next, demand: next, ach: next, rules: next, qbo: next,
     });
   }, [allExpanded]);
@@ -135,12 +135,6 @@ export function InvoiceSettings() {
 
   // General
   const [defaultTerms, setDefaultTerms] = useState("Net 30");
-  // Company info
-  const [companyAddress, setCompanyAddress] = useState("");
-  const [companyPhone, setCompanyPhone] = useState("");
-  const [companyFax, setCompanyFax] = useState("");
-  const [companyEmail, setCompanyEmail] = useState("");
-  const [companyWebsite, setCompanyWebsite] = useState("");
   // Payment methods
   const [checkAddress, setCheckAddress] = useState("");
   const [wireBankName, setWireBankName] = useState("");
@@ -191,11 +185,6 @@ export function InvoiceSettings() {
     if (!companyData?.settings) return;
     const st = companyData.settings;
     if (st.default_terms) setDefaultTerms(st.default_terms);
-    if (st.company_address) setCompanyAddress(st.company_address);
-    if (st.company_phone) setCompanyPhone(st.company_phone);
-    if (st.company_fax) setCompanyFax(st.company_fax);
-    if (st.company_email) setCompanyEmail(st.company_email);
-    if (st.company_website) setCompanyWebsite(st.company_website);
     if (st.payment_check_address) setCheckAddress(st.payment_check_address);
     if (st.payment_wire_bank_name) setWireBankName(st.payment_wire_bank_name);
     if (st.payment_wire_routing) setWireRouting(st.payment_wire_routing);
@@ -227,11 +216,6 @@ export function InvoiceSettings() {
         settings: {
           ...companyData.settings,
           default_terms: defaultTerms,
-          company_address: companyAddress,
-          company_phone: companyPhone,
-          company_fax: companyFax,
-          company_email: companyEmail,
-          company_website: companyWebsite,
           payment_check_address: checkAddress,
           payment_wire_bank_name: wireBankName,
           payment_wire_routing: wireRouting,
@@ -377,71 +361,6 @@ export function InvoiceSettings() {
           {allExpanded ? "Collapse All" : "Expand All"}
         </Button>
       </div>
-
-      {/* Company Info */}
-      <CollapsibleSettingsCard
-        title="Company Info"
-        description="This information appears on your invoice PDF header"
-        icon={<Building2 className="h-4 w-4" />}
-        isOpen={sectionStates.company ?? true}
-        onOpenChange={(o) => setSectionOpen("company", o)}
-      >
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label className="flex items-center gap-2"><Image className="h-3.5 w-3.5" /> Company Logo</Label>
-            <div className="flex items-center gap-4">
-              {logoUrl ? (
-                <img src={logoUrl} alt="Company logo" className="h-14 w-auto max-w-[200px] object-contain rounded border p-1 bg-white" />
-              ) : (
-                <div className="h-14 w-32 rounded border border-dashed flex items-center justify-center text-xs text-muted-foreground">No logo</div>
-              )}
-              <label className="cursor-pointer">
-                <Button variant="outline" size="sm" asChild disabled={logoUploading}>
-                  <span>
-                    {logoUploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
-                    {logoUploading ? "Uploading..." : "Upload Logo"}
-                  </span>
-                </Button>
-                <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
-              </label>
-            </div>
-          </div>
-          <Separator />
-          <div className="space-y-2">
-            <Label>Address</Label>
-            <Textarea value={companyAddress} onChange={(e) => setCompanyAddress(e.target.value)} rows={2} placeholder="26 Broadway, 3rd Fl&#10;New York, NY 10004" />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Phone</Label>
-              <Input value={companyPhone} onChange={(e) => setCompanyPhone(e.target.value)} placeholder="718-392-1969" />
-            </div>
-            <div className="space-y-2">
-              <Label>Fax</Label>
-              <Input value={companyFax} onChange={(e) => setCompanyFax(e.target.value)} placeholder="718-228-9112" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input value={companyEmail} onChange={(e) => setCompanyEmail(e.target.value)} placeholder="info@company.com" />
-            </div>
-            <div className="space-y-2">
-              <Label>Website</Label>
-              <Input value={companyWebsite} onChange={(e) => setCompanyWebsite(e.target.value)} placeholder="www.company.com" />
-            </div>
-          </div>
-          <Separator />
-          <div className="space-y-2">
-            <Label>Invoice Header Text</Label>
-            <Input value={headerText} onChange={(e) => setHeaderText(e.target.value)} placeholder="Optional text above invoice content" />
-          </div>
-          <div className="space-y-2">
-            <Label>Invoice Footer Text</Label>
-            <Textarea value={footerText} onChange={(e) => setFooterText(e.target.value)} rows={2} placeholder="Thank you for your business. Payment due within terms specified above." />
-          </div>
-        </div>
-      </CollapsibleSettingsCard>
 
       {/* Payment Methods */}
       <CollapsibleSettingsCard

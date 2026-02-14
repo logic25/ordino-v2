@@ -2670,12 +2670,15 @@ export type Database = {
           created_at: string | null
           display_name: string | null
           first_name: string | null
+          hourly_rate: number | null
           id: string
           is_active: boolean | null
           last_name: string | null
           phone: string | null
+          phone_extension: string | null
           preferences: Json | null
           role: Database["public"]["Enums"]["user_role"]
+          signature_data: string | null
           updated_at: string | null
           user_id: string
         }
@@ -2685,12 +2688,15 @@ export type Database = {
           created_at?: string | null
           display_name?: string | null
           first_name?: string | null
+          hourly_rate?: number | null
           id?: string
           is_active?: boolean | null
           last_name?: string | null
           phone?: string | null
+          phone_extension?: string | null
           preferences?: Json | null
           role?: Database["public"]["Enums"]["user_role"]
+          signature_data?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -2700,12 +2706,15 @@ export type Database = {
           created_at?: string | null
           display_name?: string | null
           first_name?: string | null
+          hourly_rate?: number | null
           id?: string
           is_active?: boolean | null
           last_name?: string | null
           phone?: string | null
+          phone_extension?: string | null
           preferences?: Json | null
           role?: Database["public"]["Enums"]["user_role"]
+          signature_data?: string | null
           updated_at?: string | null
           user_id?: string
         }

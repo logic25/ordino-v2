@@ -2,7 +2,10 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -12,21 +15,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { Separator } from "@/components/ui/separator";
-import {
   Users,
   Search,
   Loader2,
   Mail,
   Phone,
-  Shield,
   Clock,
   FolderKanban,
+  ChevronLeft,
+  DollarSign,
+  FileText,
 } from "lucide-react";
 import { useCompanyProfiles, type Profile } from "@/hooks/useProfiles";
 import { useQuery } from "@tanstack/react-query";
@@ -40,6 +38,40 @@ const ROLE_COLORS: Record<string, string> = {
   pm: "bg-green-500/10 text-green-700 border-green-300",
   staff: "bg-muted text-muted-foreground border-border",
 };
+
+function useUserProposals(userId: string) {
+  return useQuery({
+    queryKey: ["user-proposals", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("proposals")
+        .select("id, proposal_number, project_name, status, total_amount, created_at")
+        .or(`sales_person_id.eq.${userId},internal_signed_by.eq.${userId}`)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+}
+
+function useUserProjects(userId: string) {
+  return useQuery({
+    queryKey: ["user-projects", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("projects")
+        .select("id, project_number, name, status, created_at, properties(address)")
+        .or(`assigned_pm_id.eq.${userId},senior_pm_id.eq.${userId}`)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+}
 
 function useUserStats(userId: string) {
   return useQuery({
@@ -64,131 +96,206 @@ function useUserStats(userId: string) {
 
       const totalMinutes = timeEntries?.reduce((sum, e) => sum + (e.duration_minutes || 0), 0) || 0;
 
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId);
-
       return {
         activeProjects: projectCount || 0,
         hoursThisMonth: Math.round((totalMinutes / 60) * 10) / 10,
-        appRoles: (roles || []).map((r: any) => r.role as string),
       };
     },
   });
 }
 
-function UserDetailSheet({ user, open, onClose }: { user: Profile | null; open: boolean; onClose: () => void }) {
-  const { data: stats, isLoading } = useUserStats(user?.id || "");
-
-  if (!user) return null;
-
-  const initials = [user.first_name, user.last_name]
+function getInitials(user: Profile) {
+  return [user.first_name, user.last_name]
     .filter(Boolean)
     .map((n) => n?.[0])
     .join("")
     .toUpperCase() || "?";
+}
 
-  const displayName = user.display_name || [user.first_name, user.last_name].filter(Boolean).join(" ") || "Unknown";
+function getDisplayName(user: Profile) {
+  return user.display_name || [user.first_name, user.last_name].filter(Boolean).join(" ") || "Unknown";
+}
+
+/* ─── Detail View ─── */
+function UserDetailView({ user, onBack }: { user: Profile; onBack: () => void }) {
+  const { data: stats, isLoading: statsLoading } = useUserStats(user.id);
+  const { data: proposals = [], isLoading: proposalsLoading } = useUserProposals(user.id);
+  const { data: projects = [], isLoading: projectsLoading } = useUserProjects(user.id);
+
+  const profileAny = user as any;
 
   return (
-    <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-md overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle>Team Member</SheetTitle>
-        </SheetHeader>
+    <div className="space-y-6">
+      <Button variant="ghost" size="sm" onClick={onBack} className="gap-1">
+        <ChevronLeft className="h-4 w-4" />
+        Back to Team
+      </Button>
 
-        <div className="mt-6 space-y-6">
-          <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16">
-              <AvatarImage src={user.avatar_url || undefined} />
-              <AvatarFallback className="text-lg">{initials}</AvatarFallback>
-            </Avatar>
-            <div>
-              <h3 className="text-lg font-semibold">{displayName}</h3>
-              <Badge variant="outline" className={cn("text-xs", ROLE_COLORS[user.role] || ROLE_COLORS.staff)}>
-                {user.role}
-              </Badge>
-              {!user.is_active && <Badge variant="secondary" className="ml-2 text-xs">Inactive</Badge>}
+      <div className="grid md:grid-cols-3 gap-6">
+        {/* Profile Card */}
+        <Card className="md:col-span-1">
+          <CardContent className="pt-6 space-y-4">
+            <div className="flex flex-col items-center text-center gap-3">
+              <Avatar className="h-20 w-20">
+                <AvatarImage src={user.avatar_url || undefined} />
+                <AvatarFallback className="text-xl">{getInitials(user)}</AvatarFallback>
+              </Avatar>
+              <div>
+                <h3 className="text-lg font-semibold">{getDisplayName(user)}</h3>
+                <Badge variant="outline" className={cn("text-xs mt-1", ROLE_COLORS[user.role] || ROLE_COLORS.staff)}>
+                  {user.role}
+                </Badge>
+                {!user.is_active && <Badge variant="secondary" className="ml-2 text-xs">Inactive</Badge>}
+              </div>
             </div>
-          </div>
 
-          <Separator />
+            <Separator />
 
-          <div className="space-y-3">
-            <h4 className="text-sm font-medium text-muted-foreground">Contact</h4>
-            {user.phone && (
-              <div className="flex items-center gap-2 text-sm">
-                <Phone className="h-4 w-4 text-muted-foreground" />
-                {user.phone}
+            <div className="space-y-3 text-sm">
+              {user.phone && (
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-muted-foreground" />
+                  <span>{user.phone}{profileAny.phone_extension ? ` x${profileAny.phone_extension}` : ""}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Mail className="h-4 w-4" />
+                <span className="italic text-xs">Email available via auth</span>
+              </div>
+              {profileAny.hourly_rate && (
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <span>${Number(profileAny.hourly_rate).toFixed(2)}/hr</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Clock className="h-4 w-4" />
+                <span className="text-xs">Member since {user.created_at ? format(new Date(user.created_at), "MMM d, yyyy") : "—"}</span>
+              </div>
+            </div>
+
+            <Separator />
+
+            {statsLoading ? (
+              <div className="flex justify-center py-4">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <Card>
+                  <CardContent className="p-3 text-center">
+                    <FolderKanban className="h-5 w-5 mx-auto text-muted-foreground mb-1" />
+                    <p className="text-xl font-bold tabular-nums">{stats?.activeProjects || 0}</p>
+                    <p className="text-[10px] text-muted-foreground">Active Projects</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-3 text-center">
+                    <Clock className="h-5 w-5 mx-auto text-muted-foreground mb-1" />
+                    <p className="text-xl font-bold tabular-nums">{stats?.hoursThisMonth || 0}h</p>
+                    <p className="text-[10px] text-muted-foreground">Hours (Month)</p>
+                  </CardContent>
+                </Card>
               </div>
             )}
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Mail className="h-4 w-4" />
-              <span className="italic">Email available via auth</span>
-            </div>
-          </div>
+          </CardContent>
+        </Card>
 
-          <Separator />
+        {/* Tabbed Content */}
+        <Card className="md:col-span-2">
+          <CardContent className="pt-6">
+            <Tabs defaultValue="proposals">
+              <TabsList>
+                <TabsTrigger value="proposals" className="gap-1">
+                  <FileText className="h-3.5 w-3.5" />
+                  Proposals ({proposals.length})
+                </TabsTrigger>
+                <TabsTrigger value="projects" className="gap-1">
+                  <FolderKanban className="h-3.5 w-3.5" />
+                  Projects ({projects.length})
+                </TabsTrigger>
+              </TabsList>
 
-          {isLoading ? (
-            <div className="flex justify-center py-4">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <>
-              <div className="space-y-3">
-                <h4 className="text-sm font-medium text-muted-foreground">Activity</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <Card>
-                    <CardContent className="p-3 text-center">
-                      <FolderKanban className="h-5 w-5 mx-auto text-muted-foreground mb-1" />
-                      <p className="text-xl font-bold tabular-nums">{stats?.activeProjects || 0}</p>
-                      <p className="text-[10px] text-muted-foreground">Active Projects</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-3 text-center">
-                      <Clock className="h-5 w-5 mx-auto text-muted-foreground mb-1" />
-                      <p className="text-xl font-bold tabular-nums">{stats?.hoursThisMonth || 0}h</p>
-                      <p className="text-[10px] text-muted-foreground">Hours (Month)</p>
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-
-              {stats?.appRoles && stats.appRoles.length > 0 && (
-                <>
-                  <Separator />
-                  <div className="space-y-3">
-                    <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                      <Shield className="h-4 w-4" />
-                      Access Roles
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {stats.appRoles.map((role) => (
-                        <Badge key={role} variant="outline" className={cn("text-xs", ROLE_COLORS[role] || ROLE_COLORS.staff)}>
-                          {role}
-                        </Badge>
+              <TabsContent value="proposals" className="mt-4">
+                {proposalsLoading ? (
+                  <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+                ) : proposals.length === 0 ? (
+                  <p className="text-center py-8 text-muted-foreground text-sm">No proposals found for this user.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>#</TableHead>
+                        <TableHead>Project</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead>Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {proposals.map((p: any) => (
+                        <TableRow key={p.id}>
+                          <TableCell className="font-mono text-xs">{p.proposal_number || "—"}</TableCell>
+                          <TableCell className="text-sm">{p.project_name || "—"}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs capitalize">{p.status}</Badge>
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm">
+                            {p.total_amount ? `$${Number(p.total_amount).toLocaleString()}` : "—"}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-xs">
+                            {p.created_at ? format(new Date(p.created_at), "MMM d, yyyy") : "—"}
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </>
-          )}
+                    </TableBody>
+                  </Table>
+                )}
+              </TabsContent>
 
-          <Separator />
-
-          <div className="text-xs text-muted-foreground space-y-1">
-            <p>Member since {user.created_at ? format(new Date(user.created_at), "MMMM d, yyyy") : "—"}</p>
-          </div>
-        </div>
-      </SheetContent>
-    </Sheet>
+              <TabsContent value="projects" className="mt-4">
+                {projectsLoading ? (
+                  <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+                ) : projects.length === 0 ? (
+                  <p className="text-center py-8 text-muted-foreground text-sm">No projects found for this user.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>#</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Address</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Created</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {projects.map((p: any) => (
+                        <TableRow key={p.id}>
+                          <TableCell className="font-mono text-xs">{p.project_number || "—"}</TableCell>
+                          <TableCell className="text-sm font-medium">{p.name || "—"}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{p.properties?.address || "—"}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs capitalize">{p.status}</Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-xs">
+                            {p.created_at ? format(new Date(p.created_at), "MMM d, yyyy") : "—"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }
 
+/* ─── Team List ─── */
 export function TeamSettings() {
   const { data: profiles = [], isLoading } = useCompanyProfiles();
   const [searchQuery, setSearchQuery] = useState("");
@@ -201,6 +308,10 @@ export function TeamSettings() {
   });
 
   const activeCount = profiles.filter((p) => p.is_active).length;
+
+  if (selectedUser) {
+    return <UserDetailView user={selectedUser} onBack={() => setSelectedUser(null)} />;
+  }
 
   return (
     <div className="space-y-4">
@@ -264,54 +375,45 @@ export function TeamSettings() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredProfiles.map((profile) => {
-                  const initials = [profile.first_name, profile.last_name]
-                    .filter(Boolean)
-                    .map((n) => n?.[0])
-                    .join("")
-                    .toUpperCase() || "?";
-                  const displayName = profile.display_name ||
-                    [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Unknown";
-
-                  return (
-                    <TableRow
-                      key={profile.id}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => setSelectedUser(profile)}
-                    >
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={profile.avatar_url || undefined} />
-                            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium">{displayName}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={cn("text-xs", ROLE_COLORS[profile.role] || ROLE_COLORS.staff)}>
-                          {profile.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">{profile.phone || "—"}</TableCell>
-                      <TableCell>
-                        <Badge variant={profile.is_active ? "default" : "secondary"} className="text-xs">
-                          {profile.is_active ? "Active" : "Inactive"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {profile.created_at ? format(new Date(profile.created_at), "MMM d, yyyy") : "—"}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                {filteredProfiles.map((profile) => (
+                  <TableRow
+                    key={profile.id}
+                    className={cn(
+                      "cursor-pointer hover:bg-muted/50",
+                      !profile.is_active && "opacity-50"
+                    )}
+                    onClick={() => setSelectedUser(profile)}
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={profile.avatar_url || undefined} />
+                          <AvatarFallback className="text-xs">{getInitials(profile)}</AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium">{getDisplayName(profile)}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={cn("text-xs", ROLE_COLORS[profile.role] || ROLE_COLORS.staff)}>
+                        {profile.role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{profile.phone || "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant={profile.is_active ? "default" : "secondary"} className="text-xs">
+                        {profile.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {profile.created_at ? format(new Date(profile.created_at), "MMM d, yyyy") : "—"}
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           )}
         </CardContent>
       </Card>
-
-      <UserDetailSheet user={selectedUser} open={!!selectedUser} onClose={() => setSelectedUser(null)} />
     </div>
   );
 }
