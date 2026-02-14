@@ -178,6 +178,50 @@ export type Database = {
           },
         ]
       }
+      cash_forecasts: {
+        Row: {
+          company_id: string
+          created_at: string
+          expected_collections: number
+          factors: Json | null
+          forecast_date: string
+          high_confidence: number
+          id: string
+          low_confidence: number
+          medium_confidence: number
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          expected_collections?: number
+          factors?: Json | null
+          forecast_date: string
+          high_confidence?: number
+          id?: string
+          low_confidence?: number
+          medium_confidence?: number
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          expected_collections?: number
+          factors?: Json | null
+          forecast_date?: string
+          high_confidence?: number
+          id?: string
+          low_confidence?: number
+          medium_confidence?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_forecasts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_billing_rules: {
         Row: {
           cc_markup: number | null
@@ -354,6 +398,75 @@ export type Database = {
           },
         ]
       }
+      client_payment_analytics: {
+        Row: {
+          avg_days_to_payment: number | null
+          best_contact_time: string | null
+          client_id: string
+          company_id: string
+          id: string
+          last_12mo_invoices: number | null
+          last_12mo_late: number | null
+          last_12mo_paid_on_time: number | null
+          last_payment_date: string | null
+          longest_days_late: number | null
+          payment_reliability_score: number | null
+          preferred_contact_method: string | null
+          responds_to_reminders: boolean | null
+          total_lifetime_value: number | null
+          updated_at: string
+        }
+        Insert: {
+          avg_days_to_payment?: number | null
+          best_contact_time?: string | null
+          client_id: string
+          company_id: string
+          id?: string
+          last_12mo_invoices?: number | null
+          last_12mo_late?: number | null
+          last_12mo_paid_on_time?: number | null
+          last_payment_date?: string | null
+          longest_days_late?: number | null
+          payment_reliability_score?: number | null
+          preferred_contact_method?: string | null
+          responds_to_reminders?: boolean | null
+          total_lifetime_value?: number | null
+          updated_at?: string
+        }
+        Update: {
+          avg_days_to_payment?: number | null
+          best_contact_time?: string | null
+          client_id?: string
+          company_id?: string
+          id?: string
+          last_12mo_invoices?: number | null
+          last_12mo_late?: number | null
+          last_12mo_paid_on_time?: number | null
+          last_payment_date?: string | null
+          longest_days_late?: number | null
+          payment_reliability_score?: number | null
+          preferred_contact_method?: string | null
+          responds_to_reminders?: boolean | null
+          total_lifetime_value?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_payment_analytics_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_payment_analytics_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           address: string | null
@@ -434,6 +547,73 @@ export type Database = {
             columns: ["lead_owner_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collection_tasks: {
+        Row: {
+          ai_recommended_action: string | null
+          ai_suggested_message: string | null
+          assigned_to: string | null
+          company_id: string
+          completed_at: string | null
+          created_at: string
+          due_date: string
+          id: string
+          invoice_id: string
+          priority: number
+          status: string
+          task_type: string
+        }
+        Insert: {
+          ai_recommended_action?: string | null
+          ai_suggested_message?: string | null
+          assigned_to?: string | null
+          company_id: string
+          completed_at?: string | null
+          created_at?: string
+          due_date?: string
+          id?: string
+          invoice_id: string
+          priority: number
+          status?: string
+          task_type: string
+        }
+        Update: {
+          ai_recommended_action?: string | null
+          ai_suggested_message?: string | null
+          assigned_to?: string | null
+          company_id?: string
+          completed_at?: string | null
+          created_at?: string
+          due_date?: string
+          id?: string
+          invoice_id?: string
+          priority?: number
+          status?: string
+          task_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collection_tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_tasks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_tasks_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
         ]
@@ -554,6 +734,54 @@ export type Database = {
             columns: ["reviewer_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dispute_messages: {
+        Row: {
+          attachments: Json | null
+          company_id: string
+          created_at: string
+          dispute_id: string
+          id: string
+          message: string
+          sender_name: string | null
+          sender_type: string
+        }
+        Insert: {
+          attachments?: Json | null
+          company_id: string
+          created_at?: string
+          dispute_id: string
+          id?: string
+          message: string
+          sender_name?: string | null
+          sender_type: string
+        }
+        Update: {
+          attachments?: Json | null
+          company_id?: string
+          created_at?: string
+          dispute_id?: string
+          id?: string
+          message?: string
+          sender_name?: string | null
+          sender_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispute_messages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispute_messages_dispute_id_fkey"
+            columns: ["dispute_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_disputes"
             referencedColumns: ["id"]
           },
         ]
@@ -1160,6 +1388,86 @@ export type Database = {
           },
         ]
       }
+      invoice_disputes: {
+        Row: {
+          amount_disputed: number | null
+          assigned_to: string | null
+          client_evidence: Json | null
+          client_id: string | null
+          company_id: string
+          created_at: string
+          description: string
+          dispute_type: string
+          id: string
+          internal_notes: string | null
+          invoice_id: string
+          resolution_notes: string | null
+          resolved_at: string | null
+          status: string
+        }
+        Insert: {
+          amount_disputed?: number | null
+          assigned_to?: string | null
+          client_evidence?: Json | null
+          client_id?: string | null
+          company_id: string
+          created_at?: string
+          description: string
+          dispute_type: string
+          id?: string
+          internal_notes?: string | null
+          invoice_id: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          status?: string
+        }
+        Update: {
+          amount_disputed?: number | null
+          assigned_to?: string | null
+          client_evidence?: Json | null
+          client_id?: string | null
+          company_id?: string
+          created_at?: string
+          description?: string
+          dispute_type?: string
+          id?: string
+          internal_notes?: string | null
+          invoice_id?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_disputes_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_disputes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_disputes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_disputes_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_follow_ups: {
         Row: {
           company_id: string
@@ -1245,6 +1553,7 @@ export type Database = {
           subtotal: number
           total_due: number
           updated_at: string
+          write_off_amount: number | null
         }
         Insert: {
           billed_to_contact_id?: string | null
@@ -1275,6 +1584,7 @@ export type Database = {
           subtotal?: number
           total_due?: number
           updated_at?: string
+          write_off_amount?: number | null
         }
         Update: {
           billed_to_contact_id?: string | null
@@ -1305,6 +1615,7 @@ export type Database = {
           subtotal?: number
           total_due?: number
           updated_at?: string
+          write_off_amount?: number | null
         }
         Relationships: [
           {
@@ -1347,6 +1658,163 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_predictions: {
+        Row: {
+          client_id: string | null
+          company_id: string
+          confidence_level: string | null
+          created_at: string
+          factors: Json | null
+          id: string
+          invoice_id: string
+          model_version: string | null
+          predicted_days_late: number | null
+          predicted_payment_date: string | null
+          risk_score: number
+        }
+        Insert: {
+          client_id?: string | null
+          company_id: string
+          confidence_level?: string | null
+          created_at?: string
+          factors?: Json | null
+          id?: string
+          invoice_id: string
+          model_version?: string | null
+          predicted_days_late?: number | null
+          predicted_payment_date?: string | null
+          risk_score: number
+        }
+        Update: {
+          client_id?: string | null
+          company_id?: string
+          confidence_level?: string | null
+          created_at?: string
+          factors?: Json | null
+          id?: string
+          invoice_id?: string
+          model_version?: string | null
+          predicted_days_late?: number | null
+          predicted_payment_date?: string | null
+          risk_score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_predictions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_predictions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_predictions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_promises: {
+        Row: {
+          actual_amount: number | null
+          actual_payment_date: string | null
+          captured_by: string | null
+          client_id: string | null
+          company_id: string
+          created_at: string
+          follow_up_id: string | null
+          id: string
+          invoice_id: string
+          notes: string | null
+          payment_method: string | null
+          promised_amount: number
+          promised_date: string
+          reminder_sent_at: string | null
+          source: string
+          status: string
+        }
+        Insert: {
+          actual_amount?: number | null
+          actual_payment_date?: string | null
+          captured_by?: string | null
+          client_id?: string | null
+          company_id: string
+          created_at?: string
+          follow_up_id?: string | null
+          id?: string
+          invoice_id: string
+          notes?: string | null
+          payment_method?: string | null
+          promised_amount: number
+          promised_date: string
+          reminder_sent_at?: string | null
+          source: string
+          status?: string
+        }
+        Update: {
+          actual_amount?: number | null
+          actual_payment_date?: string | null
+          captured_by?: string | null
+          client_id?: string | null
+          company_id?: string
+          created_at?: string
+          follow_up_id?: string | null
+          id?: string
+          invoice_id?: string
+          notes?: string | null
+          payment_method?: string | null
+          promised_amount?: number
+          promised_date?: string
+          reminder_sent_at?: string | null
+          source?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_promises_captured_by_fkey"
+            columns: ["captured_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_promises_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_promises_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_promises_follow_up_id_fkey"
+            columns: ["follow_up_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_follow_ups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_promises_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
         ]
