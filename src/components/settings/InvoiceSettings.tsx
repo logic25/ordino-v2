@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect, useCallback } from "react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
+import { CollapsibleSettingsCard } from "./CollapsibleSettingsCard";
 import {
   CheckCircle, Save, Plus, Trash2, Eye, Loader2, CreditCard, Building2,
   Mail, RefreshCw, Clock, Upload, Image, Pencil,
@@ -87,6 +88,23 @@ export function InvoiceSettings() {
   const { data: clients = [] } = useClients();
 
   const s = companyData?.settings || {} as CompanySettings;
+
+  // Expand/Collapse all sections
+  const [allExpanded, setAllExpanded] = useState(true);
+  const [sectionStates, setSectionStates] = useState<Record<string, boolean>>({});
+  
+  const toggleAll = useCallback(() => {
+    const next = !allExpanded;
+    setAllExpanded(next);
+    setSectionStates({
+      company: next, payment: next, terms: next, email: next,
+      collections: next, demand: next, rules: next, qbo: next,
+    });
+  }, [allExpanded]);
+
+  const setSectionOpen = useCallback((key: string, open: boolean) => {
+    setSectionStates(prev => ({ ...prev, [key]: open }));
+  }, []);
 
   // General
   const [defaultTerms, setDefaultTerms] = useState("Net 30");
@@ -313,17 +331,23 @@ export function InvoiceSettings() {
     .replace(/\{\{project_name\}\}/g, "340 Park Ave - Lehman Reno");
 
   return (
-    <div className="space-y-6">
-      {/* Company Info for Invoice Header */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Building2 className="h-4 w-4" /> Company Info
-          </CardTitle>
-          <CardDescription>This information appears on your invoice PDF header</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Logo Upload */}
+    <div className="space-y-4">
+      {/* Expand / Collapse All */}
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={toggleAll}>
+          {allExpanded ? "Collapse All" : "Expand All"}
+        </Button>
+      </div>
+
+      {/* Company Info */}
+      <CollapsibleSettingsCard
+        title="Company Info"
+        description="This information appears on your invoice PDF header"
+        icon={<Building2 className="h-4 w-4" />}
+        isOpen={sectionStates.company ?? true}
+        onOpenChange={(o) => setSectionOpen("company", o)}
+      >
+        <div className="space-y-4">
           <div className="space-y-2">
             <Label className="flex items-center gap-2"><Image className="h-3.5 w-3.5" /> Company Logo</Label>
             <div className="flex items-center gap-4">
@@ -377,18 +401,18 @@ export function InvoiceSettings() {
             <Label>Invoice Footer Text</Label>
             <Textarea value={footerText} onChange={(e) => setFooterText(e.target.value)} rows={2} placeholder="Thank you for your business. Payment due within terms specified above." />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </CollapsibleSettingsCard>
 
       {/* Payment Methods */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <CreditCard className="h-4 w-4" /> Payment Methods
-          </CardTitle>
-          <CardDescription>Configure how clients can pay — shown on invoices and emails</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <CollapsibleSettingsCard
+        title="Payment Methods"
+        description="Configure how clients can pay — shown on invoices and emails"
+        icon={<CreditCard className="h-4 w-4" />}
+        isOpen={sectionStates.payment ?? true}
+        onOpenChange={(o) => setSectionOpen("payment", o)}
+      >
+        <div className="space-y-4">
           <div className="space-y-2">
             <Label>Check — Mailing Address</Label>
             <Input value={checkAddress} onChange={(e) => setCheckAddress(e.target.value)} placeholder="26 Broadway, 3rd Fl, New York, NY 10004" />
@@ -428,43 +452,42 @@ export function InvoiceSettings() {
               <Input value={ccUrl} onChange={(e) => setCcUrl(e.target.value)} placeholder="https://pay.stripe.com/..." />
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </CollapsibleSettingsCard>
 
       {/* Default Payment Terms */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Default Payment Terms</CardTitle>
-          <CardDescription>Set the default payment terms for new invoices</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Default Terms</Label>
-              <Select value={defaultTerms} onValueChange={setDefaultTerms}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Due on Receipt">Due on Receipt</SelectItem>
-                  <SelectItem value="Net 15">Net 15</SelectItem>
-                  <SelectItem value="Net 30">Net 30</SelectItem>
-                  <SelectItem value="Net 60">Net 60</SelectItem>
-                  <SelectItem value="Net 90">Net 90</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+      <CollapsibleSettingsCard
+        title="Default Payment Terms"
+        description="Set the default payment terms for new invoices"
+        isOpen={sectionStates.terms ?? true}
+        onOpenChange={(o) => setSectionOpen("terms", o)}
+      >
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Default Terms</Label>
+            <Select value={defaultTerms} onValueChange={setDefaultTerms}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Due on Receipt">Due on Receipt</SelectItem>
+                <SelectItem value="Net 15">Net 15</SelectItem>
+                <SelectItem value="Net 30">Net 30</SelectItem>
+                <SelectItem value="Net 60">Net 60</SelectItem>
+                <SelectItem value="Net 90">Net 90</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </CollapsibleSettingsCard>
 
       {/* Invoice Email Template */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Mail className="h-4 w-4" /> Invoice Email Template
-          </CardTitle>
-          <CardDescription>Customize the email sent with each invoice</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <CollapsibleSettingsCard
+        title="Invoice Email Template"
+        description="Customize the email sent with each invoice"
+        icon={<Mail className="h-4 w-4" />}
+        isOpen={sectionStates.email ?? true}
+        onOpenChange={(o) => setSectionOpen("email", o)}
+      >
+        <div className="space-y-4">
           <div>
             <Label className="text-xs text-muted-foreground mb-2 block">Available Merge Fields</Label>
             <div className="flex flex-wrap gap-1.5 mb-3">
@@ -488,16 +511,17 @@ export function InvoiceSettings() {
             <Label className="text-sm">Email Body</Label>
             <Textarea value={emailBody} onChange={(e) => setEmailBody(e.target.value)} rows={12} className="font-mono text-sm" />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </CollapsibleSettingsCard>
 
       {/* Collections Timeline */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Collections Timeline</CardTitle>
-          <CardDescription>Configure when follow-up actions are triggered for overdue invoices</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <CollapsibleSettingsCard
+        title="Collections Timeline"
+        description="Configure when follow-up actions are triggered for overdue invoices"
+        isOpen={sectionStates.collections ?? true}
+        onOpenChange={(o) => setSectionOpen("collections", o)}
+      >
+        <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <Label>Auto-send reminders</Label>
@@ -537,23 +561,22 @@ export function InvoiceSettings() {
               <Input type="number" value={earlyDiscountPct} onChange={(e) => setEarlyDiscountPct(e.target.value)} min={0} max={100} step={0.5} />
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </CollapsibleSettingsCard>
 
       {/* Demand Letter Template */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-base">Demand Letter Template</CardTitle>
-              <CardDescription>Customize the formal demand letter sent to clients. Use merge fields to auto-fill invoice details.</CardDescription>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setShowDemandPreview(true)}>
-              <Eye className="h-4 w-4 mr-1" /> Preview
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <CollapsibleSettingsCard
+        title="Demand Letter Template"
+        description="Customize the formal demand letter sent to clients"
+        isOpen={sectionStates.demand ?? true}
+        onOpenChange={(o) => setSectionOpen("demand", o)}
+        headerAction={
+          <Button variant="outline" size="sm" onClick={() => setShowDemandPreview(true)}>
+            <Eye className="h-4 w-4 mr-1" /> Preview
+          </Button>
+        }
+      >
+        <div className="space-y-4">
           <div>
             <Label className="text-xs text-muted-foreground mb-2 block">Available Merge Fields</Label>
             <div className="flex flex-wrap gap-1.5 mb-3">
@@ -573,8 +596,8 @@ export function InvoiceSettings() {
           <Button size="sm" variant="ghost" onClick={() => setDemandTemplate(DEFAULT_DEMAND_TEMPLATE)}>
             Reset to Default
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </CollapsibleSettingsCard>
 
       {/* Demand Letter Preview Dialog */}
       <Dialog open={showDemandPreview} onOpenChange={setShowDemandPreview}>
@@ -589,62 +612,59 @@ export function InvoiceSettings() {
         </DialogContent>
       </Dialog>
 
-      {/* Client Billing Rules (DB-backed) */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-base">Client Billing Rules</CardTitle>
-              <CardDescription>Special billing procedures per client</CardDescription>
-            </div>
-            <Button size="sm" variant="outline" onClick={() => setAddRuleOpen(true)}>
-              <Plus className="h-4 w-4 mr-1" /> Add Rule
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {billingRules.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">No billing rules configured yet</p>
-          ) : (
-            <div className="space-y-3">
-              {billingRules.map((rule) => (
-                <div key={rule.id} className="rounded-lg border p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-medium">{rule.clients?.name || "Unknown Client"}</h4>
-                    <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => openEditRule(rule)}>
-                        <Pencil className="h-3 w-3" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive" onClick={() => handleDeleteRule(rule.id)}>
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
+      {/* Client Billing Rules */}
+      <CollapsibleSettingsCard
+        title="Client Billing Rules"
+        description="Special billing procedures per client"
+        isOpen={sectionStates.rules ?? true}
+        onOpenChange={(o) => setSectionOpen("rules", o)}
+        headerAction={
+          <Button size="sm" variant="outline" onClick={() => setAddRuleOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" /> Add Rule
+          </Button>
+        }
+      >
+        {billingRules.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">No billing rules configured yet</p>
+        ) : (
+          <div className="space-y-3">
+            {billingRules.map((rule) => (
+              <div key={rule.id} className="rounded-lg border p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium">{rule.clients?.name || "Unknown Client"}</h4>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => openEditRule(rule)}>
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive" onClick={() => handleDeleteRule(rule.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
                   </div>
-                  {(rule.vendor_id || rule.property_id) && (
-                    <div className="flex gap-3 text-xs text-muted-foreground">
-                      {rule.vendor_id && <span>Vendor ID: <span className="font-mono">{rule.vendor_id}</span></span>}
-                      {rule.property_id && <span>Property ID: <span className="font-mono">{rule.property_id}</span></span>}
-                    </div>
-                  )}
-                  <div className="flex flex-wrap gap-1.5">
-                    {rule.require_waiver && <Badge variant="secondary" className="text-[10px]">Waiver Required</Badge>}
-                    {rule.require_pay_app && <Badge variant="secondary" className="text-[10px]">Pay App Required</Badge>}
-                    {(rule.wire_fee ?? 0) > 0 && <Badge variant="secondary" className="text-[10px]">Wire Fee: ${rule.wire_fee}</Badge>}
-                    {(rule.cc_markup ?? 0) > 0 && <Badge variant="secondary" className="text-[10px]">CC Markup: {rule.cc_markup}%</Badge>}
-                    {rule.special_portal_required && <Badge variant="secondary" className="text-[10px]">Portal Required</Badge>}
-                  </div>
-                  {rule.portal_url && (
-                    <p className="text-xs text-muted-foreground">Portal: <a href={rule.portal_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{rule.portal_url}</a></p>
-                  )}
-                  {rule.special_instructions && (
-                    <p className="text-xs text-muted-foreground whitespace-pre-wrap">{rule.special_instructions}</p>
-                  )}
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                {(rule.vendor_id || rule.property_id) && (
+                  <div className="flex gap-3 text-xs text-muted-foreground">
+                    {rule.vendor_id && <span>Vendor ID: <span className="font-mono">{rule.vendor_id}</span></span>}
+                    {rule.property_id && <span>Property ID: <span className="font-mono">{rule.property_id}</span></span>}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-1.5">
+                  {rule.require_waiver && <Badge variant="secondary" className="text-[10px]">Waiver Required</Badge>}
+                  {rule.require_pay_app && <Badge variant="secondary" className="text-[10px]">Pay App Required</Badge>}
+                  {(rule.wire_fee ?? 0) > 0 && <Badge variant="secondary" className="text-[10px]">Wire Fee: ${rule.wire_fee}</Badge>}
+                  {(rule.cc_markup ?? 0) > 0 && <Badge variant="secondary" className="text-[10px]">CC Markup: {rule.cc_markup}%</Badge>}
+                  {rule.special_portal_required && <Badge variant="secondary" className="text-[10px]">Portal Required</Badge>}
+                </div>
+                {rule.portal_url && (
+                  <p className="text-xs text-muted-foreground">Portal: <a href={rule.portal_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{rule.portal_url}</a></p>
+                )}
+                {rule.special_instructions && (
+                  <p className="text-xs text-muted-foreground whitespace-pre-wrap">{rule.special_instructions}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </CollapsibleSettingsCard>
 
       {/* Add/Edit Billing Rule Dialog */}
       <Dialog open={addRuleOpen} onOpenChange={(open) => { setAddRuleOpen(open); if (!open) { setEditingRule(null); resetRuleForm(); } }}>
@@ -722,12 +742,13 @@ export function InvoiceSettings() {
       </Dialog>
 
       {/* QuickBooks Online */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">QuickBooks Online</CardTitle>
-          <CardDescription>Manage your QuickBooks Online integration</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <CollapsibleSettingsCard
+        title="QuickBooks Online"
+        description="Manage your QuickBooks Online integration"
+        isOpen={sectionStates.qbo ?? true}
+        onOpenChange={(o) => setSectionOpen("qbo", o)}
+      >
+        <div className="space-y-4">
           <div className="flex items-center justify-between p-3 rounded-lg border">
             <div className="flex items-center gap-3">
               <CheckCircle className="h-5 w-5 text-success" />
@@ -767,8 +788,8 @@ export function InvoiceSettings() {
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </CollapsibleSettingsCard>
 
       {/* Master Save */}
       <div className="flex justify-end">
