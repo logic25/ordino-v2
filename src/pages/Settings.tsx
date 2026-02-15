@@ -12,10 +12,12 @@ import { TeamSettings } from "@/components/settings/TeamSettings";
 import { ProfileSettings } from "@/components/settings/ProfileSettings";
 import { CompanySettings } from "@/components/settings/CompanySettings";
 import { ListsAndLookupsSettings } from "@/components/settings/ListsAndLookupsSettings";
+import { PartnerEmailTemplateSettings } from "@/components/settings/PartnerEmailTemplateSettings";
 import { RolesSettings } from "@/components/settings/RolesSettings";
 import { useIsAdmin } from "@/hooks/useUserRoles";
+import { Mail } from "lucide-react";
 
-type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists" | "roles";
+type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists" | "roles" | "partner_templates";
 
 const settingsSections = [
   {
@@ -67,6 +69,12 @@ const settingsSections = [
     icon: Zap,
   },
   {
+    id: "partner_templates" as const,
+    title: "Partner Outreach Templates",
+    description: "Email templates for RFP partner notifications",
+    icon: Mail,
+  },
+  {
     id: "roles" as const,
     title: "Roles & Permissions",
     description: "Configure what each role can access across the system",
@@ -97,6 +105,8 @@ export default function Settings() {
         return <InvoiceSettings />;
       case "automation":
         return <AutomationRulesSettings />;
+      case "partner_templates":
+        return <PartnerEmailTemplateSettings />;
       case "roles":
         return <RolesSettings />;
       default:
