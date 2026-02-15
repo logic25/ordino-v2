@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Send, Loader2, Paperclip, X, FileIcon } from "lucide-react";
+import { Send, Loader2, Paperclip, X, FileIcon, Eye } from "lucide-react";
+import { AttachmentPreviewModal } from "./AttachmentPreviewModal";
 import { useUndoableSend } from "@/hooks/useUndoableSend";
 import { useSaveDraft, useDeleteDraft, type EmailDraft } from "@/hooks/useEmailDrafts";
 import { useCreateScheduledEmail } from "@/hooks/useScheduledEmails";
@@ -45,6 +46,7 @@ export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defau
   const [showCcBcc, setShowCcBcc] = useState(false);
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [previewAttachment, setPreviewAttachment] = useState<{ url: string; filename: string; mimeType: string } | null>(null);
   const [draftId, setDraftId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -235,6 +237,7 @@ export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defau
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(o) => { if (!o) resetForm(); onOpenChange(o); }}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
@@ -314,7 +317,16 @@ export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defau
                 {attachments.map((att, i) => (
                   <Badge key={i} variant="secondary" className="text-xs gap-1.5 py-1 px-2">
                     <FileIcon className="h-3 w-3" />
-                    <span className="truncate max-w-[140px]">{att.name}</span>
+                    <button
+                      type="button"
+                      className="truncate max-w-[140px] hover:underline cursor-pointer"
+                      onClick={() => {
+                        const url = URL.createObjectURL(att.file);
+                        setPreviewAttachment({ url, filename: att.name, mimeType: att.file.type });
+                      }}
+                    >
+                      {att.name}
+                    </button>
                     <span className="text-muted-foreground">{formatSize(att.size)}</span>
                     <button onClick={() => removeAttachment(i)} className="hover:opacity-70">
                       <X className="h-3 w-3" />
@@ -376,5 +388,14 @@ export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defau
         </div>
       </DialogContent>
     </Dialog>
+
+    <AttachmentPreviewModal
+      open={!!previewAttachment}
+      onOpenChange={(open) => { if (!open) { if (previewAttachment) URL.revokeObjectURL(previewAttachment.url); setPreviewAttachment(null); } }}
+      url={previewAttachment?.url || null}
+      filename={previewAttachment?.filename || ""}
+      mimeType={previewAttachment?.mimeType || ""}
+    />
+    </>
   );
 }
