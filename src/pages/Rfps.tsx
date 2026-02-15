@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Library, Upload, LayoutGrid, List, Loader2, FileUp, Sparkles } from "lucide-react";
+import { Library, Upload, LayoutGrid, List, Loader2, FileUp, Sparkles, Radar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useRfps, useCreateRfp } from "@/hooks/useRfps";
 import { RfpKanbanBoard } from "@/components/rfps/RfpKanbanBoard";
@@ -154,6 +154,9 @@ export default function Rfps() {
                 <LayoutGrid className="h-4 w-4" />
               </ToggleGroupItem>
             </ToggleGroup>
+            <Button variant="outline" onClick={() => navigate("/rfps/discover")}>
+              <Radar className="h-4 w-4 mr-2" /> Discover
+            </Button>
             <Button variant="outline" onClick={() => navigate("/rfps/library")}>
               <Library className="h-4 w-4 mr-2" /> Content Library
             </Button>

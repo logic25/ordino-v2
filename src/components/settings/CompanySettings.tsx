@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Trash2, AlertTriangle, CheckCircle2, Shield } from "lucide-react";
+import { Loader2, Plus, Trash2, AlertTriangle, CheckCircle2, Shield, Palette, Upload } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -92,7 +92,9 @@ export function CompanySettings() {
   const [website, setWebsite] = useState("");
   const [ein, setEin] = useState("");
   const [insurances, setInsurances] = useState<InsurancePolicy[]>([]);
-
+  const [primaryColor, setPrimaryColor] = useState("#d97706");
+  const [accentColor, setAccentColor] = useState("#0284c7");
+  const [logoUrl, setLogoUrl] = useState("");
   useEffect(() => {
     if (company) {
       setName(company.name || "");
@@ -103,6 +105,10 @@ export function CompanySettings() {
       setEin((company as any).ein || "");
       const settings = company.settings as Record<string, any> | null;
       setInsurances(settings?.insurances || []);
+      const theme = (company as any).theme as Record<string, any> | null;
+      setPrimaryColor(theme?.primary_color || "#d97706");
+      setAccentColor(theme?.accent_color || "#0284c7");
+      setLogoUrl(theme?.logo_url || company.logo_url || "");
     }
   }, [company]);
 
@@ -121,6 +127,8 @@ export function CompanySettings() {
           website: website.trim() || null,
           ein: ein.trim() || null,
           settings: { ...currentSettings, insurances } as any,
+          theme: { primary_color: primaryColor, accent_color: accentColor, logo_url: logoUrl } as any,
+          logo_url: logoUrl || null,
         } as any)
         .eq("id", profile.company_id);
       if (error) throw error;
@@ -301,6 +309,69 @@ export function CompanySettings() {
               ))}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Brand Theme */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Palette className="h-5 w-5" /> Brand Theme
+          </CardTitle>
+          <CardDescription>Customize your brand colors and logo for RFP exports and documents.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Company Logo URL</Label>
+            <Input
+              value={logoUrl}
+              onChange={(e) => setLogoUrl(e.target.value)}
+              placeholder="https://yourcompany.com/logo.png"
+            />
+            {logoUrl && (
+              <div className="border rounded-lg p-3 bg-muted/30 flex items-center gap-3">
+                <img src={logoUrl} alt="Logo preview" className="h-10 w-auto max-w-[160px] object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                <span className="text-xs text-muted-foreground">Preview</span>
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Primary Color</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={primaryColor}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  className="w-10 h-10 rounded-md border border-input cursor-pointer"
+                />
+                <Input
+                  value={primaryColor}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  className="font-mono text-sm"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Accent Color</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={accentColor}
+                  onChange={(e) => setAccentColor(e.target.value)}
+                  className="w-10 h-10 rounded-md border border-input cursor-pointer"
+                />
+                <Input
+                  value={accentColor}
+                  onChange={(e) => setAccentColor(e.target.value)}
+                  className="font-mono text-sm"
+                />
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            These colors will be used in RFP response previews and exported documents.
+          </p>
         </CardContent>
       </Card>
 

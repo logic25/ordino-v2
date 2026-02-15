@@ -1286,6 +1286,7 @@ export type Database = {
           phone: string | null
           settings: Json | null
           slug: string | null
+          theme: Json | null
           updated_at: string | null
           website: string | null
         }
@@ -1300,6 +1301,7 @@ export type Database = {
           phone?: string | null
           settings?: Json | null
           slug?: string | null
+          theme?: Json | null
           updated_at?: string | null
           website?: string | null
         }
@@ -1314,6 +1316,7 @@ export type Database = {
           phone?: string | null
           settings?: Json | null
           slug?: string | null
+          theme?: Json | null
           updated_at?: string | null
           website?: string | null
         }
@@ -1393,6 +1396,104 @@ export type Database = {
             columns: ["reviewer_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      discovered_rfps: {
+        Row: {
+          assigned_to: string | null
+          company_id: string
+          created_at: string
+          discovered_at: string
+          due_date: string | null
+          estimated_value: number | null
+          id: string
+          issuing_agency: string | null
+          notes: string | null
+          original_url: string | null
+          pdf_url: string | null
+          relevance_reason: string | null
+          relevance_score: number | null
+          rfp_id: string | null
+          rfp_number: string | null
+          service_tags: string[] | null
+          source_id: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          company_id: string
+          created_at?: string
+          discovered_at?: string
+          due_date?: string | null
+          estimated_value?: number | null
+          id?: string
+          issuing_agency?: string | null
+          notes?: string | null
+          original_url?: string | null
+          pdf_url?: string | null
+          relevance_reason?: string | null
+          relevance_score?: number | null
+          rfp_id?: string | null
+          rfp_number?: string | null
+          service_tags?: string[] | null
+          source_id?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          company_id?: string
+          created_at?: string
+          discovered_at?: string
+          due_date?: string | null
+          estimated_value?: number | null
+          id?: string
+          issuing_agency?: string | null
+          notes?: string | null
+          original_url?: string | null
+          pdf_url?: string | null
+          relevance_reason?: string | null
+          relevance_score?: number | null
+          rfp_id?: string | null
+          rfp_number?: string | null
+          service_tags?: string[] | null
+          source_id?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discovered_rfps_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discovered_rfps_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discovered_rfps_rfp_id_fkey"
+            columns: ["rfp_id"]
+            isOneToOne: false
+            referencedRelation: "rfps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discovered_rfps_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "rfp_sources"
             referencedColumns: ["id"]
           },
         ]
@@ -3693,6 +3794,53 @@ export type Database = {
           },
         ]
       }
+      rfp_monitoring_rules: {
+        Row: {
+          active: boolean
+          agencies_include: string[] | null
+          company_id: string
+          created_at: string
+          email_recipients: string[] | null
+          id: string
+          keyword_exclude: string[] | null
+          keyword_include: string[] | null
+          min_relevance_score: number
+          notify_email: boolean
+        }
+        Insert: {
+          active?: boolean
+          agencies_include?: string[] | null
+          company_id: string
+          created_at?: string
+          email_recipients?: string[] | null
+          id?: string
+          keyword_exclude?: string[] | null
+          keyword_include?: string[] | null
+          min_relevance_score?: number
+          notify_email?: boolean
+        }
+        Update: {
+          active?: boolean
+          agencies_include?: string[] | null
+          company_id?: string
+          created_at?: string
+          email_recipients?: string[] | null
+          id?: string
+          keyword_exclude?: string[] | null
+          keyword_include?: string[] | null
+          min_relevance_score?: number
+          notify_email?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rfp_monitoring_rules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rfp_sections: {
         Row: {
           ai_generated: boolean | null
@@ -3737,6 +3885,50 @@ export type Database = {
           },
         ]
       }
+      rfp_sources: {
+        Row: {
+          active: boolean
+          check_frequency: string
+          company_id: string
+          created_at: string
+          id: string
+          last_checked_at: string | null
+          source_name: string
+          source_type: string
+          source_url: string
+        }
+        Insert: {
+          active?: boolean
+          check_frequency?: string
+          company_id: string
+          created_at?: string
+          id?: string
+          last_checked_at?: string | null
+          source_name: string
+          source_type?: string
+          source_url: string
+        }
+        Update: {
+          active?: boolean
+          check_frequency?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          last_checked_at?: string | null
+          source_name?: string
+          source_type?: string
+          source_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rfp_sources_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rfps: {
         Row: {
           agency: string | null
@@ -3745,6 +3937,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           debrief_notes: string | null
+          discovered_from_id: string | null
           due_date: string | null
           id: string
           insurance_requirements: Json | null
@@ -3770,6 +3963,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           debrief_notes?: string | null
+          discovered_from_id?: string | null
           due_date?: string | null
           id?: string
           insurance_requirements?: Json | null
@@ -3795,6 +3989,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           debrief_notes?: string | null
+          discovered_from_id?: string | null
           due_date?: string | null
           id?: string
           insurance_requirements?: Json | null
@@ -3826,6 +4021,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfps_discovered_from_id_fkey"
+            columns: ["discovered_from_id"]
+            isOneToOne: false
+            referencedRelation: "discovered_rfps"
             referencedColumns: ["id"]
           },
         ]
