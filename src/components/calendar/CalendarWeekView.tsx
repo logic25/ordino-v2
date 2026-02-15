@@ -27,8 +27,8 @@ export function CalendarWeekView({
   return (
     <div className="flex-1 overflow-auto">
       {/* Day headers */}
-      <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-border bg-card sticky top-0 z-10">
-        <div className="p-2" />
+      <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-border bg-card rounded-t-xl sticky top-0 z-10 shadow-sm">
+        <div className="p-2 border-r border-border" />
         {days.map((day) => {
           const today = isToday(day);
           const selected = selectedDate && isSameDay(day, selectedDate);
@@ -59,7 +59,7 @@ export function CalendarWeekView({
 
       {/* All-day events row */}
       <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-border bg-card">
-        <div className="p-1 text-[10px] text-muted-foreground text-right pr-2 pt-2">All day</div>
+        <div className="p-1 text-[10px] text-muted-foreground text-right pr-2 pt-2 border-r border-border font-semibold">All day</div>
         {days.map((day) => {
           const key = format(day, "yyyy-MM-dd");
           const allDayEvents = (eventsByDay[key] || []).filter((ev) => ev.all_day);
@@ -87,10 +87,10 @@ export function CalendarWeekView({
       </div>
 
       {/* Time grid */}
-      <div className="grid grid-cols-[60px_repeat(7,1fr)]">
+      <div className="grid grid-cols-[60px_repeat(7,1fr)] bg-card border border-border rounded-b-xl overflow-hidden">
         {hours.map((hour) => (
           <div key={hour} className="contents">
-            <div className="text-[10px] text-muted-foreground text-right pr-2 pt-1 h-16 border-b border-border/30">
+            <div className="text-[11px] text-muted-foreground text-right pr-2 pt-1 h-16 border-b border-border/60 border-r border-border font-medium bg-muted/30">
               {format(new Date(2000, 0, 1, hour), "h a")}
             </div>
             {days.map((day) => {
@@ -103,7 +103,7 @@ export function CalendarWeekView({
               return (
                 <div
                   key={`${key}-${hour}`}
-                  className="border-l border-b border-border/30 h-16 p-0.5 relative"
+                  className="border-l border-b border-border/60 h-16 p-0.5 relative hover:bg-accent/10 transition-colors"
                   onClick={() => onSelectDate(day)}
                 >
                   {dayEvents.map((ev) => (
