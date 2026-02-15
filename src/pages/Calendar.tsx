@@ -96,7 +96,10 @@ export default function Calendar() {
   const eventsByDay = useMemo(() => {
     const map: Record<string, UnifiedEvent[]> = {};
     allEvents.forEach((ev) => {
-      const key = format(new Date(ev.start_time), "yyyy-MM-dd");
+      if (!ev.start_time) return;
+      const d = new Date(ev.start_time);
+      if (isNaN(d.getTime())) return;
+      const key = format(d, "yyyy-MM-dd");
       if (!map[key]) map[key] = [];
       map[key].push(ev);
     });
