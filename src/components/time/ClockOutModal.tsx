@@ -96,7 +96,7 @@ export function ClockOutModal() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-md overflow-hidden [&_textarea]:max-w-full [&_textarea]:box-border">
+      <DialogContent className="sm:max-w-md [&>*]:min-w-0">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlarmClock className="h-5 w-5 text-accent" />
