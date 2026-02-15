@@ -1,5 +1,10 @@
 import { useState, useMemo } from "react";
-import { useUpdateRfpStatus, useUpdateRfpNotes, type Rfp, type RfpStatus } from "@/hooks/useRfps";
+import { useUpdateRfpStatus, useUpdateRfpNotes, useDeleteRfp, type Rfp, type RfpStatus } from "@/hooks/useRfps";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { RfpStatusBadge } from "./RfpStatusBadge";
 import { RfpEditDialog } from "./RfpEditDialog";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
@@ -8,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, ArrowUpDown, Search, StickyNote, Shield, Calendar, AlertTriangle, ChevronRight, Pencil, FileText } from "lucide-react";
+import { Loader2, ArrowUpDown, Search, StickyNote, Shield, Calendar, AlertTriangle, ChevronRight, Pencil, FileText, Trash2 } from "lucide-react";
 import { RfpBuilderDialog } from "./RfpBuilderDialog";
 import { format, differenceInDays, isPast } from "date-fns";
 import type { RfpFilter } from "./RfpSummaryCards";
@@ -96,7 +101,7 @@ function InlineNotes({ rfp }: { rfp: Rfp }) {
   );
 }
 
-function ExpandedRow({ rfp, onEdit, onBuild }: { rfp: Rfp; onEdit: (rfp: Rfp) => void; onBuild: (rfp: Rfp) => void }) {
+function ExpandedRow({ rfp, onEdit, onBuild, onDelete }: { rfp: Rfp; onEdit: (rfp: Rfp) => void; onBuild: (rfp: Rfp) => void; onDelete: (rfp: Rfp) => void }) {
   const updateStatus = useUpdateRfpStatus();
   const insurance = rfp.insurance_requirements as Record<string, string> | null;
 
@@ -160,6 +165,14 @@ function ExpandedRow({ rfp, onEdit, onBuild }: { rfp: Rfp; onEdit: (rfp: Rfp) =>
               >
                 <FileText className="h-3.5 w-3.5 mr-1.5" /> Build Response
               </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={(e) => { e.stopPropagation(); onDelete(rfp); }}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Delete
+              </Button>
             </div>
           </div>
         </div>
@@ -177,6 +190,9 @@ export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [editingRfp, setEditingRfp] = useState<Rfp | null>(null);
   const [buildingRfp, setBuildingRfp] = useState<Rfp | null>(null);
+  const [deletingRfp, setDeletingRfp] = useState<Rfp | null>(null);
+  const deleteRfp = useDeleteRfp();
+  const { toast } = useToast();
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
@@ -280,7 +296,7 @@ export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps)
                       {rfp.contract_value ? `$${rfp.contract_value.toLocaleString()}` : "—"}
                     </TableCell>
                   </TableRow>
-                  {isExpanded && <ExpandedRow key={`${rfp.id}-detail`} rfp={rfp} onEdit={setEditingRfp} onBuild={setBuildingRfp} />}
+                  {isExpanded && <ExpandedRow key={`${rfp.id}-detail`} rfp={rfp} onEdit={setEditingRfp} onBuild={setBuildingRfp} onDelete={setDeletingRfp} />}
                 </>
               );
             })}
@@ -297,6 +313,34 @@ export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps)
 
       <RfpEditDialog rfp={editingRfp} open={!!editingRfp} onOpenChange={(open) => !open && setEditingRfp(null)} />
       <RfpBuilderDialog rfp={buildingRfp} open={!!buildingRfp} onOpenChange={(open) => !open && setBuildingRfp(null)} />
+
+      <AlertDialog open={!!deletingRfp} onOpenChange={() => setDeletingRfp(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete RFP?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{deletingRfp?.title}". This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deletingRfp) {
+                  deleteRfp.mutate(deletingRfp.id, {
+                    onSuccess: () => toast({ title: "RFP deleted" }),
+                    onError: (err: any) => toast({ title: "Delete failed", description: err.message, variant: "destructive" }),
+                  });
+                }
+                setDeletingRfp(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
