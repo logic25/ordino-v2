@@ -149,12 +149,12 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
           {/* Assignment */}
           <div className="space-y-1.5">
             <Label className="text-xs">Assigned To</Label>
-            <Select value={rfp.assigned_to || ""} onValueChange={handleAssign}>
+            <Select value={rfp.assigned_to || "__unassigned__"} onValueChange={(v) => handleAssign(v === "__unassigned__" ? "" : v)}>
               <SelectTrigger className="h-9">
                 <SelectValue placeholder="Unassigned" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Unassigned</SelectItem>
+                <SelectItem value="__unassigned__">Unassigned</SelectItem>
                 {profiles.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.display_name || `${p.first_name} ${p.last_name}`}
