@@ -5,12 +5,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import {
   Mail, Building2, Users, GitBranch, Star, FileText,
   DollarSign, Award, MapPin, Calendar, CheckCircle,
+  Printer, Send, X,
 } from "lucide-react";
 import type { Rfp } from "@/hooks/useRfps";
 
@@ -45,17 +47,19 @@ interface RfpPreviewModalProps {
 export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalProps) {
   const { rfp, sections, companyInfo, staffBios, notableProjects, narratives, pricing, certs, coverLetter } = data;
 
+  const handlePrint = () => window.print();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] p-0 overflow-hidden [&>button]:text-foreground [&>button]:hover:text-foreground [&>button]:top-4 [&>button]:right-4 [&>button]:z-50">
-        {/* Header band */}
-        <div className="bg-muted border-b px-6 pt-6 pb-4">
+      <DialogContent className="max-w-3xl max-h-[90vh] p-0 overflow-hidden flex flex-col [&>button]:hidden">
+        {/* Header */}
+        <div className="bg-muted border-b px-6 pt-6 pb-4 flex-shrink-0">
           <DialogHeader>
             <DialogTitle className="text-muted-foreground text-sm font-normal tracking-wide uppercase">
               RFP Response Preview
             </DialogTitle>
           </DialogHeader>
-          <h2 className="text-xl font-bold text-foreground mt-2">{rfp?.title || "Untitled RFP"}</h2>
+          <h2 className="text-xl font-bold text-foreground mt-2 pr-8">{rfp?.title || "Untitled RFP"}</h2>
           <div className="flex gap-4 text-sm mt-2 flex-wrap">
             {rfp?.rfp_number && (
               <span className="bg-accent/20 text-accent px-2 py-0.5 rounded text-xs font-mono">
@@ -63,9 +67,7 @@ export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalPro
               </span>
             )}
             {rfp?.agency && (
-              <span className="text-muted-foreground text-xs">
-                Agency: {rfp.agency}
-              </span>
+              <span className="text-muted-foreground text-xs">Agency: {rfp.agency}</span>
             )}
             {rfp?.due_date && (
               <span className="text-muted-foreground text-xs flex items-center gap-1">
@@ -76,8 +78,9 @@ export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalPro
           </div>
         </div>
 
-        <ScrollArea className="max-h-[72vh] px-6 pb-6">
-          <div className="space-y-6 mt-4">
+        {/* Content */}
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="space-y-6 px-6 py-5">
             {sections.map((sectionId) => (
               <div key={sectionId}>
                 {sectionId === "cover_letter" && coverLetter && <CoverLetterSection text={coverLetter} />}
@@ -92,21 +95,41 @@ export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalPro
             ))}
           </div>
         </ScrollArea>
+
+        {/* Sticky footer with actions */}
+        <div className="flex-shrink-0 border-t bg-muted/50 px-6 py-3 flex items-center justify-between">
+          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+            <X className="h-4 w-4 mr-1" />
+            Close
+          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handlePrint}>
+              <Printer className="h-4 w-4 mr-1" />
+              Print / PDF
+            </Button>
+            <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90">
+              <Send className="h-4 w-4 mr-1" />
+              Send Response
+            </Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
 }
 
+/* ─── Section heading ─── */
 function SectionHeading({ children, icon: Icon, color = "text-accent" }: { children: React.ReactNode; icon: React.ElementType; color?: string }) {
   return (
     <div className="flex items-center gap-2 mb-4">
-      <div className={`w-2 h-2 rounded-full bg-accent`} />
+      <div className="w-2 h-2 rounded-full bg-accent" />
       <Icon className={`h-4 w-4 ${color}`} />
       <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{children}</h3>
     </div>
   );
 }
 
+/* ─── Cover Letter ─── */
 function CoverLetterSection({ text }: { text: string }) {
   return (
     <div className="border-l-4 border-l-accent pl-5 py-2">
@@ -117,6 +140,7 @@ function CoverLetterSection({ text }: { text: string }) {
   );
 }
 
+/* ─── Company Info ─── */
 function CompanyInfoSection({ data }: { data: any }) {
   const content = data?.content as Record<string, any> | undefined;
   if (!content) return <p className="text-muted-foreground text-sm italic">No company info available.</p>;
@@ -148,6 +172,7 @@ function CompanyInfoSection({ data }: { data: any }) {
   );
 }
 
+/* ─── Staff Bios ─── */
 function StaffBiosSection({ data }: { data: any[] }) {
   if (!data.length) return <p className="text-muted-foreground text-sm italic">No staff bios available.</p>;
   return (
@@ -156,7 +181,7 @@ function StaffBiosSection({ data }: { data: any[] }) {
       <div className="space-y-3">
         {data.map((item) => {
           const c = item.content as StaffBioContent;
-          const initials = c.name?.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "?";
+          const initials = c.name?.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2) || "?";
           return (
             <div key={item.id} className="border rounded-xl p-4 hover:shadow-md transition-shadow border-l-4 border-l-accent/50">
               <div className="flex justify-between items-start">
@@ -192,12 +217,12 @@ function StaffBiosSection({ data }: { data: any[] }) {
   );
 }
 
+/* ─── Org Chart (top-down hierarchical tree) ─── */
 function OrgChartSection({ data }: { data: any[] }) {
-  // Include ALL staff — the org chart should show the full team
   const allStaff = data.map((i) => ({ id: i.id, content: i.content as StaffBioContent }));
-
   if (!allStaff.length) return <p className="text-muted-foreground text-sm italic">No org chart data.</p>;
 
+  // Build hierarchy
   const byName = new Map(allStaff.map((i) => [i.content.name, i]));
   const childrenMap = new Map<string, typeof allStaff>();
   const roots: typeof allStaff = [];
@@ -213,71 +238,112 @@ function OrgChartSection({ data }: { data: any[] }) {
     }
   });
 
-  const renderNode = (item: typeof allStaff[0], depth: number, isLast: boolean) => {
-    const kids = childrenMap.get(item.content.name) || [];
-    const initials = item.content.name?.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "?";
-
-    const nodeColors = depth === 0
-      ? "bg-accent text-accent-foreground shadow-md border-accent"
-      : depth === 1
-      ? "bg-card border-2 border-accent/30 shadow-sm"
-      : "bg-card border border-border shadow-sm";
-
-    const avatarColors = depth === 0
-      ? "bg-accent-foreground/20 text-accent-foreground"
-      : "bg-accent/15 text-accent";
-
-    return (
-      <div key={item.id} className="flex flex-col items-center">
-        {/* Node card */}
-        <div className={`rounded-xl px-4 py-3 text-center min-w-[120px] max-w-[150px] ${nodeColors}`}>
-          <div className={`mx-auto mb-1.5 w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold ${avatarColors}`}>
-            {initials}
-          </div>
-          <p className={`font-semibold text-xs leading-tight ${depth === 0 ? "" : "text-foreground"}`}>{item.content.name}</p>
-          <p className={`text-[10px] mt-0.5 ${depth === 0 ? "text-accent-foreground/70" : "text-muted-foreground"}`}>{item.content.title}</p>
-        </div>
-
-        {/* Connector line down + children */}
-        {kids.length > 0 && (
-          <div className="flex flex-col items-center">
-            {/* Vertical line from parent */}
-            <div className="w-px h-5 bg-border" />
-            {/* Horizontal connector bar */}
-            {kids.length > 1 && (
-              <div className="relative w-full flex justify-center">
-                <div className="absolute top-0 h-px bg-border" style={{
-                  left: `${100 / (kids.length * 2)}%`,
-                  right: `${100 / (kids.length * 2)}%`,
-                }} />
-              </div>
-            )}
-            {/* Children row */}
-            <div className="flex gap-3">
-              {kids.map((child, idx) => (
-                <div key={child.id} className="flex flex-col items-center">
-                  <div className="w-px h-5 bg-border" />
-                  {renderNode(child, depth + 1, idx === kids.length - 1)}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   return (
     <div>
       <SectionHeading icon={GitBranch} color="text-success">Organization Chart</SectionHeading>
-      <div className="flex justify-center gap-6 overflow-x-auto py-6 px-4 bg-muted/30 rounded-xl border border-border">
-        {roots.map((r, i) => renderNode(r, 0, i === roots.length - 1))}
+      <div className="overflow-x-auto py-4 px-2 bg-muted/30 rounded-xl border border-border">
+        <div className="flex flex-col items-center gap-0 min-w-fit">
+          {/* Render roots as a row, then their children below */}
+          <TreeLevel nodes={roots} childrenMap={childrenMap} depth={0} />
+        </div>
       </div>
       <Separator className="mt-6" />
     </div>
   );
 }
 
+function TreeLevel({
+  nodes,
+  childrenMap,
+  depth,
+}: {
+  nodes: { id: string; content: StaffBioContent }[];
+  childrenMap: Map<string, { id: string; content: StaffBioContent }[]>;
+  depth: number;
+}) {
+  if (!nodes.length) return null;
+
+  return (
+    <div className="flex flex-col items-center">
+      {/* This level's row */}
+      <div className="flex items-start justify-center gap-6">
+        {nodes.map((node) => {
+          const kids = childrenMap.get(node.content.name) || [];
+          return (
+            <div key={node.id} className="flex flex-col items-center">
+              <OrgNode node={node} depth={depth} />
+              {kids.length > 0 && (
+                <>
+                  {/* Vertical connector down */}
+                  <div className="w-px h-4 bg-border" />
+                  {/* Horizontal bar spanning children */}
+                  {kids.length > 1 && (
+                    <div className="relative flex">
+                      <div className="absolute top-0 left-1/2 right-0 h-px bg-border" style={{ left: `${100 / (2 * kids.length)}%`, right: `${100 / (2 * kids.length)}%` }} />
+                    </div>
+                  )}
+                  {/* Children */}
+                  <div className="flex items-start gap-4">
+                    {kids.map((child) => {
+                      const grandkids = childrenMap.get(child.content.name) || [];
+                      return (
+                        <div key={child.id} className="flex flex-col items-center">
+                          <div className="w-px h-3 bg-border" />
+                          <OrgNode node={child} depth={depth + 1} />
+                          {grandkids.length > 0 && (
+                            <>
+                              <div className="w-px h-3 bg-border" />
+                              <div className="flex items-start gap-3">
+                                {grandkids.map((gk) => (
+                                  <div key={gk.id} className="flex flex-col items-center">
+                                    <div className="w-px h-3 bg-border" />
+                                    <OrgNode node={gk} depth={depth + 2} />
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function OrgNode({ node, depth }: { node: { id: string; content: StaffBioContent }; depth: number }) {
+  const c = node.content;
+  const initials = c.name?.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2) || "?";
+
+  const isRoot = depth === 0;
+  const cardClass = isRoot
+    ? "bg-accent text-accent-foreground shadow-md border-2 border-accent"
+    : depth === 1
+    ? "bg-card border-2 border-accent/30 shadow-sm"
+    : "bg-card border border-border shadow-sm";
+
+  const avatarClass = isRoot
+    ? "bg-accent-foreground/20 text-accent-foreground"
+    : "bg-accent/15 text-accent";
+
+  return (
+    <div className={`rounded-xl px-3 py-2.5 text-center w-[130px] ${cardClass}`}>
+      <div className={`mx-auto mb-1 w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold ${avatarClass}`}>
+        {initials}
+      </div>
+      <p className={`font-semibold text-xs leading-tight ${isRoot ? "" : "text-foreground"}`}>{c.name}</p>
+      <p className={`text-[10px] mt-0.5 ${isRoot ? "text-accent-foreground/70" : "text-muted-foreground"}`}>{c.title}</p>
+    </div>
+  );
+}
+
+/* ─── Notable Projects ─── */
 function NotableProjectsSection({ data }: { data: any[] }) {
   if (!data.length) return <p className="text-muted-foreground text-sm italic">No notable projects.</p>;
   return (
@@ -335,6 +401,7 @@ function NotableProjectsSection({ data }: { data: any[] }) {
   );
 }
 
+/* ─── Narratives ─── */
 function NarrativesSection({ data }: { data: any[] }) {
   if (!data.length) return <p className="text-muted-foreground text-sm italic">No narratives available.</p>;
   return (
@@ -356,6 +423,7 @@ function NarrativesSection({ data }: { data: any[] }) {
   );
 }
 
+/* ─── Pricing ─── */
 function PricingSection({ data }: { data: any }) {
   const content = data?.content as any;
   if (!content?.labor_classifications) return <p className="text-muted-foreground text-sm italic">No pricing data.</p>;
@@ -394,6 +462,7 @@ function PricingSection({ data }: { data: any }) {
   );
 }
 
+/* ─── Certifications ─── */
 function CertsSection({ data }: { data: any[] }) {
   if (!data.length) return <p className="text-muted-foreground text-sm italic">No certifications.</p>;
   return (
