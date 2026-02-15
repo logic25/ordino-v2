@@ -33,9 +33,10 @@ interface ComposeEmailDialogProps {
   defaultTo?: string;
   defaultSubject?: string;
   defaultBody?: string;
+  defaultAttachments?: AttachmentFile[];
 }
 
-export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defaultSubject, defaultBody }: ComposeEmailDialogProps) {
+export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defaultSubject, defaultBody, defaultAttachments }: ComposeEmailDialogProps) {
   const [to, setTo] = useState<string[]>([]);
   const [cc, setCc] = useState<string[]>([]);
   const [bcc, setBcc] = useState<string[]>([]);
@@ -72,8 +73,9 @@ export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defau
       if (defaultTo) setTo(defaultTo.split(",").map((e) => e.trim()).filter(Boolean));
       if (defaultSubject) setSubject(defaultSubject);
       if (defaultBody) setBody(defaultBody);
+      if (defaultAttachments && defaultAttachments.length > 0) setAttachments(defaultAttachments);
     }
-  }, [open, draft, defaultTo, defaultSubject, defaultBody]);
+  }, [open, draft, defaultTo, defaultSubject, defaultBody, defaultAttachments]);
 
   // Auto-save draft every 5 seconds when content changes
   useEffect(() => {

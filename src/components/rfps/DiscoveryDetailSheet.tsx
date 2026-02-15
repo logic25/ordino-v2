@@ -17,6 +17,8 @@ import { useClients } from "@/hooks/useClients";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useRfpContent, useNotableApplications } from "@/hooks/useRfpContent";
 import { buildPartnerEmailSubject, buildPartnerEmailBody } from "./buildPartnerEmailTemplate";
+import { CompanyProfilePDF, type CompanyProfileData } from "./CompanyProfilePDF";
+import { pdf } from "@react-pdf/renderer";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
@@ -51,6 +53,7 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
   const [emailBlastRecipients, setEmailBlastRecipients] = useState<string[]>([]);
   const [emailBlastSubject, setEmailBlastSubject] = useState("");
   const [emailBlastBody, setEmailBlastBody] = useState("");
+  const [emailBlastAttachments, setEmailBlastAttachments] = useState<{ file: File; name: string; size: number; base64?: string }[]>([]);
 
   if (!rfp) return null;
 
@@ -98,6 +101,36 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
 
     const body = buildPartnerEmailBody(rfp, companyInfo, companySettingsData?.settings || null, contentItems, notableProjects);
     const subject = buildPartnerEmailSubject(rfp);
+
+    // Generate Company Profile PDF
+    try {
+      const profileData: CompanyProfileData = {
+        company: companyInfo,
+        aboutUs: (() => {
+          const historyItem = contentItems.find(c => c.content_type === "firm_history");
+          if (historyItem) {
+            const content = historyItem.content as Record<string, string> | null;
+            return content?.text || historyItem.title;
+          }
+          return null;
+        })(),
+        services: (companySettingsData?.settings?.service_catalog || []).slice(0, 10),
+        staffBios: contentItems.filter(c => c.content_type === "staff_bio").slice(0, 5),
+        notableProjects: notableProjects.slice(0, 5),
+        certifications: contentItems.filter(c => c.content_type === "certification"),
+      };
+
+      const blob = await pdf(<CompanyProfilePDF data={profileData} />).toBlob();
+      const arrayBuffer = await blob.arrayBuffer();
+      const base64 = btoa(
+        new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
+      );
+      const pdfFile = new File([blob], `${companyInfo.name.replace(/\s+/g, "_")}_Company_Profile.pdf`, { type: "application/pdf" });
+      setEmailBlastAttachments([{ file: pdfFile, name: pdfFile.name, size: pdfFile.size, base64 }]);
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      setEmailBlastAttachments([]);
+    }
     
     setEmailBlastRecipients(emails);
     setEmailBlastSubject(subject);
@@ -272,6 +305,7 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
         defaultTo={emailBlastRecipients.join(", ")}
         defaultSubject={emailBlastSubject}
         defaultBody={emailBlastBody}
+        defaultAttachments={emailBlastAttachments}
       />
     </Sheet>
   );
