@@ -61,9 +61,9 @@ export function AttachmentPreviewModal({
             />
           )}
           {isPdf && (
-            <iframe
+            <embed
               src={url}
-              title={filename}
+              type="application/pdf"
               className="w-full h-[70vh] rounded border"
             />
           )}

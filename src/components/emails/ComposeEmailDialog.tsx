@@ -320,9 +320,12 @@ export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defau
                     <button
                       type="button"
                       className="truncate max-w-[140px] hover:underline cursor-pointer"
-                      onClick={() => {
-                        const url = URL.createObjectURL(att.file);
-                        setPreviewAttachment({ url, filename: att.name, mimeType: att.file.type });
+                      onClick={async () => {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          setPreviewAttachment({ url: reader.result as string, filename: att.name, mimeType: att.file.type });
+                        };
+                        reader.readAsDataURL(att.file);
                       }}
                     >
                       {att.name}
@@ -391,7 +394,7 @@ export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defau
 
     <AttachmentPreviewModal
       open={!!previewAttachment}
-      onOpenChange={(open) => { if (!open) { if (previewAttachment) URL.revokeObjectURL(previewAttachment.url); setPreviewAttachment(null); } }}
+      onOpenChange={(open) => { if (!open) setPreviewAttachment(null); }}
       url={previewAttachment?.url || null}
       filename={previewAttachment?.filename || ""}
       mimeType={previewAttachment?.mimeType || ""}
