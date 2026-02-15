@@ -7,6 +7,36 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+async function scrapeWithFirecrawl(url: string, firecrawlKey: string): Promise<string | null> {
+  try {
+    const response = await fetch("https://api.firecrawl.dev/v1/scrape", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${firecrawlKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        url,
+        formats: ["markdown"],
+        onlyMainContent: true,
+        waitFor: 3000,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`Firecrawl error for ${url}: ${response.status} - ${errText}`);
+      return null;
+    }
+
+    const data = await response.json();
+    return data.data?.markdown || data.markdown || null;
+  } catch (err) {
+    console.error(`Firecrawl fetch error for ${url}:`, err);
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -17,7 +47,22 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
     const sb = createClient(supabaseUrl, supabaseKey);
+
+    if (!firecrawlKey) {
+      return new Response(
+        JSON.stringify({ error: "FIRECRAWL_API_KEY not configured. Connect Firecrawl in project settings." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!lovableKey) {
+      return new Response(
+        JSON.stringify({ error: "LOVABLE_API_KEY not configured." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Fetch active sources for this company
     const { data: sources, error: srcErr } = await sb
@@ -48,25 +93,22 @@ serve(async (req) => {
     let totalScanned = 0;
     let newCount = 0;
     const allListings: any[] = [];
+    const sourceErrors: any[] = [];
 
-    // Fetch each source page and extract listings
+    // Scrape each source using Firecrawl and extract listings with AI
     for (const source of sources) {
       try {
-        const response = await fetch(source.source_url, {
-          headers: { "User-Agent": "Ordino-RFP-Monitor/1.0" },
-        });
-        if (!response.ok) {
-          console.error(`Failed to fetch ${source.source_name}: ${response.status}`);
+        console.log(`Scraping ${source.source_name}: ${source.source_url}`);
+        const markdown = await scrapeWithFirecrawl(source.source_url, firecrawlKey);
+
+        if (!markdown) {
+          sourceErrors.push({ source: source.source_name, error: "Firecrawl returned no content" });
           continue;
         }
-        const html = await response.text();
+
+        console.log(`Got ${markdown.length} chars from ${source.source_name}`);
 
         // Extract potential RFP listings using AI
-        if (!lovableKey) {
-          console.error("LOVABLE_API_KEY not set, skipping AI extraction");
-          continue;
-        }
-
         const extractionResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
@@ -78,7 +120,7 @@ serve(async (req) => {
             messages: [
               {
                 role: "system",
-                content: `You extract RFP/procurement opportunity listings from HTML pages. Return a JSON array of objects with these fields:
+                content: `You extract RFP/procurement opportunity listings from scraped web page content. Return a JSON array of objects with these fields:
 - title (string): The RFP title
 - rfp_number (string|null): The RFP/solicitation number if visible
 - issuing_agency (string|null): The issuing agency  
@@ -86,11 +128,11 @@ serve(async (req) => {
 - url (string|null): Link to the RFP detail page (absolute URL preferred)
 - pdf_url (string|null): Direct link to PDF if visible
 
-Only include items that appear to be active procurement opportunities (RFPs, RFQs, solicitations). Ignore navigation, headers, footers. If no listings found, return an empty array.`,
+Only include items that appear to be active procurement opportunities (RFPs, RFQs, solicitations, IFBs). Ignore navigation, headers, footers, expired items. If no listings found, return an empty array.`,
               },
               {
                 role: "user",
-                content: `Source: ${source.source_name} (${source.source_url})\n\nHTML content (first 15000 chars):\n${html.slice(0, 15000)}`,
+                content: `Source: ${source.source_name} (${source.source_url})\n\nPage content:\n${markdown.slice(0, 20000)}`,
               },
             ],
             tools: [
@@ -131,17 +173,19 @@ Only include items that appear to be active procurement opportunities (RFPs, RFQ
 
         if (!extractionResponse.ok) {
           const status = extractionResponse.status;
-          console.error(`AI extraction failed for ${source.source_name}: ${status}`);
-          if (status === 429 || status === 402) {
-            // Rate limited or payment required - stop processing
-            break;
-          }
+          const errText = await extractionResponse.text();
+          console.error(`AI extraction failed for ${source.source_name}: ${status} - ${errText}`);
+          sourceErrors.push({ source: source.source_name, error: `AI error: ${status}` });
+          if (status === 429 || status === 402) break;
           continue;
         }
 
         const extractionData = await extractionResponse.json();
         const toolCall = extractionData.choices?.[0]?.message?.tool_calls?.[0];
-        if (!toolCall) continue;
+        if (!toolCall) {
+          sourceErrors.push({ source: source.source_name, error: "No tool call in AI response" });
+          continue;
+        }
 
         let listings: any[] = [];
         try {
@@ -149,9 +193,11 @@ Only include items that appear to be active procurement opportunities (RFPs, RFQ
           listings = args.listings || [];
         } catch {
           console.error(`Failed to parse extraction result for ${source.source_name}`);
+          sourceErrors.push({ source: source.source_name, error: "JSON parse error" });
           continue;
         }
 
+        console.log(`Found ${listings.length} listings from ${source.source_name}`);
         totalScanned += listings.length;
 
         for (const listing of listings) {
@@ -165,6 +211,7 @@ Only include items that appear to be active procurement opportunities (RFPs, RFQ
           .eq("id", source.id);
       } catch (err) {
         console.error(`Error processing source ${source.source_name}:`, err);
+        sourceErrors.push({ source: source.source_name, error: String(err) });
       }
     }
 
@@ -190,6 +237,8 @@ Only include items that appear to be active procurement opportunities (RFPs, RFQ
       return true;
     });
 
+    console.log(`${newListings.length} new listings after dedup (from ${allListings.length} total)`);
+
     // Score relevance for new listings using AI
     for (const listing of newListings) {
       try {
@@ -197,70 +246,71 @@ Only include items that appear to be active procurement opportunities (RFPs, RFQ
         let relevanceReason = "Default score - AI scoring unavailable";
         let serviceTags: string[] = [];
 
-        if (lovableKey) {
-          const keywordsContext = rules
-            ? `Include keywords: ${(rules.keyword_include || []).join(", ")}\nExclude keywords: ${(rules.keyword_exclude || []).join(", ")}`
-            : "";
+        const keywordsContext = rules
+          ? `Include keywords: ${(rules.keyword_include || []).join(", ")}\nExclude keywords: ${(rules.keyword_exclude || []).join(", ")}`
+          : "";
 
-          const scoreResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${lovableKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "google/gemini-3-flash-preview",
-              messages: [
-                {
-                  role: "system",
-                  content: `You assess RFP relevance for a construction consulting/expediting firm. Services include DOB permit expediting, FDNY code consulting, zoning analysis, energy compliance, certificate of occupancy assistance, and building code consulting.\n\n${keywordsContext}`,
-                },
-                {
-                  role: "user",
-                  content: `Score this RFP:\nTitle: ${listing.title}\nAgency: ${listing.issuing_agency || "Unknown"}\nRFP#: ${listing.rfp_number || "N/A"}`,
-                },
-              ],
-              tools: [
-                {
-                  type: "function",
-                  function: {
-                    name: "score_rfp",
-                    description: "Score RFP relevance",
-                    parameters: {
-                      type: "object",
-                      properties: {
-                        relevance_score: { type: "number", description: "0-100 relevance score" },
-                        relevance_reason: { type: "string", description: "Brief explanation" },
-                        service_tags: {
-                          type: "array",
-                          items: { type: "string" },
-                          description: "Matching service tags like dob_expediting, fdny, consulting, energy, zoning",
-                        },
-                        estimated_value: { type: "number", description: "Estimated contract value if determinable, null otherwise" },
+        const scoreResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${lovableKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: [
+              {
+                role: "system",
+                content: `You assess RFP relevance for a construction consulting/expediting firm. Services include DOB permit expediting, FDNY code consulting, zoning analysis, energy compliance, certificate of occupancy assistance, and building code consulting.\n\n${keywordsContext}`,
+              },
+              {
+                role: "user",
+                content: `Score this RFP:\nTitle: ${listing.title}\nAgency: ${listing.issuing_agency || "Unknown"}\nRFP#: ${listing.rfp_number || "N/A"}`,
+              },
+            ],
+            tools: [
+              {
+                type: "function",
+                function: {
+                  name: "score_rfp",
+                  description: "Score RFP relevance",
+                  parameters: {
+                    type: "object",
+                    properties: {
+                      relevance_score: { type: "number", description: "0-100 relevance score" },
+                      relevance_reason: { type: "string", description: "Brief explanation" },
+                      service_tags: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "Matching service tags like dob_expediting, fdny, consulting, energy, zoning",
                       },
-                      required: ["relevance_score", "relevance_reason", "service_tags"],
-                      additionalProperties: false,
+                      estimated_value: { type: "number", description: "Estimated contract value if determinable, null otherwise" },
                     },
+                    required: ["relevance_score", "relevance_reason", "service_tags"],
+                    additionalProperties: false,
                   },
                 },
-              ],
-              tool_choice: { type: "function", function: { name: "score_rfp" } },
-            }),
-          });
+              },
+            ],
+            tool_choice: { type: "function", function: { name: "score_rfp" } },
+          }),
+        });
 
-          if (scoreResponse.ok) {
-            const scoreData = await scoreResponse.json();
-            const scoreCall = scoreData.choices?.[0]?.message?.tool_calls?.[0];
-            if (scoreCall) {
-              const args = JSON.parse(scoreCall.function.arguments);
-              relevanceScore = args.relevance_score ?? 50;
-              relevanceReason = args.relevance_reason ?? "";
-              serviceTags = args.service_tags ?? [];
-              if (args.estimated_value) listing.estimated_value = args.estimated_value;
-            }
-          } else if (scoreResponse.status === 429 || scoreResponse.status === 402) {
-            break;
+        if (scoreResponse.ok) {
+          const scoreData = await scoreResponse.json();
+          const scoreCall = scoreData.choices?.[0]?.message?.tool_calls?.[0];
+          if (scoreCall) {
+            const args = JSON.parse(scoreCall.function.arguments);
+            relevanceScore = args.relevance_score ?? 50;
+            relevanceReason = args.relevance_reason ?? "";
+            serviceTags = args.service_tags ?? [];
+            if (args.estimated_value) listing.estimated_value = args.estimated_value;
           }
+        } else if (scoreResponse.status === 429 || scoreResponse.status === 402) {
+          await scoreResponse.text();
+          break;
+        } else {
+          await scoreResponse.text();
         }
 
         // Only insert if above threshold
@@ -282,6 +332,8 @@ Only include items that appear to be active procurement opportunities (RFPs, RFQ
           });
           if (!insertErr) newCount++;
           else console.error("Insert error:", insertErr);
+        } else {
+          console.log(`Skipped "${listing.title}" (score ${relevanceScore} < ${minScore})`);
         }
       } catch (err) {
         console.error("Error scoring listing:", err);
@@ -289,7 +341,12 @@ Only include items that appear to be active procurement opportunities (RFPs, RFQ
     }
 
     return new Response(
-      JSON.stringify({ new_count: newCount, total_scanned: totalScanned, sources_checked: sources.length }),
+      JSON.stringify({
+        new_count: newCount,
+        total_scanned: totalScanned,
+        sources_checked: sources.length,
+        source_errors: sourceErrors.length > 0 ? sourceErrors : undefined,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
