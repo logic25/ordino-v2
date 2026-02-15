@@ -1,36 +1,32 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import {
-  Building2,
-  Users,
-  Star,
-  FileText,
-  DollarSign,
-  Award,
-  GitBranch,
-  Eye,
-  Loader2,
-  Sparkles,
-  Mail,
-  Download,
+  Building2, Users, Star, FileText, DollarSign, Award, GitBranch, Eye,
+  Loader2, Sparkles, Mail, Download, ChevronLeft, ChevronRight, Send, Check,
 } from "lucide-react";
+import {
+  DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { useRfpContent, useNotableApplications } from "@/hooks/useRfpContent";
 import { useUpdateRfpStatus, type Rfp, type RfpStatus } from "@/hooks/useRfps";
+import { useRfpDraft, useUpsertRfpDraft, useDeleteRfpDraft } from "@/hooks/useRfpDraft";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { RfpPreviewModal } from "./RfpPreviewModal";
+import { SortableSectionItem } from "./builder/SortableSectionItem";
 
 interface RfpBuilderDialogProps {
   rfp: Rfp | null;
@@ -49,23 +45,33 @@ const SECTION_DEFS = [
   { id: "certifications", label: "Certifications & Licenses", icon: Award },
 ] as const;
 
+const STEPS = [
+  { label: "Select Sections", icon: FileText },
+  { label: "Cover Letter", icon: Mail },
+  { label: "Review", icon: Eye },
+  { label: "Submit", icon: Send },
+];
+
+const DEFAULT_SECTIONS = SECTION_DEFS.map((s) => s.id);
+
 export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogProps) {
-  const [selectedSections, setSelectedSections] = useState<string[]>(
-    SECTION_DEFS.map((s) => s.id)
-  );
-  const [sectionOrder, setSectionOrder] = useState<string[]>(
-    SECTION_DEFS.map((s) => s.id)
-  );
+  const [step, setStep] = useState(0);
+  const [selectedSections, setSelectedSections] = useState<string[]>([...DEFAULT_SECTIONS]);
+  const [sectionOrder, setSectionOrder] = useState<string[]>([...DEFAULT_SECTIONS]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [coverLetter, setCoverLetter] = useState("");
   const [generatingLetter, setGeneratingLetter] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitEmail, setSubmitEmail] = useState("");
-  const [showSubmitForm, setShowSubmitForm] = useState(false);
+  const [draftLoaded, setDraftLoaded] = useState(false);
+
   const updateStatus = useUpdateRfpStatus();
   const { toast } = useToast();
+  const { data: draft } = useRfpDraft(rfp?.id);
+  const upsertDraft = useUpsertRfpDraft();
+  const deleteDraft = useDeleteRfpDraft();
 
-  // Fetch all content
+  // Fetch content
   const { data: companyInfo = [] } = useRfpContent("company_info");
   const { data: staffBios = [] } = useRfpContent("staff_bio");
   const { data: narratives = [] } = useRfpContent("narrative_template");
@@ -74,22 +80,59 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   const { data: certs = [] } = useRfpContent("certification");
   const { data: notableProjects = [] } = useNotableApplications();
 
+  // Load draft when available
+  useEffect(() => {
+    if (draft && !draftLoaded && open) {
+      setSelectedSections(draft.selected_sections.length ? draft.selected_sections : [...DEFAULT_SECTIONS]);
+      setSectionOrder(draft.section_order.length ? draft.section_order : [...DEFAULT_SECTIONS]);
+      setCoverLetter(draft.cover_letter || "");
+      setSubmitEmail(draft.submit_email || "");
+      setStep(draft.wizard_step || 0);
+      setDraftLoaded(true);
+    }
+  }, [draft, draftLoaded, open]);
+
+  // Reset when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setDraftLoaded(false);
+    }
+  }, [open]);
+
+  // Auto-save draft
+  const saveDraft = useCallback(() => {
+    if (!rfp?.id) return;
+    upsertDraft.mutate({
+      rfp_id: rfp.id,
+      selected_sections: selectedSections,
+      section_order: sectionOrder,
+      cover_letter: coverLetter || null,
+      submit_email: submitEmail || null,
+      wizard_step: step,
+    });
+  }, [rfp?.id, selectedSections, sectionOrder, coverLetter, submitEmail, step]);
+
+  // DnD
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setSectionOrder((prev) => {
+        const oldIndex = prev.indexOf(active.id as string);
+        const newIndex = prev.indexOf(over.id as string);
+        return arrayMove(prev, oldIndex, newIndex);
+      });
+    }
+  };
+
   const toggleSection = (id: string) => {
     setSelectedSections((prev) =>
       prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
     );
-  };
-
-  const moveSection = (id: string, direction: "up" | "down") => {
-    setSectionOrder((prev) => {
-      const idx = prev.indexOf(id);
-      if (idx === -1) return prev;
-      const newIdx = direction === "up" ? idx - 1 : idx + 1;
-      if (newIdx < 0 || newIdx >= prev.length) return prev;
-      const copy = [...prev];
-      [copy[idx], copy[newIdx]] = [copy[newIdx], copy[idx]];
-      return copy;
-    });
   };
 
   const generateCoverLetter = async () => {
@@ -119,8 +162,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     if (!submitEmail || !rfp) return;
     setSubmitting(true);
     try {
-      // Send via gmail-send edge function
-      const { data, error } = await supabase.functions.invoke("gmail-send", {
+      const { error } = await supabase.functions.invoke("gmail-send", {
         body: {
           to: submitEmail,
           subject: `RFP Response: ${rfp.title}${rfp.rfp_number ? ` (#${rfp.rfp_number})` : ""}`,
@@ -129,15 +171,16 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
       });
       if (error) throw error;
 
-      // Update RFP status to submitted
       await updateStatus.mutateAsync({
         id: rfp.id,
         status: "submitted" as RfpStatus,
         submitted_at: new Date().toISOString(),
       });
 
+      // Clean up draft
+      deleteDraft.mutate(rfp.id);
+
       toast({ title: "RFP response submitted!", description: `Sent to ${submitEmail} and status updated to Submitted.` });
-      setShowSubmitForm(false);
       onOpenChange(false);
     } catch (e: any) {
       toast({ title: "Submit failed", description: e.message, variant: "destructive" });
@@ -153,12 +196,6 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     parts.push("Please find our complete RFP response package attached.");
     parts.push("\nThis response was generated using Ordino RFP Response Builder.");
     return parts.join("\n");
-  };
-
-  const handleExportPDF = () => {
-    // Open print-friendly preview for PDF export
-    setPreviewOpen(true);
-    toast({ title: "Use your browser's Print function (Ctrl+P) to save as PDF from the preview" });
   };
 
   const contentCounts: Record<string, number> = {
@@ -184,153 +221,109 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     coverLetter,
   };
 
+  const draggableSections = sectionOrder.filter((s) => s !== "cover_letter");
+
+  const goNext = () => {
+    saveDraft();
+    setStep((s) => Math.min(s + 1, STEPS.length - 1));
+  };
+  const goBack = () => setStep((s) => Math.max(s - 1, 0));
+
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              Build RFP Response — {rfp?.title}
-            </DialogTitle>
-          </DialogHeader>
+      <Dialog open={open} onOpenChange={(o) => { if (!o) saveDraft(); onOpenChange(o); }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden p-0">
+          {/* Header */}
+          <div className="px-6 pt-6 pb-4 border-b space-y-3">
+            <DialogHeader>
+              <DialogTitle className="text-lg">
+                Build RFP Response — {rfp?.title}
+              </DialogTitle>
+            </DialogHeader>
 
-          <p className="text-sm text-muted-foreground">
-            Select and order the sections to include in your RFP response package.
-          </p>
-
-          {/* Cover Letter Section */}
-          <Card className="border-primary/30 bg-primary/5">
-            <CardContent className="py-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-primary" />
-                  <span className="font-medium text-sm">AI Cover Letter</span>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={generateCoverLetter}
-                  disabled={generatingLetter}
-                >
-                  {generatingLetter ? (
-                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-4 w-4 mr-1" />
-                  )}
-                  {coverLetter ? "Regenerate" : "Generate"}
-                </Button>
-              </div>
-              {coverLetter && (
-                <Textarea
-                  value={coverLetter}
-                  onChange={(e) => setCoverLetter(e.target.value)}
-                  rows={6}
-                  className="text-sm"
-                />
-              )}
-            </CardContent>
-          </Card>
-
-          <div className="space-y-2 mt-2">
-            {sectionOrder.filter((s) => s !== "cover_letter").map((sectionId, idx) => {
-              const def = SECTION_DEFS.find((s) => s.id === sectionId);
-              if (!def) return null;
-              const Icon = def.icon;
-              const count = contentCounts[sectionId] || 0;
-              const isSelected = selectedSections.includes(sectionId);
-
-              return (
-                <Card key={sectionId} className={!isSelected ? "opacity-50" : ""}>
-                  <CardContent className="py-3 flex items-center gap-3">
-                    <Checkbox
-                      checked={isSelected}
-                      onCheckedChange={() => toggleSection(sectionId)}
-                    />
-                    <div className="flex flex-col gap-0.5">
-                      <button
-                        className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-30"
-                        onClick={() => moveSection(sectionId, "up")}
-                        disabled={idx === 0}
-                      >
-                        ▲
-                      </button>
-                      <button
-                        className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-30"
-                        onClick={() => moveSection(sectionId, "down")}
-                        disabled={idx === sectionOrder.filter((s) => s !== "cover_letter").length - 1}
-                      >
-                        ▼
-                      </button>
-                    </div>
-                    <Icon className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium text-sm flex-1">{def.label}</span>
-                    <Badge variant={count > 0 ? "secondary" : "outline"} className="text-xs">
-                      {count} {count === 1 ? "item" : "items"}
-                    </Badge>
-                  </CardContent>
-                </Card>
-              );
-            })}
+            {/* Step indicator */}
+            <div className="flex items-center gap-1">
+              {STEPS.map((s, i) => {
+                const Icon = s.icon;
+                const isActive = i === step;
+                const isDone = i < step;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => { saveDraft(); setStep(i); }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                      isActive ? "bg-accent text-accent-foreground" :
+                      isDone ? "bg-accent/15 text-accent" :
+                      "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {isDone ? <Check className="h-3 w-3" /> : <Icon className="h-3 w-3" />}
+                    <span className="hidden sm:inline">{s.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <Progress value={((step + 1) / STEPS.length) * 100} className="h-1" />
           </div>
 
-          <Separator className="my-2" />
+          {/* Step content */}
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            {step === 0 && (
+              <StepSelectSections
+                sectionOrder={draggableSections}
+                selectedSections={selectedSections}
+                contentCounts={contentCounts}
+                onToggle={toggleSection}
+                onDragEnd={handleDragEnd}
+                sensors={sensors}
+              />
+            )}
+            {step === 1 && (
+              <StepCoverLetter
+                coverLetter={coverLetter}
+                setCoverLetter={setCoverLetter}
+                onGenerate={generateCoverLetter}
+                generating={generatingLetter}
+              />
+            )}
+            {step === 2 && (
+              <StepReview
+                selectedSections={selectedSections}
+                sectionOrder={sectionOrder}
+                contentCounts={contentCounts}
+                coverLetter={coverLetter}
+                onPreview={() => setPreviewOpen(true)}
+              />
+            )}
+            {step === 3 && (
+              <StepSubmit
+                submitEmail={submitEmail}
+                setSubmitEmail={setSubmitEmail}
+                onSubmit={handleSubmitViaEmail}
+                submitting={submitting}
+                onPreview={() => setPreviewOpen(true)}
+              />
+            )}
+          </div>
 
-          {/* Submit Form */}
-          {showSubmitForm && (
-            <Card className="border-primary/30">
-              <CardContent className="py-3 space-y-3">
-                <Label className="text-sm font-medium">Submit via Email</Label>
-                <div className="flex gap-2">
-                  <input
-                    type="email"
-                    value={submitEmail}
-                    onChange={(e) => setSubmitEmail(e.target.value)}
-                    placeholder="agency@email.com"
-                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  />
-                  <Button
-                    size="sm"
-                    onClick={handleSubmitViaEmail}
-                    disabled={submitting || !submitEmail}
-                  >
-                    {submitting ? (
-                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                    ) : (
-                      <Mail className="h-4 w-4 mr-1" />
-                    )}
-                    Send
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  This will email the response and mark this RFP as "Submitted".
-                </p>
-              </CardContent>
-            </Card>
-          )}
-
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
+          {/* Footer navigation */}
+          <div className="flex items-center justify-between px-6 py-4 border-t bg-muted/30">
+            <Button variant="ghost" size="sm" onClick={goBack} disabled={step === 0}>
+              <ChevronLeft className="h-4 w-4 mr-1" /> Back
+            </Button>
+            <p className="text-xs text-muted-foreground">
               {selectedSections.length} sections selected
+              {upsertDraft.isPending && " · Saving..."}
             </p>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
+            {step < STEPS.length - 1 ? (
+              <Button size="sm" onClick={goNext}>
+                Next <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
-              <Button variant="outline" onClick={() => {
-                toast({ title: "Draft saved", description: "Your RFP response selections have been saved." });
-              }}>
-                <Download className="h-4 w-4 mr-1" /> Save Draft
+            ) : (
+              <Button size="sm" variant="outline" onClick={() => { saveDraft(); onOpenChange(false); }}>
+                <Download className="h-4 w-4 mr-1" /> Save & Close
               </Button>
-              <Button variant="outline" onClick={() => setPreviewOpen(true)}>
-                <Eye className="h-4 w-4 mr-1" /> Preview
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setShowSubmitForm(!showSubmitForm)}
-              >
-                <Mail className="h-4 w-4 mr-1" /> Email Submit
-              </Button>
-            </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -341,5 +334,189 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
         data={assembledContent}
       />
     </>
+  );
+}
+
+// --- Step Components ---
+
+function StepSelectSections({
+  sectionOrder, selectedSections, contentCounts, onToggle, onDragEnd, sensors,
+}: {
+  sectionOrder: string[];
+  selectedSections: string[];
+  contentCounts: Record<string, number>;
+  onToggle: (id: string) => void;
+  onDragEnd: (e: DragEndEvent) => void;
+  sensors: ReturnType<typeof useSensors>;
+}) {
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">
+        Drag to reorder sections. Uncheck any you don't need.
+      </p>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+        <SortableContext items={sectionOrder} strategy={verticalListSortingStrategy}>
+          <div className="space-y-2">
+            {sectionOrder.map((sectionId) => {
+              const def = SECTION_DEFS.find((s) => s.id === sectionId);
+              if (!def) return null;
+              return (
+                <SortableSectionItem
+                  key={sectionId}
+                  id={sectionId}
+                  label={def.label}
+                  icon={def.icon}
+                  count={contentCounts[sectionId] || 0}
+                  isSelected={selectedSections.includes(sectionId)}
+                  onToggle={() => onToggle(sectionId)}
+                />
+              );
+            })}
+          </div>
+        </SortableContext>
+      </DndContext>
+    </div>
+  );
+}
+
+function StepCoverLetter({
+  coverLetter, setCoverLetter, onGenerate, generating,
+}: {
+  coverLetter: string;
+  setCoverLetter: (v: string) => void;
+  onGenerate: () => void;
+  generating: boolean;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-sm">AI Cover Letter</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Generate a tailored cover letter or write your own.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={onGenerate} disabled={generating}>
+          {generating ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />}
+          {coverLetter ? "Regenerate" : "Generate"}
+        </Button>
+      </div>
+      <Textarea
+        value={coverLetter}
+        onChange={(e) => setCoverLetter(e.target.value)}
+        rows={12}
+        placeholder="Your cover letter will appear here after generation, or you can type one manually..."
+        className="text-sm"
+      />
+    </div>
+  );
+}
+
+function StepReview({
+  selectedSections, sectionOrder, contentCounts, coverLetter, onPreview,
+}: {
+  selectedSections: string[];
+  sectionOrder: string[];
+  contentCounts: Record<string, number>;
+  coverLetter: string;
+  onPreview: () => void;
+}) {
+  const activeSections = sectionOrder.filter((s) => selectedSections.includes(s));
+  const totalItems = activeSections.reduce((sum, s) => sum + (contentCounts[s] || 0), 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-sm">Review Your Package</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {activeSections.length} sections · {totalItems} total items
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={onPreview}>
+          <Eye className="h-4 w-4 mr-1" /> Full Preview
+        </Button>
+      </div>
+
+      <div className="space-y-2">
+        {activeSections.map((sectionId, idx) => {
+          const def = SECTION_DEFS.find((s) => s.id === sectionId);
+          if (!def) return null;
+          const Icon = def.icon;
+          const count = contentCounts[sectionId] || 0;
+          return (
+            <div key={sectionId} className="flex items-center gap-3 py-2 px-3 rounded-lg bg-muted/40">
+              <span className="text-xs text-muted-foreground tabular-nums w-5">{idx + 1}.</span>
+              <Icon className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm flex-1">{def.label}</span>
+              <Badge variant={count > 0 ? "secondary" : "outline"} className="text-xs">
+                {count}
+              </Badge>
+            </div>
+          );
+        })}
+      </div>
+
+      {!coverLetter && selectedSections.includes("cover_letter") && (
+        <Card className="border-warning/30 bg-warning/5">
+          <CardContent className="py-3 text-sm text-warning flex items-center gap-2">
+            <Mail className="h-4 w-4" />
+            Cover letter section is selected but empty. Go back to Step 2 to generate one.
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function StepSubmit({
+  submitEmail, setSubmitEmail, onSubmit, submitting, onPreview,
+}: {
+  submitEmail: string;
+  setSubmitEmail: (v: string) => void;
+  onSubmit: () => void;
+  submitting: boolean;
+  onPreview: () => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="font-semibold text-sm">Submit Your Response</h3>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Email your response package. This will mark the RFP as "Submitted".
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        <Label className="text-sm">Recipient email</Label>
+        <input
+          type="email"
+          value={submitEmail}
+          onChange={(e) => setSubmitEmail(e.target.value)}
+          placeholder="agency@email.com"
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        />
+      </div>
+
+      <div className="flex gap-2">
+        <Button variant="outline" onClick={onPreview} className="flex-1">
+          <Eye className="h-4 w-4 mr-1" /> Preview First
+        </Button>
+        <Button
+          onClick={onSubmit}
+          disabled={submitting || !submitEmail}
+          className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
+        >
+          {submitting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />}
+          {submitting ? "Sending..." : "Submit via Email"}
+        </Button>
+      </div>
+
+      <Separator />
+
+      <p className="text-xs text-muted-foreground">
+        You can also save and close to come back later. Your draft is automatically saved.
+      </p>
+    </div>
   );
 }
