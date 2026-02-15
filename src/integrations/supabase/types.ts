@@ -1413,6 +1413,7 @@ export type Database = {
           notes: string | null
           original_url: string | null
           pdf_url: string | null
+          recommended_company_ids: string[] | null
           relevance_reason: string | null
           relevance_score: number | null
           rfp_id: string | null
@@ -1435,6 +1436,7 @@ export type Database = {
           notes?: string | null
           original_url?: string | null
           pdf_url?: string | null
+          recommended_company_ids?: string[] | null
           relevance_reason?: string | null
           relevance_score?: number | null
           rfp_id?: string | null
@@ -1457,6 +1459,7 @@ export type Database = {
           notes?: string | null
           original_url?: string | null
           pdf_url?: string | null
+          recommended_company_ids?: string[] | null
           relevance_reason?: string | null
           relevance_score?: number | null
           rfp_id?: string | null

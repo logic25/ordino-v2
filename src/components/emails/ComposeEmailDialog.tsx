@@ -30,9 +30,12 @@ interface ComposeEmailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   draft?: EmailDraft | null;
+  defaultTo?: string;
+  defaultSubject?: string;
+  defaultBody?: string;
 }
 
-export function ComposeEmailDialog({ open, onOpenChange, draft }: ComposeEmailDialogProps) {
+export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defaultSubject, defaultBody }: ComposeEmailDialogProps) {
   const [to, setTo] = useState<string[]>([]);
   const [cc, setCc] = useState<string[]>([]);
   const [bcc, setBcc] = useState<string[]>([]);
@@ -62,6 +65,15 @@ export function ComposeEmailDialog({ open, onOpenChange, draft }: ComposeEmailDi
       setShowCcBcc((draft.cc_recipients?.length || 0) > 0 || (draft.bcc_recipients?.length || 0) > 0);
     }
   }, [draft, open]);
+
+  // Load defaults when opening without a draft (e.g., email blast)
+  useEffect(() => {
+    if (open && !draft) {
+      if (defaultTo) setTo(defaultTo.split(",").map((e) => e.trim()).filter(Boolean));
+      if (defaultSubject) setSubject(defaultSubject);
+      if (defaultBody) setBody(defaultBody);
+    }
+  }, [open, draft, defaultTo, defaultSubject, defaultBody]);
 
   // Auto-save draft every 5 seconds when content changes
   useEffect(() => {

@@ -22,6 +22,7 @@ export interface DiscoveredRfp {
   assigned_to: string | null;
   notes: string | null;
   rfp_id: string | null;
+  recommended_company_ids: string[];
   created_at: string;
   updated_at: string;
 }
