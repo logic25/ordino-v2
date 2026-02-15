@@ -10,13 +10,14 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import {
   ArrowLeft, Settings2, Loader2, Radar, Target,
   Calendar, DollarSign, Building2, ExternalLink, Sparkles, Eye, Ban, User, ArrowUpDown,
+  CheckCircle2, FileText, Send,
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { useDiscoveredRfps, useRfpSources, useTriggerRfpScan, type DiscoveredRfp } from "@/hooks/useDiscoveredRfps";
 import { useUpdateDiscoveredRfp } from "@/hooks/useDiscoveredRfps";
 import { DiscoveryDetailSheet } from "@/components/rfps/DiscoveryDetailSheet";
 import { MonitoringSettingsDialog } from "@/components/rfps/MonitoringSettingsDialog";
-import { useCreateRfp } from "@/hooks/useRfps";
+import { useCreateRfp, useRfps } from "@/hooks/useRfps";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import type { Rfp } from "@/hooks/useRfps";
@@ -44,6 +45,38 @@ function ScoreBadge({ score }: { score: number | null }) {
   );
 }
 
+const pipelineStatusConfig: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
+  prospect: { label: "In Pipeline", icon: <FileText className="h-3 w-3" />, className: "text-accent border-accent/30 bg-accent/10" },
+  drafting: { label: "Drafting", icon: <FileText className="h-3 w-3" />, className: "text-accent border-accent/30 bg-accent/10" },
+  submitted: { label: "Submitted", icon: <Send className="h-3 w-3" />, className: "text-primary border-primary/30 bg-primary/10" },
+  won: { label: "Won", icon: <CheckCircle2 className="h-3 w-3" />, className: "text-success border-success/30 bg-success/10" },
+  lost: { label: "Lost", icon: <Ban className="h-3 w-3" />, className: "text-muted-foreground border-muted-foreground/30 bg-muted" },
+};
+
+function PipelineStatusBadge({ rfp, existingRfps }: { rfp: DiscoveredRfp; existingRfps: Rfp[] }) {
+  // Check by direct link first
+  let matchedRfp = rfp.rfp_id ? existingRfps.find(r => r.id === rfp.rfp_id) : null;
+  // Fallback: match by rfp_number
+  if (!matchedRfp && rfp.rfp_number) {
+    matchedRfp = existingRfps.find(r => r.rfp_number && r.rfp_number.toLowerCase() === rfp.rfp_number!.toLowerCase());
+  }
+  if (!matchedRfp) return null;
+
+  const config = pipelineStatusConfig[matchedRfp.status] || pipelineStatusConfig.prospect;
+  return (
+    <Tooltip>
+      <TooltipTrigger>
+        <Badge variant="outline" className={`text-[10px] gap-1 ${config.className}`}>
+          {config.icon} {config.label}
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="text-xs">
+        Already in your RFP pipeline as "{matchedRfp.title}"
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 export default function RfpDiscovery() {
   const navigate = useNavigate();
   const [statusTab, setStatusTab] = useState<StatusTab>("all");
@@ -54,6 +87,7 @@ export default function RfpDiscovery() {
   const { profile } = useAuth();
 
   const { data: allRfps = [], isLoading } = useDiscoveredRfps(statusTab === "all" || statusTab === "mine" ? undefined : statusTab);
+  const { data: existingRfps = [] } = useRfps();
   const filtered = statusTab === "mine" ? allRfps.filter((r) => r.assigned_to === profile?.id) : allRfps;
   const rfps = useMemo(() => {
     const sorted = [...filtered];
@@ -240,7 +274,10 @@ export default function RfpDiscovery() {
                       <div className="flex items-start gap-3 flex-1 min-w-0">
                         <ScoreBadge score={rfp.relevance_score} />
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm truncate">{rfp.title}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-sm truncate">{rfp.title}</p>
+                            <PipelineStatusBadge rfp={rfp} existingRfps={existingRfps} />
+                          </div>
                           <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1 flex-wrap">
                             {rfp.issuing_agency && (
                               <span className="flex items-center gap-1">
