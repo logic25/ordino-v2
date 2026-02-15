@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,8 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { ExternalLink, Calendar, DollarSign, Target, Sparkles, Building2 } from "lucide-react";
+import { ExternalLink, Calendar, DollarSign, Target, Sparkles, Building2, Mail, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { useUpdateDiscoveredRfp, type DiscoveredRfp } from "@/hooks/useDiscoveredRfps";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
@@ -21,6 +20,7 @@ import { buildPartnerEmailSubject, buildPartnerEmailBody } from "./buildPartnerE
 import { CompanyProfilePDF, type CompanyProfileData } from "./CompanyProfilePDF";
 import { pdf } from "@react-pdf/renderer";
 import { supabase } from "@/integrations/supabase/client";
+import { usePartnerOutreach, useCreatePartnerOutreach } from "@/hooks/usePartnerOutreach";
 
 interface Props {
   rfp: DiscoveredRfp | null;
@@ -41,6 +41,12 @@ function ScoreBadge({ score }: { score: number | null }) {
   );
 }
 
+const statusIcon: Record<string, React.ReactNode> = {
+  pending: <Clock className="h-3 w-3 text-muted-foreground" />,
+  interested: <CheckCircle2 className="h-3 w-3 text-success" />,
+  passed: <XCircle className="h-3 w-3 text-muted-foreground" />,
+};
+
 export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateResponse }: Props) {
   const update = useUpdateDiscoveredRfp();
   const { data: profiles = [] } = useCompanyProfiles();
@@ -48,6 +54,8 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
   const { data: companySettingsData } = useCompanySettings();
   const { data: contentItems = [] } = useRfpContent();
   const { data: notableProjects = [] } = useNotableApplications();
+  const { data: outreachRecords = [] } = usePartnerOutreach(rfp?.id);
+  const createOutreach = useCreatePartnerOutreach();
   const { toast } = useToast();
   const [notes, setNotes] = useState(rfp?.notes || "");
   const [emailBlastOpen, setEmailBlastOpen] = useState(false);
@@ -56,9 +64,21 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
   const [emailBlastBody, setEmailBlastBody] = useState("");
   const [emailBlastAttachments, setEmailBlastAttachments] = useState<{ file: File; name: string; size: number; base64?: string }[]>([]);
 
+  // Outreach log grouped by client
+  const outreachByClient = useMemo(() => {
+    const map: Record<string, typeof outreachRecords[0]> = {};
+    for (const o of outreachRecords) {
+      map[o.partner_client_id] = o;
+    }
+    return map;
+  }, [outreachRecords]);
+
   if (!rfp) return null;
 
   const daysUntilDue = rfp.due_date ? differenceInDays(new Date(rfp.due_date), new Date()) : null;
+
+  // Build response URL base
+  const responseBaseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/rfp-partner-response`;
 
   const handleStatusChange = async (status: string) => {
     await update.mutateAsync({ id: rfp.id, status } as any);
@@ -74,25 +94,24 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
   };
 
   const handleEmailBlast = async (companyIds: string[]) => {
-    // Fetch primary contacts for selected companies to get contact-specific emails
+    // Fetch primary contacts for selected companies
     const { data: contactsData } = await supabase
       .from("client_contacts")
-      .select("email, client_id, is_primary")
+      .select("email, client_id, is_primary, name, title")
       .in("client_id", companyIds)
       .not("email", "is", null)
       .order("is_primary", { ascending: false });
 
-    // Prefer primary contact email per company, fall back to company email
     const selectedClients = clients.filter((c) => companyIds.includes(c.id));
-    const contactsByClient: Record<string, string> = {};
+    const contactsByClient: Record<string, { email: string; name: string; title: string | null }> = {};
     for (const ct of contactsData || []) {
       if (ct.email && (!contactsByClient[ct.client_id] || ct.is_primary)) {
-        contactsByClient[ct.client_id] = ct.email;
+        contactsByClient[ct.client_id] = { email: ct.email, name: ct.name, title: ct.title };
       }
     }
 
     const emails = selectedClients
-      .map((c) => contactsByClient[c.id] || c.email)
+      .map((c) => contactsByClient[c.id]?.email || c.email)
       .filter(Boolean) as string[];
     
     if (emails.length === 0) {
@@ -100,7 +119,7 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
       return;
     }
 
-    // Get company name from companies table
+    // Get company name
     let companyName = "Our Firm";
     if (companySettingsData?.companyId) {
       const { data: co } = await supabase.from("companies").select("name, logo_url").eq("id", companySettingsData.companyId).single();
@@ -116,7 +135,26 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
       logo_url: companySettingsData?.settings.company_logo_url,
     };
 
-    const body = buildPartnerEmailBody(rfp, companyInfo, companySettingsData?.settings || null, contentItems, notableProjects);
+    // Create outreach records so we get tokens for response buttons
+    const outreachInserts = selectedClients.map((c) => ({
+      company_id: rfp.company_id,
+      discovered_rfp_id: rfp.id,
+      partner_client_id: c.id,
+      contact_name: contactsByClient[c.id]?.name || c.name,
+      contact_email: contactsByClient[c.id]?.email || c.email,
+    }));
+
+    let outreachData: any[] = [];
+    try {
+      outreachData = await createOutreach.mutateAsync(outreachInserts) || [];
+    } catch (err) {
+      console.error("Failed to create outreach records:", err);
+    }
+
+    // Build email body — for now use a generic body (individual tokens would require per-recipient emails)
+    // We'll use the first token as a placeholder; in production this would be per-recipient
+    const firstToken = outreachData[0]?.response_token;
+    const body = buildPartnerEmailBody(rfp, companyInfo, companySettingsData?.settings || null, contentItems, notableProjects, responseBaseUrl, firstToken);
     const subject = buildPartnerEmailSubject(rfp);
 
     // Generate Company Profile PDF
@@ -154,6 +192,7 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
     setEmailBlastBody(body);
     setEmailBlastOpen(true);
   };
+
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -285,6 +324,51 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
 
           {/* Recommended Companies */}
           <RecommendedCompaniesSection rfp={rfp} onEmailBlast={handleEmailBlast} />
+
+          {/* Partner Outreach Log */}
+          {outreachRecords.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-xs flex items-center gap-1">
+                <Mail className="h-3 w-3" /> Outreach Log
+              </Label>
+              <div className="space-y-1.5">
+                {outreachRecords.map((o) => {
+                  const client = clients.find((c) => c.id === o.partner_client_id);
+                  return (
+                    <div key={o.id} className="flex items-center justify-between bg-muted/40 rounded-lg px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{client?.name || "Unknown"}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {o.contact_name && <span>{o.contact_name} · </span>}
+                          Sent {format(new Date(o.notified_at), "MMM d")}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {statusIcon[o.response_status] || statusIcon.pending}
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] capitalize ${
+                            o.response_status === "interested"
+                              ? "text-success border-success/30 bg-success/10"
+                              : o.response_status === "passed"
+                              ? "text-muted-foreground"
+                              : "text-warning border-warning/30"
+                          }`}
+                        >
+                          {o.response_status}
+                        </Badge>
+                        {o.responded_at && (
+                          <span className="text-[10px] text-muted-foreground">
+                            {format(new Date(o.responded_at), "MMM d")}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <Separator />
 

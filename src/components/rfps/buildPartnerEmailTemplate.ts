@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import type { DiscoveredRfp } from "@/hooks/useDiscoveredRfps";
 import type { CompanySettings } from "@/hooks/useCompanySettings";
 import type { RfpContent } from "@/hooks/useRfpContent";
+import type { PartnerOutreach } from "@/hooks/usePartnerOutreach";
 
 interface CompanyInfo {
   name: string;
@@ -33,6 +34,8 @@ export function buildPartnerEmailBody(
   settings: CompanySettings | null,
   contentItems: RfpContent[],
   notableProjects: NotableProject[],
+  responseBaseUrl?: string,
+  outreachToken?: string,
 ): string {
   const sections: string[] = [];
 
@@ -121,7 +124,17 @@ export function buildPartnerEmailBody(
 
   // Contact info footer
   sections.push(`<hr style="border:none; border-top:1px solid #e2e2e2; margin:24px 0;" />`);
-  sections.push(`<p style="color:#555;">We believe this is a strong opportunity for collaboration. Please let us know if you're interested in teaming up.</p>`);
+  sections.push(`<p style="color:#555;">We believe this is a strong opportunity for collaboration. Please let us know if you're interested:</p>`);
+
+  // Response buttons (if outreach token provided)
+  if (responseBaseUrl && outreachToken) {
+    const interestedUrl = `${responseBaseUrl}?token=${outreachToken}&response=interested`;
+    const passUrl = `${responseBaseUrl}?token=${outreachToken}&response=passed`;
+    sections.push(`<div style="text-align:center; margin:20px 0;">`);
+    sections.push(`<a href="${interestedUrl}" style="display:inline-block; padding:12px 32px; background:#22c55e; color:white; text-decoration:none; border-radius:6px; font-weight:bold; margin-right:12px;">✅ I'm Interested</a>`);
+    sections.push(`<a href="${passUrl}" style="display:inline-block; padding:12px 32px; background:#94a3b8; color:white; text-decoration:none; border-radius:6px; font-weight:bold;">Pass</a>`);
+    sections.push(`</div>`);
+  }
 
   const contactParts: string[] = [];
   if (company.phone) contactParts.push(`Phone: ${company.phone}`);

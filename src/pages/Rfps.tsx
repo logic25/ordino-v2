@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Library, Upload, LayoutGrid, List, Loader2, FileUp, Sparkles, Radar } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useRfps, useCreateRfp } from "@/hooks/useRfps";
 import { RfpKanbanBoard } from "@/components/rfps/RfpKanbanBoard";
 import { RfpTableView } from "@/components/rfps/RfpTableView";
@@ -22,6 +22,7 @@ import { AgencyCombobox } from "@/components/rfps/AgencyCombobox";
 
 export default function Rfps() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [view, setView] = useState<"kanban" | "table">("table");
   const [cardFilter, setCardFilter] = useState<RfpFilter>(null);
   const { data: rfps = [], isLoading } = useRfps();
@@ -32,6 +33,18 @@ export default function Rfps() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [aiExtracted, setAiExtracted] = useState<any>(null);
   const [buildingRfp, setBuildingRfp] = useState<Rfp | null>(null);
+
+  // Auto-open builder when navigated from Discovery with ?openBuilder=<id>
+  useEffect(() => {
+    const openBuilderId = searchParams.get("openBuilder");
+    if (openBuilderId && rfps.length > 0) {
+      const rfp = rfps.find((r) => r.id === openBuilderId);
+      if (rfp) {
+        setBuildingRfp(rfp);
+        setSearchParams({}, { replace: true });
+      }
+    }
+  }, [searchParams, rfps]);
   const [form, setForm] = useState({
     title: "",
     rfp_number: "",
