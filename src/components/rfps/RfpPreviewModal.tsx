@@ -47,15 +47,15 @@ export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] p-0 overflow-hidden">
+      <DialogContent className="max-w-3xl max-h-[90vh] p-0 overflow-hidden [&>button]:text-foreground [&>button]:hover:text-foreground [&>button]:top-4 [&>button]:right-4 [&>button]:z-50">
         {/* Header band */}
-        <div className="bg-primary px-6 pt-6 pb-4">
+        <div className="bg-muted border-b px-6 pt-6 pb-4">
           <DialogHeader>
-            <DialogTitle className="text-primary-foreground text-sm font-normal tracking-wide uppercase">
+            <DialogTitle className="text-muted-foreground text-sm font-normal tracking-wide uppercase">
               RFP Response Preview
             </DialogTitle>
           </DialogHeader>
-          <h2 className="text-xl font-bold text-primary-foreground mt-2">{rfp?.title || "Untitled RFP"}</h2>
+          <h2 className="text-xl font-bold text-foreground mt-2">{rfp?.title || "Untitled RFP"}</h2>
           <div className="flex gap-4 text-sm mt-2 flex-wrap">
             {rfp?.rfp_number && (
               <span className="bg-accent/20 text-accent px-2 py-0.5 rounded text-xs font-mono">
@@ -63,12 +63,12 @@ export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalPro
               </span>
             )}
             {rfp?.agency && (
-              <span className="text-primary-foreground/70 text-xs">
+              <span className="text-muted-foreground text-xs">
                 Agency: {rfp.agency}
               </span>
             )}
             {rfp?.due_date && (
-              <span className="text-primary-foreground/70 text-xs flex items-center gap-1">
+              <span className="text-muted-foreground text-xs flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
                 Due: {format(new Date(rfp.due_date), "MMM d, yyyy")}
               </span>
@@ -193,64 +193,75 @@ function StaffBiosSection({ data }: { data: any[] }) {
 }
 
 function OrgChartSection({ data }: { data: any[] }) {
-  const eligible = data
-    .map((i) => ({ id: i.id, content: i.content as StaffBioContent }))
-    .filter((i) => i.content.include_in_org_chart !== false);
+  // Include ALL staff — the org chart should show the full team
+  const allStaff = data.map((i) => ({ id: i.id, content: i.content as StaffBioContent }));
 
-  if (!eligible.length) return <p className="text-muted-foreground text-sm italic">No org chart data.</p>;
+  if (!allStaff.length) return <p className="text-muted-foreground text-sm italic">No org chart data.</p>;
 
-  const byName = new Map(eligible.map((i) => [i.content.name, i]));
-  const children = new Map<string, typeof eligible>();
-  const roots: typeof eligible = [];
+  const byName = new Map(allStaff.map((i) => [i.content.name, i]));
+  const childrenMap = new Map<string, typeof allStaff>();
+  const roots: typeof allStaff = [];
 
-  eligible.forEach((item) => {
+  allStaff.forEach((item) => {
     const parent = item.content.reports_to;
     if (parent && byName.has(parent)) {
-      const list = children.get(parent) || [];
+      const list = childrenMap.get(parent) || [];
       list.push(item);
-      children.set(parent, list);
+      childrenMap.set(parent, list);
     } else {
       roots.push(item);
     }
   });
 
-  const renderNode = (item: typeof eligible[0], depth: number) => {
-    const kids = children.get(item.content.name) || [];
-    const isRoot = depth === 0;
+  const renderNode = (item: typeof allStaff[0], depth: number, isLast: boolean) => {
+    const kids = childrenMap.get(item.content.name) || [];
     const initials = item.content.name?.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) || "?";
+
+    const nodeColors = depth === 0
+      ? "bg-accent text-accent-foreground shadow-md border-accent"
+      : depth === 1
+      ? "bg-card border-2 border-accent/30 shadow-sm"
+      : "bg-card border border-border shadow-sm";
+
+    const avatarColors = depth === 0
+      ? "bg-accent-foreground/20 text-accent-foreground"
+      : "bg-accent/15 text-accent";
 
     return (
       <div key={item.id} className="flex flex-col items-center">
-        <div className={`relative rounded-xl px-4 py-2.5 text-center min-w-[130px] ${
-          isRoot
-            ? "bg-primary text-primary-foreground shadow-md"
-            : depth === 1
-            ? "bg-accent/10 border-2 border-accent/30"
-            : "bg-card border border-border shadow-sm"
-        }`}>
-          <div className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ${
-            isRoot ? "bg-accent" : depth === 1 ? "bg-success" : "bg-info"
-          }`} />
-          <div className={`mx-auto mb-1 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ${
-            isRoot ? "bg-accent text-accent-foreground" : "bg-accent/15 text-accent"
-          }`}>
+        {/* Node card */}
+        <div className={`rounded-xl px-4 py-3 text-center min-w-[120px] max-w-[150px] ${nodeColors}`}>
+          <div className={`mx-auto mb-1.5 w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold ${avatarColors}`}>
             {initials}
           </div>
-          <p className="font-semibold text-xs">{item.content.name}</p>
-          <p className={`text-[10px] ${isRoot ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{item.content.title}</p>
+          <p className={`font-semibold text-xs leading-tight ${depth === 0 ? "" : "text-foreground"}`}>{item.content.name}</p>
+          <p className={`text-[10px] mt-0.5 ${depth === 0 ? "text-accent-foreground/70" : "text-muted-foreground"}`}>{item.content.title}</p>
         </div>
+
+        {/* Connector line down + children */}
         {kids.length > 0 && (
-          <>
-            <div className="w-0.5 h-4 bg-accent/40" />
-            <div className="flex gap-4">
-              {kids.map((child) => (
+          <div className="flex flex-col items-center">
+            {/* Vertical line from parent */}
+            <div className="w-px h-5 bg-border" />
+            {/* Horizontal connector bar */}
+            {kids.length > 1 && (
+              <div className="relative w-full flex justify-center">
+                <div className="absolute top-0 h-px bg-border" style={{
+                  left: `${100 / (kids.length * 2)}%`,
+                  right: `${100 / (kids.length * 2)}%`,
+                }} />
+              </div>
+            )}
+            {/* Children row */}
+            <div className="flex gap-3">
+              {kids.map((child, idx) => (
                 <div key={child.id} className="flex flex-col items-center">
-                  <div className="w-0.5 h-4 bg-accent/30" />
-                  {renderNode(child, depth + 1)}
+                  <div className="w-px h-5 bg-border" />
+                  {renderNode(child, depth + 1, idx === kids.length - 1)}
                 </div>
               ))}
             </div>
-          </>
+          </div>
         )}
       </div>
     );
@@ -259,8 +270,8 @@ function OrgChartSection({ data }: { data: any[] }) {
   return (
     <div>
       <SectionHeading icon={GitBranch} color="text-success">Organization Chart</SectionHeading>
-      <div className="flex justify-center gap-6 overflow-x-auto py-6 px-4 bg-primary/5 rounded-xl border border-primary/10">
-        {roots.map((r) => renderNode(r, 0))}
+      <div className="flex justify-center gap-6 overflow-x-auto py-6 px-4 bg-muted/30 rounded-xl border border-border">
+        {roots.map((r, i) => renderNode(r, 0, i === roots.length - 1))}
       </div>
       <Separator className="mt-6" />
     </div>
