@@ -24,8 +24,17 @@ export function RecommendedCompaniesSection({ rfp, onEmailBlast }: Props) {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [localIds, setLocalIds] = useState<string[]>(rfp.recommended_company_ids || []);
 
   const selectedIds = rfp.recommended_company_ids || [];
+
+  // Sync local state when rfp data changes externally
+  const rfpIds = rfp.recommended_company_ids;
+  const [prevRfpIds, setPrevRfpIds] = useState(rfpIds);
+  if (rfpIds !== prevRfpIds) {
+    setPrevRfpIds(rfpIds);
+    setLocalIds(rfpIds || []);
+  }
 
   // Only show companies flagged as RFP partners, sorted by avg review rating
   const companyOptions = useMemo(() => {
@@ -37,29 +46,36 @@ export function RecommendedCompaniesSection({ rfp, onEmailBlast }: Props) {
         return true;
       })
       .sort((a, b) => {
-        // Selected companies first
-        const aSelected = selectedIds.includes(a.id) ? -1 : 1;
-        const bSelected = selectedIds.includes(b.id) ? -1 : 1;
+        const aSelected = localIds.includes(a.id) ? -1 : 1;
+        const bSelected = localIds.includes(b.id) ? -1 : 1;
         if (aSelected !== bSelected) return aSelected - bSelected;
-        // Then by avg rating descending
         const aRating = ratings[a.id] ?? 0;
         const bRating = ratings[b.id] ?? 0;
         if (bRating !== aRating) return bRating - aRating;
         return a.name.localeCompare(b.name);
       });
-  }, [clients, search, selectedIds, ratings]);
+  }, [clients, search, localIds, ratings]);
 
   const selectedCompanies = clients.filter((c) => selectedIds.includes(c.id));
 
-  const toggleCompany = async (companyId: string) => {
-    const next = selectedIds.includes(companyId)
-      ? selectedIds.filter((id) => id !== companyId)
-      : [...selectedIds, companyId];
-    await update.mutateAsync({ id: rfp.id, recommended_company_ids: next } as any);
+  const toggleLocal = (companyId: string) => {
+    setLocalIds((prev) =>
+      prev.includes(companyId)
+        ? prev.filter((id) => id !== companyId)
+        : [...prev, companyId]
+    );
+  };
+
+  const handleSave = async () => {
+    setOpen(false);
+    if (JSON.stringify(localIds.sort()) !== JSON.stringify([...selectedIds].sort())) {
+      await update.mutateAsync({ id: rfp.id, recommended_company_ids: localIds } as any);
+    }
   };
 
   const removeCompany = async (companyId: string) => {
     const next = selectedIds.filter((id) => id !== companyId);
+    setLocalIds(next);
     await update.mutateAsync({ id: rfp.id, recommended_company_ids: next } as any);
   };
 
@@ -135,8 +151,8 @@ export function RecommendedCompaniesSection({ rfp, onEmailBlast }: Props) {
                     className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer"
                   >
                     <Checkbox
-                      checked={selectedIds.includes(c.id)}
-                      onCheckedChange={() => toggleCompany(c.id)}
+                      checked={localIds.includes(c.id)}
+                      onCheckedChange={() => toggleLocal(c.id)}
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm truncate">{c.name}</p>
@@ -156,6 +172,11 @@ export function RecommendedCompaniesSection({ rfp, onEmailBlast }: Props) {
               )}
             </div>
           </ScrollArea>
+          <div className="p-2 border-t">
+            <Button size="sm" className="w-full h-8 text-xs" onClick={handleSave}>
+              Done
+            </Button>
+          </div>
         </PopoverContent>
       </Popover>
     </div>
