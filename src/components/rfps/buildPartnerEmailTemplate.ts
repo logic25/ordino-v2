@@ -100,7 +100,7 @@ export function buildPartnerEmailBody(
   if (rfp.due_date) sections.push(`<tr><td style="padding:4px 8px;"><strong>Due Date:</strong></td><td style="padding:4px 8px;">${format(new Date(rfp.due_date), "MMMM d, yyyy")}</td></tr>`);
   if (rfp.estimated_value) sections.push(`<tr><td style="padding:4px 8px;"><strong>Est. Value:</strong></td><td style="padding:4px 8px;">$${rfp.estimated_value.toLocaleString()}</td></tr>`);
   if (rfp.original_url) sections.push(`<tr><td style="padding:4px 8px;"><strong>Details:</strong></td><td style="padding:4px 8px;"><a href="${rfp.original_url}">View Original Listing</a></td></tr>`);
-  if ((rfp as any).pdf_url) sections.push(`<tr><td style="padding:4px 8px;"><strong>RFP Document:</strong></td><td style="padding:4px 8px;"><a href="${(rfp as any).pdf_url}">📄 Download RFP PDF</a></td></tr>`);
+  if ((rfp as any).pdf_url) sections.push(`<tr><td style="padding:4px 8px;"><strong>RFP Document:</strong></td><td style="padding:4px 8px;"><a href="${(rfp as any).pdf_url}">Download RFP PDF</a></td></tr>`);
   sections.push(`</table>`);
 
   if (rfp.service_tags?.length) {
@@ -181,10 +181,10 @@ export function buildPartnerEmailBody(
   if (responseBaseUrl && outreachToken) {
     const interestedUrl = `${responseBaseUrl}?token=${outreachToken}&response=interested`;
     const passUrl = `${responseBaseUrl}?token=${outreachToken}&response=passed`;
-    sections.push(`<div style="text-align:center; margin:20px 0;">`);
-    sections.push(`<a href="${interestedUrl}" style="display:inline-block; padding:12px 32px; background:#22c55e; color:white; text-decoration:none; border-radius:6px; font-weight:bold; margin-right:12px;">✅ I'm Interested</a>`);
-    sections.push(`<a href="${passUrl}" style="display:inline-block; padding:12px 32px; background:#94a3b8; color:white; text-decoration:none; border-radius:6px; font-weight:bold;">Pass</a>`);
-    sections.push(`</div>`);
+    sections.push(`<table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px auto;"><tr>`);
+    sections.push(`<td style="padding-right:16px;"><a href="${interestedUrl}" style="display:inline-block; padding:14px 36px; background:#22c55e; color:#ffffff; text-decoration:none; border-radius:6px; font-weight:bold; font-size:15px;">I'm Interested</a></td>`);
+    sections.push(`<td><a href="${passUrl}" style="display:inline-block; padding:14px 36px; background:#64748b; color:#ffffff; text-decoration:none; border-radius:6px; font-weight:bold; font-size:15px;">Pass</a></td>`);
+    sections.push(`</tr></table>`);
   }
 
   const contactParts: string[] = [];
