@@ -34,7 +34,7 @@ function ScoreBadge({ score }: { score: number | null }) {
           {score}
         </Badge>
       </TooltipTrigger>
-      <TooltipContent side="top" className="max-w-[200px] text-xs">
+      <TooltipContent side="right" className="max-w-[200px] text-xs">
         <p className="font-semibold">Relevance Score</p>
         <p className="text-muted-foreground">AI-rated match (0–100) based on your services and keywords</p>
       </TooltipContent>
