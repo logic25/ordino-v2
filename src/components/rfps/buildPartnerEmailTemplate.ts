@@ -24,8 +24,49 @@ interface StaffBio {
   content: Record<string, unknown>;
 }
 
+type RfpContext = "ll11_support" | "environmental" | "construction" | "general";
+
+function detectRfpContext(rfp: DiscoveredRfp): RfpContext {
+  const haystack = [
+    rfp.title,
+    ...(rfp.service_tags || []),
+    rfp.relevance_reason || "",
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  if (/\bll\s?11\b|fisp|facade\s+inspection|facade\s+filing/.test(haystack)) return "ll11_support";
+  if (/\benvironmental\b|asbestos|lead\s+abatement|phase\s+[i1]|hazmat/.test(haystack)) return "environmental";
+  if (/\bconstruction\b|renovation|build\b|general\s+contract/.test(haystack)) return "construction";
+  return "general";
+}
+
+const contextConfig: Record<RfpContext, { subjectPrefix: string; intro: string; serviceKeywords: string[] }> = {
+  ll11_support: {
+    subjectPrefix: "LL11/FISP Support Opportunity",
+    intro: "We'd like to offer our firm's inspection and filing support for this upcoming LL11/FISP requirement. Our team has extensive experience with facade compliance and DOB filings:",
+    serviceKeywords: ["facade", "inspection", "filing", "ll11", "fisp", "dob", "compliance"],
+  },
+  environmental: {
+    subjectPrefix: "Environmental Services Support",
+    intro: "We'd like to partner on the environmental services component of this opportunity. Our firm specializes in testing, abatement oversight, and regulatory compliance:",
+    serviceKeywords: ["environmental", "asbestos", "lead", "abatement", "testing", "hazmat", "phase"],
+  },
+  construction: {
+    subjectPrefix: "Construction Partnership Opportunity",
+    intro: "We'd like to collaborate on this construction opportunity. Our team brings strong project management and expediting capabilities:",
+    serviceKeywords: ["construction", "renovation", "expediting", "permit", "project management"],
+  },
+  general: {
+    subjectPrefix: "Partnership Opportunity",
+    intro: "We'd like to invite your firm to collaborate on the following RFP:",
+    serviceKeywords: [],
+  },
+};
+
 export function buildPartnerEmailSubject(rfp: DiscoveredRfp): string {
-  return `Partnership Opportunity: ${rfp.title}`;
+  const ctx = detectRfpContext(rfp);
+  return `${contextConfig[ctx].subjectPrefix}: ${rfp.title}`;
 }
 
 export function buildPartnerEmailBody(
@@ -37,6 +78,8 @@ export function buildPartnerEmailBody(
   responseBaseUrl?: string,
   outreachToken?: string,
 ): string {
+  const ctx = detectRfpContext(rfp);
+  const config = contextConfig[ctx];
   const sections: string[] = [];
 
   // Header
@@ -46,8 +89,8 @@ export function buildPartnerEmailBody(
     sections.push(`<img src="${company.logo_url}" alt="${company.name}" style="max-height:60px; margin-bottom:16px;" />`);
   }
 
-  sections.push(`<h2 style="color:#1a1a1a; margin-bottom:4px;">Partnership Opportunity</h2>`);
-  sections.push(`<p style="color:#555;">We'd like to invite your firm to collaborate on the following RFP:</p>`);
+  sections.push(`<h2 style="color:#1a1a1a; margin-bottom:4px;">${config.subjectPrefix}</h2>`);
+  sections.push(`<p style="color:#555;">${config.intro}</p>`);
 
   // RFP Details card
   sections.push(`<table style="width:100%; border:1px solid #e2e2e2; border-radius:8px; border-collapse:separate; margin:16px 0; padding:16px; background:#fafafa;">`);
@@ -82,11 +125,19 @@ export function buildPartnerEmailBody(
     }
   }
 
-  // Services
+  // Services — filter by context keywords if applicable
   const serviceCatalog = settings?.service_catalog;
   if (serviceCatalog && serviceCatalog.length > 0) {
+    let filtered = serviceCatalog;
+    if (config.serviceKeywords.length > 0) {
+      const kw = config.serviceKeywords;
+      const matched = serviceCatalog.filter(s =>
+        kw.some(k => s.name.toLowerCase().includes(k) || (s.description || "").toLowerCase().includes(k))
+      );
+      if (matched.length > 0) filtered = matched;
+    }
     sections.push(`<p><strong>Services We Offer:</strong></p><ul style="color:#555;">`);
-    serviceCatalog.slice(0, 8).forEach(s => {
+    filtered.slice(0, 8).forEach(s => {
       sections.push(`<li>${s.name}${s.description ? ` — ${s.description}` : ""}</li>`);
     });
     sections.push(`</ul>`);
