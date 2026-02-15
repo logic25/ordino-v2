@@ -46,10 +46,13 @@ export function RichTextEditor({
     },
   });
 
-  // Reset content when parent clears it
+  // Sync content when parent changes it (e.g. template pre-fill or clear)
   useEffect(() => {
-    if (editor && content === "" && editor.getHTML() !== "<p></p>") {
+    if (!editor) return;
+    if (content === "" && editor.getHTML() !== "<p></p>") {
       editor.commands.clearContent();
+    } else if (content && editor.getHTML() !== content) {
+      editor.commands.setContent(content);
     }
   }, [content, editor]);
 
