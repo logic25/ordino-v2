@@ -55,9 +55,13 @@ export function useCompanySettings() {
   return useQuery({
     queryKey: ["company-settings"],
     queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
       const { data: profile } = await supabase
         .from("profiles")
         .select("company_id")
+        .eq("user_id", user.id)
         .single();
 
       if (!profile?.company_id) return null;
