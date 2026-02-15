@@ -11,6 +11,9 @@ import { format, differenceInDays } from "date-fns";
 import { useUpdateDiscoveredRfp, type DiscoveredRfp } from "@/hooks/useDiscoveredRfps";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useToast } from "@/hooks/use-toast";
+import { RecommendedCompaniesSection } from "@/components/rfps/RecommendedCompaniesSection";
+import { ComposeEmailDialog } from "@/components/emails/ComposeEmailDialog";
+import { useClients } from "@/hooks/useClients";
 
 interface Props {
   rfp: DiscoveredRfp | null;
@@ -34,8 +37,11 @@ function ScoreBadge({ score }: { score: number | null }) {
 export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateResponse }: Props) {
   const update = useUpdateDiscoveredRfp();
   const { data: profiles = [] } = useCompanyProfiles();
+  const { data: clients = [] } = useClients();
   const { toast } = useToast();
   const [notes, setNotes] = useState(rfp?.notes || "");
+  const [emailBlastOpen, setEmailBlastOpen] = useState(false);
+  const [emailBlastRecipients, setEmailBlastRecipients] = useState<string[]>([]);
 
   if (!rfp) return null;
 
@@ -52,6 +58,22 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
   const handleSaveNotes = async () => {
     await update.mutateAsync({ id: rfp.id, notes } as any);
     toast({ title: "Notes saved" });
+  };
+
+  const handleEmailBlast = (companyIds: string[]) => {
+    // Collect emails from the selected companies
+    const selectedClients = clients.filter((c) => companyIds.includes(c.id));
+    const emails = selectedClients
+      .map((c) => c.email)
+      .filter(Boolean) as string[];
+    
+    if (emails.length === 0) {
+      toast({ title: "No emails found", description: "The selected companies don't have email addresses on file.", variant: "destructive" });
+      return;
+    }
+    
+    setEmailBlastRecipients(emails);
+    setEmailBlastOpen(true);
   };
 
   return (
@@ -182,6 +204,11 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
 
           <Separator />
 
+          {/* Recommended Companies */}
+          <RecommendedCompaniesSection rfp={rfp} onEmailBlast={handleEmailBlast} />
+
+          <Separator />
+
           {/* Actions */}
           <div className="flex flex-col gap-2">
             {onGenerateResponse && (
@@ -208,6 +235,20 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
           </div>
         </div>
       </SheetContent>
+
+      {/* Email Blast Compose Dialog */}
+      <ComposeEmailDialog
+        open={emailBlastOpen}
+        onOpenChange={setEmailBlastOpen}
+        defaultTo={emailBlastRecipients.join(", ")}
+        defaultSubject={`RFP Opportunity: ${rfp.title}`}
+        defaultBody={`<p>We'd like to bring the following RFP opportunity to your attention:</p>
+<p><strong>${rfp.title}</strong></p>
+${rfp.issuing_agency ? `<p>Issuing Agency: ${rfp.issuing_agency}</p>` : ""}
+${rfp.due_date ? `<p>Due Date: ${format(new Date(rfp.due_date), "MMMM d, yyyy")}</p>` : ""}
+${rfp.original_url ? `<p>Details: <a href="${rfp.original_url}">${rfp.original_url}</a></p>` : ""}
+<p>Please let us know if you're interested in collaborating on this opportunity.</p>`}
+      />
     </Sheet>
   );
 }
