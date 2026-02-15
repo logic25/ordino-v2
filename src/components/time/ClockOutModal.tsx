@@ -238,7 +238,7 @@ export function ClockOutModal() {
             </div>
           </div>
 
-          <DialogFooter className="flex items-center justify-between gap-2 pt-2">
+          <div className="flex items-center justify-between gap-2 pt-2">
             {snoozeCount < MAX_SNOOZES ? (
               <Button variant="outline" size="sm" onClick={handleSnooze}>
                 <Clock className="h-4 w-4 mr-1" />
@@ -260,7 +260,7 @@ export function ClockOutModal() {
                 {clockOut.isPending ? "Clocking out…" : "Clock Out"}
               </Button>
             </div>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </>
