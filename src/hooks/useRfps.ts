@@ -87,3 +87,14 @@ export function useUpdateRfp() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["rfps"] }),
   });
 }
+
+export function useDeleteRfp() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("rfps").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["rfps"] }),
+  });
+}
