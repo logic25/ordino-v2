@@ -25,10 +25,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Edit, Trash2, Send, PenLine, Eye, Loader2 } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, Send, PenLine, Eye, Loader2, CheckCircle2, Clock, X, Phone, Bell } from "lucide-react";
 import { useState } from "react";
 import type { ProposalWithRelations } from "@/hooks/useProposals";
-import { format } from "date-fns";
+import { format, isPast, parseISO } from "date-fns";
 
 interface ProposalTableProps {
   proposals: ProposalWithRelations[];
@@ -37,6 +37,10 @@ interface ProposalTableProps {
   onSend: (id: string) => void;
   onSign: (proposal: ProposalWithRelations) => void;
   onView: (proposal: ProposalWithRelations) => void;
+  onMarkApproved?: (proposal: ProposalWithRelations) => void;
+  onDismissFollowUp?: (id: string) => void;
+  onLogFollowUp?: (id: string) => void;
+  onSnoozeFollowUp?: (id: string, days: number) => void;
   isDeleting?: boolean;
   isSending?: boolean;
 }
@@ -59,6 +63,10 @@ export function ProposalTable({
   onSend,
   onSign,
   onView,
+  onMarkApproved,
+  onDismissFollowUp,
+  onLogFollowUp,
+  onSnoozeFollowUp,
   isDeleting,
   isSending,
 }: ProposalTableProps) {
@@ -98,6 +106,7 @@ export function ProposalTable({
             <TableHead>Title</TableHead>
             <TableHead>Client</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Follow-up</TableHead>
             <TableHead className="text-right">Total</TableHead>
             <TableHead>Creator</TableHead>
             <TableHead>Created</TableHead>
@@ -139,6 +148,26 @@ export function ProposalTable({
                     {statusStyle.label}
                   </Badge>
                 </TableCell>
+                <TableCell>
+                  {(() => {
+                    const nextDate = (proposal as any).next_follow_up_date;
+                    const dismissed = (proposal as any).follow_up_dismissed_at;
+                    const count = (proposal as any).follow_up_count || 0;
+                    if (!nextDate || dismissed) return <span className="text-xs text-muted-foreground">—</span>;
+                    const isOverdue = isPast(parseISO(nextDate));
+                    return (
+                      <div className="flex items-center gap-1">
+                        <Bell className={`h-3.5 w-3.5 ${isOverdue ? "text-destructive" : "text-muted-foreground"}`} />
+                        <span className={`text-xs ${isOverdue ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                          {format(parseISO(nextDate), "MMM d")}
+                        </span>
+                        {count > 0 && (
+                          <span className="text-[10px] text-muted-foreground">(×{count})</span>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </TableCell>
                 <TableCell className="text-right font-medium">
                   {formatCurrency(Number(proposal.total_amount))}
                 </TableCell>
@@ -179,6 +208,34 @@ export function ProposalTable({
                           <PenLine className="h-4 w-4 mr-2" />
                           Sign & Convert to Project
                         </DropdownMenuItem>
+                      )}
+                      {(proposal.status === "sent" || proposal.status === "viewed") && onMarkApproved && (
+                        <DropdownMenuItem onClick={() => onMarkApproved(proposal)}>
+                          <CheckCircle2 className="h-4 w-4 mr-2" />
+                          Mark as Approved
+                        </DropdownMenuItem>
+                      )}
+                      {(proposal as any).next_follow_up_date && !(proposal as any).follow_up_dismissed_at && (
+                        <>
+                          {onLogFollowUp && (
+                            <DropdownMenuItem onClick={() => onLogFollowUp(proposal.id)}>
+                              <Phone className="h-4 w-4 mr-2" />
+                              Log Follow-up
+                            </DropdownMenuItem>
+                          )}
+                          {onSnoozeFollowUp && (
+                            <DropdownMenuItem onClick={() => onSnoozeFollowUp(proposal.id, 7)}>
+                              <Clock className="h-4 w-4 mr-2" />
+                              Snooze 1 Week
+                            </DropdownMenuItem>
+                          )}
+                          {onDismissFollowUp && (
+                            <DropdownMenuItem onClick={() => onDismissFollowUp(proposal.id)}>
+                              <X className="h-4 w-4 mr-2" />
+                              Dismiss Follow-up
+                            </DropdownMenuItem>
+                          )}
+                        </>
                       )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem

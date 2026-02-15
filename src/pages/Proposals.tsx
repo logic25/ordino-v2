@@ -3,11 +3,13 @@ import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Plus, Search, Loader2, Send } from "lucide-react";
+import { FileText, Plus, Search, Loader2, Send, UserPlus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ProposalDialog } from "@/components/proposals/ProposalDialog";
 import { ProposalTable } from "@/components/proposals/ProposalTable";
 import { SignatureDialog } from "@/components/proposals/SignatureDialog";
+import { ProposalApprovalDialog } from "@/components/proposals/ProposalApprovalDialog";
+import { LeadCaptureDialog, type LeadCaptureData } from "@/components/proposals/LeadCaptureDialog";
 import {
   useProposals,
   useCreateProposal,
@@ -19,6 +21,12 @@ import {
   ProposalFormInput,
 } from "@/hooks/useProposals";
 import { useSaveProposalContacts, type ProposalContactInput } from "@/hooks/useProposalContacts";
+import {
+  useMarkProposalApproved,
+  useDismissFollowUp,
+  useLogFollowUp,
+  useSnoozeFollowUp,
+} from "@/hooks/useProposalFollowUps";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Proposals() {
@@ -27,8 +35,11 @@ export default function Proposals() {
   
   const [dialogOpen, setDialogOpen] = useState(false);
   const [signDialogOpen, setSignDialogOpen] = useState(false);
+  const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
+  const [leadDialogOpen, setLeadDialogOpen] = useState(false);
   const [editingProposal, setEditingProposal] = useState<ProposalWithRelations | null>(null);
   const [signingProposal, setSigningProposal] = useState<ProposalWithRelations | null>(null);
+  const [approvingProposal, setApprovingProposal] = useState<ProposalWithRelations | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
 
@@ -39,6 +50,10 @@ export default function Proposals() {
   const sendProposal = useSendProposal();
   const signProposal = useSignProposalInternal();
   const saveContacts = useSaveProposalContacts();
+  const markApproved = useMarkProposalApproved();
+  const dismissFollowUp = useDismissFollowUp();
+  const logFollowUp = useLogFollowUp();
+  const snoozeFollowUp = useSnoozeFollowUp();
 
   // Open dialog if coming from properties with a property pre-selected
   useEffect(() => {
@@ -61,6 +76,11 @@ export default function Proposals() {
   const draftCount = proposals.filter((p) => p.status === "draft").length;
   const sentCount = proposals.filter((p) => ["sent", "viewed", "signed_internal", "signed_client"].includes(p.status || "")).length;
   const acceptedCount = proposals.filter((p) => p.status === "accepted").length;
+  const followUpDueCount = proposals.filter((p) => {
+    const nextDate = (p as any).next_follow_up_date;
+    const dismissed = (p as any).follow_up_dismissed_at;
+    return nextDate && !dismissed && new Date(nextDate) <= new Date();
+  }).length;
   
   const draftTotal = proposals
     .filter((p) => p.status === "draft")
@@ -88,7 +108,6 @@ export default function Proposals() {
   };
 
   const handleView = (proposal: ProposalWithRelations) => {
-    // For now, just edit - could add a read-only view later
     setEditingProposal(proposal);
     setDialogOpen(true);
   };
@@ -98,60 +117,36 @@ export default function Proposals() {
       if (editingProposal) {
         await updateProposal.mutateAsync({ id: editingProposal.id, ...data });
         await saveContacts.mutateAsync({ proposalId: editingProposal.id, contacts });
-        toast({
-          title: "Proposal updated",
-          description: "The proposal has been updated successfully.",
-        });
+        toast({ title: "Proposal updated", description: "The proposal has been updated successfully." });
       } else {
         const newProposal = await createProposal.mutateAsync(data);
         if (contacts.length > 0) {
           await saveContacts.mutateAsync({ proposalId: newProposal.id, contacts });
         }
-        toast({
-          title: "Proposal created",
-          description: "Your proposal has been created as a draft.",
-        });
+        toast({ title: "Proposal created", description: "Your proposal has been created as a draft." });
       }
       setDialogOpen(false);
       setEditingProposal(null);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Something went wrong.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message || "Something went wrong.", variant: "destructive" });
     }
   };
 
   const handleDelete = async (id: string) => {
     try {
       await deleteProposal.mutateAsync(id);
-      toast({
-        title: "Proposal deleted",
-        description: "The proposal has been removed.",
-      });
+      toast({ title: "Proposal deleted", description: "The proposal has been removed." });
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete proposal.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message || "Failed to delete proposal.", variant: "destructive" });
     }
   };
 
   const handleSend = async (id: string) => {
     try {
       await sendProposal.mutateAsync(id);
-      toast({
-        title: "Proposal sent",
-        description: "The proposal has been marked as sent.",
-      });
+      toast({ title: "Proposal sent", description: "The proposal has been marked as sent. Follow-up scheduled." });
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to send proposal.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message || "Failed to send proposal.", variant: "destructive" });
     }
   };
 
@@ -162,25 +157,83 @@ export default function Proposals() {
 
   const handleSign = async (signatureData: string, assignedPmId: string) => {
     if (!signingProposal) return;
-
     try {
-      const result = await signProposal.mutateAsync({
-        id: signingProposal.id,
-        signatureData,
-        assignedPmId,
-      });
-      toast({
-        title: "Proposal signed & converted!",
-        description: `Project created successfully. The proposal has been converted to a project.`,
-      });
+      await signProposal.mutateAsync({ id: signingProposal.id, signatureData, assignedPmId });
+      toast({ title: "Proposal signed & converted!", description: "Project created successfully." });
       setSignDialogOpen(false);
       setSigningProposal(null);
     } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to sign proposal.", variant: "destructive" });
+    }
+  };
+
+  const handleOpenApproval = (proposal: ProposalWithRelations) => {
+    setApprovingProposal(proposal);
+    setApprovalDialogOpen(true);
+  };
+
+  const handleApprove = async (method: string, notes?: string) => {
+    if (!approvingProposal) return;
+    try {
+      await markApproved.mutateAsync({ id: approvingProposal.id, approvalMethod: method, notes });
+      toast({ title: "Proposal approved", description: `Marked as approved via ${method.replace(/_/g, " ")}.` });
+      setApprovalDialogOpen(false);
+      setApprovingProposal(null);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleDismissFollowUp = async (id: string) => {
+    try {
+      await dismissFollowUp.mutateAsync({ id });
+      toast({ title: "Follow-up dismissed" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleLogFollowUp = async (id: string) => {
+    try {
+      await logFollowUp.mutateAsync({ proposalId: id, action: "called", notes: "Called client" });
+      toast({ title: "Follow-up logged", description: "Next follow-up scheduled." });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleSnoozeFollowUp = async (id: string, days: number) => {
+    try {
+      await snoozeFollowUp.mutateAsync({ id, days });
+      toast({ title: "Snoozed", description: `Follow-up snoozed for ${days} days.` });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleLeadSubmit = async (data: LeadCaptureData) => {
+    try {
+      // Create a draft proposal from the lead
+      await createProposal.mutateAsync({
+        property_id: "", // Will need to be filled in later
+        title: `Lead: ${data.contact_name}${data.property_address ? ` - ${data.property_address}` : ""}`,
+        client_name: data.contact_name,
+        client_email: data.contact_email || null,
+        lead_source: data.source,
+        notes: [
+          data.contact_phone ? `Phone: ${data.contact_phone}` : "",
+          data.notes || "",
+        ].filter(Boolean).join("\n"),
+        assigned_pm_id: data.assigned_pm_id || null,
+        sales_person_id: data.assigned_pm_id || null,
+      } as any);
       toast({
-        title: "Error",
-        description: error.message || "Failed to sign proposal.",
-        variant: "destructive",
+        title: "Lead captured!",
+        description: `Draft proposal created for ${data.contact_name}.${data.assigned_pm_id ? " PM has been assigned." : ""}`,
       });
+      setLeadDialogOpen(false);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
@@ -194,26 +247,34 @@ export default function Proposals() {
               Create and manage client proposals
             </p>
           </div>
-          <Button
-            size="sm"
-            className="bg-accent text-accent-foreground hover:bg-accent/90"
-            onClick={handleOpenCreate}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            New Proposal
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLeadDialogOpen(true)}
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              Capture Lead
+            </Button>
+            <Button
+              size="sm"
+              className="bg-accent text-accent-foreground hover:bg-accent/90"
+              onClick={handleOpenCreate}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Proposal
+            </Button>
+          </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Draft</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{draftCount}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {formatCurrency(draftTotal)} pending
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">{formatCurrency(draftTotal)} pending</p>
             </CardContent>
           </Card>
           <Card>
@@ -222,9 +283,7 @@ export default function Proposals() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{sentCount}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {formatCurrency(sentTotal)} awaiting
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">{formatCurrency(sentTotal)} awaiting</p>
             </CardContent>
           </Card>
           <Card>
@@ -234,6 +293,17 @@ export default function Proposals() {
             <CardContent>
               <div className="text-3xl font-bold">{acceptedCount}</div>
               <p className="text-xs text-muted-foreground mt-1">This month</p>
+            </CardContent>
+          </Card>
+          <Card className={followUpDueCount > 0 ? "border-destructive/50" : ""}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Follow-ups Due</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className={`text-3xl font-bold ${followUpDueCount > 0 ? "text-destructive" : ""}`}>
+                {followUpDueCount}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Need attention</p>
             </CardContent>
           </Card>
         </div>
@@ -274,15 +344,21 @@ export default function Proposals() {
                 <Send className="h-12 w-12 text-muted-foreground/50 mb-4" />
                 <h3 className="text-lg font-medium">No proposals yet</h3>
                 <p className="text-muted-foreground mt-1 mb-4">
-                  Create your first proposal using the spreadsheet builder
+                  Create your first proposal or capture a lead
                 </p>
-                <Button
-                  className="bg-accent text-accent-foreground hover:bg-accent/90"
-                  onClick={handleOpenCreate}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Proposal
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setLeadDialogOpen(true)}>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Capture Lead
+                  </Button>
+                  <Button
+                    className="bg-accent text-accent-foreground hover:bg-accent/90"
+                    onClick={handleOpenCreate}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Proposal
+                  </Button>
+                </div>
               </div>
             ) : (
               <ProposalTable
@@ -292,6 +368,10 @@ export default function Proposals() {
                 onSend={handleSend}
                 onSign={handleOpenSign}
                 onView={handleView}
+                onMarkApproved={handleOpenApproval}
+                onDismissFollowUp={handleDismissFollowUp}
+                onLogFollowUp={handleLogFollowUp}
+                onSnoozeFollowUp={handleSnoozeFollowUp}
                 isDeleting={deleteProposal.isPending}
                 isSending={sendProposal.isPending}
               />
@@ -315,6 +395,21 @@ export default function Proposals() {
         onSign={handleSign}
         proposal={signingProposal}
         isLoading={signProposal.isPending}
+      />
+
+      <ProposalApprovalDialog
+        open={approvalDialogOpen}
+        onOpenChange={setApprovalDialogOpen}
+        onApprove={handleApprove}
+        isLoading={markApproved.isPending}
+        proposalTitle={approvingProposal?.title}
+      />
+
+      <LeadCaptureDialog
+        open={leadDialogOpen}
+        onOpenChange={setLeadDialogOpen}
+        onSubmit={handleLeadSubmit}
+        isLoading={createProposal.isPending}
       />
     </AppLayout>
   );
