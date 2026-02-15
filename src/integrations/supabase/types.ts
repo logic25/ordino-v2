@@ -3242,6 +3242,58 @@ export type Database = {
           },
         ]
       }
+      proposal_follow_ups: {
+        Row: {
+          action: string
+          company_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          performed_by: string | null
+          proposal_id: string
+        }
+        Insert: {
+          action: string
+          company_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          performed_by?: string | null
+          proposal_id: string
+        }
+        Update: {
+          action?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          performed_by?: string | null
+          proposal_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_follow_ups_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_follow_ups_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_follow_ups_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proposal_items: {
         Row: {
           created_at: string | null
@@ -3344,6 +3396,7 @@ export type Database = {
       }
       proposals: {
         Row: {
+          approval_method: string | null
           assigned_pm_id: string | null
           billed_to_email: string | null
           billed_to_name: string | null
@@ -3361,12 +3414,18 @@ export type Database = {
           created_by: string | null
           deposit_percentage: number | null
           deposit_required: number | null
+          follow_up_count: number | null
+          follow_up_dismissed_at: string | null
+          follow_up_dismissed_by: string | null
+          follow_up_interval_days: number | null
           id: string
           internal_signature_data: string | null
           internal_signed_at: string | null
           internal_signed_by: string | null
+          last_follow_up_at: string | null
           lead_source: string | null
           metadata: Json | null
+          next_follow_up_date: string | null
           notes: string | null
           payment_terms: string | null
           project_type: string | null
@@ -3376,6 +3435,7 @@ export type Database = {
           sales_person_id: string | null
           scope_of_work: string | null
           sent_at: string | null
+          signed_document_url: string | null
           status: Database["public"]["Enums"]["proposal_status"] | null
           subtotal: number | null
           tax_amount: number | null
@@ -3388,6 +3448,7 @@ export type Database = {
           viewed_at: string | null
         }
         Insert: {
+          approval_method?: string | null
           assigned_pm_id?: string | null
           billed_to_email?: string | null
           billed_to_name?: string | null
@@ -3405,12 +3466,18 @@ export type Database = {
           created_by?: string | null
           deposit_percentage?: number | null
           deposit_required?: number | null
+          follow_up_count?: number | null
+          follow_up_dismissed_at?: string | null
+          follow_up_dismissed_by?: string | null
+          follow_up_interval_days?: number | null
           id?: string
           internal_signature_data?: string | null
           internal_signed_at?: string | null
           internal_signed_by?: string | null
+          last_follow_up_at?: string | null
           lead_source?: string | null
           metadata?: Json | null
+          next_follow_up_date?: string | null
           notes?: string | null
           payment_terms?: string | null
           project_type?: string | null
@@ -3420,6 +3487,7 @@ export type Database = {
           sales_person_id?: string | null
           scope_of_work?: string | null
           sent_at?: string | null
+          signed_document_url?: string | null
           status?: Database["public"]["Enums"]["proposal_status"] | null
           subtotal?: number | null
           tax_amount?: number | null
@@ -3432,6 +3500,7 @@ export type Database = {
           viewed_at?: string | null
         }
         Update: {
+          approval_method?: string | null
           assigned_pm_id?: string | null
           billed_to_email?: string | null
           billed_to_name?: string | null
@@ -3449,12 +3518,18 @@ export type Database = {
           created_by?: string | null
           deposit_percentage?: number | null
           deposit_required?: number | null
+          follow_up_count?: number | null
+          follow_up_dismissed_at?: string | null
+          follow_up_dismissed_by?: string | null
+          follow_up_interval_days?: number | null
           id?: string
           internal_signature_data?: string | null
           internal_signed_at?: string | null
           internal_signed_by?: string | null
+          last_follow_up_at?: string | null
           lead_source?: string | null
           metadata?: Json | null
+          next_follow_up_date?: string | null
           notes?: string | null
           payment_terms?: string | null
           project_type?: string | null
@@ -3464,6 +3539,7 @@ export type Database = {
           sales_person_id?: string | null
           scope_of_work?: string | null
           sent_at?: string | null
+          signed_document_url?: string | null
           status?: Database["public"]["Enums"]["proposal_status"] | null
           subtotal?: number | null
           tax_amount?: number | null
@@ -3514,6 +3590,13 @@ export type Database = {
           {
             foreignKeyName: "proposals_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_follow_up_dismissed_by_fkey"
+            columns: ["follow_up_dismissed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
