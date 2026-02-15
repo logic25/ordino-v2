@@ -43,6 +43,7 @@ const clientSchema = z.object({
   tax_id: z.string().max(50).optional(),
   client_type: z.string().optional(),
   is_sia: z.boolean().optional(),
+  is_rfp_partner: z.boolean().optional(),
 });
 
 type FormData = z.infer<typeof clientSchema>;
@@ -88,11 +89,13 @@ export function ClientDialog({
         tax_id: client.tax_id || "",
         client_type: (client as any).client_type || "",
         is_sia: client.is_sia || false,
+        is_rfp_partner: (client as any).is_rfp_partner || false,
       });
     } else {
       form.reset({
         name: "", email: "", phone: "", fax: "", address: "", notes: "",
         lead_owner_id: "", tax_id: "", client_type: "", is_sia: false,
+        is_rfp_partner: false,
       });
     }
   }, [client, form]);
@@ -109,6 +112,7 @@ export function ClientDialog({
       tax_id: data.tax_id || null,
       client_type: data.client_type || null,
       is_sia: data.is_sia || false,
+      is_rfp_partner: data.is_rfp_partner || false,
     });
     form.reset();
   };
@@ -208,6 +212,14 @@ export function ClientDialog({
               />
               <Label>Special Inspection Agency (SIA)</Label>
             </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Switch
+              checked={form.watch("is_rfp_partner") || false}
+              onCheckedChange={(v) => form.setValue("is_rfp_partner", v)}
+            />
+            <Label>RFP Partner (show in RFP recommendations)</Label>
           </div>
 
           <div className="space-y-2">
