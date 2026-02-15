@@ -3917,6 +3917,70 @@ export type Database = {
           },
         ]
       }
+      rfp_response_drafts: {
+        Row: {
+          company_id: string
+          cover_letter: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          rfp_id: string
+          section_order: string[]
+          selected_sections: string[]
+          submit_email: string | null
+          updated_at: string
+          wizard_step: number
+        }
+        Insert: {
+          company_id: string
+          cover_letter?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          rfp_id: string
+          section_order?: string[]
+          selected_sections?: string[]
+          submit_email?: string | null
+          updated_at?: string
+          wizard_step?: number
+        }
+        Update: {
+          company_id?: string
+          cover_letter?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          rfp_id?: string
+          section_order?: string[]
+          selected_sections?: string[]
+          submit_email?: string | null
+          updated_at?: string
+          wizard_step?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rfp_response_drafts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfp_response_drafts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfp_response_drafts_rfp_id_fkey"
+            columns: ["rfp_id"]
+            isOneToOne: false
+            referencedRelation: "rfps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rfp_sections: {
         Row: {
           ai_generated: boolean | null
