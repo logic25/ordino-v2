@@ -35,17 +35,9 @@ function ScoreBadge({ score }: { score: number | null }) {
     : score >= 60 ? "text-warning bg-warning/10 border-warning/30"
     : "text-destructive bg-destructive/10 border-destructive/30";
   return (
-    <Tooltip>
-      <TooltipTrigger>
-        <Badge variant="outline" className={`text-sm font-bold tabular-nums ${color}`}>
-          <Target className="h-3.5 w-3.5 mr-1" /> {score}
-        </Badge>
-      </TooltipTrigger>
-      <TooltipContent side="top" className="max-w-[200px] text-xs">
-        <p className="font-semibold">Relevance Score</p>
-        <p className="text-muted-foreground">AI-rated match (0–100) based on your services and keywords</p>
-      </TooltipContent>
-    </Tooltip>
+    <Badge variant="outline" className={`text-sm font-bold tabular-nums ${color}`}>
+      <Target className="h-3.5 w-3.5 mr-1" /> {score}
+    </Badge>
   );
 }
 
