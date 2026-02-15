@@ -107,7 +107,7 @@ export function ClockOutModal() {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-2 overflow-hidden">
           {/* Summary */}
           <div className="grid grid-cols-3 gap-3 text-center">
             <div className="rounded-lg bg-muted p-3">
