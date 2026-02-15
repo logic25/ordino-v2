@@ -238,24 +238,26 @@ export function ClockOutModal() {
             </div>
           </div>
 
-          <DialogFooter className="flex-col sm:flex-row gap-2 px-1">
+          <DialogFooter className="flex-col sm:flex-row gap-2 pt-2">
             {snoozeCount < MAX_SNOOZES && (
-              <Button variant="outline" size="sm" onClick={handleSnooze} className="mr-auto">
+              <Button variant="outline" size="sm" onClick={handleSnooze} className="sm:mr-auto">
                 <Clock className="h-4 w-4 mr-1" />
                 Snooze 30m
               </Button>
             )}
-            <Button variant="outline" onClick={handleDismiss}>
-              Keep Working
-            </Button>
-            <Button
-              onClick={handleClockOut}
-              disabled={clockOut.isPending}
-              className="bg-accent text-accent-foreground hover:bg-accent/90 glow-amber"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              {clockOut.isPending ? "Clocking out…" : "Clock Out"}
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleDismiss}>
+                Keep Working
+              </Button>
+              <Button
+                onClick={handleClockOut}
+                disabled={clockOut.isPending}
+                className="bg-accent text-accent-foreground hover:bg-accent/90 glow-amber"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                {clockOut.isPending ? "Clocking out…" : "Clock Out"}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
