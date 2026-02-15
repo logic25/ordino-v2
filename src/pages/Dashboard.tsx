@@ -5,6 +5,7 @@ import { RecentProjects } from "@/components/dashboard/RecentProjects";
 import { QuickTimeLog } from "@/components/dashboard/QuickTimeLog";
 import { BillingSummary } from "@/components/dashboard/BillingSummary";
 import { TeamOverview } from "@/components/dashboard/TeamOverview";
+import { ProposalFollowUps } from "@/components/dashboard/ProposalFollowUps";
 
 export default function Dashboard() {
   const { profile } = useAuth();
@@ -52,7 +53,10 @@ export default function Dashboard() {
           {role === "pm" && (
             <>
               <RecentProjects showOnlyMine />
-              <QuickTimeLog />
+              <div className="space-y-6">
+                <ProposalFollowUps />
+                <QuickTimeLog />
+              </div>
             </>
           )}
 
@@ -77,6 +81,7 @@ export default function Dashboard() {
             <>
               <RecentProjects />
               <div className="space-y-6">
+                <ProposalFollowUps />
                 <TeamOverview />
                 <QuickTimeLog />
               </div>
