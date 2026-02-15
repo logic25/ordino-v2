@@ -82,6 +82,21 @@ export function ClockOutModal() {
     return () => clearInterval(interval);
   }, [snoozeUntil]);
 
+  // Check if currently snoozed (reads localStorage directly to avoid race conditions on remount)
+  const isSnoozedNow = useCallback(() => {
+    if (snoozeUntil && Date.now() < snoozeUntil) return true;
+    // Also check localStorage in case state hasn't hydrated yet
+    try {
+      const raw = localStorage.getItem(SNOOZE_KEY);
+      if (!raw) return false;
+      const { until, date } = JSON.parse(raw);
+      const today = new Date().toISOString().split("T")[0];
+      return date === today && until > Date.now();
+    } catch {
+      return false;
+    }
+  }, [snoozeUntil]);
+
   // Trigger modal at 5 PM (or when snooze expires)
   useEffect(() => {
     if (!isActive) return;
@@ -89,9 +104,8 @@ export function ClockOutModal() {
     const check = () => {
       const now = new Date();
       const isPast5PM = now.getHours() >= 17;
-      const isSnoozed = snoozeUntil && Date.now() < snoozeUntil;
 
-      if (isPast5PM && !isSnoozed && !isDismissedToday()) {
+      if (isPast5PM && !isSnoozedNow() && !isDismissedToday()) {
         setOpen(true);
       }
     };
@@ -99,7 +113,7 @@ export function ClockOutModal() {
     check();
     const interval = setInterval(check, 60_000);
     return () => clearInterval(interval);
-  }, [isActive, snoozeUntil, isDismissedToday]);
+  }, [isActive, isSnoozedNow, isDismissedToday]);
 
   const handleDismiss = () => {
     localStorage.setItem(
