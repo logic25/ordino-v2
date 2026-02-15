@@ -9,6 +9,7 @@ import {
   RefreshCw,
   CalendarDays,
   DollarSign,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   addMonths,
@@ -34,7 +35,27 @@ import { CalendarEventDialog } from "@/components/calendar/CalendarEventDialog";
 import { useGmailConnection } from "@/hooks/useGmailConnection";
 import { useCanAccessBilling } from "@/hooks/useUserRoles";
 import { useToast } from "@/hooks/use-toast";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  inspection: "Inspection",
+  hearing: "Hearing",
+  deadline: "Deadline",
+  meeting: "Meeting",
+  site_visit: "Site Visit",
+  filing: "Filing",
+  milestone: "Milestone",
+  general: "General",
+  invoice_due: "Invoice Due",
+  follow_up: "Follow-up",
+  installment: "Installment",
+  promise: "Promise",
+  rfp_deadline: "RFP Deadline",
+};
+
+const BILLING_EVENT_TYPES = new Set(["invoice_due", "follow_up", "installment", "promise", "rfp_deadline"]);
 
 const EVENT_TYPE_COLORS: Record<string, string> = {
   inspection: "bg-orange-500/20 text-orange-700 border-orange-300",
@@ -62,6 +83,21 @@ export default function Calendar() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [showBilling, setShowBilling] = useState(true);
+  const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem("calendar_hidden_types");
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch { return new Set(); }
+  });
+
+  const toggleType = (type: string) => {
+    setHiddenTypes(prev => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type); else next.add(type);
+      localStorage.setItem("calendar_hidden_types", JSON.stringify([...next]));
+      return next;
+    });
+  };
 
   const { data: gmailConnection } = useGmailConnection();
   const syncCalendar = useSyncCalendar();
@@ -90,8 +126,8 @@ export default function Calendar() {
     if (showBilling && billingItems) {
       combined.push(...billingItems);
     }
-    return combined;
-  }, [events, billingItems, showBilling]);
+    return combined.filter(ev => !hiddenTypes.has(ev.event_type || "general"));
+  }, [events, billingItems, showBilling, hiddenTypes]);
 
   const eventsByDay = useMemo(() => {
     const map: Record<string, UnifiedEvent[]> = {};
@@ -162,6 +198,52 @@ export default function Calendar() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <SlidersHorizontal className="h-4 w-4 mr-1" />
+                  Filter
+                  {hiddenTypes.size > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
+                      {hiddenTypes.size} hidden
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-3" align="end">
+                <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">Show / Hide</p>
+                <div className="space-y-1.5">
+                  {Object.entries(EVENT_TYPE_LABELS)
+                    .filter(([type]) => canAccessBilling || !BILLING_EVENT_TYPES.has(type))
+                    .map(([type, label]) => (
+                      <label key={type} className="flex items-center gap-2 cursor-pointer rounded px-1.5 py-1 hover:bg-accent/40 transition-colors">
+                        <Checkbox
+                          checked={!hiddenTypes.has(type)}
+                          onCheckedChange={() => toggleType(type)}
+                        />
+                        <span className={cn(
+                          "w-2 h-2 rounded-full shrink-0",
+                          EVENT_TYPE_COLORS[type]?.split(" ")[0] || "bg-muted"
+                        )} />
+                        <span className="text-sm text-foreground">{label}</span>
+                      </label>
+                    ))}
+                </div>
+                {hiddenTypes.size > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full mt-2 text-xs"
+                    onClick={() => {
+                      setHiddenTypes(new Set());
+                      localStorage.removeItem("calendar_hidden_types");
+                    }}
+                  >
+                    Show All
+                  </Button>
+                )}
+              </PopoverContent>
+            </Popover>
             {canAccessBilling && (
               <Button
                 variant={showBilling ? "default" : "outline"}
