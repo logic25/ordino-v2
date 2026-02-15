@@ -21,6 +21,7 @@ import { CompanyProfilePDF, type CompanyProfileData } from "./CompanyProfilePDF"
 import { pdf } from "@react-pdf/renderer";
 import { supabase } from "@/integrations/supabase/client";
 import { usePartnerOutreach, useCreatePartnerOutreach } from "@/hooks/usePartnerOutreach";
+import { usePartnerEmailTemplates, type PartnerEmailTemplate } from "@/hooks/usePartnerEmailTemplates";
 
 interface Props {
   rfp: DiscoveredRfp | null;
@@ -55,6 +56,7 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
   const { data: contentItems = [] } = useRfpContent();
   const { data: notableProjects = [] } = useNotableApplications();
   const { data: outreachRecords = [] } = usePartnerOutreach(rfp?.id);
+  const { data: emailTemplates = [] } = usePartnerEmailTemplates();
   const createOutreach = useCreatePartnerOutreach();
   const { toast } = useToast();
   const [notes, setNotes] = useState(rfp?.notes || "");
@@ -63,6 +65,7 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
   const [emailBlastSubject, setEmailBlastSubject] = useState("");
   const [emailBlastBody, setEmailBlastBody] = useState("");
   const [emailBlastAttachments, setEmailBlastAttachments] = useState<{ file: File; name: string; size: number; base64?: string }[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("auto");
 
   // Outreach log grouped by client
   const outreachByClient = useMemo(() => {
@@ -154,8 +157,48 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
     // Build email body — for now use a generic body (individual tokens would require per-recipient emails)
     // We'll use the first token as a placeholder; in production this would be per-recipient
     const firstToken = outreachData[0]?.response_token;
-    const body = buildPartnerEmailBody(rfp, companyInfo, companySettingsData?.settings || null, contentItems, notableProjects, responseBaseUrl, firstToken);
-    const subject = buildPartnerEmailSubject(rfp);
+
+    // Auto-detect partner relationship: if any selected partner has previous outreach, they're existing
+    const hasExistingRelationship = selectedClients.some((c) => outreachByClient[c.id]);
+    const autoKey = hasExistingRelationship ? "existing_partner" : "new_partner";
+
+    // Determine which template to use
+    let chosenTemplate: PartnerEmailTemplate | undefined;
+    if (selectedTemplateId !== "auto") {
+      chosenTemplate = emailTemplates.find((t) => t.id === selectedTemplateId);
+    } else {
+      // Auto-detect: find matching template by key
+      chosenTemplate = emailTemplates.find((t) => t.template_key === autoKey && t.is_default)
+        || emailTemplates.find((t) => t.template_key === autoKey);
+    }
+
+    let body: string;
+    let subject: string;
+
+    if (chosenTemplate && chosenTemplate.body_template.trim()) {
+      // Apply template with variable substitution
+      const vars: Record<string, string> = {
+        "{{rfp_title}}": rfp.title,
+        "{{agency}}": rfp.issuing_agency || "",
+        "{{due_date}}": rfp.due_date ? format(new Date(rfp.due_date), "MMMM d, yyyy") : "",
+        "{{company_name}}": companyInfo.name,
+        "{{services}}": rfp.service_tags?.map(t => t.replace(/_/g, " ")).join(", ") || "",
+        "{{estimated_value}}": rfp.estimated_value ? `$${rfp.estimated_value.toLocaleString()}` : "",
+        "{{response_buttons}}": firstToken && responseBaseUrl
+          ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px auto;"><tr><td style="padding-right:16px;"><a href="${responseBaseUrl}?token=${firstToken}&response=interested" style="display:inline-block; padding:14px 36px; background:#22c55e; color:#ffffff; text-decoration:none; border-radius:6px; font-weight:bold; font-size:15px;">I'm Interested</a></td><td><a href="${responseBaseUrl}?token=${firstToken}&response=passed" style="display:inline-block; padding:14px 36px; background:#64748b; color:#ffffff; text-decoration:none; border-radius:6px; font-weight:bold; font-size:15px;">Pass</a></td></tr></table>`
+          : "",
+      };
+      body = chosenTemplate.body_template;
+      subject = chosenTemplate.subject_template || buildPartnerEmailSubject(rfp);
+      for (const [k, v] of Object.entries(vars)) {
+        body = body.split(k).join(v);
+        subject = subject.split(k).join(v);
+      }
+    } else {
+      // Fallback to auto-generated template
+      body = buildPartnerEmailBody(rfp, companyInfo, companySettingsData?.settings || null, contentItems, notableProjects, responseBaseUrl, firstToken);
+      subject = buildPartnerEmailSubject(rfp);
+    }
 
     // Generate Company Profile PDF
     try {
@@ -321,6 +364,28 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
           </div>
 
           <Separator />
+
+          {/* Template Selector */}
+          <div className="space-y-1.5">
+            <Label className="text-xs">Outreach Template</Label>
+            <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Auto-detect (based on relationship)</SelectItem>
+                <SelectItem value="default">Default (auto-generated)</SelectItem>
+                {emailTemplates.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[10px] text-muted-foreground">
+              Auto-detect chooses a template based on whether you've contacted the partner before.
+            </p>
+          </div>
 
           {/* Recommended Companies */}
           <RecommendedCompaniesSection rfp={rfp} onEmailBlast={handleEmailBlast} />

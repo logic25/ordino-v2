@@ -2580,6 +2580,53 @@ export type Database = {
           },
         ]
       }
+      partner_email_templates: {
+        Row: {
+          body_template: string
+          company_id: string
+          created_at: string
+          id: string
+          is_default: boolean
+          name: string
+          sort_order: number
+          subject_template: string
+          template_key: string
+          updated_at: string
+        }
+        Insert: {
+          body_template?: string
+          company_id: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name: string
+          sort_order?: number
+          subject_template?: string
+          template_key?: string
+          updated_at?: string
+        }
+        Update: {
+          body_template?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name?: string
+          sort_order?: number
+          subject_template?: string
+          template_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_email_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_plan_installments: {
         Row: {
           amount: number
