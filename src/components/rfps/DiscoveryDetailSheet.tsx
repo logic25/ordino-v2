@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,10 @@ import { useToast } from "@/hooks/use-toast";
 import { RecommendedCompaniesSection } from "@/components/rfps/RecommendedCompaniesSection";
 import { ComposeEmailDialog } from "@/components/emails/ComposeEmailDialog";
 import { useClients } from "@/hooks/useClients";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { useRfpContent, useNotableApplications } from "@/hooks/useRfpContent";
+import { buildPartnerEmailSubject, buildPartnerEmailBody } from "./buildPartnerEmailTemplate";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   rfp: DiscoveredRfp | null;
@@ -38,10 +42,15 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
   const update = useUpdateDiscoveredRfp();
   const { data: profiles = [] } = useCompanyProfiles();
   const { data: clients = [] } = useClients();
+  const { data: companySettingsData } = useCompanySettings();
+  const { data: contentItems = [] } = useRfpContent();
+  const { data: notableProjects = [] } = useNotableApplications();
   const { toast } = useToast();
   const [notes, setNotes] = useState(rfp?.notes || "");
   const [emailBlastOpen, setEmailBlastOpen] = useState(false);
   const [emailBlastRecipients, setEmailBlastRecipients] = useState<string[]>([]);
+  const [emailBlastSubject, setEmailBlastSubject] = useState("");
+  const [emailBlastBody, setEmailBlastBody] = useState("");
 
   if (!rfp) return null;
 
@@ -60,8 +69,7 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
     toast({ title: "Notes saved" });
   };
 
-  const handleEmailBlast = (companyIds: string[]) => {
-    // Collect emails from the selected companies
+  const handleEmailBlast = async (companyIds: string[]) => {
     const selectedClients = clients.filter((c) => companyIds.includes(c.id));
     const emails = selectedClients
       .map((c) => c.email)
@@ -71,8 +79,29 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
       toast({ title: "No emails found", description: "The selected companies don't have email addresses on file.", variant: "destructive" });
       return;
     }
+
+    // Get company name from companies table
+    let companyName = "Our Firm";
+    if (companySettingsData?.companyId) {
+      const { data: co } = await supabase.from("companies").select("name, logo_url").eq("id", companySettingsData.companyId).single();
+      if (co?.name) companyName = co.name;
+    }
+
+    const companyInfo = {
+      name: companyName,
+      address: companySettingsData?.settings.company_address,
+      phone: companySettingsData?.settings.company_phone,
+      email: companySettingsData?.settings.company_email,
+      website: companySettingsData?.settings.company_website,
+      logo_url: companySettingsData?.settings.company_logo_url,
+    };
+
+    const body = buildPartnerEmailBody(rfp, companyInfo, companySettingsData?.settings || null, contentItems, notableProjects);
+    const subject = buildPartnerEmailSubject(rfp);
     
     setEmailBlastRecipients(emails);
+    setEmailBlastSubject(subject);
+    setEmailBlastBody(body);
     setEmailBlastOpen(true);
   };
 
@@ -241,13 +270,8 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
         open={emailBlastOpen}
         onOpenChange={setEmailBlastOpen}
         defaultTo={emailBlastRecipients.join(", ")}
-        defaultSubject={`RFP Opportunity: ${rfp.title}`}
-        defaultBody={`<p>We'd like to bring the following RFP opportunity to your attention:</p>
-<p><strong>${rfp.title}</strong></p>
-${rfp.issuing_agency ? `<p>Issuing Agency: ${rfp.issuing_agency}</p>` : ""}
-${rfp.due_date ? `<p>Due Date: ${format(new Date(rfp.due_date), "MMMM d, yyyy")}</p>` : ""}
-${rfp.original_url ? `<p>Details: <a href="${rfp.original_url}">${rfp.original_url}</a></p>` : ""}
-<p>Please let us know if you're interested in collaborating on this opportunity.</p>`}
+        defaultSubject={emailBlastSubject}
+        defaultBody={emailBlastBody}
       />
     </Sheet>
   );
