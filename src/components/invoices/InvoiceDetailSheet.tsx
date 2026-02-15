@@ -987,7 +987,7 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
                         className="flex-1"
                         onClick={() => setClaimFlowOpen(true)}
                       >
-                        <Gavel className="h-3.5 w-3.5 mr-1.5" /> ClaimFlow
+                        <Gavel className="h-3.5 w-3.5 mr-1.5" /> ClaimCurrent
                       </Button>
                     </div>
                   )}
