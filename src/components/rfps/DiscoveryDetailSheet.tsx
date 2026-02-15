@@ -74,13 +74,29 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
   };
 
   const handleEmailBlast = async (companyIds: string[]) => {
+    // Fetch primary contacts for selected companies to get contact-specific emails
+    const { data: contactsData } = await supabase
+      .from("client_contacts")
+      .select("email, client_id, is_primary")
+      .in("client_id", companyIds)
+      .not("email", "is", null)
+      .order("is_primary", { ascending: false });
+
+    // Prefer primary contact email per company, fall back to company email
     const selectedClients = clients.filter((c) => companyIds.includes(c.id));
+    const contactsByClient: Record<string, string> = {};
+    for (const ct of contactsData || []) {
+      if (ct.email && (!contactsByClient[ct.client_id] || ct.is_primary)) {
+        contactsByClient[ct.client_id] = ct.email;
+      }
+    }
+
     const emails = selectedClients
-      .map((c) => c.email)
+      .map((c) => contactsByClient[c.id] || c.email)
       .filter(Boolean) as string[];
     
     if (emails.length === 0) {
-      toast({ title: "No emails found", description: "The selected companies don't have email addresses on file.", variant: "destructive" });
+      toast({ title: "No emails found", description: "The selected partners don't have contact email addresses on file.", variant: "destructive" });
       return;
     }
 

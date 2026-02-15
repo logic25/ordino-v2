@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -6,15 +6,36 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Building2, X, Search, Mail, Star } from "lucide-react";
+import { Building2, X, Search, Mail, Star, Sparkles, User } from "lucide-react";
 import { useClients } from "@/hooks/useClients";
 import { useUpdateDiscoveredRfp, type DiscoveredRfp } from "@/hooks/useDiscoveredRfps";
 import { useToast } from "@/hooks/use-toast";
 import { usePartnerRatings } from "@/hooks/usePartnerRatings";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   rfp: DiscoveredRfp;
   onEmailBlast?: (companyIds: string[]) => void;
+}
+
+// Fetch contacts for partner companies
+function usePartnerContacts(clientIds: string[]) {
+  return useQuery({
+    queryKey: ["partner-contacts", clientIds],
+    enabled: clientIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("client_contacts")
+        .select("id, name, email, client_id, is_primary, title")
+        .in("client_id", clientIds)
+        .order("is_primary", { ascending: false })
+        .order("name");
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 2 * 60 * 1000,
+  });
 }
 
 export function RecommendedCompaniesSection({ rfp, onEmailBlast }: Props) {
@@ -56,7 +77,33 @@ export function RecommendedCompaniesSection({ rfp, onEmailBlast }: Props) {
       });
   }, [clients, search, localIds, ratings]);
 
+  const allPartnerIds = useMemo(
+    () => clients.filter((c) => (c as any).is_rfp_partner).map((c) => c.id),
+    [clients]
+  );
+
+  const { data: contacts = [] } = usePartnerContacts(allPartnerIds);
+
+  // Build a map: client_id -> primary contact (or first contact)
+  const contactByClient = useMemo(() => {
+    const map: Record<string, { name: string; email: string | null; title: string | null }> = {};
+    for (const c of contacts) {
+      if (!map[c.client_id] || c.is_primary) {
+        map[c.client_id] = { name: c.name, email: c.email, title: c.title };
+      }
+    }
+    return map;
+  }, [contacts]);
+
   const selectedCompanies = clients.filter((c) => selectedIds.includes(c.id));
+
+  // AI-suggested partners: top-rated partners with rating >= 3.5 that aren't already selected
+  const aiSuggested = useMemo(() => {
+    if (selectedIds.length > 0) return []; // Only suggest when none selected
+    return companyOptions
+      .filter((c) => (ratings[c.id] ?? 0) >= 3.5 && !selectedIds.includes(c.id))
+      .slice(0, 3);
+  }, [companyOptions, ratings, selectedIds]);
 
   const toggleLocal = (companyId: string) => {
     setLocalIds((prev) =>
@@ -79,6 +126,14 @@ export function RecommendedCompaniesSection({ rfp, onEmailBlast }: Props) {
     await update.mutateAsync({ id: rfp.id, recommended_company_ids: next } as any);
   };
 
+  const handleAddSuggested = async () => {
+    const suggestedIds = aiSuggested.map((c) => c.id);
+    const merged = [...new Set([...selectedIds, ...suggestedIds])];
+    setLocalIds(merged);
+    await update.mutateAsync({ id: rfp.id, recommended_company_ids: merged } as any);
+    toast({ title: "AI suggestions added", description: `Added ${suggestedIds.length} top-rated partners.` });
+  };
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -97,28 +152,72 @@ export function RecommendedCompaniesSection({ rfp, onEmailBlast }: Props) {
         )}
       </div>
 
+      {/* AI Suggestions */}
+      {aiSuggested.length > 0 && selectedIds.length === 0 && (
+        <div className="rounded-md border border-accent/30 bg-accent/5 p-2.5 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium flex items-center gap-1 text-accent">
+              <Sparkles className="h-3 w-3" /> Suggested Partners
+            </p>
+            <Button size="sm" variant="ghost" className="h-6 text-[10px] text-accent" onClick={handleAddSuggested}>
+              Add All
+            </Button>
+          </div>
+          <div className="space-y-1">
+            {aiSuggested.map((c) => {
+              const contact = contactByClient[c.id];
+              return (
+                <div key={c.id} className="flex items-center justify-between text-xs">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{c.name}</p>
+                    {contact && (
+                      <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                        <User className="h-2.5 w-2.5" /> {contact.name}{contact.title ? ` · ${contact.title}` : ""}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 text-muted-foreground shrink-0">
+                    <Star className="h-2.5 w-2.5 fill-accent text-accent" /> {ratings[c.id]!.toFixed(1)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Selected chips */}
       {selectedCompanies.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {selectedCompanies.map((c) => (
-            <Badge key={c.id} variant="secondary" className="text-xs pl-2 pr-1 gap-1">
-              {c.name}
-              {c.client_type && (
-                <span className="text-muted-foreground">· {c.client_type}</span>
-              )}
-              {ratings[c.id] != null && (
-                <span className="text-muted-foreground flex items-center gap-0.5">
-                  · <Star className="h-2.5 w-2.5 fill-accent text-accent" /> {ratings[c.id]!.toFixed(1)}
-                </span>
-              )}
-              <button
-                onClick={() => removeCompany(c.id)}
-                className="hover:bg-muted rounded-full p-0.5 ml-0.5"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
+          {selectedCompanies.map((c) => {
+            const contact = contactByClient[c.id];
+            return (
+              <Badge key={c.id} variant="secondary" className="text-xs pl-2 pr-1 gap-1">
+                <div className="flex flex-col leading-tight">
+                  <span>{c.name}</span>
+                  {contact && (
+                    <span className="text-[10px] text-muted-foreground font-normal">
+                      {contact.name}{contact.title ? ` · ${contact.title}` : ""}
+                    </span>
+                  )}
+                </div>
+                {c.client_type && (
+                  <span className="text-muted-foreground">· {c.client_type}</span>
+                )}
+                {ratings[c.id] != null && (
+                  <span className="text-muted-foreground flex items-center gap-0.5">
+                    · <Star className="h-2.5 w-2.5 fill-accent text-accent" /> {ratings[c.id]!.toFixed(1)}
+                  </span>
+                )}
+                <button
+                  onClick={() => removeCompany(c.id)}
+                  className="hover:bg-muted rounded-full p-0.5 ml-0.5"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            );
+          })}
         </div>
       )}
 
@@ -145,30 +244,38 @@ export function RecommendedCompaniesSection({ rfp, onEmailBlast }: Props) {
                   {search ? "No partners found" : "No companies flagged as RFP partners. Mark companies as partners in the Companies section."}
                 </p>
               ) : (
-                companyOptions.map((c) => (
-                  <label
-                    key={c.id}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer"
-                  >
-                    <Checkbox
-                      checked={localIds.includes(c.id)}
-                      onCheckedChange={() => toggleLocal(c.id)}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm truncate">{c.name}</p>
-                      <div className="flex items-center gap-2">
-                        {c.client_type && (
-                          <p className="text-[10px] text-muted-foreground">{c.client_type}</p>
-                        )}
-                        {ratings[c.id] != null && (
-                          <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                            <Star className="h-2.5 w-2.5 fill-accent text-accent" /> {ratings[c.id]!.toFixed(1)}
-                          </p>
-                        )}
+                companyOptions.map((c) => {
+                  const contact = contactByClient[c.id];
+                  return (
+                    <label
+                      key={c.id}
+                      className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer"
+                    >
+                      <Checkbox
+                        checked={localIds.includes(c.id)}
+                        onCheckedChange={() => toggleLocal(c.id)}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm truncate">{c.name}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {contact && (
+                            <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                              <User className="h-2.5 w-2.5" /> {contact.name}
+                            </p>
+                          )}
+                          {c.client_type && (
+                            <p className="text-[10px] text-muted-foreground">{c.client_type}</p>
+                          )}
+                          {ratings[c.id] != null && (
+                            <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                              <Star className="h-2.5 w-2.5 fill-accent text-accent" /> {ratings[c.id]!.toFixed(1)}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </label>
-                ))
+                    </label>
+                  );
+                })
               )}
             </div>
           </ScrollArea>
