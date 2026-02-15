@@ -215,18 +215,31 @@ Only include items that appear to be active procurement opportunities (RFPs, RFQ
       }
     }
 
-    // Deduplicate against existing discovered_rfps
+    // Deduplicate against existing discovered_rfps AND existing rfps table
     const existingUrls = new Set<string>();
     const existingTitles = new Set<string>();
+    const existingRfpNumbers = new Map<string, string>(); // rfp_number -> rfp.id
     if (allListings.length > 0) {
       const { data: existing } = await sb
         .from("discovered_rfps")
-        .select("original_url, title")
+        .select("original_url, title, rfp_number")
         .eq("company_id", company_id);
       if (existing) {
         existing.forEach((e: any) => {
           if (e.original_url) existingUrls.add(e.original_url);
           if (e.title) existingTitles.add(e.title.toLowerCase().trim());
+        });
+      }
+
+      // Also check the main rfps table for rfp_number matches
+      const { data: existingRfps } = await sb
+        .from("rfps")
+        .select("id, rfp_number, title")
+        .eq("company_id", company_id);
+      if (existingRfps) {
+        existingRfps.forEach((r: any) => {
+          if (r.rfp_number) existingRfpNumbers.set(r.rfp_number.toLowerCase().trim(), r.id);
+          if (r.title) existingTitles.add(r.title.toLowerCase().trim());
         });
       }
     }
@@ -315,6 +328,11 @@ Only include items that appear to be active procurement opportunities (RFPs, RFQ
 
         // Only insert if above threshold
         if (relevanceScore >= minScore) {
+          // Auto-link to existing RFP if rfp_number matches
+          const matchedRfpId = listing.rfp_number
+            ? existingRfpNumbers.get(listing.rfp_number.toLowerCase().trim()) || null
+            : null;
+
           const { error: insertErr } = await sb.from("discovered_rfps").insert({
             company_id,
             source_id: listing.source_id,
@@ -325,10 +343,13 @@ Only include items that appear to be active procurement opportunities (RFPs, RFQ
             original_url: listing.url || null,
             pdf_url: listing.pdf_url || null,
             relevance_score: relevanceScore,
-            relevance_reason: relevanceReason,
+            relevance_reason: matchedRfpId
+              ? `⚠️ Already in pipeline. ${relevanceReason}`
+              : relevanceReason,
             service_tags: serviceTags,
             estimated_value: listing.estimated_value || null,
-            status: "new",
+            status: matchedRfpId ? "reviewing" : "new",
+            rfp_id: matchedRfpId,
           });
           if (!insertErr) newCount++;
           else console.error("Insert error:", insertErr);
