@@ -255,7 +255,7 @@ function InvoiceCard({
                 {(level === "critical" || level === "urgent") && (
                   <DropdownMenuItem onClick={() => onOpenClaimFlow(inv)}>
                     <Gavel className="h-3.5 w-3.5 mr-2" />
-                    ClaimFlow
+                    ClaimCurrent
                   </DropdownMenuItem>
                 )}
                 {level === "critical" && (
@@ -983,7 +983,7 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
           clientName={paymentPlanInvoice.clients?.name}
         />
       )}
-      {/* ClaimFlow Dialog */}
+      {/* ClaimCurrent Dialog */}
       {claimFlowInvoice && (
         <ClaimFlowDialog
           open={!!claimFlowInvoice}

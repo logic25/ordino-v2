@@ -71,7 +71,7 @@ export function ClaimFlowDialog({
         setPackageUrl(result.download_url);
         setStep("done");
         toast({
-          title: "ClaimFlow package ready",
+          title: "ClaimCurrent package ready",
           description: `Legal package for ${invoiceNumber} has been generated and is ready for download.`,
         });
       } catch (pkgErr: any) {
@@ -106,7 +106,7 @@ export function ClaimFlowDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Gavel className="h-5 w-5 text-primary" />
-            Send to ClaimFlow
+            Send to ClaimCurrent
           </DialogTitle>
           <DialogDescription>
             {step === "done"
@@ -236,7 +236,7 @@ export function ClaimFlowDialog({
                 className="mt-0.5"
               />
               <label htmlFor="confirm-claimflow" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
-                I understand this will place {invoiceNumber} on <strong>legal hold</strong>, pausing all automated collection actions. This referral will be sent to ClaimFlow for small claims processing.
+                I understand this will place {invoiceNumber} on <strong>legal hold</strong>, pausing all automated collection actions. This referral will be sent to ClaimCurrent for small claims processing.
               </label>
             </div>
           </div>
@@ -258,7 +258,7 @@ export function ClaimFlowDialog({
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 )}
                 <Gavel className="h-4 w-4 mr-2" />
-                Send to ClaimFlow
+                Send to ClaimCurrent
               </Button>
             </>
           )}

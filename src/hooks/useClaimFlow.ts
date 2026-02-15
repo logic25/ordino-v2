@@ -74,7 +74,7 @@ export function useCreateClaimFlowReferral() {
         company_id: profile.company_id,
         invoice_id: input.invoice_id,
         action: "claimflow_referral",
-        details: `Sent to ClaimFlow for small claims referral${input.case_notes ? `. Notes: ${input.case_notes}` : ""}`,
+        details: `Sent to ClaimCurrent for small claims referral${input.case_notes ? `. Notes: ${input.case_notes}` : ""}`,
         performed_by: profile.id,
       } as any);
 

@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
     // Header
     doc.setFontSize(10);
     doc.setTextColor(120);
-    doc.text("CLAIMFLOW LEGAL PACKAGE", pageWidth / 2, y, { align: "center" });
+    doc.text("CLAIMCURRENT LEGAL PACKAGE", pageWidth / 2, y, { align: "center" });
     y += 18;
     doc.setFontSize(16);
     doc.setTextColor(30);
