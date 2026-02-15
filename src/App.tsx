@@ -24,6 +24,7 @@ import Calendar from "./pages/Calendar";
 import Documents from "./pages/Documents";
 import Rfps from "./pages/Rfps";
 import RfpLibrary from "./pages/RfpLibrary";
+import RfpDiscovery from "./pages/RfpDiscovery";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -165,6 +166,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <RfpLibrary />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/rfps/discover"
+        element={
+          <ProtectedRoute>
+            <RfpDiscovery />
           </ProtectedRoute>
         }
       />
