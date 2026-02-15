@@ -80,52 +80,103 @@ export function buildPartnerEmailBody(
 ): string {
   const ctx = detectRfpContext(rfp);
   const config = contextConfig[ctx];
-  const sections: string[] = [];
+  const lines: string[] = [];
 
-  // Header
-  sections.push(`<div style="font-family: Arial, sans-serif; max-width: 680px; margin: 0 auto;">`);
+  const wrap = `font-family: Arial, Helvetica, sans-serif; max-width: 640px; margin: 0 auto; color: #333; line-height: 1.6;`;
+  const cardStyle = `background: #f8f8f8; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin: 20px 0;`;
+  const labelStyle = `color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 2px 0;`;
+  const valueStyle = `color: #222; font-size: 14px; margin: 0 0 12px 0;`;
+  const sectionHeadingStyle = `font-size: 16px; color: #222; margin: 28px 0 12px 0; padding-bottom: 8px; border-bottom: 2px solid #e0e0e0;`;
+  const hrStyle = `border: none; border-top: 1px solid #e8e8e8; margin: 28px 0;`;
 
+  // Outer wrapper
+  lines.push(`<div style="${wrap}">`);
+
+  // Logo
   if (company.logo_url) {
-    sections.push(`<img src="${company.logo_url}" alt="${company.name}" style="max-height:60px; margin-bottom:16px;" />`);
+    lines.push(`<img src="${company.logo_url}" alt="${company.name}" style="max-height: 50px; margin-bottom: 20px;" />`);
   }
 
-  sections.push(`<h2 style="color:#1a1a1a; margin-bottom:4px;">${config.subjectPrefix}</h2>`);
-  sections.push(`<p style="color:#555;">${config.intro}</p>`);
+  // Intro
+  lines.push(`<h2 style="font-size: 20px; color: #111; margin: 0 0 8px 0;">${config.subjectPrefix}</h2>`);
+  lines.push(`<p style="color: #555; font-size: 14px; margin: 0 0 24px 0;">${config.intro}</p>`);
 
   // RFP Details card
-  sections.push(`<table style="width:100%; border:1px solid #e2e2e2; border-radius:8px; border-collapse:separate; margin:16px 0; padding:16px; background:#fafafa;">`);
-  sections.push(`<tr><td style="padding:4px 8px;"><strong>RFP Title:</strong></td><td style="padding:4px 8px;">${rfp.title}</td></tr>`);
-  if (rfp.rfp_number) sections.push(`<tr><td style="padding:4px 8px;"><strong>RFP #:</strong></td><td style="padding:4px 8px;">${rfp.rfp_number}</td></tr>`);
-  if (rfp.issuing_agency) sections.push(`<tr><td style="padding:4px 8px;"><strong>Issuing Agency:</strong></td><td style="padding:4px 8px;">${rfp.issuing_agency}</td></tr>`);
-  if (rfp.due_date) sections.push(`<tr><td style="padding:4px 8px;"><strong>Due Date:</strong></td><td style="padding:4px 8px;">${format(new Date(rfp.due_date), "MMMM d, yyyy")}</td></tr>`);
-  if (rfp.estimated_value) sections.push(`<tr><td style="padding:4px 8px;"><strong>Est. Value:</strong></td><td style="padding:4px 8px;">$${rfp.estimated_value.toLocaleString()}</td></tr>`);
-  if (rfp.original_url) sections.push(`<tr><td style="padding:4px 8px;"><strong>Details:</strong></td><td style="padding:4px 8px;"><a href="${rfp.original_url}">View Original Listing</a></td></tr>`);
-  if ((rfp as any).pdf_url) sections.push(`<tr><td style="padding:4px 8px;"><strong>RFP Document:</strong></td><td style="padding:4px 8px;"><a href="${(rfp as any).pdf_url}">Download RFP PDF</a></td></tr>`);
-  sections.push(`</table>`);
+  lines.push(`<div style="${cardStyle}">`);
+  lines.push(`<h3 style="font-size: 14px; color: #111; margin: 0 0 16px 0;">RFP Details</h3>`);
 
-  if (rfp.service_tags?.length) {
-    sections.push(`<p><strong>Required Services:</strong> ${rfp.service_tags.map(t => t.replace(/_/g, " ")).join(", ")}</p>`);
+  lines.push(`<p style="${labelStyle}">Title</p>`);
+  lines.push(`<p style="${valueStyle}">${rfp.title}</p>`);
+
+  if (rfp.rfp_number) {
+    lines.push(`<p style="${labelStyle}">RFP Number</p>`);
+    lines.push(`<p style="${valueStyle}">${rfp.rfp_number}</p>`);
   }
 
-  // Divider
-  sections.push(`<hr style="border:none; border-top:1px solid #e2e2e2; margin:24px 0;" />`);
+  // Two-column row for agency + due date
+  const hasAgency = !!rfp.issuing_agency;
+  const hasDueDate = !!rfp.due_date;
+  if (hasAgency || hasDueDate) {
+    lines.push(`<table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; margin-bottom: 12px;"><tr>`);
+    if (hasAgency) {
+      lines.push(`<td style="vertical-align: top; width: 50%;"><p style="${labelStyle}">Issuing Agency</p><p style="${valueStyle}">${rfp.issuing_agency}</p></td>`);
+    }
+    if (hasDueDate) {
+      lines.push(`<td style="vertical-align: top; width: 50%;"><p style="${labelStyle}">Due Date</p><p style="${valueStyle}">${format(new Date(rfp.due_date!), "MMMM d, yyyy")}</p></td>`);
+    }
+    lines.push(`</tr></table>`);
+  }
 
-  // Company Mini-Profile
-  sections.push(`<h3 style="color:#1a1a1a;">About ${company.name}</h3>`);
+  // Value + links row
+  const hasValue = !!rfp.estimated_value;
+  const hasUrl = !!rfp.original_url;
+  if (hasValue || hasUrl) {
+    lines.push(`<table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;"><tr>`);
+    if (hasValue) {
+      lines.push(`<td style="vertical-align: top; width: 50%;"><p style="${labelStyle}">Estimated Value</p><p style="color: #16a34a; font-size: 16px; font-weight: bold; margin: 0;">$${rfp.estimated_value!.toLocaleString()}</p></td>`);
+    }
+    if (hasUrl) {
+      lines.push(`<td style="vertical-align: top; width: 50%;"><p style="${labelStyle}">Original Listing</p><p style="${valueStyle}"><a href="${rfp.original_url}" style="color: #2563eb; text-decoration: underline;">View Listing</a></p></td>`);
+    }
+    lines.push(`</tr></table>`);
+  }
 
-  // Company info from Content Library
+  if ((rfp as any).pdf_url) {
+    lines.push(`<p style="${labelStyle}">RFP Document</p>`);
+    lines.push(`<p style="${valueStyle}"><a href="${(rfp as any).pdf_url}" style="color: #2563eb; text-decoration: underline;">Download RFP PDF</a></p>`);
+  }
+
+  lines.push(`</div>`); // end card
+
+  if (rfp.service_tags?.length) {
+    lines.push(`<p style="font-size: 13px; color: #555; margin: 16px 0;"><strong>Required Services:</strong> ${rfp.service_tags.map(t => t.replace(/_/g, " ")).join(", ")}</p>`);
+  }
+
+  // Response Buttons — prominent, separated
+  if (responseBaseUrl && outreachToken) {
+    const interestedUrl = `${responseBaseUrl}?token=${outreachToken}&response=interested`;
+    const passUrl = `${responseBaseUrl}?token=${outreachToken}&response=passed`;
+    lines.push(`<div style="text-align: center; margin: 32px 0; padding: 24px 0; border-top: 1px solid #e8e8e8; border-bottom: 1px solid #e8e8e8;">`);
+    lines.push(`<p style="font-size: 14px; color: #555; margin: 0 0 16px 0;">Are you interested in partnering on this opportunity?</p>`);
+    lines.push(`<table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr>`);
+    lines.push(`<td style="padding-right: 20px;"><a href="${interestedUrl}" style="display: inline-block; padding: 14px 40px; background-color: #16a34a; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px; letter-spacing: 0.3px;">I'm Interested</a></td>`);
+    lines.push(`<td><a href="${passUrl}" style="display: inline-block; padding: 14px 40px; background-color: #e2e8f0; color: #475569; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px; letter-spacing: 0.3px;">Pass</a></td>`);
+    lines.push(`</tr></table>`);
+    lines.push(`</div>`);
+  }
+
+  // Company Profile Section
+  lines.push(`<h3 style="${sectionHeadingStyle}">About ${company.name}</h3>`);
+
   const companyInfoItems = contentItems.filter(c => c.content_type === "company_info" || c.content_type === "firm_history");
   if (companyInfoItems.length > 0) {
     const info = companyInfoItems[0];
     const content = info.content as Record<string, string> | null;
-    if (content?.description) {
-      sections.push(`<p style="color:#555;">${content.description}</p>`);
-    } else if (info.title) {
-      sections.push(`<p style="color:#555;">${info.title}</p>`);
-    }
+    const text = content?.description || info.title;
+    if (text) lines.push(`<p style="color: #555; font-size: 14px; margin: 0 0 16px 0;">${text}</p>`);
   }
 
-  // Services — filter by context keywords if applicable
+  // Services
   const serviceCatalog = settings?.service_catalog;
   if (serviceCatalog && serviceCatalog.length > 0) {
     let filtered = serviceCatalog;
@@ -136,65 +187,54 @@ export function buildPartnerEmailBody(
       );
       if (matched.length > 0) filtered = matched;
     }
-    sections.push(`<p><strong>Services We Offer:</strong></p><ul style="color:#555;">`);
-    filtered.slice(0, 8).forEach(s => {
-      sections.push(`<li>${s.name}${s.description ? ` — ${s.description}` : ""}</li>`);
+    lines.push(`<p style="font-size: 13px; font-weight: bold; color: #333; margin: 16px 0 8px 0;">Services We Offer</p>`);
+    lines.push(`<ul style="color: #555; font-size: 13px; margin: 0; padding-left: 20px;">`);
+    filtered.slice(0, 6).forEach(s => {
+      lines.push(`<li style="margin-bottom: 4px;">${s.name}${s.description ? ` — ${s.description}` : ""}</li>`);
     });
-    sections.push(`</ul>`);
+    lines.push(`</ul>`);
   }
 
   // Key Staff
   const staffBios = contentItems.filter(c => c.content_type === "staff_bio").slice(0, 3);
   if (staffBios.length > 0) {
-    sections.push(`<p><strong>Key Team Members:</strong></p><ul style="color:#555;">`);
+    lines.push(`<p style="font-size: 13px; font-weight: bold; color: #333; margin: 20px 0 8px 0;">Key Team Members</p>`);
+    lines.push(`<ul style="color: #555; font-size: 13px; margin: 0; padding-left: 20px;">`);
     staffBios.forEach(bio => {
       const content = bio.content as Record<string, string> | null;
       const role = content?.role || content?.title || "";
       const creds = content?.credentials || "";
-      sections.push(`<li><strong>${bio.title}</strong>${role ? ` — ${role}` : ""}${creds ? ` (${creds})` : ""}</li>`);
+      lines.push(`<li style="margin-bottom: 4px;"><strong>${bio.title}</strong>${role ? ` — ${role}` : ""}${creds ? ` (${creds})` : ""}</li>`);
     });
-    sections.push(`</ul>`);
+    lines.push(`</ul>`);
   }
 
   // Notable Projects
   if (notableProjects.length > 0) {
-    sections.push(`<p><strong>Notable Projects:</strong></p><ul style="color:#555;">`);
+    lines.push(`<p style="font-size: 13px; font-weight: bold; color: #333; margin: 20px 0 8px 0;">Notable Projects</p>`);
+    lines.push(`<ul style="color: #555; font-size: 13px; margin: 0; padding-left: 20px;">`);
     notableProjects.slice(0, 3).forEach(p => {
       const addr = p.properties?.address || "Project";
       const val = p.estimated_value ? ` ($${p.estimated_value.toLocaleString()})` : "";
-      sections.push(`<li>${addr}${val}${p.description ? ` — ${p.description}` : ""}</li>`);
+      lines.push(`<li style="margin-bottom: 4px;">${addr}${val}${p.description ? ` — ${p.description}` : ""}</li>`);
     });
-    sections.push(`</ul>`);
+    lines.push(`</ul>`);
   }
 
   // Certifications
   const certs = contentItems.filter(c => c.content_type === "certification");
   if (certs.length > 0) {
-    sections.push(`<p><strong>Certifications:</strong> ${certs.map(c => c.title).join(", ")}</p>`);
+    lines.push(`<p style="font-size: 13px; color: #555; margin: 20px 0 8px 0;"><strong>Certifications:</strong> ${certs.map(c => c.title).join(", ")}</p>`);
   }
 
-  // Contact info footer
-  sections.push(`<hr style="border:none; border-top:1px solid #e2e2e2; margin:24px 0;" />`);
-  sections.push(`<p style="color:#555;">We believe this is a strong opportunity for collaboration. Please let us know if you're interested:</p>`);
-
-  // Response buttons (if outreach token provided)
-  if (responseBaseUrl && outreachToken) {
-    const interestedUrl = `${responseBaseUrl}?token=${outreachToken}&response=interested`;
-    const passUrl = `${responseBaseUrl}?token=${outreachToken}&response=passed`;
-    sections.push(`<table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px auto;"><tr>`);
-    sections.push(`<td style="padding-right:16px;"><a href="${interestedUrl}" style="display:inline-block; padding:14px 36px; background:#22c55e; color:#ffffff; text-decoration:none; border-radius:6px; font-weight:bold; font-size:15px;">I'm Interested</a></td>`);
-    sections.push(`<td><a href="${passUrl}" style="display:inline-block; padding:14px 36px; background:#64748b; color:#ffffff; text-decoration:none; border-radius:6px; font-weight:bold; font-size:15px;">Pass</a></td>`);
-    sections.push(`</tr></table>`);
-  }
-
+  // Footer
+  lines.push(`<hr style="${hrStyle}" />`);
   const contactParts: string[] = [];
-  if (company.phone) contactParts.push(`Phone: ${company.phone}`);
-  if (company.email) contactParts.push(`Email: ${company.email}`);
-  if (company.website) contactParts.push(`Web: <a href="${company.website}">${company.website}</a>`);
-  if (contactParts.length > 0) {
-    sections.push(`<p style="color:#888; font-size:13px;">${company.name}<br/>${contactParts.join(" | ")}</p>`);
-  }
+  if (company.phone) contactParts.push(company.phone);
+  if (company.email) contactParts.push(`<a href="mailto:${company.email}" style="color: #2563eb;">${company.email}</a>`);
+  if (company.website) contactParts.push(`<a href="${company.website.startsWith("http") ? company.website : `https://${company.website}`}" style="color: #2563eb;">${company.website}</a>`);
+  lines.push(`<p style="color: #999; font-size: 12px; margin: 0;">${company.name}${contactParts.length ? `<br/>${contactParts.join(" &middot; ")}` : ""}</p>`);
 
-  sections.push(`</div>`);
-  return sections.join("\n");
+  lines.push(`</div>`);
+  return lines.join("\n");
 }
