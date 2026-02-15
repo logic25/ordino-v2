@@ -7,11 +7,17 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   Building2, Users, Star, FileText, DollarSign, Award, GitBranch, Eye,
   Loader2, Sparkles, Mail, Download, ChevronLeft, ChevronRight, Send, Check,
+  Pencil, ExternalLink, ChevronDown,
 } from "lucide-react";
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
@@ -27,6 +33,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { RfpPreviewModal } from "./RfpPreviewModal";
 import { SortableSectionItem } from "./builder/SortableSectionItem";
+import { useNavigate } from "react-router-dom";
 
 interface RfpBuilderDialogProps {
   rfp: Rfp | null;
@@ -35,18 +42,19 @@ interface RfpBuilderDialogProps {
 }
 
 const SECTION_DEFS = [
-  { id: "cover_letter", label: "Cover Letter", icon: Mail },
-  { id: "company_info", label: "Company Information", icon: Building2 },
-  { id: "staff_bios", label: "Staff Bios & Qualifications", icon: Users },
-  { id: "org_chart", label: "Organization Chart", icon: GitBranch },
-  { id: "notable_projects", label: "Notable Projects", icon: Star },
-  { id: "narratives", label: "Narratives & Approach", icon: FileText },
-  { id: "pricing", label: "Pricing / Rate Schedule", icon: DollarSign },
-  { id: "certifications", label: "Certifications & Licenses", icon: Award },
+  { id: "cover_letter", label: "Cover Letter", icon: Mail, libraryTab: null },
+  { id: "company_info", label: "Company Information", icon: Building2, libraryTab: "company" },
+  { id: "staff_bios", label: "Staff Bios & Qualifications", icon: Users, libraryTab: "staff" },
+  { id: "org_chart", label: "Organization Chart", icon: GitBranch, libraryTab: "staff" },
+  { id: "notable_projects", label: "Notable Projects", icon: Star, libraryTab: "projects" },
+  { id: "narratives", label: "Narratives & Approach", icon: FileText, libraryTab: "narratives" },
+  { id: "pricing", label: "Pricing / Rate Schedule", icon: DollarSign, libraryTab: "pricing" },
+  { id: "certifications", label: "Certifications & Licenses", icon: Award, libraryTab: "certs" },
 ] as const;
 
 const STEPS = [
-  { label: "Select Sections", icon: FileText },
+  { label: "Select", icon: FileText },
+  { label: "Edit", icon: Pencil },
   { label: "Cover Letter", icon: Mail },
   { label: "Review", icon: Eye },
   { label: "Submit", icon: Send },
@@ -67,6 +75,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
 
   const updateStatus = useUpdateRfpStatus();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { data: draft } = useRfpDraft(rfp?.id);
   const upsertDraft = useUpsertRfpDraft();
   const deleteDraft = useDeleteRfpDraft();
@@ -80,7 +89,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   const { data: certs = [] } = useRfpContent("certification");
   const { data: notableProjects = [] } = useNotableApplications();
 
-  // Load draft when available
+  // Load draft
   useEffect(() => {
     if (draft && !draftLoaded && open) {
       setSelectedSections(draft.selected_sections.length ? draft.selected_sections : [...DEFAULT_SECTIONS]);
@@ -92,14 +101,10 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     }
   }, [draft, draftLoaded, open]);
 
-  // Reset when dialog closes
   useEffect(() => {
-    if (!open) {
-      setDraftLoaded(false);
-    }
+    if (!open) setDraftLoaded(false);
   }, [open]);
 
-  // Auto-save draft
   const saveDraft = useCallback(() => {
     if (!rfp?.id) return;
     upsertDraft.mutate({
@@ -170,17 +175,13 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
         },
       });
       if (error) throw error;
-
       await updateStatus.mutateAsync({
         id: rfp.id,
         status: "submitted" as RfpStatus,
         submitted_at: new Date().toISOString(),
       });
-
-      // Clean up draft
       deleteDraft.mutate(rfp.id);
-
-      toast({ title: "RFP response submitted!", description: `Sent to ${submitEmail} and status updated to Submitted.` });
+      toast({ title: "RFP response submitted!", description: `Sent to ${submitEmail}.` });
       onOpenChange(false);
     } catch (e: any) {
       toast({ title: "Submit failed", description: e.message, variant: "destructive" });
@@ -194,7 +195,6 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     if (coverLetter) parts.push(coverLetter);
     parts.push(`\n\n--- RFP Response: ${rfp?.title} ---\n`);
     parts.push("Please find our complete RFP response package attached.");
-    parts.push("\nThis response was generated using Ordino RFP Response Builder.");
     return parts.join("\n");
   };
 
@@ -207,6 +207,17 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     narratives: narratives.length + firmHistory.length,
     pricing: pricing.length,
     certifications: certs.length,
+  };
+
+  // Content data map for editing
+  const sectionContentMap: Record<string, { items: any[]; type: string }> = {
+    company_info: { items: companyInfo, type: "company_info" },
+    staff_bios: { items: staffBios, type: "staff_bio" },
+    org_chart: { items: staffBios, type: "staff_bio" },
+    notable_projects: { items: notableProjects, type: "notable_project" },
+    narratives: { items: [...firmHistory, ...narratives], type: "narrative" },
+    pricing: { items: pricing, type: "pricing" },
+    certifications: { items: certs, type: "certification" },
   };
 
   const assembledContent = {
@@ -223,11 +234,14 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
 
   const draggableSections = sectionOrder.filter((s) => s !== "cover_letter");
 
-  const goNext = () => {
-    saveDraft();
-    setStep((s) => Math.min(s + 1, STEPS.length - 1));
-  };
+  const goNext = () => { saveDraft(); setStep((s) => Math.min(s + 1, STEPS.length - 1)); };
   const goBack = () => setStep((s) => Math.max(s - 1, 0));
+
+  const goToLibrary = (tab?: string | null) => {
+    saveDraft();
+    onOpenChange(false);
+    navigate(`/rfps?tab=library${tab ? `&libraryTab=${tab}` : ""}`);
+  };
 
   return (
     <>
@@ -242,7 +256,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
             </DialogHeader>
 
             {/* Step indicator */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-wrap">
               {STEPS.map((s, i) => {
                 const Icon = s.icon;
                 const isActive = i === step;
@@ -279,6 +293,14 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
               />
             )}
             {step === 1 && (
+              <StepEditContent
+                selectedSections={selectedSections}
+                sectionOrder={sectionOrder}
+                sectionContentMap={sectionContentMap}
+                onGoToLibrary={goToLibrary}
+              />
+            )}
+            {step === 2 && (
               <StepCoverLetter
                 coverLetter={coverLetter}
                 setCoverLetter={setCoverLetter}
@@ -286,7 +308,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
                 generating={generatingLetter}
               />
             )}
-            {step === 2 && (
+            {step === 3 && (
               <StepReview
                 selectedSections={selectedSections}
                 sectionOrder={sectionOrder}
@@ -295,7 +317,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
                 onPreview={() => setPreviewOpen(true)}
               />
             )}
-            {step === 3 && (
+            {step === 4 && (
               <StepSubmit
                 submitEmail={submitEmail}
                 setSubmitEmail={setSubmitEmail}
@@ -306,7 +328,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
             )}
           </div>
 
-          {/* Footer navigation */}
+          {/* Footer */}
           <div className="flex items-center justify-between px-6 py-4 border-t bg-muted/30">
             <Button variant="ghost" size="sm" onClick={goBack} disabled={step === 0}>
               <ChevronLeft className="h-4 w-4 mr-1" /> Back
@@ -337,7 +359,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   );
 }
 
-// --- Step Components ---
+// ─── Step: Select Sections ───
 
 function StepSelectSections({
   sectionOrder, selectedSections, contentCounts, onToggle, onDragEnd, sensors,
@@ -379,6 +401,176 @@ function StepSelectSections({
   );
 }
 
+// ─── Step: Edit Content ───
+
+function StepEditContent({
+  selectedSections,
+  sectionOrder,
+  sectionContentMap,
+  onGoToLibrary,
+}: {
+  selectedSections: string[];
+  sectionOrder: string[];
+  sectionContentMap: Record<string, { items: any[]; type: string }>;
+  onGoToLibrary: (tab?: string | null) => void;
+}) {
+  const activeSections = sectionOrder
+    .filter((s) => selectedSections.includes(s) && s !== "cover_letter");
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-sm">Edit Section Content</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Review and quick-edit content, or open the full Content Library.
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {activeSections.map((sectionId) => {
+          const def = SECTION_DEFS.find((s) => s.id === sectionId);
+          if (!def) return null;
+          const Icon = def.icon;
+          const content = sectionContentMap[sectionId];
+          const items = content?.items || [];
+
+          return (
+            <Collapsible key={sectionId}>
+              <div className="border rounded-lg overflow-hidden">
+                <CollapsibleTrigger asChild>
+                  <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
+                    <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span className="text-sm font-medium flex-1">{def.label}</span>
+                    <Badge variant={items.length > 0 ? "secondary" : "outline"} className="text-xs">
+                      {items.length} {items.length === 1 ? "item" : "items"}
+                    </Badge>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180" />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="border-t px-4 py-3 space-y-3 bg-muted/10">
+                    {items.length === 0 ? (
+                      <p className="text-xs text-muted-foreground italic">
+                        No content yet. Add items in the Content Library.
+                      </p>
+                    ) : (
+                      <ScrollArea className="max-h-[200px]">
+                        <div className="space-y-2 pr-2">
+                          {items.map((item: any, idx: number) => (
+                            <SectionContentPreview key={item.id || idx} item={item} type={sectionId} />
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
+                    {def.libraryTab && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs"
+                        onClick={() => onGoToLibrary(def.libraryTab)}
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1.5" />
+                        Edit in Content Library
+                      </Button>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </div>
+            </Collapsible>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SectionContentPreview({ item, type }: { item: any; type: string }) {
+  const content = item.content as any;
+
+  if (type === "company_info") {
+    return (
+      <div className="text-xs space-y-1 bg-card rounded-lg p-2.5 border">
+        {content?.legal_name && <p><span className="text-muted-foreground">Name:</span> <span className="font-medium">{content.legal_name}</span></p>}
+        {content?.address && <p><span className="text-muted-foreground">Address:</span> {content.address}</p>}
+        {content?.phone && <p><span className="text-muted-foreground">Phone:</span> {content.phone}</p>}
+        {content?.email && <p><span className="text-muted-foreground">Email:</span> {content.email}</p>}
+      </div>
+    );
+  }
+
+  if (type === "staff_bios" || type === "org_chart") {
+    return (
+      <div className="flex items-center gap-2 bg-card rounded-lg p-2.5 border">
+        <div className="w-7 h-7 rounded-full bg-accent/15 flex items-center justify-center text-[10px] font-bold text-accent flex-shrink-0">
+          {content?.name?.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2) || "?"}
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-medium truncate">{content?.name}</p>
+          <p className="text-[10px] text-muted-foreground truncate">{content?.title}</p>
+        </div>
+        {content?.years_experience && (
+          <Badge variant="outline" className="text-[10px] ml-auto flex-shrink-0">{content.years_experience} yrs</Badge>
+        )}
+      </div>
+    );
+  }
+
+  if (type === "notable_projects") {
+    const props = item.properties as any;
+    return (
+      <div className="text-xs bg-card rounded-lg p-2.5 border">
+        <p className="font-medium">{props?.address || item.description || "Project"}</p>
+        <p className="text-muted-foreground mt-0.5">
+          {item.application_type}{item.estimated_value ? ` · $${item.estimated_value.toLocaleString()}` : ""}
+        </p>
+      </div>
+    );
+  }
+
+  if (type === "narratives") {
+    return (
+      <div className="text-xs bg-card rounded-lg p-2.5 border">
+        <p className="font-medium">{item.title}</p>
+        <p className="text-muted-foreground mt-0.5 line-clamp-2">{content?.text || ""}</p>
+      </div>
+    );
+  }
+
+  if (type === "pricing") {
+    const classifications = content?.labor_classifications || [];
+    return (
+      <div className="text-xs bg-card rounded-lg p-2.5 border">
+        <p className="font-medium">{item.title || "Rate Schedule"}</p>
+        <p className="text-muted-foreground mt-0.5">{classifications.length} classifications</p>
+      </div>
+    );
+  }
+
+  if (type === "certifications") {
+    return (
+      <div className="text-xs bg-card rounded-lg p-2.5 border flex items-center gap-2">
+        <Award className="h-3.5 w-3.5 text-info flex-shrink-0" />
+        <div className="min-w-0">
+          <p className="font-medium truncate">{item.title}</p>
+          <p className="text-muted-foreground truncate">
+            {content?.cert_type} #{content?.cert_number}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-xs bg-card rounded-lg p-2.5 border">
+      <p className="font-medium">{item.title || "Item"}</p>
+    </div>
+  );
+}
+
+// ─── Step: Cover Letter ───
+
 function StepCoverLetter({
   coverLetter, setCoverLetter, onGenerate, generating,
 }: {
@@ -411,6 +603,8 @@ function StepCoverLetter({
     </div>
   );
 }
+
+// ─── Step: Review ───
 
 function StepReview({
   selectedSections, sectionOrder, contentCounts, coverLetter, onPreview,
@@ -461,13 +655,15 @@ function StepReview({
         <Card className="border-warning/30 bg-warning/5">
           <CardContent className="py-3 text-sm text-warning flex items-center gap-2">
             <Mail className="h-4 w-4" />
-            Cover letter section is selected but empty. Go back to Step 2 to generate one.
+            Cover letter is selected but empty. Go back to generate one.
           </CardContent>
         </Card>
       )}
     </div>
   );
 }
+
+// ─── Step: Submit ───
 
 function StepSubmit({
   submitEmail, setSubmitEmail, onSubmit, submitting, onPreview,
@@ -489,12 +685,11 @@ function StepSubmit({
 
       <div className="space-y-3">
         <Label className="text-sm">Recipient email</Label>
-        <input
+        <Input
           type="email"
           value={submitEmail}
           onChange={(e) => setSubmitEmail(e.target.value)}
           placeholder="agency@email.com"
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </div>
 
