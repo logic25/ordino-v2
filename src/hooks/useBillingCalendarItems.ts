@@ -144,11 +144,15 @@ export function useBillingCalendarItems(startDate: string, endDate: string, enab
         .not("status", "in", '("won","lost")');
 
       rfps?.forEach((rfp: any) => {
+        const dueDate = typeof rfp.due_date === "string" && rfp.due_date.length === 10
+          ? rfp.due_date
+          : rfp.due_date?.split("T")[0];
+        if (!dueDate) return;
         items.push({
           id: `rfp-due-${rfp.id}`,
           title: `📋 RFP Due: ${rfp.title}`,
-          start_time: `${rfp.due_date}T00:00:00`,
-          end_time: `${rfp.due_date}T23:59:59`,
+          start_time: `${dueDate}T00:00:00`,
+          end_time: `${dueDate}T23:59:59`,
           all_day: true,
           event_type: "rfp_deadline",
           location: null,
