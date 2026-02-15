@@ -41,6 +41,7 @@ export interface ClientFormInput {
   dob_tracking?: string | null;
   dob_tracking_expiration?: string | null;
   is_sia?: boolean;
+  is_rfp_partner?: boolean;
   contacts?: ClientContactInput[];
 }
 
@@ -114,6 +115,7 @@ export function useCreateClient() {
           dob_tracking: input.dob_tracking || null,
           dob_tracking_expiration: input.dob_tracking_expiration || null,
           is_sia: input.is_sia || false,
+          is_rfp_partner: input.is_rfp_partner || false,
         })
         .select()
         .single();
@@ -188,6 +190,7 @@ export function useUpdateClient() {
           dob_tracking: input.dob_tracking || null,
           dob_tracking_expiration: input.dob_tracking_expiration || null,
           is_sia: input.is_sia ?? false,
+          is_rfp_partner: input.is_rfp_partner ?? false,
         })
         .eq("id", id)
         .select()

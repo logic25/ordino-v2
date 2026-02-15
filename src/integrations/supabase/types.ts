@@ -1137,6 +1137,7 @@ export type Database = {
           ibm_number: string | null
           ibm_number_expiration: string | null
           id: string
+          is_rfp_partner: boolean
           is_sia: boolean
           lead_owner_id: string | null
           metadata: Json | null
@@ -1159,6 +1160,7 @@ export type Database = {
           ibm_number?: string | null
           ibm_number_expiration?: string | null
           id?: string
+          is_rfp_partner?: boolean
           is_sia?: boolean
           lead_owner_id?: string | null
           metadata?: Json | null
@@ -1181,6 +1183,7 @@ export type Database = {
           ibm_number?: string | null
           ibm_number_expiration?: string | null
           id?: string
+          is_rfp_partner?: boolean
           is_sia?: boolean
           lead_owner_id?: string | null
           metadata?: Json | null
