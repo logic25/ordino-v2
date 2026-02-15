@@ -108,63 +108,65 @@ function ExpandedRow({ rfp, onEdit, onBuild, onDelete }: { rfp: Rfp; onEdit: (rf
   return (
     <TableRow className="bg-muted/30 hover:bg-muted/40">
       <TableCell colSpan={7} className="py-4 px-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="space-y-1.5">
-            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Insurance</div>
-            <InsuranceBadges insurance={insurance} />
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="space-y-1.5">
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Insurance</div>
+              <InsuranceBadges insurance={insurance} />
+            </div>
+            <div className="space-y-1.5">
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">M/WBE Goal</div>
+              <p className="text-sm">
+                {rfp.mwbe_goal_min || rfp.mwbe_goal_max ? `${rfp.mwbe_goal_min}–${rfp.mwbe_goal_max}%` : "—"}
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</div>
+              <Select
+                value={rfp.status}
+                onValueChange={(val) => updateStatus.mutate({ id: rfp.id, status: val as RfpStatus })}
+              >
+                <SelectTrigger className="h-8 w-[140px] text-xs" onClick={(e) => e.stopPropagation()}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="prospect">Prospect</SelectItem>
+                  <SelectItem value="drafting">Drafting</SelectItem>
+                  <SelectItem value="submitted">Submitted</SelectItem>
+                  <SelectItem value="won">Won</SelectItem>
+                  <SelectItem value="lost">Lost</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Submitted</div>
+              <p className="text-sm">
+                {rfp.submitted_at ? format(new Date(rfp.submitted_at), "MMM d, yyyy") : "—"}
+                {(rfp as any).submission_method && (
+                  <span className="text-muted-foreground ml-1">via {(rfp as any).submission_method}</span>
+                )}
+              </p>
+            </div>
+            <div className="md:col-span-4 space-y-1.5">
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notes</div>
+              <InlineNotes rfp={rfp} />
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">M/WBE Goal</div>
-            <p className="text-sm">
-              {rfp.mwbe_goal_min || rfp.mwbe_goal_max ? `${rfp.mwbe_goal_min}–${rfp.mwbe_goal_max}%` : "—"}
-            </p>
-          </div>
-          <div className="space-y-1.5">
-            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</div>
-            <Select
-              value={rfp.status}
-              onValueChange={(val) => updateStatus.mutate({ id: rfp.id, status: val as RfpStatus })}
+          <div className="flex gap-2 border-t pt-3">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => { e.stopPropagation(); onEdit(rfp); }}
             >
-              <SelectTrigger className="h-8 w-[140px] text-xs" onClick={(e) => e.stopPropagation()}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="prospect">Prospect</SelectItem>
-                <SelectItem value="drafting">Drafting</SelectItem>
-                <SelectItem value="submitted">Submitted</SelectItem>
-                <SelectItem value="won">Won</SelectItem>
-                <SelectItem value="lost">Lost</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Submitted</div>
-            <p className="text-sm">
-              {rfp.submitted_at ? format(new Date(rfp.submitted_at), "MMM d, yyyy") : "—"}
-              {(rfp as any).submission_method && (
-                <span className="text-muted-foreground ml-1">via {(rfp as any).submission_method}</span>
-              )}
-            </p>
-          </div>
-          <div className="md:col-span-3 space-y-1.5">
-            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notes</div>
-            <InlineNotes rfp={rfp} />
-          </div>
-          <div className="flex items-end">
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={(e) => { e.stopPropagation(); onEdit(rfp); }}
-              >
-                <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit RFP
-              </Button>
-              <Button
-                size="sm"
-                onClick={(e) => { e.stopPropagation(); onBuild(rfp); }}
-              >
-                <FileText className="h-3.5 w-3.5 mr-1.5" /> Build Response
-              </Button>
+              <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit RFP
+            </Button>
+            <Button
+              size="sm"
+              onClick={(e) => { e.stopPropagation(); onBuild(rfp); }}
+            >
+              <FileText className="h-3.5 w-3.5 mr-1.5" /> Build Response
+            </Button>
+            <div className="ml-auto">
               <Button
                 size="sm"
                 variant="outline"
