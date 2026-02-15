@@ -35,9 +35,11 @@ interface ComposeEmailDialogProps {
   defaultSubject?: string;
   defaultBody?: string;
   defaultAttachments?: AttachmentFile[];
+  /** Optional transform applied to body HTML before sending (e.g. wrap in styled email template) */
+  transformBodyOnSend?: (html: string) => string;
 }
 
-export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defaultSubject, defaultBody, defaultAttachments }: ComposeEmailDialogProps) {
+export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defaultSubject, defaultBody, defaultAttachments, transformBodyOnSend }: ComposeEmailDialogProps) {
   const [to, setTo] = useState<string[]>([]);
   const [cc, setCc] = useState<string[]>([]);
   const [bcc, setBcc] = useState<string[]>([]);
@@ -185,13 +187,14 @@ export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defau
 
   const handleSend = () => {
     if (to.length === 0 || !subject.trim() || !body.trim()) return;
+    const finalBody = transformBodyOnSend ? transformBodyOnSend(body) : body;
     undoableSend(
       {
         to: to.join(", "),
         cc: cc.length > 0 ? cc.join(", ") : undefined,
         bcc: bcc.length > 0 ? bcc.join(", ") : undefined,
         subject: subject.trim(),
-        html_body: body,
+        html_body: finalBody,
         attachments: buildAttachmentsPayload(),
       },
       async () => {
@@ -204,6 +207,7 @@ export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defau
 
   const handleSchedule = async (date: Date) => {
     if (to.length === 0 || !subject.trim() || !body.trim()) return;
+    const finalBody = transformBodyOnSend ? transformBodyOnSend(body) : body;
     try {
       await scheduleEmail.mutateAsync({
         emailDraft: {
@@ -211,7 +215,7 @@ export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defau
           cc: cc.length > 0 ? cc.join(", ") : undefined,
           bcc: bcc.length > 0 ? bcc.join(", ") : undefined,
           subject: subject.trim(),
-          html_body: body,
+          html_body: finalBody,
           attachments: buildAttachmentsPayload(),
         },
         scheduledSendTime: date,

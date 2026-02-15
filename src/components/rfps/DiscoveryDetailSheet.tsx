@@ -16,7 +16,7 @@ import { ComposeEmailDialog } from "@/components/emails/ComposeEmailDialog";
 import { useClients } from "@/hooks/useClients";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useRfpContent, useNotableApplications } from "@/hooks/useRfpContent";
-import { buildPartnerEmailSubject, buildPartnerEmailBody } from "./buildPartnerEmailTemplate";
+import { buildPartnerEmailSubject, buildPartnerEmailBody, wrapEmailForSending } from "./buildPartnerEmailTemplate";
 import { CompanyProfilePDF, type CompanyProfileData } from "./CompanyProfilePDF";
 import { pdf } from "@react-pdf/renderer";
 import { supabase } from "@/integrations/supabase/client";
@@ -472,6 +472,7 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
         defaultSubject={emailBlastSubject}
         defaultBody={emailBlastBody}
         defaultAttachments={emailBlastAttachments}
+        transformBodyOnSend={(html) => wrapEmailForSending(html, companySettingsData?.settings?.company_logo_url)}
       />
     </Sheet>
   );
