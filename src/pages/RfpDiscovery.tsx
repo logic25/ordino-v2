@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft, Settings2, Loader2, Radar, Target,
-  Calendar, DollarSign, Building2, ExternalLink, Sparkles, Eye, Ban,
+  Calendar, DollarSign, Building2, ExternalLink, Sparkles, Eye, Ban, User,
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { useDiscoveredRfps, useRfpSources, useTriggerRfpScan, type DiscoveredRfp } from "@/hooks/useDiscoveredRfps";
@@ -16,9 +16,10 @@ import { DiscoveryDetailSheet } from "@/components/rfps/DiscoveryDetailSheet";
 import { MonitoringSettingsDialog } from "@/components/rfps/MonitoringSettingsDialog";
 import { useCreateRfp } from "@/hooks/useRfps";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import type { Rfp } from "@/hooks/useRfps";
 
-type StatusTab = "all" | "new" | "reviewing" | "preparing" | "passed";
+type StatusTab = "all" | "new" | "reviewing" | "preparing" | "passed" | "mine";
 
 function ScoreBadge({ score }: { score: number | null }) {
   if (score === null) return <Badge variant="outline" className="text-xs">—</Badge>;
@@ -38,8 +39,10 @@ export default function RfpDiscovery() {
   const [selectedRfp, setSelectedRfp] = useState<DiscoveredRfp | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { toast } = useToast();
+  const { profile } = useAuth();
 
-  const { data: rfps = [], isLoading } = useDiscoveredRfps(statusTab === "all" ? undefined : statusTab);
+  const { data: allRfps = [], isLoading } = useDiscoveredRfps(statusTab === "all" || statusTab === "mine" ? undefined : statusTab);
+  const rfps = statusTab === "mine" ? allRfps.filter((r) => r.assigned_to === profile?.id) : allRfps;
   const { data: sources = [] } = useRfpSources();
   const scan = useTriggerRfpScan();
   const updateRfp = useUpdateDiscoveredRfp();
@@ -50,10 +53,15 @@ export default function RfpDiscovery() {
     .filter((s) => s.last_checked_at)
     .sort((a, b) => new Date(b.last_checked_at!).getTime() - new Date(a.last_checked_at!).getTime())[0];
 
-  const newCount = rfps.filter((r) => r.status === "new").length;
-  const reviewingCount = rfps.filter((r) => r.status === "reviewing").length;
+  const newCount = allRfps.filter((r) => r.status === "new").length;
+  const reviewingCount = allRfps.filter((r) => r.status === "reviewing").length;
+  const myCount = allRfps.filter((r) => r.assigned_to === profile?.id).length;
+
+  const [respondingId, setRespondingId] = useState<string | null>(null);
 
   const handleGenerateResponse = async (discovered: DiscoveredRfp) => {
+    if (respondingId) return;
+    setRespondingId(discovered.id);
     try {
       const result = await createRfp.mutateAsync({
         title: discovered.title,
@@ -76,7 +84,10 @@ export default function RfpDiscovery() {
       toast({ title: "RFP created", description: "Opening the RFP builder..." });
       navigate("/rfps");
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      console.error("Respond error:", err);
+      toast({ title: "Error creating RFP", description: err.message, variant: "destructive" });
+    } finally {
+      setRespondingId(null);
     }
   };
 
@@ -153,6 +164,9 @@ export default function RfpDiscovery() {
             <TabsTrigger value="reviewing">Reviewing</TabsTrigger>
             <TabsTrigger value="preparing">Preparing</TabsTrigger>
             <TabsTrigger value="passed">Passed</TabsTrigger>
+            <TabsTrigger value="mine">
+              <User className="h-3.5 w-3.5 mr-1" /> Mine {myCount > 0 && <Badge variant="secondary" className="ml-1 text-[10px] h-4 px-1.5">{myCount}</Badge>}
+            </TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -236,9 +250,10 @@ export default function RfpDiscovery() {
                           size="sm"
                           variant="outline"
                           className="h-8 text-xs"
+                          disabled={respondingId === rfp.id}
                           onClick={() => handleGenerateResponse(rfp)}
                         >
-                          <Sparkles className="h-3.5 w-3.5 mr-1" /> Respond
+                          {respondingId === rfp.id ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />} Respond
                         </Button>
                         {rfp.status !== "passed" && (
                           <Button
