@@ -6,9 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   ArrowLeft, Settings2, Loader2, Radar, Target,
-  Calendar, DollarSign, Building2, ExternalLink, Sparkles, Eye, Ban, User,
+  Calendar, DollarSign, Building2, ExternalLink, Sparkles, Eye, Ban, User, ArrowUpDown,
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { useDiscoveredRfps, useRfpSources, useTriggerRfpScan, type DiscoveredRfp } from "@/hooks/useDiscoveredRfps";
@@ -21,6 +22,7 @@ import { useAuth } from "@/hooks/useAuth";
 import type { Rfp } from "@/hooks/useRfps";
 
 type StatusTab = "all" | "new" | "reviewing" | "preparing" | "passed" | "mine";
+type SortMode = "due_date" | "relevance";
 
 function ScoreBadge({ score }: { score: number | null }) {
   if (score === null) return <Badge variant="outline" className="text-xs">—</Badge>;
@@ -45,13 +47,28 @@ function ScoreBadge({ score }: { score: number | null }) {
 export default function RfpDiscovery() {
   const navigate = useNavigate();
   const [statusTab, setStatusTab] = useState<StatusTab>("all");
+  const [sortMode, setSortMode] = useState<SortMode>("due_date");
   const [selectedRfpId, setSelectedRfpId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { toast } = useToast();
   const { profile } = useAuth();
 
   const { data: allRfps = [], isLoading } = useDiscoveredRfps(statusTab === "all" || statusTab === "mine" ? undefined : statusTab);
-  const rfps = statusTab === "mine" ? allRfps.filter((r) => r.assigned_to === profile?.id) : allRfps;
+  const filtered = statusTab === "mine" ? allRfps.filter((r) => r.assigned_to === profile?.id) : allRfps;
+  const rfps = useMemo(() => {
+    const sorted = [...filtered];
+    if (sortMode === "due_date") {
+      sorted.sort((a, b) => {
+        if (!a.due_date && !b.due_date) return 0;
+        if (!a.due_date) return 1;
+        if (!b.due_date) return -1;
+        return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+      });
+    } else {
+      sorted.sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0));
+    }
+    return sorted;
+  }, [filtered, sortMode]);
   // Keep selectedRfp in sync with latest query data
   const selectedRfp = useMemo(() => selectedRfpId ? allRfps.find(r => r.id === selectedRfpId) || null : null, [selectedRfpId, allRfps]);
   const { data: sources = [] } = useRfpSources();
@@ -165,21 +182,39 @@ export default function RfpDiscovery() {
           </Card>
         </div>
 
-        {/* Tabs */}
-        <Tabs value={statusTab} onValueChange={(v) => setStatusTab(v as StatusTab)}>
-          <TabsList>
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="new">
-              New {newCount > 0 && <Badge variant="secondary" className="ml-1 text-[10px] h-4 px-1.5">{newCount}</Badge>}
-            </TabsTrigger>
-            <TabsTrigger value="reviewing">Reviewing</TabsTrigger>
-            <TabsTrigger value="preparing">Preparing</TabsTrigger>
-            <TabsTrigger value="passed">Passed</TabsTrigger>
-            <TabsTrigger value="mine">
-              <User className="h-3.5 w-3.5 mr-1" /> Mine {myCount > 0 && <Badge variant="secondary" className="ml-1 text-[10px] h-4 px-1.5">{myCount}</Badge>}
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        {/* Tabs + Sort */}
+        <div className="flex items-center justify-between gap-4">
+          <Tabs value={statusTab} onValueChange={(v) => setStatusTab(v as StatusTab)}>
+            <TabsList>
+              <TabsTrigger value="all">All</TabsTrigger>
+              <TabsTrigger value="new">
+                New {newCount > 0 && <Badge variant="secondary" className="ml-1 text-[10px] h-4 px-1.5">{newCount}</Badge>}
+              </TabsTrigger>
+              <TabsTrigger value="reviewing">Reviewing</TabsTrigger>
+              <TabsTrigger value="preparing">Preparing</TabsTrigger>
+              <TabsTrigger value="passed">Passed</TabsTrigger>
+              <TabsTrigger value="mine">
+                <User className="h-3.5 w-3.5 mr-1" /> Mine {myCount > 0 && <Badge variant="secondary" className="ml-1 text-[10px] h-4 px-1.5">{myCount}</Badge>}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs shrink-0">
+                <ArrowUpDown className="h-3.5 w-3.5" />
+                {sortMode === "due_date" ? "Due Date" : "Relevance"}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setSortMode("due_date")}>
+                <Calendar className="h-3.5 w-3.5 mr-2" /> Due Date (soonest)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSortMode("relevance")}>
+                <Target className="h-3.5 w-3.5 mr-2" /> Relevance Score
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
 
         {/* Listing */}
         {isLoading ? (
