@@ -240,7 +240,7 @@ export function ClockOutModal() {
 
           <DialogFooter className="flex-col sm:flex-row gap-2 px-1">
             {snoozeCount < MAX_SNOOZES && (
-              <Button variant="ghost" size="sm" onClick={handleSnooze} className="mr-auto">
+              <Button variant="outline" size="sm" onClick={handleSnooze} className="mr-auto">
                 <Clock className="h-4 w-4 mr-1" />
                 Snooze 30m
               </Button>
