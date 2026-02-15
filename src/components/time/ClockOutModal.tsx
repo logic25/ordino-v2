@@ -9,6 +9,7 @@ import { useTodayAttendance, useClockOut } from "@/hooks/useAttendance";
 import { useTodaySummary, formatMinutes } from "@/hooks/useTimeEntries";
 import { useToast } from "@/hooks/use-toast";
 import { Clock, LogOut, AlarmClock } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const STORAGE_KEY = "clockout-dismissed";
 const MAX_SNOOZES = 2;
@@ -18,7 +19,7 @@ export function ClockOutModal() {
   const { data: todaySummary } = useTodaySummary();
   const clockOut = useClockOut();
   const { toast } = useToast();
-
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState("");
   const [snoozeCount, setSnoozeCount] = useState(0);
@@ -107,17 +108,22 @@ export function ClockOutModal() {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2 overflow-hidden">
+        <div className="space-y-4 py-2">
           {/* Summary */}
           <div className="grid grid-cols-3 gap-3 text-center">
             <div className="rounded-lg bg-muted p-3">
               <div className="text-lg font-bold tabular-nums">{formatMinutes(elapsed)}</div>
               <div className="text-xs text-muted-foreground">Total</div>
             </div>
-            <div className="rounded-lg bg-muted p-3">
+            <button
+              type="button"
+              className="rounded-lg bg-muted p-3 hover:bg-muted/70 transition-colors cursor-pointer"
+              onClick={() => { setOpen(false); navigate("/time"); }}
+              title="Log time entries"
+            >
               <div className="text-lg font-bold tabular-nums">{formatMinutes(attributed)}</div>
               <div className="text-xs text-muted-foreground">Attributed</div>
-            </div>
+            </button>
             <div className="rounded-lg bg-muted p-3">
               <div className="text-lg font-bold tabular-nums text-warning">{formatMinutes(gap)}</div>
               <div className="text-xs text-muted-foreground">Gap</div>
@@ -142,9 +148,9 @@ export function ClockOutModal() {
           </div>
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
+        <DialogFooter className="flex-col sm:flex-row gap-2 px-1">
           {snoozeCount < MAX_SNOOZES && (
-            <Button variant="ghost" size="sm" onClick={handleSnooze}>
+            <Button variant="ghost" size="sm" onClick={handleSnooze} className="mr-auto">
               <Clock className="h-4 w-4 mr-1" />
               Snooze 30m
             </Button>
