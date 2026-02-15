@@ -93,7 +93,7 @@ export default function RfpDiscovery() {
       } as any);
 
       toast({ title: "RFP created", description: "Opening the RFP builder..." });
-      navigate("/rfps");
+      navigate(`/rfps?openBuilder=${(result as any).id}`);
     } catch (err: any) {
       console.error("Respond error:", err);
       toast({ title: "Error creating RFP", description: err.message, variant: "destructive" });

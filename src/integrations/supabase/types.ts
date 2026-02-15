@@ -3847,6 +3847,76 @@ export type Database = {
           },
         ]
       }
+      rfp_partner_outreach: {
+        Row: {
+          company_id: string
+          contact_email: string | null
+          contact_name: string | null
+          created_at: string
+          discovered_rfp_id: string
+          id: string
+          notes: string | null
+          notified_at: string
+          partner_client_id: string
+          responded_at: string | null
+          response_status: string
+          response_token: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          contact_email?: string | null
+          contact_name?: string | null
+          created_at?: string
+          discovered_rfp_id: string
+          id?: string
+          notes?: string | null
+          notified_at?: string
+          partner_client_id: string
+          responded_at?: string | null
+          response_status?: string
+          response_token?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          contact_email?: string | null
+          contact_name?: string | null
+          created_at?: string
+          discovered_rfp_id?: string
+          id?: string
+          notes?: string | null
+          notified_at?: string
+          partner_client_id?: string
+          responded_at?: string | null
+          response_status?: string
+          response_token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rfp_partner_outreach_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfp_partner_outreach_discovered_rfp_id_fkey"
+            columns: ["discovered_rfp_id"]
+            isOneToOne: false
+            referencedRelation: "discovered_rfps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfp_partner_outreach_partner_client_id_fkey"
+            columns: ["partner_client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rfp_sections: {
         Row: {
           ai_generated: boolean | null
