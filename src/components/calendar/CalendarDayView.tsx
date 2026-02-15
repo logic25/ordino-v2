@@ -62,8 +62,8 @@ export function CalendarDayView({ currentDate, eventsByDay, onEventClick }: Cale
         {hours.map((hour) => {
           const hourEvents = timedEvents.filter((ev) => new Date(ev.start_time).getHours() === hour);
           return (
-            <div key={hour} className="flex border-b border-border/30 min-h-[64px]">
-              <div className="w-16 shrink-0 text-[11px] text-muted-foreground text-right pr-3 pt-1">
+            <div key={hour} className="flex border-b border-border/60 min-h-[64px] hover:bg-accent/10 transition-colors">
+              <div className="w-16 shrink-0 text-[11px] text-muted-foreground text-right pr-3 pt-1 border-r border-border bg-muted/30 font-medium">
                 {format(new Date(2000, 0, 1, hour), "h a")}
               </div>
               <div className="flex-1 p-1 space-y-0.5">
