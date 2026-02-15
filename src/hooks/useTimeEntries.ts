@@ -154,9 +154,11 @@ export function useDeleteTimeEntry() {
   });
 }
 
-// Format minutes to HH:MM display
+// Format minutes to Xh Ym display
 export function formatMinutes(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  return `${h}:${m.toString().padStart(2, "0")}`;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m.toString().padStart(2, "0")}m`;
 }
