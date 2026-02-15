@@ -177,12 +177,12 @@ export function CalendarEventDialog({
             </div>
             <div className="grid gap-2">
               <Label>Project</Label>
-              <Select value={projectId} onValueChange={setProjectId}>
+              <Select value={projectId || "__none__"} onValueChange={(v) => setProjectId(v === "__none__" ? "" : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="None" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="__none__">None</SelectItem>
                   {projects?.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.name}
