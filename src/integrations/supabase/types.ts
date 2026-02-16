@@ -2766,6 +2766,70 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          body: string | null
+          company_id: string
+          created_at: string
+          dismissed_at: string | null
+          id: string
+          link: string | null
+          project_id: string | null
+          read_at: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          company_id: string
+          created_at?: string
+          dismissed_at?: string | null
+          id?: string
+          link?: string | null
+          project_id?: string | null
+          read_at?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          company_id?: string
+          created_at?: string
+          dismissed_at?: string | null
+          id?: string
+          link?: string | null
+          project_id?: string | null
+          read_at?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_email_templates: {
         Row: {
           body_template: string
@@ -3097,6 +3161,73 @@ export type Database = {
           },
         ]
       }
+      pis_tracking: {
+        Row: {
+          company_id: string
+          created_at: string
+          field_id: string
+          field_label: string
+          first_requested_at: string
+          fulfilled_at: string | null
+          fulfilled_by: string | null
+          id: string
+          last_reminded_at: string | null
+          project_id: string
+          reminder_count: number
+          rfi_request_id: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          field_id: string
+          field_label: string
+          first_requested_at?: string
+          fulfilled_at?: string | null
+          fulfilled_by?: string | null
+          id?: string
+          last_reminded_at?: string | null
+          project_id: string
+          reminder_count?: number
+          rfi_request_id?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          field_id?: string
+          field_label?: string
+          first_requested_at?: string
+          fulfilled_at?: string | null
+          fulfilled_by?: string | null
+          id?: string
+          last_reminded_at?: string | null
+          project_id?: string
+          reminder_count?: number
+          rfi_request_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pis_tracking_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pis_tracking_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pis_tracking_rfi_request_id_fkey"
+            columns: ["rfi_request_id"]
+            isOneToOne: false
+            referencedRelation: "rfi_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           about: string | null
@@ -3176,6 +3307,12 @@ export type Database = {
       }
       projects: {
         Row: {
+          actual_construction_completion: string | null
+          actual_construction_start: string | null
+          architect_company_name: string | null
+          architect_contact_name: string | null
+          architect_email: string | null
+          architect_phone: string | null
           assigned_pm_id: string | null
           building_owner_id: string | null
           building_owner_name: string | null
@@ -3184,7 +3321,13 @@ export type Database = {
           completion_date: string | null
           created_at: string | null
           created_by: string | null
+          estimated_construction_completion: string | null
+          expected_construction_start: string | null
           floor_number: string | null
+          gc_company_name: string | null
+          gc_contact_name: string | null
+          gc_email: string | null
+          gc_phone: string | null
           id: string
           is_external: boolean
           last_editor_id: string | null
@@ -3192,6 +3335,7 @@ export type Database = {
           name: string | null
           notable: boolean
           notes: string | null
+          project_complexity_tier: string | null
           project_number: string | null
           project_type: string | null
           property_id: string
@@ -3207,6 +3351,12 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          actual_construction_completion?: string | null
+          actual_construction_start?: string | null
+          architect_company_name?: string | null
+          architect_contact_name?: string | null
+          architect_email?: string | null
+          architect_phone?: string | null
           assigned_pm_id?: string | null
           building_owner_id?: string | null
           building_owner_name?: string | null
@@ -3215,7 +3365,13 @@ export type Database = {
           completion_date?: string | null
           created_at?: string | null
           created_by?: string | null
+          estimated_construction_completion?: string | null
+          expected_construction_start?: string | null
           floor_number?: string | null
+          gc_company_name?: string | null
+          gc_contact_name?: string | null
+          gc_email?: string | null
+          gc_phone?: string | null
           id?: string
           is_external?: boolean
           last_editor_id?: string | null
@@ -3223,6 +3379,7 @@ export type Database = {
           name?: string | null
           notable?: boolean
           notes?: string | null
+          project_complexity_tier?: string | null
           project_number?: string | null
           project_type?: string | null
           property_id: string
@@ -3238,6 +3395,12 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          actual_construction_completion?: string | null
+          actual_construction_start?: string | null
+          architect_company_name?: string | null
+          architect_contact_name?: string | null
+          architect_email?: string | null
+          architect_phone?: string | null
           assigned_pm_id?: string | null
           building_owner_id?: string | null
           building_owner_name?: string | null
@@ -3246,7 +3409,13 @@ export type Database = {
           completion_date?: string | null
           created_at?: string | null
           created_by?: string | null
+          estimated_construction_completion?: string | null
+          expected_construction_start?: string | null
           floor_number?: string | null
+          gc_company_name?: string | null
+          gc_contact_name?: string | null
+          gc_email?: string | null
+          gc_phone?: string | null
           id?: string
           is_external?: boolean
           last_editor_id?: string | null
@@ -3254,6 +3423,7 @@ export type Database = {
           name?: string | null
           notable?: boolean
           notes?: string | null
+          project_complexity_tier?: string | null
           project_number?: string | null
           project_type?: string | null
           property_id?: string
