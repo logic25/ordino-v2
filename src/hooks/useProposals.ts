@@ -380,7 +380,7 @@ export function useSignProposalInternal() {
       // Get proposal with items
       const { data: proposal, error: proposalError } = await supabase
         .from("proposals")
-        .select("*, items:proposal_items(*)")
+        .select("*, items:proposal_items(*), properties(address)")
         .eq("id", id)
         .single();
 
@@ -475,6 +475,21 @@ export function useSignProposalInternal() {
         .single();
 
       if (error) throw error;
+
+      // Create notification for assigned PM
+      if (assignedPmId && assignedPmId !== profile.id) {
+        const propertyAddress = (proposal as any).properties?.address || "Unknown address";
+        await supabase.from("notifications").insert({
+          company_id: profile.company_id,
+          user_id: assignedPmId,
+          type: "project_assigned",
+          title: `New project assigned: ${proposal.title}`,
+          body: `Project at ${propertyAddress} has been created from proposal ${proposal.proposal_number}. Review the project details and send a PIS to the client.`,
+          link: `/projects/${(project as any).id}`,
+          project_id: (project as any).id,
+        } as any);
+      }
+
       return { proposal: data, project };
     },
     onSuccess: (data) => {
