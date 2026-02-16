@@ -27,6 +27,7 @@ import {
   Phone, Circle, Upload, Search, Plus, AlertTriangle, Trash2,
   ArrowUpRight, ArrowDownLeft, ClipboardList, FileImage,
   FileSpreadsheet, Download, Sparkles, Eye, ShieldCheck, PenLine,
+  GripVertical, ArrowUp, ArrowDown,
 } from "lucide-react";
 import { useProjects, ProjectWithRelations } from "@/hooks/useProjects";
 import { ProjectEmailsTab } from "@/components/emails/ProjectEmailsTab";
@@ -86,7 +87,15 @@ export default function ProjectDetail() {
   }
 
   const status = statusConfig[project.status] || statusConfig.open;
-  const mockIdx = Math.max(idx, 0);
+
+  // Match mock data by project name keywords, fallback to index
+  const getMockIdx = () => {
+    const name = (project.name || "").toLowerCase();
+    if (name.includes("port richmond") || name.includes("331")) return 2; // Set C
+    if (name.includes("lobby") || name.includes("345 park")) return 0; // Set A
+    return Math.max(idx, 0) % SERVICE_SETS.length;
+  };
+  const mockIdx = getMockIdx();
 
   const services = SERVICE_SETS[mockIdx % SERVICE_SETS.length];
   const contacts = CONTACT_SETS[mockIdx % CONTACT_SETS.length];
@@ -130,7 +139,21 @@ export default function ProjectDetail() {
                 {project.clients?.name && (
                   <span className="flex items-center gap-1"><Building2 className="h-3.5 w-3.5" /> {project.clients.name}</span>
                 )}
-                <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" /> PM: {formatName(project.assigned_pm)}</span>
+                <span className="flex items-center gap-1">
+                  <User className="h-3.5 w-3.5" /> PM:&nbsp;
+                  <Select defaultValue="__current__">
+                    <SelectTrigger className="h-6 w-auto min-w-[120px] border-none bg-transparent shadow-none text-sm p-0 px-1 hover:bg-muted/40 focus:ring-0 gap-1">
+                      <SelectValue placeholder="Assign PM">{formatName(project.assigned_pm) !== "—" ? formatName(project.assigned_pm) : "Unassigned"}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__current__">{formatName(project.assigned_pm) !== "—" ? formatName(project.assigned_pm) : "Unassigned"}</SelectItem>
+                      <SelectItem value="don">Don Speaker</SelectItem>
+                      <SelectItem value="natalia">Natalia Smith</SelectItem>
+                      <SelectItem value="sheri">Sheri Lopez</SelectItem>
+                      <SelectItem value="manny">Manny Russell</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </span>
               </div>
             </div>
           </div>
@@ -657,10 +680,21 @@ function ServiceExpandedDetail({ service }: { service: MockService }) {
   );
 }
 
-function ServicesFull({ services }: { services: MockService[] }) {
+function ServicesFull({ services: initialServices }: { services: MockService[] }) {
+  const [orderedServices, setOrderedServices] = useState(initialServices);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+
+  const moveService = (index: number, direction: "up" | "down") => {
+    const newIdx = direction === "up" ? index - 1 : index + 1;
+    if (newIdx < 0 || newIdx >= orderedServices.length) return;
+    const updated = [...orderedServices];
+    [updated[index], updated[newIdx]] = [updated[newIdx], updated[index]];
+    setOrderedServices(updated);
+  };
+
+  const services = orderedServices;
 
   const toggle = (id: string) => setExpandedIds(prev => {
     const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
@@ -691,8 +725,9 @@ function ServicesFull({ services }: { services: MockService[] }) {
               <Checkbox checked={selectedIds.size === services.length && services.length > 0} onCheckedChange={() => selectedIds.size === services.length ? setSelectedIds(new Set()) : setSelectedIds(new Set(services.map(s => s.id)))} className="h-4 w-4" />
             </TableHead>
             <TableHead className="w-[36px]" />
+            <TableHead className="w-[36px]" />
             <TableHead>Service</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHead className="whitespace-nowrap">Status</TableHead>
             <TableHead>Assigned</TableHead>
             <TableHead>Disciplines</TableHead>
             <TableHead>Est. Bill Date</TableHead>
@@ -703,7 +738,7 @@ function ServicesFull({ services }: { services: MockService[] }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {services.map((svc) => {
+          {services.map((svc, svcIndex) => {
             const sStatus = serviceStatusStyles[svc.status] || serviceStatusStyles.not_started;
             const isExpanded = expandedIds.has(svc.id);
             const svcMargin = svc.totalAmount > 0 ? Math.round((svc.totalAmount - svc.costAmount) / svc.totalAmount * 100) : 0;
@@ -717,14 +752,24 @@ function ServicesFull({ services }: { services: MockService[] }) {
                   <TableCell className="pr-0">
                     {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{svc.name}</span>
-                      {pendingReqs > 0 && <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">{pendingReqs} req</Badge>}
+                  <TableCell className="pr-0 w-[36px]" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex flex-col">
+                      <Button variant="ghost" size="icon" className="h-4 w-4 p-0" disabled={svcIndex === 0} onClick={() => moveService(svcIndex, "up")}>
+                        <ArrowUp className="h-3 w-3 text-muted-foreground" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-4 w-4 p-0" disabled={svcIndex === services.length - 1} onClick={() => moveService(svcIndex, "down")}>
+                        <ArrowDown className="h-3 w-3 text-muted-foreground" />
+                      </Button>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${sStatus.className}`}>{sStatus.label}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium whitespace-nowrap">{svc.name}</span>
+                      {pendingReqs > 0 && <Badge variant="secondary" className="text-[10px] px-1.5 py-0 whitespace-nowrap bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">{pendingReqs} req</Badge>}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${sStatus.className}`}>{sStatus.label}</span>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{svc.assignedTo}</TableCell>
                   <TableCell>
@@ -747,8 +792,8 @@ function ServicesFull({ services }: { services: MockService[] }) {
                   </TableCell>
                 </TableRow>
                 {isExpanded && (
-                  <TableRow key={`${svc.id}-detail`} className="hover:bg-transparent">
-                    <TableCell colSpan={11} className="p-0"><ServiceExpandedDetail service={svc} /></TableCell>
+                <TableRow key={`${svc.id}-detail`} className="hover:bg-transparent">
+                    <TableCell colSpan={12} className="p-0"><ServiceExpandedDetail service={svc} /></TableCell>
                   </TableRow>
                 )}
               </>
