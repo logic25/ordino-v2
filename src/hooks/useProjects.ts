@@ -15,6 +15,8 @@ export interface Project {
   assigned_pm_id: string | null;
   senior_pm_id: string | null;
   client_id: string | null;
+  building_owner_id: string | null;
+  building_owner_name: string | null;
   is_external: boolean;
   notable: boolean;
   unit_number: string | null;
@@ -34,6 +36,7 @@ export interface ProjectWithRelations extends Project {
   assigned_pm?: { id: string; first_name: string | null; last_name: string | null } | null;
   senior_pm?: { id: string; first_name: string | null; last_name: string | null } | null;
   clients?: { id: string; name: string } | null;
+  building_owner?: { id: string; name: string } | null;
 }
 
 export interface ProjectFormInput {
@@ -45,6 +48,8 @@ export interface ProjectFormInput {
   assigned_pm_id?: string | null;
   senior_pm_id?: string | null;
   client_id?: string | null;
+  building_owner_id?: string | null;
+  building_owner_name?: string | null;
   is_external?: boolean;
   notable?: boolean;
   unit_number?: string | null;
@@ -65,7 +70,8 @@ export function useProjects() {
           proposals!projects_proposal_id_fkey (id, proposal_number, title, total_amount),
           assigned_pm:profiles!projects_assigned_pm_id_fkey (id, first_name, last_name),
           senior_pm:profiles!projects_senior_pm_id_fkey (id, first_name, last_name),
-          clients (id, name)
+          clients (id, name),
+          building_owner:clients!projects_building_owner_id_fkey (id, name)
         `)
         .order("created_at", { ascending: false });
 
@@ -88,7 +94,8 @@ export function useProject(id: string | undefined) {
           proposals!projects_proposal_id_fkey (id, proposal_number, title, total_amount, status),
           assigned_pm:profiles!projects_assigned_pm_id_fkey (id, first_name, last_name),
           senior_pm:profiles!projects_senior_pm_id_fkey (id, first_name, last_name),
-          clients (id, name, email, phone)
+          clients (id, name, email, phone),
+          building_owner:clients!projects_building_owner_id_fkey (id, name)
         `)
         .eq("id", id)
         .maybeSingle();
@@ -126,6 +133,8 @@ export function useCreateProject() {
           assigned_pm_id: input.assigned_pm_id || null,
           senior_pm_id: input.senior_pm_id || null,
           client_id: input.client_id || null,
+          building_owner_id: input.building_owner_id || null,
+          building_owner_name: input.building_owner_name || null,
           is_external: input.is_external || false,
           notable: input.notable || false,
           unit_number: input.unit_number || null,
@@ -167,6 +176,8 @@ export function useUpdateProject() {
           assigned_pm_id: input.assigned_pm_id || null,
           senior_pm_id: input.senior_pm_id || null,
           client_id: input.client_id || null,
+          building_owner_id: input.building_owner_id || null,
+          building_owner_name: input.building_owner_name || null,
           is_external: input.is_external ?? false,
           notable: input.notable ?? false,
           unit_number: input.unit_number || null,

@@ -3177,6 +3177,8 @@ export type Database = {
       projects: {
         Row: {
           assigned_pm_id: string | null
+          building_owner_id: string | null
+          building_owner_name: string | null
           client_id: string | null
           company_id: string
           completion_date: string | null
@@ -3206,6 +3208,8 @@ export type Database = {
         }
         Insert: {
           assigned_pm_id?: string | null
+          building_owner_id?: string | null
+          building_owner_name?: string | null
           client_id?: string | null
           company_id: string
           completion_date?: string | null
@@ -3235,6 +3239,8 @@ export type Database = {
         }
         Update: {
           assigned_pm_id?: string | null
+          building_owner_id?: string | null
+          building_owner_name?: string | null
           client_id?: string | null
           company_id?: string
           completion_date?: string | null
@@ -3268,6 +3274,13 @@ export type Database = {
             columns: ["assigned_pm_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_building_owner_id_fkey"
+            columns: ["building_owner_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
@@ -3624,6 +3637,7 @@ export type Database = {
           property_id: string | null
           proposal_number: string | null
           reminder_date: string | null
+          retainer_amount: number | null
           sales_person_id: string | null
           scope_of_work: string | null
           sent_at: string | null
@@ -3676,6 +3690,7 @@ export type Database = {
           property_id?: string | null
           proposal_number?: string | null
           reminder_date?: string | null
+          retainer_amount?: number | null
           sales_person_id?: string | null
           scope_of_work?: string | null
           sent_at?: string | null
@@ -3728,6 +3743,7 @@ export type Database = {
           property_id?: string | null
           proposal_number?: string | null
           reminder_date?: string | null
+          retainer_amount?: number | null
           sales_person_id?: string | null
           scope_of_work?: string | null
           sent_at?: string | null

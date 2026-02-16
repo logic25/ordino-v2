@@ -17,8 +17,12 @@ const DEFAULT_STATUSES: Omit<LeadStatus, "id" | "company_id" | "created_at">[] =
   { label: "New", value: "new", variant: "default", sort_order: 0, is_system: true },
   { label: "Contacted", value: "contacted", variant: "outline", sort_order: 1, is_system: true },
   { label: "Qualified", value: "qualified", variant: "default", sort_order: 2, is_system: true },
-  { label: "Converted", value: "converted", variant: "secondary", sort_order: 3, is_system: true },
-  { label: "Lost", value: "lost", variant: "destructive", sort_order: 4, is_system: true },
+  { label: "Proposal Sent", value: "proposal_sent", variant: "secondary", sort_order: 3, is_system: true },
+  { label: "Negotiating", value: "negotiating", variant: "outline", sort_order: 4, is_system: true },
+  { label: "Won", value: "won", variant: "default", sort_order: 5, is_system: true },
+  { label: "Lost", value: "lost", variant: "destructive", sort_order: 6, is_system: true },
+  { label: "On Hold", value: "on_hold", variant: "secondary", sort_order: 7, is_system: true },
+  { label: "Referral", value: "referral", variant: "outline", sort_order: 8, is_system: true },
 ];
 
 export function useLeadStatuses() {

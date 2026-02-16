@@ -16,21 +16,21 @@
 
 ## PHASE 1: Bug Fixes & Missing Functionality
 
-### 1A. 🔴 Edit Project — Add "Building Owner" Field
-- Add `building_owner_id` (FK → clients) and `building_owner_name` (text) to `projects`
-- Dropdown filtered to Property Owner/Developer client types + free-text
+### 1A. 🟢 Edit Project — Add "Building Owner" Field
+- Added `building_owner_id` (FK → clients) and `building_owner_name` (text) to `projects`
+- Dropdown + free-text in project dialog, displayed on project detail header
 - Display on project detail header next to Client
 - **Effort:** Small
 
-### 1B. 🔴 Project Contacts — Show Primary Contact
-- Star/badge to toggle primary contact per project
-- Primary contact name + phone in project detail header
-- "Primary Contact" column in Projects table
+### 1B. 🟢 Project Contacts — Show Primary Contact
+- Primary contact fetched from client_contacts (is_primary flag)
+- Shown in project detail header with name + phone
+- Falls back to mock contact if no DB primary contact found
 - **Effort:** Small
 
-### 1C. 🔴 Lead Statuses — Seed Defaults
-- Seed 9 statuses (New, Contacted, Qualified, Proposal Sent, Negotiating, Won, Lost, On Hold, Referral)
-- Only seed if none exist for the company
+### 1C. 🟢 Lead Statuses — Seed Defaults
+- Expanded to 9 statuses (New, Contacted, Qualified, Proposal Sent, Negotiating, Won, Lost, On Hold, Referral)
+- Auto-seeds on first access if none exist
 - Editable, reorderable, deletable
 - **Effort:** Small
 
@@ -51,9 +51,10 @@
 - Multi-file upload
 - **Effort:** Medium
 
-### 1G. 🔴 Proposals — Retainer Carry-Through
-- Verify retainer field editable, carries to project on conversion
-- Show on project billing tab, allow $0
+### 1G. 🟢 Proposals — Retainer Carry-Through
+- Added retainer_amount to proposals table
+- Retainer field in proposal dialog (Terms tab), editable, defaults to $0
+- Carries to project (retainer_amount + retainer_balance) on conversion
 - **Effort:** Small
 
 ---
