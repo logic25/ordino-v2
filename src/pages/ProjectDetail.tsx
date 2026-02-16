@@ -1,20 +1,44 @@
 import { useParams, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import {
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import {
   ArrowLeft, Pencil, FileText, Users, Clock, Mail,
   File, GitBranch, DollarSign, MapPin, Building2, User,
-  Loader2, ExternalLink,
+  Loader2, ExternalLink, ChevronRight, ChevronDown,
+  MessageSquare, CheckCircle2, Send, XCircle, CheckCheck,
+  Phone, Circle, Upload, Search, Plus, AlertTriangle,
+  ArrowUpRight, ArrowDownLeft, ClipboardList, FileImage,
+  FileSpreadsheet, Download, Sparkles,
 } from "lucide-react";
 import { useProjects, ProjectWithRelations } from "@/hooks/useProjects";
-import { ProjectExpandedTabs } from "@/components/projects/ProjectExpandedTabs";
+import { ProjectEmailsTab } from "@/components/emails/ProjectEmailsTab";
+import { useToast } from "@/hooks/use-toast";
 import {
   SERVICE_SETS, CONTACT_SETS, MILESTONE_SETS, CO_SETS,
-  EMAIL_SETS, DOCUMENT_SETS, TIME_SETS, formatCurrency,
+  EMAIL_SETS, DOCUMENT_SETS, TIME_SETS, CHECKLIST_SETS, PIS_SETS,
+  formatCurrency, serviceStatusStyles, dobRoleLabels, coStatusStyles,
+  checklistCategoryLabels, docCategoryLabels,
+} from "@/components/projects/projectMockData";
+import type {
+  MockService, MockContact, MockMilestone, MockChangeOrder,
+  MockEmail, MockDocument, MockTimeEntry, MockChecklistItem, MockPISStatus,
 } from "@/components/projects/projectMockData";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -70,8 +94,9 @@ export default function ProjectDetail() {
   const emails = EMAIL_SETS[mockIdx % EMAIL_SETS.length];
   const documents = DOCUMENT_SETS[mockIdx % DOCUMENT_SETS.length];
   const timeEntries = TIME_SETS[mockIdx % TIME_SETS.length];
+  const checklistItems = CHECKLIST_SETS[mockIdx % CHECKLIST_SETS.length];
+  const pisStatus = PIS_SETS[mockIdx % PIS_SETS.length];
 
-  // Calculated values
   const approvedCOs = changeOrders.filter(co => co.status === "approved").reduce((s, co) => s + co.amount, 0);
   const contractTotal = services.reduce((s, svc) => s + svc.totalAmount, 0);
   const adjustedTotal = contractTotal + approvedCOs;
@@ -96,22 +121,14 @@ export default function ProjectDetail() {
                 <Badge variant={status.variant} className="shrink-0">{status.label}</Badge>
               </div>
               <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
-                {project.project_number && (
-                  <span className="font-mono">{project.project_number}</span>
-                )}
+                {project.project_number && <span className="font-mono">{project.project_number}</span>}
                 {project.properties?.address && (
-                  <span className="flex items-center gap-1">
-                    <MapPin className="h-3.5 w-3.5" /> {project.properties.address}
-                  </span>
+                  <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {project.properties.address}</span>
                 )}
                 {project.clients?.name && (
-                  <span className="flex items-center gap-1">
-                    <Building2 className="h-3.5 w-3.5" /> {project.clients.name}
-                  </span>
+                  <span className="flex items-center gap-1"><Building2 className="h-3.5 w-3.5" /> {project.clients.name}</span>
                 )}
-                <span className="flex items-center gap-1">
-                  <User className="h-3.5 w-3.5" /> PM: {formatName(project.assigned_pm)}
-                </span>
+                <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" /> PM: {formatName(project.assigned_pm)}</span>
               </div>
             </div>
           </div>
@@ -122,47 +139,27 @@ export default function ProjectDetail() {
 
         {/* Financial Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">Contract</div>
-              <div className="text-xl font-bold mt-1">{formatCurrency(contractTotal)}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">Change Orders</div>
-              <div className="text-xl font-bold mt-1">{approvedCOs > 0 ? `+${formatCurrency(approvedCOs)}` : "—"}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">Total Value</div>
-              <div className="text-xl font-bold mt-1">{formatCurrency(adjustedTotal)}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">Billed</div>
-              <div className="text-xl font-bold mt-1 text-emerald-600 dark:text-emerald-400">{formatCurrency(billed)}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">Internal Cost</div>
-              <div className="text-xl font-bold mt-1">{formatCurrency(cost)}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">Margin</div>
-              <div className={`text-xl font-bold mt-1 ${margin > 50 ? "text-emerald-600 dark:text-emerald-400" : margin < 20 ? "text-red-600 dark:text-red-400" : ""}`}>
-                {margin}%
-              </div>
-            </CardContent>
-          </Card>
+          {[
+            { label: "Contract", value: formatCurrency(contractTotal) },
+            { label: "Change Orders", value: approvedCOs > 0 ? `+${formatCurrency(approvedCOs)}` : "—" },
+            { label: "Total Value", value: formatCurrency(adjustedTotal) },
+            { label: "Billed", value: formatCurrency(billed), color: "text-emerald-600 dark:text-emerald-400" },
+            { label: "Internal Cost", value: formatCurrency(cost) },
+            { label: "Margin", value: `${margin}%`, color: margin > 50 ? "text-emerald-600 dark:text-emerald-400" : margin < 20 ? "text-red-600 dark:text-red-400" : "" },
+          ].map((stat) => (
+            <Card key={stat.label}>
+              <CardContent className="p-4">
+                <div className="text-xs text-muted-foreground">{stat.label}</div>
+                <div className={`text-xl font-bold mt-1 ${stat.color || ""}`}>{stat.value}</div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
-        {/* Main Tabbed Content — Property Guard style: full width, spacious */}
+        {/* Readiness Checklist */}
+        <ReadinessChecklist items={checklistItems} pisStatus={pisStatus} />
+
+        {/* Main Tabbed Content */}
         <Card>
           <Tabs defaultValue="services" className="w-full">
             <TabsList className="w-full justify-start rounded-none rounded-t-lg border-b bg-muted/20 h-11 px-4 flex-wrap gap-1">
@@ -170,7 +167,7 @@ export default function ProjectDetail() {
                 <FileText className="h-3.5 w-3.5" /> Services ({services.length})
               </TabsTrigger>
               <TabsTrigger value="emails" className="gap-1.5 data-[state=active]:bg-background">
-                <Mail className="h-3.5 w-3.5" /> Emails ({emails.length})
+                <Mail className="h-3.5 w-3.5" /> Emails
               </TabsTrigger>
               <TabsTrigger value="contacts" className="gap-1.5 data-[state=active]:bg-background">
                 <Users className="h-3.5 w-3.5" /> Contacts ({contacts.length})
@@ -197,10 +194,10 @@ export default function ProjectDetail() {
                 <ServicesFull services={services} />
               </TabsContent>
               <TabsContent value="emails" className="mt-0">
-                <EmailsFull emails={emails} />
+                <EmailsFullLive projectId={project.id} mockEmails={emails} />
               </TabsContent>
               <TabsContent value="contacts" className="mt-0">
-                <ContactsFull contacts={contacts} />
+                <ContactsFull contacts={contacts} pisStatus={pisStatus} />
               </TabsContent>
               <TabsContent value="timeline" className="mt-0">
                 <TimelineFull milestones={milestones} />
@@ -209,7 +206,7 @@ export default function ProjectDetail() {
                 <DocumentsFull documents={documents} />
               </TabsContent>
               <TabsContent value="time-logs" className="mt-0">
-                <TimeLogsFull timeEntries={timeEntries} />
+                <TimeLogsFull timeEntries={timeEntries} services={services} />
               </TabsContent>
               <TabsContent value="change-orders" className="mt-0">
                 <ChangeOrdersFull changeOrders={changeOrders} />
@@ -225,43 +222,146 @@ export default function ProjectDetail() {
   );
 }
 
-// Re-use existing tab components from ProjectExpandedTabs but import as a barrel
-// For now we duplicate the rendering inline with more spacious Property Guard-inspired layout
+// ======== READINESS CHECKLIST ========
 
-import { useState } from "react";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  ChevronRight, ChevronDown, MessageSquare, CheckCircle2,
-  ArrowUpRight, ArrowDownLeft, Upload, Send, XCircle, CheckCheck,
-  Phone, CircleDot, Circle,
-} from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import type {
-  MockService, MockContact, MockMilestone, MockChangeOrder,
-  MockEmail, MockDocument, MockTimeEntry,
-} from "@/components/projects/projectMockData";
-import {
-  serviceStatusStyles, dobRoleLabels, coStatusStyles,
-} from "@/components/projects/projectMockData";
+function ReadinessChecklist({ items, pisStatus }: { items: MockChecklistItem[]; pisStatus: MockPISStatus }) {
+  const [isOpen, setIsOpen] = useState(true);
+  const outstanding = items.filter(i => !i.done);
+  const completed = items.filter(i => i.done);
+  const grouped = Object.entries(checklistCategoryLabels).map(([key, { label, icon }]) => ({
+    key, label, icon,
+    items: outstanding.filter(i => i.category === key),
+  })).filter(g => g.items.length > 0);
 
-// ---- Services (Property Guard style — expandable rows with nested detail) ----
+  const pisComplete = pisStatus.completedFields === pisStatus.totalFields;
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Card className={outstanding.length > 0 ? "border-amber-300/50 dark:border-amber-700/50" : "border-emerald-300/50 dark:border-emerald-700/50"}>
+        <CollapsibleTrigger asChild>
+          <CardHeader className="cursor-pointer hover:bg-muted/20 transition-colors py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <ClipboardList className="h-5 w-5 text-muted-foreground" />
+                <CardTitle className="text-base">
+                  Project Readiness
+                  {outstanding.length > 0 && (
+                    <Badge variant="secondary" className="ml-2 bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                      {outstanding.length} outstanding
+                    </Badge>
+                  )}
+                  {outstanding.length === 0 && (
+                    <Badge variant="secondary" className="ml-2 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+                      All clear
+                    </Badge>
+                  )}
+                </CardTitle>
+              </div>
+              <div className="flex items-center gap-3">
+                {/* PIS Status */}
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">PIS:</span>
+                  {pisComplete ? (
+                    <Badge variant="outline" className="bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">
+                      Complete
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800">
+                      {pisStatus.completedFields}/{pisStatus.totalFields} fields
+                    </Badge>
+                  )}
+                </div>
+                {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+              </div>
+            </div>
+          </CardHeader>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <CardContent className="pt-0 space-y-4">
+            {/* PIS bar if incomplete */}
+            {!pisComplete && (
+              <div className="flex items-center gap-4 p-3 rounded-lg bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-800/30">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="font-medium">Project Information Sheet</span>
+                    <span className="text-muted-foreground text-xs">Sent {pisStatus.sentDate}</span>
+                  </div>
+                  <Progress value={(pisStatus.completedFields / pisStatus.totalFields) * 100} className="h-2" />
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Missing: {pisStatus.missingFields.join(", ")}
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" className="shrink-0 gap-1.5">
+                  <Send className="h-3.5 w-3.5" /> Send Reminder
+                </Button>
+              </div>
+            )}
+
+            {/* Grouped checklist items */}
+            {grouped.map(({ key, label, icon, items: groupItems }) => (
+              <div key={key}>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  {icon} {label} ({groupItems.length})
+                </h4>
+                <div className="space-y-1.5">
+                  {groupItems.map((item) => (
+                    <div key={item.id} className="flex items-center gap-3 text-sm py-2 px-3 rounded-md bg-background border">
+                      <Checkbox className="h-4 w-4" />
+                      <span className="flex-1 min-w-0">{item.label}</span>
+                      <span className="text-xs text-muted-foreground shrink-0">from {item.fromWhom}</span>
+                      <Badge variant={item.daysWaiting > 7 ? "destructive" : "secondary"} className="text-[10px] shrink-0">
+                        {item.daysWaiting}d waiting
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            {/* Completed items */}
+            {completed.length > 0 && (
+              <div>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  ✅ Received ({completed.length})
+                </h4>
+                <div className="space-y-1">
+                  {completed.map((item) => (
+                    <div key={item.id} className="flex items-center gap-3 text-sm py-1.5 px-3 rounded-md text-muted-foreground">
+                      <Checkbox checked className="h-4 w-4" />
+                      <span className="line-through">{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 pt-1">
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <Plus className="h-3.5 w-3.5" /> Add Item
+              </Button>
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <Sparkles className="h-3.5 w-3.5" /> Extract from Emails
+              </Button>
+            </div>
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
+  );
+}
+
+// ======== SERVICES ========
 
 function ServiceExpandedDetail({ service }: { service: MockService }) {
   return (
     <div className="px-8 py-5 space-y-5 bg-muted/10">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Dates & Permit style */}
         <div>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <FileText className="h-3.5 w-3.5" /> Scope of Work
           </h4>
           <p className="text-sm leading-relaxed whitespace-pre-line">{service.scopeOfWork || "No scope defined."}</p>
         </div>
-
-        {/* Application info — like Property Guard's Applicant section */}
         <div>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <Building2 className="h-3.5 w-3.5" /> Application
@@ -278,8 +378,6 @@ function ServiceExpandedDetail({ service }: { service: MockService }) {
             <p className="text-sm text-muted-foreground italic">No application linked</p>
           )}
         </div>
-
-        {/* Notes */}
         <div>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <MessageSquare className="h-3.5 w-3.5" /> Notes
@@ -288,13 +386,31 @@ function ServiceExpandedDetail({ service }: { service: MockService }) {
         </div>
       </div>
 
+      {/* Requirements */}
+      {service.requirements.length > 0 && (
+        <div>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <AlertTriangle className="h-3.5 w-3.5" /> Requirements ({service.requirements.filter(r => !r.met).length} pending)
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
+            {service.requirements.map((req) => (
+              <div key={req.id} className={`flex items-center gap-2 text-sm py-1.5 px-3 rounded-md border ${req.met ? "bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-200/50 dark:border-emerald-800/30" : "bg-amber-50/50 dark:bg-amber-900/10 border-amber-200/50 dark:border-amber-800/30"}`}>
+                {req.met ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" /> : <Circle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />}
+                <span className={req.met ? "text-muted-foreground" : ""}>{req.label}</span>
+                {req.detail && <span className="text-xs text-muted-foreground ml-auto">— {req.detail}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Tasks */}
       {service.tasks.length > 0 && (
         <div>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <CheckCircle2 className="h-3.5 w-3.5" /> Tasks ({service.tasks.length})
           </h4>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {service.tasks.map((task) => (
               <div key={task.id} className="flex items-center gap-3 text-sm py-1.5 px-3 rounded-md bg-background border">
                 <Checkbox checked={task.done} className="h-4 w-4" />
@@ -308,6 +424,15 @@ function ServiceExpandedDetail({ service }: { service: MockService }) {
           </div>
         </div>
       )}
+
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" className="gap-1.5">
+          <Mail className="h-3.5 w-3.5" /> Email about this
+        </Button>
+        <Button variant="outline" size="sm" className="gap-1.5">
+          <Plus className="h-3.5 w-3.5" /> Add Task
+        </Button>
+      </div>
     </div>
   );
 }
@@ -318,20 +443,12 @@ function ServicesFull({ services }: { services: MockService[] }) {
   const { toast } = useToast();
 
   const toggle = (id: string) => setExpandedIds(prev => {
-    const next = new Set(prev);
-    next.has(id) ? next.delete(id) : next.add(id);
-    return next;
+    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
   });
-
   const toggleSelect = (id: string) => setSelectedIds(prev => {
-    const next = new Set(prev);
-    next.has(id) ? next.delete(id) : next.add(id);
-    return next;
+    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
   });
-
-  const handleBulk = (action: string) => {
-    toast({ title: action, description: `${selectedIds.size} service(s) selected.` });
-  };
+  const handleBulk = (action: string) => toast({ title: action, description: `${selectedIds.size} service(s) selected.` });
 
   const total = services.reduce((s, svc) => s + svc.totalAmount, 0);
   const billed = services.reduce((s, svc) => s + svc.billedAmount, 0);
@@ -342,27 +459,16 @@ function ServicesFull({ services }: { services: MockService[] }) {
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-2 px-6 py-3 bg-muted/40 border-b flex-wrap">
           <span className="text-sm text-muted-foreground font-medium">{selectedIds.size} selected:</span>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleBulk("Send to Billing")}>
-            <Send className="h-3.5 w-3.5" /> Send to Billing
-          </Button>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleBulk("Mark Approved")}>
-            <CheckCheck className="h-3.5 w-3.5" /> Mark Approved
-          </Button>
-          <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30" onClick={() => handleBulk("Drop Service")}>
-            <XCircle className="h-3.5 w-3.5" /> Drop
-          </Button>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleBulk("Send to Billing")}><Send className="h-3.5 w-3.5" /> Send to Billing</Button>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleBulk("Mark Approved")}><CheckCheck className="h-3.5 w-3.5" /> Mark Approved</Button>
+          <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30" onClick={() => handleBulk("Drop Service")}><XCircle className="h-3.5 w-3.5" /> Drop</Button>
         </div>
       )}
-
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
             <TableHead className="w-[44px] pl-6">
-              <Checkbox
-                checked={selectedIds.size === services.length && services.length > 0}
-                onCheckedChange={() => selectedIds.size === services.length ? setSelectedIds(new Set()) : setSelectedIds(new Set(services.map(s => s.id)))}
-                className="h-4 w-4"
-              />
+              <Checkbox checked={selectedIds.size === services.length && services.length > 0} onCheckedChange={() => selectedIds.size === services.length ? setSelectedIds(new Set()) : setSelectedIds(new Set(services.map(s => s.id)))} className="h-4 w-4" />
             </TableHead>
             <TableHead className="w-[36px]" />
             <TableHead>Service</TableHead>
@@ -381,49 +487,40 @@ function ServicesFull({ services }: { services: MockService[] }) {
             const sStatus = serviceStatusStyles[svc.status] || serviceStatusStyles.not_started;
             const isExpanded = expandedIds.has(svc.id);
             const svcMargin = svc.totalAmount > 0 ? Math.round((svc.totalAmount - svc.costAmount) / svc.totalAmount * 100) : 0;
-
+            const pendingReqs = svc.requirements.filter(r => !r.met).length;
             return (
-              <> 
-                <TableRow
-                  key={svc.id}
-                  className="cursor-pointer hover:bg-muted/20"
-                  onClick={() => toggle(svc.id)}
-                >
+              <>
+                <TableRow key={svc.id} className="cursor-pointer hover:bg-muted/20" onClick={() => toggle(svc.id)}>
                   <TableCell className="pl-6" onClick={(e) => e.stopPropagation()}>
                     <Checkbox checked={selectedIds.has(svc.id)} onCheckedChange={() => toggleSelect(svc.id)} className="h-4 w-4" />
                   </TableCell>
                   <TableCell className="pr-0">
                     {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                   </TableCell>
-                  <TableCell className="font-medium">{svc.name}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{svc.name}</span>
+                      {pendingReqs > 0 && <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">{pendingReqs} req</Badge>}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${sStatus.className}`}>{sStatus.label}</span>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{svc.assignedTo}</TableCell>
                   <TableCell>
                     {svc.subServices.length > 0 ? (
-                      <div className="flex gap-1 flex-wrap">
-                        {svc.subServices.map((d) => (
-                          <Badge key={d} variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">{d}</Badge>
-                        ))}
-                      </div>
+                      <div className="flex gap-1 flex-wrap">{svc.subServices.map((d) => <Badge key={d} variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">{d}</Badge>)}</div>
                     ) : <span className="text-xs text-muted-foreground">—</span>}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{svc.estimatedBillDate || "—"}</TableCell>
                   <TableCell className="text-right tabular-nums font-medium">{formatCurrency(svc.totalAmount)}</TableCell>
                   <TableCell className="text-right tabular-nums text-muted-foreground">{svc.costAmount > 0 ? formatCurrency(svc.costAmount) : "—"}</TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {svc.costAmount > 0 ? (
-                      <span className={svcMargin > 50 ? "text-emerald-600 dark:text-emerald-400" : svcMargin < 20 ? "text-red-600 dark:text-red-400" : ""}>
-                        {svcMargin}%
-                      </span>
-                    ) : "—"}
+                    {svc.costAmount > 0 ? <span className={svcMargin > 50 ? "text-emerald-600 dark:text-emerald-400" : svcMargin < 20 ? "text-red-600 dark:text-red-400" : ""}>{svcMargin}%</span> : "—"}
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     {svc.needsDobFiling ? (
-                      <Button variant="outline" size="sm" className="gap-1.5">
-                        <ExternalLink className="h-3.5 w-3.5" /> Start DOB NOW
-                      </Button>
+                      <Button variant="outline" size="sm" className="gap-1.5"><ExternalLink className="h-3.5 w-3.5" /> Start DOB NOW</Button>
                     ) : svc.application ? (
                       <Badge variant="outline" className="font-mono text-xs">#{svc.application.jobNumber}</Badge>
                     ) : null}
@@ -431,9 +528,7 @@ function ServicesFull({ services }: { services: MockService[] }) {
                 </TableRow>
                 {isExpanded && (
                   <TableRow key={`${svc.id}-detail`} className="hover:bg-transparent">
-                    <TableCell colSpan={11} className="p-0">
-                      <ServiceExpandedDetail service={svc} />
-                    </TableCell>
+                    <TableCell colSpan={11} className="p-0"><ServiceExpandedDetail service={svc} /></TableCell>
                   </TableRow>
                 )}
               </>
@@ -441,7 +536,6 @@ function ServicesFull({ services }: { services: MockService[] }) {
           })}
         </TableBody>
       </Table>
-
       <div className="px-6 py-4 bg-muted/20 border-t flex items-center gap-8 text-sm flex-wrap">
         <span><span className="text-muted-foreground">Contract:</span> <span className="font-semibold">{formatCurrency(total)}</span></span>
         <Separator orientation="vertical" className="h-4" />
@@ -450,42 +544,119 @@ function ServicesFull({ services }: { services: MockService[] }) {
         <span><span className="text-muted-foreground">Remaining:</span> <span className="font-semibold">{formatCurrency(total - billed)}</span></span>
         <Separator orientation="vertical" className="h-4" />
         <span><span className="text-muted-foreground">Cost:</span> <span className="font-semibold">{formatCurrency(cost)}</span></span>
-        <Separator orientation="vertical" className="h-4" />
-        <span><span className="text-muted-foreground">Margin:</span> <span className="font-semibold">{total > 0 ? `${Math.round((total - cost) / total * 100)}%` : "—"}</span></span>
       </div>
     </div>
   );
 }
 
-// ---- Contacts (spacious cards with DOB role mapping) ----
+// ======== EMAILS (Real integration + fallback mock) ========
 
-function ContactsFull({ contacts }: { contacts: MockContact[] }) {
+function EmailsFullLive({ projectId, mockEmails }: { projectId: string; mockEmails: MockEmail[] }) {
+  const { toast } = useToast();
   return (
-    <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-      {contacts.map((c) => (
-        <div key={c.id} className="flex items-start justify-between p-4 rounded-lg bg-background border">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-medium">{c.name}</span>
-              <Badge variant="secondary" className="text-xs">{dobRoleLabels[c.dobRole]}</Badge>
+    <div className="p-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium text-muted-foreground">
+          Tagged emails for this project — real-time from Gmail
+        </h3>
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => toast({ title: "Compose", description: "Opening composer with project context pre-filled." })}>
+          <Mail className="h-3.5 w-3.5" /> Compose
+        </Button>
+      </div>
+      <ProjectEmailsTab projectId={projectId} />
+      {/* Mock fallback for demo */}
+      <Collapsible>
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-1">
+            <ChevronRight className="h-3 w-3" /> Show mock emails ({mockEmails.length})
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-2 mt-2">
+          {mockEmails.map((em) => (
+            <div key={em.id} className="flex items-start gap-4 p-3 rounded-lg bg-background border">
+              <div className="shrink-0 mt-0.5">
+                {em.direction === "inbound" ? <ArrowDownLeft className="h-4 w-4 text-blue-500" /> : <ArrowUpRight className="h-4 w-4 text-emerald-500" />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium truncate">{em.subject}</span>
+                  <span className="text-xs text-muted-foreground shrink-0">{em.date}</span>
+                </div>
+                <div className="text-sm text-muted-foreground">{em.from}</div>
+                <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{em.snippet}</p>
+              </div>
             </div>
-            <div className="text-sm text-muted-foreground">{c.role} · {c.company}</div>
-          </div>
-          <div className="flex flex-col items-end gap-1 text-sm text-muted-foreground shrink-0">
-            <a href={`tel:${c.phone}`} className="flex items-center gap-1.5 hover:text-foreground transition-colors">
-              <Phone className="h-3.5 w-3.5" /> {c.phone}
-            </a>
-            <a href={`mailto:${c.email}`} className="flex items-center gap-1.5 hover:text-foreground transition-colors">
-              <Mail className="h-3.5 w-3.5" /> {c.email}
-            </a>
-          </div>
-        </div>
-      ))}
+          ))}
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 }
 
-// ---- Timeline ----
+// ======== CONTACTS (with PIS + DOB registration) ========
+
+const sourceStyles: Record<string, { label: string; className: string }> = {
+  proposal: { label: "From Proposal", className: "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800" },
+  pis: { label: "From PIS", className: "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800" },
+  manual: { label: "Manual", className: "bg-muted text-muted-foreground" },
+};
+
+const dobRegStyles: Record<string, { label: string; className: string }> = {
+  registered: { label: "DOB Registered", className: "text-emerald-600 dark:text-emerald-400" },
+  not_registered: { label: "Not Registered", className: "text-red-600 dark:text-red-400" },
+  unknown: { label: "Unknown", className: "text-muted-foreground" },
+};
+
+function ContactsFull({ contacts, pisStatus }: { contacts: MockContact[]; pisStatus: MockPISStatus }) {
+  return (
+    <div className="p-6 space-y-4">
+      {/* PIS status bar */}
+      {pisStatus.completedFields < pisStatus.totalFields && (
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-800/30 text-sm">
+          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+          <span>PIS sent {pisStatus.sentDate} — {pisStatus.completedFields} of {pisStatus.totalFields} fields completed</span>
+          <Button variant="outline" size="sm" className="ml-auto shrink-0 gap-1.5">
+            <Send className="h-3.5 w-3.5" /> Follow Up
+          </Button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {contacts.map((c) => {
+          const src = sourceStyles[c.source] || sourceStyles.manual;
+          const reg = dobRegStyles[c.dobRegistered] || dobRegStyles.unknown;
+          return (
+            <div key={c.id} className="p-4 rounded-lg bg-background border space-y-2">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="font-medium">{c.name}</span>
+                    <Badge variant="secondary" className="text-xs">{dobRoleLabels[c.dobRole]}</Badge>
+                  </div>
+                  <div className="text-sm text-muted-foreground">{c.role} · {c.company}</div>
+                </div>
+                <Badge variant="outline" className={`text-[10px] ${src.className}`}>{src.label}</Badge>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex flex-col gap-0.5 text-muted-foreground">
+                  <a href={`tel:${c.phone}`} className="flex items-center gap-1.5 hover:text-foreground transition-colors">
+                    <Phone className="h-3.5 w-3.5" /> {c.phone}
+                  </a>
+                  <a href={`mailto:${c.email}`} className="flex items-center gap-1.5 hover:text-foreground transition-colors">
+                    <Mail className="h-3.5 w-3.5" /> {c.email}
+                  </a>
+                </div>
+                <span className={`text-xs ${reg.className}`}>{reg.label}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ======== TIMELINE ========
 
 function TimelineFull({ milestones }: { milestones: MockMilestone[] }) {
   const sourceIcons: Record<string, typeof Circle> = { system: Circle, email: Mail, user: Pencil, dob: FileText };
@@ -514,134 +685,256 @@ function TimelineFull({ milestones }: { milestones: MockMilestone[] }) {
   );
 }
 
-// ---- Emails ----
-
-function EmailsFull({ emails }: { emails: MockEmail[] }) {
-  if (emails.length === 0) return <p className="text-sm text-muted-foreground italic p-6">No tagged emails.</p>;
-  return (
-    <div className="p-6 space-y-3">
-      {emails.map((em) => (
-        <div key={em.id} className="flex items-start gap-4 p-4 rounded-lg bg-background border">
-          <div className="shrink-0 mt-0.5">
-            {em.direction === "inbound" ? <ArrowDownLeft className="h-4 w-4 text-blue-500" /> : <ArrowUpRight className="h-4 w-4 text-emerald-500" />}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-medium truncate">{em.subject}</span>
-              <span className="text-xs text-muted-foreground shrink-0">{em.date}</span>
-            </div>
-            <div className="text-sm text-muted-foreground">{em.from}</div>
-            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{em.snippet}</p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ---- Documents ----
+// ======== DOCUMENTS (Universal Documents style) ========
 
 function DocumentsFull({ documents }: { documents: MockDocument[] }) {
-  if (documents.length === 0) return <p className="text-sm text-muted-foreground italic p-6">No documents uploaded.</p>;
+  const [search, setSearch] = useState("");
+  const [catFilter, setCatFilter] = useState("all");
+  const { toast } = useToast();
+
+  const filtered = documents.filter(d => {
+    const matchSearch = !search || d.name.toLowerCase().includes(search.toLowerCase());
+    const matchCat = catFilter === "all" || d.category === catFilter;
+    return matchSearch && matchCat;
+  });
+
   return (
-    <div className="p-6">
-      <div className="flex justify-end mb-4">
-        <Button variant="outline" size="sm" className="gap-1.5">
+    <div className="p-6 space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="relative max-w-sm flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input type="search" placeholder="Search documents..." className="pl-9 h-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <Select value={catFilter} onValueChange={setCatFilter}>
+          <SelectTrigger className="w-[160px] h-9">
+            <SelectValue placeholder="All categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            {Object.entries(docCategoryLabels).map(([key, label]) => (
+              <SelectItem key={key} value={key}>{label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button size="sm" className="gap-1.5 ml-auto" onClick={() => toast({ title: "Upload", description: "Upload dialog would open." })}>
           <Upload className="h-3.5 w-3.5" /> Upload
         </Button>
       </div>
-      <div className="space-y-2">
-        {documents.map((doc) => (
-          <div key={doc.id} className="flex items-center justify-between p-3 rounded-lg bg-background border">
-            <div className="flex items-center gap-3 min-w-0">
-              <File className="h-5 w-5 text-muted-foreground shrink-0" />
-              <div className="min-w-0">
-                <span className="font-medium truncate block">{doc.name}</span>
-                <span className="text-xs text-muted-foreground">{doc.uploadedBy} · {doc.uploadedDate}</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 text-sm text-muted-foreground shrink-0">
-              <Badge variant="outline" className="text-xs">{doc.type}</Badge>
-              <span className="text-xs">{doc.size}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
-// ---- Time Logs ----
-
-function TimeLogsFull({ timeEntries }: { timeEntries: MockTimeEntry[] }) {
-  if (timeEntries.length === 0) return <p className="text-sm text-muted-foreground italic p-6">No time logged.</p>;
-  const totalHours = timeEntries.reduce((s, t) => s + t.hours, 0);
-  return (
-    <div className="p-6">
-      <Table>
-        <TableHeader>
-          <TableRow className="hover:bg-transparent">
-            <TableHead>Date</TableHead>
-            <TableHead>Team Member</TableHead>
-            <TableHead>Service</TableHead>
-            <TableHead>Description</TableHead>
-            <TableHead className="text-right">Hours</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {timeEntries.map((te) => (
-            <TableRow key={te.id}>
-              <TableCell className="font-mono">{te.date}</TableCell>
-              <TableCell>{te.user}</TableCell>
-              <TableCell className="text-muted-foreground">{te.service}</TableCell>
-              <TableCell className="text-muted-foreground">{te.description}</TableCell>
-              <TableCell className="text-right tabular-nums font-medium">{te.hours.toFixed(2)}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <div className="pt-3 text-sm text-muted-foreground text-right">
-        Total: <span className="font-semibold text-foreground">{totalHours.toFixed(2)} hrs</span>
-      </div>
-    </div>
-  );
-}
-
-// ---- Change Orders ----
-
-function ChangeOrdersFull({ changeOrders }: { changeOrders: MockChangeOrder[] }) {
-  if (changeOrders.length === 0) return <p className="text-sm text-muted-foreground italic p-6">No change orders yet.</p>;
-  const coTotal = changeOrders.filter(co => co.status === "approved").reduce((s, co) => s + co.amount, 0);
-  return (
-    <div className="p-6 space-y-3">
-      {changeOrders.map((co) => {
-        const style = coStatusStyles[co.status] || coStatusStyles.draft;
-        return (
-          <div key={co.id} className="flex items-center justify-between p-4 rounded-lg bg-background border">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-mono font-medium">{co.number}</span>
-                <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${style.className}`}>{style.label}</span>
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">{co.description}</p>
-            </div>
-            <div className="text-right shrink-0 pl-6">
-              <span className="text-lg font-semibold tabular-nums">{formatCurrency(co.amount)}</span>
-              <div className="text-xs text-muted-foreground">{co.createdDate}</div>
-            </div>
-          </div>
-        );
-      })}
-      {coTotal > 0 && (
-        <div className="text-sm text-muted-foreground pt-1">
-          Approved total: <span className="font-semibold text-foreground">{formatCurrency(coTotal)}</span>
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center py-8 text-muted-foreground">
+          <File className="h-8 w-8 mb-2 opacity-40" />
+          <p className="text-sm">No documents found</p>
         </div>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Document</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Size</TableHead>
+              <TableHead>Uploaded By</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead className="w-[80px]" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.map((doc) => (
+              <TableRow key={doc.id}>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="font-medium">{doc.name}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="text-xs">{docCategoryLabels[doc.category] || doc.category}</Badge>
+                </TableCell>
+                <TableCell className="text-muted-foreground text-sm tabular-nums">{doc.size}</TableCell>
+                <TableCell className="text-muted-foreground text-sm">{doc.uploadedBy}</TableCell>
+                <TableCell className="text-muted-foreground text-sm">{doc.uploadedDate}</TableCell>
+                <TableCell>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
     </div>
   );
 }
 
-// ---- Job Costing ----
+// ======== TIME LOGS (with service utilization summary) ========
+
+function TimeLogsFull({ timeEntries, services }: { timeEntries: MockTimeEntry[]; services: MockService[] }) {
+  const totalHours = timeEntries.reduce((s, t) => s + t.hours, 0);
+
+  // Aggregate hours by service
+  const hoursByService: Record<string, number> = {};
+  timeEntries.forEach(te => {
+    hoursByService[te.service] = (hoursByService[te.service] || 0) + te.hours;
+  });
+
+  // Map services to utilization
+  const serviceUtilization = services
+    .filter(svc => svc.allottedHours > 0)
+    .map(svc => {
+      const logged = hoursByService[svc.name] || 0;
+      const pct = Math.min(Math.round((logged / svc.allottedHours) * 100), 100);
+      return { name: svc.name, allotted: svc.allottedHours, logged, remaining: Math.max(svc.allottedHours - logged, 0), pct };
+    });
+
+  return (
+    <div className="p-6 space-y-6">
+      {/* Utilization Summary */}
+      {serviceUtilization.length > 0 && (
+        <div>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Time by Service</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {serviceUtilization.map(su => (
+              <div key={su.name} className="p-3 rounded-lg border bg-background space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium">{su.name}</span>
+                  <span className="text-muted-foreground tabular-nums">{su.logged.toFixed(1)} / {su.allotted} hrs</span>
+                </div>
+                <Progress value={su.pct} className="h-2" />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{su.remaining.toFixed(1)} hrs remaining</span>
+                  <span className={su.pct > 80 ? "text-amber-600 dark:text-amber-400 font-medium" : ""}>{su.pct}% used</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Time entries table */}
+      {timeEntries.length === 0 ? (
+        <p className="text-sm text-muted-foreground italic">No time logged.</p>
+      ) : (
+        <>
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Date</TableHead>
+                <TableHead>Team Member</TableHead>
+                <TableHead>Service</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="text-right">Hours</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {timeEntries.map((te) => (
+                <TableRow key={te.id}>
+                  <TableCell className="font-mono">{te.date}</TableCell>
+                  <TableCell>{te.user}</TableCell>
+                  <TableCell className="text-muted-foreground">{te.service}</TableCell>
+                  <TableCell className="text-muted-foreground">{te.description}</TableCell>
+                  <TableCell className="text-right tabular-nums font-medium">{te.hours.toFixed(2)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <div className="text-sm text-muted-foreground text-right">
+            Total: <span className="font-semibold text-foreground">{totalHours.toFixed(2)} hrs</span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ======== CHANGE ORDERS (collapsible table + create button) ========
+
+function ChangeOrdersFull({ changeOrders }: { changeOrders: MockChangeOrder[] }) {
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const { toast } = useToast();
+  const toggle = (id: string) => setExpandedIds(prev => {
+    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
+  });
+  const coTotal = changeOrders.filter(co => co.status === "approved").reduce((s, co) => s + co.amount, 0);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between px-6 py-4 border-b">
+        <div className="text-sm text-muted-foreground">
+          {changeOrders.length} change order{changeOrders.length !== 1 ? "s" : ""}
+          {coTotal > 0 && <> · Approved: <span className="font-semibold text-foreground">{formatCurrency(coTotal)}</span></>}
+        </div>
+        <Button size="sm" className="gap-1.5" onClick={() => toast({ title: "Create Change Order", description: "CO creation dialog would open." })}>
+          <Plus className="h-4 w-4" /> Create Change Order
+        </Button>
+      </div>
+
+      {changeOrders.length === 0 ? (
+        <div className="flex flex-col items-center py-12 text-muted-foreground">
+          <GitBranch className="h-8 w-8 mb-2 opacity-40" />
+          <p className="text-sm">No change orders yet</p>
+          <Button variant="outline" size="sm" className="mt-3 gap-1.5" onClick={() => toast({ title: "Create Change Order" })}>
+            <Plus className="h-3.5 w-3.5" /> Create Change Order
+          </Button>
+        </div>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/30 hover:bg-muted/30">
+              <TableHead className="w-[36px]" />
+              <TableHead>CO #</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Requested By</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {changeOrders.map((co) => {
+              const style = coStatusStyles[co.status] || coStatusStyles.draft;
+              const isExpanded = expandedIds.has(co.id);
+              return (
+                <>
+                  <TableRow key={co.id} className="cursor-pointer hover:bg-muted/20" onClick={() => toggle(co.id)}>
+                    <TableCell className="pr-0">
+                      {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                    </TableCell>
+                    <TableCell className="font-mono font-medium">{co.number}</TableCell>
+                    <TableCell>{co.description}</TableCell>
+                    <TableCell>
+                      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${style.className}`}>{style.label}</span>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{co.requestedBy}</TableCell>
+                    <TableCell className="text-muted-foreground">{co.createdDate}</TableCell>
+                    <TableCell className="text-right tabular-nums font-semibold">{formatCurrency(co.amount)}</TableCell>
+                  </TableRow>
+                  {isExpanded && (
+                    <TableRow key={`${co.id}-detail`} className="hover:bg-transparent">
+                      <TableCell colSpan={7} className="p-0">
+                        <div className="px-8 py-4 bg-muted/10 space-y-2 text-sm">
+                          <div><span className="text-muted-foreground">Reason:</span> {co.reason}</div>
+                          {co.linkedServices.length > 0 && (
+                            <div><span className="text-muted-foreground">Linked Services:</span> {co.linkedServices.join(", ")}</div>
+                          )}
+                          {co.approvedDate && (
+                            <div><span className="text-muted-foreground">Approved:</span> {co.approvedDate}</div>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </>
+              );
+            })}
+          </TableBody>
+        </Table>
+      )}
+    </div>
+  );
+}
+
+// ======== JOB COSTING ========
 
 function JobCostingFull({ services, timeEntries }: { services: MockService[]; timeEntries: MockTimeEntry[] }) {
   const contractTotal = services.reduce((s, svc) => s + svc.totalAmount, 0);
@@ -667,7 +960,6 @@ function JobCostingFull({ services, timeEntries }: { services: MockService[]; ti
           </Card>
         ))}
       </div>
-
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
@@ -689,9 +981,7 @@ function JobCostingFull({ services, timeEntries }: { services: MockService[]; ti
                 <TableCell className="text-right tabular-nums">{svc.costAmount > 0 ? formatCurrency(svc.totalAmount - svc.costAmount) : "—"}</TableCell>
                 <TableCell className="text-right tabular-nums">
                   {svc.costAmount > 0 ? (
-                    <span className={sMargin > 50 ? "text-emerald-600 dark:text-emerald-400" : sMargin < 20 ? "text-red-600 dark:text-red-400" : ""}>
-                      {Math.round(sMargin)}%
-                    </span>
+                    <span className={sMargin > 50 ? "text-emerald-600 dark:text-emerald-400" : sMargin < 20 ? "text-red-600 dark:text-red-400" : ""}>{Math.round(sMargin)}%</span>
                   ) : "—"}
                 </TableCell>
               </TableRow>
