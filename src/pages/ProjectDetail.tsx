@@ -86,6 +86,9 @@ export default function ProjectDetail() {
   const queryClient = useQueryClient();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [litigationDialogOpen, setLitigationDialogOpen] = useState(false);
+  const [liveServices, setLiveServices] = useState<MockService[]>([]);
+  const [extraCOs, setExtraCOs] = useState<MockChangeOrder[]>([]);
+  const [servicesInitialized, setServicesInitialized] = useState<string | null>(null);
 
   const handlePmChange = async (profileId: string) => {
     if (!project) return;
@@ -101,6 +104,25 @@ export default function ProjectDetail() {
 
   const project = projects.find((p) => p.id === id);
   const idx = projects.indexOf(project as ProjectWithRelations);
+
+  // Match mock data by project name keywords, fallback to index
+  const getMockIdx = () => {
+    if (!project) return 0;
+    const name = (project.name || "").toLowerCase();
+    if (name.includes("689") || name.includes("5th ave")) return 4;
+    if (name.includes("port richmond") || name.includes("331")) return 2;
+    if (name.includes("lobby") || name.includes("345 park")) return 0;
+    if (name.includes("1525") || name.includes("86th")) return 3;
+    return Math.max(idx, 0) % SERVICE_SETS.length;
+  };
+  const mockIdx = getMockIdx();
+
+  // Initialize live services when project changes
+  if (project && servicesInitialized !== project.id) {
+    setLiveServices(SERVICE_SETS[mockIdx % SERVICE_SETS.length]);
+    setExtraCOs([]);
+    setServicesInitialized(project.id);
+  }
 
   if (isLoading) {
     return (
@@ -127,21 +149,10 @@ export default function ProjectDetail() {
 
   const status = statusConfig[project.status] || statusConfig.open;
 
-  // Match mock data by project name keywords, fallback to index
-  const getMockIdx = () => {
-    const name = (project.name || "").toLowerCase();
-    if (name.includes("689") || name.includes("5th ave")) return 4; // Set E
-    if (name.includes("port richmond") || name.includes("331")) return 2; // Set C
-    if (name.includes("lobby") || name.includes("345 park")) return 0; // Set A
-    if (name.includes("1525") || name.includes("86th")) return 3; // Set D (no PIS)
-    return Math.max(idx, 0) % SERVICE_SETS.length;
-  };
-  const mockIdx = getMockIdx();
-
-  const services = SERVICE_SETS[mockIdx % SERVICE_SETS.length];
   const contacts = CONTACT_SETS[mockIdx % CONTACT_SETS.length];
   const milestones = MILESTONE_SETS[mockIdx % MILESTONE_SETS.length];
-  const changeOrders = CO_SETS[mockIdx % CO_SETS.length];
+  const baseCOs = CO_SETS[mockIdx % CO_SETS.length];
+  const changeOrders = [...baseCOs, ...extraCOs];
   const emails = EMAIL_SETS[mockIdx % EMAIL_SETS.length];
   const documents = DOCUMENT_SETS[mockIdx % DOCUMENT_SETS.length];
   const timeEntries = TIME_SETS[mockIdx % TIME_SETS.length];
@@ -150,10 +161,10 @@ export default function ProjectDetail() {
   const proposalSig = PROPOSAL_SIG_SETS[mockIdx % PROPOSAL_SIG_SETS.length];
 
   const approvedCOs = changeOrders.filter(co => co.status === "approved").reduce((s, co) => s + co.amount, 0);
-  const contractTotal = services.reduce((s, svc) => s + svc.totalAmount, 0);
+  const contractTotal = liveServices.reduce((s, svc) => s + svc.totalAmount, 0);
   const adjustedTotal = contractTotal + approvedCOs;
-  const billed = services.reduce((s, svc) => s + svc.billedAmount, 0);
-  const cost = services.reduce((s, svc) => s + svc.costAmount, 0);
+  const billed = liveServices.reduce((s, svc) => s + svc.billedAmount, 0);
+  const cost = liveServices.reduce((s, svc) => s + svc.costAmount, 0);
   const margin = adjustedTotal > 0 ? Math.round((adjustedTotal - cost) / adjustedTotal * 100) : 0;
 
   return (
@@ -255,7 +266,7 @@ export default function ProjectDetail() {
           <Tabs defaultValue="services" className="w-full">
             <TabsList className="w-full justify-start rounded-none rounded-t-lg border-b bg-muted/20 h-11 px-4 flex-wrap gap-1">
               <TabsTrigger value="services" className="gap-1.5 data-[state=active]:bg-background">
-                <FileText className="h-3.5 w-3.5" /> Services ({services.length})
+                <FileText className="h-3.5 w-3.5" /> Services ({liveServices.length})
               </TabsTrigger>
               <TabsTrigger value="emails" className="gap-1.5 data-[state=active]:bg-background">
                 <Mail className="h-3.5 w-3.5" /> Emails
@@ -282,7 +293,7 @@ export default function ProjectDetail() {
 
             <CardContent className="p-0">
               <TabsContent value="services" className="mt-0">
-                <ServicesFull services={services} project={project} contacts={contacts} allServices={services} />
+                <ServicesFull services={liveServices} project={project} contacts={contacts} allServices={liveServices} onServicesChange={setLiveServices} onAddCOs={(cos) => setExtraCOs(prev => [...prev, ...cos])} />
               </TabsContent>
               <TabsContent value="emails" className="mt-0">
                 <EmailsFullLive projectId={project.id} mockEmails={emails} />
@@ -297,13 +308,13 @@ export default function ProjectDetail() {
                 <DocumentsFull documents={documents} />
               </TabsContent>
               <TabsContent value="time-logs" className="mt-0">
-                <TimeLogsFull timeEntries={timeEntries} services={services} />
+                <TimeLogsFull timeEntries={timeEntries} services={liveServices} />
               </TabsContent>
               <TabsContent value="change-orders" className="mt-0">
                 <ChangeOrdersFull changeOrders={changeOrders} />
               </TabsContent>
               <TabsContent value="job-costing" className="mt-0">
-                <JobCostingFull services={services} timeEntries={timeEntries} />
+                <JobCostingFull services={liveServices} timeEntries={timeEntries} />
               </TabsContent>
             </CardContent>
           </Tabs>
@@ -335,7 +346,7 @@ export default function ProjectDetail() {
         timeEntries={timeEntries}
         changeOrders={changeOrders}
         contacts={contacts}
-        services={services}
+        services={liveServices}
       />
     </AppLayout>
   );
@@ -847,8 +858,15 @@ function ServiceExpandedDetail({ service }: { service: MockService }) {
   );
 }
 
-function ServicesFull({ services: initialServices, project, contacts, allServices }: { services: MockService[]; project: ProjectWithRelations; contacts: MockContact[]; allServices: MockService[] }) {
-  const [orderedServices, setOrderedServices] = useState(initialServices);
+function ServicesFull({ services: initialServices, project, contacts, allServices, onServicesChange, onAddCOs }: { services: MockService[]; project: ProjectWithRelations; contacts: MockContact[]; allServices: MockService[]; onServicesChange?: (services: MockService[]) => void; onAddCOs?: (cos: MockChangeOrder[]) => void }) {
+  const [orderedServices, setOrderedServicesLocal] = useState(initialServices);
+  const setOrderedServices = (updater: MockService[] | ((prev: MockService[]) => MockService[])) => {
+    setOrderedServicesLocal(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      onServicesChange?.(next);
+      return next;
+    });
+  };
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [editingBillDate, setEditingBillDate] = useState<string | null>(null);
@@ -869,6 +887,51 @@ function ServicesFull({ services: initialServices, project, contacts, allService
     setOrderedServices(updated);
   };
 
+  const handleSendToBilling = () => {
+    const today = format(new Date(), "MM/dd/yyyy");
+    setOrderedServices(prev => prev.map(s => {
+      if (!selectedIds.has(s.id)) return s;
+      return { ...s, status: "billed" as const, billedAmount: s.totalAmount, billedAt: today };
+    }));
+    toast({ title: "Sent to Billing", description: `${selectedIds.size} service(s) marked as billed.` });
+    setSelectedIds(new Set());
+  };
+
+  const handleDropService = () => {
+    const today = format(new Date(), "MM/dd/yyyy");
+    const newCOs: MockChangeOrder[] = [];
+    setOrderedServices(prev => prev.map(s => {
+      if (!selectedIds.has(s.id) || s.status === "dropped") return s;
+      // Auto-create a negative change order
+      const coNum = `CO-DROP-${s.id}`;
+      newCOs.push({
+        id: `co-drop-${s.id}`,
+        number: coNum,
+        description: `Dropped service: ${s.name}`,
+        amount: -s.totalAmount,
+        status: "approved",
+        createdDate: today,
+        approvedDate: today,
+        linkedServices: [s.id],
+        reason: `Service "${s.name}" was dropped from scope`,
+        requestedBy: "Internal",
+        internalSigned: true,
+        internalSignedDate: today,
+        internalSigner: "System",
+        clientSigned: false,
+      });
+      return { ...s, status: "dropped" as const };
+    }));
+    if (newCOs.length > 0) {
+      onAddCOs?.(newCOs);
+    }
+    toast({
+      title: "Service(s) Dropped",
+      description: `${selectedIds.size} service(s) dropped. Negative change order(s) created automatically.`,
+    });
+    setSelectedIds(new Set());
+  };
+
   const services = orderedServices;
 
   const toggle = (id: string) => setExpandedIds(prev => {
@@ -877,7 +940,6 @@ function ServicesFull({ services: initialServices, project, contacts, allService
   const toggleSelect = (id: string) => setSelectedIds(prev => {
     const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
   });
-  const handleBulk = (action: string) => toast({ title: action, description: `${selectedIds.size} service(s) selected.` });
 
   const total = services.reduce((s, svc) => s + svc.totalAmount, 0);
   const billed = services.reduce((s, svc) => s + svc.billedAmount, 0);
@@ -888,9 +950,9 @@ function ServicesFull({ services: initialServices, project, contacts, allService
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-2 px-6 py-3 bg-muted/40 border-b flex-wrap">
           <span className="text-sm text-muted-foreground font-medium">{selectedIds.size} selected:</span>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleBulk("Send to Billing")}><Send className="h-3.5 w-3.5" /> Send to Billing</Button>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleBulk("Mark Approved")}><CheckCheck className="h-3.5 w-3.5" /> Mark Approved</Button>
-          <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30" onClick={() => handleBulk("Drop Service")}><XCircle className="h-3.5 w-3.5" /> Drop</Button>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={handleSendToBilling}><Send className="h-3.5 w-3.5" /> Send to Billing</Button>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => toast({ title: "Mark Approved", description: `${selectedIds.size} service(s) selected.` })}><CheckCheck className="h-3.5 w-3.5" /> Mark Approved</Button>
+          <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30" onClick={handleDropService}><XCircle className="h-3.5 w-3.5" /> Drop</Button>
         </div>
       )}
       <Table>
