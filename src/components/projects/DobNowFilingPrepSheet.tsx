@@ -20,6 +20,7 @@ interface DobField {
   value: string | null | undefined;
   category: string;
   dobFieldName?: string;
+  editable?: boolean;
 }
 
 interface ChecklistItem {
@@ -102,7 +103,7 @@ export function DobNowFilingPrepSheet({
     { label: "Floor", value: proj.floor_number, category: "filing", dobFieldName: "Floor" },
     { label: "Unit / Apt", value: proj.unit_number, category: "filing", dobFieldName: "Apt/Suite" },
     { label: "Estimated Job Cost", value: service.estimatedCosts && service.estimatedCosts.length > 0 ? service.estimatedCosts.map(ec => `${ec.discipline}: $${ec.amount.toLocaleString()}`).join("; ") : (proj.estimated_value ? `$${Number(proj.estimated_value).toLocaleString()}` : null), category: "filing", dobFieldName: "Estimated Job Cost" },
-    { label: "Job Description", value: service.jobDescription || null, category: "filing", dobFieldName: "Description of Work" },
+    { label: "Job Description", value: service.jobDescription || null, category: "filing", dobFieldName: "Description of Work", editable: true },
   ];
 
   // Map contacts by DOB role
@@ -165,14 +166,16 @@ export function DobNowFilingPrepSheet({
         <div className="space-y-6 mt-6">
           {/* Readiness summary */}
           <div className={`flex items-center gap-3 p-3 rounded-lg border text-sm ${
-            missingFields.length === 0 && missingContacts.length === 0 && checklistComplete
+            missingFields.length === 0 && missingContacts.length === 0
               ? "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800"
               : "bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800"
           }`}>
-            {missingFields.length === 0 && missingContacts.length === 0 && checklistComplete ? (
+            {missingFields.length === 0 && missingContacts.length === 0 ? (
               <>
                 <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                <span className="text-emerald-700 dark:text-emerald-300 font-medium">Ready to file on DOB NOW</span>
+                <span className="text-emerald-700 dark:text-emerald-300 font-medium">
+                  All fields complete · {requiredChecked}/{requiredTotal} checklist
+                </span>
               </>
             ) : (
               <>
@@ -293,7 +296,7 @@ export function DobNowFilingPrepSheet({
                   variant="ghost"
                   size="sm"
                   className="h-6 text-[10px] gap-1 text-muted-foreground"
-                  onClick={() => window.open("/settings", "_blank")}
+                  onClick={() => window.open("/settings?section=lists&tab=filing_checklist", "_blank")}
                 >
                   <Settings className="h-3 w-3" /> Defaults
                 </Button>
@@ -338,14 +341,12 @@ export function DobNowFilingPrepSheet({
                   {item.required && (
                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Required</Badge>
                   )}
-                  {item.id.startsWith("custom_") && (
-                    <button
-                      className="opacity-0 group-hover/check:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                      onClick={() => setChecklist((prev) => prev.filter((c) => c.id !== item.id))}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  )}
+                  <button
+                    className="opacity-0 group-hover/check:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                    onClick={() => setChecklist((prev) => prev.filter((c) => c.id !== item.id))}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
                 </div>
               ))}
             </div>
@@ -437,7 +438,7 @@ export function DobNowFilingPrepSheet({
   );
 }
 
-// Individual field row with copy button and missing highlight
+// Individual field row with copy button, missing highlight, and optional inline editing
 function FieldRow({
   field,
   onCopy,
@@ -445,9 +446,15 @@ function FieldRow({
   field: DobField;
   onCopy: (value: string, label: string) => void;
 }) {
-  if (!field.value) {
+  const [editing, setEditing] = useState(false);
+  const [editValue, setEditValue] = useState(String(field.value || ""));
+
+  if (!field.value && !editing) {
     return (
-      <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/30 dark:border-amber-800/30">
+      <div
+        className={`flex items-center justify-between py-1.5 px-3 rounded-md bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/30 dark:border-amber-800/30 ${field.editable ? "cursor-pointer" : ""}`}
+        onClick={() => field.editable && setEditing(true)}
+      >
         <div className="flex items-center gap-2 text-sm">
           <AlertTriangle className="h-3 w-3 text-amber-500" />
           <span className="text-muted-foreground">{field.label}</span>
@@ -455,13 +462,37 @@ function FieldRow({
             <span className="text-[10px] text-muted-foreground/60 font-mono">({field.dobFieldName})</span>
           )}
         </div>
-        <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">Missing</span>
+        <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+          {field.editable ? "Click to edit" : "Missing"}
+        </span>
+      </div>
+    );
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-2 py-1 px-3 rounded-md bg-background border">
+        <span className="text-xs text-muted-foreground shrink-0">{field.label}</span>
+        <Input
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          className="h-7 text-sm flex-1"
+          autoFocus
+          onKeyDown={(e) => {
+            if (e.key === "Enter") setEditing(false);
+            if (e.key === "Escape") { setEditValue(String(field.value || "")); setEditing(false); }
+          }}
+          onBlur={() => setEditing(false)}
+        />
       </div>
     );
   }
 
   return (
-    <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-background border group/field hover:bg-muted/20 transition-colors">
+    <div
+      className={`flex items-center justify-between py-1.5 px-3 rounded-md bg-background border group/field hover:bg-muted/20 transition-colors ${field.editable ? "cursor-pointer" : ""}`}
+      onDoubleClick={() => field.editable && setEditing(true)}
+    >
       <div className="flex items-center gap-2 text-sm min-w-0">
         <span className="text-muted-foreground shrink-0">{field.label}</span>
         {field.dobFieldName && (

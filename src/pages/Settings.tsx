@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -84,7 +85,14 @@ const settingsSections = [
 ];
 
 export default function Settings() {
-  const [activeSection, setActiveSection] = useState<SettingsSection>("main");
+  const [searchParams] = useSearchParams();
+  const [activeSection, setActiveSection] = useState<SettingsSection>(() => {
+    const section = searchParams.get("section");
+    if (section && settingsSections.some((s) => s.id === section)) {
+      return section as SettingsSection;
+    }
+    return "main";
+  });
   const isAdmin = useIsAdmin();
 
   const renderContent = () => {
@@ -98,7 +106,7 @@ export default function Settings() {
       case "proposals":
         return <ServiceCatalogSettings />;
       case "lists":
-        return <ListsAndLookupsSettings />;
+        return <ListsAndLookupsSettings defaultTab={searchParams.get("tab") || undefined} />;
       case "rfi_templates":
         return <RfiTemplateSettings />;
       case "invoices":

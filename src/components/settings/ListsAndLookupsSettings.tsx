@@ -5,9 +5,9 @@ import { LeadSourceSettings } from "./LeadSourceSettings";
 import { LeadStatusSettings } from "./LeadStatusSettings";
 import { FilingChecklistSettings } from "./FilingChecklistSettings";
 
-export function ListsAndLookupsSettings() {
+export function ListsAndLookupsSettings({ defaultTab }: { defaultTab?: string }) {
   return (
-    <Tabs defaultValue="company_types" className="space-y-4">
+    <Tabs defaultValue={defaultTab || "company_types"} className="space-y-4">
       <TabsList>
         <TabsTrigger value="company_types">Company Types</TabsTrigger>
         <TabsTrigger value="review_categories">Review Categories</TabsTrigger>
