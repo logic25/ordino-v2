@@ -2547,6 +2547,7 @@ export type Database = {
           created_by: string | null
           id: string
           lead_id: string
+          parent_note_id: string | null
         }
         Insert: {
           company_id: string
@@ -2555,6 +2556,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           lead_id: string
+          parent_note_id?: string | null
         }
         Update: {
           company_id?: string
@@ -2563,6 +2565,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           lead_id?: string
+          parent_note_id?: string | null
         }
         Relationships: [
           {
@@ -2584,6 +2587,13 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_notes_parent_note_id_fkey"
+            columns: ["parent_note_id"]
+            isOneToOne: false
+            referencedRelation: "lead_notes"
             referencedColumns: ["id"]
           },
         ]

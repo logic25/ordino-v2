@@ -33,11 +33,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { MoreHorizontal, Trash2, FileText, Loader2, UserPlus, ChevronDown, ChevronRight } from "lucide-react";
+import { MoreHorizontal, Trash2, FileText, Loader2, UserPlus, ChevronDown, ChevronRight, Reply } from "lucide-react";
 import { useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import type { Lead } from "@/hooks/useLeads";
-import { useLeadNotes, useCreateLeadNote } from "@/hooks/useLeadNotes";
+import { useLeadNotes, useCreateLeadNote, type LeadNote } from "@/hooks/useLeadNotes";
+
+// --- Helpers ---
+
+function formatPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return `(${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  }
+  return raw;
+}
+
+// --- Types & Constants ---
 
 interface LeadsTableProps {
   leads: Lead[];
@@ -71,6 +86,8 @@ const CLIENT_TYPE_LABELS: Record<string, string> = {
   government: "Government",
   other: "Other",
 };
+
+// --- Main Table ---
 
 export function LeadsTable({ leads, onDelete, onConvertToProposal, onUpdateLead, isDeleting }: LeadsTableProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -141,7 +158,7 @@ export function LeadsTable({ leads, onDelete, onConvertToProposal, onUpdateLead,
                   </TableCell>
                   <TableCell>
                     {lead.contact_phone && (
-                      <div className="text-sm">{lead.contact_phone}</div>
+                      <div className="text-sm">{formatPhone(lead.contact_phone)}</div>
                     )}
                     {lead.contact_email && (
                       <div className="text-xs text-muted-foreground">{lead.contact_email}</div>
@@ -252,19 +269,33 @@ function LeadDetailPanel({
   onConvertToProposal: (lead: Lead) => void;
 }) {
   const [newNote, setNewNote] = useState("");
-  const { data: notes = [], isLoading: notesLoading } = useLeadNotes(lead.id);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const { data: notes = [] } = useLeadNotes(lead.id);
   const createNote = useCreateLeadNote();
-  const isMock = lead.id.startsWith("mock-");
 
   const handleStatusChange = (value: string) => {
     onUpdateLead?.(lead.id, { status: value });
   };
 
-  const handleAddNote = async () => {
+  const handleSaveNote = async () => {
     if (!newNote.trim()) return;
-    await createNote.mutateAsync({ lead_id: lead.id, content: newNote.trim() });
+    await createNote.mutateAsync({
+      lead_id: lead.id,
+      content: newNote.trim(),
+      parent_note_id: replyingTo || undefined,
+    });
     setNewNote("");
+    setReplyingTo(null);
   };
+
+  // Group notes: top-level + replies
+  const topLevelNotes = notes.filter(n => !n.parent_note_id);
+  const repliesByParent = notes.reduce<Record<string, LeadNote[]>>((acc, n) => {
+    if (n.parent_note_id) {
+      (acc[n.parent_note_id] ||= []).push(n);
+    }
+    return acc;
+  }, {});
 
   return (
     <div className="px-6 py-4 space-y-4">
@@ -300,7 +331,7 @@ function LeadDetailPanel({
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-muted-foreground">Contact</label>
           <div className="text-sm space-y-0.5">
-            {lead.contact_phone && <div>{lead.contact_phone}</div>}
+            {lead.contact_phone && <div>{formatPhone(lead.contact_phone)}</div>}
             {lead.contact_email && <div className="text-muted-foreground">{lead.contact_email}</div>}
             {lead.property_address && <div className="text-muted-foreground">{lead.property_address}</div>}
           </div>
@@ -333,55 +364,64 @@ function LeadDetailPanel({
           </div>
         )}
 
-        {/* Notes timeline */}
-        {notes.length > 0 && (
-          <div className="space-y-2 max-h-[200px] overflow-y-auto">
-            {notes.map((note) => (
-              <div key={note.id} className="rounded-md border bg-background p-3 text-sm space-y-1">
-                <p className="whitespace-pre-wrap">{note.content}</p>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="font-medium">
-                    {note.author
-                      ? `${note.author.first_name} ${note.author.last_name}`
-                      : "Unknown"}
-                  </span>
-                  <span>·</span>
-                  <span title={format(new Date(note.created_at), "MMM d, yyyy h:mm a")}>
-                    {formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}
-                  </span>
-                </div>
-              </div>
+        {/* Threaded notes timeline */}
+        {topLevelNotes.length > 0 && (
+          <div className="space-y-3 max-h-[300px] overflow-y-auto">
+            {topLevelNotes.map((note) => (
+              <NoteThread
+                key={note.id}
+                note={note}
+                replies={repliesByParent[note.id] || []}
+                onReply={(id) => { setReplyingTo(id); }}
+                replyingTo={replyingTo}
+              />
             ))}
           </div>
         )}
 
-        {!lead.notes && notes.length === 0 && !isMock && (
+        {!lead.notes && topLevelNotes.length === 0 && (
           <p className="text-xs text-muted-foreground py-1">No notes yet</p>
         )}
 
-        {/* Add note input */}
+        {/* Reply context indicator */}
+        {replyingTo && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded px-3 py-1.5">
+            <Reply className="h-3 w-3" />
+            <span>Replying to a note</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-5 px-1.5 text-xs ml-auto"
+              onClick={() => setReplyingTo(null)}
+            >
+              Cancel
+            </Button>
+          </div>
+        )}
+
+        {/* Note input */}
         <div className="space-y-2">
           <Textarea
             value={newNote}
             onChange={(e) => setNewNote(e.target.value)}
-            placeholder="Type a note..."
+            placeholder={replyingTo ? "Write a reply..." : "Type a note..."}
             rows={2}
             className="resize-none"
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
-                handleAddNote();
+                handleSaveNote();
               }
             }}
           />
           <div className="flex justify-end">
             <Button
               size="sm"
-              onClick={handleAddNote}
+              onClick={handleSaveNote}
               disabled={!newNote.trim() || createNote.isPending}
             >
               {createNote.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Add Note
+              Save
             </Button>
           </div>
         </div>
@@ -398,6 +438,68 @@ function LeadDetailPanel({
             <FileText className="h-4 w-4 mr-2" />
             Create Proposal
           </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Single note with replies ---
+
+function NoteThread({
+  note,
+  replies,
+  onReply,
+  replyingTo,
+}: {
+  note: LeadNote;
+  replies: LeadNote[];
+  onReply: (id: string) => void;
+  replyingTo: string | null;
+}) {
+  return (
+    <div className="space-y-1">
+      <div className={`rounded-md border bg-background p-3 text-sm space-y-1 ${replyingTo === note.id ? "ring-1 ring-primary/30" : ""}`}>
+        <p className="whitespace-pre-wrap">{note.content}</p>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="font-medium">
+            {note.author
+              ? `${note.author.first_name} ${note.author.last_name}`
+              : "Unknown"}
+          </span>
+          <span>·</span>
+          <span title={format(new Date(note.created_at), "MMM d, yyyy h:mm a")}>
+            {formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}
+          </span>
+          <button
+            className="ml-auto text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+            onClick={() => onReply(note.id)}
+          >
+            <Reply className="h-3 w-3" />
+            Reply
+          </button>
+        </div>
+      </div>
+
+      {/* Replies indented */}
+      {replies.length > 0 && (
+        <div className="ml-6 space-y-1 border-l-2 border-muted pl-3">
+          {replies.map((reply) => (
+            <div key={reply.id} className="rounded-md border bg-background p-2.5 text-sm space-y-1">
+              <p className="whitespace-pre-wrap">{reply.content}</p>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="font-medium">
+                  {reply.author
+                    ? `${reply.author.first_name} ${reply.author.last_name}`
+                    : "Unknown"}
+                </span>
+                <span>·</span>
+                <span title={format(new Date(reply.created_at), "MMM d, yyyy h:mm a")}>
+                  {formatDistanceToNow(new Date(reply.created_at), { addSuffix: true })}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

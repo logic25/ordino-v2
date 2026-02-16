@@ -9,6 +9,7 @@ export interface LeadNote {
   content: string;
   created_by: string | null;
   created_at: string;
+  parent_note_id: string | null;
   author?: { id: string; first_name: string; last_name: string } | null;
 }
 
@@ -21,7 +22,7 @@ export function useLeadNotes(leadId: string | null) {
         .from("lead_notes")
         .select("*, author:profiles!lead_notes_created_by_fkey(id, first_name, last_name)")
         .eq("lead_id", leadId!)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: true });
       if (error) throw error;
       return (data || []) as unknown as LeadNote[];
     },
@@ -33,13 +34,14 @@ export function useCreateLeadNote() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: { lead_id: string; content: string }) => {
+    mutationFn: async (input: { lead_id: string; content: string; parent_note_id?: string }) => {
       if (!profile?.company_id) throw new Error("No company");
       const { error } = await supabase.from("lead_notes").insert({
         lead_id: input.lead_id,
         company_id: profile.company_id,
         content: input.content,
         created_by: profile.id,
+        parent_note_id: input.parent_note_id || null,
       } as any);
       if (error) throw error;
     },
