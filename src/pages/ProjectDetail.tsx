@@ -29,12 +29,17 @@ import {
   FileSpreadsheet, Download, Sparkles, Eye, ShieldCheck, PenLine,
   GripVertical, ArrowUp, ArrowDown,
 } from "lucide-react";
-import { useProjects, ProjectWithRelations } from "@/hooks/useProjects";
-import { useAssignableProfiles } from "@/hooks/useProfiles";
+import { useProjects, useUpdateProject, ProjectWithRelations } from "@/hooks/useProjects";
+import { useAssignableProfiles, useCompanyProfiles } from "@/hooks/useProfiles";
 import { ProjectEmailsTab } from "@/components/emails/ProjectEmailsTab";
+import { ProjectDialog } from "@/components/projects/ProjectDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import {
   SERVICE_SETS, CONTACT_SETS, MILESTONE_SETS, CO_SETS,
   EMAIL_SETS, DOCUMENT_SETS, TIME_SETS, CHECKLIST_SETS, PIS_SETS, PROPOSAL_SIG_SETS,
@@ -63,8 +68,10 @@ export default function ProjectDetail() {
   const navigate = useNavigate();
   const { data: projects = [], isLoading } = useProjects();
   const { data: assignableProfiles = [] } = useAssignableProfiles();
+  const updateProject = useUpdateProject();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const handlePmChange = async (profileId: string) => {
     if (!project) return;
@@ -187,7 +194,7 @@ export default function ProjectDetail() {
               </div>
             </div>
           </div>
-          <Button variant="outline" size="sm" className="shrink-0 gap-1.5">
+          <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={() => setEditDialogOpen(true)}>
             <Pencil className="h-3.5 w-3.5" /> Edit Project
           </Button>
         </div>
@@ -274,6 +281,22 @@ export default function ProjectDetail() {
           </Tabs>
         </Card>
       </div>
+
+      <ProjectDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onSubmit={async (data) => {
+          try {
+            await updateProject.mutateAsync({ id: project.id, ...data });
+            toast({ title: "Project updated", description: "Changes saved." });
+            setEditDialogOpen(false);
+          } catch (error: any) {
+            toast({ title: "Error", description: error.message, variant: "destructive" });
+          }
+        }}
+        project={project}
+        isLoading={updateProject.isPending}
+      />
     </AppLayout>
   );
 }
@@ -750,19 +773,13 @@ function ServicesFull({ services: initialServices }: { services: MockService[] }
   const [orderedServices, setOrderedServices] = useState(initialServices);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [editingField, setEditingField] = useState<{ id: string; field: "assignedTo" | "estimatedBillDate" } | null>(null);
-  const [editValue, setEditValue] = useState("");
+  const [editingBillDate, setEditingBillDate] = useState<string | null>(null);
+  const { data: companyProfiles = [] } = useCompanyProfiles();
   const { toast } = useToast();
 
   const updateServiceField = (id: string, field: "assignedTo" | "estimatedBillDate", value: string) => {
     setOrderedServices(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
-    setEditingField(null);
     toast({ title: "Updated", description: `Service ${field === "assignedTo" ? "assignment" : "bill date"} updated.` });
-  };
-
-  const startEdit = (id: string, field: "assignedTo" | "estimatedBillDate", currentValue: string) => {
-    setEditingField({ id, field });
-    setEditValue(currentValue || "");
   };
 
   const moveService = (index: number, direction: "up" | "down") => {
@@ -851,41 +868,50 @@ function ServicesFull({ services: initialServices }: { services: MockService[] }
                   <TableCell>
                     <span className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${sStatus.className}`}>{sStatus.label}</span>
                   </TableCell>
-                  <TableCell className="text-muted-foreground" onClick={(e) => { e.stopPropagation(); startEdit(svc.id, "assignedTo", svc.assignedTo); }}>
-                    {editingField?.id === svc.id && editingField.field === "assignedTo" ? (
-                      <Input
-                        className="h-7 text-sm w-[100px]"
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        onBlur={() => updateServiceField(svc.id, "assignedTo", editValue)}
-                        onKeyDown={(e) => { if (e.key === "Enter") updateServiceField(svc.id, "assignedTo", editValue); if (e.key === "Escape") setEditingField(null); }}
-                        autoFocus
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    ) : (
-                      <span className="cursor-pointer hover:text-foreground hover:underline decoration-dashed underline-offset-2">{svc.assignedTo}</span>
-                    )}
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Select
+                      value={svc.assignedTo || "__none__"}
+                      onValueChange={(val) => updateServiceField(svc.id, "assignedTo", val === "__none__" ? "" : val)}
+                    >
+                      <SelectTrigger className="h-7 w-auto min-w-[100px] border-none bg-transparent shadow-none text-sm p-0 px-1 hover:bg-muted/40 focus:ring-0 gap-1 text-muted-foreground">
+                        <SelectValue placeholder="Assign" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Unassigned</SelectItem>
+                        {companyProfiles.map((p) => (
+                          <SelectItem key={p.id} value={[p.first_name, p.last_name].filter(Boolean).join(" ") || p.user_id}>
+                            {[p.first_name, p.last_name].filter(Boolean).join(" ") || p.user_id}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </TableCell>
                   <TableCell>
                     {svc.subServices.length > 0 ? (
                       <div className="flex gap-1 flex-wrap">{svc.subServices.map((d) => <Badge key={d} variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">{d}</Badge>)}</div>
                     ) : <span className="text-xs text-muted-foreground">—</span>}
                   </TableCell>
-                  <TableCell className="text-muted-foreground" onClick={(e) => { e.stopPropagation(); startEdit(svc.id, "estimatedBillDate", svc.estimatedBillDate || ""); }}>
-                    {editingField?.id === svc.id && editingField.field === "estimatedBillDate" ? (
-                      <Input
-                        className="h-7 text-sm w-[110px]"
-                        placeholder="MM/DD/YYYY"
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        onBlur={() => updateServiceField(svc.id, "estimatedBillDate", editValue)}
-                        onKeyDown={(e) => { if (e.key === "Enter") updateServiceField(svc.id, "estimatedBillDate", editValue); if (e.key === "Escape") setEditingField(null); }}
-                        autoFocus
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    ) : (
-                      <span className="cursor-pointer hover:text-foreground hover:underline decoration-dashed underline-offset-2">{svc.estimatedBillDate || "—"}</span>
-                    )}
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Popover open={editingBillDate === svc.id} onOpenChange={(open) => setEditingBillDate(open ? svc.id : null)}>
+                      <PopoverTrigger asChild>
+                        <button className="h-7 px-1 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/40 rounded cursor-pointer whitespace-nowrap">
+                          {svc.estimatedBillDate || "— Set date"}
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={svc.estimatedBillDate ? new Date(svc.estimatedBillDate) : undefined}
+                          onSelect={(date) => {
+                            if (date) {
+                              updateServiceField(svc.id, "estimatedBillDate", format(date, "MM/dd/yyyy"));
+                            }
+                            setEditingBillDate(null);
+                          }}
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </TableCell>
                   <TableCell className="text-right tabular-nums font-medium">{formatCurrency(svc.totalAmount)}</TableCell>
                   <TableCell className="text-right tabular-nums text-muted-foreground">{svc.costAmount > 0 ? formatCurrency(svc.costAmount) : "—"}</TableCell>
