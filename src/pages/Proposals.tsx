@@ -41,6 +41,7 @@ export default function Proposals() {
   const [signingProposal, setSigningProposal] = useState<ProposalWithRelations | null>(null);
   const [approvingProposal, setApprovingProposal] = useState<ProposalWithRelations | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const { toast } = useToast();
 
   const { data: proposals = [], isLoading } = useProposals();
@@ -64,8 +65,8 @@ export default function Proposals() {
       proposal_number: "021526-1",
       title: "Full Permit Package – Alt-1 Renovation",
       status: "accepted",
-      client_name: "Edward Ragusa",
-      client_email: "epr21555@aol.com",
+      client_name: "John Smith",
+      client_email: "john@abcbusiness.com",
       total_amount: 8500,
       subtotal: 8500,
       tax_amount: 0,
@@ -79,9 +80,9 @@ export default function Proposals() {
       next_follow_up_date: null,
       follow_up_dismissed_at: null,
       follow_up_count: 0,
-      properties: { id: "mock-p1", address: "327-329 South 1st Street, Brooklyn, NY 11211", borough: "Brooklyn" } as any,
-      creator: { id: "mock-u1", first_name: "Manny", last_name: "Russell" } as any,
-      internal_signer: { id: "mock-u1", first_name: "Manny", last_name: "Russell" } as any,
+      properties: { id: "mock-p1", address: "123 Main St, Brooklyn, NY 11201", borough: "Brooklyn" } as any,
+      creator: { id: "mock-u1", first_name: "Admin", last_name: "User" } as any,
+      internal_signer: { id: "mock-u1", first_name: "Admin", last_name: "User" } as any,
       items: [
         { id: "mi-1", name: "Alt-1 Filing", quantity: 1, unit_price: 3500, total_price: 3500, sort_order: 0 } as any,
         { id: "mi-2", name: "DOB Plan Examination", quantity: 1, unit_price: 2500, total_price: 2500, sort_order: 1 } as any,
@@ -95,8 +96,8 @@ export default function Proposals() {
       proposal_number: "020126-1",
       title: "Violation Resolution – ECB Summons",
       status: "sent",
-      client_name: "Sarah Chen",
-      client_email: "schen@gmail.com",
+      client_name: "Jane Doe",
+      client_email: "jane@example.com",
       total_amount: 3200,
       subtotal: 3200,
       tax_amount: 0,
@@ -108,17 +109,17 @@ export default function Proposals() {
       follow_up_dismissed_at: null,
       follow_up_count: 1,
       properties: { id: "mock-p2", address: "456 Park Ave, Manhattan, NY 10022", borough: "Manhattan" } as any,
-      creator: { id: "mock-u1", first_name: "Manny", last_name: "Russell" } as any,
+      creator: { id: "mock-u1", first_name: "Admin", last_name: "User" } as any,
     } as any,
     {
       id: "mock-3",
       company_id: "",
       property_id: null,
       proposal_number: "021426-1",
-      title: "Lead: James Wilson – 789 Atlantic Ave",
+      title: "Lead: ABC Business – 789 Broadway",
       status: "draft",
-      client_name: "James Wilson",
-      client_email: "jwilson@wilsondev.com",
+      client_name: "ABC Business",
+      client_email: "info@abcbusiness.com",
       total_amount: 0,
       subtotal: 0,
       tax_amount: 0,
@@ -128,7 +129,7 @@ export default function Proposals() {
       follow_up_dismissed_at: null,
       follow_up_count: 0,
       properties: null as any,
-      creator: { id: "mock-u1", first_name: "Manny", last_name: "Russell" } as any,
+      creator: { id: "mock-u1", first_name: "Admin", last_name: "User" } as any,
     } as any,
     {
       id: "mock-4",
@@ -137,8 +138,8 @@ export default function Proposals() {
       proposal_number: "011526-2",
       title: "New Building Permit Filing",
       status: "signed_internal",
-      client_name: "Metro Development LLC",
-      client_email: "permits@metrodev.com",
+      client_name: "XYZ Development LLC",
+      client_email: "permits@xyzdev.com",
       total_amount: 22000,
       subtotal: 22000,
       tax_amount: 0,
@@ -151,8 +152,8 @@ export default function Proposals() {
       follow_up_dismissed_at: null,
       follow_up_count: 2,
       properties: { id: "mock-p4", address: "100 Flatbush Ave, Brooklyn, NY 11217", borough: "Brooklyn" } as any,
-      creator: { id: "mock-u1", first_name: "Manny", last_name: "Russell" } as any,
-      internal_signer: { id: "mock-u1", first_name: "Manny", last_name: "Russell" } as any,
+      creator: { id: "mock-u1", first_name: "Admin", last_name: "User" } as any,
+      internal_signer: { id: "mock-u1", first_name: "Admin", last_name: "User" } as any,
     } as any,
   ], []);
 
@@ -167,7 +168,19 @@ export default function Proposals() {
   }, [defaultPropertyId]);
 
   const filteredProposals = displayProposals.filter((p) => {
+    // Status filter from clicking cards
+    if (statusFilter) {
+      if (statusFilter === "draft" && p.status !== "draft") return false;
+      if (statusFilter === "sent" && !["sent", "viewed", "signed_internal", "signed_client"].includes(p.status || "")) return false;
+      if (statusFilter === "accepted" && p.status !== "accepted") return false;
+      if (statusFilter === "follow_up") {
+        const nextDate = (p as any).next_follow_up_date;
+        const dismissed = (p as any).follow_up_dismissed_at;
+        if (!nextDate || dismissed || new Date(nextDate) > new Date()) return false;
+      }
+    }
     const query = searchQuery.toLowerCase();
+    if (!query) return true;
     return (
       p.properties?.address?.toLowerCase().includes(query) ||
       p.proposal_number?.toLowerCase().includes(query) ||
@@ -327,7 +340,7 @@ export default function Proposals() {
           notes: [
             data.contact_phone ? `Phone: ${data.contact_phone}` : "",
             data.subject ? `Subject: ${data.subject}` : "",
-            data.service_needed ? `Service: ${data.service_needed}` : "",
+            
             data.client_type ? `Type: ${data.client_type}` : "",
             data.notes || "",
           ].filter(Boolean).join("\n"),
@@ -382,7 +395,10 @@ export default function Proposals() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-4">
-          <Card>
+          <Card
+            className={`cursor-pointer transition-colors hover:border-primary/50 ${statusFilter === "draft" ? "border-primary ring-1 ring-primary/20" : ""}`}
+            onClick={() => setStatusFilter(statusFilter === "draft" ? null : "draft")}
+          >
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Draft</CardTitle>
             </CardHeader>
@@ -391,7 +407,10 @@ export default function Proposals() {
               <p className="text-xs text-muted-foreground mt-1">{formatCurrency(draftTotal)} pending</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card
+            className={`cursor-pointer transition-colors hover:border-primary/50 ${statusFilter === "sent" ? "border-primary ring-1 ring-primary/20" : ""}`}
+            onClick={() => setStatusFilter(statusFilter === "sent" ? null : "sent")}
+          >
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Sent</CardTitle>
             </CardHeader>
@@ -400,7 +419,10 @@ export default function Proposals() {
               <p className="text-xs text-muted-foreground mt-1">{formatCurrency(sentTotal)} awaiting</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card
+            className={`cursor-pointer transition-colors hover:border-primary/50 ${statusFilter === "accepted" ? "border-primary ring-1 ring-primary/20" : ""}`}
+            onClick={() => setStatusFilter(statusFilter === "accepted" ? null : "accepted")}
+          >
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Accepted</CardTitle>
             </CardHeader>
@@ -409,7 +431,10 @@ export default function Proposals() {
               <p className="text-xs text-muted-foreground mt-1">This month</p>
             </CardContent>
           </Card>
-          <Card className={followUpDueCount > 0 ? "border-destructive/50" : ""}>
+          <Card
+            className={`cursor-pointer transition-colors hover:border-primary/50 ${followUpDueCount > 0 ? "border-destructive/50" : ""} ${statusFilter === "follow_up" ? "border-primary ring-1 ring-primary/20" : ""}`}
+            onClick={() => setStatusFilter(statusFilter === "follow_up" ? null : "follow_up")}
+          >
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Follow-ups Due</CardTitle>
             </CardHeader>
