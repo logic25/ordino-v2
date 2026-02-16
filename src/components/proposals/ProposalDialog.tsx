@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -39,7 +39,8 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import type { ProposalWithRelations, ProposalFormInput } from "@/hooks/useProposals";
-import { useProperties, useCreateProperty } from "@/hooks/useProperties";
+import { useProperties, useCreateProperty, useUpdateProperty } from "@/hooks/useProperties";
+import { useNYCPropertyLookup } from "@/hooks/useNYCPropertyLookup";
 import { useClients, useCreateClient, Client } from "@/hooks/useClients";
 import { useCompanySettings, ServiceCatalogItem } from "@/hooks/useCompanySettings";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
@@ -100,6 +101,7 @@ function ServiceLineItem({
   formatCurrency,
   canRemove,
   onRemove,
+  autoFocus,
 }: {
   index: number;
   form: any;
@@ -108,10 +110,22 @@ function ServiceLineItem({
   formatCurrency: (v: number) => string;
   canRemove: boolean;
   onRemove: () => void;
+  autoFocus?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const nameInputRef = React.useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (autoFocus && nameInputRef.current) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        nameInputRef.current?.focus();
+        setCatalogOpen(true);
+      }, 50);
+    }
+  }, [autoFocus]);
   const currentName = form.watch(`items.${index}.name`) || "";
   const currentDesc = form.watch(`items.${index}.description`) || "";
 
@@ -149,6 +163,7 @@ function ServiceLineItem({
           <Popover open={catalogOpen} onOpenChange={setCatalogOpen}>
             <PopoverTrigger asChild>
               <Input
+                ref={nameInputRef}
                 placeholder="Type or select a service…"
                 className="h-8 text-sm font-medium border-0 shadow-none focus-visible:ring-1 focus-visible:ring-ring px-2"
                 value={currentName}
@@ -293,6 +308,9 @@ export function ProposalDialog({
   const [propertyOpen, setPropertyOpen] = useState(false);
   const [propertySearch, setPropertySearch] = useState("");
   const createProperty = useCreateProperty();
+  const updateProperty = useUpdateProperty();
+  const { lookupByAddress } = useNYCPropertyLookup();
+  const [lastAddedIndex, setLastAddedIndex] = useState<number | null>(null);
 
   const { data: existingContacts = [] } = useProposalContacts(proposal?.id);
 
@@ -472,7 +490,7 @@ export function ProposalDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[900px] max-h-[90vh] flex flex-col p-0 gap-0">
+      <DialogContent className="sm:max-w-[900px] max-h-[96vh] flex flex-col p-0 gap-0">
         {/* ── Header with key fields always visible ── */}
         <div className="px-6 pt-5 pb-4 border-b space-y-4">
           <DialogHeader>
@@ -510,6 +528,22 @@ export function ProposalDialog({
                               setPropertySearch("");
                               setPropertyOpen(false);
                               toast({ title: "Property created", description: newProp.address });
+
+                              // Auto-lookup BBL data from NYC Open Data
+                              const nycData = await lookupByAddress(propertySearch.trim());
+                              if (nycData) {
+                                const updates: Record<string, any> = {};
+                                if (nycData.borough) updates.borough = nycData.borough;
+                                if (nycData.block) updates.block = nycData.block;
+                                if (nycData.lot) updates.lot = nycData.lot;
+                                if (nycData.bin) updates.bin = nycData.bin;
+                                if (nycData.zip_code) updates.zip_code = nycData.zip_code;
+                                if (nycData.owner_name) updates.owner_name = nycData.owner_name;
+                                if (Object.keys(updates).length > 0) {
+                                  await updateProperty.mutateAsync({ id: newProp.id, address: newProp.address, ...updates });
+                                  toast({ title: "Property enriched", description: "Borough, Block & Lot filled from NYC Open Data." });
+                                }
+                              }
                             } catch (e: any) {
                               toast({ title: "Error", description: e.message, variant: "destructive" });
                             }
@@ -570,7 +604,7 @@ export function ProposalDialog({
               </div>
 
               {/* ═══ SERVICES TAB ═══ */}
-              <TabsContent value="services" className="px-6 py-4 space-y-3 mt-0">
+              <TabsContent value="services" className="px-6 py-4 space-y-3 mt-0 min-h-[340px]">
                 <div className="space-y-2">
                   {itemFields.map((field, index) => {
                     const lineTotal = calculateLineTotal(watchedItems[index] || {});
@@ -584,6 +618,7 @@ export function ProposalDialog({
                         formatCurrency={formatCurrency}
                         canRemove={itemFields.length > 1}
                         onRemove={() => removeItem(index)}
+                        autoFocus={lastAddedIndex === index}
                       />
                     );
                   })}
@@ -594,7 +629,10 @@ export function ProposalDialog({
                   variant="outline"
                   size="sm"
                   className="w-full border-dashed"
-                  onClick={() => appendItem({ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0 })}
+                  onClick={() => {
+                    appendItem({ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0 });
+                    setLastAddedIndex(itemFields.length);
+                  }}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Service
