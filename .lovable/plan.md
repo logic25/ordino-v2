@@ -1,143 +1,178 @@
-# Project Command Center Overhaul: PM Workflow Engine
 
-## Problem Summary
+# Project Enhancements: Schema, Service Hierarchy, Mock Test Project, Litigation Timeline + DOB NOW Extension (Roadmapped)
 
-The current Project Detail page has the right tabs but they feel disconnected -- they're static displays rather than a workflow tool. The email thread from the Applebees - Kings Plaza project reveals the real daily life of a PM: a constant back-and-forth of requesting missing information (ACP5, CC info, engineer DOB emails, structural calcs, gas pressure), tracking who needs to do what, and ensuring nothing falls through the cracks. Ordino should reduce or automate most of that friction.
+## Overview
 
-## What the Email Thread Teaches Us
-
-The thread reveals ~10 distinct action items the PM had to manually track across emails:
-
-1. **Missing documents** -- ACP5 from landlord, structural calcs, sealed drawings with job numbers
-2. **Missing contact info** -- Engineer's DOB NOW email not registered, CC info for DOB fees, PA permit renewal contact
-3. **Technical questions** -- Gas line operating pressure, plan exam vs pro-cert filing type
-4. **Sequencing dependencies** -- Landlord must e-sign before architect can submit; plans must be sealed with job numbers first
-5. **Cross-agency coordination** -- Rangehood plans filed separately with FDNY by others
-
-**AI can extract all of these as checklist items from emails automatically.** The PM shouldn't have to manually track "I'm still waiting on the ACP5" -- the system should surface that.
+This plan covers: (1) database schema additions for unit/tenant fields, (2) service parent-child hierarchy for work permits, (3) Edit Project dialog enhancements, (4) a new mock project with an ALT filing (no application number) with all fields populated for testing, (5) Litigation Timeline Export feature, and (6) DOB NOW browser extension concept (roadmapped).
 
 ---
 
-## Implementation Plan
+## 1. Database Migration
 
-### 1. Project Readiness Checklist (New Top-Level Component) - this also shows what we have received by way of the PIS
+Add `unit_number` and `tenant_name` to the `projects` table:
 
-Add a **Readiness Panel** between the financial summary cards and the tabs. This is the PM's "what do I need to do" dashboard for the project.
-
-- A collapsible card showing outstanding items grouped by category:
-  - **Missing Documents**: ACP5, sealed drawings, asbestos report
-  - **Missing Info**: Engineer DOB email, CC info, gas pressure
-  - **Pending Signatures**: Landlord e-sign, architect e-sign
-  - **Pending Responses**: Awaiting client PIS, awaiting structural calcs
-- Each item shows: what's needed, who it's from, when it was requested, days waiting
-- Items can be manually added or **AI-extracted from tagged emails**
-- Completing an item auto-logs to Timeline
-- Mock data will demonstrate realistic items from the email thread
-
-### 2. Emails Tab -- Full Functionality
-
-Replace the static mock `EmailsFull` component with the real `ProjectEmailsTab` component that already exists, plus add a **Compose** button.
-
-- Wire up the existing `ProjectEmailsTab` component (uses `useProjectEmails` hook with real data)
-- Add a "Compose" button that opens `ComposeEmailDialog` with the project context pre-filled
-- Emails sent from within the project are auto-tagged to that project
-- Category filter (Objection, Agency, Client, Submission) already built into `ProjectEmailsTab`
-- Clicking an email opens `EmailDetailSheet` (already built)
-
-### 3. Documents Tab -- Mirror Universal Documents
-
-Replace the static mock `DocumentsFull` with a layout matching the Universal Documents page:
-
-- Search bar + category filter
-- Upload dialog with title, category, description
-- Table view with file icon, title, category badge, size, uploader, date
-- Download and delete actions
-- For now, use mock data styled to match the Universal Documents pattern; wire to real storage later
-
-### 4. Services Tab -- Workflow Enhancements
-
-Enhance the existing services section:
-
-- **Per-service checklist** (not just tasks): A "Requirements" section showing what's needed before the service can proceed (plans uploaded, contacts confirmed, fees paid)
-- **Status workflow**: When "Start DOB NOW" is clicked, show a preparation wizard/checklist rather than just a toast -- display what data Ordino already has pre-filled and what's missing
-- **AI-extracted action items**: Items from emails tagged to this project get surfaced as tasks under the relevant service
-- **Inline email**: Quick "Email about this" button per service that opens compose with subject pre-filled
-
-### 5. Time Logs Tab -- Service-Level Summary
-
-Add a summary section above the log table:
-
-- **Time by Service** bar chart or simple table showing: Service Name | Allotted Hours | Logged Hours | Remaining | % Used
-- Progress bars per service showing utilization
-- The detailed log table stays below as-is
-
-### 6. Change Orders Tab -- Collapsible Rows + Create Button
-
-Enhance the change orders section:
-
-- **Large "Create Change Order" button** at the top (like the legacy system)
-- Change from card layout to a **collapsible table** where each row expands to show full details, linked services, and approval history
-- When a service is "Dropped", prompt to create a CO automatically
-- CO approval updates the financial summary cards in real-time
-
-### 7. Contacts Tab -- PIS Integration Indicator
-
-Enhance the contacts section:
-
-- Add a **source indicator**: "From Proposal", "From PIS", "Manual"
-- Show a **PIS status bar**: "PIS sent on Feb 5 -- 3 of 7 fields completed -- Follow up?" 
-- Missing DOB role mapping highlighted in amber
-- Quick "Send PIS Reminder" button if PIS is incomplete
-- Contact cards show DOB NOW registration status (registered / not registered / unknown)
-
-### 8. Job Costing -- Keep or Move
-
-Add a subtle link/toggle: "Move to Reports" vs keeping it inline. For now, keep it on the page but make it the last tab since PMs use it less frequently. The financial summary cards at the top already give the quick margin view.
-
----
-
-## Technical Details
-
-### Files to Create
-
-- None new -- all changes are to existing files
-
-### Files to Modify
-
-1. `**src/pages/ProjectDetail.tsx**` -- Major refactor:
-  - Add Readiness Checklist component between financial cards and tabs
-  - Replace `EmailsFull` mock with real `ProjectEmailsTab` + Compose button
-  - Replace `DocumentsFull` mock with Universal Documents-style layout
-  - Enhance `ServicesFull` with per-service requirements checklist
-  - Enhance `TimeLogsFull` with service-level summary section
-  - Enhance `ChangeOrdersFull` with collapsible table + create button
-  - Enhance `ContactsFull` with PIS status and source indicators
-2. `**src/components/projects/projectMockData.ts**` -- Add new mock data:
-  - `MockChecklistItem` interface and sample items (from email thread)
-  - `MockPISStatus` interface
-  - Service-level hour allocations
-  - Richer change order data with linked services
-
-### Component Architecture
-
-All components remain inline in `ProjectDetail.tsx` for now (matching current pattern), but are well-separated as named functions. The page structure becomes:
-
-```text
-ProjectDetail
-  +-- Header (project name, status, PM, address)
-  +-- Financial Summary Cards (contract, COs, total, billed, cost, margin)
-  +-- Readiness Checklist (collapsible, grouped by category)
-  +-- Tabs Card
-       +-- Services (expandable rows + requirements + "Start DOB NOW" wizard)
-       +-- Emails (real ProjectEmailsTab + Compose button)
-       +-- Contacts (cards + PIS status + DOB registration)
-       +-- Timeline (as-is, roadmapped for AI auto-population)
-       +-- Docs (Universal Documents style)
-       +-- Time (service summary + log table)
-       +-- COs (collapsible table + big Create button)
-       +-- Job Costing (as-is, last tab)
+```sql
+ALTER TABLE public.projects
+  ADD COLUMN unit_number varchar DEFAULT NULL,
+  ADD COLUMN tenant_name text DEFAULT NULL;
 ```
 
-### Data Flow (Current Phase -- Mock)
+No new tables needed for the service hierarchy yet since services are still mock data.
 
-All data remains mock for this implementation pass. The interfaces are designed to match the eventual database schema so the transition to real data will be straightforward. The Emails tab is the exception -- it will use the real `ProjectEmailsTab` component with live data from the `email_project_tags` table.
+---
+
+## 2. Edit Project Dialog Enhancements
+
+**File: `src/components/projects/ProjectDialog.tsx`**
+
+- Add **Unit / Apt Number** text field (after Floor Number)
+- Add **Tenant Name** text field (for commercial spaces)
+- Rename "External" toggle label to **"External Consultant Project"** with a helper tooltip: "Project managed by an outside consultant on your behalf"
+
+**File: `src/hooks/useProjects.ts`**
+
+- Add `unit_number` and `tenant_name` to the `Project` interface, `ProjectFormInput`, and the create/update mutations
+- Add to the select queries
+
+---
+
+## 3. Work Permits as Sub-Services (Parent-Child Linking)
+
+**File: `src/components/projects/projectMockData.ts`**
+
+- Add `parentServiceId?: string` to `MockService` interface
+- Tag Work Permit services with a `parentServiceId` pointing to their parent ALT service
+- Work permits inherit the parent's job number
+
+**File: `src/pages/ProjectDetail.tsx` (ServicesFull component)**
+
+- Group services: render parent services normally, render children as indented rows beneath their parent with a left-border visual connector
+- Children share the parent's application/job number display
+- Indent children with a tree-line visual (subtle left border + padding)
+
+```
+[v] Alteration Type 1 (ALT-CO) - S00701588-I1
+     |-- Work Permit (OT) - S00701588-I1
+[>] Final Construction Sign-Off
+```
+
+---
+
+## 4. New Mock Project (Set E) -- ALT Filing, No Application Number
+
+**File: `src/components/projects/projectMockData.ts`**
+
+Create a complete Set E mock dataset for a test project -- an Alteration Type 2 filing with NO application number yet but all other fields populated:
+
+- **Project name**: "689 5th Ave - Alteration Type 2" (maps to the litigation example)
+- **Services** (6 total):
+  - ALT Type 2 Filing (in_progress, NO application -- `application: null`)
+    - Work Permit (child, not_started)
+  - Plan Review (complete, billed)
+  - Inspection Coordination (not_started)
+  - Letter of Completion (not_started)
+  - Expediting (in_progress)
+- All services have: assignedTo, estimatedBillDate, scopeOfWork, notes, tasks, requirements, allottedHours fully populated
+- **Contacts**: 5 contacts (client, architect, engineer, GC, filing rep) with all fields filled including DOB roles, source, registration status, reviews
+- **Milestones**: 8+ timeline events covering full project lifecycle
+- **Change Orders**: 1 approved, 1 pending
+- **Emails**: 6+ realistic emails
+- **Documents**: 8+ documents across categories
+- **Time Entries**: 6+ entries across services
+- **Checklist Items**: 6+ items across categories (mix of done/outstanding)
+- **PIS**: Sent, partially complete
+- **Proposal Signature**: Fully executed
+
+Add Set E to all export arrays. Update `getMockIdx()` in `ProjectDetail.tsx` to map projects with "689" or "5th Ave" in the name to Set E (index 4).
+
+---
+
+## 5. Litigation Timeline Export
+
+This is a new feature that generates a comprehensive chronological audit trail PDF for legal defense.
+
+### UI Entry Point
+
+**File: `src/pages/ProjectDetail.tsx`**
+
+- Add a "Generate Litigation Package" button in the header area (next to "Edit Project")
+- Opens a dialog (`LitigationExportDialog`) with:
+  - Date range picker (project start to present, adjustable)
+  - Checkboxes for what to include: Emails, Phone Calls, Meetings, Documents, Timeline Events, Time Logs, Financial Summary, Critical Decisions
+  - Output format: PDF or PDF + ZIP (with attachments)
+  - "Generate" button that triggers the export
+
+### New Component
+
+**File: `src/components/projects/LitigationExportDialog.tsx`**
+
+- Dialog with configuration options above
+- On "Generate", collects all project data (mock for now):
+  - Chronological timeline merging: milestones, emails, time entries, change orders
+  - Communication log (all emails with full headers)
+  - Document register (all attached files)
+  - Critical decision points (highlighted entries where client overrode recommendations)
+- Uses `@react-pdf/renderer` (already installed) to generate the PDF
+- PDF sections:
+  1. Cover page (project info, client, PM, date range, certification)
+  2. Complete Chronological Timeline (every event sorted by date)
+  3. Communication Log (emails chronological)
+  4. Document Register (all files with metadata)
+  5. Critical Decision Points (flagged entries)
+  6. Time Log Summary
+  7. Financial Summary
+  8. Certification / Signature block
+
+### New Component
+
+**File: `src/components/projects/LitigationPDF.tsx`**
+
+- React-PDF document component that renders the litigation package
+- Styled with professional legal document formatting
+- Page numbers, headers/footers, table of contents
+
+For this phase, the PDF is generated from mock data. When real data is wired, the same component receives live data.
+
+---
+
+## 6. DOB NOW Browser Extension (Roadmapped -- Design Only)
+
+This is documented for future implementation, not built now. The concept:
+
+- Chrome extension sidebar that appears when the user is on the DOB NOW BUILD website
+- Shows the matching Ordino project (matched by address/BIN)
+- One-click time logging from within DOB NOW
+- Auto-fills DOB NOW form fields from Ordino project data (address, contacts, BBL, BIN)
+- Status sync: reads DOB NOW status and updates Ordino
+
+This requires a separate Chrome extension project and is outside the current Lovable scope. Documenting it in the roadmap section of the plan file.
+
+---
+
+## Files to Create
+
+| File | Purpose |
+|------|---------|
+| `src/components/projects/LitigationExportDialog.tsx` | Export configuration dialog |
+| `src/components/projects/LitigationPDF.tsx` | React-PDF document for litigation package |
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/hooks/useProjects.ts` | Add `unit_number`, `tenant_name` to interfaces and mutations |
+| `src/components/projects/ProjectDialog.tsx` | Add Unit, Tenant fields; rename External with tooltip |
+| `src/components/projects/projectMockData.ts` | Add `parentServiceId` to MockService; create full Set E mock data; add to export arrays |
+| `src/pages/ProjectDetail.tsx` | Service nesting logic; `getMockIdx` for Set E; Litigation Export button; import LitigationExportDialog |
+
+## Implementation Order
+
+1. Database migration (unit_number, tenant_name on projects)
+2. Update `useProjects.ts` types and mutations
+3. Update `ProjectDialog.tsx` with new fields and External tooltip
+4. Add `parentServiceId` to MockService and update existing mock data to link work permits to parent ALTs
+5. Create full Set E mock dataset (689 5th Ave)
+6. Implement parent-child service nesting in ServicesFull
+7. Build `LitigationExportDialog.tsx` and `LitigationPDF.tsx`
+8. Wire litigation export button into ProjectDetail header
+9. Test end-to-end
