@@ -36,6 +36,7 @@ import { ProjectEmailsTab } from "@/components/emails/ProjectEmailsTab";
 import { ProjectDialog } from "@/components/projects/ProjectDialog";
 import { LitigationExportDialog } from "@/components/projects/LitigationExportDialog";
 import { DobNowFilingPrepSheet } from "@/components/projects/DobNowFilingPrepSheet";
+import { EditPISDialog } from "@/components/projects/EditPISDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -406,6 +407,7 @@ function ReadinessChecklist({ items: initialItems, pisStatus }: { items: MockChe
   const [isOpen, setIsOpen] = useState(false);
   const [showReceived, setShowReceived] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showEditPIS, setShowEditPIS] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [newFrom, setNewFrom] = useState("");
   const [newCategory, setNewCategory] = useState("missing_document");
@@ -448,6 +450,7 @@ function ReadinessChecklist({ items: initialItems, pisStatus }: { items: MockChe
   };
 
   return (
+    <>
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <Card className={outstanding.length > 0 ? "border-amber-300/50 dark:border-amber-700/50" : "border-emerald-300/50 dark:border-emerald-700/50"}>
         <CollapsibleTrigger asChild>
@@ -507,11 +510,8 @@ function ReadinessChecklist({ items: initialItems, pisStatus }: { items: MockChe
                       Missing: {pisStatus.missingFields.join(", ")}
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={() => {
-                    // Open a blank PIS/RFI form in a new tab
-                    window.open(`/rfi`, "_blank");
-                  }}>
-                    <ExternalLink className="h-3.5 w-3.5" /> Edit PIS
+                  <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={() => setShowEditPIS(true)}>
+                    <Pencil className="h-3.5 w-3.5" /> Edit PIS
                   </Button>
                   <Button variant="outline" size="sm" className="shrink-0 gap-1.5">
                     <Send className="h-3.5 w-3.5" /> Send Reminder
@@ -632,6 +632,8 @@ function ReadinessChecklist({ items: initialItems, pisStatus }: { items: MockChe
         </CollapsibleContent>
       </Card>
     </Collapsible>
+    <EditPISDialog open={showEditPIS} onOpenChange={setShowEditPIS} pisStatus={pisStatus} />
+    </>
   );
 }
 

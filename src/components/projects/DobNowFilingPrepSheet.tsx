@@ -425,10 +425,23 @@ export function DobNowFilingPrepSheet({
             </div>
           </div>
 
-          {/* Open DOB NOW */}
+          {/* Open DOB NOW — copies all fields to clipboard first */}
           <Button
             className="w-full gap-2"
-            onClick={() => window.open("https://a810-dobnow.nyc.gov/publish/#!/", "_blank")}
+            onClick={() => {
+              const allData = [...propertyFields, ...filingFields]
+                .filter((f) => f.value)
+                .map((f) => `${f.dobFieldName || f.label}: ${f.value}`)
+                .join("\n");
+              const contactData = Object.entries(contactsByRole)
+                .flatMap(([role, rContacts]) =>
+                  rContacts.map((c) => `${dobRoleLabelsMap[role] || role}: ${c.name} — ${c.email || ""} — ${c.phone || ""}`)
+                )
+                .join("\n");
+              navigator.clipboard.writeText(`${allData}\n\n--- CONTACTS ---\n${contactData}`);
+              toast({ title: "Fields copied to clipboard", description: "Opening DOB NOW BUILD — paste fields into the application form." });
+              setTimeout(() => window.open("https://a810-dobnow.nyc.gov/publish/#!/", "_blank"), 500);
+            }}
           >
             <ExternalLink className="h-4 w-4" /> Open DOB NOW BUILD
           </Button>
