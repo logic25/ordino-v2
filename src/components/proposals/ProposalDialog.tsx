@@ -48,6 +48,12 @@ import { useToast } from "@/hooks/use-toast";
 import { ProposalContactsSection } from "@/components/proposals/ProposalContactsSection";
 import { useProposalContacts, type ProposalContactInput } from "@/hooks/useProposalContacts";
 
+const FEE_TYPES = [
+  { value: "fixed", label: "Fixed" },
+  { value: "monthly", label: "Monthly" },
+  { value: "hourly", label: "Hourly" },
+] as const;
+
 const itemSchema = z.object({
   id: z.string().optional(),
   name: z.string(),
@@ -56,6 +62,7 @@ const itemSchema = z.object({
   unit_price: z.coerce.number().min(0),
   estimated_hours: z.coerce.number().min(0).optional(),
   discount_percent: z.coerce.number().min(0).max(100).optional(),
+  fee_type: z.string().optional(),
   sort_order: z.number().optional(),
 });
 
@@ -66,7 +73,6 @@ const LEAD_SOURCES = [
 const PROJECT_TYPES = [
   "Residential", "Commercial", "Industrial", "Mixed-Use", "Institutional", "Healthcare", "Hospitality", "Retail", "Other",
 ] as const;
-
 const proposalSchema = z.object({
   property_id: z.string().min(1, "Property is required"),
   title: z.string().min(1, "Title is required"),
@@ -90,9 +96,9 @@ const proposalSchema = z.object({
   items: z.array(itemSchema),
 });
 
-type FormData = z.infer<typeof proposalSchema>;
+type ProposalFormData = z.infer<typeof proposalSchema>;
 
-/* ─── Service Line Item ─── */
+/* ─── Service Line Item (table-row style) ─── */
 function ServiceLineItem({
   index,
   form,
@@ -113,24 +119,35 @@ function ServiceLineItem({
   autoFocus?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [catalogOpen, setCatalogOpen] = useState(false);
-  const [search, setSearch] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const nameInputRef = React.useRef<HTMLInputElement>(null);
+  const suggestionsRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (autoFocus && nameInputRef.current) {
-      // Small delay to ensure DOM is ready
-      setTimeout(() => {
-        nameInputRef.current?.focus();
-        setCatalogOpen(true);
-      }, 50);
+    if (autoFocus) {
+      setTimeout(() => nameInputRef.current?.focus(), 80);
     }
   }, [autoFocus]);
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node) &&
+          nameInputRef.current && !nameInputRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   const currentName = form.watch(`items.${index}.name`) || "";
   const currentDesc = form.watch(`items.${index}.description`) || "";
+  const currentFeeType = form.watch(`items.${index}.fee_type`) || "fixed";
+  const currentDiscount = Number(form.watch(`items.${index}.discount_percent`)) || 0;
 
   const filtered = serviceCatalog.filter((s) =>
-    s.name.toLowerCase().includes((search || currentName).toLowerCase())
+    s.name.toLowerCase().includes(currentName.toLowerCase())
   );
 
   const handleSelectService = (service: ServiceCatalogItem) => {
@@ -138,107 +155,117 @@ function ServiceLineItem({
     form.setValue(`items.${index}.description`, service.description || "");
     form.setValue(`items.${index}.unit_price`, service.default_price || 0);
     form.setValue(`items.${index}.estimated_hours`, service.default_hours || 0);
-    setCatalogOpen(false);
-    setSearch("");
+    setShowSuggestions(false);
   };
 
   return (
-    <div className="border rounded-lg bg-card">
-      {/* Main row */}
-      <div className="flex items-center gap-2 p-2.5">
+    <div className={cn("border-b last:border-b-0 transition-colors", expanded && "bg-muted/20")}>
+      {/* Main row — table-like columns */}
+      <div className="grid grid-cols-[auto_1fr_80px_70px_90px_80px_auto] items-center gap-1 px-3 py-2 min-h-[44px]">
+        {/* Chevron */}
         <button
           type="button"
-          className="shrink-0 p-0.5 rounded hover:bg-muted transition-colors"
+          className="p-1 rounded hover:bg-muted transition-colors"
           onClick={() => setExpanded(!expanded)}
         >
           {expanded ? (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
           ) : (
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
           )}
         </button>
 
-        {/* Service name with autocomplete */}
-        <div className="flex-1 min-w-0">
-          <Popover open={catalogOpen} onOpenChange={setCatalogOpen}>
-            <PopoverTrigger asChild>
-              <Input
-                ref={nameInputRef}
-                placeholder="Type or select a service…"
-                className="h-8 text-sm font-medium border-0 shadow-none focus-visible:ring-1 focus-visible:ring-ring px-2"
-                value={currentName}
-                onChange={(e) => {
-                  form.setValue(`items.${index}.name`, e.target.value);
-                  setSearch(e.target.value);
-                  if (!catalogOpen && e.target.value && serviceCatalog.length > 0) setCatalogOpen(true);
-                }}
-                onFocus={() => { if (serviceCatalog.length > 0 && !currentName) setCatalogOpen(true); }}
-              />
-            </PopoverTrigger>
-            {serviceCatalog.length > 0 && (
-              <PopoverContent className="w-[320px] p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
-                <div className="max-h-[200px] overflow-y-auto">
-                  {filtered.length > 0 ? filtered.map((service) => (
-                    <button
-                      key={service.id}
-                      type="button"
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex justify-between items-center border-b last:border-0"
-                      onClick={() => handleSelectService(service)}
-                    >
-                      <div>
-                        <div className="font-medium">{service.name}</div>
-                        {service.description && (
-                          <div className="text-xs text-muted-foreground truncate max-w-[220px]">{service.description}</div>
-                        )}
-                      </div>
-                      {service.default_price ? (
-                        <span className="text-xs text-muted-foreground shrink-0 ml-2">{formatCurrency(service.default_price)}</span>
-                      ) : null}
-                    </button>
-                  )) : (
-                    <div className="px-3 py-2 text-sm text-muted-foreground">No matching services</div>
-                  )}
-                </div>
-              </PopoverContent>
-            )}
-          </Popover>
+        {/* Service name with inline suggestions */}
+        <div className="relative min-w-0">
+          <Input
+            ref={nameInputRef}
+            placeholder="Type service name…"
+            className="h-8 text-sm font-medium border-0 shadow-none focus-visible:ring-1 focus-visible:ring-ring px-2 bg-transparent"
+            value={currentName}
+            onChange={(e) => {
+              form.setValue(`items.${index}.name`, e.target.value);
+              setShowSuggestions(e.target.value.length > 0 && serviceCatalog.length > 0);
+            }}
+            onFocus={() => {
+              if (serviceCatalog.length > 0) setShowSuggestions(true);
+            }}
+          />
+          {/* Inline dropdown — no Popover, avoids flash */}
+          {showSuggestions && filtered.length > 0 && (
+            <div
+              ref={suggestionsRef}
+              className="absolute left-0 top-full z-50 w-[340px] bg-popover border rounded-md shadow-lg mt-1 max-h-[200px] overflow-y-auto"
+            >
+              {filtered.map((service) => (
+                <button
+                  key={service.id}
+                  type="button"
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex justify-between items-center border-b last:border-0"
+                  onMouseDown={(e) => { e.preventDefault(); handleSelectService(service); }}
+                >
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{service.name}</div>
+                    {service.description && (
+                      <div className="text-xs text-muted-foreground truncate">{service.description}</div>
+                    )}
+                  </div>
+                  {service.default_price ? (
+                    <span className="text-xs text-muted-foreground shrink-0 ml-2">{formatCurrency(service.default_price)}</span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          )}
           {currentDesc && !expanded && (
-            <p className="text-xs text-muted-foreground truncate px-2 mt-0.5">{currentDesc}</p>
+            <p className="text-xs text-muted-foreground truncate px-2 -mt-0.5">{currentDesc}</p>
           )}
         </div>
 
-        {/* Inline numeric fields */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <div className="w-14">
-            <Input
-              type="number" min="0" step="0.01"
-              className="h-8 text-sm text-center border-0 shadow-none focus-visible:ring-1 focus-visible:ring-ring px-1"
-              placeholder="Qty"
-              {...form.register(`items.${index}.quantity`)}
-            />
-          </div>
-          <span className="text-muted-foreground text-xs">×</span>
-          <div className="w-20">
-            <Input
-              type="number" min="0" step="0.01"
-              className="h-8 text-sm text-right border-0 shadow-none focus-visible:ring-1 focus-visible:ring-ring px-1"
-              placeholder="Price"
-              {...form.register(`items.${index}.unit_price`)}
-            />
-          </div>
-          <span className="text-sm font-semibold w-20 text-right tabular-nums">{formatCurrency(lineTotal)}</span>
-        </div>
+        {/* Fee Type */}
+        <Select value={currentFeeType} onValueChange={(v) => form.setValue(`items.${index}.fee_type`, v)}>
+          <SelectTrigger className="h-8 text-xs border-0 shadow-none focus:ring-1 focus:ring-ring px-1.5 bg-transparent">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {FEE_TYPES.map((ft) => <SelectItem key={ft.value} value={ft.value}>{ft.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
 
-        {canRemove && (
-          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={onRemove}>
-            <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+        {/* Qty */}
+        <Input
+          type="number" min="0" step="1"
+          className="h-8 text-sm text-center border-0 shadow-none focus-visible:ring-1 focus-visible:ring-ring px-1 bg-transparent"
+          placeholder="Qty"
+          {...form.register(`items.${index}.quantity`)}
+        />
+
+        {/* Price */}
+        <Input
+          type="number" min="0" step="0.01"
+          className="h-8 text-sm text-right border-0 shadow-none focus-visible:ring-1 focus-visible:ring-ring px-1 bg-transparent"
+          placeholder="Price"
+          {...form.register(`items.${index}.unit_price`)}
+        />
+
+        {/* Total */}
+        <span className="text-sm font-semibold text-right tabular-nums pr-1">
+          {formatCurrency(lineTotal)}
+          {currentDiscount > 0 && (
+            <span className="text-xs text-accent block">-{currentDiscount}%</span>
+          )}
+        </span>
+
+        {/* Delete */}
+        {canRemove ? (
+          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0 opacity-50 hover:opacity-100" onClick={onRemove}>
+            <Trash2 className="h-3.5 w-3.5" />
           </Button>
-        )}
+        ) : <div className="w-7" />}
       </div>
 
       {/* Expanded detail */}
       {expanded && (
-        <div className="border-t bg-muted/30 p-3 space-y-3">
+        <div className="border-t bg-muted/30 px-4 py-3 ml-8 space-y-3">
           <div>
             <Label className="text-xs text-muted-foreground mb-1 block">Description / Scope</Label>
             <Textarea
@@ -333,7 +360,7 @@ export function ProposalDialog({
   const serviceCatalog = companyData?.settings?.service_catalog || [];
   const defaultTerms = companyData?.settings?.default_terms || "";
 
-  const form = useForm<FormData>({
+  const form = useForm<ProposalFormData>({
     resolver: zodResolver(proposalSchema),
     defaultValues: {
       property_id: defaultPropertyId || "",
@@ -354,7 +381,7 @@ export function ProposalDialog({
       billed_to_email: "",
       reminder_date: "",
       notable: false,
-      items: [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0 }],
+      items: [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0, fee_type: "fixed" }],
     },
   });
 
@@ -394,8 +421,9 @@ export function ProposalDialog({
           unit_price: Number(i.unit_price),
           estimated_hours: Number((i as any).estimated_hours) || 0,
           discount_percent: Number((i as any).discount_percent) || 0,
+          fee_type: (i as any).fee_type || "fixed",
           sort_order: i.sort_order ?? undefined,
-        })) : [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0 }],
+        })) : [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0, fee_type: "fixed" }],
       });
     } else {
       form.reset({
@@ -417,7 +445,7 @@ export function ProposalDialog({
         billed_to_email: "",
         reminder_date: "",
         notable: false,
-        items: [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0 }],
+        items: [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0, fee_type: "fixed" }],
       });
       setContacts([]);
     }
@@ -448,7 +476,7 @@ export function ProposalDialog({
     }
   };
 
-  const handleSubmit = async (data: FormData) => {
+  const handleSubmit = async (data: ProposalFormData) => {
     const validItems = data.items.filter(i => i.name && i.name.trim() !== "");
 
     const formData: ProposalFormInput = {
@@ -527,7 +555,7 @@ export function ProposalDialog({
                               form.setValue("property_id", newProp.id);
                               setPropertySearch("");
                               setPropertyOpen(false);
-                              toast({ title: "Property created", description: newProp.address });
+                              toast({ title: "Property created", description: `Saved: ${newProp.address}. Looking up BBL data…` });
 
                               // Auto-lookup BBL data from NYC Open Data
                               const nycData = await lookupByAddress(propertySearch.trim());
@@ -541,8 +569,11 @@ export function ProposalDialog({
                                 if (nycData.owner_name) updates.owner_name = nycData.owner_name;
                                 if (Object.keys(updates).length > 0) {
                                   await updateProperty.mutateAsync({ id: newProp.id, address: newProp.address, ...updates });
-                                  toast({ title: "Property enriched", description: "Borough, Block & Lot filled from NYC Open Data." });
+                                  const bbl = [nycData.borough, nycData.block ? `Block ${nycData.block}` : null, nycData.lot ? `Lot ${nycData.lot}` : null].filter(Boolean).join(" · ");
+                                  toast({ title: "✓ NYC Data Found", description: bbl || "Property enriched from NYC Open Data." });
                                 }
+                              } else {
+                                toast({ title: "No NYC data found", description: "Borough, Block & Lot could not be determined. You can edit the property to add them manually.", variant: "destructive" });
                               }
                             } catch (e: any) {
                               toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -604,8 +635,18 @@ export function ProposalDialog({
               </div>
 
               {/* ═══ SERVICES TAB ═══ */}
-              <TabsContent value="services" className="px-6 py-4 space-y-3 mt-0 min-h-[340px]">
-                <div className="space-y-2">
+              <TabsContent value="services" className="mt-0 min-h-[380px]">
+                {/* Table header */}
+                <div className="grid grid-cols-[auto_1fr_80px_70px_90px_80px_auto] items-center gap-1 px-3 py-2 bg-muted/50 border-b text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <div className="w-7" />
+                  <div className="px-2">Service</div>
+                  <div>Type</div>
+                  <div className="text-center">Qty</div>
+                  <div className="text-right">Price</div>
+                  <div className="text-right pr-1">Total</div>
+                  <div className="w-7" />
+                </div>
+                <div className="border rounded-b-lg mx-4 mb-3">
                   {itemFields.map((field, index) => {
                     const lineTotal = calculateLineTotal(watchedItems[index] || {});
                     return (
@@ -624,19 +665,21 @@ export function ProposalDialog({
                   })}
                 </div>
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full border-dashed"
-                  onClick={() => {
-                    appendItem({ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0 });
-                    setLastAddedIndex(itemFields.length);
-                  }}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Service
-                </Button>
+                <div className="px-4 pb-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full border-dashed"
+                    onClick={() => {
+                      appendItem({ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0, fee_type: "fixed" });
+                      setLastAddedIndex(itemFields.length);
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Service
+                  </Button>
+                </div>
               </TabsContent>
 
               {/* ═══ DETAILS & CONTACTS TAB ═══ */}

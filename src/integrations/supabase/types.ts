@@ -3676,6 +3676,7 @@ export type Database = {
           discount_amount: number | null
           discount_percent: number | null
           estimated_hours: number | null
+          fee_type: string
           id: string
           metadata: Json | null
           name: string
@@ -3691,6 +3692,7 @@ export type Database = {
           discount_amount?: number | null
           discount_percent?: number | null
           estimated_hours?: number | null
+          fee_type?: string
           id?: string
           metadata?: Json | null
           name: string
@@ -3706,6 +3708,7 @@ export type Database = {
           discount_amount?: number | null
           discount_percent?: number | null
           estimated_hours?: number | null
+          fee_type?: string
           id?: string
           metadata?: Json | null
           name?: string
