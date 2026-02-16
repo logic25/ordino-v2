@@ -1,7 +1,6 @@
-import { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -9,29 +8,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, UserPlus, Link2 } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Plus, Trash2, UserPlus, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ContactRole, ProposalContactInput } from "@/hooks/useProposalContacts";
 import type { Client } from "@/hooks/useClients";
 
-const ROLE_OPTIONS: { value: ContactRole; label: string; description: string }[] = [
-  { value: "bill_to", label: "Bill To", description: "Receives the invoice" },
-  { value: "sign", label: "Signer", description: "Signs the proposal" },
-  { value: "cc", label: "CC", description: "Gets a copy" },
+const ROLE_OPTIONS: { value: ContactRole; label: string }[] = [
+  { value: "bill_to", label: "Bill To" },
+  { value: "sign", label: "Signer" },
+  { value: "cc", label: "CC" },
 ];
 
 interface ProposalContactsSectionProps {
@@ -42,6 +27,111 @@ interface ProposalContactsSectionProps {
   isAddingClient: boolean;
 }
 
+/* ─── Inline Company Combobox ─── */
+function CompanyCombobox({
+  value,
+  onSelect,
+  onAddNew,
+  clients,
+}: {
+  value: string;
+  onSelect: (client: Client) => void;
+  onAddNew: (name: string) => void;
+  clients: Client[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Sync external value
+  useEffect(() => { setSearch(value); }, [value]);
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (
+        dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
+        inputRef.current && !inputRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = clients.filter(
+    (c) => c.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="relative flex-1">
+      <div className="relative">
+        <Building2 className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <Input
+          ref={inputRef}
+          placeholder="Company name…"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          className="h-8 text-sm pl-7"
+        />
+      </div>
+      {open && (search.length > 0 || clients.length > 0) && (
+        <div
+          ref={dropdownRef}
+          className="absolute left-0 top-full z-50 w-full bg-popover border rounded-md shadow-lg mt-1 max-h-[200px] overflow-y-auto"
+        >
+          {filtered.length > 0 ? (
+            filtered.map((client) => (
+              <button
+                key={client.id}
+                type="button"
+                className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center justify-between border-b last:border-0"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  onSelect(client);
+                  setSearch(client.name);
+                  setOpen(false);
+                }}
+              >
+                <div className="min-w-0">
+                  <div className="font-medium truncate">{client.name}</div>
+                  {client.email && (
+                    <div className="text-xs text-muted-foreground truncate">{client.email}</div>
+                  )}
+                </div>
+              </button>
+            ))
+          ) : null}
+          {/* Add new option */}
+          {search.trim() && !filtered.some(c => c.name.toLowerCase() === search.toLowerCase()) && (
+            <button
+              type="button"
+              className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center gap-2 text-accent font-medium border-t"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onAddNew(search.trim());
+                setOpen(false);
+              }}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add "{search.trim()}" as new company
+            </button>
+          )}
+          {!search.trim() && filtered.length === 0 && (
+            <div className="px-3 py-2 text-xs text-muted-foreground">Type to search companies</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ProposalContactsSection({
   contacts,
   onChange,
@@ -49,8 +139,6 @@ export function ProposalContactsSection({
   onAddClient,
   isAddingClient,
 }: ProposalContactsSectionProps) {
-  const [linkingIndex, setLinkingIndex] = useState<number | null>(null);
-
   const addContact = () => {
     onChange([
       ...contacts,
@@ -64,25 +152,29 @@ export function ProposalContactsSection({
 
   const updateContact = (
     index: number,
-    field: keyof ProposalContactInput,
-    value: string
+    updates: Partial<ProposalContactInput>
   ) => {
     const updated = [...contacts];
-    updated[index] = { ...updated[index], [field]: value };
+    updated[index] = { ...updated[index], ...updates };
     onChange(updated);
   };
 
-  const linkToClient = (index: number, client: Client) => {
-    const updated = [...contacts];
-    updated[index] = {
-      ...updated[index],
+  const handleSelectCompany = (index: number, client: Client) => {
+    updateContact(index, {
       client_id: client.id,
-      name: client.name,
-      email: client.email || updated[index].email || "",
-      phone: client.phone || updated[index].phone || "",
-    };
-    onChange(updated);
-    setLinkingIndex(null);
+      company_name: client.name,
+      email: client.email || contacts[index].email || "",
+      phone: client.phone || contacts[index].phone || "",
+    });
+  };
+
+  const handleAddNewCompany = async (index: number, name: string) => {
+    try {
+      const newClient = await onAddClient(name, "");
+      handleSelectCompany(index, newClient);
+    } catch {
+      // error handled by parent
+    }
   };
 
   return (
@@ -90,125 +182,83 @@ export function ProposalContactsSection({
       {contacts.length === 0 && (
         <div className="border border-dashed rounded-lg p-4 text-center">
           <p className="text-sm text-muted-foreground mb-2">
-            No contacts added yet. Add the people involved in this proposal.
+            Add the people involved — who gets the proposal, who pays, and who signs.
           </p>
           <Button type="button" variant="outline" size="sm" onClick={addContact}>
             <UserPlus className="h-4 w-4 mr-2" />
-            Add First Contact
+            Add Contact
           </Button>
         </div>
       )}
 
       {contacts.map((contact, index) => (
-        <div key={index} className="border rounded-lg p-3 space-y-2.5 bg-card">
-          {/* Row 1: Role badge + Name + Delete */}
-          <div className="flex items-center gap-2">
+        <div key={index} className="border rounded-lg overflow-hidden bg-card">
+          {/* Header row: Role + Name + Delete */}
+          <div className="flex items-center gap-2 px-3 py-2 bg-muted/30 border-b">
             <Select
               value={contact.role}
-              onValueChange={(val) => updateContact(index, "role", val)}
+              onValueChange={(val) => updateContact(index, { role: val as ContactRole })}
             >
-              <SelectTrigger className="w-[100px] h-8 text-xs font-medium">
+              <SelectTrigger className="w-[90px] h-7 text-xs font-semibold border-0 bg-background shadow-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {ROLE_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    <div>
-                      <span>{opt.label}</span>
-                    </div>
-                  </SelectItem>
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
             <Input
-              placeholder="Full name *"
+              placeholder="Contact name *"
               value={contact.name || ""}
-              onChange={(e) => updateContact(index, "name", e.target.value)}
-              className="h-8 text-sm flex-1 font-medium"
+              onChange={(e) => updateContact(index, { name: e.target.value })}
+              className="h-7 text-sm flex-1 font-medium border-0 shadow-none bg-transparent focus-visible:ring-1"
               autoFocus={!contact.name && index === contacts.length - 1}
             />
-
-            {/* Link to existing client */}
-            <Popover
-              open={linkingIndex === index}
-              onOpenChange={(open) => setLinkingIndex(open ? index : null)}
-            >
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className={cn("h-8 w-8 shrink-0", contact.client_id ? "text-accent" : "text-muted-foreground")}
-                  title={contact.client_id ? "Linked to company" : "Link to existing company"}
-                >
-                  <Link2 className="h-3.5 w-3.5" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[280px] p-0" align="end">
-                <Command>
-                  <CommandInput placeholder="Search companies…" />
-                  <CommandList>
-                    <CommandEmpty className="p-2 text-xs text-center text-muted-foreground">
-                      No companies found
-                    </CommandEmpty>
-                    <CommandGroup>
-                      {clients.map((c) => (
-                        <CommandItem
-                          key={c.id}
-                          value={c.name}
-                          onSelect={() => linkToClient(index, c)}
-                        >
-                          <Check className={cn("mr-2 h-3 w-3", contact.client_id === c.id ? "opacity-100" : "opacity-0")} />
-                          <span className="text-xs truncate">{c.name}</span>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
 
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
               onClick={() => removeContact(index)}
             >
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
 
-          {/* Row 2: Company, Email, Phone — inline */}
-          <div className="grid grid-cols-3 gap-2">
-            <Input
-              placeholder="Company"
+          {/* Detail row: Company combobox + Email + Phone */}
+          <div className="grid grid-cols-[1fr_1fr_120px] gap-2 px-3 py-2">
+            <CompanyCombobox
               value={contact.company_name || ""}
-              onChange={(e) => updateContact(index, "company_name", e.target.value)}
-              className="h-7 text-xs"
+              clients={clients}
+              onSelect={(client) => handleSelectCompany(index, client)}
+              onAddNew={(name) => handleAddNewCompany(index, name)}
             />
             <Input
               placeholder="Email"
               type="email"
               value={contact.email || ""}
-              onChange={(e) => updateContact(index, "email", e.target.value)}
-              className="h-7 text-xs"
+              onChange={(e) => updateContact(index, { email: e.target.value })}
+              className="h-8 text-sm"
             />
             <Input
               placeholder="Phone"
               value={contact.phone || ""}
-              onChange={(e) => updateContact(index, "phone", e.target.value)}
-              className="h-7 text-xs"
+              onChange={(e) => updateContact(index, { phone: e.target.value })}
+              className="h-8 text-sm"
             />
           </div>
 
           {/* Linked indicator */}
           {contact.client_id && (
-            <p className="text-xs text-accent flex items-center gap-1">
-              <Link2 className="h-3 w-3" />
-              Linked to {clients.find(c => c.id === contact.client_id)?.name || "company"}
-            </p>
+            <div className="px-3 pb-2">
+              <span className="text-xs text-accent inline-flex items-center gap-1">
+                <Building2 className="h-3 w-3" />
+                Linked to {clients.find(c => c.id === contact.client_id)?.name || "company"}
+              </span>
+            </div>
           )}
         </div>
       ))}
