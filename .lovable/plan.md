@@ -135,7 +135,15 @@ For this phase, the PDF is generated from mock data. When real data is wired, th
 
 ---
 
-## 6. DOB NOW Browser Extension (Roadmapped -- Design Only)
+## 6. DOB NOW Filing Prep (Implemented)
+
+Per-service side sheet that maps all Ordino data to DOB NOW fields with copy buttons, missing field highlights, pre-filing checklist, and post-filing job number entry. Triggered from "Start DOB NOW" button on services with `needsDobFiling: true`.
+
+**File: `src/components/projects/DobNowFilingPrepSheet.tsx`**
+
+---
+
+## 7. DOB NOW Browser Extension (Roadmapped -- Design Only)
 
 This is documented for future implementation, not built now. The concept:
 
@@ -145,7 +153,13 @@ This is documented for future implementation, not built now. The concept:
 - Auto-fills DOB NOW form fields from Ordino project data (address, contacts, BBL, BIN)
 - Status sync: reads DOB NOW status and updates Ordino
 
-This requires a separate Chrome extension project and is outside the current Lovable scope. Documenting it in the roadmap section of the plan file.
+This requires a separate Chrome extension project and is outside the current Lovable scope.
+
+---
+
+## 8. Configurable Service Hierarchy (Roadmapped)
+
+Parent-child service relationships (e.g., Work Permits under Alterations/New Buildings) should be configurable in Settings → Services rather than hardcoded. This will allow users to define which service types can be sub-services of which parent types. Currently hardcoded via `parentServiceId` in mock data.
 
 ---
 

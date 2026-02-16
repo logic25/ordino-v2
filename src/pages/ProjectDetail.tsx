@@ -35,6 +35,7 @@ import { useAssignableProfiles, useCompanyProfiles } from "@/hooks/useProfiles";
 import { ProjectEmailsTab } from "@/components/emails/ProjectEmailsTab";
 import { ProjectDialog } from "@/components/projects/ProjectDialog";
 import { LitigationExportDialog } from "@/components/projects/LitigationExportDialog";
+import { DobNowFilingPrepSheet } from "@/components/projects/DobNowFilingPrepSheet";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -281,7 +282,7 @@ export default function ProjectDetail() {
 
             <CardContent className="p-0">
               <TabsContent value="services" className="mt-0">
-                <ServicesFull services={services} />
+                <ServicesFull services={services} project={project} contacts={contacts} allServices={services} />
               </TabsContent>
               <TabsContent value="emails" className="mt-0">
                 <EmailsFullLive projectId={project.id} mockEmails={emails} />
@@ -808,11 +809,12 @@ function ServiceExpandedDetail({ service }: { service: MockService }) {
   );
 }
 
-function ServicesFull({ services: initialServices }: { services: MockService[] }) {
+function ServicesFull({ services: initialServices, project, contacts, allServices }: { services: MockService[]; project: ProjectWithRelations; contacts: MockContact[]; allServices: MockService[] }) {
   const [orderedServices, setOrderedServices] = useState(initialServices);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [editingBillDate, setEditingBillDate] = useState<string | null>(null);
+  const [dobPrepService, setDobPrepService] = useState<MockService | null>(null);
   const { data: companyProfiles = [] } = useCompanyProfiles();
   const { toast } = useToast();
 
@@ -986,7 +988,7 @@ function ServicesFull({ services: initialServices }: { services: MockService[] }
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       {svc.needsDobFiling ? (
-                        <Button variant="outline" size="sm" className="gap-1.5"><ExternalLink className="h-3.5 w-3.5" /> Start DOB NOW</Button>
+                        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setDobPrepService(svc)}><ExternalLink className="h-3.5 w-3.5" /> Start DOB NOW</Button>
                       ) : svc.application ? (
                         <Badge variant="outline" className="font-mono text-xs">#{svc.application.jobNumber}</Badge>
                       ) : isChild && svc.parentServiceId ? (() => {
@@ -1024,6 +1026,16 @@ function ServicesFull({ services: initialServices }: { services: MockService[] }
         <Separator orientation="vertical" className="h-4" />
         <span><span className="text-muted-foreground">Cost:</span> <span className="font-semibold">{formatCurrency(cost)}</span></span>
       </div>
+      {dobPrepService && (
+        <DobNowFilingPrepSheet
+          open={!!dobPrepService}
+          onOpenChange={(open) => { if (!open) setDobPrepService(null); }}
+          service={dobPrepService}
+          project={project}
+          contacts={contacts}
+          allServices={allServices}
+        />
+      )}
     </div>
   );
 }
