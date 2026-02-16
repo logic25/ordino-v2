@@ -19,25 +19,47 @@ const BOROUGH_CODES: Record<string, string> = {
   "5": "Staten Island",
 };
 
-// Common suffixes to strip from addresses before querying
+const BOROUGH_NAME_TO_CODE: Record<string, string> = {
+  manhattan: "1",
+  bronx: "2",
+  "the bronx": "2",
+  brooklyn: "3",
+  queens: "4",
+  "staten island": "5",
+};
+
+// Patterns to strip city/state/zip from end of address
 const STRIP_PATTERNS = [
-  /,?\s*(new\s*york|nyc|ny|manhattan|bronx|brooklyn|queens|staten\s*island)\s*(,?\s*(ny|new\s*york))?\s*\d{0,5}\s*$/i,
+  /,?\s*(new\s*york|nyc|ny|manhattan|bronx|the\s+bronx|brooklyn|queens|staten\s*island)\s*(,?\s*(ny|new\s*york))?\s*\d{0,5}\s*$/i,
   /,?\s*(ny|new\s*york)\s*\d{0,5}\s*$/i,
-  /\s+\d{5}(-\d{4})?\s*$/,  // zip code at end
+  /\s+\d{5}(-\d{4})?\s*$/,
 ];
 
 /**
- * Extract just the street address (house number + street name) from a full address.
- * e.g. "1136 Ogden Avenue Bronx NY 10452" → "1136 OGDEN AVENUE"
+ * Extract borough from raw address if present.
+ * Returns { street, boroCode } where boroCode is "1"-"5" or null.
  */
-function cleanStreetAddress(raw: string): string {
-  let addr = raw.trim().toUpperCase();
-  for (const pattern of STRIP_PATTERNS) {
-    addr = addr.replace(pattern, "");
+function parseAddress(raw: string): { street: string; boroCode: string | null } {
+  const upper = raw.trim().toUpperCase();
+
+  // Try to find borough name in the address
+  let detectedBoroCode: string | null = null;
+  for (const [name, code] of Object.entries(BOROUGH_NAME_TO_CODE)) {
+    const regex = new RegExp(`\\b${name.replace(/\s+/g, "\\s+")}\\b`, "i");
+    if (regex.test(raw)) {
+      detectedBoroCode = code;
+      break;
+    }
   }
-  // Also strip trailing commas/spaces
-  addr = addr.replace(/[,\s]+$/, "").trim();
-  return addr;
+
+  // Strip borough/city/state/zip to get clean street address
+  let street = upper;
+  for (const pattern of STRIP_PATTERNS) {
+    street = street.replace(pattern, "");
+  }
+  street = street.replace(/[,\s]+$/, "").trim();
+
+  return { street, boroCode: detectedBoroCode };
 }
 
 export function useNYCPropertyLookup() {
@@ -49,26 +71,25 @@ export function useNYCPropertyLookup() {
     setError(null);
 
     try {
-      const streetAddress = cleanStreetAddress(address);
-      console.log("[NYC Lookup] Cleaned address:", streetAddress, "from:", address);
+      const { street, boroCode } = parseAddress(address);
+      console.log("[NYC Lookup] Parsed:", { street, boroCode, original: address });
 
-      if (streetAddress.length < 3) {
+      if (street.length < 3) {
         setError("Address too short for lookup");
         return null;
       }
 
-      // Strategy 1: Try PLUTO with the full cleaned street address
-      const plutoUrl = `https://data.cityofnewyork.us/resource/64uk-42ks.json?$where=upper(address) like '%25${encodeURIComponent(streetAddress)}%25'&$limit=5`;
+      // Build borough filter clause if we detected one
+      const boroFilter = boroCode ? ` AND borocode='${boroCode}'` : "";
+
+      // Strategy 1: PLUTO with full cleaned street + borough filter
+      const plutoUrl = `https://data.cityofnewyork.us/resource/64uk-42ks.json?$where=upper(address) like '%25${encodeURIComponent(street)}%25'${encodeURIComponent(boroFilter)}&$limit=5`;
       console.log("[NYC Lookup] PLUTO query:", plutoUrl);
-      
+
       const response = await fetch(plutoUrl);
-      
-      if (!response.ok) {
-        throw new Error("Failed to fetch property data");
-      }
+      if (!response.ok) throw new Error("Failed to fetch property data");
 
       const data = await response.json();
-      
       if (data && data.length > 0) {
         const property = data[0];
         return {
@@ -82,16 +103,16 @@ export function useNYCPropertyLookup() {
         };
       }
 
-      // Strategy 2: Extract house number and street name separately
-      const houseMatch = streetAddress.match(/^(\d+[-\d]*)\s+(.+)$/);
+      // Strategy 2: PAD dataset with house number + street name + borough
+      const houseMatch = street.match(/^(\d+[-\d]*)\s+(.+)$/);
       if (houseMatch) {
         const houseNum = houseMatch[1];
         const streetName = houseMatch[2];
-        
-        // Try PAD dataset with house number and street name
-        const padUrl = `https://data.cityofnewyork.us/resource/bc93-7baw.json?$where=lhnd='${encodeURIComponent(houseNum)}' AND upper(stname) like '%25${encodeURIComponent(streetName.substring(0, 20))}%25'&$limit=5`;
+        const padBoroFilter = boroCode ? ` AND boro='${boroCode}'` : "";
+
+        const padUrl = `https://data.cityofnewyork.us/resource/bc93-7baw.json?$where=lhnd='${encodeURIComponent(houseNum)}' AND upper(stname) like '%25${encodeURIComponent(streetName.substring(0, 20))}%25'${encodeURIComponent(padBoroFilter)}&$limit=5`;
         console.log("[NYC Lookup] PAD query:", padUrl);
-        
+
         const padResponse = await fetch(padUrl);
         if (padResponse.ok) {
           const padData = await padResponse.json();
@@ -108,12 +129,12 @@ export function useNYCPropertyLookup() {
           }
         }
 
-        // Strategy 3: Try PLUTO with just house number + first part of street
+        // Strategy 3: PLUTO with just house number + short street name + borough
         const shortStreet = streetName.split(/\s+(AVE|AVENUE|ST|STREET|BLVD|BOULEVARD|PL|PLACE|DR|DRIVE|RD|ROAD|CT|COURT|WAY|LN|LANE|TER|TERRACE)/i)[0];
         if (shortStreet && shortStreet !== streetName) {
-          const pluto2Url = `https://data.cityofnewyork.us/resource/64uk-42ks.json?$where=upper(address) like '%25${encodeURIComponent(houseNum + " " + shortStreet)}%25'&$limit=5`;
-          console.log("[NYC Lookup] PLUTO fallback query:", pluto2Url);
-          
+          const pluto2Url = `https://data.cityofnewyork.us/resource/64uk-42ks.json?$where=upper(address) like '%25${encodeURIComponent(houseNum + " " + shortStreet)}%25'${encodeURIComponent(boroFilter)}&$limit=5`;
+          console.log("[NYC Lookup] PLUTO fallback:", pluto2Url);
+
           const pluto2Response = await fetch(pluto2Url);
           if (pluto2Response.ok) {
             const pluto2Data = await pluto2Response.json();
@@ -156,15 +177,10 @@ export function useNYCPropertyLookup() {
       const paddedLot = lot.padStart(4, "0");
 
       const url = `https://data.cityofnewyork.us/resource/64uk-42ks.json?borocode=${boroCode}&block=${paddedBlock}&lot=${paddedLot}`;
-      
       const response = await fetch(url);
-      
-      if (!response.ok) {
-        throw new Error("Failed to fetch property data");
-      }
+      if (!response.ok) throw new Error("Failed to fetch property data");
 
       const data = await response.json();
-      
       if (data && data.length > 0) {
         const property = data[0];
         return {
@@ -188,10 +204,5 @@ export function useNYCPropertyLookup() {
     }
   };
 
-  return {
-    lookupByAddress,
-    lookupByBBL,
-    isLoading,
-    error,
-  };
+  return { lookupByAddress, lookupByBBL, isLoading, error };
 }
