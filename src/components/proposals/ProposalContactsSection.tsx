@@ -109,7 +109,7 @@ function CompanyCombobox({
       {open && (search.length > 0 || clients.length > 0) && (
         <div
           ref={dropdownRef}
-          className="absolute left-0 top-full z-50 w-full bg-popover border rounded-md shadow-lg mt-1 max-h-[180px] overflow-y-auto"
+          className="absolute left-0 top-full z-50 w-full bg-popover border rounded-md shadow-lg mt-1 max-h-[220px] overflow-y-auto"
         >
           {filtered.map((client) => (
             <button
@@ -212,28 +212,55 @@ export function ProposalContactsSection({
     <div className="space-y-3">
       {grouped.map((contact, index) => (
         <div key={index} className="border rounded-lg bg-card">
-          {/* Row 1: Name + Delete */}
+          {/* Row 1: Company search first + Delete */}
           <div className="flex items-center gap-2 px-3 pt-3 pb-2">
-            <Input
-              placeholder="Contact name *"
-              value={contact.name || ""}
-              onChange={(e) => updateContact(index, { name: e.target.value })}
-              className="h-8 text-sm font-medium flex-1"
-              autoFocus={!contact.name && index === grouped.length - 1}
+            <CompanyCombobox
+              value={contact.company_name || ""}
+              clients={clients}
+              onSelect={(client) => handleSelectCompany(index, client)}
+              onAddNew={(name) => handleAddNewCompany(index, name)}
             />
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+              className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
               onClick={() => removeContact(index)}
             >
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
 
-          {/* Row 2: Roles as checkboxes */}
-          <div className="flex items-center gap-4 px-3 pb-2">
+          {/* Row 2: Contact name */}
+          <div className="px-3 pb-2">
+            <Input
+              placeholder="Contact name *"
+              value={contact.name || ""}
+              onChange={(e) => updateContact(index, { name: e.target.value })}
+              className="h-8 text-sm font-medium"
+              autoFocus={!contact.name && index === grouped.length - 1}
+            />
+          </div>
+
+          {/* Row 3: Email + Phone */}
+          <div className="px-3 pb-2 grid grid-cols-2 gap-2">
+            <Input
+              placeholder="Email"
+              type="email"
+              value={contact.email || ""}
+              onChange={(e) => updateContact(index, { email: e.target.value })}
+              className="h-8 text-sm"
+            />
+            <Input
+              placeholder="Phone"
+              value={contact.phone || ""}
+              onChange={(e) => updateContact(index, { phone: e.target.value })}
+              className="h-8 text-sm"
+            />
+          </div>
+
+          {/* Row 4: Roles as checkboxes */}
+          <div className="flex items-center gap-5 px-3 pb-3 border-t pt-2">
             {ROLE_OPTIONS.map((opt) => (
               <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer">
                 <Checkbox
@@ -244,31 +271,6 @@ export function ProposalContactsSection({
                 <span className="text-xs text-muted-foreground">{opt.label}</span>
               </label>
             ))}
-          </div>
-
-          {/* Row 3: Company + Email + Phone */}
-          <div className="px-3 pb-3 flex flex-col gap-2">
-            <CompanyCombobox
-              value={contact.company_name || ""}
-              clients={clients}
-              onSelect={(client) => handleSelectCompany(index, client)}
-              onAddNew={(name) => handleAddNewCompany(index, name)}
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <Input
-                placeholder="Email"
-                type="email"
-                value={contact.email || ""}
-                onChange={(e) => updateContact(index, { email: e.target.value })}
-                className="h-8 text-sm"
-              />
-              <Input
-                placeholder="Phone"
-                value={contact.phone || ""}
-                onChange={(e) => updateContact(index, { phone: e.target.value })}
-                className="h-8 text-sm"
-              />
-            </div>
           </div>
         </div>
       ))}
