@@ -63,10 +63,14 @@ export function useEnrollProperty() {
 
   return useMutation({
     mutationFn: async (input: SignalSubscriptionInput) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
       const { data: profile } = await supabase
         .from("profiles")
         .select("company_id")
-        .single();
+        .eq("user_id", user.id)
+        .maybeSingle();
 
       if (!profile?.company_id) throw new Error("No company found for user");
 
