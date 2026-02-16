@@ -4,7 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Trash2, Loader2, Save, Package, Upload, History } from "lucide-react";
+import { Plus, Trash2, Loader2, Save, Package, Upload, History, Search } from "lucide-react";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -25,6 +28,7 @@ export function ServiceCatalogSettings() {
 
   const [services, setServices] = useState<ServiceCatalogItem[]>([]);
   const [defaultTerms, setDefaultTerms] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Price change audit state
   const [priceChangeDialog, setPriceChangeDialog] = useState<{
@@ -150,112 +154,145 @@ export function ServiceCatalogSettings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Search */}
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search services..."
+              className="pl-9"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
           {services.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <p>No services defined yet.</p>
               <p className="text-sm">Add services to quickly populate proposals.</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {services.map((service) => (
-                <div
-                  key={service.id}
-                  className="grid grid-cols-12 gap-2 items-start p-3 border rounded-lg"
-                >
-                  <div className="col-span-3">
-                    <Label className="text-xs text-muted-foreground">Name</Label>
-                    <Input
-                      value={service.name}
-                      onChange={(e) => updateService(service.id, "name", e.target.value)}
-                      placeholder="Service name"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <Label className="text-xs text-muted-foreground">Description</Label>
-                    <Input
-                      value={service.description || ""}
-                      onChange={(e) => updateService(service.id, "description", e.target.value)}
-                      placeholder="Description"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                      Price
-                      {service.price_history && service.price_history.length > 0 && (
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <button className="text-muted-foreground hover:text-foreground">
-                              <History className="h-3 w-3" />
-                            </button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-80 max-h-60 overflow-y-auto" align="start">
-                            <div className="space-y-2">
-                              <h4 className="font-medium text-sm">Price History</h4>
-                              {[...service.price_history].reverse().map((entry, i) => (
-                                <div key={i} className="text-xs border-b pb-2 last:border-0">
-                                  <div className="flex justify-between">
-                                    <span className="text-muted-foreground">
-                                      ${entry.old_price.toLocaleString()} → ${entry.new_price.toLocaleString()}
-                                    </span>
-                                    <span className="text-muted-foreground">
-                                      {format(new Date(entry.changed_at), "MM/dd/yy")}
-                                    </span>
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[22%]">Name</TableHead>
+                    <TableHead className="w-[28%]">Description</TableHead>
+                    <TableHead className="w-[12%]">Price</TableHead>
+                    <TableHead className="w-[10%]">Hours</TableHead>
+                    <TableHead className="w-[12%]">Multiplier</TableHead>
+                    <TableHead className="w-[16%]" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {services
+                    .filter((s) => {
+                      if (!searchQuery) return true;
+                      const q = searchQuery.toLowerCase();
+                      return (
+                        s.name.toLowerCase().includes(q) ||
+                        (s.description || "").toLowerCase().includes(q)
+                      );
+                    })
+                    .map((service) => (
+                      <TableRow key={service.id}>
+                        <TableCell>
+                          <Input
+                            value={service.name}
+                            onChange={(e) => updateService(service.id, "name", e.target.value)}
+                            placeholder="Service name"
+                            className="h-8 text-sm"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            value={service.description || ""}
+                            onChange={(e) => updateService(service.id, "description", e.target.value)}
+                            placeholder="Description"
+                            className="h-8 text-sm"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={service.default_price || ""}
+                              onChange={(e) => updateService(service.id, "default_price", parseFloat(e.target.value) || 0)}
+                              onBlur={(e) => handlePriceBlur(service.id, e.target.value)}
+                              placeholder="0.00"
+                              className="h-8 text-sm"
+                            />
+                            {service.price_history && service.price_history.length > 0 && (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <button className="text-muted-foreground hover:text-foreground shrink-0">
+                                    <History className="h-3.5 w-3.5" />
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80 max-h-60 overflow-y-auto" align="start">
+                                  <div className="space-y-2">
+                                    <h4 className="font-medium text-sm">Price History</h4>
+                                    {[...service.price_history].reverse().map((entry, i) => (
+                                      <div key={i} className="text-xs border-b pb-2 last:border-0">
+                                        <div className="flex justify-between">
+                                          <span className="text-muted-foreground">
+                                            ${entry.old_price.toLocaleString()} → ${entry.new_price.toLocaleString()}
+                                          </span>
+                                          <span className="text-muted-foreground">
+                                            {format(new Date(entry.changed_at), "MM/dd/yy")}
+                                          </span>
+                                        </div>
+                                        <p className="mt-0.5">{entry.reason}</p>
+                                        {entry.changed_by && (
+                                          <p className="text-muted-foreground">by {entry.changed_by}</p>
+                                        )}
+                                      </div>
+                                    ))}
                                   </div>
-                                  <p className="mt-0.5">{entry.reason}</p>
-                                  {entry.changed_by && (
-                                    <p className="text-muted-foreground">by {entry.changed_by}</p>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-                      )}
-                    </Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={service.default_price || ""}
-                      onChange={(e) => updateService(service.id, "default_price", parseFloat(e.target.value) || 0)}
-                      onBlur={(e) => handlePriceBlur(service.id, e.target.value)}
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div className="col-span-1">
-                    <Label className="text-xs text-muted-foreground">Hours</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      value={service.default_hours || ""}
-                      onChange={(e) => updateService(service.id, "default_hours", parseFloat(e.target.value) || 0)}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <Label className="text-xs text-muted-foreground">Multiplier</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.1"
-                      value={service.multiplier || ""}
-                      onChange={(e) => updateService(service.id, "multiplier", parseFloat(e.target.value) || 0)}
-                      placeholder="1.0"
-                    />
-                  </div>
-                  <div className="col-span-2 pt-5 flex gap-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeService(service.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                                </PopoverContent>
+                              </Popover>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            value={service.default_hours || ""}
+                            onChange={(e) => updateService(service.id, "default_hours", parseFloat(e.target.value) || 0)}
+                            placeholder="0"
+                            className="h-8 text-sm"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            value={service.multiplier || ""}
+                            onChange={(e) => updateService(service.id, "multiplier", parseFloat(e.target.value) || 0)}
+                            placeholder="1.0"
+                            className="h-8 text-sm"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => removeService(service.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
             </div>
           )}
 
