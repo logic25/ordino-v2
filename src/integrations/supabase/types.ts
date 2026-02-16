@@ -4702,6 +4702,180 @@ export type Database = {
           },
         ]
       }
+      signal_applications: {
+        Row: {
+          applicant_name: string | null
+          application_type: string
+          company_id: string
+          created_at: string
+          description: string | null
+          filed_date: string | null
+          filing_status: string | null
+          id: string
+          job_number: string
+          property_id: string
+          raw_data: Json | null
+        }
+        Insert: {
+          applicant_name?: string | null
+          application_type: string
+          company_id: string
+          created_at?: string
+          description?: string | null
+          filed_date?: string | null
+          filing_status?: string | null
+          id?: string
+          job_number: string
+          property_id: string
+          raw_data?: Json | null
+        }
+        Update: {
+          applicant_name?: string | null
+          application_type?: string
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          filed_date?: string | null
+          filing_status?: string | null
+          id?: string
+          job_number?: string
+          property_id?: string
+          raw_data?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signal_applications_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signal_applications_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signal_subscriptions: {
+        Row: {
+          company_id: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          notes: string | null
+          owner_email: string | null
+          owner_phone: string | null
+          property_id: string
+          status: string
+          subscribed_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          notes?: string | null
+          owner_email?: string | null
+          owner_phone?: string | null
+          property_id: string
+          status?: string
+          subscribed_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          notes?: string | null
+          owner_email?: string | null
+          owner_phone?: string | null
+          property_id?: string
+          status?: string
+          subscribed_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signal_subscriptions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signal_subscriptions_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signal_violations: {
+        Row: {
+          agency: string
+          company_id: string
+          created_at: string
+          description: string
+          id: string
+          issued_date: string
+          penalty_amount: number | null
+          property_id: string
+          raw_data: Json | null
+          status: string
+          violation_number: string
+          violation_type: string | null
+        }
+        Insert: {
+          agency: string
+          company_id: string
+          created_at?: string
+          description: string
+          id?: string
+          issued_date: string
+          penalty_amount?: number | null
+          property_id: string
+          raw_data?: Json | null
+          status?: string
+          violation_number: string
+          violation_type?: string | null
+        }
+        Update: {
+          agency?: string
+          company_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          issued_date?: string
+          penalty_amount?: number | null
+          property_id?: string
+          raw_data?: Json | null
+          status?: string
+          violation_number?: string
+          violation_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signal_violations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signal_violations_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       universal_documents: {
         Row: {
           category: string | null
