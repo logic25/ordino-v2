@@ -2580,6 +2580,92 @@ export type Database = {
           },
         ]
       }
+      leads: {
+        Row: {
+          assigned_to: string | null
+          client_type: string | null
+          company_id: string
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string
+          created_by: string | null
+          full_name: string
+          id: string
+          notes: string | null
+          property_address: string | null
+          proposal_id: string | null
+          source: string
+          status: string
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          client_type?: string | null
+          company_id: string
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          full_name: string
+          id?: string
+          notes?: string | null
+          property_address?: string | null
+          proposal_id?: string | null
+          source?: string
+          status?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          client_type?: string | null
+          company_id?: string
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          full_name?: string
+          id?: string
+          notes?: string | null
+          property_address?: string | null
+          proposal_id?: string | null
+          source?: string
+          status?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_email_templates: {
         Row: {
           body_template: string
