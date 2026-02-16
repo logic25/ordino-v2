@@ -71,6 +71,17 @@ export interface MockChangeOrder {
   linkedServices: string[];
   reason: string;
   requestedBy: string;
+  signedByClient: boolean;
+  signedDate?: string;
+}
+
+export interface MockProposalSignature {
+  proposalNumber: string;
+  fullyExecuted: boolean;
+  internalSignedDate?: string;
+  clientSignedDate?: string;
+  internalSigner?: string;
+  clientSigner?: string;
 }
 
 export interface MockEmail {
@@ -209,11 +220,29 @@ const MOCK_MILESTONES_B: MockMilestone[] = [
 // --- Change Orders ---
 
 const MOCK_CHANGE_ORDERS_A: MockChangeOrder[] = [
-  { id: "co1", number: "CO-001", description: "Additional sprinkler heads — 3rd floor scope expansion", amount: 1200, status: "approved", createdDate: "02/10/2026", approvedDate: "02/12/2026", linkedServices: ["s4"], reason: "Client requested additional coverage on 3rd floor", requestedBy: "Mayra Maisch" },
-  { id: "co2", number: "CO-002", description: "Structural engineer review for beam modification", amount: 800, status: "pending", createdDate: "02/14/2026", linkedServices: ["s4"], reason: "DOB objection requires additional structural review", requestedBy: "Internal" },
+  { id: "co1", number: "CO-001", description: "Additional sprinkler heads — 3rd floor scope expansion", amount: 1200, status: "approved", createdDate: "02/10/2026", approvedDate: "02/12/2026", linkedServices: ["s4"], reason: "Client requested additional coverage on 3rd floor", requestedBy: "Mayra Maisch", signedByClient: true, signedDate: "02/12/2026" },
+  { id: "co2", number: "CO-002", description: "Structural engineer review for beam modification", amount: 800, status: "pending", createdDate: "02/14/2026", linkedServices: ["s4"], reason: "DOB objection requires additional structural review", requestedBy: "Internal", signedByClient: false },
 ];
 
 const MOCK_CHANGE_ORDERS_B: MockChangeOrder[] = [];
+
+// --- Proposal Signatures ---
+
+const MOCK_PROPOSAL_SIG_A: MockProposalSignature = {
+  proposalNumber: "021526-1",
+  fullyExecuted: true,
+  internalSignedDate: "02/04/2026",
+  clientSignedDate: "02/05/2026",
+  internalSigner: "Sheri L.",
+  clientSigner: "Mayra Maisch",
+};
+
+const MOCK_PROPOSAL_SIG_B: MockProposalSignature = {
+  proposalNumber: "011026-3",
+  fullyExecuted: false,
+  internalSignedDate: "01/09/2026",
+  internalSigner: "Sheri L.",
+};
 
 // --- Emails ---
 
@@ -270,6 +299,7 @@ export const DOCUMENT_SETS = [MOCK_DOCUMENTS_A, MOCK_DOCUMENTS_B];
 export const TIME_SETS = [MOCK_TIME_A, MOCK_TIME_B];
 export const CHECKLIST_SETS = [MOCK_CHECKLIST_A, MOCK_CHECKLIST_B];
 export const PIS_SETS = [MOCK_PIS_A, MOCK_PIS_B];
+export const PROPOSAL_SIG_SETS = [MOCK_PROPOSAL_SIG_A, MOCK_PROPOSAL_SIG_B];
 
 // --- Shared configs ---
 
