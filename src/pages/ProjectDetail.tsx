@@ -692,56 +692,68 @@ function ServiceExpandedDetail({ service }: { service: MockService }) {
         </div>
       </div>
 
-      {/* Row 2: Estimated Cost + Allotted Hours */}
-      <div className="flex items-center gap-8 text-sm">
+      {/* Row 2: Two-column — Estimated Costs by discipline (left) + Requirements (right) */}
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_1.5fr] gap-6">
+        {/* Estimated Costs */}
         <div>
-          <span className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Estimated Job Cost</span>
-          <div className="font-semibold mt-0.5">
-            {service.estimatedCost ? `$${service.estimatedCost.toLocaleString()}` : <span className="text-muted-foreground italic font-normal">Not set</span>}
-          </div>
-        </div>
-        <div>
-          <span className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Allotted Hours</span>
-          <div className="font-semibold mt-0.5">{service.allottedHours} hrs</div>
-        </div>
-      </div>
-
-      {/* Requirements */}
-      <div>
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-          <AlertTriangle className="h-3.5 w-3.5" /> Requirements ({localReqs.filter(r => !r.met).length} pending)
-        </h4>
-        {localReqs.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 mb-2">
-            {localReqs.map((req) => (
-              <div key={req.id} className={`flex items-center gap-2 text-sm py-1.5 px-3 rounded-md border ${req.met ? "bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-200/50 dark:border-emerald-800/30" : "bg-amber-50/50 dark:bg-amber-900/10 border-amber-200/50 dark:border-amber-800/30"}`}>
-                <Checkbox checked={req.met} className="h-3.5 w-3.5" onCheckedChange={() => {
-                  setLocalReqs(prev => prev.map(r => r.id === req.id ? { ...r, met: !r.met } : r));
-                }} />
-                <span className={`flex-1 ${req.met ? "text-muted-foreground line-through" : ""}`}>{req.label}</span>
-                <div className="flex flex-col items-end gap-0.5 shrink-0 ml-auto">
-                  {req.fromWhom && <span className="text-[10px] text-muted-foreground">from {req.fromWhom}</span>}
-                  {req.detail && <span className="text-[10px] text-muted-foreground italic">— {req.detail}</span>}
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <DollarSign className="h-3.5 w-3.5" /> Estimated Job Cost
+          </h4>
+          {service.estimatedCosts && service.estimatedCosts.length > 0 ? (
+            <div className="space-y-1">
+              {service.estimatedCosts.map((ec, i) => (
+                <div key={i} className="flex items-center justify-between text-sm py-1 px-3 rounded-md border bg-background">
+                  <span>{ec.discipline}</span>
+                  <span className="font-semibold tabular-nums">${ec.amount.toLocaleString()}</span>
                 </div>
-                <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => setLocalReqs(prev => prev.filter(r => r.id !== req.id))}>
-                  <Trash2 className="h-3 w-3" />
-                </Button>
+              ))}
+              <div className="flex items-center justify-between text-sm py-1 px-3 font-semibold border-t mt-1 pt-2">
+                <span>Total</span>
+                <span className="tabular-nums">${service.estimatedCosts.reduce((s, ec) => s + ec.amount, 0).toLocaleString()}</span>
               </div>
-            ))}
-          </div>
-        )}
-        {showAddReq ? (
-          <div className="flex items-center gap-2 flex-wrap">
-            <Input placeholder="New requirement..." className="h-8 text-sm flex-1 max-w-xs" value={newReqLabel} onChange={(e) => setNewReqLabel(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addReq(); }} autoFocus />
-            <Input placeholder="From whom?" className="h-8 text-sm w-[180px]" value={newReqFrom} onChange={(e) => setNewReqFrom(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addReq(); }} />
-            <Button size="sm" className="h-8 text-xs" onClick={addReq}>Add</Button>
-            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setNewReqLabel(""); setNewReqFrom(""); setShowAddReq(false); }}>Cancel</Button>
-          </div>
-        ) : (
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs h-7" onClick={() => setShowAddReq(true)}>
-            <Plus className="h-3 w-3" /> Add Requirement
-          </Button>
-        )}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground italic">No cost estimates — complete PIS to populate.</p>
+          )}
+        </div>
+
+        {/* Requirements */}
+        <div>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <AlertTriangle className="h-3.5 w-3.5" /> Requirements ({localReqs.filter(r => !r.met).length} pending)
+          </h4>
+          {localReqs.length > 0 && (
+            <div className="space-y-1 mb-2">
+              {localReqs.map((req) => (
+                <div key={req.id} className="flex items-center gap-2 text-sm py-1.5 px-3 rounded-md border bg-background">
+                  <Checkbox checked={req.met} className="h-3.5 w-3.5" onCheckedChange={() => {
+                    setLocalReqs(prev => prev.map(r => r.id === req.id ? { ...r, met: !r.met } : r));
+                  }} />
+                  <span className={`flex-1 ${req.met ? "text-muted-foreground line-through" : ""}`}>{req.label}</span>
+                  <div className="flex flex-col items-end gap-0.5 shrink-0 ml-auto">
+                    {req.fromWhom && <span className="text-[10px] text-muted-foreground">from {req.fromWhom}</span>}
+                    {req.detail && <span className="text-[10px] text-muted-foreground italic">— {req.detail}</span>}
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => setLocalReqs(prev => prev.filter(r => r.id !== req.id))}>
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          {showAddReq ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              <Input placeholder="New requirement..." className="h-8 text-sm flex-1 max-w-xs" value={newReqLabel} onChange={(e) => setNewReqLabel(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addReq(); }} autoFocus />
+              <Input placeholder="From whom?" className="h-8 text-sm w-[180px]" value={newReqFrom} onChange={(e) => setNewReqFrom(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addReq(); }} />
+              <Button size="sm" className="h-8 text-xs" onClick={addReq}>Add</Button>
+              <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setNewReqLabel(""); setNewReqFrom(""); setShowAddReq(false); }}>Cancel</Button>
+            </div>
+          ) : (
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs h-7" onClick={() => setShowAddReq(true)}>
+              <Plus className="h-3 w-3" /> Add Requirement
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Tasks */}
