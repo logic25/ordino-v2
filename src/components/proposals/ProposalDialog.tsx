@@ -50,10 +50,10 @@ import { useProposalContacts, type ProposalContactInput } from "@/hooks/usePropo
 
 const itemSchema = z.object({
   id: z.string().optional(),
-  name: z.string().min(1, "Service name is required"),
+  name: z.string(),
   description: z.string().optional(),
-  quantity: z.coerce.number().min(0.01, "Quantity must be greater than 0"),
-  unit_price: z.coerce.number().min(0, "Price must be 0 or greater"),
+  quantity: z.coerce.number().min(0),
+  unit_price: z.coerce.number().min(0),
   estimated_hours: z.coerce.number().min(0).optional(),
   discount_percent: z.coerce.number().min(0).max(100).optional(),
   sort_order: z.number().optional(),
@@ -283,7 +283,7 @@ export function ProposalDialog({
   };
 
   const handleSubmit = async (data: FormData) => {
-    const validItems = data.items.filter(i => i.name);
+    const validItems = data.items.filter(i => i.name && i.name.trim() !== "");
 
     const formData: ProposalFormInput = {
       property_id: data.property_id,
