@@ -885,40 +885,51 @@ export function InvoiceSettings() {
         </div>
       </CollapsibleSettingsCard>
 
-      {/* DOB Filing Fee Schedule */}
+      {/* DOB Filing Fee Schedule — NYC Local Law 56 of 2016 */}
       <CollapsibleSettingsCard
         title="DOB Filing Fee Schedule"
-        description="Configure how DOB filing fees are calculated from estimated job cost"
+        description="NYC permit fees per Local Law 56 of 2016 — auto-calculated from estimated job cost in PIS"
         icon={<Receipt className="h-4 w-4" />}
         isOpen={sectionStates.dobfees ?? false}
         onOpenChange={(o) => setSectionOpen("dobfees", o)}
       >
         <div className="space-y-4">
           <p className="text-xs text-muted-foreground">
-            Filing fees are calculated from the estimated job cost provided by the client via the PIS. 
-            Configure the fee tiers below. Ordino will auto-calculate fees when the estimated cost is entered.
+            Filing fees are calculated from the estimated job cost provided by the client via the PIS.
+            Rates below follow NYC DOB Local Law 56 of 2016. Ordino auto-calculates fees when the estimated cost is entered.
           </p>
 
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Fee Tiers (Estimated Cost → Filing Fee)</Label>
-            {(s.dob_fee_tiers && Array.isArray(s.dob_fee_tiers) ? s.dob_fee_tiers : [
-              { min: 0, max: 25000, fee: 280 },
-              { min: 25001, max: 50000, fee: 395 },
-              { min: 50001, max: 100000, fee: 690 },
-              { min: 100001, max: 250000, fee: 1155 },
-              { min: 250001, max: 500000, fee: 1730 },
-              { min: 500001, max: 1000000, fee: 3465 },
-              { min: 1000001, max: 999999999, fee: 5200 },
-            ]).map((tier: any, idx: number) => (
-              <div key={idx} className="flex items-center gap-2 text-xs">
-                <span className="text-muted-foreground w-6">$</span>
-                <Input type="number" className="w-[100px] h-8 text-xs" value={tier.min} readOnly />
-                <span className="text-muted-foreground">to $</span>
-                <Input type="number" className="w-[100px] h-8 text-xs" value={tier.max === 999999999 ? "∞" : tier.max} readOnly />
-                <span className="text-muted-foreground">→ Fee: $</span>
-                <Input type="number" className="w-[90px] h-8 text-xs" defaultValue={tier.fee} />
-              </div>
-            ))}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">New Buildings (per sq ft)</Label>
+            <div className="space-y-1.5 text-xs">
+              {[
+                { label: "1-2-3 Family Dwellings", rate: "$0.06/sq ft", min: "$100" },
+                { label: "Other buildings <7 stories & ≤100k sq ft", rate: "$0.26/sq ft", min: "$280" },
+                { label: "Other buildings ≥7 stories or >100k sq ft", rate: "$0.45/sq ft", min: "$290" },
+              ].map((row) => (
+                <div key={row.label} className="flex items-center gap-3 py-1.5 px-3 rounded-md bg-background border">
+                  <span className="flex-1 text-muted-foreground">{row.label}</span>
+                  <span className="font-mono font-medium">{row.rate}</span>
+                  <span className="text-muted-foreground">min {row.min}</span>
+                </div>
+              ))}
+            </div>
+
+            <Label className="text-sm font-medium mt-3">Alterations (per $1,000 of est. cost)</Label>
+            <div className="space-y-1.5 text-xs">
+              {[
+                { label: "1-2-3 Family Dwellings", rate: "$2.60 per $1,000", min: "$100" },
+                { label: "ALT-1 (<7 stories & ≤100k sq ft)", rate: "$10.30 per $1,000", min: "$280" },
+                { label: "ALT-1 (≥7 stories or >100k sq ft)", rate: "$17.75 per $1,000", min: "$290" },
+                { label: "ALT-2 & ALT-3", rate: "Unchanged (legacy rates)", min: "$100" },
+              ].map((row) => (
+                <div key={row.label} className="flex items-center gap-3 py-1.5 px-3 rounded-md bg-background border">
+                  <span className="flex-1 text-muted-foreground">{row.label}</span>
+                  <span className="font-mono font-medium">{row.rate}</span>
+                  <span className="text-muted-foreground">min {row.min}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
           <Separator />
@@ -934,6 +945,13 @@ export function InvoiceSettings() {
               <Input className="h-8 text-sm" defaultValue={s.dob_fee_escrow_label || "DOB Fee Escrow"} />
               <p className="text-[10px] text-muted-foreground">Label for the separate fee account</p>
             </div>
+          </div>
+
+          <div className="p-3 rounded-lg border bg-blue-50/50 dark:bg-blue-900/10 border-blue-200/50 dark:border-blue-800/30">
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium">Credit card note:</span> DOB charges a 2.49% convenience fee on credit card payments.
+              This is assessed by the third-party provider and is non-refundable.
+            </p>
           </div>
         </div>
       </CollapsibleSettingsCard>
