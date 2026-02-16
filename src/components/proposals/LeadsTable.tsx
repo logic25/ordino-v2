@@ -33,10 +33,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { MoreHorizontal, Trash2, FileText, Loader2, UserPlus, ChevronDown, ChevronRight } from "lucide-react";
+import { MoreHorizontal, Trash2, FileText, Loader2, UserPlus, ChevronDown, ChevronRight, Send } from "lucide-react";
 import { useState } from "react";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import type { Lead } from "@/hooks/useLeads";
+import { useLeadNotes, useCreateLeadNote } from "@/hooks/useLeadNotes";
 
 interface LeadsTableProps {
   leads: Lead[];
@@ -250,16 +251,19 @@ function LeadDetailPanel({
   onUpdateLead?: (id: string, updates: { status?: string; notes?: string }) => void;
   onConvertToProposal: (lead: Lead) => void;
 }) {
-  const [notes, setNotes] = useState(lead.notes || "");
-  const [notesDirty, setNotesDirty] = useState(false);
+  const [newNote, setNewNote] = useState("");
+  const { data: notes = [], isLoading: notesLoading } = useLeadNotes(lead.id);
+  const createNote = useCreateLeadNote();
+  const isMock = lead.id.startsWith("mock-");
 
   const handleStatusChange = (value: string) => {
     onUpdateLead?.(lead.id, { status: value });
   };
 
-  const handleSaveNotes = () => {
-    onUpdateLead?.(lead.id, { notes });
-    setNotesDirty(false);
+  const handleAddNote = async () => {
+    if (!newNote.trim()) return;
+    await createNote.mutateAsync({ lead_id: lead.id, content: newNote.trim() });
+    setNewNote("");
   };
 
   return (
@@ -303,19 +307,71 @@ function LeadDetailPanel({
         </div>
       </div>
 
-      {/* Notes */}
-      <div className="space-y-1.5">
+      {/* Notes section */}
+      <div className="space-y-3">
         <label className="text-xs font-medium text-muted-foreground">Notes</label>
-        <Textarea
-          value={notes}
-          onChange={(e) => { setNotes(e.target.value); setNotesDirty(true); }}
-          placeholder="Add notes about this lead..."
-          rows={3}
-          className="resize-none"
-        />
-        {notesDirty && (
-          <div className="flex justify-end">
-            <Button size="sm" onClick={handleSaveNotes}>Save Notes</Button>
+
+        {/* Add note input */}
+        <div className="flex gap-2">
+          <Textarea
+            value={newNote}
+            onChange={(e) => setNewNote(e.target.value)}
+            placeholder={isMock ? "Notes are disabled for sample data" : "Add a note..."}
+            rows={2}
+            className="resize-none flex-1"
+            disabled={isMock}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                handleAddNote();
+              }
+            }}
+          />
+          <Button
+            size="sm"
+            className="self-end"
+            onClick={handleAddNote}
+            disabled={!newNote.trim() || createNote.isPending || isMock}
+          >
+            {createNote.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          </Button>
+        </div>
+
+        {/* Notes timeline */}
+        {notesLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+            <Loader2 className="h-3 w-3 animate-spin" /> Loading notes...
+          </div>
+        ) : notes.length > 0 ? (
+          <div className="space-y-2 max-h-[200px] overflow-y-auto">
+            {notes.map((note) => (
+              <div key={note.id} className="rounded-md border bg-background p-3 text-sm space-y-1">
+                <p className="whitespace-pre-wrap">{note.content}</p>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="font-medium">
+                    {note.author
+                      ? `${note.author.first_name} ${note.author.last_name}`
+                      : "Unknown"}
+                  </span>
+                  <span>·</span>
+                  <span title={format(new Date(note.created_at), "MMM d, yyyy h:mm a")}>
+                    {formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : !isMock ? (
+          <p className="text-xs text-muted-foreground py-1">No notes yet</p>
+        ) : null}
+
+        {/* Show legacy notes from leads.notes field if present */}
+        {lead.notes && (
+          <div className="rounded-md border border-dashed bg-background p-3 text-sm space-y-1">
+            <p className="whitespace-pre-wrap">{lead.notes}</p>
+            <div className="text-xs text-muted-foreground">
+              Initial notes · {format(new Date(lead.created_at), "MMM d, yyyy")}
+            </div>
           </div>
         )}
       </div>
