@@ -305,6 +305,64 @@ export function ServiceCatalogSettings() {
         </CardContent>
       </Card>
 
+      {/* Price Change Audit Log */}
+      {(() => {
+        const allChanges = services
+          .flatMap((s) =>
+            (s.price_history || []).map((entry) => ({
+              serviceName: s.name,
+              ...entry,
+            }))
+          )
+          .sort((a, b) => new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime());
+
+        if (allChanges.length === 0) return null;
+
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5" />
+                Price Change Audit Log
+              </CardTitle>
+              <CardDescription>
+                Chronological log of all service price changes
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Service</TableHead>
+                      <TableHead>Old Price</TableHead>
+                      <TableHead>New Price</TableHead>
+                      <TableHead>Changed By</TableHead>
+                      <TableHead>Reason</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {allChanges.map((entry, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="text-sm whitespace-nowrap">
+                          {format(new Date(entry.changed_at), "MM/dd/yy h:mm a")}
+                        </TableCell>
+                        <TableCell className="text-sm font-medium">{entry.serviceName}</TableCell>
+                        <TableCell className="text-sm">${entry.old_price.toLocaleString()}</TableCell>
+                        <TableCell className="text-sm">${entry.new_price.toLocaleString()}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{entry.changed_by || "—"}</TableCell>
+                        <TableCell className="text-sm">{entry.reason}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       {/* Default Terms */}
       <Card>
         <CardHeader>
