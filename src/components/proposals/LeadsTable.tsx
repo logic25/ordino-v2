@@ -360,33 +360,32 @@ function LeadDetailPanel({
         )}
 
         {/* Add note input */}
-        {!isMock && (
-          <div className="space-y-2">
-            <Textarea
-              value={newNote}
-              onChange={(e) => setNewNote(e.target.value)}
-              placeholder="Type a note..."
-              rows={2}
-              className="resize-none"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                  e.preventDefault();
-                  handleAddNote();
-                }
-              }}
-            />
-            <div className="flex justify-end">
-              <Button
-                size="sm"
-                onClick={handleAddNote}
-                disabled={!newNote.trim() || createNote.isPending}
-              >
-                {createNote.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Add Note
-              </Button>
-            </div>
+        <div className="space-y-2">
+          <Textarea
+            value={newNote}
+            onChange={(e) => setNewNote(e.target.value)}
+            placeholder={isMock ? "Capture a real lead to add notes..." : "Type a note..."}
+            rows={2}
+            className="resize-none"
+            disabled={isMock}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                handleAddNote();
+              }
+            }}
+          />
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              onClick={handleAddNote}
+              disabled={!newNote.trim() || createNote.isPending || isMock}
+            >
+              {createNote.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Add Note
+            </Button>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Actions */}
