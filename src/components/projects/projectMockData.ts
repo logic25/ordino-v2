@@ -51,6 +51,7 @@ export interface MockContact {
   dobRole: "applicant" | "owner" | "filing_rep" | "architect" | "engineer" | "gc" | "other";
   source: "proposal" | "pis" | "manual";
   dobRegistered: "registered" | "not_registered" | "unknown";
+  review?: { rating: number; comment?: string };
 }
 
 export interface MockMilestone {
@@ -309,8 +310,8 @@ const MOCK_SERVICES_C: MockService[] = [
 ];
 
 const MOCK_CONTACTS_C: MockContact[] = [
-  { id: "cc1", name: "David Batista", role: "Owner / Client Contact", company: "Batler Food Corp", phone: "(718) 555-0601", email: "david@batlerfood.com", dobRole: "owner", source: "proposal", dobRegistered: "registered" },
-  { id: "cc2", name: "Dave McAlpine", role: "Architect of Record", company: "McAlpine Associates", phone: "(718) 555-0602", email: "mcalpineassociates@gmail.com", dobRole: "architect", source: "proposal", dobRegistered: "registered" },
+  { id: "cc1", name: "David Batista", role: "Owner / Client Contact", company: "Batler Food Corp", phone: "(718) 555-0601", email: "david@batlerfood.com", dobRole: "owner", source: "proposal", dobRegistered: "registered", review: { rating: 4, comment: "Responsive and easy to work with" } },
+  { id: "cc2", name: "Dave McAlpine", role: "Architect of Record", company: "McAlpine Associates", phone: "(718) 555-0602", email: "mcalpineassociates@gmail.com", dobRole: "architect", source: "proposal", dobRegistered: "registered", review: { rating: 3, comment: "Slow on revisions but quality drawings" } },
   { id: "cc3", name: "Don Speaker", role: "Filing Representative / PM", company: "GLE", phone: "(718) 392-1969 x14", email: "don@greenlightexpediting.com", dobRole: "filing_rep", source: "manual", dobRegistered: "registered" },
   { id: "cc4", name: "Manny Russell", role: "Principal", company: "GLE", phone: "(718) 392-1969", email: "manny@greenlightexpediting.com", dobRole: "applicant", source: "manual", dobRegistered: "registered" },
 ];
