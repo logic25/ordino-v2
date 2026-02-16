@@ -100,6 +100,8 @@ export function ProjectDialog({
     }
   }, [project, open]);
 
+  const selectedProperty = properties.find((p) => p.id === form.property_id);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.property_id) return;
@@ -138,6 +140,36 @@ export function ProjectDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {/* BBL — from linked property */}
+          {selectedProperty && (
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label className="text-muted-foreground text-xs">Borough</Label>
+                <Input
+                  value={selectedProperty.borough || ""}
+                  disabled
+                  className="bg-muted/50"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground text-xs">Block</Label>
+                <Input
+                  value={selectedProperty.block || ""}
+                  disabled
+                  className="bg-muted/50"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground text-xs">Lot</Label>
+                <Input
+                  value={selectedProperty.lot || ""}
+                  disabled
+                  className="bg-muted/50"
+                />
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

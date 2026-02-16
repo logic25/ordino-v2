@@ -496,6 +496,13 @@ function ReadinessChecklist({ items: initialItems, pisStatus }: { items: MockChe
                       Missing: {pisStatus.missingFields.join(", ")}
                     </div>
                   </div>
+                  <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={() => {
+                    // Open the PIS/RFI form in a new tab for editing
+                    // In production this would use the actual RFI access token
+                    window.open(`/rfi?demo=true`, "_blank");
+                  }}>
+                    <ExternalLink className="h-3.5 w-3.5" /> Edit PIS
+                  </Button>
                   <Button variant="outline" size="sm" className="shrink-0 gap-1.5">
                     <Send className="h-3.5 w-3.5" /> Send Reminder
                   </Button>
