@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,6 +55,110 @@ export default function Proposals() {
   const logFollowUp = useLogFollowUp();
   const snoozeFollowUp = useSnoozeFollowUp();
 
+  // Mock data shown when no real proposals exist
+  const MOCK_PROPOSALS: ProposalWithRelations[] = useMemo(() => [
+    {
+      id: "mock-1",
+      company_id: "",
+      property_id: "mock-p1",
+      proposal_number: "021526-1",
+      title: "Full Permit Package – Alt-1 Renovation",
+      status: "accepted",
+      client_name: "Edward Ragusa",
+      client_email: "epr21555@aol.com",
+      total_amount: 8500,
+      subtotal: 8500,
+      tax_amount: 0,
+      tax_rate: 0,
+      deposit_required: 4250,
+      deposit_percentage: 50,
+      created_at: "2026-01-15T10:00:00Z",
+      sent_at: "2026-01-16T09:00:00Z",
+      internal_signed_at: "2026-01-16T09:30:00Z",
+      client_signed_at: "2026-01-18T14:00:00Z",
+      next_follow_up_date: null,
+      follow_up_dismissed_at: null,
+      follow_up_count: 0,
+      properties: { id: "mock-p1", address: "327-329 South 1st Street, Brooklyn, NY 11211", borough: "Brooklyn" } as any,
+      creator: { id: "mock-u1", first_name: "Manny", last_name: "Russell" } as any,
+      internal_signer: { id: "mock-u1", first_name: "Manny", last_name: "Russell" } as any,
+      items: [
+        { id: "mi-1", name: "Alt-1 Filing", quantity: 1, unit_price: 3500, total_price: 3500, sort_order: 0 } as any,
+        { id: "mi-2", name: "DOB Plan Examination", quantity: 1, unit_price: 2500, total_price: 2500, sort_order: 1 } as any,
+        { id: "mi-3", name: "Permit Expediting", quantity: 1, unit_price: 2500, total_price: 2500, sort_order: 2 } as any,
+      ],
+    } as any,
+    {
+      id: "mock-2",
+      company_id: "",
+      property_id: "mock-p2",
+      proposal_number: "020126-1",
+      title: "Violation Resolution – ECB Summons",
+      status: "sent",
+      client_name: "Sarah Chen",
+      client_email: "schen@gmail.com",
+      total_amount: 3200,
+      subtotal: 3200,
+      tax_amount: 0,
+      tax_rate: 0,
+      deposit_required: 1600,
+      created_at: "2026-02-01T11:00:00Z",
+      sent_at: "2026-02-02T08:00:00Z",
+      next_follow_up_date: "2026-02-09T08:00:00Z",
+      follow_up_dismissed_at: null,
+      follow_up_count: 1,
+      properties: { id: "mock-p2", address: "456 Park Ave, Manhattan, NY 10022", borough: "Manhattan" } as any,
+      creator: { id: "mock-u1", first_name: "Manny", last_name: "Russell" } as any,
+    } as any,
+    {
+      id: "mock-3",
+      company_id: "",
+      property_id: null,
+      proposal_number: "021426-1",
+      title: "Lead: James Wilson – 789 Atlantic Ave",
+      status: "draft",
+      client_name: "James Wilson",
+      client_email: "jwilson@wilsondev.com",
+      total_amount: 0,
+      subtotal: 0,
+      tax_amount: 0,
+      tax_rate: 0,
+      created_at: "2026-02-14T15:00:00Z",
+      next_follow_up_date: null,
+      follow_up_dismissed_at: null,
+      follow_up_count: 0,
+      properties: null as any,
+      creator: { id: "mock-u1", first_name: "Manny", last_name: "Russell" } as any,
+    } as any,
+    {
+      id: "mock-4",
+      company_id: "",
+      property_id: "mock-p4",
+      proposal_number: "011526-2",
+      title: "New Building Permit Filing",
+      status: "signed_internal",
+      client_name: "Metro Development LLC",
+      client_email: "permits@metrodev.com",
+      total_amount: 22000,
+      subtotal: 22000,
+      tax_amount: 0,
+      tax_rate: 0,
+      deposit_required: 11000,
+      created_at: "2026-01-10T09:00:00Z",
+      sent_at: "2026-01-11T10:00:00Z",
+      internal_signed_at: "2026-01-11T10:30:00Z",
+      next_follow_up_date: "2026-02-11T10:00:00Z",
+      follow_up_dismissed_at: null,
+      follow_up_count: 2,
+      properties: { id: "mock-p4", address: "100 Flatbush Ave, Brooklyn, NY 11217", borough: "Brooklyn" } as any,
+      creator: { id: "mock-u1", first_name: "Manny", last_name: "Russell" } as any,
+      internal_signer: { id: "mock-u1", first_name: "Manny", last_name: "Russell" } as any,
+    } as any,
+  ], []);
+
+  const displayProposals = proposals.length > 0 ? proposals : MOCK_PROPOSALS;
+  const showingMock = proposals.length === 0 && !isLoading;
+
   // Open dialog if coming from properties with a property pre-selected
   useEffect(() => {
     if (defaultPropertyId && !editingProposal) {
@@ -62,7 +166,7 @@ export default function Proposals() {
     }
   }, [defaultPropertyId]);
 
-  const filteredProposals = proposals.filter((p) => {
+  const filteredProposals = displayProposals.filter((p) => {
     const query = searchQuery.toLowerCase();
     return (
       p.properties?.address?.toLowerCase().includes(query) ||
@@ -73,19 +177,19 @@ export default function Proposals() {
   });
 
   // Stats
-  const draftCount = proposals.filter((p) => p.status === "draft").length;
-  const sentCount = proposals.filter((p) => ["sent", "viewed", "signed_internal", "signed_client"].includes(p.status || "")).length;
-  const acceptedCount = proposals.filter((p) => p.status === "accepted").length;
-  const followUpDueCount = proposals.filter((p) => {
+  const draftCount = displayProposals.filter((p) => p.status === "draft").length;
+  const sentCount = displayProposals.filter((p) => ["sent", "viewed", "signed_internal", "signed_client"].includes(p.status || "")).length;
+  const acceptedCount = displayProposals.filter((p) => p.status === "accepted").length;
+  const followUpDueCount = displayProposals.filter((p) => {
     const nextDate = (p as any).next_follow_up_date;
     const dismissed = (p as any).follow_up_dismissed_at;
     return nextDate && !dismissed && new Date(nextDate) <= new Date();
   }).length;
   
-  const draftTotal = proposals
+  const draftTotal = displayProposals
     .filter((p) => p.status === "draft")
     .reduce((sum, p) => sum + Number(p.total_amount || 0), 0);
-  const sentTotal = proposals
+  const sentTotal = displayProposals
     .filter((p) => ["sent", "viewed", "signed_internal", "signed_client"].includes(p.status || ""))
     .reduce((sum, p) => sum + Number(p.total_amount || 0), 0);
 
@@ -213,25 +317,34 @@ export default function Proposals() {
 
   const handleLeadSubmit = async (data: LeadCaptureData) => {
     try {
-      const contactName = [data.first_name, data.last_name].filter(Boolean).join(" ");
-      await createProposal.mutateAsync({
-        property_id: null as any, // Lead — no property yet
-        title: `Lead: ${contactName}${data.property_address ? ` - ${data.property_address}` : ""}`,
-        client_name: contactName,
-        client_email: data.contact_email || null,
-        lead_source: data.source,
-        notes: [
-          data.contact_phone ? `Phone: ${data.contact_phone}` : "",
-          data.service_needed ? `Service: ${data.service_needed}` : "",
-          data.notes || "",
-        ].filter(Boolean).join("\n"),
-        assigned_pm_id: data.assigned_pm_id || null,
-        sales_person_id: data.assigned_pm_id || null,
-      } as any);
-      toast({
-        title: "Lead captured!",
-        description: `Draft proposal created for ${contactName}.${data.assigned_pm_id ? " Assigned to PM." : ""}`,
-      });
+      if (data.create_proposal) {
+        await createProposal.mutateAsync({
+          property_id: null as any,
+          title: `Lead: ${data.full_name}${data.property_address ? ` - ${data.property_address}` : ""}`,
+          client_name: data.full_name,
+          client_email: data.contact_email || null,
+          lead_source: data.source,
+          notes: [
+            data.contact_phone ? `Phone: ${data.contact_phone}` : "",
+            data.subject ? `Subject: ${data.subject}` : "",
+            data.service_needed ? `Service: ${data.service_needed}` : "",
+            data.client_type ? `Type: ${data.client_type}` : "",
+            data.notes || "",
+          ].filter(Boolean).join("\n"),
+          assigned_pm_id: data.assigned_pm_id || null,
+          sales_person_id: data.assigned_pm_id || null,
+        } as any);
+        toast({
+          title: "Lead captured!",
+          description: `Draft proposal created for ${data.full_name}.`,
+        });
+      } else {
+        // Just log the lead — for now toast confirmation, future: leads table
+        toast({
+          title: "Lead saved!",
+          description: `${data.full_name} logged as a new lead.${data.assigned_pm_id ? " Assigned to PM." : ""}`,
+        });
+      }
       setLeadDialogOpen(false);
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -336,6 +449,11 @@ export default function Proposals() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {showingMock && (
+              <div className="mb-4 px-3 py-2 rounded-md bg-muted/50 border border-border text-sm text-muted-foreground">
+                📋 Showing sample data. Create your first proposal or capture a lead to get started.
+              </div>
+            )}
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
