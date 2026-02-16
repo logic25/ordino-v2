@@ -28,6 +28,22 @@ export interface Project {
   metadata: Record<string, unknown> | null;
   created_at: string | null;
   updated_at: string | null;
+  // Timeline & performance fields
+  expected_construction_start: string | null;
+  estimated_construction_completion: string | null;
+  actual_construction_start: string | null;
+  actual_construction_completion: string | null;
+  project_complexity_tier: string | null;
+  // GC fields
+  gc_company_name: string | null;
+  gc_contact_name: string | null;
+  gc_phone: string | null;
+  gc_email: string | null;
+  // Architect fields
+  architect_company_name: string | null;
+  architect_contact_name: string | null;
+  architect_phone: string | null;
+  architect_email: string | null;
 }
 
 export interface ProjectWithRelations extends Project {
@@ -56,6 +72,22 @@ export interface ProjectFormInput {
   tenant_name?: string | null;
   completion_date?: string | null;
   notes?: string | null;
+  // Timeline & performance
+  expected_construction_start?: string | null;
+  estimated_construction_completion?: string | null;
+  actual_construction_start?: string | null;
+  actual_construction_completion?: string | null;
+  project_complexity_tier?: string | null;
+  // GC
+  gc_company_name?: string | null;
+  gc_contact_name?: string | null;
+  gc_phone?: string | null;
+  gc_email?: string | null;
+  // Architect
+  architect_company_name?: string | null;
+  architect_contact_name?: string | null;
+  architect_phone?: string | null;
+  architect_email?: string | null;
 }
 
 export function useProjects() {
