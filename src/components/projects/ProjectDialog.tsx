@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Separator } from "@/components/ui/separator";
 import { Loader2, Info } from "lucide-react";
 import { useProperties } from "@/hooks/useProperties";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
@@ -62,6 +63,19 @@ export function ProjectDialog({
     tenant_name: "",
     completion_date: null,
     notes: "",
+    expected_construction_start: null,
+    estimated_construction_completion: null,
+    actual_construction_start: null,
+    actual_construction_completion: null,
+    project_complexity_tier: null,
+    gc_company_name: "",
+    gc_contact_name: "",
+    gc_phone: "",
+    gc_email: "",
+    architect_company_name: "",
+    architect_contact_name: "",
+    architect_phone: "",
+    architect_email: "",
   });
 
   useEffect(() => {
@@ -83,6 +97,19 @@ export function ProjectDialog({
         tenant_name: (project as any).tenant_name || "",
         completion_date: project.completion_date,
         notes: project.notes || "",
+        expected_construction_start: (project as any).expected_construction_start || null,
+        estimated_construction_completion: (project as any).estimated_construction_completion || null,
+        actual_construction_start: (project as any).actual_construction_start || null,
+        actual_construction_completion: (project as any).actual_construction_completion || null,
+        project_complexity_tier: (project as any).project_complexity_tier || null,
+        gc_company_name: (project as any).gc_company_name || "",
+        gc_contact_name: (project as any).gc_contact_name || "",
+        gc_phone: (project as any).gc_phone || "",
+        gc_email: (project as any).gc_email || "",
+        architect_company_name: (project as any).architect_company_name || "",
+        architect_contact_name: (project as any).architect_contact_name || "",
+        architect_phone: (project as any).architect_phone || "",
+        architect_email: (project as any).architect_email || "",
       });
     } else {
       setForm({
@@ -102,6 +129,19 @@ export function ProjectDialog({
         tenant_name: "",
         completion_date: null,
         notes: "",
+        expected_construction_start: null,
+        estimated_construction_completion: null,
+        actual_construction_start: null,
+        actual_construction_completion: null,
+        project_complexity_tier: null,
+        gc_company_name: "",
+        gc_contact_name: "",
+        gc_phone: "",
+        gc_email: "",
+        architect_company_name: "",
+        architect_contact_name: "",
+        architect_phone: "",
+        architect_email: "",
       });
     }
   }, [project, open]);
@@ -357,7 +397,150 @@ export function ProjectDialog({
             </div>
           </div>
 
+          {/* Construction Timeline */}
+          <Separator />
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Construction Timeline</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Expected Start</Label>
+              <Input
+                type="date"
+                value={form.expected_construction_start || ""}
+                onChange={(e) => setForm((f) => ({ ...f, expected_construction_start: e.target.value || null }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Estimated Completion</Label>
+              <Input
+                type="date"
+                value={form.estimated_construction_completion || ""}
+                onChange={(e) => setForm((f) => ({ ...f, estimated_construction_completion: e.target.value || null }))}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Actual Start</Label>
+              <Input
+                type="date"
+                value={form.actual_construction_start || ""}
+                onChange={(e) => setForm((f) => ({ ...f, actual_construction_start: e.target.value || null }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Actual Completion</Label>
+              <Input
+                type="date"
+                value={form.actual_construction_completion || ""}
+                onChange={(e) => setForm((f) => ({ ...f, actual_construction_completion: e.target.value || null }))}
+              />
+            </div>
+          </div>
+
+          {/* Complexity Tier */}
+          <div className="space-y-2">
+            <Label>Complexity Tier</Label>
+            <Select
+              value={form.project_complexity_tier || "__none__"}
+              onValueChange={(val) => setForm((f) => ({ ...f, project_complexity_tier: val === "__none__" ? null : val }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select tier" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">None</SelectItem>
+                <SelectItem value="tier_1">Tier 1 — Cosmetic / &lt;2k SF / Residential</SelectItem>
+                <SelectItem value="tier_2">Tier 2 — Mechanical / 2-5k SF / Mixed-Use</SelectItem>
+                <SelectItem value="tier_3">Tier 3 — Structural / 5-15k SF / Commercial</SelectItem>
+                <SelectItem value="tier_4">Tier 4 — New Building / &gt;15k SF / Complex</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* General Contractor */}
+          <Separator />
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">General Contractor</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Company</Label>
+              <Input
+                value={form.gc_company_name || ""}
+                onChange={(e) => setForm((f) => ({ ...f, gc_company_name: e.target.value }))}
+                placeholder="GC company name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Contact Name</Label>
+              <Input
+                value={form.gc_contact_name || ""}
+                onChange={(e) => setForm((f) => ({ ...f, gc_contact_name: e.target.value }))}
+                placeholder="Contact person"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Phone</Label>
+              <Input
+                value={form.gc_phone || ""}
+                onChange={(e) => setForm((f) => ({ ...f, gc_phone: e.target.value }))}
+                placeholder="(555) 123-4567"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={form.gc_email || ""}
+                onChange={(e) => setForm((f) => ({ ...f, gc_email: e.target.value }))}
+                placeholder="gc@example.com"
+              />
+            </div>
+          </div>
+
+          {/* Architect / Engineer */}
+          <Separator />
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Architect / Engineer</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Firm</Label>
+              <Input
+                value={form.architect_company_name || ""}
+                onChange={(e) => setForm((f) => ({ ...f, architect_company_name: e.target.value }))}
+                placeholder="Architecture firm"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Contact Name</Label>
+              <Input
+                value={form.architect_contact_name || ""}
+                onChange={(e) => setForm((f) => ({ ...f, architect_contact_name: e.target.value }))}
+                placeholder="Contact person"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Phone</Label>
+              <Input
+                value={form.architect_phone || ""}
+                onChange={(e) => setForm((f) => ({ ...f, architect_phone: e.target.value }))}
+                placeholder="(555) 123-4567"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={form.architect_email || ""}
+                onChange={(e) => setForm((f) => ({ ...f, architect_email: e.target.value }))}
+                placeholder="architect@example.com"
+              />
+            </div>
+          </div>
+
           {/* Notes */}
+          <Separator />
           <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
             <Textarea
