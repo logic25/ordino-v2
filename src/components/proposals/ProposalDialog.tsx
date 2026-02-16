@@ -5,8 +5,6 @@ import { z } from "zod";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -34,11 +32,11 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import type { ProposalWithRelations, ProposalFormInput } from "@/hooks/useProposals";
 import { useProperties, useCreateProperty } from "@/hooks/useProperties";
@@ -61,25 +59,11 @@ const itemSchema = z.object({
 });
 
 const LEAD_SOURCES = [
-  "Referral",
-  "Website",
-  "Cold Call",
-  "Architect",
-  "Repeat Client",
-  "Walk-in",
-  "Other",
+  "Referral", "Website", "Cold Call", "Architect", "Repeat Client", "Walk-in", "Other",
 ] as const;
 
 const PROJECT_TYPES = [
-  "Residential",
-  "Commercial",
-  "Industrial",
-  "Mixed-Use",
-  "Institutional",
-  "Healthcare",
-  "Hospitality",
-  "Retail",
-  "Other",
+  "Residential", "Commercial", "Industrial", "Mixed-Use", "Institutional", "Healthcare", "Hospitality", "Retail", "Other",
 ] as const;
 
 const proposalSchema = z.object({
@@ -107,12 +91,11 @@ const proposalSchema = z.object({
 
 type FormData = z.infer<typeof proposalSchema>;
 
-// Inline service row with autocomplete for service name from catalog
-function ServiceRow({
+/* ─── Service Line Item ─── */
+function ServiceLineItem({
   index,
   form,
   lineTotal,
-  currentName,
   serviceCatalog,
   formatCurrency,
   canRemove,
@@ -121,15 +104,16 @@ function ServiceRow({
   index: number;
   form: any;
   lineTotal: number;
-  currentName: string;
   serviceCatalog: ServiceCatalogItem[];
   formatCurrency: (v: number) => string;
   canRemove: boolean;
   onRemove: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const currentName = form.watch(`items.${index}.name`) || "";
+  const currentDesc = form.watch(`items.${index}.description`) || "";
 
   const filtered = serviceCatalog.filter((s) =>
     s.name.toLowerCase().includes((search || currentName).toLowerCase())
@@ -140,138 +124,146 @@ function ServiceRow({
     form.setValue(`items.${index}.description`, service.description || "");
     form.setValue(`items.${index}.unit_price`, service.default_price || 0);
     form.setValue(`items.${index}.estimated_hours`, service.default_hours || 0);
-    setOpen(false);
+    setCatalogOpen(false);
     setSearch("");
   };
 
   return (
-    <>
-      <tr className="border-t group">
-        <td className="p-1">
-          <Popover open={open} onOpenChange={setOpen}>
+    <div className="border rounded-lg bg-card">
+      {/* Main row */}
+      <div className="flex items-center gap-2 p-2.5">
+        <button
+          type="button"
+          className="shrink-0 p-0.5 rounded hover:bg-muted transition-colors"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          )}
+        </button>
+
+        {/* Service name with autocomplete */}
+        <div className="flex-1 min-w-0">
+          <Popover open={catalogOpen} onOpenChange={setCatalogOpen}>
             <PopoverTrigger asChild>
               <Input
-                placeholder="Type or select service…"
-                className="border-0 shadow-none focus-visible:ring-0 h-8 cursor-pointer"
+                placeholder="Type or select a service…"
+                className="h-8 text-sm font-medium border-0 shadow-none focus-visible:ring-1 focus-visible:ring-ring px-2"
                 value={currentName}
                 onChange={(e) => {
                   form.setValue(`items.${index}.name`, e.target.value);
                   setSearch(e.target.value);
-                  if (!open && e.target.value) setOpen(true);
+                  if (!catalogOpen && e.target.value && serviceCatalog.length > 0) setCatalogOpen(true);
                 }}
-                onFocus={() => { if (serviceCatalog.length > 0) setOpen(true); }}
+                onFocus={() => { if (serviceCatalog.length > 0 && !currentName) setCatalogOpen(true); }}
               />
             </PopoverTrigger>
             {serviceCatalog.length > 0 && (
-              <PopoverContent className="w-[300px] p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+              <PopoverContent className="w-[320px] p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
                 <div className="max-h-[200px] overflow-y-auto">
-                  {filtered.length > 0 ? (
-                    filtered.map((service) => (
-                      <button
-                        key={service.id}
-                        type="button"
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent/50 flex justify-between items-center"
-                        onClick={() => handleSelectService(service)}
-                      >
-                        <span>{service.name}</span>
-                        {service.default_price ? (
-                          <span className="text-muted-foreground text-xs">{formatCurrency(service.default_price)}</span>
-                        ) : null}
-                      </button>
-                    ))
-                  ) : (
+                  {filtered.length > 0 ? filtered.map((service) => (
+                    <button
+                      key={service.id}
+                      type="button"
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex justify-between items-center border-b last:border-0"
+                      onClick={() => handleSelectService(service)}
+                    >
+                      <div>
+                        <div className="font-medium">{service.name}</div>
+                        {service.description && (
+                          <div className="text-xs text-muted-foreground truncate max-w-[220px]">{service.description}</div>
+                        )}
+                      </div>
+                      {service.default_price ? (
+                        <span className="text-xs text-muted-foreground shrink-0 ml-2">{formatCurrency(service.default_price)}</span>
+                      ) : null}
+                    </button>
+                  )) : (
                     <div className="px-3 py-2 text-sm text-muted-foreground">No matching services</div>
                   )}
                 </div>
               </PopoverContent>
             )}
           </Popover>
-        </td>
-        <td className="p-1">
-          <Input
-            type="number"
-            min="0"
-            step="0.01"
-            className="border-0 shadow-none focus-visible:ring-0 h-8"
-            {...form.register(`items.${index}.quantity`)}
-          />
-        </td>
-        <td className="p-1">
-          <Input
-            type="number"
-            min="0"
-            step="0.01"
-            className="border-0 shadow-none focus-visible:ring-0 h-8"
-            {...form.register(`items.${index}.unit_price`)}
-          />
-        </td>
-        <td className="p-1">
-          <Input
-            type="number"
-            min="0"
-            step="0.5"
-            className="border-0 shadow-none focus-visible:ring-0 h-8"
-            {...form.register(`items.${index}.estimated_hours`)}
-          />
-        </td>
-        <td className="p-1">
-          <Input
-            type="number"
-            min="0"
-            max="100"
-            step="1"
-            className="border-0 shadow-none focus-visible:ring-0 h-8"
-            {...form.register(`items.${index}.discount_percent`)}
-          />
-        </td>
-        <td className="p-2 text-right font-medium">
-          {formatCurrency(lineTotal)}
-        </td>
-        <td className="p-1">
-          <div className="flex items-center gap-0.5">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={() => setExpanded(!expanded)}
-              title="Edit details"
-            >
-              <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
-            </Button>
-            {canRemove && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={onRemove}
-              >
-                <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-              </Button>
-            )}
+          {currentDesc && !expanded && (
+            <p className="text-xs text-muted-foreground truncate px-2 mt-0.5">{currentDesc}</p>
+          )}
+        </div>
+
+        {/* Inline numeric fields */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="w-14">
+            <Input
+              type="number" min="0" step="0.01"
+              className="h-8 text-sm text-center border-0 shadow-none focus-visible:ring-1 focus-visible:ring-ring px-1"
+              placeholder="Qty"
+              {...form.register(`items.${index}.quantity`)}
+            />
           </div>
-        </td>
-      </tr>
+          <span className="text-muted-foreground text-xs">×</span>
+          <div className="w-20">
+            <Input
+              type="number" min="0" step="0.01"
+              className="h-8 text-sm text-right border-0 shadow-none focus-visible:ring-1 focus-visible:ring-ring px-1"
+              placeholder="Price"
+              {...form.register(`items.${index}.unit_price`)}
+            />
+          </div>
+          <span className="text-sm font-semibold w-20 text-right tabular-nums">{formatCurrency(lineTotal)}</span>
+        </div>
+
+        {canRemove && (
+          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={onRemove}>
+            <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+          </Button>
+        )}
+      </div>
+
+      {/* Expanded detail */}
       {expanded && (
-        <tr className="border-t bg-muted/30">
-          <td colSpan={7} className="p-2">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Description</Label>
-              <Textarea
-                placeholder="Service description or scope details…"
-                rows={2}
-                className="text-sm"
-                {...form.register(`items.${index}.description`)}
-              />
+        <div className="border-t bg-muted/30 p-3 space-y-3">
+          <div>
+            <Label className="text-xs text-muted-foreground mb-1 block">Description / Scope</Label>
+            <Textarea
+              placeholder="Describe the scope of this service…"
+              rows={2}
+              className="text-sm"
+              {...form.register(`items.${index}.description`)}
+            />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <Label className="text-xs text-muted-foreground mb-1 block">Est. Hours</Label>
+              <Input type="number" min="0" step="0.5" className="h-8 text-sm" {...form.register(`items.${index}.estimated_hours`)} />
             </div>
-          </td>
-        </tr>
+            <div>
+              <Label className="text-xs text-muted-foreground mb-1 block">Discount %</Label>
+              <Input type="number" min="0" max="100" step="1" className="h-8 text-sm" {...form.register(`items.${index}.discount_percent`)} />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground mb-1 block">Line Total</Label>
+              <div className="h-8 flex items-center text-sm font-semibold">{formatCurrency(lineTotal)}</div>
+            </div>
+          </div>
+        </div>
       )}
-    </>
+    </div>
   );
 }
 
+/* ─── Section header helper ─── */
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 pt-2 pb-1">
+      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{children}</span>
+      <Separator className="flex-1" />
+    </div>
+  );
+}
+
+/* ─── Main Dialog ─── */
 interface ProposalDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -296,7 +288,7 @@ export function ProposalDialog({
   const { data: profiles = [] } = useCompanyProfiles();
   const createClient = useCreateClient();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("details");
+  const [activeTab, setActiveTab] = useState("services");
   const [contacts, setContacts] = useState<ProposalContactInput[]>([]);
   const [propertyOpen, setPropertyOpen] = useState(false);
   const [propertySearch, setPropertySearch] = useState("");
@@ -304,7 +296,6 @@ export function ProposalDialog({
 
   const { data: existingContacts = [] } = useProposalContacts(proposal?.id);
 
-  // Sync existing contacts when editing (only on initial load)
   useEffect(() => {
     if (proposal && existingContacts.length > 0) {
       setContacts(existingContacts.map(c => ({
@@ -324,16 +315,6 @@ export function ProposalDialog({
   const serviceCatalog = companyData?.settings?.service_catalog || [];
   const defaultTerms = companyData?.settings?.default_terms || "";
 
-  const newFieldDefaults = {
-    lead_source: "",
-    project_type: "",
-    sales_person_id: "",
-    billed_to_name: "",
-    billed_to_email: "",
-    reminder_date: "",
-    notable: false,
-  };
-
   const form = useForm<FormData>({
     resolver: zodResolver(proposalSchema),
     defaultValues: {
@@ -348,7 +329,13 @@ export function ProposalDialog({
       client_email: "",
       notes: "",
       terms_conditions: defaultTerms,
-      ...newFieldDefaults,
+      lead_source: "",
+      project_type: "",
+      sales_person_id: "",
+      billed_to_name: "",
+      billed_to_email: "",
+      reminder_date: "",
+      notable: false,
       items: [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0 }],
     },
   });
@@ -367,7 +354,7 @@ export function ProposalDialog({
         payment_terms: proposal.payment_terms || "",
         deposit_required: proposal.deposit_required ? Number(proposal.deposit_required) : undefined,
         deposit_percentage: proposal.deposit_percentage ? Number(proposal.deposit_percentage) : undefined,
-        retainer_amount: (proposal as any).retainer_amount ? Number((proposal as any).retainer_amount) : undefined,
+        retainer_amount: p.retainer_amount ? Number(p.retainer_amount) : undefined,
         valid_until: proposal.valid_until || "",
         client_id: p.client_id || "",
         client_name: proposal.client_name || "",
@@ -380,6 +367,7 @@ export function ProposalDialog({
         billed_to_name: p.billed_to_name || "",
         billed_to_email: p.billed_to_email || "",
         reminder_date: p.reminder_date || "",
+        notable: p.notable || false,
         items: proposal.items?.length ? proposal.items.map(i => ({
           id: i.id,
           name: i.name,
@@ -404,7 +392,13 @@ export function ProposalDialog({
         client_email: "",
         notes: "",
         terms_conditions: defaultTerms,
-        ...newFieldDefaults,
+        lead_source: "",
+        project_type: "",
+        sales_person_id: "",
+        billed_to_name: "",
+        billed_to_email: "",
+        reminder_date: "",
+        notable: false,
         items: [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0 }],
       });
       setContacts([]);
@@ -412,7 +406,7 @@ export function ProposalDialog({
   }, [proposal, form, defaultPropertyId, defaultTerms]);
 
   const watchedItems = form.watch("items");
-  
+
   const calculateLineTotal = (item: typeof watchedItems[0]) => {
     const qty = Number(item.quantity) || 0;
     const price = Number(item.unit_price) || 0;
@@ -425,26 +419,14 @@ export function ProposalDialog({
   const subtotal = watchedItems.reduce((sum, item) => sum + calculateLineTotal(item), 0);
   const totalHours = watchedItems.reduce((sum, item) => sum + (Number(item.estimated_hours) || 0), 0);
 
-
-  const handleAddServiceFromCatalog = (service: ServiceCatalogItem) => {
-    appendItem({
-      name: service.name,
-      description: service.description || "",
-      quantity: 1,
-      unit_price: service.default_price || 0,
-      estimated_hours: service.default_hours || 0,
-      discount_percent: 0,
-    });
-  };
-
-  // Switch to the tab containing the first validation error
   const onFormError = (errors: any) => {
-    if (errors.property_id || errors.title || errors.project_type || errors.lead_source || errors.client_id || errors.client_name || errors.client_email || errors.sales_person_id || errors.billed_to_name || errors.billed_to_email) {
-      setActiveTab("details");
+    // Property/title errors are always visible at top — just show toast
+    if (errors.property_id || errors.title) {
+      toast({ title: "Missing required fields", description: "Property and Title are required.", variant: "destructive" });
     } else if (errors.items) {
       setActiveTab("services");
-    } else if (errors.payment_terms || errors.terms_conditions || errors.notes) {
-      setActiveTab("terms");
+    } else {
+      setActiveTab("details");
     }
   };
 
@@ -485,370 +467,258 @@ export function ProposalDialog({
     setContacts([]);
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(value);
-  };
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[1000px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {isEditing ? "Edit Proposal" : "New Proposal"}
-          </DialogTitle>
-          <DialogDescription>
-            {isEditing
-              ? "Update the proposal details."
-              : "Create a new proposal for a property."}
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] flex flex-col p-0 gap-0">
+        {/* ── Header with key fields always visible ── */}
+        <div className="px-6 pt-5 pb-4 border-b space-y-4">
+          <DialogHeader>
+            <DialogTitle className="text-lg">
+              {isEditing ? "Edit Proposal" : "New Proposal"}
+            </DialogTitle>
+          </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(handleSubmit, onFormError)} className="space-y-4">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="details">Details</TabsTrigger>
-              <TabsTrigger value="services">Services</TabsTrigger>
-              <TabsTrigger value="terms">Terms & Notes</TabsTrigger>
-            </TabsList>
-
-            {/* Details Tab */}
-            <TabsContent value="details" className="space-y-4 mt-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Property *</Label>
-                  <Popover open={propertyOpen} onOpenChange={setPropertyOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={propertyOpen}
-                        className="w-full justify-between font-normal"
-                      >
-                        {form.watch("property_id")
-                          ? properties.find((p) => p.id === form.watch("property_id"))?.address ?? "Select property…"
-                          : "Search properties…"}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[400px] p-0" align="start">
-                      <Command shouldFilter={true}>
-                        <CommandInput
-                          placeholder="Type an address…"
-                          value={propertySearch}
-                          onValueChange={setPropertySearch}
-                        />
-                        <CommandList>
-                          <CommandEmpty className="p-0">
-                            <button
-                              type="button"
-                              className="w-full px-4 py-3 text-sm text-left hover:bg-accent flex items-center gap-2"
-                              onClick={async () => {
-                                if (!propertySearch.trim()) return;
-                                try {
-                                  const newProp = await createProperty.mutateAsync({
-                                    address: propertySearch.trim(),
-                                  });
-                                  form.setValue("property_id", newProp.id);
-                                  setPropertySearch("");
-                                  setPropertyOpen(false);
-                                  toast({ title: "Property created", description: newProp.address });
-                                } catch (e: any) {
-                                  toast({ title: "Error", description: e.message, variant: "destructive" });
-                                }
-                              }}
-                            >
-                              <Plus className="h-4 w-4" />
-                              Add "{propertySearch}" as new property
-                            </button>
-                          </CommandEmpty>
-                          <CommandGroup>
-                            {properties.map((p) => (
-                              <CommandItem
-                                key={p.id}
-                                value={p.address}
-                                onSelect={() => {
-                                  form.setValue("property_id", p.id);
-                                  setPropertySearch("");
-                                  setPropertyOpen(false);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    form.watch("property_id") === p.id ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {p.address}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  {form.formState.errors.property_id && (
-                    <p className="text-sm text-destructive">
-                      {form.formState.errors.property_id.message}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="title">Proposal Title *</Label>
-                  <Input
-                    id="title"
-                    placeholder="e.g., Full Permit Package"
-                    {...form.register("title")}
-                  />
-                  {form.formState.errors.title && (
-                    <p className="text-sm text-destructive">
-                      {form.formState.errors.title.message}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Project Type</Label>
-                  <Select
-                    value={form.watch("project_type") || ""}
-                    onValueChange={(value) => form.setValue("project_type", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PROJECT_TYPES.map((t) => (
-                        <SelectItem key={t} value={t}>{t}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Lead Source</Label>
-                  <Select
-                    value={form.watch("lead_source") || ""}
-                    onValueChange={(value) => form.setValue("lead_source", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LEAD_SOURCES.map((s) => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Sales Person</Label>
-                  <Select
-                    value={form.watch("sales_person_id") || ""}
-                    onValueChange={(value) => form.setValue("sales_person_id", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {profiles.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.first_name} {p.last_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Reminder</Label>
-                  <Input type="date" {...form.register("reminder_date")} />
-                </div>
-              </div>
-
-              {/* Multi-Contact Support */}
-              <ProposalContactsSection
-                contacts={contacts}
-                onChange={setContacts}
-                clients={clients}
-                onAddClient={async (name, email) => {
-                  const newClient = await createClient.mutateAsync({ name, email: email || null });
-                  return newClient;
-                }}
-                isAddingClient={createClient.isPending}
-              />
-
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Deposit %</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    placeholder="50"
-                    {...form.register("deposit_percentage")}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Valid Until</Label>
-                  <Input type="date" {...form.register("valid_until")} />
-                </div>
-                <div className="flex items-end pb-1">
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <Switch
-                      checked={form.watch("notable") || false}
-                      onCheckedChange={(checked) => form.setValue("notable", checked)}
-                    />
-                    Notable Project
-                  </label>
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* Services Tab - Spreadsheet Style */}
-            <TabsContent value="services" className="space-y-4 mt-4">
-              <div className="border rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      <th className="text-left p-2 font-medium min-w-[180px]">Service</th>
-                      <th className="text-left p-2 font-medium w-20">Qty</th>
-                      <th className="text-left p-2 font-medium w-24">Unit Price</th>
-                      <th className="text-left p-2 font-medium w-20">Hours</th>
-                      <th className="text-left p-2 font-medium w-20">Disc %</th>
-                      <th className="text-right p-2 font-medium w-28">Total</th>
-                      <th className="w-10"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {itemFields.map((field, index) => {
-                      const lineTotal = calculateLineTotal(watchedItems[index] || {});
-                      const currentName = form.watch(`items.${index}.name`) || "";
-
-                      return (
-                        <ServiceRow
-                          key={field.id}
-                          index={index}
-                          form={form}
-                          lineTotal={lineTotal}
-                          currentName={currentName}
-                          serviceCatalog={serviceCatalog}
-                          formatCurrency={formatCurrency}
-                          canRemove={itemFields.length > 1}
-                          onRemove={() => removeItem(index)}
-                        />
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => appendItem({ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0 })}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Service
-              </Button>
-
-              {/* Totals */}
-              <Card>
-                <CardContent className="pt-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Total Hours</span>
-                    <span className="font-medium">{totalHours} hrs</span>
-                  </div>
-                  <div className="flex justify-between border-t pt-2">
-                    <span className="font-semibold">Total</span>
-                    <span className="font-bold text-lg">{formatCurrency(subtotal)}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Terms & Notes Tab */}
-            <TabsContent value="terms" className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="payment_terms">Payment Terms</Label>
-                <Textarea
-                  id="payment_terms"
-                  placeholder="e.g., 50% deposit upon signing, balance due upon permit approval"
-                  rows={3}
-                  {...form.register("payment_terms")}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="retainer_amount">Retainer Amount ($)</Label>
-                <Input
-                  id="retainer_amount"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  {...form.register("retainer_amount")}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Amount required upfront. Leave at $0 if no retainer. Carries to the project on conversion.
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="terms_conditions">Terms & Conditions</Label>
-                <Textarea
-                  id="terms_conditions"
-                  placeholder="Enter terms and conditions..."
-                  rows={6}
-                  {...form.register("terms_conditions")}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Configure default terms in Settings → Company
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="notes">Internal Notes</Label>
-                <Textarea
-                  id="notes"
-                  placeholder="Notes visible only to your team..."
-                  rows={3}
-                  {...form.register("notes")}
-                />
-              </div>
-            </TabsContent>
-          </Tabs>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="bg-accent text-accent-foreground hover:bg-accent/90"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isEditing ? "Updating..." : "Creating..."}
-                </>
-              ) : isEditing ? (
-                "Update Proposal"
-              ) : (
-                "Create Proposal"
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Property */}
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Property *</Label>
+              <Popover open={propertyOpen} onOpenChange={setPropertyOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" role="combobox" className="w-full justify-between font-normal h-9 text-sm">
+                    {form.watch("property_id")
+                      ? properties.find((p) => p.id === form.watch("property_id"))?.address ?? "Select…"
+                      : "Search properties…"}
+                    <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[380px] p-0" align="start">
+                  <Command shouldFilter={true}>
+                    <CommandInput placeholder="Type an address…" value={propertySearch} onValueChange={setPropertySearch} />
+                    <CommandList>
+                      <CommandEmpty className="p-0">
+                        <button
+                          type="button"
+                          className="w-full px-4 py-3 text-sm text-left hover:bg-muted flex items-center gap-2"
+                          onClick={async () => {
+                            if (!propertySearch.trim()) return;
+                            try {
+                              const newProp = await createProperty.mutateAsync({ address: propertySearch.trim() });
+                              form.setValue("property_id", newProp.id);
+                              setPropertySearch("");
+                              setPropertyOpen(false);
+                              toast({ title: "Property created", description: newProp.address });
+                            } catch (e: any) {
+                              toast({ title: "Error", description: e.message, variant: "destructive" });
+                            }
+                          }}
+                        >
+                          <Plus className="h-4 w-4" />
+                          Add "{propertySearch}" as new property
+                        </button>
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {properties.map((p) => (
+                          <CommandItem key={p.id} value={p.address} onSelect={() => {
+                            form.setValue("property_id", p.id);
+                            setPropertySearch("");
+                            setPropertyOpen(false);
+                          }}>
+                            <Check className={cn("mr-2 h-4 w-4", form.watch("property_id") === p.id ? "opacity-100" : "opacity-0")} />
+                            {p.address}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {form.formState.errors.property_id && (
+                <p className="text-xs text-destructive">{form.formState.errors.property_id.message}</p>
               )}
-            </Button>
-          </DialogFooter>
+            </div>
+
+            {/* Title */}
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Proposal Title *</Label>
+              <Input className="h-9 text-sm" placeholder="e.g., Full Permit Package" {...form.register("title")} />
+              {form.formState.errors.title && (
+                <p className="text-xs text-destructive">{form.formState.errors.title.message}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Scrollable body ── */}
+        <form onSubmit={form.handleSubmit(handleSubmit, onFormError)} className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 overflow-y-auto">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <div className="px-6 pt-3 border-b">
+                <TabsList className="bg-transparent p-0 h-auto gap-4">
+                  <TabsTrigger value="services" className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:shadow-none px-1 pb-2.5 text-sm">
+                    Services
+                  </TabsTrigger>
+                  <TabsTrigger value="details" className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:shadow-none px-1 pb-2.5 text-sm">
+                    Details & Contacts
+                  </TabsTrigger>
+                  <TabsTrigger value="terms" className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:shadow-none px-1 pb-2.5 text-sm">
+                    Terms & Notes
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              {/* ═══ SERVICES TAB ═══ */}
+              <TabsContent value="services" className="px-6 py-4 space-y-3 mt-0">
+                <div className="space-y-2">
+                  {itemFields.map((field, index) => {
+                    const lineTotal = calculateLineTotal(watchedItems[index] || {});
+                    return (
+                      <ServiceLineItem
+                        key={field.id}
+                        index={index}
+                        form={form}
+                        lineTotal={lineTotal}
+                        serviceCatalog={serviceCatalog}
+                        formatCurrency={formatCurrency}
+                        canRemove={itemFields.length > 1}
+                        onRemove={() => removeItem(index)}
+                      />
+                    );
+                  })}
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-dashed"
+                  onClick={() => appendItem({ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0 })}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Service
+                </Button>
+              </TabsContent>
+
+              {/* ═══ DETAILS & CONTACTS TAB ═══ */}
+              <TabsContent value="details" className="px-6 py-4 space-y-4 mt-0">
+                <SectionLabel>Classification</SectionLabel>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Project Type</Label>
+                    <Select value={form.watch("project_type") || ""} onValueChange={(v) => form.setValue("project_type", v)}>
+                      <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
+                      <SelectContent>
+                        {PROJECT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Lead Source</Label>
+                    <Select value={form.watch("lead_source") || ""} onValueChange={(v) => form.setValue("lead_source", v)}>
+                      <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
+                      <SelectContent>
+                        {LEAD_SOURCES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Sales Person</Label>
+                    <Select value={form.watch("sales_person_id") || ""} onValueChange={(v) => form.setValue("sales_person_id", v)}>
+                      <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
+                      <SelectContent>
+                        {profiles.map((p) => <SelectItem key={p.id} value={p.id}>{p.first_name} {p.last_name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Follow-up Reminder</Label>
+                    <Input type="date" className="h-9 text-sm" {...form.register("reminder_date")} />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 pt-1">
+                  <Switch checked={form.watch("notable") || false} onCheckedChange={(c) => form.setValue("notable", c)} />
+                  <Label className="text-sm cursor-pointer">Notable Project</Label>
+                </div>
+
+                <SectionLabel>Contacts</SectionLabel>
+                <ProposalContactsSection
+                  contacts={contacts}
+                  onChange={setContacts}
+                  clients={clients}
+                  onAddClient={async (name, email) => {
+                    const newClient = await createClient.mutateAsync({ name, email: email || null });
+                    return newClient;
+                  }}
+                  isAddingClient={createClient.isPending}
+                />
+
+                <SectionLabel>Financial</SectionLabel>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Deposit %</Label>
+                    <Input type="number" min="0" max="100" placeholder="50" className="h-9 text-sm" {...form.register("deposit_percentage")} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Valid Until</Label>
+                    <Input type="date" className="h-9 text-sm" {...form.register("valid_until")} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Retainer ($)</Label>
+                    <Input type="number" min="0" step="0.01" placeholder="0.00" className="h-9 text-sm" {...form.register("retainer_amount")} />
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* ═══ TERMS & NOTES TAB ═══ */}
+              <TabsContent value="terms" className="px-6 py-4 space-y-4 mt-0">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Payment Terms</Label>
+                  <Textarea placeholder="e.g., 50% deposit upon signing, balance due upon permit approval" rows={3} className="text-sm" {...form.register("payment_terms")} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Terms & Conditions</Label>
+                  <Textarea placeholder="Enter terms and conditions..." rows={5} className="text-sm" {...form.register("terms_conditions")} />
+                  <p className="text-xs text-muted-foreground">Default terms can be set in Settings → Company</p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Internal Notes</Label>
+                  <Textarea placeholder="Notes visible only to your team…" rows={3} className="text-sm" {...form.register("notes")} />
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          {/* ── Sticky footer with total + actions ── */}
+          <div className="border-t px-6 py-3 flex items-center justify-between bg-background">
+            <div className="flex items-center gap-4 text-sm">
+              <span className="text-muted-foreground">{totalHours > 0 && `${totalHours} hrs · `}Total</span>
+              <span className="text-lg font-bold tabular-nums">{formatCurrency(subtotal)}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={isLoading}
+                className="bg-accent text-accent-foreground hover:bg-accent/90"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {isEditing ? "Updating…" : "Creating…"}
+                  </>
+                ) : isEditing ? "Update Proposal" : "Create Proposal"}
+              </Button>
+            </div>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
