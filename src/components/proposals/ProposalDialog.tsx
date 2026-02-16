@@ -38,6 +38,7 @@ import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import type { ProposalWithRelations, ProposalFormInput } from "@/hooks/useProposals";
 import { useProperties, useCreateProperty } from "@/hooks/useProperties";
@@ -105,6 +106,171 @@ const proposalSchema = z.object({
 });
 
 type FormData = z.infer<typeof proposalSchema>;
+
+// Inline service row with autocomplete for service name from catalog
+function ServiceRow({
+  index,
+  form,
+  lineTotal,
+  currentName,
+  serviceCatalog,
+  formatCurrency,
+  canRemove,
+  onRemove,
+}: {
+  index: number;
+  form: any;
+  lineTotal: number;
+  currentName: string;
+  serviceCatalog: ServiceCatalogItem[];
+  formatCurrency: (v: number) => string;
+  canRemove: boolean;
+  onRemove: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const filtered = serviceCatalog.filter((s) =>
+    s.name.toLowerCase().includes((search || currentName).toLowerCase())
+  );
+
+  const handleSelectService = (service: ServiceCatalogItem) => {
+    form.setValue(`items.${index}.name`, service.name);
+    form.setValue(`items.${index}.description`, service.description || "");
+    form.setValue(`items.${index}.unit_price`, service.default_price || 0);
+    form.setValue(`items.${index}.estimated_hours`, service.default_hours || 0);
+    setOpen(false);
+    setSearch("");
+  };
+
+  return (
+    <>
+      <tr className="border-t group">
+        <td className="p-1">
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <Input
+                placeholder="Type or select service…"
+                className="border-0 shadow-none focus-visible:ring-0 h-8 cursor-pointer"
+                value={currentName}
+                onChange={(e) => {
+                  form.setValue(`items.${index}.name`, e.target.value);
+                  setSearch(e.target.value);
+                  if (!open && e.target.value) setOpen(true);
+                }}
+                onFocus={() => { if (serviceCatalog.length > 0) setOpen(true); }}
+              />
+            </PopoverTrigger>
+            {serviceCatalog.length > 0 && (
+              <PopoverContent className="w-[300px] p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+                <div className="max-h-[200px] overflow-y-auto">
+                  {filtered.length > 0 ? (
+                    filtered.map((service) => (
+                      <button
+                        key={service.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent/50 flex justify-between items-center"
+                        onClick={() => handleSelectService(service)}
+                      >
+                        <span>{service.name}</span>
+                        {service.default_price ? (
+                          <span className="text-muted-foreground text-xs">{formatCurrency(service.default_price)}</span>
+                        ) : null}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">No matching services</div>
+                  )}
+                </div>
+              </PopoverContent>
+            )}
+          </Popover>
+        </td>
+        <td className="p-1">
+          <Input
+            type="number"
+            min="0"
+            step="0.01"
+            className="border-0 shadow-none focus-visible:ring-0 h-8"
+            {...form.register(`items.${index}.quantity`)}
+          />
+        </td>
+        <td className="p-1">
+          <Input
+            type="number"
+            min="0"
+            step="0.01"
+            className="border-0 shadow-none focus-visible:ring-0 h-8"
+            {...form.register(`items.${index}.unit_price`)}
+          />
+        </td>
+        <td className="p-1">
+          <Input
+            type="number"
+            min="0"
+            step="0.5"
+            className="border-0 shadow-none focus-visible:ring-0 h-8"
+            {...form.register(`items.${index}.estimated_hours`)}
+          />
+        </td>
+        <td className="p-1">
+          <Input
+            type="number"
+            min="0"
+            max="100"
+            step="1"
+            className="border-0 shadow-none focus-visible:ring-0 h-8"
+            {...form.register(`items.${index}.discount_percent`)}
+          />
+        </td>
+        <td className="p-2 text-right font-medium">
+          {formatCurrency(lineTotal)}
+        </td>
+        <td className="p-1">
+          <div className="flex items-center gap-0.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={() => setExpanded(!expanded)}
+              title="Edit details"
+            >
+              <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+            </Button>
+            {canRemove && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={onRemove}
+              >
+                <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+              </Button>
+            )}
+          </div>
+        </td>
+      </tr>
+      {expanded && (
+        <tr className="border-t bg-muted/30">
+          <td colSpan={7} className="p-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Description</Label>
+              <Textarea
+                placeholder="Service description or scope details…"
+                rows={2}
+                className="text-sm"
+                {...form.register(`items.${index}.description`)}
+              />
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
 
 interface ProposalDialogProps {
   open: boolean;
@@ -533,10 +699,9 @@ export function ProposalDialog({
                 </div>
                 <div className="flex items-end pb-1">
                   <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="rounded border-input"
-                      {...form.register("notable")}
+                    <Switch
+                      checked={form.watch("notable") || false}
+                      onCheckedChange={(checked) => form.setValue("notable", checked)}
                     />
                     Notable Project
                   </label>
@@ -546,30 +711,11 @@ export function ProposalDialog({
 
             {/* Services Tab - Spreadsheet Style */}
             <TabsContent value="services" className="space-y-4 mt-4">
-              {serviceCatalog.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  <span className="text-sm text-muted-foreground">Quick add:</span>
-                  {serviceCatalog.map((service) => (
-                    <Button
-                      key={service.id}
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleAddServiceFromCatalog(service)}
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      {service.name}
-                    </Button>
-                  ))}
-                </div>
-              )}
-
               <div className="border rounded-lg overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50">
                     <tr>
-                      <th className="text-left p-2 font-medium">Service</th>
-                      <th className="text-left p-2 font-medium w-[200px]">Description</th>
+                      <th className="text-left p-2 font-medium min-w-[180px]">Service</th>
                       <th className="text-left p-2 font-medium w-20">Qty</th>
                       <th className="text-left p-2 font-medium w-24">Unit Price</th>
                       <th className="text-left p-2 font-medium w-20">Hours</th>
@@ -581,77 +727,20 @@ export function ProposalDialog({
                   <tbody>
                     {itemFields.map((field, index) => {
                       const lineTotal = calculateLineTotal(watchedItems[index] || {});
+                      const currentName = form.watch(`items.${index}.name`) || "";
 
                       return (
-                        <tr key={field.id} className="border-t">
-                          <td className="p-1">
-                            <Input
-                              placeholder="Service name"
-                              className="border-0 shadow-none focus-visible:ring-0 h-8"
-                              {...form.register(`items.${index}.name`)}
-                            />
-                          </td>
-                          <td className="p-1">
-                            <Input
-                              placeholder="Description"
-                              className="border-0 shadow-none focus-visible:ring-0 h-8"
-                              {...form.register(`items.${index}.description`)}
-                            />
-                          </td>
-                          <td className="p-1">
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              className="border-0 shadow-none focus-visible:ring-0 h-8"
-                              {...form.register(`items.${index}.quantity`)}
-                            />
-                          </td>
-                          <td className="p-1">
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              className="border-0 shadow-none focus-visible:ring-0 h-8"
-                              {...form.register(`items.${index}.unit_price`)}
-                            />
-                          </td>
-                          <td className="p-1">
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.5"
-                              className="border-0 shadow-none focus-visible:ring-0 h-8"
-                              {...form.register(`items.${index}.estimated_hours`)}
-                            />
-                          </td>
-                          <td className="p-1">
-                            <Input
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="1"
-                              className="border-0 shadow-none focus-visible:ring-0 h-8"
-                              {...form.register(`items.${index}.discount_percent`)}
-                            />
-                          </td>
-                          <td className="p-2 text-right font-medium">
-                            {formatCurrency(lineTotal)}
-                          </td>
-                          <td className="p-1">
-                            {itemFields.length > 1 && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => removeItem(index)}
-                              >
-                                <Trash2 className="h-4 w-4 text-muted-foreground" />
-                              </Button>
-                            )}
-                          </td>
-                        </tr>
+                        <ServiceRow
+                          key={field.id}
+                          index={index}
+                          form={form}
+                          lineTotal={lineTotal}
+                          currentName={currentName}
+                          serviceCatalog={serviceCatalog}
+                          formatCurrency={formatCurrency}
+                          canRemove={itemFields.length > 1}
+                          onRemove={() => removeItem(index)}
+                        />
                       );
                     })}
                   </tbody>
