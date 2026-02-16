@@ -14,7 +14,7 @@ import {
 import { CollapsibleSettingsCard } from "./CollapsibleSettingsCard";
 import {
   CheckCircle, Save, Plus, Trash2, Eye, Loader2, CreditCard,
-  Mail, RefreshCw, Clock, Upload, Image, Pencil,
+  Mail, RefreshCw, Clock, Upload, Image, Pencil, Receipt,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -114,7 +114,7 @@ export function InvoiceSettings() {
   const deleteRule = useDeleteClientBillingRule();
   const { data: clients = [] } = useClients();
 
-  const s = companyData?.settings || {} as CompanySettings;
+  const s = (companyData?.settings || {}) as any;
 
   // Expand/Collapse all sections
   const [allExpanded, setAllExpanded] = useState(true);
@@ -882,6 +882,59 @@ export function InvoiceSettings() {
             <Plus className="h-3.5 w-3.5" />
             Add Tier
           </Button>
+        </div>
+      </CollapsibleSettingsCard>
+
+      {/* DOB Filing Fee Schedule */}
+      <CollapsibleSettingsCard
+        title="DOB Filing Fee Schedule"
+        description="Configure how DOB filing fees are calculated from estimated job cost"
+        icon={<Receipt className="h-4 w-4" />}
+        isOpen={sectionStates.dobfees ?? false}
+        onOpenChange={(o) => setSectionOpen("dobfees", o)}
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Filing fees are calculated from the estimated job cost provided by the client via the PIS. 
+            Configure the fee tiers below. Ordino will auto-calculate fees when the estimated cost is entered.
+          </p>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Fee Tiers (Estimated Cost → Filing Fee)</Label>
+            {(s.dob_fee_tiers && Array.isArray(s.dob_fee_tiers) ? s.dob_fee_tiers : [
+              { min: 0, max: 25000, fee: 280 },
+              { min: 25001, max: 50000, fee: 395 },
+              { min: 50001, max: 100000, fee: 690 },
+              { min: 100001, max: 250000, fee: 1155 },
+              { min: 250001, max: 500000, fee: 1730 },
+              { min: 500001, max: 1000000, fee: 3465 },
+              { min: 1000001, max: 999999999, fee: 5200 },
+            ]).map((tier: any, idx: number) => (
+              <div key={idx} className="flex items-center gap-2 text-xs">
+                <span className="text-muted-foreground w-6">$</span>
+                <Input type="number" className="w-[100px] h-8 text-xs" value={tier.min} readOnly />
+                <span className="text-muted-foreground">to $</span>
+                <Input type="number" className="w-[100px] h-8 text-xs" value={tier.max === 999999999 ? "∞" : tier.max} readOnly />
+                <span className="text-muted-foreground">→ Fee: $</span>
+                <Input type="number" className="w-[90px] h-8 text-xs" defaultValue={tier.fee} />
+              </div>
+            ))}
+          </div>
+
+          <Separator />
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Firm Markup on DOB Fees (%)</Label>
+              <Input type="number" className="h-8 text-sm" defaultValue={s.dob_fee_markup_pct || 10} />
+              <p className="text-[10px] text-muted-foreground">Applied on top of the DOB fee when billing the client</p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Fee Escrow Account Label</Label>
+              <Input className="h-8 text-sm" defaultValue={s.dob_fee_escrow_label || "DOB Fee Escrow"} />
+              <p className="text-[10px] text-muted-foreground">Label for the separate fee account</p>
+            </div>
+          </div>
         </div>
       </CollapsibleSettingsCard>
 

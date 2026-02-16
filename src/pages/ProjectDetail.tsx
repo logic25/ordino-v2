@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
@@ -23,7 +24,7 @@ import {
   File, GitBranch, DollarSign, MapPin, Building2, User,
   Loader2, ExternalLink, ChevronRight, ChevronDown,
   MessageSquare, CheckCircle2, Send, XCircle, CheckCheck,
-  Phone, Circle, Upload, Search, Plus, AlertTriangle,
+  Phone, Circle, Upload, Search, Plus, AlertTriangle, Trash2,
   ArrowUpRight, ArrowDownLeft, ClipboardList, FileImage,
   FileSpreadsheet, Download, Sparkles, Eye, ShieldCheck, PenLine,
 } from "lucide-react";
@@ -227,7 +228,7 @@ export default function ProjectDetail() {
 // ======== PROPOSAL EXECUTION BANNER ========
 
 function ProposalExecutionBanner({ proposalSig, changeOrders }: { proposalSig: MockProposalSignature; changeOrders: MockChangeOrder[] }) {
-  const unsignedCOs = changeOrders.filter(co => !co.signedByClient && co.status !== "draft");
+  const unsignedCOs = changeOrders.filter(co => (!co.internalSigned || !co.clientSigned) && co.status !== "draft");
 
   return (
     <div className="flex items-center gap-3 flex-wrap">
@@ -277,6 +278,12 @@ function ProposalExecutionBanner({ proposalSig, changeOrders }: { proposalSig: M
 function ReadinessChecklist({ items, pisStatus }: { items: MockChecklistItem[]; pisStatus: MockPISStatus }) {
   const [isOpen, setIsOpen] = useState(false);
   const [showReceived, setShowReceived] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newLabel, setNewLabel] = useState("");
+  const [newFrom, setNewFrom] = useState("");
+  const [newCategory, setNewCategory] = useState("missing_document");
+  const { toast } = useToast();
+
   const outstanding = items.filter(i => !i.done);
   const completed = items.filter(i => i.done);
   const grouped = Object.entries(checklistCategoryLabels).map(([key, { label, icon }]) => ({
@@ -360,6 +367,9 @@ function ReadinessChecklist({ items, pisStatus }: { items: MockChecklistItem[]; 
                       <Badge variant={item.daysWaiting > 7 ? "destructive" : "secondary"} className="text-[10px] shrink-0">
                         {item.daysWaiting}d waiting
                       </Badge>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => toast({ title: "Removed", description: `"${item.label}" removed from checklist.` })}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -389,14 +399,54 @@ function ReadinessChecklist({ items, pisStatus }: { items: MockChecklistItem[]; 
               </Collapsible>
             )}
 
-            <div className="flex items-center gap-2 pt-1">
-              <Button variant="outline" size="sm" className="gap-1.5">
-                <Plus className="h-3.5 w-3.5" /> Add Item
-              </Button>
-              <Button variant="outline" size="sm" className="gap-1.5">
-                <Sparkles className="h-3.5 w-3.5" /> Extract from Emails
-              </Button>
-            </div>
+            {/* Add item form */}
+            {showAddForm ? (
+              <div className="p-3 rounded-lg border bg-muted/20 space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <Input
+                    placeholder="What's needed?"
+                    className="h-8 text-sm"
+                    value={newLabel}
+                    onChange={(e) => setNewLabel(e.target.value)}
+                    autoFocus
+                  />
+                  <Input
+                    placeholder="From whom?"
+                    className="h-8 text-sm"
+                    value={newFrom}
+                    onChange={(e) => setNewFrom(e.target.value)}
+                  />
+                  <Select value={newCategory} onValueChange={setNewCategory}>
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(checklistCategoryLabels).map(([key, { label }]) => (
+                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" className="h-7 text-xs" onClick={() => {
+                    if (newLabel.trim()) {
+                      toast({ title: "Item added", description: newLabel });
+                      setNewLabel(""); setNewFrom(""); setShowAddForm(false);
+                    }
+                  }}>Add</Button>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setNewLabel(""); setNewFrom(""); setShowAddForm(false); }}>Cancel</Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 pt-1">
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowAddForm(true)}>
+                  <Plus className="h-3.5 w-3.5" /> Add Item
+                </Button>
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5" /> Extract from Emails
+                </Button>
+              </div>
+            )}
           </CardContent>
         </CollapsibleContent>
       </Card>
@@ -407,6 +457,12 @@ function ReadinessChecklist({ items, pisStatus }: { items: MockChecklistItem[]; 
 // ======== SERVICES ========
 
 function ServiceExpandedDetail({ service }: { service: MockService }) {
+  const [notes, setNotes] = useState(service.notes || "");
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [showAddReq, setShowAddReq] = useState(false);
+  const [newReqLabel, setNewReqLabel] = useState("");
+  const { toast } = useToast();
+
   return (
     <div className="px-8 py-5 space-y-5 bg-muted/10">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -435,28 +491,77 @@ function ServiceExpandedDetail({ service }: { service: MockService }) {
         <div>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <MessageSquare className="h-3.5 w-3.5" /> Notes
+            {!editingNotes && (
+              <Button variant="ghost" size="icon" className="h-5 w-5 ml-1" onClick={() => setEditingNotes(true)}>
+                <Pencil className="h-3 w-3" />
+              </Button>
+            )}
           </h4>
-          {service.notes ? <p className="text-sm leading-relaxed">{service.notes}</p> : <p className="text-sm text-muted-foreground italic">No notes.</p>}
+          {editingNotes ? (
+            <div className="space-y-2">
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="min-h-[80px] text-sm"
+                placeholder="Add notes about this service..."
+              />
+              <div className="flex gap-2">
+                <Button size="sm" className="h-7 text-xs gap-1" onClick={() => { setEditingNotes(false); toast({ title: "Notes saved" }); }}>
+                  Save
+                </Button>
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setNotes(service.notes || ""); setEditingNotes(false); }}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : notes ? (
+            <p className="text-sm leading-relaxed cursor-pointer hover:bg-muted/30 rounded p-1 -m-1 transition-colors" onClick={() => setEditingNotes(true)}>{notes}</p>
+          ) : (
+            <p className="text-sm text-muted-foreground italic cursor-pointer hover:bg-muted/30 rounded p-1 -m-1 transition-colors" onClick={() => setEditingNotes(true)}>Click to add notes...</p>
+          )}
         </div>
       </div>
 
       {/* Requirements */}
-      {service.requirements.length > 0 && (
-        <div>
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <AlertTriangle className="h-3.5 w-3.5" /> Requirements ({service.requirements.filter(r => !r.met).length} pending)
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
+      <div>
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <AlertTriangle className="h-3.5 w-3.5" /> Requirements ({service.requirements.filter(r => !r.met).length} pending)
+        </h4>
+        {service.requirements.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 mb-2">
             {service.requirements.map((req) => (
               <div key={req.id} className={`flex items-center gap-2 text-sm py-1.5 px-3 rounded-md border ${req.met ? "bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-200/50 dark:border-emerald-800/30" : "bg-amber-50/50 dark:bg-amber-900/10 border-amber-200/50 dark:border-amber-800/30"}`}>
-                {req.met ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" /> : <Circle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />}
-                <span className={req.met ? "text-muted-foreground" : ""}>{req.label}</span>
+                <Checkbox checked={req.met} className="h-3.5 w-3.5" />
+                <span className={`flex-1 ${req.met ? "text-muted-foreground line-through" : ""}`}>{req.label}</span>
                 {req.detail && <span className="text-xs text-muted-foreground ml-auto">— {req.detail}</span>}
+                <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => toast({ title: "Removed", description: `Requirement "${req.label}" removed.` })}>
+                  <Trash2 className="h-3 w-3" />
+                </Button>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+        {showAddReq ? (
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="New requirement..."
+              className="h-8 text-sm flex-1 max-w-sm"
+              value={newReqLabel}
+              onChange={(e) => setNewReqLabel(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && newReqLabel.trim()) { toast({ title: "Requirement added", description: newReqLabel }); setNewReqLabel(""); setShowAddReq(false); } }}
+              autoFocus
+            />
+            <Button size="sm" className="h-8 text-xs" onClick={() => { if (newReqLabel.trim()) { toast({ title: "Requirement added", description: newReqLabel }); setNewReqLabel(""); setShowAddReq(false); } }}>
+              Add
+            </Button>
+            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setNewReqLabel(""); setShowAddReq(false); }}>Cancel</Button>
+          </div>
+        ) : (
+          <Button variant="outline" size="sm" className="gap-1.5 text-xs h-7" onClick={() => setShowAddReq(true)}>
+            <Plus className="h-3 w-3" /> Add Requirement
+          </Button>
+        )}
+      </div>
 
       {/* Tasks */}
       {service.tasks.length > 0 && (
@@ -662,6 +767,7 @@ const dobRegStyles: Record<string, { label: string; className: string; icon: str
 };
 
 function ContactsFull({ contacts, pisStatus }: { contacts: MockContact[]; pisStatus: MockPISStatus }) {
+  const { toast } = useToast();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const toggle = (id: string) => setExpandedIds(prev => {
     const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
@@ -735,16 +841,28 @@ function ContactsFull({ contacts, pisStatus }: { contacts: MockContact[]; pisSta
                           <Phone className="h-3.5 w-3.5 text-muted-foreground" />
                           <a href={`tel:${c.phone}`} className="hover:text-foreground transition-colors">{c.phone}</a>
                         </div>
-                        <div className="flex items-center gap-2">
+                         <div className="flex items-center gap-2">
                           <Mail className="h-3.5 w-3.5 text-muted-foreground" />
                           <a href={`mailto:${c.email}`} className="hover:text-foreground transition-colors">{c.email}</a>
                         </div>
-                        {c.dobRegistered === "not_registered" && (
-                          <div className="mt-2 flex items-center gap-2 text-xs text-red-600 dark:text-red-400">
-                            <AlertTriangle className="h-3.5 w-3.5" />
-                            Contact is not registered on DOB NOW — filing may be blocked
+                        <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="text-muted-foreground">DOB NOW Verified:</span>
+                            <Button
+                              variant={c.dobRegistered === "registered" ? "default" : "outline"}
+                              size="sm"
+                              className="h-6 text-[10px] px-2"
+                              onClick={() => toast({ title: "Status toggled", description: `${c.name} DOB NOW status updated.` })}
+                            >
+                              {c.dobRegistered === "registered" ? "✓ Verified" : c.dobRegistered === "not_registered" ? "Mark Verified" : "Mark Verified"}
+                            </Button>
                           </div>
-                        )}
+                          {c.dobRegistered === "not_registered" && (
+                            <span className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
+                              <AlertTriangle className="h-3 w-3" /> Filing may be blocked
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -1013,14 +1131,19 @@ function ChangeOrdersFull({ changeOrders }: { changeOrders: MockChangeOrder[] })
                       <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${style.className}`}>{style.label}</span>
                     </TableCell>
                     <TableCell>
-                      {co.signedByClient ? (
+                      {co.internalSigned && co.clientSigned ? (
                         <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                          <ShieldCheck className="h-3.5 w-3.5" /> {co.signedDate || "Signed"}
+                          <ShieldCheck className="h-3.5 w-3.5" /> Fully Executed
                         </span>
                       ) : co.status !== "draft" ? (
-                        <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
-                          <PenLine className="h-3.5 w-3.5" /> Awaiting
-                        </span>
+                        <div className="flex flex-col gap-0.5 text-xs">
+                          <span className={co.internalSigned ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
+                            {co.internalSigned ? `✓ Internal ${co.internalSignedDate || ""}` : "⏳ Internal"}
+                          </span>
+                          <span className={co.clientSigned ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
+                            {co.clientSigned ? `✓ Client ${co.clientSignedDate || ""}` : "⏳ Client"}
+                          </span>
+                        </div>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
@@ -1041,9 +1164,15 @@ function ChangeOrdersFull({ changeOrders }: { changeOrders: MockChangeOrder[] })
                             <div><span className="text-muted-foreground">Approved:</span> {co.approvedDate}</div>
                           )}
                           <div>
-                            <span className="text-muted-foreground">Signature:</span>{" "}
-                            {co.signedByClient ? (
-                              <span className="text-emerald-600 dark:text-emerald-400">Signed on {co.signedDate}</span>
+                            <span className="text-muted-foreground">Internal Signature:</span>{" "}
+                            {co.internalSigned ? (
+                              <span className="text-emerald-600 dark:text-emerald-400">{co.internalSigner} — {co.internalSignedDate}</span>
+                            ) : "Not yet signed"}
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Client Signature:</span>{" "}
+                            {co.clientSigned ? (
+                              <span className="text-emerald-600 dark:text-emerald-400">{co.clientSigner} — {co.clientSignedDate}</span>
                             ) : co.status !== "draft" ? (
                               <span className="text-amber-600 dark:text-amber-400">Awaiting client signature</span>
                             ) : "Not yet sent"}
