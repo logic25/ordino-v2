@@ -1,4 +1,4 @@
-import { LogOut, Search, User } from "lucide-react";
+import { LogOut, Menu, Search, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,13 +13,22 @@ import { useAuth } from "@/hooks/useAuth";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
 
-export function TopBar() {
+interface TopBarProps {
+  onMenuToggle?: () => void;
+}
+
+export function TopBar({ onMenuToggle }: TopBarProps) {
   const { user, signOut } = useAuth();
 
   return (
-    <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6">
+    <header className="h-16 border-b border-border bg-card flex items-center justify-between px-4 md:px-6">
+      {/* Mobile menu button */}
+      <Button variant="ghost" size="icon" className="lg:hidden mr-2" onClick={onMenuToggle}>
+        <Menu className="h-5 w-5" />
+      </Button>
+
       {/* Search */}
-      <div className="flex-1 max-w-md">
+      <div className="flex-1 max-w-md hidden sm:block">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
