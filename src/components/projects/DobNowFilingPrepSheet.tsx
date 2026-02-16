@@ -11,6 +11,7 @@ import {
   User, Phone, Mail, ExternalLink, ClipboardList, Save,
 } from "lucide-react";
 import type { MockService, MockContact } from "./projectMockData";
+import { engineerDisciplineLabels } from "./projectMockData";
 import type { ProjectWithRelations } from "@/hooks/useProjects";
 
 interface DobField {
@@ -90,7 +91,6 @@ export function DobNowFilingPrepSheet({
     { label: "Block", value: (property as any)?.block, category: "property", dobFieldName: "Block" },
     { label: "Lot", value: (property as any)?.lot, category: "property", dobFieldName: "Lot" },
     { label: "BIN", value: (property as any)?.bin, category: "property", dobFieldName: "BIN" },
-    { label: "ZIP Code", value: (property as any)?.zip_code, category: "property", dobFieldName: "Zip Code" },
   ];
 
   const filingFields: DobField[] = [
@@ -115,7 +115,21 @@ export function DobNowFilingPrepSheet({
     other: "Other",
   };
 
-  const contactsByRole = contacts.reduce((acc, c) => {
+  // Filter contacts relevant to this service's disciplines
+  const serviceDisciplines = service.subServices.map(s => s.toLowerCase());
+  const filteredContacts = contacts.filter((c) => {
+    // Engineers should only appear if their discipline matches the service's subServices
+    if (c.dobRole === "engineer" && c.discipline) {
+      const engLabel = (engineerDisciplineLabels[c.discipline] || c.discipline).toLowerCase();
+      // Match if subServices includes the discipline or related terms (e.g. "GC" won't match "structural")
+      return serviceDisciplines.some(ss => 
+        engLabel.includes(ss.toLowerCase()) || ss.toLowerCase().includes(engLabel)
+      );
+    }
+    return true;
+  });
+
+  const contactsByRole = filteredContacts.reduce((acc, c) => {
     if (!acc[c.dobRole]) acc[c.dobRole] = [];
     acc[c.dobRole].push(c);
     return acc;
@@ -124,7 +138,8 @@ export function DobNowFilingPrepSheet({
   const allFields = [...propertyFields, ...filingFields];
   const missingFields = allFields.filter((f) => !f.value);
   const filledFields = allFields.filter((f) => f.value);
-  const missingContacts = ["applicant", "owner", "filing_rep", "sia_applicant"].filter(
+  // Only flag truly required roles as missing (not sia_applicant/tpp_applicant unless relevant)
+  const missingContacts = ["applicant", "owner", "filing_rep"].filter(
     (role) => !contactsByRole[role]?.length
   );
   const checklistComplete = checklist.filter((c) => c.required).every((c) => c.checked);
