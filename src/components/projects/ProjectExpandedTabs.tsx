@@ -57,19 +57,15 @@ function ServiceDetail({ service }: { service: MockService }) {
         </div>
       </div>
 
-      {/* Estimated Cost + Allotted Hours */}
-      <div className="flex items-center gap-6 text-sm">
-        <div>
-          <span className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Estimated Job Cost</span>
-          <div className="font-semibold mt-0.5">
-            {service.estimatedCost ? `$${service.estimatedCost.toLocaleString()}` : <span className="text-muted-foreground italic font-normal">Not set</span>}
-          </div>
+      {/* Estimated Costs by discipline */}
+      {service.estimatedCosts && service.estimatedCosts.length > 0 && (
+        <div className="flex items-center gap-4 text-sm flex-wrap">
+          <span className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Est. Cost:</span>
+          {service.estimatedCosts.map((ec, i) => (
+            <span key={i} className="text-sm">{ec.discipline}: <span className="font-semibold">${ec.amount.toLocaleString()}</span></span>
+          ))}
         </div>
-        <div>
-          <span className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Allotted Hours</span>
-          <div className="font-semibold mt-0.5">{service.allottedHours} hrs</div>
-        </div>
-      </div>
+      )}
 
       {/* Tasks / To-dos */}
       {service.tasks.length > 0 && (

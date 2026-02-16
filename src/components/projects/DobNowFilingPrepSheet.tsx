@@ -98,7 +98,7 @@ export function DobNowFilingPrepSheet({
     { label: "Work Types / Disciplines", value: service.subServices.length > 0 ? service.subServices.join(", ") : null, category: "filing", dobFieldName: "Work Type" },
     { label: "Floor", value: proj.floor_number, category: "filing", dobFieldName: "Floor" },
     { label: "Unit / Apt", value: proj.unit_number, category: "filing", dobFieldName: "Apt/Suite" },
-    { label: "Estimated Job Cost", value: service.estimatedCost ? `$${Number(service.estimatedCost).toLocaleString()}` : (proj.estimated_value ? `$${Number(proj.estimated_value).toLocaleString()}` : null), category: "filing", dobFieldName: "Estimated Job Cost" },
+    { label: "Estimated Job Cost", value: service.estimatedCosts && service.estimatedCosts.length > 0 ? service.estimatedCosts.map(ec => `${ec.discipline}: $${ec.amount.toLocaleString()}`).join("; ") : (proj.estimated_value ? `$${Number(proj.estimated_value).toLocaleString()}` : null), category: "filing", dobFieldName: "Estimated Job Cost" },
     { label: "Job Description", value: service.jobDescription || null, category: "filing", dobFieldName: "Description of Work" },
   ];
 
