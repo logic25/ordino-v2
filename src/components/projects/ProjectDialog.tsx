@@ -288,23 +288,6 @@ export function ProjectDialog({
               />
               <Label>Notable</Label>
             </div>
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={form.is_external || false}
-                onCheckedChange={(checked) => setForm((f) => ({ ...f, is_external: checked }))}
-              />
-              <Label>External Consultant Project</Label>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="max-w-[200px] text-xs">Project managed by an outside consultant on your behalf</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
           </div>
 
           {/* Notes */}

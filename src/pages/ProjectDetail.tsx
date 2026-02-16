@@ -30,6 +30,7 @@ import {
   GripVertical, ArrowUp, ArrowDown,
 } from "lucide-react";
 import { useProjects, useUpdateProject, ProjectWithRelations } from "@/hooks/useProjects";
+import { useIsAdmin } from "@/hooks/useUserRoles";
 import { useAssignableProfiles, useCompanyProfiles } from "@/hooks/useProfiles";
 import { ProjectEmailsTab } from "@/components/emails/ProjectEmailsTab";
 import { ProjectDialog } from "@/components/projects/ProjectDialog";
@@ -63,6 +64,16 @@ const formatName = (profile: { first_name: string | null; last_name: string | nu
   if (!profile) return "—";
   return [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "—";
 };
+
+function LitigationButton({ onClick }: { onClick: () => void }) {
+  const isAdmin = useIsAdmin();
+  if (!isAdmin) return null;
+  return (
+    <Button variant="outline" size="sm" className="gap-1.5" onClick={onClick}>
+      <ShieldCheck className="h-3.5 w-3.5" /> Litigation Package
+    </Button>
+  );
+}
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -162,8 +173,18 @@ export default function ProjectDetail() {
               </div>
               <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
                 {project.project_number && <span className="font-mono">{project.project_number}</span>}
-                {project.properties?.address && (
+               {project.properties?.address && (
                   <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {project.properties.address}</span>
+                )}
+                {((project as any).floor_number || (project as any).unit_number) && (
+                  <span className="flex items-center gap-1 text-xs">
+                    {(project as any).floor_number && <>Floor {(project as any).floor_number}</>}
+                    {(project as any).floor_number && (project as any).unit_number && <> · </>}
+                    {(project as any).unit_number && <>Unit {(project as any).unit_number}</>}
+                  </span>
+                )}
+                {(project as any).tenant_name && (
+                  <span className="flex items-center gap-1 text-xs">Tenant: {(project as any).tenant_name}</span>
                 )}
                 {project.clients?.name && (
                   <span className="flex items-center gap-1"><Building2 className="h-3.5 w-3.5" /> {project.clients.name}</span>
@@ -198,9 +219,7 @@ export default function ProjectDetail() {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setLitigationDialogOpen(true)}>
-              <ShieldCheck className="h-3.5 w-3.5" /> Litigation Package
-            </Button>
+            <LitigationButton onClick={() => setLitigationDialogOpen(true)} />
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditDialogOpen(true)}>
               <Pencil className="h-3.5 w-3.5" /> Edit Project
             </Button>
@@ -897,13 +916,19 @@ function ServicesFull({ services: initialServices }: { services: MockService[] }
                         </div>
                       )}
                     </TableCell>
-                    <TableCell>
+                     <TableCell>
                       <div className="flex items-center gap-2">
                         {isChild && (
                           <span className="text-muted-foreground/50 ml-2 mr-1 border-l-2 border-b-2 border-muted-foreground/20 w-3 h-3 inline-block rounded-bl-sm" style={{ marginBottom: -4 }} />
                         )}
                         <span className={cn("font-medium whitespace-nowrap", isChild && "text-sm")}>{svc.name}</span>
                         {pendingReqs > 0 && <Badge variant="secondary" className="text-[10px] px-1.5 py-0 whitespace-nowrap bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">{pendingReqs} req</Badge>}
+                        {isChild && !svc.application && svc.parentServiceId && (() => {
+                          const parent = services.find(s => s.id === svc.parentServiceId);
+                          return parent?.application ? (
+                            <Badge variant="outline" className="font-mono text-[10px] px-1.5 py-0">#{parent.application.jobNumber}</Badge>
+                          ) : null;
+                        })()}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -964,7 +989,12 @@ function ServicesFull({ services: initialServices }: { services: MockService[] }
                         <Button variant="outline" size="sm" className="gap-1.5"><ExternalLink className="h-3.5 w-3.5" /> Start DOB NOW</Button>
                       ) : svc.application ? (
                         <Badge variant="outline" className="font-mono text-xs">#{svc.application.jobNumber}</Badge>
-                      ) : null}
+                      ) : isChild && svc.parentServiceId ? (() => {
+                        const parent = services.find(s => s.id === svc.parentServiceId);
+                        return parent?.application ? (
+                          <Badge variant="outline" className="font-mono text-xs text-muted-foreground">#{parent.application.jobNumber}</Badge>
+                        ) : null;
+                      })() : null}
                     </TableCell>
                   </TableRow>
                   {isExpanded && (
