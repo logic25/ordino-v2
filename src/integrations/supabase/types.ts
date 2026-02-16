@@ -2639,6 +2639,47 @@ export type Database = {
           },
         ]
       }
+      lead_statuses: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          is_system: boolean
+          label: string
+          sort_order: number
+          value: string
+          variant: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          label: string
+          sort_order?: number
+          value: string
+          variant?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          label?: string
+          sort_order?: number
+          value?: string
+          variant?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_statuses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           assigned_to: string | null

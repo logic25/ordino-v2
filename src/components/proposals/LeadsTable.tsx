@@ -38,6 +38,7 @@ import { useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import type { Lead } from "@/hooks/useLeads";
 import { useLeadNotes, useCreateLeadNote, type LeadNote } from "@/hooks/useLeadNotes";
+import { useLeadStatuses, type LeadStatus } from "@/hooks/useLeadStatuses";
 
 // --- Helpers ---
 
@@ -62,7 +63,7 @@ interface LeadsTableProps {
   isDeleting?: boolean;
 }
 
-const STATUS_OPTIONS: { value: string; variant: "default" | "secondary" | "outline" | "destructive"; label: string }[] = [
+const FALLBACK_STATUSES: { value: string; variant: "default" | "secondary" | "outline" | "destructive"; label: string }[] = [
   { value: "new", variant: "default", label: "New" },
   { value: "contacted", variant: "outline", label: "Contacted" },
   { value: "qualified", variant: "default", label: "Qualified" },
@@ -92,6 +93,10 @@ const CLIENT_TYPE_LABELS: Record<string, string> = {
 export function LeadsTable({ leads, onDelete, onConvertToProposal, onUpdateLead, isDeleting }: LeadsTableProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const { data: dbStatuses } = useLeadStatuses();
+  const STATUS_OPTIONS = (dbStatuses && dbStatuses.length > 0)
+    ? dbStatuses.map(s => ({ value: s.value, variant: s.variant as any, label: s.label }))
+    : FALLBACK_STATUSES;
 
   const handleConfirmDelete = () => {
     if (deleteId) {
@@ -272,6 +277,10 @@ function LeadDetailPanel({
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const { data: notes = [] } = useLeadNotes(lead.id);
   const createNote = useCreateLeadNote();
+  const { data: dbStatuses } = useLeadStatuses();
+  const STATUS_OPTIONS = (dbStatuses && dbStatuses.length > 0)
+    ? dbStatuses.map(s => ({ value: s.value, variant: s.variant as any, label: s.label }))
+    : FALLBACK_STATUSES;
 
   const handleStatusChange = (value: string) => {
     onUpdateLead?.(lead.id, { status: value });
