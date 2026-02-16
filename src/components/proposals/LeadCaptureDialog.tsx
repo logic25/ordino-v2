@@ -31,7 +31,7 @@ export interface LeadCaptureData {
   contact_email?: string;
   property_address?: string;
   subject?: string;
-  service_needed?: string;
+  
   notes?: string;
   assigned_pm_id?: string;
   client_type?: string;
@@ -48,7 +48,7 @@ interface LeadCaptureDialogProps {
 const DEFAULT_SOURCES = [
   { value: "phone_call", label: "Phone Call" },
   { value: "email", label: "Email" },
-  { value: "website", label: "Website" },
+  { value: "website_form", label: "Website Form" },
 ];
 
 const CLIENT_TYPES = [
@@ -69,7 +69,7 @@ export function LeadCaptureDialog({ open, onOpenChange, onSubmit, isLoading }: L
   const [contactEmail, setContactEmail] = useState("");
   const [propertyAddress, setPropertyAddress] = useState("");
   const [subject, setSubject] = useState("");
-  const [serviceNeeded, setServiceNeeded] = useState("");
+  
   const [notes, setNotes] = useState("");
   const [assignedPmId, setAssignedPmId] = useState("");
   const [clientType, setClientType] = useState("");
@@ -79,7 +79,7 @@ export function LeadCaptureDialog({ open, onOpenChange, onSubmit, isLoading }: L
   const { data: leadSources = [] } = useLeadSources();
 
   const activeSources = leadSources.length > 0
-    ? leadSources.filter((s) => s.is_active).map((s) => ({ value: s.name.toLowerCase().replace(/\s+/g, "_"), label: s.name }))
+    ? leadSources.filter((s) => s.is_active && s.name.toLowerCase() !== "existing client").map((s) => ({ value: s.name.toLowerCase().replace(/\s+/g, "_"), label: s.name }))
     : DEFAULT_SOURCES;
 
   const handleSubmit = () => {
@@ -91,7 +91,7 @@ export function LeadCaptureDialog({ open, onOpenChange, onSubmit, isLoading }: L
       contact_email: contactEmail || undefined,
       property_address: propertyAddress || undefined,
       subject: subject || undefined,
-      service_needed: serviceNeeded || undefined,
+      
       notes: notes || undefined,
       assigned_pm_id: assignedPmId || undefined,
       client_type: clientType || undefined,
@@ -103,7 +103,7 @@ export function LeadCaptureDialog({ open, onOpenChange, onSubmit, isLoading }: L
     setContactEmail("");
     setPropertyAddress("");
     setSubject("");
-    setServiceNeeded("");
+    
     setNotes("");
     setAssignedPmId("");
     setClientType("");
@@ -142,12 +142,27 @@ export function LeadCaptureDialog({ open, onOpenChange, onSubmit, isLoading }: L
             </div>
           </div>
 
-          {/* Name — single field matching website form */}
+          {/* Client Type — moved to top */}
+          <div className="space-y-1.5">
+            <Label>Client Type</Label>
+            <Select value={clientType} onValueChange={setClientType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select type..." />
+              </SelectTrigger>
+              <SelectContent>
+                {CLIENT_TYPES.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Name */}
           <div className="space-y-1.5">
             <Label htmlFor="lead-name">Name *</Label>
             <Input
               id="lead-name"
-              placeholder="Edward Ragusa"
+              placeholder="John Smith"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
             />
@@ -159,7 +174,7 @@ export function LeadCaptureDialog({ open, onOpenChange, onSubmit, isLoading }: L
               <Label htmlFor="lead-phone">Phone</Label>
               <Input
                 id="lead-phone"
-                placeholder="(917) 734-9554"
+                placeholder="123-456-7899"
                 value={contactPhone}
                 onChange={(e) => setContactPhone(e.target.value)}
               />
@@ -176,30 +191,15 @@ export function LeadCaptureDialog({ open, onOpenChange, onSubmit, isLoading }: L
             </div>
           </div>
 
-          {/* Client Type & Subject */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Client Type</Label>
-              <Select value={clientType} onValueChange={setClientType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {CLIENT_TYPES.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="lead-subject">Subject</Label>
-              <Input
-                id="lead-subject"
-                placeholder="e.g. Summons, Violation, New Building..."
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-              />
-            </div>
+          {/* Subject */}
+          <div className="space-y-1.5">
+            <Label htmlFor="lead-subject">Subject</Label>
+            <Input
+              id="lead-subject"
+              placeholder="e.g. Summons, Violation, New Building..."
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+            />
           </div>
 
           {/* Property */}
@@ -207,20 +207,9 @@ export function LeadCaptureDialog({ open, onOpenChange, onSubmit, isLoading }: L
             <Label htmlFor="lead-property">Property Address</Label>
             <Input
               id="lead-property"
-              placeholder="327-329 South 1st Street, Brooklyn, NY 11211"
+              placeholder="123 Main St, Brooklyn, NY 11201"
               value={propertyAddress}
               onChange={(e) => setPropertyAddress(e.target.value)}
-            />
-          </div>
-
-          {/* Service needed */}
-          <div className="space-y-1.5">
-            <Label htmlFor="lead-service">Service Needed</Label>
-            <Input
-              id="lead-service"
-              placeholder="e.g. Violation Resolution, Alt-1, New Building Permit..."
-              value={serviceNeeded}
-              onChange={(e) => setServiceNeeded(e.target.value)}
             />
           </div>
 
@@ -241,7 +230,7 @@ export function LeadCaptureDialog({ open, onOpenChange, onSubmit, isLoading }: L
             </Select>
           </div>
 
-          {/* Notes / Message — matches the website "Message" field */}
+          {/* Notes / Message */}
           <div className="space-y-1.5">
             <Label htmlFor="lead-notes">Message / Notes</Label>
             <Textarea
