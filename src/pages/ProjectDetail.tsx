@@ -950,7 +950,23 @@ function ServicesFull({ services: initialServices, project, contacts, allService
                           <span className="text-muted-foreground/50 ml-2 mr-1 border-l-2 border-b-2 border-muted-foreground/20 w-3 h-3 inline-block rounded-bl-sm" style={{ marginBottom: -4 }} />
                         )}
                         <span className={cn("font-medium whitespace-nowrap", isChild && "text-sm")}>{svc.name}</span>
-                        {pendingReqs > 0 && <Badge variant="secondary" className="text-[10px] px-1.5 py-0 whitespace-nowrap bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">{pendingReqs} req</Badge>}
+                        {svc.requirements.length > 0 && (
+                          <Badge
+                            variant="secondary"
+                            className={cn(
+                              "text-[10px] px-1.5 py-0 whitespace-nowrap cursor-pointer hover:opacity-80",
+                              pendingReqs > 0
+                                ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+                                : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+                            )}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!isExpanded) toggle(svc.id);
+                            }}
+                          >
+                            {svc.requirements.filter(r => r.met).length}/{svc.requirements.length} req
+                          </Badge>
+                        )}
                         {isChild && !svc.application && svc.parentServiceId && (() => {
                           const parent = services.find(s => s.id === svc.parentServiceId);
                           return parent?.application ? (
