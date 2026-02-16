@@ -33,7 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { MoreHorizontal, Trash2, FileText, Loader2, UserPlus, ChevronDown, ChevronRight, Send } from "lucide-react";
+import { MoreHorizontal, Trash2, FileText, Loader2, UserPlus, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import type { Lead } from "@/hooks/useLeads";
@@ -311,38 +311,30 @@ function LeadDetailPanel({
       <div className="space-y-3">
         <label className="text-xs font-medium text-muted-foreground">Notes</label>
 
-        {/* Add note input */}
-        <div className="flex gap-2">
-          <Textarea
-            value={newNote}
-            onChange={(e) => setNewNote(e.target.value)}
-            placeholder={isMock ? "Notes are disabled for sample data" : "Add a note..."}
-            rows={2}
-            className="resize-none flex-1"
-            disabled={isMock}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                handleAddNote();
-              }
-            }}
-          />
-          <Button
-            size="sm"
-            className="self-end"
-            onClick={handleAddNote}
-            disabled={!newNote.trim() || createNote.isPending || isMock}
-          >
-            {createNote.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </Button>
-        </div>
+        {/* Show legacy notes from leads.notes field if present */}
+        {lead.notes && (
+          <div className="rounded-md border border-dashed bg-background p-3 text-sm space-y-1">
+            <p className="whitespace-pre-wrap">{lead.notes}</p>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+              <span className="font-medium">
+                {lead.creator
+                  ? `${lead.creator.first_name} ${lead.creator.last_name}`
+                  : "System"}
+              </span>
+              <span>·</span>
+              <span>{format(new Date(lead.created_at), "MMM d, yyyy h:mm a")}</span>
+              {lead.assignee && (
+                <>
+                  <span>·</span>
+                  <span>Assigned to <span className="font-medium">{lead.assignee.first_name} {lead.assignee.last_name}</span></span>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Notes timeline */}
-        {notesLoading ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
-            <Loader2 className="h-3 w-3 animate-spin" /> Loading notes...
-          </div>
-        ) : notes.length > 0 ? (
+        {notes.length > 0 && (
           <div className="space-y-2 max-h-[200px] overflow-y-auto">
             {notes.map((note) => (
               <div key={note.id} className="rounded-md border bg-background p-3 text-sm space-y-1">
@@ -361,30 +353,37 @@ function LeadDetailPanel({
               </div>
             ))}
           </div>
-        ) : !isMock ? (
-          <p className="text-xs text-muted-foreground py-1">No notes yet</p>
-        ) : null}
+        )}
 
-        {/* Show legacy notes from leads.notes field if present */}
-        {lead.notes && (
-          <div className="rounded-md border border-dashed bg-background p-3 text-sm space-y-1">
-            <p className="whitespace-pre-wrap">{lead.notes}</p>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-              {lead.creator && (
-                <>
-                  <span className="font-medium">
-                    {lead.creator.first_name} {lead.creator.last_name}
-                  </span>
-                  <span>·</span>
-                </>
-              )}
-              <span>Initial notes · {format(new Date(lead.created_at), "MMM d, yyyy h:mm a")}</span>
-              {lead.assignee && (
-                <>
-                  <span>·</span>
-                  <span>Assigned to {lead.assignee.first_name} {lead.assignee.last_name}</span>
-                </>
-              )}
+        {!lead.notes && notes.length === 0 && !isMock && (
+          <p className="text-xs text-muted-foreground py-1">No notes yet</p>
+        )}
+
+        {/* Add note input */}
+        {!isMock && (
+          <div className="space-y-2">
+            <Textarea
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              placeholder="Type a note..."
+              rows={2}
+              className="resize-none"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  handleAddNote();
+                }
+              }}
+            />
+            <div className="flex justify-end">
+              <Button
+                size="sm"
+                onClick={handleAddNote}
+                disabled={!newNote.trim() || createNote.isPending}
+              >
+                {createNote.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Add Note
+              </Button>
             </div>
           </div>
         )}
