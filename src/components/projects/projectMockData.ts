@@ -71,8 +71,12 @@ export interface MockChangeOrder {
   linkedServices: string[];
   reason: string;
   requestedBy: string;
-  signedByClient: boolean;
-  signedDate?: string;
+  internalSigned: boolean;
+  internalSignedDate?: string;
+  internalSigner?: string;
+  clientSigned: boolean;
+  clientSignedDate?: string;
+  clientSigner?: string;
 }
 
 export interface MockProposalSignature {
@@ -220,8 +224,8 @@ const MOCK_MILESTONES_B: MockMilestone[] = [
 // --- Change Orders ---
 
 const MOCK_CHANGE_ORDERS_A: MockChangeOrder[] = [
-  { id: "co1", number: "CO-001", description: "Additional sprinkler heads — 3rd floor scope expansion", amount: 1200, status: "approved", createdDate: "02/10/2026", approvedDate: "02/12/2026", linkedServices: ["s4"], reason: "Client requested additional coverage on 3rd floor", requestedBy: "Mayra Maisch", signedByClient: true, signedDate: "02/12/2026" },
-  { id: "co2", number: "CO-002", description: "Structural engineer review for beam modification", amount: 800, status: "pending", createdDate: "02/14/2026", linkedServices: ["s4"], reason: "DOB objection requires additional structural review", requestedBy: "Internal", signedByClient: false },
+  { id: "co1", number: "CO-001", description: "Additional sprinkler heads — 3rd floor scope expansion", amount: 1200, status: "approved", createdDate: "02/10/2026", approvedDate: "02/12/2026", linkedServices: ["s4"], reason: "Client requested additional coverage on 3rd floor", requestedBy: "Mayra Maisch", internalSigned: true, internalSignedDate: "02/11/2026", internalSigner: "Sheri L.", clientSigned: true, clientSignedDate: "02/12/2026", clientSigner: "Mayra Maisch" },
+  { id: "co2", number: "CO-002", description: "Structural engineer review for beam modification", amount: 800, status: "pending", createdDate: "02/14/2026", linkedServices: ["s4"], reason: "DOB objection requires additional structural review", requestedBy: "Internal", internalSigned: true, internalSignedDate: "02/14/2026", internalSigner: "Sheri L.", clientSigned: false },
 ];
 
 const MOCK_CHANGE_ORDERS_B: MockChangeOrder[] = [];
