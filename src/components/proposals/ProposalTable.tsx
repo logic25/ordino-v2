@@ -45,15 +45,15 @@ interface ProposalTableProps {
   isSending?: boolean;
 }
 
-const STATUS_STYLES: Record<string, { variant: "default" | "secondary" | "outline" | "destructive"; label: string }> = {
-  draft: { variant: "secondary", label: "Draft" },
-  sent: { variant: "default", label: "Sent" },
-  viewed: { variant: "outline", label: "Viewed" },
-  signed_internal: { variant: "default", label: "Signed (Internal)" },
-  signed_client: { variant: "default", label: "Signed (Client)" },
-  accepted: { variant: "default", label: "Accepted" },
-  rejected: { variant: "destructive", label: "Rejected" },
-  expired: { variant: "secondary", label: "Expired" },
+const STATUS_STYLES: Record<string, { label: string; className: string }> = {
+  draft: { label: "Draft", className: "bg-muted text-muted-foreground border-transparent" },
+  sent: { label: "Sent", className: "bg-blue-100 text-blue-800 border-transparent dark:bg-blue-900/40 dark:text-blue-300" },
+  viewed: { label: "Viewed", className: "bg-amber-100 text-amber-800 border-transparent dark:bg-amber-900/40 dark:text-amber-300" },
+  signed_internal: { label: "Signed (Internal)", className: "bg-indigo-100 text-indigo-800 border-transparent dark:bg-indigo-900/40 dark:text-indigo-300" },
+  signed_client: { label: "Signed (Client)", className: "bg-violet-100 text-violet-800 border-transparent dark:bg-violet-900/40 dark:text-violet-300" },
+  accepted: { label: "Accepted", className: "bg-emerald-100 text-emerald-800 border-transparent dark:bg-emerald-900/40 dark:text-emerald-300" },
+  rejected: { label: "Rejected", className: "bg-destructive text-destructive-foreground border-transparent" },
+  expired: { label: "Expired", className: "bg-stone-100 text-stone-600 border-transparent dark:bg-stone-800/40 dark:text-stone-400" },
 };
 
 export function ProposalTable({
@@ -144,7 +144,7 @@ export function ProposalTable({
                   )}
                 </TableCell>
                 <TableCell>
-                  <Badge variant={statusStyle.variant}>
+                  <Badge className={statusStyle.className}>
                     {statusStyle.label}
                   </Badge>
                 </TableCell>
