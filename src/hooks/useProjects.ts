@@ -17,6 +17,8 @@ export interface Project {
   client_id: string | null;
   is_external: boolean;
   notable: boolean;
+  unit_number: string | null;
+  tenant_name: string | null;
   completion_date: string | null;
   created_by: string | null;
   last_editor_id: string | null;
@@ -45,6 +47,8 @@ export interface ProjectFormInput {
   client_id?: string | null;
   is_external?: boolean;
   notable?: boolean;
+  unit_number?: string | null;
+  tenant_name?: string | null;
   completion_date?: string | null;
   notes?: string | null;
 }
@@ -124,6 +128,8 @@ export function useCreateProject() {
           client_id: input.client_id || null,
           is_external: input.is_external || false,
           notable: input.notable || false,
+          unit_number: input.unit_number || null,
+          tenant_name: input.tenant_name || null,
           completion_date: input.completion_date || null,
           notes: input.notes || null,
           created_by: profile.id,
@@ -163,6 +169,8 @@ export function useUpdateProject() {
           client_id: input.client_id || null,
           is_external: input.is_external ?? false,
           notable: input.notable ?? false,
+          unit_number: input.unit_number || null,
+          tenant_name: input.tenant_name || null,
           completion_date: input.completion_date || null,
           notes: input.notes || null,
           last_editor_id: profile?.id || null,

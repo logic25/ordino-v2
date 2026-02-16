@@ -3200,6 +3200,8 @@ export type Database = {
           retainer_received_date: string | null
           senior_pm_id: string | null
           status: Database["public"]["Enums"]["project_status"]
+          tenant_name: string | null
+          unit_number: string | null
           updated_at: string | null
         }
         Insert: {
@@ -3227,6 +3229,8 @@ export type Database = {
           retainer_received_date?: string | null
           senior_pm_id?: string | null
           status?: Database["public"]["Enums"]["project_status"]
+          tenant_name?: string | null
+          unit_number?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -3254,6 +3258,8 @@ export type Database = {
           retainer_received_date?: string | null
           senior_pm_id?: string | null
           status?: Database["public"]["Enums"]["project_status"]
+          tenant_name?: string | null
+          unit_number?: string | null
           updated_at?: string | null
         }
         Relationships: [
