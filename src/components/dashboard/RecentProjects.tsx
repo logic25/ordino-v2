@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FolderKanban } from "lucide-react";
-import { useRecentApplications, useMyAssignedApplications } from "@/hooks/useDashboard";
-import { APPLICATION_STATUSES } from "@/hooks/useApplications";
+import { useRecentProjects, useMyAssignedProjects } from "@/hooks/useDashboard";
 
 interface RecentProjectsProps {
   showOnlyMine?: boolean;
@@ -13,18 +12,24 @@ interface RecentProjectsProps {
 
 export function RecentProjects({ showOnlyMine = false }: RecentProjectsProps) {
   const navigate = useNavigate();
-  const { data: allProjects, isLoading: allLoading } = useRecentApplications();
-  const { data: myProjects, isLoading: myLoading } = useMyAssignedApplications();
+  const { data: allProjects, isLoading: allLoading } = useRecentProjects();
+  const { data: myProjects, isLoading: myLoading } = useMyAssignedProjects();
 
   const projects = showOnlyMine ? myProjects : allProjects;
   const isLoading = showOnlyMine ? myLoading : allLoading;
 
+  const statusColors: Record<string, string> = {
+    open: "bg-green-500/10 text-green-700",
+    on_hold: "bg-amber-500/10 text-amber-700",
+    closed: "bg-muted text-muted-foreground",
+    paid: "bg-blue-500/10 text-blue-700",
+  };
+
   const getStatusBadge = (status: string | null) => {
-    const statusConfig = APPLICATION_STATUSES.find((s) => s.value === status);
-    if (!statusConfig) return null;
+    if (!status) return null;
     return (
-      <Badge className={statusConfig.color}>
-        {statusConfig.label}
+      <Badge className={statusColors[status] || "bg-muted"}>
+        {status.replace("_", " ").replace(/\b\w/g, c => c.toUpperCase())}
       </Badge>
     );
   };
@@ -83,19 +88,18 @@ export function RecentProjects({ showOnlyMine = false }: RecentProjectsProps) {
               <div
                 key={project.id}
                 className="flex items-center justify-between p-4 rounded-lg border border-border hover:border-accent/50 hover:bg-accent/5 transition-all cursor-pointer"
-                onClick={() => navigate("/projects")}
+                onClick={() => navigate(`/projects/${project.id}`)}
               >
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <h3 className="font-medium">
-                      {project.properties?.address || "Unknown Address"}
-                      {project.application_type && ` - ${project.application_type}`}
+                      {project.name || project.properties?.address || "Untitled Project"}
                     </h3>
                     {getStatusBadge(project.status)}
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {project.job_number && `Job #${project.job_number} • `}
-                    {project.description || "No description"}
+                    {project.project_number && `#${project.project_number} • `}
+                    {project.clients?.name || project.properties?.address || ""}
                   </p>
                 </div>
                 <div className="text-sm text-muted-foreground">

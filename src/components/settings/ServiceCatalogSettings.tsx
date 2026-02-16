@@ -114,7 +114,7 @@ export function ServiceCatalogSettings() {
                       placeholder="Service name"
                     />
                   </div>
-                  <div className="col-span-4">
+                  <div className="col-span-3">
                     <Label className="text-xs text-muted-foreground">Description</Label>
                     <Input
                       value={service.description || ""}
@@ -133,8 +133,8 @@ export function ServiceCatalogSettings() {
                       placeholder="0.00"
                     />
                   </div>
-                  <div className="col-span-2">
-                    <Label className="text-xs text-muted-foreground">Est. Hours</Label>
+                  <div className="col-span-1">
+                    <Label className="text-xs text-muted-foreground">Hours</Label>
                     <Input
                       type="number"
                       min="0"
@@ -142,6 +142,17 @@ export function ServiceCatalogSettings() {
                       value={service.default_hours || ""}
                       onChange={(e) => updateService(service.id, "default_hours", parseFloat(e.target.value) || 0)}
                       placeholder="0"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-xs text-muted-foreground">Multiplier</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={service.multiplier || ""}
+                      onChange={(e) => updateService(service.id, "multiplier", parseFloat(e.target.value) || 0)}
+                      placeholder="1.0"
                     />
                   </div>
                   <div className="col-span-1 pt-5">

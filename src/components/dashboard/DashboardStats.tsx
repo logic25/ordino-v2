@@ -51,8 +51,8 @@ export function DashboardStats({ role }: DashboardStatsProps) {
     const baseStats = [
       {
         title: "Active Projects",
-        value: stats?.activeApplications ?? 0,
-        subtitle: `${stats?.urgentItems ?? 0} need attention`,
+        value: stats?.activeProjects ?? 0,
+        subtitle: `${stats?.overdueInvoices ?? 0} overdue invoices`,
         icon: <Building2 className="h-4 w-4 text-muted-foreground" />,
       },
     ];
@@ -68,15 +68,15 @@ export function DashboardStats({ role }: DashboardStatsProps) {
           },
           ...baseStats,
           {
-            title: "Properties",
-            value: stats?.totalProperties ?? 0,
-            subtitle: "In your portfolio",
+            title: "Pending Proposals",
+            value: stats?.pendingProposals ?? 0,
+            subtitle: "Awaiting client response",
             icon: <FileText className="h-4 w-4 text-muted-foreground" />,
           },
           {
-            title: "Urgent Items",
-            value: stats?.urgentItems ?? 0,
-            subtitle: "Objections to resolve",
+            title: "Overdue Invoices",
+            value: stats?.overdueInvoices ?? 0,
+            subtitle: "Need follow-up",
             icon: <AlertCircle className="h-4 w-4 text-muted-foreground" />,
           },
         ];
@@ -91,16 +91,16 @@ export function DashboardStats({ role }: DashboardStatsProps) {
           },
           ...baseStats,
           {
+            title: "Overdue Invoices",
+            value: stats?.overdueInvoices ?? 0,
+            subtitle: `$${((stats?.totalOutstanding ?? 0) / 1000).toFixed(0)}k outstanding`,
+            icon: <AlertCircle className="h-4 w-4 text-muted-foreground" />,
+          },
+          {
             title: "Pending Proposals",
             value: stats?.pendingProposals ?? 0,
             subtitle: "Awaiting approval",
             icon: <FileText className="h-4 w-4 text-muted-foreground" />,
-          },
-          {
-            title: "Properties",
-            value: stats?.totalProperties ?? 0,
-            subtitle: "With active billing",
-            icon: <Building2 className="h-4 w-4 text-muted-foreground" />,
           },
         ];
 
@@ -120,9 +120,9 @@ export function DashboardStats({ role }: DashboardStatsProps) {
             icon: <Clock className="h-4 w-4 text-muted-foreground" />,
           },
           {
-            title: "Urgent Items",
-            value: stats?.urgentItems ?? 0,
-            subtitle: "Objections to resolve",
+            title: "Overdue Invoices",
+            value: stats?.overdueInvoices ?? 0,
+            subtitle: "Need attention",
             icon: <AlertCircle className="h-4 w-4 text-muted-foreground" />,
           },
         ];
@@ -138,16 +138,16 @@ export function DashboardStats({ role }: DashboardStatsProps) {
           },
           ...baseStats,
           {
-            title: "Properties",
-            value: stats?.totalProperties ?? 0,
-            subtitle: "In portfolio",
-            icon: <Building2 className="h-4 w-4 text-muted-foreground" />,
+            title: "Outstanding",
+            value: `$${((stats?.totalOutstanding ?? 0) / 1000).toFixed(0)}k`,
+            subtitle: `${stats?.overdueInvoices ?? 0} overdue`,
+            icon: <DollarSign className="h-4 w-4 text-muted-foreground" />,
           },
           {
             title: "Unbilled Hours",
             value: stats?.unbilledHours ?? 0,
             subtitle: "Ready to invoice",
-            icon: <DollarSign className="h-4 w-4 text-muted-foreground" />,
+            icon: <Clock className="h-4 w-4 text-muted-foreground" />,
           },
         ];
     }

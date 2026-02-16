@@ -8,6 +8,7 @@ export interface ServiceCatalogItem {
   description?: string;
   default_price?: number;
   default_hours?: number;
+  multiplier?: number;
 }
 
 export interface CompanySettings {
