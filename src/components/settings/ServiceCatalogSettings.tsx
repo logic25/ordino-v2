@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Trash2, Loader2, Save, Package, Upload, History, Search } from "lucide-react";
+import { Plus, Trash2, Loader2, Save, Package, History, Search } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -17,7 +17,7 @@ import {
 import { useCompanySettings, useUpdateCompanySettings, ServiceCatalogItem, PriceChangeEntry } from "@/hooks/useCompanySettings";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { DEFAULT_SERVICES } from "./defaultServices";
+
 import { format } from "date-fns";
 
 export function ServiceCatalogSettings() {
@@ -300,29 +300,6 @@ export function ServiceCatalogSettings() {
             <Button type="button" variant="outline" size="sm" onClick={addService}>
               <Plus className="h-4 w-4 mr-2" />
               Add Service
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const newServices = DEFAULT_SERVICES.map((s) => ({
-                  ...s,
-                  id: crypto.randomUUID(),
-                }));
-                const existingNames = new Set(services.map((s) => s.name.toLowerCase().trim()));
-                const toAdd = newServices.filter((s) => !existingNames.has(s.name.toLowerCase().trim()));
-                setServices([...services, ...toAdd]);
-                toast({
-                  title: `${toAdd.length} services added`,
-                  description: toAdd.length === 0
-                    ? "All default services already exist."
-                    : `${toAdd.length} new services loaded. Click Save to persist.`,
-                });
-              }}
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Load Default Services ({DEFAULT_SERVICES.length})
             </Button>
           </div>
         </CardContent>
