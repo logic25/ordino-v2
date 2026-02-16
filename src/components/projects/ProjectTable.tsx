@@ -5,10 +5,17 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Pencil, Trash2, Eye, FileText } from "lucide-react";
 import type { ProjectWithRelations } from "@/hooks/useProjects";
+import { useAssignableProfiles } from "@/hooks/useProfiles";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "./projectMockData";
 
 interface ProjectTableProps {
@@ -35,6 +42,20 @@ const formatName = (profile: { first_name: string | null; last_name: string | nu
 
 export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, isDeleting, isSendingRfi }: ProjectTableProps) {
   const navigate = useNavigate();
+  const { data: assignableProfiles = [] } = useAssignableProfiles();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const handlePmChange = async (projectId: string, profileId: string) => {
+    const pmId = profileId === "__unassigned__" ? null : profileId;
+    const { error } = await supabase.from("projects").update({ assigned_pm_id: pmId } as any).eq("id", projectId);
+    if (error) {
+      toast({ title: "Error", description: "Failed to update PM.", variant: "destructive" });
+    } else {
+      toast({ title: "PM Updated" });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+    }
+  };
 
   return (
     <div className="overflow-x-auto">
@@ -65,7 +86,24 @@ export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, is
                 <TableCell className="font-medium">{project.name || project.proposals?.title || "Untitled"}</TableCell>
                 <TableCell className="text-muted-foreground">{project.properties?.address || "—"}</TableCell>
                 <TableCell className="text-muted-foreground">{project.clients?.name || "—"}</TableCell>
-                <TableCell className="text-muted-foreground">{formatName(project.assigned_pm)}</TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  <Select
+                    value={project.assigned_pm_id || "__unassigned__"}
+                    onValueChange={(val) => handlePmChange(project.id, val)}
+                  >
+                    <SelectTrigger className="h-7 w-auto min-w-[110px] border-none bg-transparent shadow-none text-sm p-0 px-1 hover:bg-muted/40 focus:ring-0 gap-1 text-muted-foreground">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__unassigned__">Unassigned</SelectItem>
+                      {assignableProfiles.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {[p.first_name, p.last_name].filter(Boolean).join(" ") || p.user_id}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </TableCell>
                 <TableCell><Badge variant={status.variant}>{status.label}</Badge></TableCell>
                 <TableCell className="text-muted-foreground">{formatCurrency(project.proposals?.total_amount ?? null)}</TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
