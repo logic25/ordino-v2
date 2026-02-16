@@ -616,8 +616,6 @@ function ReadinessChecklist({ items: initialItems, pisStatus }: { items: MockChe
 // ======== SERVICES ========
 
 function ServiceExpandedDetail({ service }: { service: MockService }) {
-  const [notes, setNotes] = useState(service.notes || "");
-  const [editingNotes, setEditingNotes] = useState(false);
   const [showAddReq, setShowAddReq] = useState(false);
   const [newReqLabel, setNewReqLabel] = useState("");
   const [newReqFrom, setNewReqFrom] = useState("");
@@ -658,12 +656,23 @@ function ServiceExpandedDetail({ service }: { service: MockService }) {
 
   return (
     <div className="px-8 py-5 space-y-5 bg-muted/10">
+      {/* Row 1: Scope + Job Description + Application */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <FileText className="h-3.5 w-3.5" /> Scope of Work
           </h4>
           <p className="text-sm leading-relaxed whitespace-pre-line">{service.scopeOfWork || "No scope defined."}</p>
+        </div>
+        <div>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <FileText className="h-3.5 w-3.5" /> Job Description (DOB)
+          </h4>
+          {service.jobDescription ? (
+            <p className="text-sm leading-relaxed whitespace-pre-line">{service.jobDescription}</p>
+          ) : (
+            <p className="text-sm text-muted-foreground italic">No job description — required for DOB filing.</p>
+          )}
         </div>
         <div>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
@@ -681,33 +690,19 @@ function ServiceExpandedDetail({ service }: { service: MockService }) {
             <p className="text-sm text-muted-foreground italic">No application linked</p>
           )}
         </div>
+      </div>
+
+      {/* Row 2: Estimated Cost + Allotted Hours */}
+      <div className="flex items-center gap-8 text-sm">
         <div>
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <MessageSquare className="h-3.5 w-3.5" /> Notes
-            {!editingNotes && (
-              <Button variant="ghost" size="icon" className="h-5 w-5 ml-1" onClick={() => setEditingNotes(true)}>
-                <Pencil className="h-3 w-3" />
-              </Button>
-            )}
-          </h4>
-          {editingNotes ? (
-            <div className="space-y-2">
-              <Textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="min-h-[80px] text-sm"
-                placeholder="Add notes about this service..."
-              />
-              <div className="flex gap-2">
-                <Button size="sm" className="h-7 text-xs gap-1" onClick={() => { setEditingNotes(false); toast({ title: "Notes saved" }); }}>Save</Button>
-                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setNotes(service.notes || ""); setEditingNotes(false); }}>Cancel</Button>
-              </div>
-            </div>
-          ) : notes ? (
-            <p className="text-sm leading-relaxed cursor-pointer hover:bg-muted/30 rounded p-1 -m-1 transition-colors whitespace-pre-line" onClick={() => setEditingNotes(true)}>{notes}</p>
-          ) : (
-            <p className="text-sm text-muted-foreground italic cursor-pointer hover:bg-muted/30 rounded p-1 -m-1 transition-colors" onClick={() => setEditingNotes(true)}>Click to add notes...</p>
-          )}
+          <span className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Estimated Job Cost</span>
+          <div className="font-semibold mt-0.5">
+            {service.estimatedCost ? `$${service.estimatedCost.toLocaleString()}` : <span className="text-muted-foreground italic font-normal">Not set</span>}
+          </div>
+        </div>
+        <div>
+          <span className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Allotted Hours</span>
+          <div className="font-semibold mt-0.5">{service.allottedHours} hrs</div>
         </div>
       </div>
 
