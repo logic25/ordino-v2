@@ -625,6 +625,9 @@ function ServiceExpandedDetail({ service }: { service: MockService }) {
   const [newTaskDue, setNewTaskDue] = useState("");
   const [localTasks, setLocalTasks] = useState(service.tasks);
   const [localReqs, setLocalReqs] = useState(service.requirements);
+  const [localCosts, setLocalCosts] = useState<{ discipline: string; amount: number; editing?: string }[]>(
+    (service.estimatedCosts || []).map(ec => ({ ...ec }))
+  );
   const { toast } = useToast();
 
   const COMMON_TASKS = [
@@ -693,23 +696,39 @@ function ServiceExpandedDetail({ service }: { service: MockService }) {
       </div>
 
       {/* Row 2: Two-column — Estimated Costs by discipline (left) + Requirements (right) */}
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_1.5fr] gap-6">
-        {/* Estimated Costs */}
+      <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6">
+        {/* Estimated Costs — editable */}
         <div>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <DollarSign className="h-3.5 w-3.5" /> Estimated Job Cost
           </h4>
-          {service.estimatedCosts && service.estimatedCosts.length > 0 ? (
+          {localCosts.length > 0 ? (
             <div className="space-y-1">
-              {service.estimatedCosts.map((ec, i) => (
-                <div key={i} className="flex items-center justify-between text-sm py-1 px-3 rounded-md border bg-background">
-                  <span>{ec.discipline}</span>
-                  <span className="font-semibold tabular-nums">${ec.amount.toLocaleString()}</span>
+              {localCosts.map((ec, i) => (
+                <div key={i} className="flex items-center justify-between text-sm py-1 px-3 rounded-md border bg-background gap-2">
+                  <span className="truncate flex-1">{ec.discipline}</span>
+                  <Input
+                    type="text"
+                    className="h-7 w-[110px] text-right text-sm font-semibold tabular-nums"
+                    value={ec.editing ?? `$${ec.amount.toLocaleString()}`}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setLocalCosts(prev => prev.map((c, j) => j === i ? { ...c, editing: raw } : c));
+                    }}
+                    onBlur={() => {
+                      const parsed = parseInt(localCosts[i].editing?.replace(/[^0-9]/g, "") || "0", 10);
+                      setLocalCosts(prev => prev.map((c, j) => j === i ? { discipline: c.discipline, amount: parsed } : c));
+                      toast({ title: "Cost updated", description: `${ec.discipline}: $${parsed.toLocaleString()}` });
+                    }}
+                    onFocus={() => {
+                      setLocalCosts(prev => prev.map((c, j) => j === i ? { ...c, editing: c.amount.toString() } : c));
+                    }}
+                  />
                 </div>
               ))}
               <div className="flex items-center justify-between text-sm py-1 px-3 font-semibold border-t mt-1 pt-2">
                 <span>Total</span>
-                <span className="tabular-nums">${service.estimatedCosts.reduce((s, ec) => s + ec.amount, 0).toLocaleString()}</span>
+                <span className="tabular-nums">${localCosts.reduce((s, ec) => s + ec.amount, 0).toLocaleString()}</span>
               </div>
             </div>
           ) : (
@@ -725,7 +744,7 @@ function ServiceExpandedDetail({ service }: { service: MockService }) {
           {localReqs.length > 0 && (
             <div className="space-y-1 mb-2">
               {localReqs.map((req) => (
-                <div key={req.id} className="flex items-center gap-2 text-sm py-1.5 px-3 rounded-md border bg-background">
+                <div key={req.id} className={`flex items-center gap-2 text-sm py-1.5 px-3 rounded-md border ${req.met ? "bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-200/50 dark:border-emerald-800/30" : "bg-amber-50/50 dark:bg-amber-900/10 border-amber-200/50 dark:border-amber-800/30"}`}>
                   <Checkbox checked={req.met} className="h-3.5 w-3.5" onCheckedChange={() => {
                     setLocalReqs(prev => prev.map(r => r.id === req.id ? { ...r, met: !r.met } : r));
                   }} />
