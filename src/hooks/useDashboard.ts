@@ -128,7 +128,7 @@ export function useMyAssignedProjects() {
         .select(`
           *,
           properties(address, borough),
-          clients(name),
+          clients!projects_client_id_fkey(name),
           proposals(title, total_amount)
         `)
         .or(`assigned_pm_id.eq.${profile.id},senior_pm_id.eq.${profile.id}`)
@@ -152,7 +152,7 @@ export function useRecentProjects() {
         .select(`
           *,
           properties(address, borough),
-          clients(name),
+          clients!projects_client_id_fkey(name),
           assigned_pm:profiles!projects_assigned_pm_id_fkey(first_name, last_name)
         `)
         .order("updated_at", { ascending: false })
