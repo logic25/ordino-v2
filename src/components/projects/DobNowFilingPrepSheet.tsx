@@ -98,14 +98,16 @@ export function DobNowFilingPrepSheet({
     { label: "Work Types / Disciplines", value: service.subServices.length > 0 ? service.subServices.join(", ") : null, category: "filing", dobFieldName: "Work Type" },
     { label: "Floor", value: proj.floor_number, category: "filing", dobFieldName: "Floor" },
     { label: "Unit / Apt", value: proj.unit_number, category: "filing", dobFieldName: "Apt/Suite" },
-    { label: "Estimated Cost", value: proj.estimated_value ? `$${Number(proj.estimated_value).toLocaleString()}` : null, category: "filing", dobFieldName: "Estimated Job Cost" },
-    { label: "Scope of Work", value: service.scopeOfWork, category: "filing", dobFieldName: "Description of Work" },
+    { label: "Estimated Job Cost", value: service.estimatedCost ? `$${Number(service.estimatedCost).toLocaleString()}` : (proj.estimated_value ? `$${Number(proj.estimated_value).toLocaleString()}` : null), category: "filing", dobFieldName: "Estimated Job Cost" },
+    { label: "Job Description", value: service.jobDescription || null, category: "filing", dobFieldName: "Description of Work" },
   ];
 
   // Map contacts by DOB role
   const dobRoleLabelsMap: Record<string, string> = {
     applicant: "Applicant",
     owner: "Owner",
+    sia_applicant: "SIA Applicant",
+    tpp_applicant: "TPP Applicant",
     filing_rep: "Filing Representative",
     architect: "Architect of Record",
     engineer: "Engineer of Record",
@@ -122,7 +124,7 @@ export function DobNowFilingPrepSheet({
   const allFields = [...propertyFields, ...filingFields];
   const missingFields = allFields.filter((f) => !f.value);
   const filledFields = allFields.filter((f) => f.value);
-  const missingContacts = ["applicant", "owner", "filing_rep"].filter(
+  const missingContacts = ["applicant", "owner", "filing_rep", "sia_applicant"].filter(
     (role) => !contactsByRole[role]?.length
   );
   const checklistComplete = checklist.filter((c) => c.required).every((c) => c.checked);

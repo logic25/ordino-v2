@@ -34,6 +34,8 @@ export interface MockService {
   estimatedBillDate: string | null;
   billedAt: string | null;
   scopeOfWork: string;
+  jobDescription?: string;
+  estimatedCost?: number;
   notes: string;
   needsDobFiling: boolean;
   tasks: MockTask[];
@@ -49,7 +51,7 @@ export interface MockContact {
   company: string;
   phone: string;
   email: string;
-  dobRole: "applicant" | "owner" | "filing_rep" | "architect" | "engineer" | "gc" | "other";
+  dobRole: "applicant" | "owner" | "filing_rep" | "architect" | "engineer" | "gc" | "sia_applicant" | "tpp_applicant" | "other";
   source: "proposal" | "pis" | "manual";
   dobRegistered: "registered" | "not_registered" | "unknown";
   review?: { rating: number; comment?: string };
@@ -376,8 +378,8 @@ const MOCK_PROPOSAL_SIG_C: MockProposalSignature = {
 // --- Project E: 689 5th Ave — ALT Type 2 (No Application Number) ---
 
 const MOCK_SERVICES_E: MockService[] = [
-  { id: "se1", name: "Alteration Type 2 Filing", status: "in_progress", application: null, subServices: ["GC", "PL"], totalAmount: 3800, billedAmount: 0, costAmount: 875, assignedTo: "Don Speaker", estimatedBillDate: "03/15/2026", billedAt: null, scopeOfWork: "Prepare and file Alteration Type 2 application with DOB for full floor renovation including mechanical, plumbing, and general construction scopes.", notes: "Application not yet submitted — awaiting final sealed drawings from architect. Client pushing for expedited timeline.", needsDobFiling: true, tasks: [{ id: "te1t1", text: "Prepare DOB NOW application draft", done: true, assignedTo: "Don Speaker" }, { id: "te1t2", text: "Request final sealed drawings from architect", done: false, assignedTo: "Don Speaker", dueDate: "02/20/2026" }, { id: "te1t3", text: "Coordinate owner signature for filing", done: false, assignedTo: "Natalia S.", dueDate: "02/25/2026" }], requirements: [{ id: "re1", label: "Final sealed drawings received", met: false, detail: "Architect promised by 02/20", fromWhom: "James Whitfield (Architect)" }, { id: "re2", label: "Owner DOB NOW account active", met: true, fromWhom: "Margaret Chen" }, { id: "re3", label: "Insurance certificate current", met: true, fromWhom: "GC" }, { id: "re4", label: "Asbestos report (ACP5) on file", met: false, detail: "Environmental firm scheduled for 02/18", fromWhom: "EcoTest Labs" }], allottedHours: 10 },
-  { id: "se2", name: "Work Permit", status: "not_started", application: null, subServices: ["GC"], totalAmount: 500, billedAmount: 0, costAmount: 0, assignedTo: "Don Speaker", estimatedBillDate: "04/01/2026", billedAt: null, scopeOfWork: "File and obtain general construction work permit after ALT2 approval.", notes: "", needsDobFiling: true, tasks: [], requirements: [{ id: "re5", label: "ALT2 application approved", met: false, fromWhom: "DOB" }], allottedHours: 2, parentServiceId: "se1" },
+  { id: "se1", name: "Alteration Type 2 Filing", status: "in_progress", application: null, subServices: ["GC", "PL"], totalAmount: 3800, billedAmount: 0, costAmount: 875, assignedTo: "Don Speaker", estimatedBillDate: "03/15/2026", billedAt: null, scopeOfWork: "Prepare and file Alteration Type 2 application with DOB for full floor renovation including mechanical, plumbing, and general construction scopes.", jobDescription: "Interior renovation of 14th floor commercial space. Work includes new partition walls, plumbing rough-in for kitchenette, HVAC modifications, and electrical panel upgrade. Approximately 3,200 SF of renovated space.", estimatedCost: 485000, notes: "Application not yet submitted — awaiting final sealed drawings from architect. Client pushing for expedited timeline.", needsDobFiling: true, tasks: [{ id: "te1t1", text: "Prepare DOB NOW application draft", done: true, assignedTo: "Don Speaker" }, { id: "te1t2", text: "Request final sealed drawings from architect", done: false, assignedTo: "Don Speaker", dueDate: "02/20/2026" }, { id: "te1t3", text: "Coordinate owner signature for filing", done: false, assignedTo: "Natalia S.", dueDate: "02/25/2026" }], requirements: [{ id: "re1", label: "Final sealed drawings received", met: false, detail: "Architect promised by 02/20", fromWhom: "James Whitfield (Architect)" }, { id: "re2", label: "Owner DOB NOW account active", met: true, fromWhom: "Margaret Chen" }, { id: "re3", label: "Insurance certificate current", met: true, fromWhom: "GC" }, { id: "re4", label: "Asbestos report (ACP5) on file", met: false, detail: "Environmental firm scheduled for 02/18", fromWhom: "EcoTest Labs" }], allottedHours: 10 },
+  { id: "se2", name: "Work Permit", status: "not_started", application: null, subServices: ["GC"], totalAmount: 500, billedAmount: 0, costAmount: 0, assignedTo: "Don Speaker", estimatedBillDate: "04/01/2026", billedAt: null, scopeOfWork: "File and obtain general construction work permit after ALT2 approval.", jobDescription: "General construction work permit for interior renovation.", estimatedCost: 485000, notes: "", needsDobFiling: true, tasks: [], requirements: [{ id: "re5", label: "ALT2 application approved", met: false, fromWhom: "DOB" }], allottedHours: 2, parentServiceId: "se1" },
   { id: "se3", name: "Plan Review Coordination", status: "complete", application: null, subServices: [], totalAmount: 1200, billedAmount: 1200, costAmount: 525, assignedTo: "Natalia S.", estimatedBillDate: "01/30/2026", billedAt: "02/01/2026", scopeOfWork: "Coordinate plan review between architect, engineer, and DOB examiner. Resolve all objections.", notes: "Completed ahead of schedule. All zoning and code compliance confirmed.", needsDobFiling: false, tasks: [{ id: "te3t1", text: "Review zoning compliance", done: true, assignedTo: "Natalia S." }, { id: "te3t2", text: "Confirm code compliance with engineer", done: true, assignedTo: "Natalia S." }], requirements: [{ id: "re6", label: "Zoning analysis complete", met: true }, { id: "re7", label: "Code compliance confirmed", met: true }], allottedHours: 4 },
   { id: "se4", name: "Inspection Coordination", status: "not_started", application: null, subServices: ["GC", "PL", "MH"], totalAmount: 800, billedAmount: 0, costAmount: 0, assignedTo: "Don Speaker", estimatedBillDate: "06/15/2026", billedAt: null, scopeOfWork: "Schedule and coordinate all required DOB inspections for GC, plumbing, and mechanical work.", notes: "Cannot begin until work permit is issued.", needsDobFiling: false, tasks: [{ id: "te4t1", text: "Create inspection schedule template", done: false, assignedTo: "Don Speaker" }, { id: "te4t2", text: "Coordinate with GC on construction timeline", done: false, assignedTo: "Don Speaker", dueDate: "04/15/2026" }], requirements: [{ id: "re8", label: "Work permit issued", met: false, fromWhom: "DOB" }, { id: "re9", label: "GC construction schedule received", met: false, fromWhom: "Rivera Construction" }], allottedHours: 8 },
   { id: "se5", name: "Letter of Completion", status: "not_started", application: null, subServices: [], totalAmount: 750, billedAmount: 0, costAmount: 0, assignedTo: "Natalia S.", estimatedBillDate: "08/30/2026", billedAt: null, scopeOfWork: "Obtain Letter of Completion from DOB upon project completion and all inspections passed.", notes: "", needsDobFiling: false, tasks: [{ id: "te5t1", text: "Compile all inspection sign-off documents", done: false, assignedTo: "Natalia S." }], requirements: [{ id: "re10", label: "All inspections passed", met: false, fromWhom: "DOB" }, { id: "re11", label: "Final construction sign-off", met: false, fromWhom: "DOB Inspector" }], allottedHours: 3 },
@@ -390,6 +392,8 @@ const MOCK_CONTACTS_E: MockContact[] = [
   { id: "ce3", name: "Patricia Novak", role: "Structural Engineer", company: "Novak Engineering", phone: "(212) 555-0703", email: "pnovak@novakeng.com", dobRole: "engineer", source: "pis", dobRegistered: "registered", review: { rating: 4, comment: "Thorough calculations, meets deadlines" } },
   { id: "ce4", name: "Carlos Rivera", role: "General Contractor", company: "Rivera Construction", phone: "(718) 555-0704", email: "carlos@riveraconstruction.com", dobRole: "gc", source: "pis", dobRegistered: "not_registered" },
   { id: "ce5", name: "Don Speaker", role: "Filing Representative / PM", company: "GLE", phone: "(718) 392-1969 x14", email: "don@greenlightexpediting.com", dobRole: "filing_rep", source: "manual", dobRegistered: "registered" },
+  { id: "ce6", name: "Don Speaker", role: "SIA Applicant", company: "GLE", phone: "(718) 392-1969 x14", email: "don@greenlightexpediting.com", dobRole: "sia_applicant", source: "manual", dobRegistered: "registered" },
+  { id: "ce7", name: "James Whitfield", role: "TPP Applicant", company: "Whitfield + Partners", phone: "(212) 555-0702", email: "jwhitfield@wparch.com", dobRole: "tpp_applicant", source: "manual", dobRegistered: "registered" },
 ];
 
 const MOCK_MILESTONES_E: MockMilestone[] = [
@@ -504,6 +508,8 @@ export const dobRoleLabels: Record<string, string> = {
   architect: "Architect",
   engineer: "Engineer",
   gc: "General Contractor",
+  sia_applicant: "SIA Applicant",
+  tpp_applicant: "TPP Applicant",
   other: "Other",
 };
 

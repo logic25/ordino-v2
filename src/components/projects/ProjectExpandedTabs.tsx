@@ -7,12 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import {
   FileText, Users, Clock, GitBranch, Mail, Phone,
   ChevronRight, ChevronDown, ExternalLink, MessageSquare,
   Pencil, Circle, ArrowUpRight, ArrowDownLeft,
   File, Upload, CheckCircle2, CircleDot, DollarSign,
-  Send, XCircle, CheckCheck,
+  Send, XCircle, CheckCheck, StickyNote, Sparkles,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type {
@@ -42,14 +43,30 @@ function ServiceDetail({ service }: { service: MockService }) {
     <div className="px-6 py-4 space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Scope of Work</h4>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Scope of Work (Internal)</h4>
           <p className="text-sm whitespace-pre-line">{service.scopeOfWork || "No scope defined."}</p>
         </div>
         <div>
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
-            <MessageSquare className="h-3 w-3" /> Notes
-          </h4>
-          {service.notes ? <p className="text-sm">{service.notes}</p> : <p className="text-sm text-muted-foreground italic">No notes.</p>}
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Job Description (DOB)</h4>
+          {service.jobDescription ? (
+            <p className="text-sm whitespace-pre-line">{service.jobDescription}</p>
+          ) : (
+            <p className="text-sm text-muted-foreground italic">No job description — required for DOB filing.</p>
+          )}
+        </div>
+      </div>
+
+      {/* Estimated Cost + Allotted Hours */}
+      <div className="flex items-center gap-6 text-sm">
+        <div>
+          <span className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Estimated Job Cost</span>
+          <div className="font-semibold mt-0.5">
+            {service.estimatedCost ? `$${service.estimatedCost.toLocaleString()}` : <span className="text-muted-foreground italic font-normal">Not set</span>}
+          </div>
+        </div>
+        <div>
+          <span className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Allotted Hours</span>
+          <div className="font-semibold mt-0.5">{service.allottedHours} hrs</div>
         </div>
       </div>
 
@@ -81,7 +98,7 @@ function ServiceDetail({ service }: { service: MockService }) {
         {service.application ? (
           <Badge variant="outline" className="font-mono text-xs">#{service.application.jobNumber} {service.application.type}</Badge>
         ) : (
-          <span className="text-muted-foreground italic">Not defined</span>
+          <span className="text-muted-foreground italic">Not filed yet</span>
         )}
         <Button variant="link" size="sm" className="h-auto p-0 text-xs">Change</Button>
       </div>
@@ -496,6 +513,81 @@ function JobCostingTab({ services, timeEntries }: { services: MockService[]; tim
   );
 }
 
+// --- Notes Tab ---
+
+function NotesTab({ services }: { services: MockService[] }) {
+  const [manualNote, setManualNote] = useState("");
+  const [notes, setNotes] = useState<Array<{ id: string; text: string; source: "ai" | "manual"; date: string }>>([
+    {
+      id: "ai-1",
+      text: "Project is awaiting final sealed drawings from architect (promised by 02/20). Client has requested expedited timeline and overrode recommendation to wait. ACP5 asbestos inspection scheduled for 02/18 via EcoTest Labs. Pre-filing meeting with DOB examiner requested. Plan review coordination is complete — zoning and code compliance confirmed. Change Order CO-001 approved for $600 (expedited filing). CO-002 pending for lead paint survey ($450).",
+      source: "ai",
+      date: "02/16/2026",
+    },
+    {
+      id: "manual-1",
+      text: "Margaret is pushing hard on timeline — need to manage expectations about DOB review times. Discussed with Don about potential plan exam vs pro-cert route.",
+      source: "manual",
+      date: "02/14/2026",
+    },
+  ]);
+  const { toast } = useToast();
+
+  const addNote = () => {
+    if (!manualNote.trim()) return;
+    setNotes((prev) => [
+      { id: `manual-${Date.now()}`, text: manualNote.trim(), source: "manual", date: new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }) },
+      ...prev,
+    ]);
+    setManualNote("");
+    toast({ title: "Note added" });
+  };
+
+  return (
+    <div className="p-4 space-y-4">
+      {/* Add note */}
+      <div className="space-y-2">
+        <Textarea
+          placeholder="Add a project note..."
+          value={manualNote}
+          onChange={(e) => setManualNote(e.target.value)}
+          className="min-h-[80px] text-sm"
+        />
+        <div className="flex items-center gap-2">
+          <Button size="sm" className="gap-1.5" onClick={addNote} disabled={!manualNote.trim()}>
+            <StickyNote className="h-3.5 w-3.5" /> Add Note
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => toast({ title: "AI Summary", description: "AI will analyze requirements, tasks, and activity to generate a project summary." })}
+          >
+            <Sparkles className="h-3.5 w-3.5" /> Generate AI Summary
+          </Button>
+        </div>
+      </div>
+
+      <Separator />
+
+      {/* Notes list */}
+      <div className="space-y-3">
+        {notes.map((note) => (
+          <div key={note.id} className="p-3 rounded-lg border bg-background">
+            <div className="flex items-center gap-2 mb-1.5">
+              <Badge variant={note.source === "ai" ? "secondary" : "outline"} className="text-[10px] px-1.5 py-0 gap-1">
+                {note.source === "ai" ? <><Sparkles className="h-2.5 w-2.5" /> AI Summary</> : <><StickyNote className="h-2.5 w-2.5" /> Manual</>}
+              </Badge>
+              <span className="text-[10px] text-muted-foreground font-mono">{note.date}</span>
+            </div>
+            <p className="text-sm whitespace-pre-line">{note.text}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // --- Main Exported Component ---
 
 export function ProjectExpandedTabs({
@@ -530,6 +622,9 @@ export function ProjectExpandedTabs({
           <TabsTrigger value="services" className="text-xs gap-1 data-[state=active]:bg-background">
             <FileText className="h-3 w-3" /> Services ({services.length})
           </TabsTrigger>
+          <TabsTrigger value="notes" className="text-xs gap-1 data-[state=active]:bg-background">
+            <StickyNote className="h-3 w-3" /> Notes
+          </TabsTrigger>
           <TabsTrigger value="emails" className="text-xs gap-1 data-[state=active]:bg-background">
             <Mail className="h-3 w-3" /> Emails ({emails.length})
           </TabsTrigger>
@@ -554,6 +649,7 @@ export function ProjectExpandedTabs({
         </TabsList>
 
         <TabsContent value="services" className="mt-0"><ServicesTab services={services} /></TabsContent>
+        <TabsContent value="notes" className="mt-0"><NotesTab services={services} /></TabsContent>
         <TabsContent value="emails" className="mt-0"><EmailsTab emails={emails} /></TabsContent>
         <TabsContent value="contacts" className="mt-0"><ContactsTab contacts={contacts} /></TabsContent>
         <TabsContent value="timeline" className="mt-0"><TimelineTab milestones={milestones} /></TabsContent>
