@@ -369,8 +369,22 @@ function LeadDetailPanel({
         {lead.notes && (
           <div className="rounded-md border border-dashed bg-background p-3 text-sm space-y-1">
             <p className="whitespace-pre-wrap">{lead.notes}</p>
-            <div className="text-xs text-muted-foreground">
-              Initial notes · {format(new Date(lead.created_at), "MMM d, yyyy")}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+              {lead.creator && (
+                <>
+                  <span className="font-medium">
+                    {lead.creator.first_name} {lead.creator.last_name}
+                  </span>
+                  <span>·</span>
+                </>
+              )}
+              <span>Initial notes · {format(new Date(lead.created_at), "MMM d, yyyy h:mm a")}</span>
+              {lead.assignee && (
+                <>
+                  <span>·</span>
+                  <span>Assigned to {lead.assignee.first_name} {lead.assignee.last_name}</span>
+                </>
+              )}
             </div>
           </div>
         )}
