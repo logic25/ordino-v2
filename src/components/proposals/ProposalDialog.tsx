@@ -157,33 +157,35 @@ function ServiceLineItem({
           {expanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
         </button>
 
-        <div className="relative min-w-0">
-          <Input
-            ref={nameInputRef}
-            placeholder="Type service name…"
-            className="h-8 text-sm font-medium border-0 shadow-none focus-visible:ring-1 focus-visible:ring-ring px-2 bg-transparent"
-            value={currentName}
-            onChange={(e) => {
-              form.setValue(`items.${index}.name`, e.target.value);
-              setShowSuggestions(e.target.value.length > 0 && serviceCatalog.length > 0);
-            }}
-            onFocus={() => { if (serviceCatalog.length > 0) setShowSuggestions(true); }}
-          />
-          {showSuggestions && filtered.length > 0 && (
-            <div ref={suggestionsRef} className="absolute left-0 top-full z-50 w-[340px] bg-popover border rounded-md shadow-lg mt-1 max-h-[200px] overflow-y-auto">
-              {filtered.map((service) => (
-                <button key={service.id} type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex justify-between items-center border-b last:border-0"
-                  onMouseDown={(e) => { e.preventDefault(); handleSelectService(service); }}>
-                  <div className="min-w-0">
-                    <div className="font-medium truncate">{service.name}</div>
-                    {service.description && <div className="text-xs text-muted-foreground truncate">{service.description}</div>}
-                  </div>
-                  {service.default_price ? <span className="text-xs text-muted-foreground shrink-0 ml-2">{formatCurrency(service.default_price)}</span> : null}
-                </button>
-              ))}
-            </div>
-          )}
-          {currentDesc && !expanded && <p className="text-xs text-muted-foreground truncate px-2 -mt-0.5">{currentDesc}</p>}
+        <div className="min-w-0">
+          <div className="relative">
+            <Input
+              ref={nameInputRef}
+              placeholder="Type service name…"
+              className="h-8 text-sm font-medium border-0 shadow-none focus-visible:ring-1 focus-visible:ring-ring px-2 bg-transparent relative z-[1]"
+              value={currentName}
+              onChange={(e) => {
+                form.setValue(`items.${index}.name`, e.target.value);
+                setShowSuggestions(e.target.value.length > 0 && serviceCatalog.length > 0);
+              }}
+              onFocus={() => { if (serviceCatalog.length > 0) setShowSuggestions(true); }}
+            />
+            {showSuggestions && filtered.length > 0 && (
+              <div ref={suggestionsRef} className="absolute left-0 top-full z-50 w-[340px] bg-popover border rounded-md shadow-lg mt-1 max-h-[200px] overflow-y-auto">
+                {filtered.map((service) => (
+                  <button key={service.id} type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex justify-between items-center border-b last:border-0"
+                    onMouseDown={(e) => { e.preventDefault(); handleSelectService(service); }}>
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{service.name}</div>
+                      {service.description && <div className="text-xs text-muted-foreground truncate">{service.description}</div>}
+                    </div>
+                    {service.default_price ? <span className="text-xs text-muted-foreground shrink-0 ml-2">{formatCurrency(service.default_price)}</span> : null}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {currentDesc && !expanded && <p className="text-xs text-muted-foreground truncate px-2 mt-0.5">{currentDesc}</p>}
         </div>
 
         <Select value={currentFeeType} onValueChange={(v) => form.setValue(`items.${index}.fee_type`, v)}>
