@@ -1,192 +1,156 @@
 
-# Project Enhancements: Schema, Service Hierarchy, Mock Test Project, Litigation Timeline + DOB NOW Extension (Roadmapped)
+
+# Signal Integration into Properties
 
 ## Overview
-
-This plan covers: (1) database schema additions for unit/tenant fields, (2) service parent-child hierarchy for work permits, (3) Edit Project dialog enhancements, (4) a new mock project with an ALT filing (no application number) with all fields populated for testing, (5) Litigation Timeline Export feature, and (6) DOB NOW browser extension concept (roadmapped).
-
----
-
-## 1. Database Migration
-
-Add `unit_number` and `tenant_name` to the `projects` table:
-
-```sql
-ALTER TABLE public.projects
-  ADD COLUMN unit_number varchar DEFAULT NULL,
-  ADD COLUMN tenant_name text DEFAULT NULL;
-```
-
-No new tables needed for the service hierarchy yet since services are still mock data.
+Integrate **Signal** (white-labeled PropertyGuard) into Ordino's Properties module using a shared database approach. Signal monitors NYC properties for DOB violations and externally-filed applications, and provides a sales pipeline to onboard unsubscribed property owners.
 
 ---
 
-## 2. Edit Project Dialog Enhancements
+## Phase 1: Database Schema
 
-**File: `src/components/projects/ProjectDialog.tsx`**
+Three new tables, all with RLS via `is_company_member(company_id)`:
 
-- Add **Unit / Apt Number** text field (after Floor Number)
-- Add **Tenant Name** text field (for commercial spaces)
-- Rename "External" toggle label to **"External Consultant Project"** with a helper tooltip: "Project managed by an outside consultant on your behalf"
+### signal_subscriptions
+Tracks monitoring status per property.
 
-**File: `src/hooks/useProjects.ts`**
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | default gen_random_uuid() |
+| property_id | uuid FK -> properties | not null |
+| company_id | uuid FK -> companies | not null |
+| status | text | `active`, `trial`, `expired`, `prospect`, default `prospect` |
+| subscribed_at | timestamptz | nullable |
+| expires_at | timestamptz | nullable |
+| owner_email | text | nullable |
+| owner_phone | text | nullable |
+| notes | text | sales/outreach notes |
+| created_at | timestamptz | default now() |
+| updated_at | timestamptz | default now() |
 
-- Add `unit_number` and `tenant_name` to the `Project` interface, `ProjectFormInput`, and the create/update mutations
-- Add to the select queries
+### signal_violations
+Violations detected by Signal monitoring.
 
----
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| property_id | uuid FK -> properties | not null |
+| company_id | uuid FK -> companies | not null |
+| agency | text | `DOB`, `ECB`, `FDNY`, `HPD`, `DEP` |
+| violation_number | text | |
+| violation_type | text | nullable |
+| description | text | |
+| issued_date | date | |
+| status | text | `open`, `resolved`, `dismissed`, `pending_hearing` |
+| penalty_amount | numeric | nullable |
+| raw_data | jsonb | nullable, full API payload |
+| created_at | timestamptz | default now() |
 
-## 3. Work Permits as Sub-Services (Parent-Child Linking)
+### signal_applications
+Applications filed externally (not by Ordino), detected by Signal.
 
-**File: `src/components/projects/projectMockData.ts`**
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| property_id | uuid FK -> properties | not null |
+| company_id | uuid FK -> companies | not null |
+| job_number | text | DOB job number |
+| application_type | text | e.g. NB, ALT1, ALT2, DM |
+| filing_status | text | nullable |
+| applicant_name | text | nullable (competitor intel) |
+| filed_date | date | nullable |
+| description | text | nullable |
+| raw_data | jsonb | nullable |
+| created_at | timestamptz | default now() |
 
-- Add `parentServiceId?: string` to `MockService` interface
-- Tag Work Permit services with a `parentServiceId` pointing to their parent ALT service
-- Work permits inherit the parent's job number
-
-**File: `src/pages/ProjectDetail.tsx` (ServicesFull component)**
-
-- Group services: render parent services normally, render children as indented rows beneath their parent with a left-border visual connector
-- Children share the parent's application/job number display
-- Indent children with a tree-line visual (subtle left border + padding)
-
-```
-[v] Alteration Type 1 (ALT-CO) - S00701588-I1
-     |-- Work Permit (OT) - S00701588-I1
-[>] Final Construction Sign-Off
-```
-
----
-
-## 4. New Mock Project (Set E) -- ALT Filing, No Application Number
-
-**File: `src/components/projects/projectMockData.ts`**
-
-Create a complete Set E mock dataset for a test project -- an Alteration Type 2 filing with NO application number yet but all other fields populated:
-
-- **Project name**: "689 5th Ave - Alteration Type 2" (maps to the litigation example)
-- **Services** (6 total):
-  - ALT Type 2 Filing (in_progress, NO application -- `application: null`)
-    - Work Permit (child, not_started)
-  - Plan Review (complete, billed)
-  - Inspection Coordination (not_started)
-  - Letter of Completion (not_started)
-  - Expediting (in_progress)
-- All services have: assignedTo, estimatedBillDate, scopeOfWork, notes, tasks, requirements, allottedHours fully populated
-- **Contacts**: 5 contacts (client, architect, engineer, GC, filing rep) with all fields filled including DOB roles, source, registration status, reviews
-- **Milestones**: 8+ timeline events covering full project lifecycle
-- **Change Orders**: 1 approved, 1 pending
-- **Emails**: 6+ realistic emails
-- **Documents**: 8+ documents across categories
-- **Time Entries**: 6+ entries across services
-- **Checklist Items**: 6+ items across categories (mix of done/outstanding)
-- **PIS**: Sent, partially complete
-- **Proposal Signature**: Fully executed
-
-Add Set E to all export arrays. Update `getMockIdx()` in `ProjectDetail.tsx` to map projects with "689" or "5th Ave" in the name to Set E (index 4).
+All three tables get:
+- RLS enabled
+- SELECT/INSERT/UPDATE/DELETE policies using `is_company_member(company_id)`
+- Indexes on `property_id` and `company_id`
+- Unique constraint on `signal_subscriptions(property_id, company_id)` (one subscription per property per company)
 
 ---
 
-## 5. Litigation Timeline Export
+## Phase 2: Data Hooks
 
-This is a new feature that generates a comprehensive chronological audit trail PDF for legal defense.
+### New files
+- **`src/hooks/useSignalSubscriptions.ts`** -- CRUD for subscriptions. Query joins with properties for the list view. Includes `useEnrollProperty` mutation (creates a `prospect` subscription).
+- **`src/hooks/useSignalViolations.ts`** -- Read violations for a property, with summary counts by agency.
+- **`src/hooks/useSignalApplications.ts`** -- Read external applications for a property.
 
-### UI Entry Point
-
-**File: `src/pages/ProjectDetail.tsx`**
-
-- Add a "Generate Litigation Package" button in the header area (next to "Edit Project")
-- Opens a dialog (`LitigationExportDialog`) with:
-  - Date range picker (project start to present, adjustable)
-  - Checkboxes for what to include: Emails, Phone Calls, Meetings, Documents, Timeline Events, Time Logs, Financial Summary, Critical Decisions
-  - Output format: PDF or PDF + ZIP (with attachments)
-  - "Generate" button that triggers the export
-
-### New Component
-
-**File: `src/components/projects/LitigationExportDialog.tsx`**
-
-- Dialog with configuration options above
-- On "Generate", collects all project data (mock for now):
-  - Chronological timeline merging: milestones, emails, time entries, change orders
-  - Communication log (all emails with full headers)
-  - Document register (all attached files)
-  - Critical decision points (highlighted entries where client overrode recommendations)
-- Uses `@react-pdf/renderer` (already installed) to generate the PDF
-- PDF sections:
-  1. Cover page (project info, client, PM, date range, certification)
-  2. Complete Chronological Timeline (every event sorted by date)
-  3. Communication Log (emails chronological)
-  4. Document Register (all files with metadata)
-  5. Critical Decision Points (flagged entries)
-  6. Time Log Summary
-  7. Financial Summary
-  8. Certification / Signature block
-
-### New Component
-
-**File: `src/components/projects/LitigationPDF.tsx`**
-
-- React-PDF document component that renders the litigation package
-- Styled with professional legal document formatting
-- Page numbers, headers/footers, table of contents
-
-For this phase, the PDF is generated from mock data. When real data is wired, the same component receives live data.
+All hooks follow existing patterns (useQuery/useMutation with queryClient invalidation, company_id from profile).
 
 ---
 
-## 6. DOB NOW Filing Prep (Implemented)
+## Phase 3: UI -- Property Table Enhancements
 
-Per-service side sheet that maps all Ordino data to DOB NOW fields with copy buttons, missing field highlights, pre-filing checklist, and post-filing job number entry. Triggered from "Start DOB NOW" button on services with `needsDobFiling: true`.
+### Modified: `src/pages/Properties.tsx`
+- Add filter tabs above the table: **All | Signal Active | Prospects | Not Monitored**
+- Fetch signal subscriptions alongside properties and merge them
+- Pass subscription data to PropertyTable
 
-**File: `src/components/projects/DobNowFilingPrepSheet.tsx`**
+### Modified: `src/components/properties/PropertyTable.tsx`
+- Add a **Signal** column header after "Owner"
+- Show a status badge per row: green "Active", yellow "Trial", orange "Prospect", gray "Not Monitored"
+- Add "Enroll in Signal" to the dropdown menu for properties without a subscription
 
----
-
-## 7. DOB NOW Browser Extension (Roadmapped -- Design Only)
-
-This is documented for future implementation, not built now. The concept:
-
-- Chrome extension sidebar that appears when the user is on the DOB NOW BUILD website
-- Shows the matching Ordino project (matched by address/BIN)
-- One-click time logging from within DOB NOW
-- Auto-fills DOB NOW form fields from Ordino project data (address, contacts, BBL, BIN)
-- Status sync: reads DOB NOW status and updates Ordino
-
-This requires a separate Chrome extension project and is outside the current Lovable scope.
+### New: `src/components/properties/SignalStatusBadge.tsx`
+- Small component rendering color-coded badge based on subscription status
 
 ---
 
-## 8. Configurable Service Hierarchy (Roadmapped)
+## Phase 4: UI -- Signal Section in Expanded Rows
 
-Parent-child service relationships (e.g., Work Permits under Alterations/New Buildings) should be configurable in Settings → Services rather than hardcoded. This will allow users to define which service types can be sub-services of which parent types. Currently hardcoded via `parentServiceId` in mock data.
+### New: `src/components/properties/SignalSection.tsx`
+Rendered inside the collapsible expanded row, below the existing Projects and DOB Applications sections. Contains:
+
+1. **Subscription Status** -- status badge + "Manage" or "Enroll" button
+2. **Violations Summary** -- grouped by agency (DOB, ECB, FDNY, HPD, DEP) with open/resolved counts and total penalties
+3. **External Applications** -- list of applications detected by Signal (distinct from Ordino-filed apps), each marked with a "Signal" badge to visually distinguish from internal filings
+
+If no subscription exists, shows a prompt: "This property is not monitored by Signal. Enroll to track violations and external applications."
 
 ---
 
-## Files to Create
+## Phase 5: Enrollment Dialog
 
-| File | Purpose |
-|------|---------|
-| `src/components/projects/LitigationExportDialog.tsx` | Export configuration dialog |
-| `src/components/projects/LitigationPDF.tsx` | React-PDF document for litigation package |
+### New: `src/components/properties/SignalEnrollDialog.tsx`
+Simple dialog to create/manage a Signal subscription:
+- Pre-filled property address (read-only)
+- Owner email and phone fields
+- Status selector (Prospect / Trial / Active)
+- Notes field for sales team
+- Save creates or updates the `signal_subscriptions` record
 
-## Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/hooks/useProjects.ts` | Add `unit_number`, `tenant_name` to interfaces and mutations |
-| `src/components/projects/ProjectDialog.tsx` | Add Unit, Tenant fields; rename External with tooltip |
-| `src/components/projects/projectMockData.ts` | Add `parentServiceId` to MockService; create full Set E mock data; add to export arrays |
-| `src/pages/ProjectDetail.tsx` | Service nesting logic; `getMockIdx` for Set E; Litigation Export button; import LitigationExportDialog |
+---
 
 ## Implementation Order
 
-1. Database migration (unit_number, tenant_name on projects)
-2. Update `useProjects.ts` types and mutations
-3. Update `ProjectDialog.tsx` with new fields and External tooltip
-4. Add `parentServiceId` to MockService and update existing mock data to link work permits to parent ALTs
-5. Create full Set E mock dataset (689 5th Ave)
-6. Implement parent-child service nesting in ServicesFull
-7. Build `LitigationExportDialog.tsx` and `LitigationPDF.tsx`
-8. Wire litigation export button into ProjectDetail header
-9. Test end-to-end
+1. Database migration (3 tables + RLS + indexes)
+2. Create `useSignalSubscriptions`, `useSignalViolations`, `useSignalApplications` hooks
+3. Create `SignalStatusBadge` and `SignalEnrollDialog` components
+4. Create `SignalSection` component for expanded rows
+5. Update `PropertyTable` with Signal column and menu item
+6. Update `Properties` page with filter tabs and data merging
+7. Test end-to-end
+
+---
+
+## Files Summary
+
+### New Files
+| File | Purpose |
+|------|---------|
+| `src/hooks/useSignalSubscriptions.ts` | Subscription CRUD |
+| `src/hooks/useSignalViolations.ts` | Violation queries |
+| `src/hooks/useSignalApplications.ts` | External application queries |
+| `src/components/properties/SignalStatusBadge.tsx` | Status badge component |
+| `src/components/properties/SignalSection.tsx` | Expanded row Signal content |
+| `src/components/properties/SignalEnrollDialog.tsx` | Enrollment/management dialog |
+
+### Modified Files
+| File | Changes |
+|------|---------|
+| `src/pages/Properties.tsx` | Filter tabs, fetch Signal data, merge with properties |
+| `src/components/properties/PropertyTable.tsx` | Signal column, badge, menu item, render SignalSection in expanded rows |
+
