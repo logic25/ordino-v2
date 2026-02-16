@@ -459,14 +459,19 @@ function ReadinessChecklist({ items: initialItems, pisStatus }: { items: MockChe
                 </CardTitle>
               </div>
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 text-sm">
+                <div className="flex items-center gap-2 text-sm" onClick={(e) => {
+                  if (!pisComplete) {
+                    e.stopPropagation();
+                    setIsOpen(true);
+                  }
+                }}>
                   <span className="text-muted-foreground">PIS:</span>
                   {pisComplete ? (
                     <Badge variant="outline" className="bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">
                       Complete
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800">
+                    <Badge variant="outline" className="bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800 cursor-pointer hover:opacity-80">
                       {pisStatus.completedFields}/{pisStatus.totalFields} fields
                     </Badge>
                   )}
