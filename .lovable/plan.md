@@ -1,57 +1,62 @@
 
 
-## Plan: Contextual Partner Emails + Due Date Sorting
+# Projects Table: Collapsible Services Rows with DOB Application Links
 
-### 1. Contextual/Tailored Partner Notification Emails
+## What This Changes
 
-**Problem**: When an RFP is not a direct match (e.g., LL11 filings, facade inspections), the partner email should position your firm as a support partner rather than a prime bidder. Currently all emails use the same generic "Partnership Opportunity" template.
+The Projects table gets collapsible rows (same pattern as the Invoices table). When you expand a project row, you see its **services** (seeded from proposal line items). Each service shows its linked DOB application, or a "Start DOB NOW Application" button if none is linked yet.
 
-**Solution**: Detect the RFP type from service tags and title keywords, then tailor the email subject, intro paragraph, and CTA accordingly.
+## Visual Layout
 
-**Changes to `src/components/rfps/buildPartnerEmailTemplate.ts`**:
-- Add a helper function `detectRfpContext(rfp)` that categorizes the RFP by scanning `service_tags` and `title` for keywords like "LL11", "facade", "FISP", "inspection", "environmental", etc.
-- Based on the detected context, vary:
-  - **Subject line**: e.g., "LL11/FISP Support Opportunity: [Title]" instead of generic "Partnership Opportunity"
-  - **Intro paragraph**: e.g., "We'd like to offer our firm's inspection/filing support for this upcoming LL11/FISP requirement" instead of "We'd like to invite your firm to collaborate"
-  - **Services section**: Highlight only the relevant services (e.g., facade inspection, DOB filings) rather than the full catalog
-- Context categories to support initially:
-  - **LL11/FISP** (facade inspection/filing support)
-  - **Environmental** (asbestos, lead, Phase I/II)
-  - **General construction/engineering** (default collaborative tone)
-  - **Default** (current behavior for unrecognized types)
-
-### 2. Sort Discovery List by Due Date
-
-**Problem**: The discovered RFPs list has no sorting; users cannot order by urgency.
-
-**Changes to `src/pages/RfpDiscovery.tsx`**:
-- Add a sort toggle button (similar to the RFP table view) near the search/filter area
-- Default sort: due date ascending (soonest first), with null dates at the bottom
-- Add a `useMemo` wrapper around the `rfps` array to apply sorting before rendering
-- Simple toggle between "Due Date (soonest)" and "Relevance Score (highest)" using a state variable and a small dropdown or toggle button
-
-### Technical Details
-
-**File changes:**
-
-| File | Change |
-|------|--------|
-| `src/components/rfps/buildPartnerEmailTemplate.ts` | Add `detectRfpContext()` helper; update `buildPartnerEmailSubject()` and `buildPartnerEmailBody()` to use contextual messaging |
-| `src/pages/RfpDiscovery.tsx` | Add sort state + `useMemo` for sorted list; add sort toggle UI (dropdown with Due Date / Relevance options) |
-
-**Context detection logic (pseudocode):**
 ```text
-function detectRfpContext(rfp):
-  tags + title keywords -> lowercase scan
-  if matches "ll11", "fisp", "facade" -> return "ll11_support"
-  if matches "environmental", "asbestos", "lead", "phase" -> return "environmental"  
-  if matches "construction", "renovation", "build" -> return "construction"
-  else -> return "general"
+Project Row: PJ2026-0001 | 689 5th Ave | Client Name | Open | $4,500
+  [expanded]
+  ┌──────────────────────────────────────────────────────────────────┐
+  │ Service                  Status        Application     Amount   │
+  ├──────────────────────────────────────────────────────────────────┤
+  │ Application Filing       Complete      #421639356 FA   $800     │
+  │ Plan Review              Complete      #421639356 FA   $200     │
+  │ Inspections Coord.       In Progress   #421639356 FA   $300     │
+  │ Sign-off Obtainment      Not Started   [Start DOB NOW]  $250   │
+  └──────────────────────────────────────────────────────────────────┘
+  Total: $1,550 | Billed: $1,000 | Remaining: $550
 ```
 
-**Email variations by context:**
-- `ll11_support`: Subject includes "LL11/FISP Support", intro positions firm as inspection/filing support partner, highlights relevant certifications
-- `environmental`: Subject includes "Environmental Services Support", focuses on testing/abatement capabilities
-- `construction`: Standard collaborative partnership tone
-- `general`: Current default behavior (no change)
+## Mock Data (Frontend Only)
 
+Since we're prototyping, the expanded rows will use hardcoded mock services and applications so you can see the full flow before wiring up the backend. The project header data (number, property, client, PM, status, value) continues to come from the real database.
+
+Mock data will include:
+- 4-5 services per project with varying statuses (complete, in_progress, not_started, billed)
+- Some services linked to a mock DOB application (with job number and type badge)
+- Some services with no application yet, showing a "Start DOB NOW Application" button
+- Billing summary row at the bottom (Total / Billed / Remaining)
+
+## Files Changed
+
+### Modified: `src/components/projects/ProjectTable.tsx`
+- Add expand/collapse state tracking (same pattern as InvoiceTable)
+- Add chevron toggle on each project row
+- Add nested service rows under each expanded project
+- Each service row shows: name, status badge (color-coded like proposals), linked application badge or "Start DOB NOW" button, amount
+- Add billing summary row at the bottom of expanded section
+- Add expand/collapse all toggle in the table header
+
+### Modified: `src/pages/Projects.tsx`
+- No major changes needed -- the table component handles expansion internally
+
+### No New Files Needed
+The collapsible row logic lives entirely within the updated ProjectTable component, following the same pattern already established in InvoiceTable.
+
+### No Database Changes
+All mock data for now. The `services` table already exists with the right columns (`project_id`, `application_id`, `name`, `status`, `total_amount`, `hourly_rate`, `estimated_hours`).
+
+## Status Badge Colors for Services
+Following the same custom className pattern used for proposals:
+- **Not Started**: gray/muted
+- **In Progress**: blue
+- **Complete**: emerald/green
+- **Billed**: indigo/purple
+
+## "Start DOB NOW" Button
+For services without a linked application, a small outlined button appears in the Application column. For now it will just show a toast ("Coming soon -- DOB NOW integration"). Later this will open a pre-filled application dialog or link to DOB NOW.
