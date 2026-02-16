@@ -720,6 +720,14 @@ export default function Proposals() {
                     leads={filteredLeads}
                     onDelete={handleDeleteLead}
                     onConvertToProposal={handleConvertLeadToProposal}
+                    onUpdateLead={async (id, updates) => {
+                      try {
+                        await updateLead.mutateAsync({ id, ...updates });
+                        toast({ title: "Lead updated" });
+                      } catch (error: any) {
+                        toast({ title: "Error", description: error.message, variant: "destructive" });
+                      }
+                    }}
                     isDeleting={deleteLead.isPending}
                   />
                 )}

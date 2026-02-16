@@ -25,7 +25,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Trash2, FileText, Loader2, UserPlus } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { MoreHorizontal, Trash2, FileText, Loader2, UserPlus, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
 import type { Lead } from "@/hooks/useLeads";
@@ -34,16 +42,17 @@ interface LeadsTableProps {
   leads: Lead[];
   onDelete: (id: string) => void;
   onConvertToProposal: (lead: Lead) => void;
+  onUpdateLead?: (id: string, updates: { status?: string; notes?: string }) => void;
   isDeleting?: boolean;
 }
 
-const STATUS_STYLES: Record<string, { variant: "default" | "secondary" | "outline" | "destructive"; label: string }> = {
-  new: { variant: "default", label: "New" },
-  contacted: { variant: "outline", label: "Contacted" },
-  qualified: { variant: "default", label: "Qualified" },
-  converted: { variant: "secondary", label: "Converted" },
-  lost: { variant: "destructive", label: "Lost" },
-};
+const STATUS_OPTIONS: { value: string; variant: "default" | "secondary" | "outline" | "destructive"; label: string }[] = [
+  { value: "new", variant: "default", label: "New" },
+  { value: "contacted", variant: "outline", label: "Contacted" },
+  { value: "qualified", variant: "default", label: "Qualified" },
+  { value: "converted", variant: "secondary", label: "Converted" },
+  { value: "lost", variant: "destructive", label: "Lost" },
+];
 
 const SOURCE_LABELS: Record<string, string> = {
   phone_call: "Phone",
@@ -62,14 +71,19 @@ const CLIENT_TYPE_LABELS: Record<string, string> = {
   other: "Other",
 };
 
-export function LeadsTable({ leads, onDelete, onConvertToProposal, isDeleting }: LeadsTableProps) {
+export function LeadsTable({ leads, onDelete, onConvertToProposal, onUpdateLead, isDeleting }: LeadsTableProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const handleConfirmDelete = () => {
     if (deleteId) {
       onDelete(deleteId);
       setDeleteId(null);
     }
+  };
+
+  const toggleRow = (id: string) => {
+    setExpandedId(expandedId === id ? null : id);
   };
 
   if (leads.length === 0) {
@@ -89,6 +103,7 @@ export function LeadsTable({ leads, onDelete, onConvertToProposal, isDeleting }:
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-[30px]"></TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Type</TableHead>
             <TableHead>Contact</TableHead>
@@ -96,79 +111,98 @@ export function LeadsTable({ leads, onDelete, onConvertToProposal, isDeleting }:
             <TableHead>Subject</TableHead>
             <TableHead>Source</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Assigned To</TableHead>
             <TableHead>Created</TableHead>
             <TableHead className="w-[60px]"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {leads.map((lead) => {
-            const statusStyle = STATUS_STYLES[lead.status] || STATUS_STYLES.new;
+            const isExpanded = expandedId === lead.id;
+            const statusOption = STATUS_OPTIONS.find(s => s.value === lead.status) || STATUS_OPTIONS[0];
             return (
-              <TableRow key={lead.id}>
-                <TableCell className="font-medium">{lead.full_name}</TableCell>
-                <TableCell>
-                  <span className="text-xs text-muted-foreground">
-                    {CLIENT_TYPE_LABELS[lead.client_type || ""] || "—"}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  {lead.contact_phone && (
-                    <div className="text-sm">{lead.contact_phone}</div>
-                  )}
-                  {lead.contact_email && (
-                    <div className="text-xs text-muted-foreground">{lead.contact_email}</div>
-                  )}
-                  {!lead.contact_phone && !lead.contact_email && "—"}
-                </TableCell>
-                <TableCell>
-                  <div className="max-w-[200px] truncate text-sm">
-                    {lead.property_address || "—"}
-                  </div>
-                </TableCell>
-                <TableCell className="text-sm">{lead.subject || "—"}</TableCell>
-                <TableCell>
-                  <Badge variant="outline" className="text-xs">
-                    {SOURCE_LABELS[lead.source] || lead.source}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={statusStyle.variant}>{statusStyle.label}</Badge>
-                </TableCell>
-                <TableCell className="text-sm text-primary">
-                  {lead.assignee
-                    ? `${lead.assignee.first_name} ${lead.assignee.last_name}`
-                    : "—"}
-                </TableCell>
-                <TableCell className="text-muted-foreground text-sm">
-                  {format(new Date(lead.created_at), "MMM d, yyyy")}
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {lead.status !== "converted" && (
-                        <DropdownMenuItem onClick={() => onConvertToProposal(lead)}>
-                          <FileText className="h-4 w-4 mr-2" />
-                          Create Proposal
+              <>
+                <TableRow
+                  key={lead.id}
+                  className="cursor-pointer"
+                  onClick={() => toggleRow(lead.id)}
+                >
+                  <TableCell className="pr-0">
+                    {isExpanded
+                      ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      : <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    }
+                  </TableCell>
+                  <TableCell className="font-medium">{lead.full_name}</TableCell>
+                  <TableCell>
+                    <span className="text-xs text-muted-foreground">
+                      {CLIENT_TYPE_LABELS[lead.client_type || ""] || "—"}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {lead.contact_phone && (
+                      <div className="text-sm">{lead.contact_phone}</div>
+                    )}
+                    {lead.contact_email && (
+                      <div className="text-xs text-muted-foreground">{lead.contact_email}</div>
+                    )}
+                    {!lead.contact_phone && !lead.contact_email && "—"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="max-w-[200px] truncate text-sm">
+                      {lead.property_address || "—"}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm">{lead.subject || "—"}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-xs">
+                      {SOURCE_LABELS[lead.source] || lead.source}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={statusOption.variant}>{statusOption.label}</Badge>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {format(new Date(lead.created_at), "MMM d, yyyy")}
+                  </TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {lead.status !== "converted" && (
+                          <DropdownMenuItem onClick={() => onConvertToProposal(lead)}>
+                            <FileText className="h-4 w-4 mr-2" />
+                            Create Proposal
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => setDeleteId(lead.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
                         </DropdownMenuItem>
-                      )}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="text-destructive"
-                        onClick={() => setDeleteId(lead.id)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+
+                {isExpanded && (
+                  <TableRow key={`${lead.id}-detail`}>
+                    <TableCell colSpan={10} className="bg-muted/30 p-0">
+                      <LeadDetailPanel
+                        lead={lead}
+                        onUpdateLead={onUpdateLead}
+                        onConvertToProposal={onConvertToProposal}
+                      />
+                    </TableCell>
+                  </TableRow>
+                )}
+              </>
             );
           })}
         </TableBody>
@@ -202,5 +236,103 @@ export function LeadsTable({ leads, onDelete, onConvertToProposal, isDeleting }:
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+// --- Inline detail panel ---
+
+function LeadDetailPanel({
+  lead,
+  onUpdateLead,
+  onConvertToProposal,
+}: {
+  lead: Lead;
+  onUpdateLead?: (id: string, updates: { status?: string; notes?: string }) => void;
+  onConvertToProposal: (lead: Lead) => void;
+}) {
+  const [notes, setNotes] = useState(lead.notes || "");
+  const [notesDirty, setNotesDirty] = useState(false);
+
+  const handleStatusChange = (value: string) => {
+    onUpdateLead?.(lead.id, { status: value });
+  };
+
+  const handleSaveNotes = () => {
+    onUpdateLead?.(lead.id, { notes });
+    setNotesDirty(false);
+  };
+
+  return (
+    <div className="px-6 py-4 space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Status */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Status</label>
+          <Select value={lead.status} onValueChange={handleStatusChange}>
+            <SelectTrigger className="h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Assigned To */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Assigned To</label>
+          <div className="text-sm py-2">
+            {lead.assignee
+              ? `${lead.assignee.first_name} ${lead.assignee.last_name}`
+              : <span className="text-muted-foreground">Unassigned</span>}
+          </div>
+        </div>
+
+        {/* Contact Info */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Contact</label>
+          <div className="text-sm space-y-0.5">
+            {lead.contact_phone && <div>{lead.contact_phone}</div>}
+            {lead.contact_email && <div className="text-muted-foreground">{lead.contact_email}</div>}
+            {lead.property_address && <div className="text-muted-foreground">{lead.property_address}</div>}
+          </div>
+        </div>
+      </div>
+
+      {/* Notes */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-muted-foreground">Notes</label>
+        <Textarea
+          value={notes}
+          onChange={(e) => { setNotes(e.target.value); setNotesDirty(true); }}
+          placeholder="Add notes about this lead..."
+          rows={3}
+          className="resize-none"
+        />
+        {notesDirty && (
+          <div className="flex justify-end">
+            <Button size="sm" onClick={handleSaveNotes}>Save Notes</Button>
+          </div>
+        )}
+      </div>
+
+      {/* Actions */}
+      {lead.status !== "converted" && (
+        <div className="flex gap-2 pt-1">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onConvertToProposal(lead)}
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Create Proposal
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
