@@ -33,6 +33,7 @@ import { useProjects, ProjectWithRelations } from "@/hooks/useProjects";
 import { useAssignableProfiles } from "@/hooks/useProfiles";
 import { ProjectEmailsTab } from "@/components/emails/ProjectEmailsTab";
 import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   SERVICE_SETS, CONTACT_SETS, MILESTONE_SETS, CO_SETS,
@@ -63,15 +64,17 @@ export default function ProjectDetail() {
   const { data: projects = [], isLoading } = useProjects();
   const { data: assignableProfiles = [] } = useAssignableProfiles();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const handlePmChange = async (profileId: string) => {
     if (!project) return;
     const pmId = profileId === "__unassigned__" ? null : profileId;
-    const { error } = await supabase.from("projects").update({ assigned_pm_id: pmId }).eq("id", project.id);
+    const { error } = await supabase.from("projects").update({ assigned_pm_id: pmId } as any).eq("id", project.id);
     if (error) {
       toast({ title: "Error", description: "Failed to update PM assignment.", variant: "destructive" });
     } else {
       toast({ title: "PM Updated", description: "Project manager reassigned." });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
     }
   };
 
@@ -154,6 +157,13 @@ export default function ProjectDetail() {
                 )}
                 {project.clients?.name && (
                   <span className="flex items-center gap-1"><Building2 className="h-3.5 w-3.5" /> {project.clients.name}</span>
+                )}
+                {contacts.length > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Users className="h-3.5 w-3.5" />
+                    {contacts[0].name}
+                    {contacts[0].phone && <span className="text-xs">· {contacts[0].phone}</span>}
+                  </span>
                 )}
                 <span className="flex items-center gap-1">
                   <User className="h-3.5 w-3.5" /> PM:&nbsp;
@@ -740,7 +750,20 @@ function ServicesFull({ services: initialServices }: { services: MockService[] }
   const [orderedServices, setOrderedServices] = useState(initialServices);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [editingField, setEditingField] = useState<{ id: string; field: "assignedTo" | "estimatedBillDate" } | null>(null);
+  const [editValue, setEditValue] = useState("");
   const { toast } = useToast();
+
+  const updateServiceField = (id: string, field: "assignedTo" | "estimatedBillDate", value: string) => {
+    setOrderedServices(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
+    setEditingField(null);
+    toast({ title: "Updated", description: `Service ${field === "assignedTo" ? "assignment" : "bill date"} updated.` });
+  };
+
+  const startEdit = (id: string, field: "assignedTo" | "estimatedBillDate", currentValue: string) => {
+    setEditingField({ id, field });
+    setEditValue(currentValue || "");
+  };
 
   const moveService = (index: number, direction: "up" | "down") => {
     const newIdx = direction === "up" ? index - 1 : index + 1;
@@ -828,13 +851,42 @@ function ServicesFull({ services: initialServices }: { services: MockService[] }
                   <TableCell>
                     <span className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${sStatus.className}`}>{sStatus.label}</span>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{svc.assignedTo}</TableCell>
+                  <TableCell className="text-muted-foreground" onClick={(e) => { e.stopPropagation(); startEdit(svc.id, "assignedTo", svc.assignedTo); }}>
+                    {editingField?.id === svc.id && editingField.field === "assignedTo" ? (
+                      <Input
+                        className="h-7 text-sm w-[100px]"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={() => updateServiceField(svc.id, "assignedTo", editValue)}
+                        onKeyDown={(e) => { if (e.key === "Enter") updateServiceField(svc.id, "assignedTo", editValue); if (e.key === "Escape") setEditingField(null); }}
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <span className="cursor-pointer hover:text-foreground hover:underline decoration-dashed underline-offset-2">{svc.assignedTo}</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {svc.subServices.length > 0 ? (
                       <div className="flex gap-1 flex-wrap">{svc.subServices.map((d) => <Badge key={d} variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">{d}</Badge>)}</div>
                     ) : <span className="text-xs text-muted-foreground">—</span>}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{svc.estimatedBillDate || "—"}</TableCell>
+                  <TableCell className="text-muted-foreground" onClick={(e) => { e.stopPropagation(); startEdit(svc.id, "estimatedBillDate", svc.estimatedBillDate || ""); }}>
+                    {editingField?.id === svc.id && editingField.field === "estimatedBillDate" ? (
+                      <Input
+                        className="h-7 text-sm w-[110px]"
+                        placeholder="MM/DD/YYYY"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={() => updateServiceField(svc.id, "estimatedBillDate", editValue)}
+                        onKeyDown={(e) => { if (e.key === "Enter") updateServiceField(svc.id, "estimatedBillDate", editValue); if (e.key === "Escape") setEditingField(null); }}
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <span className="cursor-pointer hover:text-foreground hover:underline decoration-dashed underline-offset-2">{svc.estimatedBillDate || "—"}</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums font-medium">{formatCurrency(svc.totalAmount)}</TableCell>
                   <TableCell className="text-right tabular-nums text-muted-foreground">{svc.costAmount > 0 ? formatCurrency(svc.costAmount) : "—"}</TableCell>
                   <TableCell className="text-right tabular-nums">
