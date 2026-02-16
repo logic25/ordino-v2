@@ -58,9 +58,13 @@ export function useCreateProperty() {
   return useMutation({
     mutationFn: async (property: PropertyFormInput) => {
       // Get user's company_id from their profile
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
       const { data: profile } = await supabase
         .from("profiles")
         .select("company_id")
+        .eq("user_id", user.id)
         .single();
 
       if (!profile?.company_id) {
