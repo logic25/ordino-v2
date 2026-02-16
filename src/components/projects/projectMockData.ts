@@ -213,6 +213,7 @@ const MOCK_SERVICES_B: MockService[] = [
 // --- Contacts ---
 
 const MOCK_CONTACTS_A: MockContact[] = [
+  { id: "c0", name: "Sheri Lopez", role: "Applicant of Record", company: "GLE", phone: "(212) 555-0503", email: "sheri@gle.com", dobRole: "applicant", source: "manual", dobRegistered: "registered" },
   { id: "c1", name: "Mayra Maisch", role: "Project Contact", company: "BGO", phone: "(212) 555-0101", email: "mayra@bgo.com", dobRole: "owner", source: "proposal", dobRegistered: "registered" },
   { id: "c2", name: "Antonio Rossi", role: "Architect of Record", company: "Rossi Architecture", phone: "(212) 555-0202", email: "antonio@rossiarch.com", dobRole: "architect", source: "proposal", dobRegistered: "registered" },
   { id: "c3", name: "Natalia Smith", role: "Filing Representative", company: "GLE", phone: "(212) 555-0303", email: "natalia@gle.com", dobRole: "filing_rep", source: "manual", dobRegistered: "registered" },
