@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -44,10 +46,8 @@ function CompanyCombobox({
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Sync external value
   useEffect(() => { setSearch(value); }, [value]);
 
-  // Close on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (
@@ -66,9 +66,9 @@ function CompanyCombobox({
   );
 
   return (
-    <div className="relative flex-1">
+    <div className="relative">
       <div className="relative">
-        <Building2 className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <Input
           ref={inputRef}
           placeholder="Company name…"
@@ -78,7 +78,7 @@ function CompanyCombobox({
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
-          className="h-8 text-sm pl-7"
+          className="h-9 text-sm pl-8"
         />
       </div>
       {open && (search.length > 0 || clients.length > 0) && (
@@ -108,7 +108,6 @@ function CompanyCombobox({
               </button>
             ))
           ) : null}
-          {/* Add new option */}
           {search.trim() && !filtered.some(c => c.name.toLowerCase() === search.toLowerCase()) && (
             <button
               type="button"
@@ -177,11 +176,34 @@ export function ProposalContactsSection({
     }
   };
 
+  // Find the first "bill_to" contact to enable "same as" feature
+  const billToContact = contacts.find(c => c.role === "bill_to");
+
+  const copyFromBillTo = (index: number) => {
+    if (!billToContact) return;
+    updateContact(index, {
+      name: billToContact.name,
+      email: billToContact.email,
+      phone: billToContact.phone,
+      company_name: billToContact.company_name,
+      client_id: billToContact.client_id,
+    });
+  };
+
+  const isSameAsBillTo = (contact: ProposalContactInput) => {
+    if (!billToContact || contact.role === "bill_to") return false;
+    return (
+      contact.name === billToContact.name &&
+      contact.email === billToContact.email &&
+      contact.company_name === billToContact.company_name
+    );
+  };
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {contacts.length === 0 && (
-        <div className="border border-dashed rounded-lg p-4 text-center">
-          <p className="text-sm text-muted-foreground mb-2">
+        <div className="border border-dashed rounded-lg p-5 text-center">
+          <p className="text-sm text-muted-foreground mb-3">
             Add the people involved — who gets the proposal, who pays, and who signs.
           </p>
           <Button type="button" variant="outline" size="sm" onClick={addContact}>
@@ -194,12 +216,12 @@ export function ProposalContactsSection({
       {contacts.map((contact, index) => (
         <div key={index} className="border rounded-lg overflow-hidden bg-card">
           {/* Header row: Role + Name + Delete */}
-          <div className="flex items-center gap-2 px-3 py-2 bg-muted/30 border-b">
+          <div className="flex items-center gap-2 px-3 py-2.5 bg-muted/30 border-b">
             <Select
               value={contact.role}
               onValueChange={(val) => updateContact(index, { role: val as ContactRole })}
             >
-              <SelectTrigger className="w-[90px] h-7 text-xs font-semibold border-0 bg-background shadow-sm">
+              <SelectTrigger className="w-[90px] h-8 text-xs font-semibold border-0 bg-background shadow-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -213,7 +235,7 @@ export function ProposalContactsSection({
               placeholder="Contact name *"
               value={contact.name || ""}
               onChange={(e) => updateContact(index, { name: e.target.value })}
-              className="h-7 text-sm flex-1 font-medium border-0 shadow-none bg-transparent focus-visible:ring-1"
+              className="h-8 text-sm flex-1 font-medium border-0 shadow-none bg-transparent focus-visible:ring-1"
               autoFocus={!contact.name && index === contacts.length - 1}
             />
 
@@ -221,39 +243,64 @@ export function ProposalContactsSection({
               type="button"
               variant="ghost"
               size="icon"
-              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+              className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
               onClick={() => removeContact(index)}
             >
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
 
-          {/* Detail row: Company combobox + Email + Phone */}
-          <div className="grid grid-cols-[1fr_1fr_120px] gap-2 px-3 py-2">
-            <CompanyCombobox
-              value={contact.company_name || ""}
-              clients={clients}
-              onSelect={(client) => handleSelectCompany(index, client)}
-              onAddNew={(name) => handleAddNewCompany(index, name)}
-            />
-            <Input
-              placeholder="Email"
-              type="email"
-              value={contact.email || ""}
-              onChange={(e) => updateContact(index, { email: e.target.value })}
-              className="h-8 text-sm"
-            />
-            <Input
-              placeholder="Phone"
-              value={contact.phone || ""}
-              onChange={(e) => updateContact(index, { phone: e.target.value })}
-              className="h-8 text-sm"
-            />
-          </div>
+          {/* "Same as Bill To" checkbox for non-bill-to contacts */}
+          {contact.role !== "bill_to" && billToContact && billToContact.name && (
+            <div className="px-4 pt-3 pb-1">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox
+                  checked={isSameAsBillTo(contact)}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      copyFromBillTo(index);
+                    } else {
+                      updateContact(index, { name: "", email: "", phone: "", company_name: "", client_id: undefined });
+                    }
+                  }}
+                />
+                <span className="text-xs text-muted-foreground">
+                  Same as Bill To ({billToContact.name})
+                </span>
+              </label>
+            </div>
+          )}
+
+          {/* Detail fields */}
+          {!isSameAsBillTo(contact) && (
+            <div className="px-4 py-3 space-y-3">
+              <CompanyCombobox
+                value={contact.company_name || ""}
+                clients={clients}
+                onSelect={(client) => handleSelectCompany(index, client)}
+                onAddNew={(name) => handleAddNewCompany(index, name)}
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  placeholder="Email"
+                  type="email"
+                  value={contact.email || ""}
+                  onChange={(e) => updateContact(index, { email: e.target.value })}
+                  className="h-9 text-sm"
+                />
+                <Input
+                  placeholder="Phone"
+                  value={contact.phone || ""}
+                  onChange={(e) => updateContact(index, { phone: e.target.value })}
+                  className="h-9 text-sm"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Linked indicator */}
-          {contact.client_id && (
-            <div className="px-3 pb-2">
+          {contact.client_id && !isSameAsBillTo(contact) && (
+            <div className="px-4 pb-3">
               <span className="text-xs text-accent inline-flex items-center gap-1">
                 <Building2 className="h-3 w-3" />
                 Linked to {clients.find(c => c.id === contact.client_id)?.name || "company"}
