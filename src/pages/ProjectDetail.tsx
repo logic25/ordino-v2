@@ -275,23 +275,50 @@ function ProposalExecutionBanner({ proposalSig, changeOrders }: { proposalSig: M
 
 // ======== READINESS CHECKLIST ========
 
-function ReadinessChecklist({ items, pisStatus }: { items: MockChecklistItem[]; pisStatus: MockPISStatus }) {
+function ReadinessChecklist({ items: initialItems, pisStatus }: { items: MockChecklistItem[]; pisStatus: MockPISStatus }) {
   const [isOpen, setIsOpen] = useState(false);
   const [showReceived, setShowReceived] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [newFrom, setNewFrom] = useState("");
   const [newCategory, setNewCategory] = useState("missing_document");
+  const [localItems, setLocalItems] = useState<MockChecklistItem[]>(initialItems);
   const { toast } = useToast();
 
-  const outstanding = items.filter(i => !i.done);
-  const completed = items.filter(i => i.done);
+  const outstanding = localItems.filter(i => !i.done);
+  const completed = localItems.filter(i => i.done);
   const grouped = Object.entries(checklistCategoryLabels).map(([key, { label, icon }]) => ({
     key, label, icon,
     items: outstanding.filter(i => i.category === key),
   })).filter(g => g.items.length > 0);
 
   const pisComplete = pisStatus.completedFields === pisStatus.totalFields;
+
+  const markDone = (id: string) => {
+    setLocalItems(prev => prev.map(item => item.id === id ? { ...item, done: true } : item));
+    toast({ title: "Received ✓", description: "Item moved to received list." });
+  };
+
+  const removeItem = (id: string) => {
+    setLocalItems(prev => prev.filter(item => item.id !== id));
+    toast({ title: "Removed", description: "Item removed from checklist." });
+  };
+
+  const addItem = () => {
+    if (!newLabel.trim()) return;
+    const newItem: MockChecklistItem = {
+      id: `cl-new-${Date.now()}`,
+      category: newCategory as MockChecklistItem["category"],
+      label: newLabel,
+      fromWhom: newFrom || "—",
+      requestedDate: new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }),
+      daysWaiting: 0,
+      done: false,
+    };
+    setLocalItems(prev => [...prev, newItem]);
+    toast({ title: "Item added", description: newLabel });
+    setNewLabel(""); setNewFrom(""); setShowAddForm(false);
+  };
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -361,13 +388,13 @@ function ReadinessChecklist({ items, pisStatus }: { items: MockChecklistItem[]; 
                 <div className="space-y-1.5">
                   {groupItems.map((item) => (
                     <div key={item.id} className="flex items-center gap-3 text-sm py-2 px-3 rounded-md bg-background border">
-                      <Checkbox className="h-4 w-4" />
+                      <Checkbox className="h-4 w-4" onCheckedChange={() => markDone(item.id)} />
                       <span className="flex-1 min-w-0">{item.label}</span>
                       <span className="text-xs text-muted-foreground shrink-0">from {item.fromWhom}</span>
                       <Badge variant={item.daysWaiting > 7 ? "destructive" : "secondary"} className="text-[10px] shrink-0">
                         {item.daysWaiting}d waiting
                       </Badge>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => toast({ title: "Removed", description: `"${item.label}" removed from checklist.` })}>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeItem(item.id)}>
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
@@ -376,7 +403,6 @@ function ReadinessChecklist({ items, pisStatus }: { items: MockChecklistItem[]; 
               </div>
             ))}
 
-            {/* Received items — collapsible sub-section */}
             {completed.length > 0 && (
               <Collapsible open={showReceived} onOpenChange={setShowReceived}>
                 <CollapsibleTrigger asChild>
@@ -399,27 +425,13 @@ function ReadinessChecklist({ items, pisStatus }: { items: MockChecklistItem[]; 
               </Collapsible>
             )}
 
-            {/* Add item form */}
             {showAddForm ? (
               <div className="p-3 rounded-lg border bg-muted/20 space-y-3">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <Input
-                    placeholder="What's needed?"
-                    className="h-8 text-sm"
-                    value={newLabel}
-                    onChange={(e) => setNewLabel(e.target.value)}
-                    autoFocus
-                  />
-                  <Input
-                    placeholder="From whom?"
-                    className="h-8 text-sm"
-                    value={newFrom}
-                    onChange={(e) => setNewFrom(e.target.value)}
-                  />
+                  <Input placeholder="What's needed?" className="h-8 text-sm" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} autoFocus />
+                  <Input placeholder="From whom?" className="h-8 text-sm" value={newFrom} onChange={(e) => setNewFrom(e.target.value)} />
                   <Select value={newCategory} onValueChange={setNewCategory}>
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {Object.entries(checklistCategoryLabels).map(([key, { label }]) => (
                         <SelectItem key={key} value={key}>{label}</SelectItem>
@@ -428,12 +440,7 @@ function ReadinessChecklist({ items, pisStatus }: { items: MockChecklistItem[]; 
                   </Select>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" className="h-7 text-xs" onClick={() => {
-                    if (newLabel.trim()) {
-                      toast({ title: "Item added", description: newLabel });
-                      setNewLabel(""); setNewFrom(""); setShowAddForm(false);
-                    }
-                  }}>Add</Button>
+                  <Button size="sm" className="h-7 text-xs" onClick={addItem}>Add</Button>
                   <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setNewLabel(""); setNewFrom(""); setShowAddForm(false); }}>Cancel</Button>
                 </div>
               </div>
@@ -461,7 +468,41 @@ function ServiceExpandedDetail({ service }: { service: MockService }) {
   const [editingNotes, setEditingNotes] = useState(false);
   const [showAddReq, setShowAddReq] = useState(false);
   const [newReqLabel, setNewReqLabel] = useState("");
+  const [newReqFrom, setNewReqFrom] = useState("");
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [newTaskText, setNewTaskText] = useState("");
+  const [newTaskAssignee, setNewTaskAssignee] = useState("");
+  const [newTaskDue, setNewTaskDue] = useState("");
+  const [localTasks, setLocalTasks] = useState(service.tasks);
+  const [localReqs, setLocalReqs] = useState(service.requirements);
   const { toast } = useToast();
+
+  const COMMON_TASKS = [
+    "Go to DOB for plan exam",
+    "Go to TOPO for survey",
+    "Request records from FOIL",
+    "Schedule DOB inspection",
+    "Follow up with architect",
+    "Follow up with engineer",
+    "Pick up permit from DOB",
+    "Submit application on DOB NOW",
+  ];
+
+  const addTask = () => {
+    if (!newTaskText.trim()) return;
+    const task = { id: `t-new-${Date.now()}`, text: newTaskText, done: false, assignedTo: newTaskAssignee || undefined, dueDate: newTaskDue || undefined };
+    setLocalTasks(prev => [...prev, task]);
+    toast({ title: "Task added", description: newTaskText });
+    setNewTaskText(""); setNewTaskAssignee(""); setNewTaskDue(""); setShowAddTask(false);
+  };
+
+  const addReq = () => {
+    if (!newReqLabel.trim()) return;
+    const req = { id: `r-new-${Date.now()}`, label: newReqLabel, met: false, fromWhom: newReqFrom || undefined };
+    setLocalReqs(prev => [...prev, req]);
+    toast({ title: "Requirement added", description: newReqLabel });
+    setNewReqLabel(""); setNewReqFrom(""); setShowAddReq(false);
+  };
 
   return (
     <div className="px-8 py-5 space-y-5 bg-muted/10">
@@ -506,16 +547,12 @@ function ServiceExpandedDetail({ service }: { service: MockService }) {
                 placeholder="Add notes about this service..."
               />
               <div className="flex gap-2">
-                <Button size="sm" className="h-7 text-xs gap-1" onClick={() => { setEditingNotes(false); toast({ title: "Notes saved" }); }}>
-                  Save
-                </Button>
-                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setNotes(service.notes || ""); setEditingNotes(false); }}>
-                  Cancel
-                </Button>
+                <Button size="sm" className="h-7 text-xs gap-1" onClick={() => { setEditingNotes(false); toast({ title: "Notes saved" }); }}>Save</Button>
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setNotes(service.notes || ""); setEditingNotes(false); }}>Cancel</Button>
               </div>
             </div>
           ) : notes ? (
-            <p className="text-sm leading-relaxed cursor-pointer hover:bg-muted/30 rounded p-1 -m-1 transition-colors" onClick={() => setEditingNotes(true)}>{notes}</p>
+            <p className="text-sm leading-relaxed cursor-pointer hover:bg-muted/30 rounded p-1 -m-1 transition-colors whitespace-pre-line" onClick={() => setEditingNotes(true)}>{notes}</p>
           ) : (
             <p className="text-sm text-muted-foreground italic cursor-pointer hover:bg-muted/30 rounded p-1 -m-1 transition-colors" onClick={() => setEditingNotes(true)}>Click to add notes...</p>
           )}
@@ -525,16 +562,21 @@ function ServiceExpandedDetail({ service }: { service: MockService }) {
       {/* Requirements */}
       <div>
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-          <AlertTriangle className="h-3.5 w-3.5" /> Requirements ({service.requirements.filter(r => !r.met).length} pending)
+          <AlertTriangle className="h-3.5 w-3.5" /> Requirements ({localReqs.filter(r => !r.met).length} pending)
         </h4>
-        {service.requirements.length > 0 && (
+        {localReqs.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 mb-2">
-            {service.requirements.map((req) => (
+            {localReqs.map((req) => (
               <div key={req.id} className={`flex items-center gap-2 text-sm py-1.5 px-3 rounded-md border ${req.met ? "bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-200/50 dark:border-emerald-800/30" : "bg-amber-50/50 dark:bg-amber-900/10 border-amber-200/50 dark:border-amber-800/30"}`}>
-                <Checkbox checked={req.met} className="h-3.5 w-3.5" />
+                <Checkbox checked={req.met} className="h-3.5 w-3.5" onCheckedChange={() => {
+                  setLocalReqs(prev => prev.map(r => r.id === req.id ? { ...r, met: !r.met } : r));
+                }} />
                 <span className={`flex-1 ${req.met ? "text-muted-foreground line-through" : ""}`}>{req.label}</span>
-                {req.detail && <span className="text-xs text-muted-foreground ml-auto">— {req.detail}</span>}
-                <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => toast({ title: "Removed", description: `Requirement "${req.label}" removed.` })}>
+                <div className="flex flex-col items-end gap-0.5 shrink-0 ml-auto">
+                  {req.fromWhom && <span className="text-[10px] text-muted-foreground">from {req.fromWhom}</span>}
+                  {req.detail && <span className="text-[10px] text-muted-foreground italic">— {req.detail}</span>}
+                </div>
+                <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => setLocalReqs(prev => prev.filter(r => r.id !== req.id))}>
                   <Trash2 className="h-3 w-3" />
                 </Button>
               </div>
@@ -542,19 +584,11 @@ function ServiceExpandedDetail({ service }: { service: MockService }) {
           </div>
         )}
         {showAddReq ? (
-          <div className="flex items-center gap-2">
-            <Input
-              placeholder="New requirement..."
-              className="h-8 text-sm flex-1 max-w-sm"
-              value={newReqLabel}
-              onChange={(e) => setNewReqLabel(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && newReqLabel.trim()) { toast({ title: "Requirement added", description: newReqLabel }); setNewReqLabel(""); setShowAddReq(false); } }}
-              autoFocus
-            />
-            <Button size="sm" className="h-8 text-xs" onClick={() => { if (newReqLabel.trim()) { toast({ title: "Requirement added", description: newReqLabel }); setNewReqLabel(""); setShowAddReq(false); } }}>
-              Add
-            </Button>
-            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setNewReqLabel(""); setShowAddReq(false); }}>Cancel</Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Input placeholder="New requirement..." className="h-8 text-sm flex-1 max-w-xs" value={newReqLabel} onChange={(e) => setNewReqLabel(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addReq(); }} autoFocus />
+            <Input placeholder="From whom?" className="h-8 text-sm w-[180px]" value={newReqFrom} onChange={(e) => setNewReqFrom(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addReq(); }} />
+            <Button size="sm" className="h-8 text-xs" onClick={addReq}>Add</Button>
+            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setNewReqLabel(""); setNewReqFrom(""); setShowAddReq(false); }}>Cancel</Button>
           </div>
         ) : (
           <Button variant="outline" size="sm" className="gap-1.5 text-xs h-7" onClick={() => setShowAddReq(true)}>
@@ -564,33 +598,60 @@ function ServiceExpandedDetail({ service }: { service: MockService }) {
       </div>
 
       {/* Tasks */}
-      {service.tasks.length > 0 && (
-        <div>
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <CheckCircle2 className="h-3.5 w-3.5" /> Tasks ({service.tasks.length})
-          </h4>
-          <div className="space-y-1.5">
-            {service.tasks.map((task) => (
+      <div>
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <CheckCircle2 className="h-3.5 w-3.5" /> Tasks ({localTasks.length})
+        </h4>
+        {localTasks.length > 0 && (
+          <div className="space-y-1.5 mb-3">
+            {localTasks.map((task) => (
               <div key={task.id} className="flex items-center gap-3 text-sm py-1.5 px-3 rounded-md bg-background border">
-                <Checkbox checked={task.done} className="h-4 w-4" />
-                <span className={task.done ? "line-through text-muted-foreground" : "flex-1"}>{task.text}</span>
+                <Checkbox checked={task.done} className="h-4 w-4" onCheckedChange={() => {
+                  setLocalTasks(prev => prev.map(t => t.id === task.id ? { ...t, done: !t.done } : t));
+                }} />
+                <span className={task.done ? "line-through text-muted-foreground flex-1" : "flex-1"}>{task.text}</span>
                 <div className="flex items-center gap-2 ml-auto shrink-0">
                   {task.assignedTo && <Badge variant="outline" className="text-xs">{task.assignedTo}</Badge>}
                   {task.dueDate && <span className="text-xs text-muted-foreground">Due {task.dueDate}</span>}
                 </div>
+                <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => setLocalTasks(prev => prev.filter(t => t.id !== task.id))}>
+                  <Trash2 className="h-3 w-3" />
+                </Button>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
 
-      <div className="flex gap-2">
-        <Button variant="outline" size="sm" className="gap-1.5">
-          <Mail className="h-3.5 w-3.5" /> Email about this
-        </Button>
-        <Button variant="outline" size="sm" className="gap-1.5">
-          <Plus className="h-3.5 w-3.5" /> Add Task
-        </Button>
+        {showAddTask ? (
+          <div className="p-3 rounded-lg border bg-muted/20 space-y-3">
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold w-full">Quick add:</span>
+              {COMMON_TASKS.map((ct) => (
+                <Button key={ct} variant="outline" size="sm" className="h-6 text-[10px] px-2" onClick={() => setNewTaskText(ct)}>
+                  {ct}
+                </Button>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <Input placeholder="Task description..." className="h-8 text-sm" value={newTaskText} onChange={(e) => setNewTaskText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addTask(); }} autoFocus />
+              <Input placeholder="Assigned to..." className="h-8 text-sm" value={newTaskAssignee} onChange={(e) => setNewTaskAssignee(e.target.value)} />
+              <Input type="text" placeholder="Due date (MM/DD/YYYY)" className="h-8 text-sm" value={newTaskDue} onChange={(e) => setNewTaskDue(e.target.value)} />
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" className="h-7 text-xs" onClick={addTask}>Add Task</Button>
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setNewTaskText(""); setNewTaskAssignee(""); setNewTaskDue(""); setShowAddTask(false); }}>Cancel</Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowAddTask(true)}>
+              <Plus className="h-3.5 w-3.5" /> Add Task
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <Mail className="h-3.5 w-3.5" /> Email about this
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

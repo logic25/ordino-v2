@@ -18,6 +18,7 @@ export interface MockRequirement {
   label: string;
   met: boolean;
   detail?: string;
+  fromWhom?: string;
 }
 
 export interface MockService {
@@ -292,18 +293,96 @@ const MOCK_TIME_B: MockTimeEntry[] = [
   { id: "te7", date: "01/20/2026", user: "Natalia S.", service: "DOB Filing", hours: 1.5, description: "Prepared and submitted ALT2 application", billable: true },
 ];
 
+// --- Project C: 331 Port Richmond Ave (from email / Ordino screenshot) ---
+
+const MOCK_SERVICES_C: MockService[] = [
+  { id: "sc1", name: "Alteration Type 1 Approval (ALT-CO)", status: "in_progress", application: { jobNumber: "S00701588-I1", type: "ALT-CO" }, subServices: ["OT"], totalAmount: 4300, billedAmount: 0, costAmount: 1272.50, assignedTo: "Don Speaker", estimatedBillDate: null, billedAt: null, scopeOfWork: "File the required applications and plans with the DOB. Attend the required plan examinations to review & resolve issued objections as required to obtain approval.", notes: "Plans came in Feb. Pending restrictive declaration from owner to proceed with plan review. 3 DOB comments outstanding:\n1. Provide all missing dimensions on plan\n2. DEP Sewer Certification (may be able to waive)\n3. Provide elevations and sections", needsDobFiling: false, tasks: [{ id: "tc1", text: "Follow up with architect on drawing revisions", done: false, assignedTo: "Don Speaker", dueDate: "01/27/2026" }, { id: "tc2", text: "Research DEP sewer certification waiver path", done: true, assignedTo: "Don Speaker" }, { id: "tc3", text: "Schedule DOB plan exam appointment", done: false, assignedTo: "Don Speaker" }], requirements: [{ id: "rc1", label: "Revised drawings with dimensions", met: false, detail: "Architect poked 01/20, no response", fromWhom: "Dave McAlpine" }, { id: "rc2", label: "DEP Sewer Certification (or waiver)", met: false, detail: "Exploring waiver via AI-1", fromWhom: "DEP / Architect" }, { id: "rc3", label: "Elevations and sections on plans", met: false, detail: "Architect said he'd add to list", fromWhom: "Dave McAlpine" }, { id: "rc4", label: "Restrictive declaration from owner", met: false, detail: "Pending from owner", fromWhom: "David Batista (Owner)" }], allottedHours: 9 },
+  { id: "sc2", name: "Work Permit", status: "not_started", application: null, subServices: ["OT"], totalAmount: 500, billedAmount: 0, costAmount: 0, assignedTo: "Don Speaker", estimatedBillDate: null, billedAt: null, scopeOfWork: "File and obtain work permit after approval.", notes: "Pending restrictive declaration from owner to proceed with plan review.", needsDobFiling: true, tasks: [], requirements: [{ id: "rc5", label: "ALT-CO approval obtained", met: false, fromWhom: "DOB" }], allottedHours: 1 },
+  { id: "sc3", name: "Final Construction Sign-Off", status: "not_started", application: null, subServices: [], totalAmount: 350, billedAmount: 0, costAmount: 0, assignedTo: "Don Speaker", estimatedBillDate: null, billedAt: null, scopeOfWork: "Obtain final construction sign-off from DOB inspector.", notes: "Pending restrictive declaration from owner.", needsDobFiling: false, tasks: [{ id: "tc4", text: "Schedule DOB inspection", done: false, assignedTo: "Don Speaker" }], requirements: [{ id: "rc6", label: "Construction complete", met: false, fromWhom: "GC / Owner" }], allottedHours: 2 },
+  { id: "sc4", name: "Final Electrical Sign-Off", status: "not_started", application: null, subServices: [], totalAmount: 350, billedAmount: 0, costAmount: 0, assignedTo: "Don Speaker", estimatedBillDate: null, billedAt: null, scopeOfWork: "Obtain final electrical sign-off from DOB inspector.", notes: "", needsDobFiling: false, tasks: [], requirements: [{ id: "rc7", label: "Electrical work complete", met: false, fromWhom: "Electrician / GC" }], allottedHours: 2 },
+  { id: "sc5", name: "Final Elevator Sign-Off", status: "not_started", application: null, subServices: [], totalAmount: 350, billedAmount: 0, costAmount: 0, assignedTo: "Don Speaker", estimatedBillDate: null, billedAt: null, scopeOfWork: "Obtain final elevator sign-off from DOB inspector.", notes: "", needsDobFiling: false, tasks: [], requirements: [{ id: "rc8", label: "Elevator work complete", met: false, fromWhom: "Elevator contractor" }], allottedHours: 2 },
+  { id: "sc6", name: "Final Plumbing Sign-Off", status: "not_started", application: null, subServices: [], totalAmount: 350, billedAmount: 0, costAmount: 0, assignedTo: "Don Speaker", estimatedBillDate: null, billedAt: null, scopeOfWork: "Obtain final plumbing sign-off from DOB inspector.", notes: "", needsDobFiling: false, tasks: [], requirements: [{ id: "rc9", label: "Plumbing work complete", met: false, fromWhom: "Plumber / GC" }], allottedHours: 2 },
+  { id: "sc7", name: "Initial TCO Approval", status: "not_started", application: null, subServices: [], totalAmount: 1300, billedAmount: 0, costAmount: 0, assignedTo: "Don Speaker", estimatedBillDate: null, billedAt: null, scopeOfWork: "Obtain Temporary Certificate of Occupancy from DOB.", notes: "", needsDobFiling: false, tasks: [], requirements: [{ id: "rc10", label: "All sign-offs obtained", met: false, fromWhom: "DOB" }, { id: "rc11", label: "Fire dept clearance", met: false, fromWhom: "FDNY" }], allottedHours: 4 },
+  { id: "sc8", name: "Certificate of Occupancy", status: "not_started", application: null, subServices: [], totalAmount: 7500, billedAmount: 0, costAmount: 0, assignedTo: "Don Speaker", estimatedBillDate: null, billedAt: null, scopeOfWork: "Obtain permanent Certificate of Occupancy.", notes: "", needsDobFiling: false, tasks: [], requirements: [{ id: "rc12", label: "TCO obtained", met: false, fromWhom: "DOB" }], allottedHours: 6 },
+  { id: "sc9", name: "Remove ECB Violation", status: "not_started", application: null, subServices: [], totalAmount: 750, billedAmount: 0, costAmount: 0, assignedTo: "Don Speaker", estimatedBillDate: null, billedAt: null, scopeOfWork: "Research and resolve ECB violation on the property.", notes: "", needsDobFiling: false, tasks: [{ id: "tc5", text: "Pull ECB violation details from BIS", done: false, assignedTo: "Don Speaker" }], requirements: [{ id: "rc13", label: "Violation details confirmed", met: false, fromWhom: "ECB / BIS" }], allottedHours: 3 },
+  { id: "sc10", name: "Remove DOB Violation", status: "not_started", application: null, subServices: [], totalAmount: 350, billedAmount: 0, costAmount: 0, assignedTo: "Don Speaker", estimatedBillDate: null, billedAt: null, scopeOfWork: "Research and resolve DOB violation on the property.", notes: "", needsDobFiling: false, tasks: [{ id: "tc6", text: "Pull DOB violation details from BIS", done: false, assignedTo: "Don Speaker" }], requirements: [{ id: "rc14", label: "Violation details confirmed", met: false, fromWhom: "DOB / BIS" }], allottedHours: 2 },
+];
+
+const MOCK_CONTACTS_C: MockContact[] = [
+  { id: "cc1", name: "David Batista", role: "Owner / Client Contact", company: "Batler Food Corp", phone: "(718) 555-0601", email: "david@batlerfood.com", dobRole: "owner", source: "proposal", dobRegistered: "registered" },
+  { id: "cc2", name: "Dave McAlpine", role: "Architect of Record", company: "McAlpine Associates", phone: "(718) 555-0602", email: "mcalpineassociates@gmail.com", dobRole: "architect", source: "proposal", dobRegistered: "registered" },
+  { id: "cc3", name: "Don Speaker", role: "Filing Representative / PM", company: "GLE", phone: "(718) 392-1969 x14", email: "don@greenlightexpediting.com", dobRole: "filing_rep", source: "manual", dobRegistered: "registered" },
+  { id: "cc4", name: "Manny Russell", role: "Principal", company: "GLE", phone: "(718) 392-1969", email: "manny@greenlightexpediting.com", dobRole: "applicant", source: "manual", dobRegistered: "registered" },
+];
+
+const MOCK_MILESTONES_C: MockMilestone[] = [
+  { id: "mc1", date: "07/29/2021", event: "Project created — 331 Port Richmond Ave", source: "system" },
+  { id: "mc2", date: "05/18/2025", event: "Plans received from architect", source: "email", details: "Initial plan set from Dave McAlpine" },
+  { id: "mc3", date: "05/28/2025", event: "DOB plan exam appointment scheduled", source: "dob" },
+  { id: "mc4", date: "06/05/2025", event: "DOB objections received (3 comments)", source: "dob", details: "1. Missing dimensions, 2. DEP sewer cert, 3. Missing elevations/sections" },
+  { id: "mc5", date: "01/15/2026", event: "Follow-up email sent to architect re: drawing revisions", source: "email", details: "Architect said 'poke me on Tuesday'" },
+  { id: "mc6", date: "01/20/2026", event: "Second follow-up — checking drawing status + AI-1 waiver", source: "email", details: "No response from architect since 01/15" },
+];
+
+const MOCK_CHANGE_ORDERS_C: MockChangeOrder[] = [];
+
+const MOCK_EMAILS_C: MockEmail[] = [
+  { id: "ec1", date: "01/20/2026", from: "Don Speaker", subject: "331 Port Richmond Ave - S00701588-I1", snippet: "Just a quick check on the drawing status. Also - please see attached AI-1. I think we can waive the previous comment regarding the DEP Sewer Certification requirement.", direction: "outbound" },
+  { id: "ec2", date: "01/15/2026", from: "Dave McAlpine", subject: "RE: 331 Port Richmond Ave - S00701588-I1", snippet: "I'll add the elevations and sections to my list of bits and pieces. Poke me on Tuesday and I should be finished.", direction: "inbound" },
+  { id: "ec3", date: "01/15/2026", from: "Don Speaker", subject: "331 Port Richmond Ave - S00701588-I1", snippet: "Blast from the past... last we had an appointment with DOB on this they had 3 comments...", direction: "outbound" },
+  { id: "ec4", date: "06/05/2025", from: "DOB Examiner", subject: "Plan Exam Comments — S00701588-I1", snippet: "1. Provide all missing dimensions on plan. 2. Provide DEP Sewer Certification. 3. Provide elevations and sections.", direction: "inbound" },
+];
+
+const MOCK_DOCUMENTS_C: MockDocument[] = [
+  { id: "dc1", name: "AI-1 DEP Waiver Request.pdf", type: "PDF", category: "dob", uploadedBy: "Don Speaker", uploadedDate: "01/20/2026", size: "180 KB" },
+  { id: "dc2", name: "DOB Objection Notice.pdf", type: "PDF", category: "dob", uploadedBy: "System", uploadedDate: "06/05/2025", size: "245 KB" },
+  { id: "dc3", name: "Architectural Plans v1.pdf", type: "PDF", category: "plans", uploadedBy: "Dave McAlpine", uploadedDate: "05/18/2025", size: "8.5 MB" },
+  { id: "dc4", name: "Proposal — 331 Port Richmond.pdf", type: "PDF", category: "contract", uploadedBy: "System", uploadedDate: "07/29/2021", size: "950 KB" },
+];
+
+const MOCK_TIME_C: MockTimeEntry[] = [
+  { id: "tec1", date: "01/20/2026", user: "Don Speaker", service: "Alteration Type 1 Approval (ALT-CO)", hours: 0.5, description: "Follow-up email to architect, reviewed AI-1 waiver", billable: true },
+  { id: "tec2", date: "01/15/2026", user: "Don Speaker", service: "Alteration Type 1 Approval (ALT-CO)", hours: 0.75, description: "Reviewed DOB comments, drafted follow-up to architect", billable: true },
+  { id: "tec3", date: "06/05/2025", user: "Don Speaker", service: "Alteration Type 1 Approval (ALT-CO)", hours: 2.0, description: "DOB plan exam appointment — received 3 objections", billable: true },
+  { id: "tec4", date: "05/28/2025", user: "Don Speaker", service: "Alteration Type 1 Approval (ALT-CO)", hours: 1.0, description: "Scheduled DOB plan exam, coordinated with architect", billable: true },
+];
+
+const MOCK_CHECKLIST_C: MockChecklistItem[] = [
+  { id: "clc1", category: "missing_document", label: "Revised drawings with all dimensions", fromWhom: "Dave McAlpine (Architect)", requestedDate: "01/15/2026", daysWaiting: 32, done: false, linkedServiceId: "sc1" },
+  { id: "clc2", category: "missing_document", label: "Elevations and sections on plans", fromWhom: "Dave McAlpine (Architect)", requestedDate: "01/15/2026", daysWaiting: 32, done: false, linkedServiceId: "sc1" },
+  { id: "clc3", category: "missing_document", label: "DEP Sewer Certification (or waiver approval)", fromWhom: "DEP / DOB", requestedDate: "06/05/2025", daysWaiting: 256, done: false, linkedServiceId: "sc1" },
+  { id: "clc4", category: "pending_response", label: "Restrictive declaration from owner", fromWhom: "David Batista (Owner)", requestedDate: "02/01/2026", daysWaiting: 15, done: false },
+  { id: "clc5", category: "pending_response", label: "Architect response on drawing timeline", fromWhom: "Dave McAlpine", requestedDate: "01/20/2026", daysWaiting: 27, done: false },
+];
+
+const MOCK_PIS_C: MockPISStatus = {
+  sentDate: "07/29/2021",
+  totalFields: 7,
+  completedFields: 5,
+  missingFields: ["Updated estimated job cost", "Current contractor info"],
+};
+
+const MOCK_PROPOSAL_SIG_C: MockProposalSignature = {
+  proposalNumber: "072921-1",
+  fullyExecuted: true,
+  internalSignedDate: "07/28/2021",
+  clientSignedDate: "07/29/2021",
+  internalSigner: "Manny Russell",
+  clientSigner: "David Batista",
+};
+
 // --- Export sets ---
 
-export const SERVICE_SETS = [MOCK_SERVICES_A, MOCK_SERVICES_B];
-export const CONTACT_SETS = [MOCK_CONTACTS_A, MOCK_CONTACTS_B];
-export const MILESTONE_SETS = [MOCK_MILESTONES_A, MOCK_MILESTONES_B];
-export const CO_SETS = [MOCK_CHANGE_ORDERS_A, MOCK_CHANGE_ORDERS_B];
-export const EMAIL_SETS = [MOCK_EMAILS_A, MOCK_EMAILS_B];
-export const DOCUMENT_SETS = [MOCK_DOCUMENTS_A, MOCK_DOCUMENTS_B];
-export const TIME_SETS = [MOCK_TIME_A, MOCK_TIME_B];
-export const CHECKLIST_SETS = [MOCK_CHECKLIST_A, MOCK_CHECKLIST_B];
-export const PIS_SETS = [MOCK_PIS_A, MOCK_PIS_B];
-export const PROPOSAL_SIG_SETS = [MOCK_PROPOSAL_SIG_A, MOCK_PROPOSAL_SIG_B];
+export const SERVICE_SETS = [MOCK_SERVICES_A, MOCK_SERVICES_B, MOCK_SERVICES_C];
+export const CONTACT_SETS = [MOCK_CONTACTS_A, MOCK_CONTACTS_B, MOCK_CONTACTS_C];
+export const MILESTONE_SETS = [MOCK_MILESTONES_A, MOCK_MILESTONES_B, MOCK_MILESTONES_C];
+export const CO_SETS = [MOCK_CHANGE_ORDERS_A, MOCK_CHANGE_ORDERS_B, MOCK_CHANGE_ORDERS_C];
+export const EMAIL_SETS = [MOCK_EMAILS_A, MOCK_EMAILS_B, MOCK_EMAILS_C];
+export const DOCUMENT_SETS = [MOCK_DOCUMENTS_A, MOCK_DOCUMENTS_B, MOCK_DOCUMENTS_C];
+export const TIME_SETS = [MOCK_TIME_A, MOCK_TIME_B, MOCK_TIME_C];
+export const CHECKLIST_SETS = [MOCK_CHECKLIST_A, MOCK_CHECKLIST_B, MOCK_CHECKLIST_C];
+export const PIS_SETS = [MOCK_PIS_A, MOCK_PIS_B, MOCK_PIS_C];
+export const PROPOSAL_SIG_SETS = [MOCK_PROPOSAL_SIG_A, MOCK_PROPOSAL_SIG_B, MOCK_PROPOSAL_SIG_C];
 
 // --- Shared configs ---
 
