@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Settings as SettingsIcon, User, Building, Package, ChevronLeft, FileText, Receipt, Zap, Users, ListChecks, ShieldCheck } from "lucide-react";
+import { Settings as SettingsIcon, User, Building, Package, ChevronLeft, FileText, Receipt, Zap, Users, ListChecks, ShieldCheck, Radio } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ServiceCatalogSettings } from "@/components/settings/ServiceCatalogSettings";
 import { RfiTemplateSettings } from "@/components/settings/RfiTemplateSettings";
@@ -13,12 +13,13 @@ import { TeamSettings } from "@/components/settings/TeamSettings";
 import { ProfileSettings } from "@/components/settings/ProfileSettings";
 import { CompanySettings } from "@/components/settings/CompanySettings";
 import { ListsAndLookupsSettings } from "@/components/settings/ListsAndLookupsSettings";
+import { SignalSettings } from "@/components/settings/SignalSettings";
 import { PartnerEmailTemplateSettings } from "@/components/settings/PartnerEmailTemplateSettings";
 import { RolesSettings } from "@/components/settings/RolesSettings";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { Mail } from "lucide-react";
 
-type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists" | "roles" | "partner_templates";
+type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists" | "roles" | "partner_templates" | "signal";
 
 const settingsSections = [
   {
@@ -76,6 +77,12 @@ const settingsSections = [
     icon: Mail,
   },
   {
+    id: "signal" as const,
+    title: "Signal Monitoring",
+    description: "Configure property monitoring preferences and notification rules",
+    icon: Radio,
+  },
+  {
     id: "roles" as const,
     title: "Roles & Permissions",
     description: "Configure what each role can access across the system",
@@ -115,6 +122,8 @@ export default function Settings() {
         return <AutomationRulesSettings />;
       case "partner_templates":
         return <PartnerEmailTemplateSettings />;
+      case "signal":
+        return <SignalSettings />;
       case "roles":
         return <RolesSettings />;
       default:

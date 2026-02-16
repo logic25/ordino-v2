@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
 import ProjectDetail from "./pages/ProjectDetail";
 import Properties from "./pages/Properties";
+import PropertyDetail from "./pages/PropertyDetail";
 import Time from "./pages/Time";
 import Proposals from "./pages/Proposals";
 import Invoices from "./pages/Invoices";
@@ -84,6 +85,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Properties />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/properties/:id"
+        element={
+          <ProtectedRoute>
+            <PropertyDetail />
           </ProtectedRoute>
         }
       />

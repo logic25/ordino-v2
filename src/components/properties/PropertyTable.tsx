@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -77,6 +78,7 @@ export function PropertyTable({
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [enrollPropertyId, setEnrollPropertyId] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const toggleExpand = (id: string) => {
     setExpandedRows((prev) => {
@@ -144,7 +146,10 @@ export function PropertyTable({
                 return (
                   <Collapsible key={property.id} asChild open={isExpanded}>
                     <>
-                      <TableRow className="hover:bg-accent/5">
+                      <TableRow
+                        className="hover:bg-accent/5 cursor-pointer"
+                        onClick={() => navigate(`/properties/${property.id}`)}
+                      >
                         <TableCell className="p-2">
                           {hasChildren && (
                             <CollapsibleTrigger asChild>
@@ -152,7 +157,7 @@ export function PropertyTable({
                                 variant="ghost"
                                 size="icon"
                                 className="h-6 w-6"
-                                onClick={() => toggleExpand(property.id)}
+                                onClick={(e) => { e.stopPropagation(); toggleExpand(property.id); }}
                               >
                                 {isExpanded ? (
                                   <ChevronDown className="h-4 w-4" />
@@ -221,7 +226,7 @@ export function PropertyTable({
                             <span className="text-muted-foreground text-sm">None</span>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-8 w-8">
