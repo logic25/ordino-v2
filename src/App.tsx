@@ -11,6 +11,7 @@ import Auth from "./pages/Auth";
 import Setup from "./pages/Setup";
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
+import ProjectDetail from "./pages/ProjectDetail";
 import Properties from "./pages/Properties";
 import Time from "./pages/Time";
 import Proposals from "./pages/Proposals";
@@ -67,6 +68,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Projects />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/projects/:id"
+        element={
+          <ProtectedRoute>
+            <ProjectDetail />
           </ProtectedRoute>
         }
       />
