@@ -38,7 +38,7 @@ import { LitigationExportDialog } from "@/components/projects/LitigationExportDi
 import { DobNowFilingPrepSheet } from "@/components/projects/DobNowFilingPrepSheet";
 import { EditPISDialog } from "@/components/projects/EditPISDialog";
 import { useToast } from "@/hooks/use-toast";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -91,6 +91,24 @@ export default function ProjectDetail() {
   const [extraCOs, setExtraCOs] = useState<MockChangeOrder[]>([]);
   const [servicesInitialized, setServicesInitialized] = useState<string | null>(null);
 
+  const project = projects.find((p) => p.id === id);
+
+  // Fetch primary contact from client's contacts
+  const { data: primaryContact } = useQuery({
+    queryKey: ["primary-contact", project?.client_id],
+    enabled: !!project?.client_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("client_contacts")
+        .select("id, name, phone, email, is_primary")
+        .eq("client_id", project!.client_id!)
+        .eq("is_primary", true)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const handlePmChange = async (profileId: string) => {
     if (!project) return;
     const pmId = profileId === "__unassigned__" ? null : profileId;
@@ -103,7 +121,6 @@ export default function ProjectDetail() {
     }
   };
 
-  const project = projects.find((p) => p.id === id);
   const idx = projects.indexOf(project as ProjectWithRelations);
 
   // Match mock data by project name keywords, fallback to index
@@ -202,7 +219,19 @@ export default function ProjectDetail() {
                 {project.clients?.name && (
                   <span className="flex items-center gap-1"><Building2 className="h-3.5 w-3.5" /> {project.clients.name}</span>
                 )}
-                {contacts.length > 0 && (
+                {((project as any).building_owner?.name || (project as any).building_owner_name) && (
+                  <span className="flex items-center gap-1 text-xs">
+                    Owner: {(project as any).building_owner?.name || (project as any).building_owner_name}
+                  </span>
+                )}
+                {primaryContact && (
+                  <span className="flex items-center gap-1">
+                    <Users className="h-3.5 w-3.5" />
+                    {primaryContact.name}
+                    {primaryContact.phone && <span className="text-xs">· {primaryContact.phone}</span>}
+                  </span>
+                )}
+                {!primaryContact && contacts.length > 0 && (
                   <span className="flex items-center gap-1">
                     <Users className="h-3.5 w-3.5" />
                     {contacts[0].name}

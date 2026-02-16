@@ -37,6 +37,7 @@ export interface ProposalFormInput {
   billed_to_email?: string | null;
   reminder_date?: string | null;
   terms_conditions?: string | null;
+  retainer_amount?: number | null;
   items?: ProposalItemInput[];
   milestones?: ProposalMilestoneInput[];
 }
@@ -174,6 +175,7 @@ export function useCreateProposal() {
           billed_to_name: proposalData.billed_to_name || null,
           billed_to_email: proposalData.billed_to_email || null,
           reminder_date: proposalData.reminder_date || null,
+          retainer_amount: proposalData.retainer_amount || 0,
         } as any)
         .select()
         .single();
@@ -264,6 +266,7 @@ export function useUpdateProposal() {
           billed_to_name: proposalData.billed_to_name || null,
           billed_to_email: proposalData.billed_to_email || null,
           reminder_date: proposalData.reminder_date || null,
+          retainer_amount: proposalData.retainer_amount || 0,
         } as any)
         .eq("id", id)
         .select()
@@ -393,6 +396,8 @@ export function useSignProposalInternal() {
           name: proposal.title,
           assigned_pm_id: assignedPmId,
           client_id: proposal.client_id || null,
+          retainer_amount: (proposal as any).retainer_amount || 0,
+          retainer_balance: (proposal as any).retainer_amount || 0,
           status: "open",
           created_by: profile.id,
           notes: `Created from proposal ${proposal.proposal_number}`,

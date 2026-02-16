@@ -54,6 +54,8 @@ export function ProjectDialog({
     assigned_pm_id: null,
     senior_pm_id: null,
     client_id: null,
+    building_owner_id: null,
+    building_owner_name: "",
     is_external: false,
     notable: false,
     unit_number: "",
@@ -73,6 +75,8 @@ export function ProjectDialog({
         assigned_pm_id: project.assigned_pm_id,
         senior_pm_id: project.senior_pm_id,
         client_id: project.client_id,
+        building_owner_id: project.building_owner_id,
+        building_owner_name: (project as any).building_owner_name || "",
         is_external: project.is_external,
         notable: project.notable,
         unit_number: (project as any).unit_number || "",
@@ -90,6 +94,8 @@ export function ProjectDialog({
         assigned_pm_id: null,
         senior_pm_id: null,
         client_id: null,
+        building_owner_id: null,
+        building_owner_name: "",
         is_external: false,
         notable: false,
         unit_number: "",
@@ -309,6 +315,35 @@ export function ProjectDialog({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Building Owner */}
+          <div className="space-y-2">
+            <Label>Building Owner</Label>
+            <Select
+              value={form.building_owner_id || "none"}
+              onValueChange={(val) =>
+                setForm((f) => ({ ...f, building_owner_id: val === "none" ? null : val, building_owner_name: val === "none" ? "" : (clients.find(c => c.id === val)?.name || "") }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select building owner" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {clients.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              value={form.building_owner_name || ""}
+              onChange={(e) => setForm((f) => ({ ...f, building_owner_name: e.target.value }))}
+              placeholder="Or type owner name if not in list"
+              className="mt-1"
+            />
           </div>
 
           {/* Flags */}

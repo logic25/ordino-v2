@@ -87,6 +87,7 @@ const proposalSchema = z.object({
   payment_terms: z.string().optional(),
   deposit_required: z.preprocess((v) => (v === "" || v === undefined || v === null ? undefined : Number(v)), z.number().min(0).optional()),
   deposit_percentage: z.preprocess((v) => (v === "" || v === undefined || v === null ? undefined : Number(v)), z.number().min(0).max(100).optional()),
+  retainer_amount: z.preprocess((v) => (v === "" || v === undefined || v === null ? undefined : Number(v)), z.number().min(0).optional()),
   valid_until: z.string().optional(),
   client_id: z.string().optional(),
   client_name: z.string().optional(),
@@ -200,6 +201,7 @@ export function ProposalDialog({
         payment_terms: proposal.payment_terms || "",
         deposit_required: proposal.deposit_required ? Number(proposal.deposit_required) : undefined,
         deposit_percentage: proposal.deposit_percentage ? Number(proposal.deposit_percentage) : undefined,
+        retainer_amount: (proposal as any).retainer_amount ? Number((proposal as any).retainer_amount) : undefined,
         valid_until: proposal.valid_until || "",
         client_id: p.client_id || "",
         client_name: proposal.client_name || "",
@@ -289,6 +291,7 @@ export function ProposalDialog({
       payment_terms: data.payment_terms || null,
       deposit_required: data.deposit_required || null,
       deposit_percentage: data.deposit_percentage || null,
+      retainer_amount: data.retainer_amount || null,
       valid_until: data.valid_until || null,
       client_name: data.client_name || null,
       client_email: data.client_email || null,
@@ -690,6 +693,21 @@ export function ProposalDialog({
                   rows={3}
                   {...form.register("payment_terms")}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="retainer_amount">Retainer Amount ($)</Label>
+                <Input
+                  id="retainer_amount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  {...form.register("retainer_amount")}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Amount required upfront. Leave at $0 if no retainer. Carries to the project on conversion.
+                </p>
               </div>
 
               <div className="space-y-2">
