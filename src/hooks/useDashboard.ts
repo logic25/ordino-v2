@@ -3,112 +3,136 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
 interface DashboardStats {
-  activeApplications: number;
+  activeProjects: number;
   pendingProposals: number;
   urgentItems: number;
   totalProperties: number;
   todayHours: number;
   unbilledHours: number;
   teamMembers: number;
+  overdueInvoices: number;
+  totalOutstanding: number;
+  sentProposals: number;
+  projectsBilled: number;
+  projectsPaid: number;
 }
 
 export function useDashboardStats() {
   const { profile } = useAuth();
 
   return useQuery({
-    queryKey: ["dashboard-stats", profile?.company_id],
+    queryKey: ["dashboard-stats", profile?.company_id, profile?.id],
     queryFn: async (): Promise<DashboardStats> => {
       if (!profile?.company_id) {
         return {
-          activeApplications: 0,
+          activeProjects: 0,
           pendingProposals: 0,
           urgentItems: 0,
           totalProperties: 0,
           todayHours: 0,
           unbilledHours: 0,
           teamMembers: 0,
+          overdueInvoices: 0,
+          totalOutstanding: 0,
+          sentProposals: 0,
+          projectsBilled: 0,
+          projectsPaid: 0,
         };
       }
 
-      // Fetch all counts in parallel
-      const [applicationsRes, propertiesRes, activitiesRes, profilesRes] = await Promise.all([
-        // Active applications (not closed/complete)
+      const [projectsRes, propertiesRes, activitiesRes, profilesRes, proposalsRes, invoicesRes] = await Promise.all([
         supabase
-          .from("dob_applications")
-          .select("id, status", { count: "exact" })
-          .not("status", "in", '("closed","complete")'),
-        
-        // Total properties
+          .from("projects")
+          .select("id, status, assigned_pm_id", { count: "exact" })
+          .eq("status", "open"),
+
         supabase
           .from("properties")
           .select("id", { count: "exact" }),
-        
-        // Today's activities for time calculation
+
         supabase
           .from("activities")
           .select("duration_minutes, billable")
           .eq("activity_date", new Date().toISOString().split("T")[0]),
-        
-        // Team members
+
         supabase
           .from("profiles")
           .select("id", { count: "exact" })
           .eq("is_active", true),
+
+        supabase
+          .from("proposals")
+          .select("id, status"),
+
+        supabase
+          .from("invoices")
+          .select("id, status, total_due"),
       ]);
 
-      // Calculate stats
-      const activeApplications = applicationsRes.count || 0;
+      const activeProjects = projectsRes.count || 0;
       const totalProperties = propertiesRes.count || 0;
       const teamMembers = profilesRes.count || 0;
 
-      // Calculate hours from activities
       const todayMinutes = (activitiesRes.data || []).reduce(
-        (sum, a) => sum + (a.duration_minutes || 0),
-        0
+        (sum, a) => sum + (a.duration_minutes || 0), 0
       );
       const todayHours = Math.round((todayMinutes / 60) * 10) / 10;
 
-      // Unbilled hours (billable activities without qb_invoice_id on their service)
       const unbilledMinutes = (activitiesRes.data || [])
         .filter((a) => a.billable)
         .reduce((sum, a) => sum + (a.duration_minutes || 0), 0);
       const unbilledHours = Math.round((unbilledMinutes / 60) * 10) / 10;
 
-      // Urgent items (applications with objection status)
-      const urgentItems = (applicationsRes.data || []).filter(
-        (a) => a.status === "objection"
-      ).length;
+      const proposals = proposalsRes.data || [];
+      const pendingProposals = proposals.filter((p) => p.status === "sent" || p.status === "signed_client").length;
+      const sentProposals = proposals.filter((p) => p.status === "sent").length;
+
+      const invoices = invoicesRes.data || [];
+      const overdueInvoices = invoices.filter((i) => i.status === "overdue").length;
+      const totalOutstanding = invoices
+        .filter((i) => ["sent", "overdue"].includes(i.status))
+        .reduce((sum, i) => sum + (i.total_due || 0), 0);
+
+      const projectsBilled = 0; // Will track via billing_requests
+      const projectsPaid = (projectsRes.data || []).filter((p: any) => p.status === "paid").length;
 
       return {
-        activeApplications,
-        pendingProposals: 0, // Will implement with proposals feature
-        urgentItems,
+        activeProjects,
+        pendingProposals,
+        urgentItems: overdueInvoices,
         totalProperties,
         todayHours,
         unbilledHours,
         teamMembers,
+        overdueInvoices,
+        totalOutstanding,
+        sentProposals,
+        projectsBilled,
+        projectsPaid,
       };
     },
     enabled: !!profile?.company_id,
   });
 }
 
-export function useMyAssignedApplications() {
+export function useMyAssignedProjects() {
   const { profile } = useAuth();
 
   return useQuery({
-    queryKey: ["my-applications", profile?.id],
+    queryKey: ["my-projects-dashboard", profile?.id],
     queryFn: async () => {
       if (!profile?.id) return [];
 
       const { data, error } = await supabase
-        .from("dob_applications")
+        .from("projects")
         .select(`
           *,
-          properties(address, borough)
+          properties(address, borough),
+          clients(name),
+          proposals(title, total_amount)
         `)
-        .eq("assigned_pm_id", profile.id)
-        .not("status", "in", '("closed","complete")')
+        .or(`assigned_pm_id.eq.${profile.id},senior_pm_id.eq.${profile.id}`)
+        .eq("status", "open")
         .order("updated_at", { ascending: false })
         .limit(5);
 
@@ -119,16 +143,17 @@ export function useMyAssignedApplications() {
   });
 }
 
-export function useRecentApplications() {
+export function useRecentProjects() {
   return useQuery({
-    queryKey: ["recent-applications"],
+    queryKey: ["recent-projects-dashboard"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("dob_applications")
+        .from("projects")
         .select(`
           *,
           properties(address, borough),
-          profiles(first_name, last_name)
+          clients(name),
+          assigned_pm:profiles!projects_assigned_pm_id_fkey(first_name, last_name)
         `)
         .order("updated_at", { ascending: false })
         .limit(5);
