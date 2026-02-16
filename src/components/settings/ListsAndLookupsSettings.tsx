@@ -2,6 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CompanyTypeSettings } from "./CompanyTypeSettings";
 import { ReviewCategorySettings } from "./ReviewCategorySettings";
 import { LeadSourceSettings } from "./LeadSourceSettings";
+import { LeadStatusSettings } from "./LeadStatusSettings";
 
 export function ListsAndLookupsSettings() {
   return (
@@ -10,6 +11,7 @@ export function ListsAndLookupsSettings() {
         <TabsTrigger value="company_types">Company Types</TabsTrigger>
         <TabsTrigger value="review_categories">Review Categories</TabsTrigger>
         <TabsTrigger value="lead_sources">Lead Sources</TabsTrigger>
+        <TabsTrigger value="lead_statuses">Lead Statuses</TabsTrigger>
       </TabsList>
 
       <TabsContent value="company_types">
@@ -22,6 +24,10 @@ export function ListsAndLookupsSettings() {
 
       <TabsContent value="lead_sources">
         <LeadSourceSettings />
+      </TabsContent>
+
+      <TabsContent value="lead_statuses">
+        <LeadStatusSettings />
       </TabsContent>
     </Tabs>
   );
