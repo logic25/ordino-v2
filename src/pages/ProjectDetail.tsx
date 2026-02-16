@@ -108,6 +108,7 @@ export default function ProjectDetail() {
     const name = (project.name || "").toLowerCase();
     if (name.includes("port richmond") || name.includes("331")) return 2; // Set C
     if (name.includes("lobby") || name.includes("345 park")) return 0; // Set A
+    if (name.includes("1525") || name.includes("86th")) return 3; // Set D (no PIS)
     return Math.max(idx, 0) % SERVICE_SETS.length;
   };
   const mockIdx = getMockIdx();

@@ -131,7 +131,7 @@ export interface MockChecklistItem {
 }
 
 export interface MockPISStatus {
-  sentDate: string;
+  sentDate: string | null;
   totalFields: number;
   completedFields: number;
   missingFields: string[];
@@ -382,7 +382,15 @@ export const EMAIL_SETS = [MOCK_EMAILS_A, MOCK_EMAILS_B, MOCK_EMAILS_C];
 export const DOCUMENT_SETS = [MOCK_DOCUMENTS_A, MOCK_DOCUMENTS_B, MOCK_DOCUMENTS_C];
 export const TIME_SETS = [MOCK_TIME_A, MOCK_TIME_B, MOCK_TIME_C];
 export const CHECKLIST_SETS = [MOCK_CHECKLIST_A, MOCK_CHECKLIST_B, MOCK_CHECKLIST_C];
-export const PIS_SETS = [MOCK_PIS_A, MOCK_PIS_B, MOCK_PIS_C];
+
+const MOCK_PIS_D: MockPISStatus = {
+  sentDate: null,
+  totalFields: 7,
+  completedFields: 0,
+  missingFields: ["Owner Info", "Architect Info", "DOB Roles", "Insurance Certs", "Site Contact", "Billing Contact", "Special Access"],
+};
+
+export const PIS_SETS = [MOCK_PIS_A, MOCK_PIS_B, MOCK_PIS_C, MOCK_PIS_D];
 export const PROPOSAL_SIG_SETS = [MOCK_PROPOSAL_SIG_A, MOCK_PROPOSAL_SIG_B, MOCK_PROPOSAL_SIG_C];
 
 // --- Shared configs ---
