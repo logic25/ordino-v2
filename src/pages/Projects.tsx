@@ -2,9 +2,10 @@ import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FolderKanban, Search, Loader2, Users } from "lucide-react";
+import { FolderKanban, Search, Loader2, Users, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProjectTable } from "@/components/projects/ProjectTable";
 import { ProjectDialog } from "@/components/projects/ProjectDialog";
 import {
@@ -25,6 +26,7 @@ export default function Projects() {
   const [editingProject, setEditingProject] = useState<ProjectWithRelations | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showAllProjects, setShowAllProjects] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
   const { toast } = useToast();
   const { profile } = useAuth();
   const isAdmin = useIsAdmin();
@@ -42,7 +44,11 @@ export default function Projects() {
   const visibleProjects = (isAdmin && showAllProjects) ? projects : myProjects;
 
   const filteredProjects = visibleProjects.filter((p) => {
+    // Status filter
+    if (statusFilter !== "all" && p.status !== statusFilter) return false;
+    // Search filter
     const query = searchQuery.toLowerCase();
+    if (!query) return true;
     return (
       p.properties?.address?.toLowerCase().includes(query) ||
       p.project_number?.toLowerCase().includes(query) ||
@@ -209,16 +215,27 @@ export default function Projects() {
           </Card>
         </div>
 
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search by project #, name, property, or client..."
-            className="pl-9"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+        <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full">
+          <div className="flex items-center gap-4 flex-wrap">
+            <TabsList>
+              <TabsTrigger value="all">All ({visibleProjects.length})</TabsTrigger>
+              <TabsTrigger value="open">Open ({openCount})</TabsTrigger>
+              <TabsTrigger value="on_hold">On Hold ({onHoldCount})</TabsTrigger>
+              <TabsTrigger value="closed">Closed ({visibleProjects.filter(p => p.status === "closed").length})</TabsTrigger>
+              <TabsTrigger value="paid">Paid ({visibleProjects.filter(p => p.status === "paid").length})</TabsTrigger>
+            </TabsList>
+            <div className="relative max-w-md flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search by project #, name, property, or client..."
+                className="pl-9"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
+        </Tabs>
 
         <Card>
           <CardHeader>
