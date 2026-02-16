@@ -70,7 +70,7 @@ export function useProjects() {
           proposals!projects_proposal_id_fkey (id, proposal_number, title, total_amount),
           assigned_pm:profiles!projects_assigned_pm_id_fkey (id, first_name, last_name),
           senior_pm:profiles!projects_senior_pm_id_fkey (id, first_name, last_name),
-          clients (id, name),
+          clients!projects_client_id_fkey (id, name),
           building_owner:clients!projects_building_owner_id_fkey (id, name)
         `)
         .order("created_at", { ascending: false });
@@ -94,7 +94,7 @@ export function useProject(id: string | undefined) {
           proposals!projects_proposal_id_fkey (id, proposal_number, title, total_amount, status),
           assigned_pm:profiles!projects_assigned_pm_id_fkey (id, first_name, last_name),
           senior_pm:profiles!projects_senior_pm_id_fkey (id, first_name, last_name),
-          clients (id, name, email, phone),
+          clients!projects_client_id_fkey (id, name, email, phone),
           building_owner:clients!projects_building_owner_id_fkey (id, name)
         `)
         .eq("id", id)
