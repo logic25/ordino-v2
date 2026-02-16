@@ -19,7 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Loader2 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Loader2, Info } from "lucide-react";
 import { useProperties } from "@/hooks/useProperties";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useClients } from "@/hooks/useClients";
@@ -55,6 +56,8 @@ export function ProjectDialog({
     client_id: null,
     is_external: false,
     notable: false,
+    unit_number: "",
+    tenant_name: "",
     completion_date: null,
     notes: "",
   });
@@ -72,6 +75,8 @@ export function ProjectDialog({
         client_id: project.client_id,
         is_external: project.is_external,
         notable: project.notable,
+        unit_number: (project as any).unit_number || "",
+        tenant_name: (project as any).tenant_name || "",
         completion_date: project.completion_date,
         notes: project.notes || "",
       });
@@ -87,6 +92,8 @@ export function ProjectDialog({
         client_id: null,
         is_external: false,
         notable: false,
+        unit_number: "",
+        tenant_name: "",
         completion_date: null,
         notes: "",
       });
@@ -183,6 +190,27 @@ export function ProjectDialog({
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="unit_number">Unit / Apt Number</Label>
+              <Input
+                id="unit_number"
+                value={form.unit_number || ""}
+                onChange={(e) => setForm((f) => ({ ...f, unit_number: e.target.value }))}
+                placeholder="e.g., 28A, Suite 500"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="tenant_name">Tenant Name</Label>
+              <Input
+                id="tenant_name"
+                value={form.tenant_name || ""}
+                onChange={(e) => setForm((f) => ({ ...f, tenant_name: e.target.value }))}
+                placeholder="e.g., Acme Corp"
+              />
+            </div>
+          </div>
+
           {/* People */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -265,7 +293,17 @@ export function ProjectDialog({
                 checked={form.is_external || false}
                 onCheckedChange={(checked) => setForm((f) => ({ ...f, is_external: checked }))}
               />
-              <Label>External</Label>
+              <Label>External Consultant Project</Label>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-[200px] text-xs">Project managed by an outside consultant on your behalf</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
 
