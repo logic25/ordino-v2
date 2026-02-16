@@ -44,6 +44,19 @@ export interface MockService {
   parentServiceId?: string;
 }
 
+export type EngineerDiscipline = "structural" | "mechanical" | "plumbing" | "sprinkler" | "electrical" | "civil" | "environmental" | "other";
+
+export const engineerDisciplineLabels: Record<EngineerDiscipline, string> = {
+  structural: "Structural",
+  mechanical: "Mechanical",
+  plumbing: "Plumbing",
+  sprinkler: "Sprinkler",
+  electrical: "Electrical",
+  civil: "Civil",
+  environmental: "Environmental",
+  other: "Other",
+};
+
 export interface MockContact {
   id: string;
   name: string;
@@ -52,6 +65,7 @@ export interface MockContact {
   phone: string;
   email: string;
   dobRole: "applicant" | "owner" | "filing_rep" | "architect" | "engineer" | "gc" | "sia_applicant" | "tpp_applicant" | "other";
+  discipline?: EngineerDiscipline;
   source: "proposal" | "pis" | "manual";
   dobRegistered: "registered" | "not_registered" | "unknown";
   review?: { rating: number; comment?: string };
@@ -199,7 +213,7 @@ const MOCK_CONTACTS_A: MockContact[] = [
   { id: "c1", name: "Mayra Maisch", role: "Project Contact", company: "BGO", phone: "(212) 555-0101", email: "mayra@bgo.com", dobRole: "owner", source: "proposal", dobRegistered: "registered" },
   { id: "c2", name: "Antonio Rossi", role: "Architect of Record", company: "Rossi Architecture", phone: "(212) 555-0202", email: "antonio@rossiarch.com", dobRole: "architect", source: "proposal", dobRegistered: "registered" },
   { id: "c3", name: "Natalia Smith", role: "Filing Representative", company: "GLE", phone: "(212) 555-0303", email: "natalia@gle.com", dobRole: "filing_rep", source: "manual", dobRegistered: "registered" },
-  { id: "c4", name: "David Chen", role: "Structural Engineer", company: "Chen Engineering", phone: "(212) 555-0404", email: "david@cheneng.com", dobRole: "engineer", source: "pis", dobRegistered: "not_registered" },
+  { id: "c4", name: "David Chen", role: "Structural Engineer", company: "Chen Engineering", phone: "(212) 555-0404", email: "david@cheneng.com", dobRole: "engineer", discipline: "structural", source: "pis", dobRegistered: "not_registered" },
 ];
 
 const MOCK_CONTACTS_B: MockContact[] = [
