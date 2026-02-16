@@ -31,14 +31,20 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { MoreHorizontal, Pencil, Trash2, Building2, MapPin, ChevronDown, ChevronRight, FolderKanban, FileText, Briefcase } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Building2, MapPin, ChevronDown, ChevronRight, FolderKanban, FileText, Briefcase, Radio } from "lucide-react";
 import type { Property } from "@/hooks/useProperties";
 import type { ApplicationWithProperty } from "@/hooks/useApplications";
 import type { Project } from "@/hooks/useProjects";
+import type { SignalSubscription } from "@/hooks/useSignalSubscriptions";
+import { SignalStatusBadge } from "./SignalStatusBadge";
+import { SignalSection } from "./SignalSection";
+import { SignalEnrollDialog } from "./SignalEnrollDialog";
 
 interface PropertyWithApplications extends Property {
   applications?: ApplicationWithProperty[];
   projects?: Project[];
+  signalSubscription?: SignalSubscription | null;
+  violationCounts?: { open: number; total: number };
 }
 
 interface PropertyTableProps {
@@ -70,15 +76,13 @@ export function PropertyTable({
 }: PropertyTableProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [enrollPropertyId, setEnrollPropertyId] = useState<string | null>(null);
 
   const toggleExpand = (id: string) => {
     setExpandedRows((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -100,6 +104,8 @@ export function PropertyTable({
     return status.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
   };
 
+  const enrollProperty = properties.find((p) => p.id === enrollPropertyId);
+
   return (
     <>
       <div className="rounded-lg border border-border overflow-hidden">
@@ -107,11 +113,12 @@ export function PropertyTable({
           <TableHeader>
             <TableRow className="bg-muted/50">
               <TableHead className="w-[40px]"></TableHead>
-              <TableHead className="w-[280px]">Address</TableHead>
+              <TableHead className="w-[260px]">Address</TableHead>
               <TableHead>Borough</TableHead>
               <TableHead>Block / Lot</TableHead>
               <TableHead>BIN</TableHead>
               <TableHead>Owner</TableHead>
+              <TableHead>Signal</TableHead>
               <TableHead>Projects</TableHead>
               <TableHead className="w-[70px]"></TableHead>
             </TableRow>
@@ -119,7 +126,7 @@ export function PropertyTable({
           <TableBody>
             {properties.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center">
+                <TableCell colSpan={9} className="h-24 text-center">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <Building2 className="h-8 w-8" />
                     <p>No properties found</p>
@@ -131,7 +138,8 @@ export function PropertyTable({
                 const isExpanded = expandedRows.has(property.id);
                 const applicationCount = property.applications?.length || 0;
                 const projectCount = property.projects?.length || 0;
-                const hasChildren = applicationCount > 0 || projectCount > 0;
+                const hasSignal = !!property.signalSubscription;
+                const hasChildren = applicationCount > 0 || projectCount > 0 || hasSignal;
 
                 return (
                   <Collapsible key={property.id} asChild open={isExpanded}>
@@ -161,18 +169,14 @@ export function PropertyTable({
                             <div>
                               <p className="font-medium">{property.address}</p>
                               {property.zip_code && (
-                                <p className="text-sm text-muted-foreground">
-                                  {property.zip_code}
-                                </p>
+                                <p className="text-sm text-muted-foreground">{property.zip_code}</p>
                               )}
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
                           {property.borough && (
-                            <Badge variant="secondary">
-                              {formatBorough(property.borough)}
-                            </Badge>
+                            <Badge variant="secondary">{formatBorough(property.borough)}</Badge>
                           )}
                         </TableCell>
                         <TableCell>
@@ -187,14 +191,20 @@ export function PropertyTable({
                           )}
                         </TableCell>
                         <TableCell>
-                          {property.bin || (
-                            <span className="text-muted-foreground">—</span>
-                          )}
+                          {property.bin || <span className="text-muted-foreground">—</span>}
                         </TableCell>
                         <TableCell>
-                          {property.owner_name || (
-                            <span className="text-muted-foreground">—</span>
-                          )}
+                          {property.owner_name || <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <SignalStatusBadge status={property.signalSubscription?.status || null} />
+                            {property.violationCounts && property.violationCounts.open > 0 && (
+                              <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 text-xs">
+                                {property.violationCounts.open} open
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           {projectCount > 0 ? (
@@ -227,6 +237,12 @@ export function PropertyTable({
                                 <FileText className="mr-2 h-4 w-4" />
                                 Create Proposal
                               </DropdownMenuItem>
+                              {!property.signalSubscription && (
+                                <DropdownMenuItem onClick={() => setEnrollPropertyId(property.id)}>
+                                  <Radio className="mr-2 h-4 w-4" />
+                                  Enroll in Signal
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 onClick={() => setDeleteId(property.id)}
@@ -242,7 +258,7 @@ export function PropertyTable({
                       {hasChildren && (
                         <CollapsibleContent asChild>
                           <TableRow className="bg-muted/30 hover:bg-muted/30">
-                            <TableCell colSpan={8} className="p-0">
+                            <TableCell colSpan={9} className="p-0">
                               <div className="px-12 py-3 space-y-4">
                                 {/* Projects */}
                                 {projectCount > 0 && (
@@ -321,6 +337,13 @@ export function PropertyTable({
                                     </div>
                                   </div>
                                 )}
+
+                                {/* Signal Section */}
+                                <SignalSection
+                                  propertyId={property.id}
+                                  propertyAddress={property.address}
+                                  subscription={property.signalSubscription}
+                                />
                               </div>
                             </TableCell>
                           </TableRow>
@@ -356,6 +379,15 @@ export function PropertyTable({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {enrollProperty && (
+        <SignalEnrollDialog
+          open={!!enrollPropertyId}
+          onOpenChange={(open) => !open && setEnrollPropertyId(null)}
+          propertyId={enrollProperty.id}
+          propertyAddress={enrollProperty.address}
+        />
+      )}
     </>
   );
 }

@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Building2, Plus, Search, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PropertyDialog, PropertyFormData } from "@/components/properties/PropertyDialog";
 import { PropertyTable } from "@/components/properties/PropertyTable";
 import {
@@ -16,6 +17,8 @@ import {
 } from "@/hooks/useProperties";
 import { useApplications } from "@/hooks/useApplications";
 import { useProjects } from "@/hooks/useProjects";
+import { useSignalSubscriptions } from "@/hooks/useSignalSubscriptions";
+import { useSignalViolationCounts } from "@/hooks/useSignalViolations";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Properties() {
@@ -23,35 +26,54 @@ export default function Properties() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [signalFilter, setSignalFilter] = useState("all");
   const { toast } = useToast();
 
   const { data: properties = [], isLoading: propertiesLoading } = useProperties();
   const { data: applications = [], isLoading: applicationsLoading } = useApplications();
   const { data: projects = [] } = useProjects();
+  const { data: subscriptions = [] } = useSignalSubscriptions();
+  const { data: violationCounts = {} } = useSignalViolationCounts();
   const createProperty = useCreateProperty();
   const updateProperty = useUpdateProperty();
   const deleteProperty = useDeleteProperty();
 
   const isLoading = propertiesLoading || applicationsLoading;
 
-  // Merge properties with their applications and projects
-  const propertiesWithApplications = useMemo(() => {
+  // Build subscription lookup
+  const subscriptionMap = useMemo(() => {
+    const map: Record<string, (typeof subscriptions)[0]> = {};
+    for (const sub of subscriptions) map[sub.property_id] = sub;
+    return map;
+  }, [subscriptions]);
+
+  // Merge properties with applications, projects, and signal data
+  const propertiesWithAll = useMemo(() => {
     return properties.map((property) => ({
       ...property,
       applications: applications.filter((app) => app.property_id === property.id),
       projects: projects.filter((proj) => proj.property_id === property.id),
+      signalSubscription: subscriptionMap[property.id] || null,
+      violationCounts: violationCounts[property.id] || undefined,
     }));
-  }, [properties, applications, projects]);
+  }, [properties, applications, projects, subscriptionMap, violationCounts]);
 
-  const filteredProperties = propertiesWithApplications.filter((p) => {
+  // Apply search + signal filter
+  const filteredProperties = propertiesWithAll.filter((p) => {
     const query = searchQuery.toLowerCase();
-    return (
+    const matchesSearch =
       p.address.toLowerCase().includes(query) ||
       p.bin?.toLowerCase().includes(query) ||
       p.block?.toLowerCase().includes(query) ||
       p.lot?.toLowerCase().includes(query) ||
-      p.owner_name?.toLowerCase().includes(query)
-    );
+      p.owner_name?.toLowerCase().includes(query);
+
+    if (!matchesSearch) return false;
+
+    if (signalFilter === "active") return p.signalSubscription?.status === "active" || p.signalSubscription?.status === "trial";
+    if (signalFilter === "prospects") return p.signalSubscription?.status === "prospect";
+    if (signalFilter === "not_monitored") return !p.signalSubscription;
+    return true;
   });
 
   const handleOpenCreate = () => {
@@ -68,48 +90,42 @@ export default function Properties() {
     try {
       if (editingProperty) {
         await updateProperty.mutateAsync({ id: editingProperty.id, ...data });
-        toast({
-          title: "Property updated",
-          description: "The property has been updated successfully.",
-        });
+        toast({ title: "Property updated", description: "The property has been updated successfully." });
       } else {
         await createProperty.mutateAsync(data);
-        toast({
-          title: "Property created",
-          description: "The property has been added to your portfolio.",
-        });
+        toast({ title: "Property created", description: "The property has been added to your portfolio." });
       }
       setDialogOpen(false);
       setEditingProperty(null);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Something went wrong.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message || "Something went wrong.", variant: "destructive" });
     }
   };
 
   const handleDelete = async (id: string) => {
     try {
       await deleteProperty.mutateAsync(id);
-      toast({
-        title: "Property deleted",
-        description: "The property has been removed.",
-      });
+      toast({ title: "Property deleted", description: "The property has been removed." });
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete property.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message || "Failed to delete property.", variant: "destructive" });
     }
   };
 
   const handleCreateProposal = (propertyId: string) => {
-    // Navigate to proposals page with the property pre-selected
     navigate(`/proposals?property=${propertyId}`);
   };
+
+  // Signal filter counts
+  const signalCounts = useMemo(() => {
+    let active = 0, prospects = 0, notMonitored = 0;
+    for (const p of propertiesWithAll) {
+      const s = p.signalSubscription?.status;
+      if (s === "active" || s === "trial") active++;
+      else if (s === "prospect") prospects++;
+      else notMonitored++;
+    }
+    return { active, prospects, notMonitored };
+  }, [propertiesWithAll]);
 
   return (
     <AppLayout>
@@ -131,15 +147,26 @@ export default function Properties() {
           </Button>
         </div>
 
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search by address, BIN, or block/lot..."
-            className="pl-9"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <Tabs value={signalFilter} onValueChange={setSignalFilter}>
+            <TabsList>
+              <TabsTrigger value="all">All ({propertiesWithAll.length})</TabsTrigger>
+              <TabsTrigger value="active">Signal Active ({signalCounts.active})</TabsTrigger>
+              <TabsTrigger value="prospects">Prospects ({signalCounts.prospects})</TabsTrigger>
+              <TabsTrigger value="not_monitored">Not Monitored ({signalCounts.notMonitored})</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <div className="relative max-w-md flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search by address, BIN, or block/lot..."
+              className="pl-9"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
         </div>
 
         <Card>
@@ -162,7 +189,7 @@ export default function Properties() {
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : filteredProperties.length === 0 && !searchQuery ? (
+            ) : filteredProperties.length === 0 && !searchQuery && signalFilter === "all" ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <Building2 className="h-12 w-12 text-muted-foreground/50 mb-4" />
                 <h3 className="text-lg font-medium">No properties yet</h3>
