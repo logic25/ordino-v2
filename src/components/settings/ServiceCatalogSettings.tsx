@@ -4,18 +4,35 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Trash2, Loader2, Save, Package, Upload } from "lucide-react";
-import { useCompanySettings, useUpdateCompanySettings, ServiceCatalogItem } from "@/hooks/useCompanySettings";
+import { Plus, Trash2, Loader2, Save, Package, Upload, History } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
+import { useCompanySettings, useUpdateCompanySettings, ServiceCatalogItem, PriceChangeEntry } from "@/hooks/useCompanySettings";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { DEFAULT_SERVICES } from "./defaultServices";
+import { format } from "date-fns";
 
 export function ServiceCatalogSettings() {
   const { data: companyData, isLoading } = useCompanySettings();
   const updateSettings = useUpdateCompanySettings();
+  const { profile } = useAuth();
   const { toast } = useToast();
 
   const [services, setServices] = useState<ServiceCatalogItem[]>([]);
   const [defaultTerms, setDefaultTerms] = useState("");
+
+  // Price change audit state
+  const [priceChangeDialog, setPriceChangeDialog] = useState<{
+    serviceId: string;
+    oldPrice: number;
+    newPrice: number;
+  } | null>(null);
+  const [priceChangeReason, setPriceChangeReason] = useState("");
 
   useEffect(() => {
     if (companyData?.settings) {
@@ -47,6 +64,44 @@ export function ServiceCatalogSettings() {
         s.id === id ? { ...s, [field]: value } : s
       )
     );
+  };
+
+  const handlePriceBlur = (serviceId: string, newPriceStr: string) => {
+    const service = services.find((s) => s.id === serviceId);
+    if (!service) return;
+
+    const newPrice = parseFloat(newPriceStr) || 0;
+    const oldPrice = companyData?.settings?.service_catalog?.find((s) => s.id === serviceId)?.default_price || 0;
+
+    // Only prompt if price actually changed from saved value and service already existed
+    if (oldPrice > 0 && newPrice !== oldPrice) {
+      setPriceChangeDialog({ serviceId, oldPrice, newPrice });
+      setPriceChangeReason("");
+    }
+  };
+
+  const confirmPriceChange = () => {
+    if (!priceChangeDialog) return;
+    const { serviceId, oldPrice, newPrice } = priceChangeDialog;
+
+    const entry: PriceChangeEntry = {
+      old_price: oldPrice,
+      new_price: newPrice,
+      changed_at: new Date().toISOString(),
+      changed_by: profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : undefined,
+      reason: priceChangeReason || "No reason provided",
+    };
+
+    setServices(
+      services.map((s) =>
+        s.id === serviceId
+          ? { ...s, price_history: [...(s.price_history || []), entry] }
+          : s
+      )
+    );
+
+    setPriceChangeDialog(null);
+    setPriceChangeReason("");
   };
 
   const handleSave = async () => {
@@ -91,7 +146,7 @@ export function ServiceCatalogSettings() {
             Service Catalog
           </CardTitle>
           <CardDescription>
-            Define your standard services for quick addition to proposals
+            Define your standard services for quick addition to proposals. Price changes are audited.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -115,7 +170,7 @@ export function ServiceCatalogSettings() {
                       placeholder="Service name"
                     />
                   </div>
-                  <div className="col-span-3">
+                  <div className="col-span-2">
                     <Label className="text-xs text-muted-foreground">Description</Label>
                     <Input
                       value={service.description || ""}
@@ -124,13 +179,46 @@ export function ServiceCatalogSettings() {
                     />
                   </div>
                   <div className="col-span-2">
-                    <Label className="text-xs text-muted-foreground">Default Price</Label>
+                    <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                      Price
+                      {service.price_history && service.price_history.length > 0 && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button className="text-muted-foreground hover:text-foreground">
+                              <History className="h-3 w-3" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-80 max-h-60 overflow-y-auto" align="start">
+                            <div className="space-y-2">
+                              <h4 className="font-medium text-sm">Price History</h4>
+                              {[...service.price_history].reverse().map((entry, i) => (
+                                <div key={i} className="text-xs border-b pb-2 last:border-0">
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">
+                                      ${entry.old_price.toLocaleString()} → ${entry.new_price.toLocaleString()}
+                                    </span>
+                                    <span className="text-muted-foreground">
+                                      {format(new Date(entry.changed_at), "MM/dd/yy")}
+                                    </span>
+                                  </div>
+                                  <p className="mt-0.5">{entry.reason}</p>
+                                  {entry.changed_by && (
+                                    <p className="text-muted-foreground">by {entry.changed_by}</p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                    </Label>
                     <Input
                       type="number"
                       min="0"
                       step="0.01"
                       value={service.default_price || ""}
                       onChange={(e) => updateService(service.id, "default_price", parseFloat(e.target.value) || 0)}
+                      onBlur={(e) => handlePriceBlur(service.id, e.target.value)}
                       placeholder="0.00"
                     />
                   </div>
@@ -156,7 +244,7 @@ export function ServiceCatalogSettings() {
                       placeholder="1.0"
                     />
                   </div>
-                  <div className="col-span-1 pt-5">
+                  <div className="col-span-2 pt-5 flex gap-1">
                     <Button
                       type="button"
                       variant="ghost"
@@ -185,7 +273,6 @@ export function ServiceCatalogSettings() {
                   ...s,
                   id: crypto.randomUUID(),
                 }));
-                // Merge: keep existing, add any defaults not already present by name
                 const existingNames = new Set(services.map((s) => s.name.toLowerCase().trim()));
                 const toAdd = newServices.filter((s) => !existingNames.has(s.name.toLowerCase().trim()));
                 setServices([...services, ...toAdd]);
@@ -242,6 +329,33 @@ export function ServiceCatalogSettings() {
           )}
         </Button>
       </div>
+
+      {/* Price Change Reason Dialog */}
+      <Dialog open={!!priceChangeDialog} onOpenChange={(open) => !open && setPriceChangeDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Price Change Audit</DialogTitle>
+            <DialogDescription>
+              {priceChangeDialog && (
+                <>
+                  Price changing from <strong>${priceChangeDialog.oldPrice.toLocaleString()}</strong> to{" "}
+                  <strong>${priceChangeDialog.newPrice.toLocaleString()}</strong>. Please provide a reason.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={priceChangeReason}
+            onChange={(e) => setPriceChangeReason(e.target.value)}
+            placeholder="e.g., Updated to reflect new cost analysis, market adjustment, client-specific pricing..."
+            rows={3}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPriceChangeDialog(null)}>Cancel</Button>
+            <Button onClick={confirmPriceChange}>Confirm Change</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

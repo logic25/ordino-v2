@@ -2,6 +2,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 
+export interface PriceChangeEntry {
+  old_price: number;
+  new_price: number;
+  changed_at: string;
+  changed_by?: string;
+  reason: string;
+}
+
 export interface ServiceCatalogItem {
   id: string;
   name: string;
@@ -9,6 +17,7 @@ export interface ServiceCatalogItem {
   default_price?: number;
   default_hours?: number;
   multiplier?: number;
+  price_history?: PriceChangeEntry[];
 }
 
 export interface CompanySettings {
