@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FolderKanban, Search, Loader2 } from "lucide-react";
+import { FolderKanban, Search, Loader2, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ProjectTable } from "@/components/projects/ProjectTable";
@@ -17,21 +17,31 @@ import {
 } from "@/hooks/useProjects";
 import { useCreateRfiRequest, DEFAULT_PIS_SECTIONS } from "@/hooks/useRfi";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useIsAdmin } from "@/hooks/useUserRoles";
 
 export default function Projects() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<ProjectWithRelations | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showAllProjects, setShowAllProjects] = useState(false);
   const { toast } = useToast();
+  const { profile } = useAuth();
+  const isAdmin = useIsAdmin();
 
   const { data: projects = [], isLoading } = useProjects();
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
   const createRfi = useCreateRfiRequest();
-  
 
-  const filteredProjects = projects.filter((p) => {
+  // Filter by PM assignment (non-admins see only their projects, admins can toggle)
+  const myProjects = profile?.id
+    ? projects.filter((p) => p.assigned_pm_id === profile.id || p.senior_pm_id === profile.id)
+    : projects;
+  const visibleProjects = (isAdmin && showAllProjects) ? projects : myProjects;
+
+  const filteredProjects = visibleProjects.filter((p) => {
     const query = searchQuery.toLowerCase();
     return (
       p.properties?.address?.toLowerCase().includes(query) ||
@@ -43,11 +53,11 @@ export default function Projects() {
   });
 
   // Stats
-  const openCount = projects.filter((p) => p.status === "open").length;
-  const onHoldCount = projects.filter((p) => p.status === "on_hold").length;
-  const closedCount = projects.filter((p) => ["closed", "paid"].includes(p.status)).length;
+  const openCount = visibleProjects.filter((p) => p.status === "open").length;
+  const onHoldCount = visibleProjects.filter((p) => p.status === "on_hold").length;
+  const closedCount = visibleProjects.filter((p) => ["closed", "paid"].includes(p.status)).length;
 
-  const totalValue = projects.reduce(
+  const totalValue = visibleProjects.reduce(
     (sum, p) => sum + Number(p.proposals?.total_amount || 0),
     0
   );
@@ -142,9 +152,20 @@ export default function Projects() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Projects</h1>
             <p className="text-muted-foreground mt-1">
-              Manage active projects converted from proposals
+              {isAdmin && showAllProjects ? "All company projects" : "Your assigned projects"}
             </p>
           </div>
+          {isAdmin && (
+            <Button
+              variant={showAllProjects ? "default" : "outline"}
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setShowAllProjects(!showAllProjects)}
+            >
+              <Users className="h-4 w-4" />
+              {showAllProjects ? "All Projects" : "My Projects"}
+            </Button>
+          )}
         </div>
 
         <div className="grid gap-4 md:grid-cols-4">
