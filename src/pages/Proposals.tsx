@@ -213,15 +213,16 @@ export default function Proposals() {
 
   const handleLeadSubmit = async (data: LeadCaptureData) => {
     try {
-      // Create a draft proposal from the lead
+      const contactName = [data.first_name, data.last_name].filter(Boolean).join(" ");
       await createProposal.mutateAsync({
-        property_id: "", // Will need to be filled in later
-        title: `Lead: ${data.contact_name}${data.property_address ? ` - ${data.property_address}` : ""}`,
-        client_name: data.contact_name,
+        property_id: null as any, // Lead — no property yet
+        title: `Lead: ${contactName}${data.property_address ? ` - ${data.property_address}` : ""}`,
+        client_name: contactName,
         client_email: data.contact_email || null,
         lead_source: data.source,
         notes: [
           data.contact_phone ? `Phone: ${data.contact_phone}` : "",
+          data.service_needed ? `Service: ${data.service_needed}` : "",
           data.notes || "",
         ].filter(Boolean).join("\n"),
         assigned_pm_id: data.assigned_pm_id || null,
@@ -229,7 +230,7 @@ export default function Proposals() {
       } as any);
       toast({
         title: "Lead captured!",
-        description: `Draft proposal created for ${data.contact_name}.${data.assigned_pm_id ? " PM has been assigned." : ""}`,
+        description: `Draft proposal created for ${contactName}.${data.assigned_pm_id ? " Assigned to PM." : ""}`,
       });
       setLeadDialogOpen(false);
     } catch (error: any) {
