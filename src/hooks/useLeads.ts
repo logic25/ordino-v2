@@ -21,6 +21,7 @@ export interface Lead {
   updated_at: string;
   // Joined
   assignee?: { id: string; first_name: string; last_name: string } | null;
+  creator?: { id: string; first_name: string; last_name: string } | null;
 }
 
 export function useLeads() {
@@ -32,7 +33,7 @@ export function useLeads() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("leads")
-        .select("*, assignee:profiles!leads_assigned_to_fkey(id, first_name, last_name)")
+        .select("*, assignee:profiles!leads_assigned_to_fkey(id, first_name, last_name), creator:profiles!leads_created_by_fkey(id, first_name, last_name)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data || []) as unknown as Lead[];
