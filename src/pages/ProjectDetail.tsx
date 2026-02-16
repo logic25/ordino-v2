@@ -508,9 +508,8 @@ function ReadinessChecklist({ items: initialItems, pisStatus }: { items: MockChe
                     </div>
                   </div>
                   <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={() => {
-                    // Open the PIS/RFI form in a new tab for editing
-                    // In production this would use the actual RFI access token
-                    window.open(`/rfi?demo=true`, "_blank");
+                    // Open a blank PIS/RFI form in a new tab
+                    window.open(`/rfi`, "_blank");
                   }}>
                     <ExternalLink className="h-3.5 w-3.5" /> Edit PIS
                   </Button>

@@ -3,6 +3,7 @@ import { CompanyTypeSettings } from "./CompanyTypeSettings";
 import { ReviewCategorySettings } from "./ReviewCategorySettings";
 import { LeadSourceSettings } from "./LeadSourceSettings";
 import { LeadStatusSettings } from "./LeadStatusSettings";
+import { FilingChecklistSettings } from "./FilingChecklistSettings";
 
 export function ListsAndLookupsSettings() {
   return (
@@ -12,6 +13,7 @@ export function ListsAndLookupsSettings() {
         <TabsTrigger value="review_categories">Review Categories</TabsTrigger>
         <TabsTrigger value="lead_sources">Lead Sources</TabsTrigger>
         <TabsTrigger value="lead_statuses">Lead Statuses</TabsTrigger>
+        <TabsTrigger value="filing_checklist">Filing Checklist</TabsTrigger>
       </TabsList>
 
       <TabsContent value="company_types">
@@ -28,6 +30,10 @@ export function ListsAndLookupsSettings() {
 
       <TabsContent value="lead_statuses">
         <LeadStatusSettings />
+      </TabsContent>
+
+      <TabsContent value="filing_checklist">
+        <FilingChecklistSettings />
       </TabsContent>
     </Tabs>
   );

@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Copy, CheckCircle2, AlertTriangle, MapPin, Building2,
   User, Phone, Mail, ExternalLink, ClipboardList, Save,
+  Plus, Trash2, Settings, Download,
 } from "lucide-react";
 import type { MockService, MockContact } from "./projectMockData";
 import { engineerDisciplineLabels } from "./projectMockData";
@@ -60,6 +61,8 @@ export function DobNowFilingPrepSheet({
 }: DobNowFilingPrepSheetProps) {
   const { toast } = useToast();
   const [jobNumber, setJobNumber] = useState(service.application?.jobNumber || "");
+  const [showAddItem, setShowAddItem] = useState(false);
+  const [newItemLabel, setNewItemLabel] = useState("");
   const [checklist, setChecklist] = useState<ChecklistItem[]>(
     DEFAULT_CHECKLIST.map((item) => ({ ...item, checked: false }))
   );
@@ -273,12 +276,57 @@ export function DobNowFilingPrepSheet({
 
           {/* Pre-Filing Checklist */}
           <div>
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Pre-Filing Checklist ({requiredChecked}/{requiredTotal} required)
-            </h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Pre-Filing Checklist ({requiredChecked}/{requiredTotal} required)
+              </h3>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-[10px] gap-1 text-muted-foreground"
+                  onClick={() => setShowAddItem(!showAddItem)}
+                >
+                  <Plus className="h-3 w-3" /> Add Item
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-[10px] gap-1 text-muted-foreground"
+                  onClick={() => window.open("/settings", "_blank")}
+                >
+                  <Settings className="h-3 w-3" /> Defaults
+                </Button>
+              </div>
+            </div>
+            {showAddItem && (
+              <div className="flex gap-2 mb-2">
+                <Input
+                  placeholder="New checklist item..."
+                  value={newItemLabel}
+                  onChange={(e) => setNewItemLabel(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newItemLabel.trim()) {
+                      setChecklist((prev) => [...prev, { id: `custom_${Date.now()}`, label: newItemLabel.trim(), required: false, checked: false }]);
+                      setNewItemLabel("");
+                      setShowAddItem(false);
+                    }
+                  }}
+                  className="h-8 text-sm"
+                  autoFocus
+                />
+                <Button size="sm" className="h-8 text-xs" onClick={() => {
+                  if (newItemLabel.trim()) {
+                    setChecklist((prev) => [...prev, { id: `custom_${Date.now()}`, label: newItemLabel.trim(), required: false, checked: false }]);
+                    setNewItemLabel("");
+                    setShowAddItem(false);
+                  }
+                }}>Add</Button>
+              </div>
+            )}
             <div className="space-y-1.5">
               {checklist.map((item) => (
-                <div key={item.id} className="flex items-center gap-3 text-sm py-2 px-3 rounded-md bg-background border">
+                <div key={item.id} className="flex items-center gap-3 text-sm py-2 px-3 rounded-md bg-background border group/check">
                   <Checkbox
                     checked={item.checked}
                     onCheckedChange={() => toggleChecklist(item.id)}
@@ -290,6 +338,14 @@ export function DobNowFilingPrepSheet({
                   {item.required && (
                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Required</Badge>
                   )}
+                  {item.id.startsWith("custom_") && (
+                    <button
+                      className="opacity-0 group-hover/check:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                      onClick={() => setChecklist((prev) => prev.filter((c) => c.id !== item.id))}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -297,24 +353,74 @@ export function DobNowFilingPrepSheet({
 
           <Separator />
 
-          {/* Post-Filing: Enter Job Number */}
+          {/* Post-Filing Workflow */}
           <div>
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <Save className="h-3.5 w-3.5" /> Post-Filing — Enter Application / Job Number
+              <Save className="h-3.5 w-3.5" /> Post-Filing
             </h3>
-            <p className="text-xs text-muted-foreground mb-2">
-              After filing on DOB NOW, paste the application or job number below to link it to this service.
-            </p>
-            <div className="flex gap-2">
-              <Input
-                placeholder="e.g. 520112847"
-                value={jobNumber}
-                onChange={(e) => setJobNumber(e.target.value)}
-                className="h-9 font-mono"
-              />
-              <Button size="sm" className="gap-1.5 shrink-0" onClick={saveJobNumber} disabled={!jobNumber.trim()}>
-                <Save className="h-3.5 w-3.5" /> Save
-              </Button>
+
+            {/* Copy All Fields button for manual DOB NOW form filling */}
+            <div className="space-y-3">
+              <div className="p-3 rounded-lg border bg-background">
+                <p className="text-xs text-muted-foreground mb-2">
+                  Copy all field data to paste into DOB NOW/BUILD forms.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-1.5"
+                  onClick={() => {
+                    const allData = [...propertyFields, ...filingFields]
+                      .filter((f) => f.value)
+                      .map((f) => `${f.dobFieldName || f.label}: ${f.value}`)
+                      .join("\n");
+                    const contactData = Object.entries(contactsByRole)
+                      .flatMap(([role, contacts]) =>
+                        contacts.map((c) => `${dobRoleLabelsMap[role] || role}: ${c.name} (${c.email || "no email"})`)
+                      )
+                      .join("\n");
+                    navigator.clipboard.writeText(`${allData}\n\n--- CONTACTS ---\n${contactData}`);
+                    toast({ title: "All fields copied", description: "Paste into DOB NOW/BUILD form fields." });
+                  }}
+                >
+                  <Copy className="h-3.5 w-3.5" /> Copy All Fields to Clipboard
+                </Button>
+              </div>
+
+              {/* Job Number entry */}
+              <div className="p-3 rounded-lg border bg-background">
+                <p className="text-xs text-muted-foreground mb-2">
+                  After filing, enter the job/application number assigned by DOB NOW.
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="e.g. 520112847"
+                    value={jobNumber}
+                    onChange={(e) => setJobNumber(e.target.value)}
+                    className="h-9 font-mono"
+                  />
+                  <Button size="sm" className="gap-1.5 shrink-0" onClick={saveJobNumber} disabled={!jobNumber.trim()}>
+                    <Save className="h-3.5 w-3.5" /> Save
+                  </Button>
+                </div>
+              </div>
+
+              {/* Scrape from DOB NOW */}
+              <div className="p-3 rounded-lg border bg-background">
+                <p className="text-xs text-muted-foreground mb-2">
+                  Or look up the job number from DOB NOW by property address.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-1.5"
+                  onClick={() => {
+                    toast({ title: "Looking up filings...", description: `Searching DOB NOW for ${property?.address || "this property"}. This feature is coming soon.` });
+                  }}
+                >
+                  <Download className="h-3.5 w-3.5" /> Pull Job # from DOB NOW
+                </Button>
+              </div>
             </div>
           </div>
 
