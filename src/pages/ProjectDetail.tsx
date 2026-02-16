@@ -25,20 +25,20 @@ import {
   MessageSquare, CheckCircle2, Send, XCircle, CheckCheck,
   Phone, Circle, Upload, Search, Plus, AlertTriangle,
   ArrowUpRight, ArrowDownLeft, ClipboardList, FileImage,
-  FileSpreadsheet, Download, Sparkles,
+  FileSpreadsheet, Download, Sparkles, Eye, ShieldCheck, PenLine,
 } from "lucide-react";
 import { useProjects, ProjectWithRelations } from "@/hooks/useProjects";
 import { ProjectEmailsTab } from "@/components/emails/ProjectEmailsTab";
 import { useToast } from "@/hooks/use-toast";
 import {
   SERVICE_SETS, CONTACT_SETS, MILESTONE_SETS, CO_SETS,
-  EMAIL_SETS, DOCUMENT_SETS, TIME_SETS, CHECKLIST_SETS, PIS_SETS,
+  EMAIL_SETS, DOCUMENT_SETS, TIME_SETS, CHECKLIST_SETS, PIS_SETS, PROPOSAL_SIG_SETS,
   formatCurrency, serviceStatusStyles, dobRoleLabels, coStatusStyles,
   checklistCategoryLabels, docCategoryLabels,
 } from "@/components/projects/projectMockData";
 import type {
   MockService, MockContact, MockMilestone, MockChangeOrder,
-  MockEmail, MockDocument, MockTimeEntry, MockChecklistItem, MockPISStatus,
+  MockEmail, MockDocument, MockTimeEntry, MockChecklistItem, MockPISStatus, MockProposalSignature,
 } from "@/components/projects/projectMockData";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -96,6 +96,7 @@ export default function ProjectDetail() {
   const timeEntries = TIME_SETS[mockIdx % TIME_SETS.length];
   const checklistItems = CHECKLIST_SETS[mockIdx % CHECKLIST_SETS.length];
   const pisStatus = PIS_SETS[mockIdx % PIS_SETS.length];
+  const proposalSig = PROPOSAL_SIG_SETS[mockIdx % PROPOSAL_SIG_SETS.length];
 
   const approvedCOs = changeOrders.filter(co => co.status === "approved").reduce((s, co) => s + co.amount, 0);
   const contractTotal = services.reduce((s, svc) => s + svc.totalAmount, 0);
@@ -156,7 +157,8 @@ export default function ProjectDetail() {
           ))}
         </div>
 
-        {/* Readiness Checklist */}
+        {/* Proposal Execution Status + Readiness Checklist */}
+        <ProposalExecutionBanner proposalSig={proposalSig} changeOrders={changeOrders} />
         <ReadinessChecklist items={checklistItems} pisStatus={pisStatus} />
 
         {/* Main Tabbed Content */}
@@ -222,10 +224,59 @@ export default function ProjectDetail() {
   );
 }
 
+// ======== PROPOSAL EXECUTION BANNER ========
+
+function ProposalExecutionBanner({ proposalSig, changeOrders }: { proposalSig: MockProposalSignature; changeOrders: MockChangeOrder[] }) {
+  const unsignedCOs = changeOrders.filter(co => !co.signedByClient && co.status !== "draft");
+
+  return (
+    <div className="flex items-center gap-3 flex-wrap">
+      {/* Proposal signature status */}
+      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${
+        proposalSig.fullyExecuted 
+          ? "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800" 
+          : "bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800"
+      }`}>
+        {proposalSig.fullyExecuted ? (
+          <>
+            <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <span className="text-emerald-700 dark:text-emerald-300 font-medium">Proposal #{proposalSig.proposalNumber} — Fully Executed</span>
+            <span className="text-xs text-muted-foreground">
+              Internal: {proposalSig.internalSignedDate} · Client: {proposalSig.clientSignedDate}
+            </span>
+          </>
+        ) : (
+          <>
+            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <span className="text-amber-700 dark:text-amber-300 font-medium">Proposal #{proposalSig.proposalNumber} — Awaiting Client Signature</span>
+            {proposalSig.internalSignedDate && (
+              <span className="text-xs text-muted-foreground">Internal signed: {proposalSig.internalSignedDate}</span>
+            )}
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1 ml-auto">
+              <Send className="h-3 w-3" /> Resend for Signature
+            </Button>
+          </>
+        )}
+      </div>
+
+      {/* Unsigned CO warning */}
+      {unsignedCOs.length > 0 && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800 text-sm">
+          <PenLine className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <span className="text-amber-700 dark:text-amber-300">
+            {unsignedCOs.length} CO{unsignedCOs.length > 1 ? "s" : ""} awaiting signature: {unsignedCOs.map(co => co.number).join(", ")}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ======== READINESS CHECKLIST ========
 
 function ReadinessChecklist({ items, pisStatus }: { items: MockChecklistItem[]; pisStatus: MockPISStatus }) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
+  const [showReceived, setShowReceived] = useState(false);
   const outstanding = items.filter(i => !i.done);
   const completed = items.filter(i => i.done);
   const grouped = Object.entries(checklistCategoryLabels).map(([key, { label, icon }]) => ({
@@ -258,7 +309,6 @@ function ReadinessChecklist({ items, pisStatus }: { items: MockChecklistItem[]; 
                 </CardTitle>
               </div>
               <div className="flex items-center gap-3">
-                {/* PIS Status */}
                 <div className="flex items-center gap-2 text-sm">
                   <span className="text-muted-foreground">PIS:</span>
                   {pisComplete ? (
@@ -278,7 +328,6 @@ function ReadinessChecklist({ items, pisStatus }: { items: MockChecklistItem[]; 
         </CollapsibleTrigger>
         <CollapsibleContent>
           <CardContent className="pt-0 space-y-4">
-            {/* PIS bar if incomplete */}
             {!pisComplete && (
               <div className="flex items-center gap-4 p-3 rounded-lg bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-800/30">
                 <div className="flex-1 min-w-0">
@@ -297,7 +346,6 @@ function ReadinessChecklist({ items, pisStatus }: { items: MockChecklistItem[]; 
               </div>
             )}
 
-            {/* Grouped checklist items */}
             {grouped.map(({ key, label, icon, items: groupItems }) => (
               <div key={key}>
                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
@@ -318,21 +366,27 @@ function ReadinessChecklist({ items, pisStatus }: { items: MockChecklistItem[]; 
               </div>
             ))}
 
-            {/* Completed items */}
+            {/* Received items — collapsible sub-section */}
             {completed.length > 0 && (
-              <div>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                  ✅ Received ({completed.length})
-                </h4>
-                <div className="space-y-1">
-                  {completed.map((item) => (
-                    <div key={item.id} className="flex items-center gap-3 text-sm py-1.5 px-3 rounded-md text-muted-foreground">
-                      <Checkbox checked className="h-4 w-4" />
-                      <span className="line-through">{item.label}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <Collapsible open={showReceived} onOpenChange={setShowReceived}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground h-7 px-2">
+                    {showReceived ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                    ✅ Received ({completed.length})
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-1">
+                  <div className="space-y-1">
+                    {completed.map((item) => (
+                      <div key={item.id} className="flex items-center gap-3 text-sm py-1.5 px-3 rounded-md text-muted-foreground">
+                        <Checkbox checked className="h-4 w-4" />
+                        <span className="line-through">{item.label}</span>
+                        <span className="text-xs ml-auto">from {item.fromWhom}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             )}
 
             <div className="flex items-center gap-2 pt-1">
@@ -593,26 +647,31 @@ function EmailsFullLive({ projectId, mockEmails }: { projectId: string; mockEmai
   );
 }
 
-// ======== CONTACTS (with PIS + DOB registration) ========
+// ======== CONTACTS (collapsible table with PIS + DOB registration) ========
 
 const sourceStyles: Record<string, { label: string; className: string }> = {
-  proposal: { label: "From Proposal", className: "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800" },
-  pis: { label: "From PIS", className: "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800" },
+  proposal: { label: "Proposal", className: "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800" },
+  pis: { label: "PIS", className: "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800" },
   manual: { label: "Manual", className: "bg-muted text-muted-foreground" },
 };
 
-const dobRegStyles: Record<string, { label: string; className: string }> = {
-  registered: { label: "DOB Registered", className: "text-emerald-600 dark:text-emerald-400" },
-  not_registered: { label: "Not Registered", className: "text-red-600 dark:text-red-400" },
-  unknown: { label: "Unknown", className: "text-muted-foreground" },
+const dobRegStyles: Record<string, { label: string; className: string; icon: string }> = {
+  registered: { label: "Registered", className: "text-emerald-600 dark:text-emerald-400", icon: "✓" },
+  not_registered: { label: "Not Registered", className: "text-red-600 dark:text-red-400", icon: "✗" },
+  unknown: { label: "Unknown", className: "text-muted-foreground", icon: "?" },
 };
 
 function ContactsFull({ contacts, pisStatus }: { contacts: MockContact[]; pisStatus: MockPISStatus }) {
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const toggle = (id: string) => setExpandedIds(prev => {
+    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
+  });
+
   return (
-    <div className="p-6 space-y-4">
+    <div>
       {/* PIS status bar */}
       {pisStatus.completedFields < pisStatus.totalFields && (
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-800/30 text-sm">
+        <div className="flex items-center gap-3 px-6 py-3 bg-amber-50/50 dark:bg-amber-900/10 border-b border-amber-200/50 dark:border-amber-800/30 text-sm">
           <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
           <span>PIS sent {pisStatus.sentDate} — {pisStatus.completedFields} of {pisStatus.totalFields} fields completed</span>
           <Button variant="outline" size="sm" className="ml-auto shrink-0 gap-1.5">
@@ -621,41 +680,83 @@ function ContactsFull({ contacts, pisStatus }: { contacts: MockContact[]; pisSta
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {contacts.map((c) => {
-          const src = sourceStyles[c.source] || sourceStyles.manual;
-          const reg = dobRegStyles[c.dobRegistered] || dobRegStyles.unknown;
-          return (
-            <div key={c.id} className="p-4 rounded-lg bg-background border space-y-2">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="font-medium">{c.name}</span>
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/30 hover:bg-muted/30">
+            <TableHead className="w-[36px]" />
+            <TableHead>Name</TableHead>
+            <TableHead>DOB Role</TableHead>
+            <TableHead>Company</TableHead>
+            <TableHead>Phone</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Source</TableHead>
+            <TableHead>DOB NOW</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {contacts.map((c) => {
+            const src = sourceStyles[c.source] || sourceStyles.manual;
+            const reg = dobRegStyles[c.dobRegistered] || dobRegStyles.unknown;
+            const isExpanded = expandedIds.has(c.id);
+            return (
+              <>
+                <TableRow key={c.id} className="cursor-pointer hover:bg-muted/20" onClick={() => toggle(c.id)}>
+                  <TableCell className="pr-0">
+                    {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                  </TableCell>
+                  <TableCell className="font-medium">{c.name}</TableCell>
+                  <TableCell>
                     <Badge variant="secondary" className="text-xs">{dobRoleLabels[c.dobRole]}</Badge>
-                  </div>
-                  <div className="text-sm text-muted-foreground">{c.role} · {c.company}</div>
-                </div>
-                <Badge variant="outline" className={`text-[10px] ${src.className}`}>{src.label}</Badge>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex flex-col gap-0.5 text-muted-foreground">
-                  <a href={`tel:${c.phone}`} className="flex items-center gap-1.5 hover:text-foreground transition-colors">
-                    <Phone className="h-3.5 w-3.5" /> {c.phone}
-                  </a>
-                  <a href={`mailto:${c.email}`} className="flex items-center gap-1.5 hover:text-foreground transition-colors">
-                    <Mail className="h-3.5 w-3.5" /> {c.email}
-                  </a>
-                </div>
-                <span className={`text-xs ${reg.className}`}>{reg.label}</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{c.company}</TableCell>
+                  <TableCell>
+                    <a href={`tel:${c.phone}`} className="text-sm text-muted-foreground hover:text-foreground transition-colors" onClick={e => e.stopPropagation()}>
+                      {c.phone}
+                    </a>
+                  </TableCell>
+                  <TableCell>
+                    <a href={`mailto:${c.email}`} className="text-sm text-muted-foreground hover:text-foreground transition-colors" onClick={e => e.stopPropagation()}>
+                      {c.email}
+                    </a>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={`text-[10px] ${src.className}`}>{src.label}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <span className={`text-xs font-medium ${reg.className}`}>{reg.icon} {reg.label}</span>
+                  </TableCell>
+                </TableRow>
+                {isExpanded && (
+                  <TableRow key={`${c.id}-detail`} className="hover:bg-transparent">
+                    <TableCell colSpan={8} className="p-0">
+                      <div className="px-8 py-4 bg-muted/10 text-sm space-y-1">
+                        <div><span className="text-muted-foreground">Role:</span> {c.role}</div>
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                          <a href={`tel:${c.phone}`} className="hover:text-foreground transition-colors">{c.phone}</a>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                          <a href={`mailto:${c.email}`} className="hover:text-foreground transition-colors">{c.email}</a>
+                        </div>
+                        {c.dobRegistered === "not_registered" && (
+                          <div className="mt-2 flex items-center gap-2 text-xs text-red-600 dark:text-red-400">
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                            Contact is not registered on DOB NOW — filing may be blocked
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </>
+            );
+          })}
+        </TableBody>
+      </Table>
     </div>
   );
 }
-
 // ======== TIMELINE ========
 
 function TimelineFull({ milestones }: { milestones: MockMilestone[] }) {
@@ -735,7 +836,7 @@ function DocumentsFull({ documents }: { documents: MockDocument[] }) {
               <TableHead>Size</TableHead>
               <TableHead>Uploaded By</TableHead>
               <TableHead>Date</TableHead>
-              <TableHead className="w-[80px]" />
+              <TableHead className="w-[120px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -754,9 +855,14 @@ function DocumentsFull({ documents }: { documents: MockDocument[] }) {
                 <TableCell className="text-muted-foreground text-sm">{doc.uploadedBy}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">{doc.uploadedDate}</TableCell>
                 <TableCell>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <Download className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Preview" onClick={() => toast({ title: "Preview", description: `Opening preview for ${doc.name}` })}>
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Download">
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -885,6 +991,7 @@ function ChangeOrdersFull({ changeOrders }: { changeOrders: MockChangeOrder[] })
               <TableHead>CO #</TableHead>
               <TableHead>Description</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Signed</TableHead>
               <TableHead>Requested By</TableHead>
               <TableHead>Date</TableHead>
               <TableHead className="text-right">Amount</TableHead>
@@ -905,13 +1012,26 @@ function ChangeOrdersFull({ changeOrders }: { changeOrders: MockChangeOrder[] })
                     <TableCell>
                       <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${style.className}`}>{style.label}</span>
                     </TableCell>
+                    <TableCell>
+                      {co.signedByClient ? (
+                        <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                          <ShieldCheck className="h-3.5 w-3.5" /> {co.signedDate || "Signed"}
+                        </span>
+                      ) : co.status !== "draft" ? (
+                        <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                          <PenLine className="h-3.5 w-3.5" /> Awaiting
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{co.requestedBy}</TableCell>
                     <TableCell className="text-muted-foreground">{co.createdDate}</TableCell>
                     <TableCell className="text-right tabular-nums font-semibold">{formatCurrency(co.amount)}</TableCell>
                   </TableRow>
                   {isExpanded && (
                     <TableRow key={`${co.id}-detail`} className="hover:bg-transparent">
-                      <TableCell colSpan={7} className="p-0">
+                      <TableCell colSpan={8} className="p-0">
                         <div className="px-8 py-4 bg-muted/10 space-y-2 text-sm">
                           <div><span className="text-muted-foreground">Reason:</span> {co.reason}</div>
                           {co.linkedServices.length > 0 && (
@@ -920,6 +1040,14 @@ function ChangeOrdersFull({ changeOrders }: { changeOrders: MockChangeOrder[] })
                           {co.approvedDate && (
                             <div><span className="text-muted-foreground">Approved:</span> {co.approvedDate}</div>
                           )}
+                          <div>
+                            <span className="text-muted-foreground">Signature:</span>{" "}
+                            {co.signedByClient ? (
+                              <span className="text-emerald-600 dark:text-emerald-400">Signed on {co.signedDate}</span>
+                            ) : co.status !== "draft" ? (
+                              <span className="text-amber-600 dark:text-amber-400">Awaiting client signature</span>
+                            ) : "Not yet sent"}
+                          </div>
                         </div>
                       </TableCell>
                     </TableRow>
