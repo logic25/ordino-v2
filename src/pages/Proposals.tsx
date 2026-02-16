@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { FileText, Plus, Search, Loader2, Send, UserPlus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ProposalDialog } from "@/components/proposals/ProposalDialog";
@@ -446,6 +447,17 @@ export default function Proposals() {
             </CardContent>
           </Card>
         </div>
+
+        {statusFilter && (
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-xs">
+              Filtering: {statusFilter === "follow_up" ? "Follow-ups Due" : statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}
+            </Badge>
+            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setStatusFilter(null)}>
+              Show All
+            </Button>
+          </div>
+        )}
 
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
