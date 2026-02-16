@@ -1,0 +1,1 @@
+ALTER TABLE public.lead_notes ADD COLUMN parent_note_id UUID REFERENCES public.lead_notes(id) ON DELETE CASCADE;
