@@ -30,8 +30,10 @@ import {
   GripVertical, ArrowUp, ArrowDown,
 } from "lucide-react";
 import { useProjects, ProjectWithRelations } from "@/hooks/useProjects";
+import { useAssignableProfiles } from "@/hooks/useProfiles";
 import { ProjectEmailsTab } from "@/components/emails/ProjectEmailsTab";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import {
   SERVICE_SETS, CONTACT_SETS, MILESTONE_SETS, CO_SETS,
   EMAIL_SETS, DOCUMENT_SETS, TIME_SETS, CHECKLIST_SETS, PIS_SETS, PROPOSAL_SIG_SETS,
@@ -59,6 +61,19 @@ export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: projects = [], isLoading } = useProjects();
+  const { data: assignableProfiles = [] } = useAssignableProfiles();
+  const { toast } = useToast();
+
+  const handlePmChange = async (profileId: string) => {
+    if (!project) return;
+    const pmId = profileId === "__unassigned__" ? null : profileId;
+    const { error } = await supabase.from("projects").update({ assigned_pm_id: pmId }).eq("id", project.id);
+    if (error) {
+      toast({ title: "Error", description: "Failed to update PM assignment.", variant: "destructive" });
+    } else {
+      toast({ title: "PM Updated", description: "Project manager reassigned." });
+    }
+  };
 
   const project = projects.find((p) => p.id === id);
   const idx = projects.indexOf(project as ProjectWithRelations);
@@ -141,16 +156,20 @@ export default function ProjectDetail() {
                 )}
                 <span className="flex items-center gap-1">
                   <User className="h-3.5 w-3.5" /> PM:&nbsp;
-                  <Select defaultValue="__current__">
+                  <Select
+                    value={project.assigned_pm_id || "__unassigned__"}
+                    onValueChange={handlePmChange}
+                  >
                     <SelectTrigger className="h-6 w-auto min-w-[120px] border-none bg-transparent shadow-none text-sm p-0 px-1 hover:bg-muted/40 focus:ring-0 gap-1">
-                      <SelectValue placeholder="Assign PM">{formatName(project.assigned_pm) !== "—" ? formatName(project.assigned_pm) : "Unassigned"}</SelectValue>
+                      <SelectValue placeholder="Assign PM" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__current__">{formatName(project.assigned_pm) !== "—" ? formatName(project.assigned_pm) : "Unassigned"}</SelectItem>
-                      <SelectItem value="don">Don Speaker</SelectItem>
-                      <SelectItem value="natalia">Natalia Smith</SelectItem>
-                      <SelectItem value="sheri">Sheri Lopez</SelectItem>
-                      <SelectItem value="manny">Manny Russell</SelectItem>
+                      <SelectItem value="__unassigned__">Unassigned</SelectItem>
+                      {assignableProfiles.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {[p.first_name, p.last_name].filter(Boolean).join(" ") || p.user_id}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </span>
@@ -385,20 +404,34 @@ function ReadinessChecklist({ items: initialItems, pisStatus }: { items: MockChe
         </CollapsibleTrigger>
         <CollapsibleContent>
           <CardContent className="pt-0 space-y-4">
-            {!pisComplete && (
-              <div className="flex items-center gap-4 p-3 rounded-lg bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-800/30">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="font-medium">Project Information Sheet</span>
-                    <span className="text-muted-foreground text-xs">Sent {pisStatus.sentDate}</span>
+            {pisStatus.sentDate ? (
+              !pisComplete && (
+                <div className="flex items-center gap-4 p-3 rounded-lg bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-800/30">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between text-sm mb-1">
+                      <span className="font-medium">Project Information Sheet</span>
+                      <span className="text-muted-foreground text-xs">Sent {pisStatus.sentDate}</span>
+                    </div>
+                    <Progress value={(pisStatus.completedFields / pisStatus.totalFields) * 100} className="h-2" />
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Missing: {pisStatus.missingFields.join(", ")}
+                    </div>
                   </div>
-                  <Progress value={(pisStatus.completedFields / pisStatus.totalFields) * 100} className="h-2" />
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Missing: {pisStatus.missingFields.join(", ")}
+                  <Button variant="outline" size="sm" className="shrink-0 gap-1.5">
+                    <Send className="h-3.5 w-3.5" /> Send Reminder
+                  </Button>
+                </div>
+              )
+            ) : (
+              <div className="flex items-center gap-4 p-3 rounded-lg bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200/50 dark:border-blue-800/30">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium">No Project Information Sheet sent yet</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    Sending a PIS will auto-populate contacts, services, and project details from the client.
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="shrink-0 gap-1.5">
-                  <Send className="h-3.5 w-3.5" /> Send Reminder
+                <Button size="sm" className="shrink-0 gap-1.5">
+                  <Send className="h-3.5 w-3.5" /> Send PIS
                 </Button>
               </div>
             )}
@@ -410,16 +443,38 @@ function ReadinessChecklist({ items: initialItems, pisStatus }: { items: MockChe
                 </h4>
                 <div className="space-y-1.5">
                   {groupItems.map((item) => (
-                    <div key={item.id} className="flex items-center gap-3 text-sm py-2 px-3 rounded-md bg-background border">
+                    <div key={item.id} className="flex items-center gap-3 text-sm py-2 px-3 rounded-md bg-background border group/item">
                       <Checkbox className="h-4 w-4" onCheckedChange={() => markDone(item.id)} />
                       <span className="flex-1 min-w-0">{item.label}</span>
                       <span className="text-xs text-muted-foreground shrink-0">from {item.fromWhom}</span>
                       <Badge variant={item.daysWaiting > 7 ? "destructive" : "secondary"} className="text-[10px] shrink-0">
-                        {item.daysWaiting}d waiting
+                        {item.daysWaiting}d
                       </Badge>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeItem(item.id)}>
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {item.category === "missing_document" && (
+                          <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 text-muted-foreground hover:text-foreground" onClick={() => toast({ title: "Request Sent", description: `Requested "${item.label}" from ${item.fromWhom}` })}>
+                            <Mail className="h-3 w-3" /> Request
+                          </Button>
+                        )}
+                        {item.category === "missing_info" && (
+                          <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 text-muted-foreground hover:text-foreground" onClick={() => toast({ title: "Email Draft", description: `Drafting email to request "${item.label}"` })}>
+                            <Mail className="h-3 w-3" /> Email
+                          </Button>
+                        )}
+                        {item.category === "pending_signature" && (
+                          <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 text-muted-foreground hover:text-foreground" onClick={() => toast({ title: "Reminder Sent", description: `Signature reminder sent for "${item.label}"` })}>
+                            <Send className="h-3 w-3" /> Remind
+                          </Button>
+                        )}
+                        {item.category === "pending_response" && (
+                          <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 text-muted-foreground hover:text-foreground" onClick={() => toast({ title: "Follow-up Sent", description: `Follow-up sent for "${item.label}"` })}>
+                            <Phone className="h-3 w-3" /> Follow Up
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeItem(item.id)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -745,21 +800,22 @@ function ServicesFull({ services: initialServices }: { services: MockService[] }
             const pendingReqs = svc.requirements.filter(r => !r.met).length;
             return (
               <>
-                <TableRow key={svc.id} className="cursor-pointer hover:bg-muted/20" onClick={() => toggle(svc.id)}>
+                <TableRow key={svc.id} className="cursor-pointer hover:bg-muted/20 group/row" onClick={() => toggle(svc.id)}>
                   <TableCell className="pl-6" onClick={(e) => e.stopPropagation()}>
                     <Checkbox checked={selectedIds.has(svc.id)} onCheckedChange={() => toggleSelect(svc.id)} className="h-4 w-4" />
                   </TableCell>
                   <TableCell className="pr-0">
                     {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                   </TableCell>
-                  <TableCell className="pr-0 w-[36px]" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex flex-col">
-                      <Button variant="ghost" size="icon" className="h-4 w-4 p-0" disabled={svcIndex === 0} onClick={() => moveService(svcIndex, "up")}>
-                        <ArrowUp className="h-3 w-3 text-muted-foreground" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-4 w-4 p-0" disabled={svcIndex === services.length - 1} onClick={() => moveService(svcIndex, "down")}>
-                        <ArrowDown className="h-3 w-3 text-muted-foreground" />
-                      </Button>
+                  <TableCell className="pr-0 w-[28px]" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex flex-col items-center opacity-0 group-hover/row:opacity-100 transition-opacity">
+                      <button className="p-0.5 rounded hover:bg-muted disabled:opacity-20" disabled={svcIndex === 0} onClick={() => moveService(svcIndex, "up")}>
+                        <ArrowUp className="h-2.5 w-2.5 text-muted-foreground" />
+                      </button>
+                      <GripVertical className="h-3 w-3 text-muted-foreground/40" />
+                      <button className="p-0.5 rounded hover:bg-muted disabled:opacity-20" disabled={svcIndex === services.length - 1} onClick={() => moveService(svcIndex, "down")}>
+                        <ArrowDown className="h-2.5 w-2.5 text-muted-foreground" />
+                      </button>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -941,33 +997,55 @@ function ContactsFull({ contacts, pisStatus }: { contacts: MockContact[]; pisSta
                 {isExpanded && (
                   <TableRow key={`${c.id}-detail`} className="hover:bg-transparent">
                     <TableCell colSpan={8} className="p-0">
-                      <div className="px-8 py-4 bg-muted/10 text-sm space-y-1">
-                        <div><span className="text-muted-foreground">Role:</span> {c.role}</div>
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                          <a href={`tel:${c.phone}`} className="hover:text-foreground transition-colors">{c.phone}</a>
-                        </div>
-                         <div className="flex items-center gap-2">
-                          <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                          <a href={`mailto:${c.email}`} className="hover:text-foreground transition-colors">{c.email}</a>
-                        </div>
-                        <div className="flex items-center justify-between mt-2">
-                          <div className="flex items-center gap-2 text-xs">
-                            <span className="text-muted-foreground">DOB NOW Verified:</span>
-                            <Button
-                              variant={c.dobRegistered === "registered" ? "default" : "outline"}
-                              size="sm"
-                              className="h-6 text-[10px] px-2"
-                              onClick={() => toast({ title: "Status toggled", description: `${c.name} DOB NOW status updated.` })}
-                            >
-                              {c.dobRegistered === "registered" ? "✓ Verified" : c.dobRegistered === "not_registered" ? "Mark Verified" : "Mark Verified"}
-                            </Button>
+                      <div className="px-8 py-4 bg-muted/10 text-sm space-y-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <div><span className="text-muted-foreground">Role:</span> {c.role}</div>
+                            <div className="flex items-center gap-2">
+                              <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                              <a href={`tel:${c.phone}`} className="hover:text-foreground transition-colors">{c.phone}</a>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                              <a href={`mailto:${c.email}`} className="hover:text-foreground transition-colors">{c.email}</a>
+                            </div>
+                            <div className="flex items-center justify-between mt-2">
+                              <div className="flex items-center gap-2 text-xs">
+                                <span className="text-muted-foreground">DOB NOW Verified:</span>
+                                <Button
+                                  variant={c.dobRegistered === "registered" ? "default" : "outline"}
+                                  size="sm"
+                                  className="h-6 text-[10px] px-2"
+                                  onClick={() => toast({ title: "Status toggled", description: `${c.name} DOB NOW status updated.` })}
+                                >
+                                  {c.dobRegistered === "registered" ? "✓ Verified" : "Mark Verified"}
+                                </Button>
+                              </div>
+                              {c.dobRegistered === "not_registered" && (
+                                <span className="text-xs text-destructive flex items-center gap-1">
+                                  <AlertTriangle className="h-3 w-3" /> Filing may be blocked
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          {c.dobRegistered === "not_registered" && (
-                            <span className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
-                              <AlertTriangle className="h-3 w-3" /> Filing may be blocked
-                            </span>
-                          )}
+                          <div>
+                            <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Review</h5>
+                            {c.review ? (
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1">
+                                  {Array.from({ length: 5 }).map((_, i) => (
+                                    <span key={i} className={`text-sm ${i < (c.review?.rating || 0) ? "text-amber-500" : "text-muted-foreground/30"}`}>★</span>
+                                  ))}
+                                  <span className="text-xs text-muted-foreground ml-1">{c.review.rating}/5</span>
+                                </div>
+                                {c.review.comment && <p className="text-xs text-muted-foreground italic">"{c.review.comment}"</p>}
+                              </div>
+                            ) : (
+                              <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={() => toast({ title: "Add Review", description: `Opening review form for ${c.company}` })}>
+                                <Plus className="h-3 w-3" /> Add Review
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </TableCell>
