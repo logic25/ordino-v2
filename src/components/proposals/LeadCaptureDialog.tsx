@@ -19,17 +19,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Phone, Mail, UserPlus } from "lucide-react";
+import { Loader2, UserPlus } from "lucide-react";
 import { useAssignableProfiles } from "@/hooks/useProfiles";
+import { useLeadSources } from "@/hooks/useLeadSources";
 
 export interface LeadCaptureData {
-  source: "phone_call" | "email" | "walk_in" | "referral" | "website";
-  contact_name: string;
+  source: string;
+  first_name: string;
+  last_name: string;
   contact_phone?: string;
   contact_email?: string;
   property_address?: string;
-  property_id?: string;
-  client_id?: string;
+  service_needed?: string;
   notes?: string;
   assigned_pm_id?: string;
 }
@@ -41,41 +42,51 @@ interface LeadCaptureDialogProps {
   isLoading?: boolean;
 }
 
-const LEAD_SOURCES = [
-  { value: "phone_call", label: "Phone Call", icon: Phone },
-  { value: "email", label: "Email", icon: Mail },
-  { value: "walk_in", label: "Walk-in", icon: UserPlus },
-  { value: "referral", label: "Referral", icon: UserPlus },
-  { value: "website", label: "Website Inquiry", icon: Mail },
+const DEFAULT_SOURCES = [
+  { value: "phone_call", label: "Phone Call" },
+  { value: "email", label: "Email" },
+  { value: "website", label: "Website" },
 ];
 
 export function LeadCaptureDialog({ open, onOpenChange, onSubmit, isLoading }: LeadCaptureDialogProps) {
-  const [source, setSource] = useState<LeadCaptureData["source"]>("phone_call");
-  const [contactName, setContactName] = useState("");
+  const [source, setSource] = useState("phone_call");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [propertyAddress, setPropertyAddress] = useState("");
-  const [assignedPmId, setAssignedPmId] = useState("");
+  const [serviceNeeded, setServiceNeeded] = useState("");
   const [notes, setNotes] = useState("");
+  const [assignedPmId, setAssignedPmId] = useState("");
 
   const { data: pmProfiles = [] } = useAssignableProfiles();
+  const { data: leadSources = [] } = useLeadSources();
+
+  // Merge settings lead sources with defaults
+  const activeSources = leadSources.length > 0
+    ? leadSources.filter((s) => s.is_active).map((s) => ({ value: s.name.toLowerCase().replace(/\s+/g, "_"), label: s.name }))
+    : DEFAULT_SOURCES;
 
   const handleSubmit = () => {
-    if (!contactName.trim()) return;
+    if (!firstName.trim() && !lastName.trim()) return;
     onSubmit({
       source,
-      contact_name: contactName.trim(),
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
       contact_phone: contactPhone || undefined,
       contact_email: contactEmail || undefined,
       property_address: propertyAddress || undefined,
+      service_needed: serviceNeeded || undefined,
       notes: notes || undefined,
       assigned_pm_id: assignedPmId || undefined,
     });
     // Reset
-    setContactName("");
+    setFirstName("");
+    setLastName("");
     setContactPhone("");
     setContactEmail("");
     setPropertyAddress("");
+    setServiceNeeded("");
     setNotes("");
     setAssignedPmId("");
     setSource("phone_call");
@@ -90,40 +101,52 @@ export function LeadCaptureDialog({ open, onOpenChange, onSubmit, isLoading }: L
             Capture New Lead
           </DialogTitle>
           <DialogDescription>
-            Quick-capture a lead from a call, email, or walk-in. This creates a draft proposal and alerts the assigned PM.
+            Quick-capture a lead from a call, email, or website form. Creates a draft proposal and assigns it.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           {/* Source */}
           <div className="space-y-2">
-            <Label>How did they reach us?</Label>
+            <Label>Lead Source</Label>
             <div className="flex flex-wrap gap-2">
-              {LEAD_SOURCES.map((s) => (
+              {activeSources.map((s) => (
                 <Badge
                   key={s.value}
                   variant={source === s.value ? "default" : "outline"}
                   className="cursor-pointer px-3 py-1.5 text-xs"
-                  onClick={() => setSource(s.value as LeadCaptureData["source"])}
+                  onClick={() => setSource(s.value)}
                 >
-                  <s.icon className="h-3 w-3 mr-1" />
                   {s.label}
                 </Badge>
               ))}
             </div>
           </div>
 
-          {/* Contact info */}
+          {/* Name */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2 space-y-1.5">
-              <Label htmlFor="lead-name">Contact Name *</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="lead-first-name">First Name *</Label>
               <Input
-                id="lead-name"
-                placeholder="John Smith"
-                value={contactName}
-                onChange={(e) => setContactName(e.target.value)}
+                id="lead-first-name"
+                placeholder="John"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
               />
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="lead-last-name">Last Name *</Label>
+              <Input
+                id="lead-last-name"
+                placeholder="Smith"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Contact info */}
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="lead-phone">Phone</Label>
               <Input
@@ -147,7 +170,7 @@ export function LeadCaptureDialog({ open, onOpenChange, onSubmit, isLoading }: L
 
           {/* Property */}
           <div className="space-y-1.5">
-            <Label htmlFor="lead-property">Property Address (if known)</Label>
+            <Label htmlFor="lead-property">Property Address</Label>
             <Input
               id="lead-property"
               placeholder="123 Main St, Brooklyn, NY"
@@ -156,12 +179,23 @@ export function LeadCaptureDialog({ open, onOpenChange, onSubmit, isLoading }: L
             />
           </div>
 
+          {/* Service needed */}
+          <div className="space-y-1.5">
+            <Label htmlFor="lead-service">Service Needed</Label>
+            <Input
+              id="lead-service"
+              placeholder="e.g. Alt-1 Filing, New Building Permit..."
+              value={serviceNeeded}
+              onChange={(e) => setServiceNeeded(e.target.value)}
+            />
+          </div>
+
           {/* Assign PM */}
           <div className="space-y-1.5">
-            <Label>Assign to PM</Label>
+            <Label>Assign To</Label>
             <Select value={assignedPmId} onValueChange={setAssignedPmId}>
               <SelectTrigger>
-                <SelectValue placeholder="Select a PM to alert..." />
+                <SelectValue placeholder="Assign to admin/PM..." />
               </SelectTrigger>
               <SelectContent>
                 {pmProfiles.map((p) => (
@@ -178,7 +212,7 @@ export function LeadCaptureDialog({ open, onOpenChange, onSubmit, isLoading }: L
             <Label htmlFor="lead-notes">Notes</Label>
             <Textarea
               id="lead-notes"
-              placeholder="What do they need? Any details from the call..."
+              placeholder="What did they say on the call? Any details..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
@@ -190,7 +224,7 @@ export function LeadCaptureDialog({ open, onOpenChange, onSubmit, isLoading }: L
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!contactName.trim() || isLoading}>
+          <Button onClick={handleSubmit} disabled={(!firstName.trim() && !lastName.trim()) || isLoading}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

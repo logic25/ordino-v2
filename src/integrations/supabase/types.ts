@@ -3429,7 +3429,7 @@ export type Database = {
           notes: string | null
           payment_terms: string | null
           project_type: string | null
-          property_id: string
+          property_id: string | null
           proposal_number: string | null
           reminder_date: string | null
           sales_person_id: string | null
@@ -3481,7 +3481,7 @@ export type Database = {
           notes?: string | null
           payment_terms?: string | null
           project_type?: string | null
-          property_id: string
+          property_id?: string | null
           proposal_number?: string | null
           reminder_date?: string | null
           sales_person_id?: string | null
@@ -3533,7 +3533,7 @@ export type Database = {
           notes?: string | null
           payment_terms?: string | null
           project_type?: string | null
-          property_id?: string
+          property_id?: string | null
           proposal_number?: string | null
           reminder_date?: string | null
           sales_person_id?: string | null
