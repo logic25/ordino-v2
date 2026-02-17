@@ -9,8 +9,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
-import { Save, AlertTriangle, UserPlus, CheckCircle2 } from "lucide-react";
+import { Save, AlertTriangle, UserPlus, CheckCircle2, Loader2 } from "lucide-react";
 import { useClients } from "@/hooks/useClients";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { MockPISStatus } from "./projectMockData";
 
 interface PisFieldDef {
@@ -138,12 +140,61 @@ interface EditPISDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   pisStatus: MockPISStatus;
+  projectId: string;
 }
 
-export function EditPISDialog({ open, onOpenChange, pisStatus }: EditPISDialogProps) {
+export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: EditPISDialogProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { data: clients = [] } = useClients();
   const [values, setValues] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  // Load existing RFI responses
+  const { data: rfiData } = useQuery({
+    queryKey: ["rfi-responses", projectId],
+    queryFn: async () => {
+      const { data } = await (supabase.from("rfi_requests") as any)
+        .select("id, responses")
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data as { id: string; responses: Record<string, any> } | null;
+    },
+    enabled: !!projectId && open,
+  });
+
+  // Map RFI response keys (section_field) to flat field IDs
+  useEffect(() => {
+    if (!rfiData?.responses) return;
+    const mapped: Record<string, string> = {};
+    const resp = rfiData.responses;
+    // The RFI stores keys as "sectionId_fieldId", e.g. "building_and_scope_project_address"
+    // Our PIS_SECTIONS use flat field IDs like "project_address"
+    // Build a lookup from flat field ID to value
+    for (const section of PIS_SECTIONS) {
+      for (const field of section.fields) {
+        if (field.type === "heading") continue;
+        // Try exact match first
+        if (resp[field.id] !== undefined) {
+          mapped[field.id] = String(resp[field.id]);
+        }
+        // Try prefixed match: sectionId_fieldId
+        const prefixedKey = `${section.id}_${field.id}`;
+        if (resp[prefixedKey] !== undefined) {
+          mapped[field.id] = String(resp[prefixedKey]);
+        }
+        // Try other section prefixes (RFI uses different section IDs)
+        for (const [key, val] of Object.entries(resp)) {
+          if (key.endsWith(`_${field.id}`) && val && !mapped[field.id]) {
+            mapped[field.id] = String(val);
+          }
+        }
+      }
+    }
+    setValues(mapped);
+  }, [rfiData]);
 
   const updateValue = (key: string, value: string) => {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -152,7 +203,7 @@ export function EditPISDialog({ open, onOpenChange, pisStatus }: EditPISDialogPr
   // Check if a contact name exists in the CRM
   const isContactInCRM = (nameFieldId: string): boolean => {
     const name = values[nameFieldId]?.trim();
-    if (!name) return true; // Empty is fine
+    if (!name) return true;
     return clients.some((c) =>
       c.name.toLowerCase().includes(name.toLowerCase())
     );
@@ -160,10 +211,7 @@ export function EditPISDialog({ open, onOpenChange, pisStatus }: EditPISDialogPr
 
   // Count filled fields
   const allFields = PIS_SECTIONS.flatMap((s) => s.fields.filter((f) => f.type !== "heading"));
-  const filledCount = allFields.filter((f) => {
-    const key = f.id;
-    return values[key]?.trim();
-  }).length;
+  const filledCount = allFields.filter((f) => values[f.id]?.trim()).length;
 
   const getSectionProgress = (section: PisSection) => {
     const fields = section.fields.filter((f) => f.type !== "heading");
@@ -179,12 +227,41 @@ export function EditPISDialog({ open, onOpenChange, pisStatus }: EditPISDialogPr
     return nameField?.id || null;
   };
 
-  const handleSave = () => {
-    toast({
-      title: "PIS Saved",
-      description: `${filledCount}/${allFields.length} fields completed.`,
-    });
-    onOpenChange(false);
+  const handleSave = async () => {
+    if (!rfiData?.id) {
+      toast({ title: "No PIS record found", description: "Send a PIS to the client first.", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      // Merge values back into the existing responses object
+      const updatedResponses = { ...(rfiData.responses || {}) };
+      for (const section of PIS_SECTIONS) {
+        for (const field of section.fields) {
+          if (field.type === "heading") continue;
+          const val = values[field.id];
+          if (val !== undefined) {
+            // Store with section prefix to match RFI format
+            const prefixedKey = `${section.id}_${field.id}`;
+            updatedResponses[prefixedKey] = val;
+            // Also store flat key
+            updatedResponses[field.id] = val;
+          }
+        }
+      }
+      const { error } = await (supabase.from("rfi_requests") as any)
+        .update({ responses: updatedResponses, updated_at: new Date().toISOString() })
+        .eq("id", rfiData.id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["rfi-responses", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["project-pis-status", projectId] });
+      toast({ title: "PIS Saved", description: `${filledCount}/${allFields.length} fields completed.` });
+      onOpenChange(false);
+    } catch (err: any) {
+      toast({ title: "Save failed", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const renderField = (field: PisFieldDef) => {
@@ -302,8 +379,8 @@ export function EditPISDialog({ open, onOpenChange, pisStatus }: EditPISDialogPr
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave} className="gap-1.5">
-            <Save className="h-3.5 w-3.5" /> Save PIS
+          <Button onClick={handleSave} disabled={saving} className="gap-1.5">
+            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save PIS
           </Button>
         </DialogFooter>
       </DialogContent>

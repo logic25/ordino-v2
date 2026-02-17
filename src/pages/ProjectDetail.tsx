@@ -296,7 +296,7 @@ export default function ProjectDetail() {
 
         {/* Proposal Execution Status + Readiness Checklist */}
         <ProposalExecutionBanner project={project} changeOrders={changeOrders} />
-        <ReadinessChecklist items={checklistItems} pisStatus={pisStatus} />
+        <ReadinessChecklist items={checklistItems} pisStatus={pisStatus} projectId={id!} />
 
         {/* Main Tabbed Content */}
         <Card>
@@ -449,7 +449,7 @@ function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWi
 
 // ======== READINESS CHECKLIST ========
 
-function ReadinessChecklist({ items: initialItems, pisStatus }: { items: MockChecklistItem[]; pisStatus: MockPISStatus }) {
+function ReadinessChecklist({ items: initialItems, pisStatus, projectId }: { items: MockChecklistItem[]; pisStatus: MockPISStatus; projectId: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const [showReceived, setShowReceived] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -678,7 +678,7 @@ function ReadinessChecklist({ items: initialItems, pisStatus }: { items: MockChe
         </CollapsibleContent>
       </Card>
     </Collapsible>
-    <EditPISDialog open={showEditPIS} onOpenChange={setShowEditPIS} pisStatus={pisStatus} />
+    <EditPISDialog open={showEditPIS} onOpenChange={setShowEditPIS} pisStatus={pisStatus} projectId={projectId} />
     </>
   );
 }
