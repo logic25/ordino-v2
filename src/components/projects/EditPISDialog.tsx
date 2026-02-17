@@ -149,6 +149,7 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
   const { data: clients = [] } = useClients();
   const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [addedToCRM, setAddedToCRM] = useState<Set<string>>(new Set());
 
   // Load existing RFI responses
   const { data: rfiData } = useQuery({
@@ -204,6 +205,7 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
   const isContactInCRM = (nameFieldId: string): boolean => {
     const name = values[nameFieldId]?.trim();
     if (!name) return true;
+    if (addedToCRM.has(nameFieldId)) return true;
     return clients.some((c) =>
       c.name.toLowerCase().includes(name.toLowerCase())
     );
@@ -403,6 +405,7 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
                               is_primary: true,
                             });
 
+                            setAddedToCRM(prev => new Set(prev).add(contactNameField!));
                             queryClient.invalidateQueries({ queryKey: ["clients"] });
                             toast({ title: "Contact Added", description: `"${contactName}" has been added to your CRM.` });
                           } catch (err: any) {
