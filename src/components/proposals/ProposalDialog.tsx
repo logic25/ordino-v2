@@ -553,7 +553,7 @@ export function ProposalDialog({
         </div>
 
         {/* ── Scrollable body ── */}
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col flex-1 min-h-0">
+        <div className="flex flex-col flex-1 min-h-0">
           <div className="flex-1 overflow-y-auto">
 
             {/* ═══ STEP 1: PROPERTY & CONTACTS ═══ */}
@@ -824,7 +824,8 @@ export function ProposalDialog({
                   Next <ChevronRightIcon className="h-4 w-4 ml-1" />
                 </Button>
               ) : (
-                <Button type="submit" size="sm" disabled={isLoading} className="bg-accent text-accent-foreground hover:bg-accent/90">
+                <Button type="button" size="sm" disabled={isLoading} className="bg-accent text-accent-foreground hover:bg-accent/90"
+                  onClick={form.handleSubmit(handleSubmit)}>
                   {isLoading ? (
                     <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEditing ? "Updating…" : "Creating…"}</>
                   ) : isEditing ? "Update Proposal" : "Create Proposal"}
@@ -832,7 +833,7 @@ export function ProposalDialog({
               )}
             </div>
           </div>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );
