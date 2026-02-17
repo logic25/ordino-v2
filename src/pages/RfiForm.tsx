@@ -274,6 +274,16 @@ export default function RfiForm() {
           if (!val || (typeof val === "string" && val.trim() === "")) return false;
           if (Array.isArray(val) && val.length === 0) return false;
         }
+        // Validate cost fields for work_type_picker
+        if (field.type === "work_type_picker") {
+          const key = getFieldKey(currentSection.id, field.id, r);
+          const selected: string[] = Array.isArray(responses[`${key}_selected`]) ? responses[`${key}_selected`] : [];
+          for (const wt of selected) {
+            const costKey = `${key}_cost_${wt.toLowerCase().replace(/\s+/g, '_')}`;
+            const costVal = responses[costKey];
+            if (!costVal || String(costVal).trim() === "" || Number(costVal) <= 0) return false;
+          }
+        }
       }
     }
     return true;
@@ -491,6 +501,8 @@ export default function RfiForm() {
                         const updated = current.filter(v => v !== opt);
                         const newResp = { ...responses, [`${key}_selected`]: updated };
                         if (opt === "Other") delete newResp[`${key}_other_label`];
+                        // Remove cost for deselected type
+                        delete newResp[`${key}_cost_${opt.toLowerCase().replace(/\s+/g, '_')}`];
                         setResponses(newResp);
                       } else {
                         setValue(`${key}_selected`, [...current, opt]);
@@ -524,6 +536,39 @@ export default function RfiForm() {
                 />
               </div>
             )}
+            {/* Cost fields for each selected work type */}
+            {(() => {
+              const selected: string[] = getCheckboxGroupValue(`${key}_selected`);
+              if (selected.length === 0) return null;
+              return (
+                <div className="space-y-2 mt-4">
+                  <Label className="text-sm font-semibold text-stone-700">
+                    Estimated Cost per Work Type <span className="text-amber-600">*</span>
+                  </Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {selected.map((wt) => {
+                      const costKey = `${key}_cost_${wt.toLowerCase().replace(/\s+/g, '_')}`;
+                      const label = wt === "Other" ? (getValue(`${key}_other_label`) || "Other") : wt;
+                      return (
+                        <div key={wt} className="space-y-1">
+                          <Label className="text-xs text-stone-500">{label}</Label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">$</span>
+                            <Input
+                              type="number"
+                              placeholder="0.00"
+                              value={getValue(costKey)}
+                              onChange={(e) => setValue(costKey, e.target.value)}
+                              className="pl-7 h-10 bg-white border-stone-200 text-stone-800 focus:border-amber-500 focus:ring-amber-500/20 transition-all"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         ) : field.type === "file_upload" ? (
           <div className="space-y-3">
