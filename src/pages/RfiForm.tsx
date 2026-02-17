@@ -235,20 +235,6 @@ export default function RfiForm() {
   const getValue = (key: string) => responses[key] || "";
   const setValue = (key: string, value: any) => {
     const newResponses = { ...responses, [key]: value };
-
-    // "Same as Applicant" copy logic
-    const sameAsMappings: Record<string, Record<string, string>> = {
-      "contractors_inspections_gc_same_as": { contractors_inspections_gc_name: "applicant_and_owner_applicant_name", contractors_inspections_gc_company: "applicant_and_owner_applicant_company", contractors_inspections_gc_phone: "applicant_and_owner_applicant_phone", contractors_inspections_gc_email: "applicant_and_owner_applicant_email" },
-      "contractors_inspections_tpp_same_as": { contractors_inspections_tpp_name: "applicant_and_owner_applicant_name", contractors_inspections_tpp_email: "applicant_and_owner_applicant_email" },
-      "contractors_inspections_sia_same_as": { contractors_inspections_sia_name: "applicant_and_owner_applicant_name", contractors_inspections_sia_company: "applicant_and_owner_applicant_company", contractors_inspections_sia_phone: "applicant_and_owner_applicant_phone", contractors_inspections_sia_email: "applicant_and_owner_applicant_email" },
-    };
-
-    if (value === true && sameAsMappings[key]) {
-      for (const [targetKey, sourceKey] of Object.entries(sameAsMappings[key])) {
-        newResponses[targetKey] = newResponses[sourceKey] || "";
-      }
-    }
-
     setResponses(newResponses);
   };
 
@@ -372,8 +358,28 @@ export default function RfiForm() {
     return { total, filled };
   };
 
+  // Fields that should be hidden when their group's TBD checkbox is checked
+  const tbdGroupFields: Record<string, string[]> = {
+    "contractors_inspections_gc_tbd": ["gc_name", "gc_company", "gc_phone", "gc_email", "gc_address", "gc_dob_tracking", "gc_hic_lic"],
+    "contractors_inspections_tpp_tbd": ["tpp_name", "tpp_email"],
+    "contractors_inspections_sia_tbd": ["sia_name", "sia_company", "sia_phone", "sia_email", "sia_number", "sia_nys_lic"],
+  };
+
+  const isFieldHiddenByTbd = (sectionId: string, fieldId: string): boolean => {
+    for (const [tbdKey, hiddenFields] of Object.entries(tbdGroupFields)) {
+      if (tbdKey.startsWith(sectionId) && hiddenFields.includes(fieldId)) {
+        const tbdValue = responses[tbdKey];
+        if (tbdValue === true) return true;
+      }
+    }
+    return false;
+  };
+
   const renderField = (field: RfiFieldConfig, sectionId: string, repeatIdx: number = 0) => {
     const key = getFieldKey(sectionId, field.id, repeatIdx);
+
+    // Hide fields when their group's TBD is checked
+    if (isFieldHiddenByTbd(sectionId, field.id)) return null;
 
     if (field.type === "heading") {
       return (
@@ -770,34 +776,37 @@ export default function RfiForm() {
           {/* Review step */}
           {isReviewStep && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-              <div className="mb-8">
-                <div className="flex items-center gap-2 mb-3">
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-2">
                   <span className="text-xs font-mono text-emerald-600 bg-emerald-50 border border-emerald-200/50 px-2 py-0.5 rounded">
                     Review
                   </span>
                 </div>
-                <h2 className="text-2xl md:text-3xl font-bold text-stone-800 mb-2">
+                <h2 className="text-2xl font-bold text-stone-800 mb-1">
                   Review & Submit
                 </h2>
-                <p className="text-stone-500 text-base">
-                  Please review your answers below. Click any section to go back and edit.
+                <p className="text-stone-500 text-sm">
+                  Click any section to edit.
                 </p>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-3">
                 {sections.map((section, sIdx) => (
-                  <div key={section.id} className="rounded-2xl border border-stone-200 bg-white shadow-sm overflow-hidden">
+                  <div key={section.id} className="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
                     <button
                       onClick={() => { setDirection("back"); setCurrentStep(sIdx); }}
-                      className="w-full px-6 py-4 flex items-center justify-between bg-stone-50 hover:bg-amber-50/50 transition-colors text-left border-b border-stone-200"
+                      className="w-full px-4 py-2.5 flex items-center justify-between bg-stone-50 hover:bg-amber-50/50 transition-colors text-left border-b border-stone-100"
                     >
-                      <h3 className="text-sm font-semibold text-stone-800">{section.title}</h3>
-                      <span className="text-xs text-amber-600 font-medium">Edit</span>
+                      <h3 className="text-xs font-semibold text-stone-700">{section.title}</h3>
+                      <span className="text-[10px] text-amber-600 font-medium">Edit</span>
                     </button>
-                    <div className="px-6 py-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                    <div className="px-4 py-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5">
                         {section.fields.filter(f => f.type !== "heading").map((field) => {
                           const key = getFieldKey(section.id, field.id);
+
+                          // Hide TBD-hidden fields in review too
+                          if (isFieldHiddenByTbd(section.id, field.id)) return null;
 
                           // Special rendering for work_type_picker
                           if (field.type === "work_type_picker") {
@@ -805,11 +814,11 @@ export default function RfiForm() {
                             if (selected.length === 0) return null;
                             const otherLabel = responses[`${key}_other_label`];
                             return (
-                              <div key={key} className="sm:col-span-2 py-1.5">
-                                <p className="text-xs text-stone-400 mb-1">{field.label}</p>
-                                <div className="flex flex-wrap gap-1.5">
+                              <div key={key} className="col-span-full py-1">
+                                <p className="text-[10px] text-stone-400">{field.label}</p>
+                                <div className="flex flex-wrap gap-1">
                                   {selected.map((opt) => (
-                                    <span key={opt} className="inline-flex px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                                    <span key={opt} className="inline-flex px-1.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-[10px] text-amber-800">
                                       {opt === "Other" && otherLabel ? otherLabel : opt}
                                     </span>
                                   ))}
@@ -826,14 +835,14 @@ export default function RfiForm() {
                             displayVal = `$${Number(val).toLocaleString()}`;
                           } else if (field.type === "file_upload" && Array.isArray(val)) {
                             displayVal = (
-                              <div className="space-y-1">
+                              <div className="space-y-0.5">
                                 {(val as { name: string; path: string }[]).map((file, fIdx) => {
                                   const publicUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/rfi-attachments/${file.path}`;
                                   return (
                                     <button
                                       key={fIdx}
                                       onClick={(e) => { e.stopPropagation(); setPreviewFile({ name: file.name, url: publicUrl }); }}
-                                      className="flex items-center gap-2 text-sm text-amber-700 hover:text-amber-900 underline"
+                                      className="flex items-center gap-1 text-xs text-amber-700 hover:text-amber-900 underline"
                                     >
                                       <Eye className="h-3 w-3 shrink-0" />
                                       {file.name}
@@ -851,9 +860,9 @@ export default function RfiForm() {
                           }
 
                           return (
-                            <div key={key} className={`py-1.5 ${field.width === "full" ? "sm:col-span-2" : ""}`}>
-                              <p className="text-xs text-stone-400">{field.label}</p>
-                              <div className="text-sm text-stone-700">{displayVal}</div>
+                            <div key={key} className={`py-1 ${field.width === "full" ? "col-span-full" : ""}`}>
+                              <p className="text-[10px] text-stone-400 leading-tight">{field.label}</p>
+                              <div className="text-xs text-stone-700 leading-snug">{displayVal}</div>
                             </div>
                           );
                         })}
