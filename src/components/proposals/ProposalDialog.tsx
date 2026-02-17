@@ -587,7 +587,7 @@ export function ProposalDialog({
   return (
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent
-        className="sm:max-w-[900px] max-h-[96vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden"
+        className="sm:max-w-[900px] max-h-[90vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden overflow-hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
@@ -854,7 +854,7 @@ export function ProposalDialog({
           </div>
 
           {/* ── Sticky footer with navigation ── */}
-          <div className="border-t px-6 py-3 flex items-center justify-between bg-background">
+          <div className="border-t px-6 py-3 flex items-center justify-between bg-background shrink-0">
             <div className="flex items-center gap-4 text-sm">
               <span className="text-muted-foreground">{totalHours > 0 && `${totalHours} hrs · `}Total</span>
               <span className="text-lg font-bold tabular-nums">{formatCurrency(subtotal)}</span>
