@@ -1435,6 +1435,39 @@ function DocumentsFull({ documents }: { documents: MockDocument[] }) {
   const [catFilter, setCatFilter] = useState("all");
   const { toast } = useToast();
 
+  const handleDownloadOrPreview = async (doc: MockDocument, action: "preview" | "download") => {
+    try {
+      // Try to get file from storage
+      const storagePathKey = (doc as any).storage_path as string | undefined;
+      if (!storagePathKey) {
+        toast({ title: "No file available", description: "This document is a reference record without an uploaded file.", variant: "destructive" });
+        return;
+      }
+
+      const { data, error } = await supabase.storage.from("documents").download(storagePathKey);
+      if (error || !data) {
+        toast({ title: "File not found", description: "The file could not be retrieved from storage.", variant: "destructive" });
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUri = reader.result as string;
+        if (action === "preview") {
+          window.open(dataUri, "_blank");
+        } else {
+          const a = document.createElement("a");
+          a.href = dataUri;
+          a.download = (doc as any).filename || doc.name;
+          a.click();
+        }
+      };
+      reader.readAsDataURL(data);
+    } catch {
+      toast({ title: "Error", description: "Failed to load document.", variant: "destructive" });
+    }
+  };
+
   const filtered = documents.filter(d => {
     const matchSearch = !search || d.name.toLowerCase().includes(search.toLowerCase());
     const matchCat = catFilter === "all" || d.category === catFilter;
@@ -1498,10 +1531,10 @@ function DocumentsFull({ documents }: { documents: MockDocument[] }) {
                 <TableCell className="text-muted-foreground text-sm">{doc.uploadedDate}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Preview" onClick={() => toast({ title: "Preview", description: `Opening preview for ${doc.name}` })}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Preview" onClick={() => handleDownloadOrPreview(doc, "preview")}>
                       <Eye className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Download">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Download" onClick={() => handleDownloadOrPreview(doc, "download")}>
                       <Download className="h-4 w-4" />
                     </Button>
                   </div>

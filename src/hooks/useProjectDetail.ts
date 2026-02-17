@@ -244,6 +244,8 @@ export function useProjectDocuments(projectId: string | undefined) {
         size: doc.size_bytes ? `${Math.round(doc.size_bytes / 1024)} KB` : "—",
         uploadedBy: "System",
         uploadedDate: format(new Date(doc.created_at), "MM/dd/yyyy"),
+        storage_path: doc.storage_path,
+        filename: doc.filename,
       }));
     },
     enabled: !!projectId,
