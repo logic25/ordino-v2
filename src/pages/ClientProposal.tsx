@@ -69,6 +69,20 @@ export default function ClientProposalPage() {
     enabled: !!proposal?.company_id,
   });
 
+  // Fetch proposal contacts for "Prepared For" section
+  const { data: contacts = [] } = useQuery({
+    queryKey: ["public-proposal-contacts", proposal?.id],
+    queryFn: async () => {
+      if (!proposal?.id) return [];
+      const { data } = await supabase
+        .from("proposal_contacts")
+        .select("*")
+        .eq("proposal_id", proposal.id);
+      return data || [];
+    },
+    enabled: !!proposal?.id,
+  });
+
   // Fetch linked RFI to get the PIS access token
   const { data: rfiToken } = useQuery({
     queryKey: ["public-rfi-token", proposal?.id],
@@ -224,52 +238,103 @@ export default function ClientProposalPage() {
 
   return (
     <div className="min-h-screen bg-[#f1f5f9]">
-      {/* Top bar */}
-      <div style={{ background: charcoal, padding: "16px 24px" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            {company?.logo_url && (
-              <img src={company.logo_url} alt="" style={{ height: 32, filter: "brightness(0) invert(1)" }} />
-            )}
-            <div>
-              <div style={{ color: "#fff", fontWeight: 700, fontSize: "14pt", lineHeight: 1.2 }}>{company?.name || "Our Team"}</div>
-              {company?.address && (
-                <div style={{ color: "#94a3b8", fontSize: "8.5pt", marginTop: 2 }}>{company.address}</div>
-              )}
+      {/* Header Banner — matches internal preview */}
+      <div style={{ background: charcoal, color: "#fff", padding: "32px 48px 28px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", maxWidth: 740, margin: "0 auto" }}>
+        <div>
+          {company?.logo_url ? (
+            <img src={company.logo_url} alt={company.name} style={{ maxHeight: 48, marginBottom: 12, filter: "brightness(0) invert(1)" }} />
+          ) : (
+            <div style={{ fontSize: "20pt", fontWeight: 800, letterSpacing: -0.5, marginBottom: 8 }}>
+              {company?.name || "Our Team"}
             </div>
+          )}
+          <div style={{ fontSize: "9pt", color: "#94a3b8", lineHeight: 1.6 }}>
+            {company?.address && <div>{company.address}</div>}
+            <div>
+              {company?.phone && <span>Tel: {company.phone}</span>}
+            </div>
+            {company?.email && <div>{company.email}</div>}
+            {company?.website && <div>{company.website}</div>}
           </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ color: "#94a3b8", fontSize: "9pt" }}>Proposal #{proposal.proposal_number}</div>
-            {(company?.phone || company?.email) && (
-              <div style={{ color: "#94a3b8", fontSize: "8.5pt", marginTop: 2 }}>
-                {[company.phone, company.email].filter(Boolean).join(" | ")}
-              </div>
-            )}
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: "9pt", textTransform: "uppercase", letterSpacing: 2, color: amber, fontWeight: 700, marginBottom: 4 }}>
+            Proposal
+          </div>
+          <div style={{ fontSize: "16pt", fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>
+            #{proposal.proposal_number}
+          </div>
+          <div style={{ fontSize: "9pt", color: "#94a3b8", marginTop: 6 }}>
+            {fmtDate(proposal.created_at)}
           </div>
         </div>
       </div>
-      <div style={{ height: 3, background: amber }} />
+      <div style={{ height: 4, background: amber, maxWidth: 740, margin: "0 auto" }} />
 
       {/* Proposal content */}
-      <div className="max-w-[740px] mx-auto py-8 px-4">
-        <div className="bg-white shadow-lg rounded-lg overflow-hidden" style={{ color: charcoal }}>
+      <div className="max-w-[740px] mx-auto py-0 px-0">
+        <div className="bg-white shadow-lg overflow-hidden" style={{ color: charcoal }}>
 
-          {/* Header */}
-          <div style={{ padding: "32px 40px 24px", borderBottom: "1px solid #e2e8f0" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div>
-                <h1 style={{ fontSize: "18pt", fontWeight: 800, marginBottom: 4 }}>{proposal.client_name || proposal.title || "Proposal"}</h1>
-                <p style={{ fontSize: "10pt", color: slate }}>{proposal.properties?.address}</p>
+          {/* Prepared For / Project Details */}
+          <div style={{ padding: "32px 48px 0", display: "flex", gap: 32 }}>
+            <div style={{ flex: 1, background: "#f8f9fa", padding: "16px 20px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
+              <div style={{ fontSize: "8pt", textTransform: "uppercase", letterSpacing: 1.5, color: slate, marginBottom: 8, fontWeight: 700 }}>
+                Prepared For
               </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: "22pt", fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>{fmt(totalAmount)}</div>
-                <div style={{ fontSize: "9pt", color: slate, marginTop: 2 }}>Contract Total</div>
+              {(() => {
+                const billTo = (contacts as any[]).find((c: any) => c.role === "bill_to");
+                if (billTo) {
+                  return (
+                    <>
+                      <div style={{ fontWeight: 700, fontSize: "11pt" }}>{billTo.company_name || billTo.name}</div>
+                      {billTo.company_name && <div style={{ fontSize: "10pt" }}>{billTo.name}</div>}
+                      {billTo.email && <div style={{ fontSize: "9pt", color: slate }}>{billTo.email}</div>}
+                      {billTo.phone && <div style={{ fontSize: "9pt", color: slate }}>{billTo.phone}</div>}
+                    </>
+                  );
+                }
+                return proposal.client_name ? (
+                  <>
+                    <div style={{ fontWeight: 700, fontSize: "11pt" }}>{proposal.client_name}</div>
+                    {proposal.client_email && <div style={{ fontSize: "9pt", color: slate }}>{proposal.client_email}</div>}
+                  </>
+                ) : (
+                  <div style={{ color: slate, fontStyle: "italic" }}>No client specified</div>
+                );
+              })()}
+            </div>
+            <div style={{ flex: 1, background: "#f8f9fa", padding: "16px 20px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
+              <div style={{ fontSize: "8pt", textTransform: "uppercase", letterSpacing: 1.5, color: slate, marginBottom: 8, fontWeight: 700 }}>
+                Project Details
               </div>
+              <div style={{ fontSize: "10pt", marginBottom: 4 }}><strong>Project:</strong> {proposal.title}</div>
+              <div style={{ fontSize: "10pt", marginBottom: 4 }}><strong>Address:</strong> {proposal.properties?.address || "—"}</div>
+              {proposal.properties?.borough && (
+                <div style={{ fontSize: "10pt" }}><strong>Borough:</strong> {proposal.properties.borough}</div>
+              )}
+              {proposal.valid_until && (
+                <div style={{ fontSize: "9pt", color: slate, marginTop: 6 }}>Valid until {fmtDate(proposal.valid_until)}</div>
+              )}
             </div>
           </div>
 
+          {/* Greeting */}
+          {(() => {
+            const billTo = (contacts as any[]).find((c: any) => c.role === "bill_to");
+            const firstName = billTo?.name?.split(" ")[0] || proposal.client_name?.split(" ")[0];
+            if (!firstName) return null;
+            return (
+              <div style={{ padding: "24px 48px 0", fontSize: "10.5pt", lineHeight: 1.65 }}>
+                <p>{firstName},</p>
+                <p style={{ marginTop: 8 }}>
+                  Thank you for considering us to service your permit needs. Below is a detailed breakdown of the professional services we will provide at this address.
+                </p>
+              </div>
+            );
+          })()}
+
           {/* Services */}
-          <div style={{ padding: "28px 40px" }}>
+          <div style={{ padding: "28px 48px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
               <div style={{ width: 4, height: 24, background: amber, borderRadius: 2 }} />
               <h2 style={{ fontSize: "14pt", fontWeight: 800, margin: 0 }}>Scope of Work</h2>
@@ -328,7 +393,7 @@ export default function ClientProposalPage() {
 
           {/* Terms */}
           {(proposal.payment_terms || proposal.terms_conditions) && (
-            <div style={{ padding: "0 40px 28px" }}>
+            <div style={{ padding: "0 48px 28px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
                 <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
                 <h2 style={{ fontSize: "12pt", fontWeight: 800, margin: 0 }}>Terms & Conditions</h2>
@@ -359,7 +424,7 @@ export default function ClientProposalPage() {
 
           {/* Company signature (already signed) */}
           {proposal.internal_signature_data && (
-            <div style={{ padding: "0 40px 20px" }}>
+            <div style={{ padding: "0 48px 20px" }}>
               <div style={{ padding: "16px 20px", background: "#f8f9fa", borderRadius: 6, border: "1px solid #e2e8f0" }}>
                 <div style={{ fontSize: "9pt", fontWeight: 700, color: slate, marginBottom: 8 }}>Signed by {company?.name}</div>
                 <img src={proposal.internal_signature_data} alt="Company Signature" style={{ height: 36, objectFit: "contain" }} />
@@ -371,7 +436,7 @@ export default function ClientProposalPage() {
           )}
 
           {/* Client Signature Section */}
-          <div style={{ padding: "20px 40px 36px", borderTop: "1px solid #e2e8f0" }}>
+          <div style={{ padding: "20px 48px 36px", borderTop: "1px solid #e2e8f0" }}>
             {alreadySigned ? (
               <div className="text-center py-8">
                 <CheckCircle2 className="h-12 w-12 mx-auto mb-3" style={{ color: "#10b981" }} />
