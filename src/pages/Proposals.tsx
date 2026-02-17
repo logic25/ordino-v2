@@ -322,6 +322,14 @@ export default function Proposals() {
   const handleSubmit = async (data: ProposalFormInput, contacts: ProposalContactInput[], action?: string) => {
     try {
       let proposalId: string;
+      // Sync bill_to contact to proposal client_name/client_id
+      const billToContact = contacts.find(c => c.role === "bill_to");
+      if (billToContact) {
+        data.client_name = billToContact.name || data.client_name;
+        data.client_id = billToContact.client_id || data.client_id;
+        data.client_email = billToContact.email || data.client_email;
+      }
+
       if (editingProposal) {
         await updateProposal.mutateAsync({ id: editingProposal.id, ...data });
         await saveContacts.mutateAsync({ proposalId: editingProposal.id, contacts });

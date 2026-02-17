@@ -91,6 +91,7 @@ const proposalSchema = z.object({
   client_id: z.string().optional(),
   client_name: z.string().optional(),
   client_email: z.string().email().optional().or(z.literal("")),
+  assigned_pm_id: z.string().optional(),
   notes: z.string().optional(),
   terms_conditions: z.string().optional(),
   lead_source: z.string().optional(),
@@ -433,6 +434,7 @@ export function ProposalDialog({
       property_id: defaultPropertyId || "", title: "", payment_terms: "",
       deposit_required: undefined, deposit_percentage: undefined,
       valid_until: "", client_id: "", client_name: "", client_email: "",
+      assigned_pm_id: "",
       notes: "", terms_conditions: defaultTerms, lead_source: "", referred_by: "",
       project_type: "", sales_person_id: "", billed_to_name: "",
       billed_to_email: "", reminder_date: "", notable: false,
@@ -455,7 +457,9 @@ export function ProposalDialog({
         
         valid_until: proposalWithItems.valid_until || "",
         client_id: p.client_id || "", client_name: proposalWithItems.client_name || "",
-        client_email: proposalWithItems.client_email || "", notes: proposalWithItems.notes || "",
+        client_email: proposalWithItems.client_email || "",
+        assigned_pm_id: p.assigned_pm_id || "",
+        notes: proposalWithItems.notes || "",
         terms_conditions: p.terms_conditions || defaultTerms,
         lead_source: p.lead_source || "", referred_by: (p as any).referred_by || "", project_type: p.project_type || "",
         sales_person_id: p.sales_person_id || "", billed_to_name: p.billed_to_name || "",
@@ -478,6 +482,7 @@ export function ProposalDialog({
         property_id: defaultPropertyId || "", title: "", payment_terms: "",
         deposit_required: undefined, deposit_percentage: undefined,
         valid_until: "", client_id: "", client_name: "", client_email: "",
+        assigned_pm_id: "",
         notes: "", terms_conditions: defaultTerms, lead_source: "", referred_by: "",
         project_type: "", sales_person_id: "", billed_to_name: "",
         billed_to_email: "", reminder_date: "", notable: false,
@@ -566,6 +571,7 @@ export function ProposalDialog({
         client_name: data.client_name || null,
         client_email: data.client_email || null,
         client_id: data.client_id || null,
+        assigned_pm_id: data.assigned_pm_id || null,
         notes: data.notes || null,
         terms_conditions: data.terms_conditions || null,
         lead_source: data.lead_source || null,
@@ -822,7 +828,16 @@ export function ProposalDialog({
                   )}
                 </div>
 
+                <SectionLabel>Assignment</SectionLabel>
                 <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Assigned PM</Label>
+                    <Select value={form.watch("assigned_pm_id" as any) || ""} onValueChange={(v) => form.setValue("assigned_pm_id" as any, v)}>
+                      <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select PM…" /></SelectTrigger>
+                      <SelectContent>{profiles.map((p) => <SelectItem key={p.id} value={p.id}>{p.first_name} {p.last_name}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">PM assigned when proposal converts to a project.</p>
+                  </div>
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Sales Person</Label>
                     <Select value={form.watch("sales_person_id") || ""} onValueChange={(v) => form.setValue("sales_person_id", v)}>
@@ -830,6 +845,9 @@ export function ProposalDialog({
                       <SelectContent>{profiles.map((p) => <SelectItem key={p.id} value={p.id}>{p.first_name} {p.last_name}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Follow-up Reminder</Label>
                     <Input type="date" className="h-9 text-sm" {...form.register("reminder_date")} />
