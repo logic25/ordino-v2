@@ -312,14 +312,17 @@ export default function Proposals() {
     setDialogOpen(true);
   };
 
-  const handleSubmit = async (data: ProposalFormInput, contacts: ProposalContactInput[]) => {
+  const handleSubmit = async (data: ProposalFormInput, contacts: ProposalContactInput[], action?: string) => {
     try {
+      let proposalId: string;
       if (editingProposal) {
         await updateProposal.mutateAsync({ id: editingProposal.id, ...data });
         await saveContacts.mutateAsync({ proposalId: editingProposal.id, contacts });
+        proposalId = editingProposal.id;
         toast({ title: "Proposal updated", description: "The proposal has been updated successfully." });
       } else {
         const newProposal = await createProposal.mutateAsync(data);
+        proposalId = newProposal.id;
         if (contacts.length > 0) {
           await saveContacts.mutateAsync({ proposalId: newProposal.id, contacts });
         }
@@ -327,6 +330,12 @@ export default function Proposals() {
       }
       setDialogOpen(false);
       setEditingProposal(null);
+
+      // Handle post-save actions
+      if (action === "save_send") {
+        await handleSend(proposalId);
+      }
+      // TODO: "save_preview" — open PDF preview modal when available
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Something went wrong.", variant: "destructive" });
     }
