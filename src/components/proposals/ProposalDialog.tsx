@@ -527,12 +527,13 @@ export function ProposalDialog({
   const selectedProperty = properties.find(p => p.id === form.watch("property_id"));
 
   return (
-    <Dialog open={open} onOpenChange={(val) => { if (!val) return; onOpenChange(val); }}>
+    <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent
         className="sm:max-w-[900px] max-h-[96vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
       >
         {/* ── Header with step indicator ── */}
         <div className="px-6 pt-5 pb-4 border-b space-y-4">
