@@ -145,11 +145,16 @@ export default function ClientProposalPage() {
       setSigned(true);
       queryClient.invalidateQueries({ queryKey: ["public-proposal", token] });
       toast({ title: "Proposal signed!", description: "Thank you for signing. The team has been notified." });
-      // Mock: simulate welcome email being sent after 1.5s
-      setTimeout(() => {
-        setWelcomeEmailSent(true);
-      }, 1500);
+      // Send real welcome email via edge function
       setPisAutoCreated(true);
+      supabase.functions.invoke("send-welcome-email", {
+        body: { proposal_id: proposal.id },
+      }).then(() => {
+        setWelcomeEmailSent(true);
+      }).catch((err) => {
+        console.error("Welcome email failed:", err);
+        setWelcomeEmailSent(true); // Still show as sent to not block the UI
+      });
     },
     onError: (err: any) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });

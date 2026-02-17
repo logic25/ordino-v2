@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.rfp-partner-response]
 verify_jwt = false
+
+[functions.send-welcome-email]
+verify_jwt = false
