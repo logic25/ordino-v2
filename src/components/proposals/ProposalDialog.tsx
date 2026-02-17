@@ -37,7 +37,7 @@ import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, X } from "lucide-react";
 import type { ProposalWithRelations, ProposalFormInput } from "@/hooks/useProposals";
 import { useProperties, useCreateProperty, useUpdateProperty } from "@/hooks/useProperties";
 import { useNYCPropertyLookup } from "@/hooks/useNYCPropertyLookup";
@@ -453,11 +453,12 @@ export function ProposalDialog({
   const selectedProperty = properties.find(p => p.id === form.watch("property_id"));
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(val) => { if (!val) return; onOpenChange(val); }}>
       <DialogContent
-        className="sm:max-w-[900px] max-h-[96vh] flex flex-col p-0 gap-0"
+        className="sm:max-w-[900px] max-h-[96vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
       >
         {/* ── Header with step indicator ── */}
         <div className="px-6 pt-5 pb-4 border-b space-y-4">
@@ -467,7 +468,12 @@ export function ProposalDialog({
                 {isEditing ? "Edit Proposal" : "New Proposal"}
               </DialogTitle>
             </DialogHeader>
-            <StepIndicator currentStep={step} steps={STEPS} />
+            <div className="flex items-center gap-3">
+              <StepIndicator currentStep={step} steps={STEPS} />
+              <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => onOpenChange(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
 
