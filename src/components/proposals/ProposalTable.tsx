@@ -234,9 +234,21 @@ export function ProposalTable({
                 )}
                 {show("status") && (
                   <TableCell>
-                    <Badge className={statusStyle.className}>
-                      {statusStyle.label}
-                    </Badge>
+                    {proposal.status === "accepted" && (proposal as any).converted_project?.project_number ? (
+                      <Badge
+                        className="bg-emerald-100 text-emerald-800 border-transparent dark:bg-emerald-900/40 dark:text-emerald-300 cursor-pointer hover:bg-emerald-200 transition-colors"
+                        onClick={() => {
+                          const projectId = (proposal as any).converted_project?.id;
+                          if (projectId) window.location.href = `/projects/${projectId}`;
+                        }}
+                      >
+                        {(proposal as any).converted_project.project_number}
+                      </Badge>
+                    ) : (
+                      <Badge className={statusStyle.className}>
+                        {statusStyle.label}
+                      </Badge>
+                    )}
                   </TableCell>
                 )}
                 {show("follow_up") && (

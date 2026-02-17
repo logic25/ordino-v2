@@ -80,12 +80,13 @@ export function useProposals() {
           internal_signer:profiles!proposals_internal_signed_by_fkey (id, first_name, last_name),
           assigned_pm:profiles!proposals_assigned_pm_id_fkey (id, first_name, last_name),
           sales_person:profiles!proposals_sales_person_id_fkey (id, first_name, last_name),
-          creator:profiles!proposals_created_by_fkey (id, first_name, last_name)
+          creator:profiles!proposals_created_by_fkey (id, first_name, last_name),
+          converted_project:projects!proposals_converted_project_id_fkey (id, project_number)
         `)
         .order("created_at", { ascending: false });
       
       if (error) throw error;
-      return data as ProposalWithRelations[];
+      return data as unknown as ProposalWithRelations[];
     },
   });
 }
