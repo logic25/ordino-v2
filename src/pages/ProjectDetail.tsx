@@ -53,7 +53,7 @@ import type {
   MockEmail, MockDocument, MockTimeEntry, MockChecklistItem, MockPISStatus, MockProposalSignature,
 } from "@/components/projects/projectMockData";
 import {
-  useProjectServices, useProjectContacts, useProjectTimeline, useProjectPISStatus,
+  useProjectServices, useProjectContacts, useProjectTimeline, useProjectPISStatus, useProjectDocuments,
 } from "@/hooks/useProjectDetail";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -97,6 +97,7 @@ export default function ProjectDetail() {
   const { data: realContacts = [] } = useProjectContacts(project?.id, project?.client_id, (project as any)?.proposal_id);
   const { data: realTimeline = [] } = useProjectTimeline(project?.id, (project as any)?.proposal_id);
   const { data: realPISStatus } = useProjectPISStatus(project?.id);
+  const { data: realDocuments = [] } = useProjectDocuments(project?.id);
 
   const [liveServices, setLiveServices] = useState<MockService[]>([]);
   const [servicesInitialized, setServicesInitialized] = useState<string | null>(null);
@@ -166,10 +167,23 @@ export default function ProjectDetail() {
   const milestones = realTimeline;
   const changeOrders = [...extraCOs];
   const emails: MockEmail[] = [];
-  const documents: MockDocument[] = [];
+  const documents: MockDocument[] = realDocuments;
   const timeEntries: MockTimeEntry[] = [];
-  const checklistItems: MockChecklistItem[] = [];
   const pisStatus: MockPISStatus = realPISStatus || { sentDate: null, totalFields: 0, completedFields: 0, missingFields: [] };
+
+  // Auto-derive checklist items from real project data
+  const checklistItems: MockChecklistItem[] = (() => {
+    const items: MockChecklistItem[] = [];
+    const proposal = (project as any).proposals;
+    items.push({ id: "cl-proposal-sig", category: "missing_document", label: "Proposal fully executed (dual signature)", fromWhom: "Internal / Client", requestedDate: "", daysWaiting: 0, done: !!(proposal?.internal_signed_at && proposal?.client_signed_at) });
+    const pisSubmitted = pisStatus.sentDate != null;
+    items.push({ id: "cl-pis", category: "missing_info", label: "Project Information Sheet (PIS) submitted", fromWhom: "Client", requestedDate: pisStatus.sentDate || "", daysWaiting: 0, done: pisSubmitted });
+    items.push({ id: "cl-owner", category: "missing_info", label: "Building owner identified", fromWhom: "Client / PIS", requestedDate: "", daysWaiting: 0, done: !!project.building_owner_name || !!project.building_owner_id });
+    items.push({ id: "cl-contacts", category: "missing_info", label: "Project contacts populated", fromWhom: "CRM", requestedDate: "", daysWaiting: 0, done: contacts.length > 0 });
+    items.push({ id: "cl-gc", category: "missing_info", label: "General Contractor info received", fromWhom: "Client / PIS", requestedDate: "", daysWaiting: 0, done: !!project.gc_company_name || !!project.gc_contact_name });
+    items.push({ id: "cl-services", category: "missing_document", label: "Services / scope defined", fromWhom: "Proposal", requestedDate: "", daysWaiting: 0, done: liveServices.length > 0 });
+    return items;
+  })();
 
   const approvedCOs = changeOrders.filter(co => co.status === "approved").reduce((s, co) => s + co.amount, 0);
   const contractTotal = liveServices.reduce((s, svc) => s + svc.totalAmount, 0);

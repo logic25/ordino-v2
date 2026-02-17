@@ -221,3 +221,31 @@ export function useProjectPISStatus(projectId: string | undefined) {
     enabled: !!projectId,
   });
 }
+
+export function useProjectDocuments(projectId: string | undefined) {
+  return useQuery({
+    queryKey: ["project-documents", projectId],
+    queryFn: async () => {
+      if (!projectId) return [];
+
+      const { data, error } = await (supabase
+        .from("universal_documents") as any)
+        .select("*")
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      return (data || []).map((doc: any): MockDocument => ({
+        id: doc.id,
+        name: doc.title || doc.filename,
+        type: doc.mime_type === "application/pdf" ? "PDF" : (doc.mime_type || "File").split("/").pop()?.toUpperCase() || "File",
+        category: doc.category || "other",
+        size: doc.size_bytes ? `${Math.round(doc.size_bytes / 1024)} KB` : "—",
+        uploadedBy: "System",
+        uploadedDate: format(new Date(doc.created_at), "MM/dd/yyyy"),
+      }));
+    },
+    enabled: !!projectId,
+  });
+}
