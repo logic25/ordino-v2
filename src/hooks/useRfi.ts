@@ -285,7 +285,7 @@ export function useRfiByToken(token: string | null) {
       if (!token) return null;
       const { data, error } = await supabase
         .from("rfi_requests" as any)
-        .select("*, properties(*), projects(building_owner_name, client_id, clients!projects_client_id_fkey(name), gc_company_name, gc_contact_name, gc_phone, gc_email, architect_company_name, architect_contact_name, architect_phone, architect_email), proposals(architect_name, architect_company, architect_phone, architect_email, architect_license_type, architect_license_number, gc_name, gc_company, gc_phone, gc_email, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email)")
+        .select("*, properties(*), projects(building_owner_name, client_id, clients!projects_client_id_fkey(name), gc_company_name, gc_contact_name, gc_phone, gc_email, architect_company_name, architect_contact_name, architect_phone, architect_email, architect_license_type, architect_license_number, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email), proposals(architect_name, architect_company, architect_phone, architect_email, architect_license_type, architect_license_number, gc_name, gc_company, gc_phone, gc_email, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email)")
         .eq("access_token", token)
         .maybeSingle();
       if (error) throw error;
@@ -308,13 +308,14 @@ export function useRfiByToken(token: string | null) {
           architect_contact_name: projects?.architect_contact_name || prop.architect_name || null,
           architect_phone: projects?.architect_phone || prop.architect_phone || null,
           architect_email: projects?.architect_email || prop.architect_email || null,
-          // SIA & TPP from proposal only (projects table doesn't store these yet)
-          sia_name: prop.sia_name || null,
-          sia_company: prop.sia_company || null,
-          sia_phone: prop.sia_phone || null,
-          sia_email: prop.sia_email || null,
-          tpp_name: prop.tpp_name || null,
-          tpp_email: prop.tpp_email || null,
+          architect_license_type: projects?.architect_license_type || prop.architect_license_type || null,
+          architect_license_number: projects?.architect_license_number || prop.architect_license_number || null,
+          sia_name: projects?.sia_name || prop.sia_name || null,
+          sia_company: projects?.sia_company || prop.sia_company || null,
+          sia_phone: projects?.sia_phone || prop.sia_phone || null,
+          sia_email: projects?.sia_email || prop.sia_email || null,
+          tpp_name: projects?.tpp_name || prop.tpp_name || null,
+          tpp_email: projects?.tpp_email || prop.tpp_email || null,
         },
       };
     },
