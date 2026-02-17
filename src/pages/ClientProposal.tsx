@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, RotateCcw, CheckCircle2, PenLine } from "lucide-react";
+import { Loader2, RotateCcw, CheckCircle2, PenLine, CreditCard, Building2, FileText, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function ClientProposalPage() {
@@ -156,6 +156,19 @@ export default function ClientProposalPage() {
   const fmt = (v: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 }).format(v);
   const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "";
 
+  const interpolate = (text: string | null | undefined): string => {
+    if (!text) return "";
+    const tAmt = Number(proposal?.total_amount || proposal?.subtotal || 0);
+    const dPct = Number(proposal?.deposit_percentage || 0);
+    const dAmt = Number(proposal?.deposit_required || 0) || (dPct > 0 ? tAmt * (dPct / 100) : 0);
+    return text
+      .replace(/\$[\{\[]retainer_amount[\}\]]|\$[\{\[]deposit_amount[\}\]]/gi, fmt(dAmt))
+      .replace(/\$[\{\[]total_amount[\}\]]/gi, fmt(tAmt))
+      .replace(/\$[\{\[]deposit_percentage[\}\]]/gi, `${dPct}%`)
+      .replace(/\$[\{\[]company_name[\}\]]/gi, company?.name || "")
+      .replace(/\$[\{\[]client_name[\}\]]/gi, proposal?.client_name || "Client");
+  };
+
   const parseBullets = (desc: string | null): string[] => {
     if (!desc) return [];
     return desc.split(/\n|•|·/).map(s => s.replace(/^-\s*/, '').trim()).filter(s => s.length > 0);
@@ -294,12 +307,24 @@ export default function ClientProposalPage() {
               </div>
               {proposal.payment_terms && (
                 <div style={{ marginBottom: 12 }}>
-                  <h4 style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 3 }}>Payment Schedule</h4>
-                  <p style={{ fontSize: "9pt", color: "#475569", whiteSpace: "pre-wrap", lineHeight: 1.6, margin: 0 }}>{proposal.payment_terms}</p>
+                  <h4 style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 3 }}>Payment Terms</h4>
+                  <p style={{ fontSize: "9pt", color: "#475569", whiteSpace: "pre-wrap", lineHeight: 1.6, margin: 0 }}>{interpolate(proposal.payment_terms)}</p>
                 </div>
               )}
               {proposal.terms_conditions && (
-                <p style={{ fontSize: "9pt", color: "#475569", whiteSpace: "pre-wrap", lineHeight: 1.6, margin: 0 }}>{proposal.terms_conditions}</p>
+                <div>
+                  {proposal.terms_conditions.split(/\n\n+/).map((block: string, bi: number) => {
+                    const lines = block.split('\n');
+                    const heading = lines[0]?.endsWith(':') ? lines[0] : null;
+                    const body = heading ? lines.slice(1).join('\n') : block;
+                    return (
+                      <div key={bi} style={{ marginBottom: 14 }}>
+                        {heading && <h4 style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 3 }}>{heading}</h4>}
+                        <p style={{ fontSize: "9pt", color: "#475569", whiteSpace: "pre-wrap", lineHeight: 1.6, margin: 0 }}>{interpolate(body)}</p>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
           )}
@@ -385,9 +410,76 @@ export default function ClientProposalPage() {
               </>
             )}
           </div>
-        </div>
 
-        {/* Footer */}
+          {/* ═══ Deposit Payment Section (shown after signing) ═══ */}
+          {alreadySigned && depositAmt > 0 && (
+            <div style={{ padding: "28px 40px 32px", borderTop: "1px solid #e2e8f0" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
+                <h2 style={{ fontSize: "12pt", fontWeight: 800, margin: 0, color: charcoal }}>Pay Retainer Deposit</h2>
+              </div>
+              <p style={{ fontSize: "9.5pt", color: slate, marginBottom: 16, lineHeight: 1.6 }}>
+                Your retainer of <strong style={{ color: charcoal }}>{fmt(depositAmt)}</strong> is due to begin work. Select a payment method below.
+              </p>
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <button
+                  className="border-2 rounded-lg p-4 text-left hover:border-amber-400 transition-colors group"
+                  style={{ borderColor: "#e2e8f0" }}
+                  onClick={() => {}}
+                >
+                  <CreditCard className="h-5 w-5 mb-2" style={{ color: amber }} />
+                  <div style={{ fontSize: "10pt", fontWeight: 700, color: charcoal }}>Credit / Debit Card</div>
+                  <div style={{ fontSize: "8.5pt", color: slate, marginTop: 2 }}>Visa, Mastercard, Amex</div>
+                </button>
+                <button
+                  className="border-2 rounded-lg p-4 text-left hover:border-amber-400 transition-colors group"
+                  style={{ borderColor: "#e2e8f0" }}
+                  onClick={() => {}}
+                >
+                  <Building2 className="h-5 w-5 mb-2" style={{ color: amber }} />
+                  <div style={{ fontSize: "10pt", fontWeight: 700, color: charcoal }}>ACH / Bank Transfer</div>
+                  <div style={{ fontSize: "8.5pt", color: slate, marginTop: 2 }}>Direct from your bank account</div>
+                </button>
+              </div>
+              <div className="rounded-lg p-3 text-center" style={{ background: "#f8f9fa", border: "1px solid #e2e8f0" }}>
+                <p style={{ fontSize: "8.5pt", color: slate }}>
+                  Secure payment processing powered by Stripe. Your information is encrypted and never stored on our servers.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* ═══ Project Information Sheet (PIS) Section ═══ */}
+          <div style={{ padding: "28px 40px 32px", borderTop: "1px solid #e2e8f0" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
+              <h2 style={{ fontSize: "12pt", fontWeight: 800, margin: 0, color: charcoal }}>Project Information Sheet</h2>
+            </div>
+            <p style={{ fontSize: "9.5pt", color: slate, marginBottom: 16, lineHeight: 1.6 }}>
+              To expedite your project, please fill out the Project Information Sheet below. This helps us gather the details we need to begin filing on your behalf.
+            </p>
+            <a
+              href={`/rfi?property=${encodeURIComponent(proposal.properties?.address || "")}&proposal=${proposal.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between rounded-lg p-4 hover:shadow-md transition-shadow"
+              style={{ background: "hsl(38, 92%, 50%, 0.06)", border: `1px solid hsl(38, 92%, 50%, 0.25)` }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="rounded-full p-2" style={{ background: "hsl(38, 92%, 50%, 0.15)" }}>
+                  <FileText className="h-5 w-5" style={{ color: amber }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: "10pt", fontWeight: 700, color: charcoal }}>Fill Out Project Information Sheet</div>
+                  <div style={{ fontSize: "8.5pt", color: slate, marginTop: 1 }}>
+                    Building details, applicant info, owner details & more
+                  </div>
+                </div>
+              </div>
+              <ArrowRight className="h-4 w-4" style={{ color: amber }} />
+            </a>
+          </div>
+        </div>
         <div className="text-center py-6" style={{ fontSize: "8.5pt", color: slate }}>
           {company?.name && <div>{company.name}</div>}
           {company?.address && <div>{company.address}</div>}
