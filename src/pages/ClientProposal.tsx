@@ -225,16 +225,27 @@ export default function ClientProposalPage() {
   return (
     <div className="min-h-screen bg-[#f1f5f9]">
       {/* Top bar */}
-      <div style={{ background: charcoal, padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {company?.logo_url ? (
-            <img src={company.logo_url} alt="" style={{ height: 28, filter: "brightness(0) invert(1)" }} />
-          ) : (
-            <span style={{ color: "#fff", fontWeight: 700, fontSize: "14pt" }}>{company?.name}</span>
-          )}
-        </div>
-        <div style={{ color: "#94a3b8", fontSize: "9pt" }}>
-          Proposal #{proposal.proposal_number}
+      <div style={{ background: charcoal, padding: "16px 24px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            {company?.logo_url && (
+              <img src={company.logo_url} alt="" style={{ height: 32, filter: "brightness(0) invert(1)" }} />
+            )}
+            <div>
+              <div style={{ color: "#fff", fontWeight: 700, fontSize: "14pt", lineHeight: 1.2 }}>{company?.name || "Our Team"}</div>
+              {company?.address && (
+                <div style={{ color: "#94a3b8", fontSize: "8.5pt", marginTop: 2 }}>{company.address}</div>
+              )}
+            </div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ color: "#94a3b8", fontSize: "9pt" }}>Proposal #{proposal.proposal_number}</div>
+            {(company?.phone || company?.email) && (
+              <div style={{ color: "#94a3b8", fontSize: "8.5pt", marginTop: 2 }}>
+                {[company.phone, company.email].filter(Boolean).join(" | ")}
+              </div>
+            )}
+          </div>
         </div>
       </div>
       <div style={{ height: 3, background: amber }} />
