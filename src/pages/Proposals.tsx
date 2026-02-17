@@ -34,6 +34,8 @@ import {
 } from "@/hooks/useProposalFollowUps";
 import { useLeads, useCreateLead, useDeleteLead, useUpdateLead, type Lead } from "@/hooks/useLeads";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 // Mock data for proposals when no real data exists
 const MOCK_PROPOSALS: ProposalWithRelations[] = [
@@ -217,6 +219,7 @@ export default function Proposals() {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("proposals");
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: proposals = [], isLoading } = useProposals();
   const createProposal = useCreateProposal();
@@ -252,6 +255,7 @@ export default function Proposals() {
       if (statusFilter === "draft" && p.status !== "draft") return false;
       if (statusFilter === "sent" && !["sent", "viewed", "signed_internal", "signed_client"].includes(p.status || "")) return false;
       if (statusFilter === "accepted" && p.status !== "accepted") return false;
+      if (statusFilter === "lost" && (p.status as string) !== "lost") return false;
       if (statusFilter === "follow_up") {
         const nextDate = (p as any).next_follow_up_date;
         const dismissed = (p as any).follow_up_dismissed_at;
@@ -283,6 +287,7 @@ export default function Proposals() {
   const draftCount = displayProposals.filter((p) => p.status === "draft").length;
   const sentCount = displayProposals.filter((p) => ["sent", "viewed", "signed_internal", "signed_client"].includes(p.status || "")).length;
   const acceptedCount = displayProposals.filter((p) => p.status === "accepted").length;
+  const lostCount = displayProposals.filter((p) => (p.status as string) === "lost").length;
   const followUpDueCount = displayProposals.filter((p) => {
     const nextDate = (p as any).next_follow_up_date;
     const dismissed = (p as any).follow_up_dismissed_at;
@@ -482,6 +487,16 @@ export default function Proposals() {
     }
   };
 
+  const handleMarkLost = async (id: string) => {
+    try {
+      await supabase.from("proposals").update({ status: "lost" } as any).eq("id", id);
+      queryClient.invalidateQueries({ queryKey: ["proposals"] });
+      toast({ title: "Proposal marked as lost" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
   const handleLeadSubmit = async (data: LeadCaptureData) => {
     try {
       // Always persist the lead
@@ -601,7 +616,7 @@ export default function Proposals() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-5">
           <Card
             className={`cursor-pointer transition-colors hover:border-primary/50 ${statusFilter === "draft" ? "border-primary ring-1 ring-primary/20" : ""}`}
             onClick={() => { setStatusFilter(statusFilter === "draft" ? null : "draft"); setActiveTab("proposals"); }}
@@ -636,6 +651,18 @@ export default function Proposals() {
             <CardContent>
               <div className="text-3xl font-bold">{acceptedCount}</div>
               <p className="text-xs text-muted-foreground mt-1">This month</p>
+            </CardContent>
+          </Card>
+          <Card
+            className={`cursor-pointer transition-colors hover:border-primary/50 ${statusFilter === "lost" ? "border-primary ring-1 ring-primary/20" : ""}`}
+            onClick={() => { setStatusFilter(statusFilter === "lost" ? null : "lost"); setActiveTab("proposals"); }}
+          >
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Lost</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{lostCount}</div>
+              <p className="text-xs text-muted-foreground mt-1">Not converted</p>
             </CardContent>
           </Card>
           <Card
@@ -751,6 +778,7 @@ export default function Proposals() {
                     onView={handleView}
                     onPreview={(p) => setPreviewProposal(p)}
                     onMarkApproved={handleOpenApproval}
+                    onMarkLost={handleMarkLost}
                     onDismissFollowUp={handleDismissFollowUp}
                     onLogFollowUp={handleLogFollowUp}
                     onSnoozeFollowUp={handleSnoozeFollowUp}
