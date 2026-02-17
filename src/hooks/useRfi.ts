@@ -285,7 +285,7 @@ export function useRfiByToken(token: string | null) {
       if (!token) return null;
       const { data, error } = await supabase
         .from("rfi_requests" as any)
-        .select("*, properties(*), projects(building_owner_name, client_id, clients(name), gc_company_name, gc_contact_name, gc_phone, gc_email, architect_company_name, architect_contact_name, architect_phone, architect_email)")
+        .select("*, properties(*), projects(building_owner_name, client_id, clients!projects_client_id_fkey(name), gc_company_name, gc_contact_name, gc_phone, gc_email, architect_company_name, architect_contact_name, architect_phone, architect_email)")
         .eq("access_token", token)
         .maybeSingle();
       if (error) throw error;
