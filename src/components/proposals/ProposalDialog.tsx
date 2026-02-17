@@ -398,11 +398,14 @@ export function ProposalDialog({
     enabled: !!proposal?.id,
   });
 
-  // Merge fetched items into proposal for the form reset
-  const proposalWithItems = proposal ? {
-    ...proposal,
-    items: (proposal.items && proposal.items.length > 0) ? proposal.items : (fetchedItems || []),
-  } : null;
+  // Merge fetched items into proposal for the form reset (memoized to prevent infinite effect loop)
+  const proposalWithItems = React.useMemo(() => {
+    if (!proposal) return null;
+    return {
+      ...proposal,
+      items: (proposal.items && proposal.items.length > 0) ? proposal.items : (fetchedItems || []),
+    };
+  }, [proposal, fetchedItems]);
 
   useEffect(() => {
     if (proposal && existingContacts.length > 0) {
