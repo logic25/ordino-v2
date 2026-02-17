@@ -376,18 +376,19 @@ export default function RfiForm() {
     return { total, filled };
   };
 
-  // Fields that should be hidden when their group's TBD checkbox is checked
-  const tbdGroupFields: Record<string, string[]> = {
-    "contractors_inspections_gc_tbd": ["gc_name", "gc_company", "gc_phone", "gc_email", "gc_address", "gc_dob_tracking", "gc_hic_lic"],
-    "contractors_inspections_tpp_tbd": ["tpp_name", "tpp_email"],
-    "contractors_inspections_sia_tbd": ["sia_name", "sia_company", "sia_phone", "sia_email", "sia_number", "sia_nys_lic"],
+  // Fields that should only show when the "known" select is "Yes"
+  const knownGroupFields: Record<string, string[]> = {
+    "contractors_inspections_gc_known": ["gc_name", "gc_company", "gc_phone", "gc_email", "gc_address", "gc_dob_tracking", "gc_hic_lic"],
+    "contractors_inspections_tpp_known": ["tpp_name", "tpp_email", "rent_controlled", "rent_stabilized", "units_occupied"],
+    "contractors_inspections_sia_known": ["sia_name", "sia_company", "sia_phone", "sia_email", "sia_number", "sia_nys_lic"],
   };
 
   const isFieldHiddenByTbd = (sectionId: string, fieldId: string): boolean => {
-    for (const [tbdKey, hiddenFields] of Object.entries(tbdGroupFields)) {
-      if (tbdKey.startsWith(sectionId) && hiddenFields.includes(fieldId)) {
-        const tbdValue = responses[tbdKey];
-        if (tbdValue === true) return true;
+    for (const [knownKey, showFields] of Object.entries(knownGroupFields)) {
+      if (knownKey.startsWith(sectionId) && showFields.includes(fieldId)) {
+        const knownValue = responses[knownKey];
+        // Hide unless explicitly "Yes"
+        if (knownValue !== "Yes") return true;
       }
     }
     return false;
