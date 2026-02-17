@@ -35,6 +35,7 @@ import {
 import { Check, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft, ChevronRightIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import type { ProposalWithRelations, ProposalFormInput } from "@/hooks/useProposals";
@@ -63,6 +64,7 @@ const itemSchema = z.object({
   discount_percent: z.coerce.number().min(0).max(100).optional(),
   fee_type: z.string().optional(),
   sort_order: z.number().optional(),
+  is_optional: z.boolean().optional(),
 });
 
 const LEAD_SOURCES = [
@@ -137,6 +139,7 @@ function ServiceLineItem({
   const currentDesc = form.watch(`items.${index}.description`) || "";
   const currentFeeType = form.watch(`items.${index}.fee_type`) || "fixed";
   const currentDiscount = Number(form.watch(`items.${index}.discount_percent`)) || 0;
+  const isOptional = form.watch(`items.${index}.is_optional`) || false;
 
   const filtered = serviceCatalog.filter((s) =>
     s.name.toLowerCase().includes(currentName.toLowerCase())
@@ -151,7 +154,7 @@ function ServiceLineItem({
   };
 
   return (
-    <div className={cn("border-b last:border-b-0 transition-colors", expanded && "bg-muted/20")}>
+    <div className={cn("border-b last:border-b-0 transition-colors", expanded && "bg-muted/20", isOptional && "opacity-70 border-l-2 border-l-muted-foreground/30")}>
       <div className="grid grid-cols-[auto_1fr_80px_70px_90px_80px_auto] items-center gap-1 px-3 py-2 min-h-[44px]">
         <button type="button" className="p-1 rounded hover:bg-muted transition-colors" onClick={() => setExpanded(!expanded)}>
           {expanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
@@ -185,7 +188,7 @@ function ServiceLineItem({
               </div>
             )}
           </div>
-          {currentDesc && !expanded && <p className="text-xs text-muted-foreground truncate px-2 mt-0.5">{currentDesc}</p>}
+          {currentDesc && !expanded && <p className="text-xs text-muted-foreground truncate px-2 mt-0.5">{isOptional && <span className="text-accent font-medium mr-1">Optional ·</span>}{currentDesc}</p>}
         </div>
 
         <Select value={currentFeeType} onValueChange={(v) => form.setValue(`items.${index}.fee_type`, v)}>
@@ -217,6 +220,14 @@ function ServiceLineItem({
             <div><Label className="text-xs text-muted-foreground mb-1 block">Discount %</Label><Input type="number" min="0" max="100" step="1" className="h-8 text-sm" {...form.register(`items.${index}.discount_percent`)} /></div>
             <div><Label className="text-xs text-muted-foreground mb-1 block">Line Total</Label><div className="h-8 flex items-center text-sm font-semibold">{formatCurrency(lineTotal)}</div></div>
           </div>
+          <label className="flex items-center gap-2 cursor-pointer pt-1">
+            <Checkbox
+              checked={isOptional}
+              onCheckedChange={(checked) => form.setValue(`items.${index}.is_optional`, !!checked)}
+              className="h-3.5 w-3.5"
+            />
+            <span className="text-xs text-muted-foreground">Optional service — shown on proposal but not included in total</span>
+          </label>
         </div>
       )}
     </div>
@@ -373,8 +384,9 @@ export function ProposalDialog({
     return subtotal - subtotal * (discountPct / 100);
   };
 
-  const subtotal = watchedItems.reduce((sum, item) => sum + calculateLineTotal(item), 0);
-  const totalHours = watchedItems.reduce((sum, item) => sum + (Number(item.estimated_hours) || 0), 0);
+  const subtotal = watchedItems.reduce((sum, item) => item.is_optional ? sum : sum + calculateLineTotal(item), 0);
+  const optionalTotal = watchedItems.reduce((sum, item) => item.is_optional ? sum + calculateLineTotal(item) : sum, 0);
+  const totalHours = watchedItems.reduce((sum, item) => item.is_optional ? sum : sum + (Number(item.estimated_hours) || 0), 0);
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
@@ -442,7 +454,11 @@ export function ProposalDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[900px] max-h-[96vh] flex flex-col p-0 gap-0">
+      <DialogContent
+        className="sm:max-w-[900px] max-h-[96vh] flex flex-col p-0 gap-0"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         {/* ── Header with step indicator ── */}
         <div className="px-6 pt-5 pb-4 border-b space-y-4">
           <div className="flex items-center justify-between">
@@ -619,7 +635,7 @@ export function ProposalDialog({
                 <div className="px-4 pb-4">
                   <Button type="button" variant="outline" size="sm" className="w-full border-dashed"
                     onClick={() => {
-                      appendItem({ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0, fee_type: "fixed" });
+                      appendItem({ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0, fee_type: "fixed", is_optional: false });
                       setLastAddedIndex(itemFields.length);
                     }}>
                     <Plus className="h-4 w-4 mr-2" /> Add Service
@@ -707,6 +723,9 @@ export function ProposalDialog({
             <div className="flex items-center gap-4 text-sm">
               <span className="text-muted-foreground">{totalHours > 0 && `${totalHours} hrs · `}Total</span>
               <span className="text-lg font-bold tabular-nums">{formatCurrency(subtotal)}</span>
+              {optionalTotal > 0 && (
+                <span className="text-xs text-muted-foreground">+ {formatCurrency(optionalTotal)} optional</span>
+              )}
             </div>
             <div className="flex items-center gap-2">
               {step > 0 && (
