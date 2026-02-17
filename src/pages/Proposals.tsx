@@ -403,10 +403,26 @@ export default function Proposals() {
   const handleSign = async (signatureData: string, assignedPmId: string) => {
     if (!signingProposal) return;
     try {
-      await signProposal.mutateAsync({ id: signingProposal.id, signatureData, assignedPmId });
-      toast({ title: "Proposal signed & converted!", description: "Project created successfully." });
+      const result = await signProposal.mutateAsync({ id: signingProposal.id, signatureData, assignedPmId });
       setSignDialogOpen(false);
       setSigningProposal(null);
+
+      // Auto-send email to client after signing
+      try {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data: fullProposal } = await supabase
+          .from("proposals")
+          .select(`*, properties (id, address, borough), items:proposal_items(*)`)
+          .eq("id", signingProposal.id)
+          .single();
+
+        if (fullProposal) {
+          setSendingProposal(fullProposal as any);
+        }
+      } catch {
+        // If fetching fails, just show success without send dialog
+        toast({ title: "Proposal signed!", description: "Project created. Open the proposal to send to client." });
+      }
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to sign proposal.", variant: "destructive" });
     }
