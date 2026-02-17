@@ -562,8 +562,6 @@ export function ProposalDialog({
           estimated_hours: item.estimated_hours || null,
           discount_percent: item.discount_percent || null,
           is_optional: item.is_optional || false,
-          disciplines: item.disciplines || null,
-          discipline_fee: item.discipline_fee || null,
         })),
       milestones: [],
     };
