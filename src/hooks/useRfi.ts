@@ -247,7 +247,9 @@ export function useCreateRfiRequest() {
       recipient_email?: string;
       sections: RfiSectionConfig[];
     }) => {
-      const { data: profile } = await supabase.from("profiles").select("id, company_id").single();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+      const { data: profile } = await supabase.from("profiles").select("id, company_id").eq("user_id", user.id).single();
       if (!profile?.company_id) throw new Error("No company found");
 
       const { data, error } = await (supabase.from("rfi_requests" as any) as any)
