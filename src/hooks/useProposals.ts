@@ -200,8 +200,6 @@ export function useCreateProposal() {
           estimated_hours: (item as any).estimated_hours || null,
           discount_percent: (item as any).discount_percent || null,
           is_optional: (item as any).is_optional || false,
-          disciplines: (item as any).disciplines || null,
-          discipline_fee: (item as any).discipline_fee || null,
         }));
 
         const { error: itemsError } = await supabase
@@ -302,8 +300,6 @@ export function useUpdateProposal() {
           estimated_hours: (item as any).estimated_hours || null,
           discount_percent: (item as any).discount_percent || null,
           is_optional: (item as any).is_optional || false,
-          disciplines: (item as any).disciplines || null,
-          discipline_fee: (item as any).discipline_fee || null,
         }));
 
         await supabase.from("proposal_items").insert(itemsToInsert);
