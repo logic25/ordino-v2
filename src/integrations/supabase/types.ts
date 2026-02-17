@@ -3673,11 +3673,14 @@ export type Database = {
         Row: {
           created_at: string | null
           description: string | null
+          discipline_fee: number | null
+          disciplines: string[] | null
           discount_amount: number | null
           discount_percent: number | null
           estimated_hours: number | null
           fee_type: string
           id: string
+          is_optional: boolean | null
           metadata: Json | null
           name: string
           proposal_id: string
@@ -3689,11 +3692,14 @@ export type Database = {
         Insert: {
           created_at?: string | null
           description?: string | null
+          discipline_fee?: number | null
+          disciplines?: string[] | null
           discount_amount?: number | null
           discount_percent?: number | null
           estimated_hours?: number | null
           fee_type?: string
           id?: string
+          is_optional?: boolean | null
           metadata?: Json | null
           name: string
           proposal_id: string
@@ -3705,11 +3711,14 @@ export type Database = {
         Update: {
           created_at?: string | null
           description?: string | null
+          discipline_fee?: number | null
+          disciplines?: string[] | null
           discount_amount?: number | null
           discount_percent?: number | null
           estimated_hours?: number | null
           fee_type?: string
           id?: string
+          is_optional?: boolean | null
           metadata?: Json | null
           name?: string
           proposal_id?: string
