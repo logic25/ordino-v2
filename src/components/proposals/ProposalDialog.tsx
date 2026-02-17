@@ -153,6 +153,7 @@ function ServiceLineItem({
     form.setValue(`items.${index}.description`, service.description || "");
     form.setValue(`items.${index}.unit_price`, service.default_price || 0);
     form.setValue(`items.${index}.estimated_hours`, service.default_hours || 0);
+    form.setValue(`items.${index}.fee_type`, service.default_fee_type || "fixed");
     if (service.has_discipline_pricing) {
       form.setValue(`items.${index}.discipline_fee`, service.discipline_fee || 0);
       form.setValue(`items.${index}.disciplines`, []);

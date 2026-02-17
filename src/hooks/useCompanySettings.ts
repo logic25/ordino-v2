@@ -33,6 +33,7 @@ export interface ServiceCatalogItem {
   description?: string;
   default_price?: number;
   default_hours?: number;
+  default_fee_type?: "fixed" | "monthly" | "hourly";
   multiplier?: number;
   has_discipline_pricing?: boolean;
   discipline_fee?: number;
