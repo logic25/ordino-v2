@@ -1,0 +1,1 @@
+ALTER TYPE proposal_status ADD VALUE 'lost';

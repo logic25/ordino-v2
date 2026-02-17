@@ -27,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Edit, Trash2, Send, PenLine, Eye, Loader2, CheckCircle2, Clock, X, Phone, Bell, FileText, Settings2 } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, Send, PenLine, Eye, Loader2, CheckCircle2, Clock, X, Phone, Bell, FileText, Settings2, XCircle, FolderOpen } from "lucide-react";
 import { useState } from "react";
 import type { ProposalWithRelations } from "@/hooks/useProposals";
 import { format, isPast, parseISO } from "date-fns";
@@ -41,6 +41,7 @@ interface ProposalTableProps {
   onView: (proposal: ProposalWithRelations) => void;
   onPreview?: (proposal: ProposalWithRelations) => void;
   onMarkApproved?: (proposal: ProposalWithRelations) => void;
+  onMarkLost?: (id: string) => void;
   onDismissFollowUp?: (id: string) => void;
   onLogFollowUp?: (id: string) => void;
   onSnoozeFollowUp?: (id: string, days: number) => void;
@@ -55,6 +56,7 @@ const STATUS_STYLES: Record<string, { label: string; className: string }> = {
   signed_internal: { label: "Signed (Internal)", className: "bg-indigo-100 text-indigo-800 border-transparent dark:bg-indigo-900/40 dark:text-indigo-300" },
   signed_client: { label: "Signed (Client)", className: "bg-violet-100 text-violet-800 border-transparent dark:bg-violet-900/40 dark:text-violet-300" },
   accepted: { label: "Accepted", className: "bg-emerald-100 text-emerald-800 border-transparent dark:bg-emerald-900/40 dark:text-emerald-300" },
+  lost: { label: "Lost", className: "bg-red-100 text-red-800 border-transparent dark:bg-red-900/40 dark:text-red-300" },
   rejected: { label: "Rejected", className: "bg-destructive text-destructive-foreground border-transparent" },
   expired: { label: "Expired", className: "bg-stone-100 text-stone-600 border-transparent dark:bg-stone-800/40 dark:text-stone-400" },
 };
@@ -95,6 +97,7 @@ export function ProposalTable({
   onView,
   onPreview,
   onMarkApproved,
+  onMarkLost,
   onDismissFollowUp,
   onLogFollowUp,
   onSnoozeFollowUp,
@@ -234,21 +237,24 @@ export function ProposalTable({
                 )}
                 {show("status") && (
                   <TableCell>
-                    {proposal.status === "accepted" && (proposal as any).converted_project?.project_number ? (
-                      <Badge
-                        className="bg-emerald-100 text-emerald-800 border-transparent dark:bg-emerald-900/40 dark:text-emerald-300 cursor-pointer hover:bg-emerald-200 transition-colors"
-                        onClick={() => {
-                          const projectId = (proposal as any).converted_project?.id;
-                          if (projectId) window.location.href = `/projects/${projectId}`;
-                        }}
-                      >
-                        {(proposal as any).converted_project.project_number}
-                      </Badge>
-                    ) : (
+                    <div className="flex items-center gap-1 flex-wrap">
                       <Badge className={statusStyle.className}>
                         {statusStyle.label}
                       </Badge>
-                    )}
+                      {proposal.status === "accepted" && (proposal as any).converted_project?.project_number && (
+                        <Badge
+                          variant="outline"
+                          className="cursor-pointer hover:bg-accent transition-colors text-[10px] px-1.5 py-0 gap-1"
+                          onClick={() => {
+                            const projectId = (proposal as any).converted_project?.id;
+                            if (projectId) window.location.href = `/projects/${projectId}`;
+                          }}
+                        >
+                          <FolderOpen className="h-2.5 w-2.5" />
+                          {(proposal as any).converted_project.project_number}
+                        </Badge>
+                      )}
+                    </div>
                   </TableCell>
                 )}
                 {show("follow_up") && (
@@ -330,6 +336,12 @@ export function ProposalTable({
                         <DropdownMenuItem onClick={() => onMarkApproved(proposal)}>
                           <CheckCircle2 className="h-4 w-4 mr-2" />
                           Mark as Approved
+                        </DropdownMenuItem>
+                      )}
+                      {["sent", "viewed", "signed_internal", "draft"].includes(proposal.status || "") && onMarkLost && (
+                        <DropdownMenuItem onClick={() => onMarkLost(proposal.id)}>
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Mark as Lost
                         </DropdownMenuItem>
                       )}
                       {(proposal as any).next_follow_up_date && !(proposal as any).follow_up_dismissed_at && (
