@@ -277,7 +277,7 @@ export function useCreateRfiRequest() {
   });
 }
 
-// Public: fetch an RFI by access token with property data
+// Public: fetch an RFI by access token with property data + party info from proposal
 export function useRfiByToken(token: string | null) {
   return useQuery({
     queryKey: ["rfi-public", token],
@@ -285,22 +285,37 @@ export function useRfiByToken(token: string | null) {
       if (!token) return null;
       const { data, error } = await supabase
         .from("rfi_requests" as any)
-        .select("*, properties(*), projects(building_owner_name, client_id, clients!projects_client_id_fkey(name), gc_company_name, gc_contact_name, gc_phone, gc_email, architect_company_name, architect_contact_name, architect_phone, architect_email)")
+        .select("*, properties(*), projects(building_owner_name, client_id, clients!projects_client_id_fkey(name), gc_company_name, gc_contact_name, gc_phone, gc_email, architect_company_name, architect_contact_name, architect_phone, architect_email), proposals(architect_name, architect_company, architect_phone, architect_email, architect_license_type, architect_license_number, gc_name, gc_company, gc_phone, gc_email, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email)")
         .eq("access_token", token)
         .maybeSingle();
       if (error) throw error;
       if (!data) return null;
-      const { properties, projects, ...rfi } = data as any;
-      // Derive building owner: explicit field first, then fall back to client name
+      const { properties, projects, proposals, ...rfi } = data as any;
       const ownerName = projects?.building_owner_name || projects?.clients?.name || null;
+
+      // Merge party info: project fields take priority, then proposal fields as fallback
+      const prop = proposals || {};
       return {
         rfi: rfi as RfiRequest,
         property: properties as { address: string; borough: string | null; block: string | null; lot: string | null } | null,
-        project: projects ? {
+        project: {
           building_owner_name: ownerName,
-          gc_company_name: projects.gc_company_name, gc_contact_name: projects.gc_contact_name, gc_phone: projects.gc_phone, gc_email: projects.gc_email,
-          architect_company_name: projects.architect_company_name, architect_contact_name: projects.architect_contact_name, architect_phone: projects.architect_phone, architect_email: projects.architect_email,
-        } : null,
+          gc_company_name: projects?.gc_company_name || prop.gc_company || null,
+          gc_contact_name: projects?.gc_contact_name || prop.gc_name || null,
+          gc_phone: projects?.gc_phone || prop.gc_phone || null,
+          gc_email: projects?.gc_email || prop.gc_email || null,
+          architect_company_name: projects?.architect_company_name || prop.architect_company || null,
+          architect_contact_name: projects?.architect_contact_name || prop.architect_name || null,
+          architect_phone: projects?.architect_phone || prop.architect_phone || null,
+          architect_email: projects?.architect_email || prop.architect_email || null,
+          // SIA & TPP from proposal only (projects table doesn't store these yet)
+          sia_name: prop.sia_name || null,
+          sia_company: prop.sia_company || null,
+          sia_phone: prop.sia_phone || null,
+          sia_email: prop.sia_email || null,
+          tpp_name: prop.tpp_name || null,
+          tpp_email: prop.tpp_email || null,
+        },
       };
     },
     enabled: !!token,

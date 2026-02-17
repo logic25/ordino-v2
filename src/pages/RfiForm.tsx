@@ -207,11 +207,30 @@ export default function RfiForm() {
       // Building owner
       setIfEmpty("applicant_and_owner_owner_name", projectData.building_owner_name);
 
-      // GC
+      // GC — pre-fill and auto-expand if data exists
+      if (projectData.gc_contact_name || projectData.gc_company_name) {
+        setIfEmpty("contractors_inspections_gc_known", "Yes");
+      }
       setIfEmpty("contractors_inspections_gc_name", projectData.gc_contact_name);
       setIfEmpty("contractors_inspections_gc_company", projectData.gc_company_name);
       setIfEmpty("contractors_inspections_gc_phone", projectData.gc_phone);
       setIfEmpty("contractors_inspections_gc_email", projectData.gc_email);
+
+      // SIA — pre-fill from proposal data
+      if ((projectData as any).sia_name || (projectData as any).sia_company) {
+        setIfEmpty("contractors_inspections_sia_known", "Yes");
+      }
+      setIfEmpty("contractors_inspections_sia_name", (projectData as any).sia_name);
+      setIfEmpty("contractors_inspections_sia_company", (projectData as any).sia_company);
+      setIfEmpty("contractors_inspections_sia_phone", (projectData as any).sia_phone);
+      setIfEmpty("contractors_inspections_sia_email", (projectData as any).sia_email);
+
+      // TPP — pre-fill from proposal data
+      if ((projectData as any).tpp_name || (projectData as any).tpp_email) {
+        setIfEmpty("contractors_inspections_tpp_known", "Yes");
+      }
+      setIfEmpty("contractors_inspections_tpp_name", (projectData as any).tpp_name);
+      setIfEmpty("contractors_inspections_tpp_email", (projectData as any).tpp_email);
     }
 
     if (changed) {
