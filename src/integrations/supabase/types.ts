@@ -3824,6 +3824,7 @@ export type Database = {
           property_id: string | null
           proposal_number: string | null
           public_token: string | null
+          referred_by: string | null
           reminder_date: string | null
           retainer_amount: number | null
           sales_person_id: string | null
@@ -3880,6 +3881,7 @@ export type Database = {
           property_id?: string | null
           proposal_number?: string | null
           public_token?: string | null
+          referred_by?: string | null
           reminder_date?: string | null
           retainer_amount?: number | null
           sales_person_id?: string | null
@@ -3936,6 +3938,7 @@ export type Database = {
           property_id?: string | null
           proposal_number?: string | null
           public_token?: string | null
+          referred_by?: string | null
           reminder_date?: string | null
           retainer_amount?: number | null
           sales_person_id?: string | null

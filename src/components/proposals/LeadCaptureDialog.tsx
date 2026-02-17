@@ -143,7 +143,6 @@ export function LeadCaptureDialog({ open, onOpenChange, onSubmit, isLoading }: L
           </div>
 
           {/* Referred By — shown when source contains "referral" */}
-          {(() => { console.log("[LeadCapture] source =", JSON.stringify(source), "includes referral?", source.toLowerCase().includes("referral"), "activeSources =", JSON.stringify(activeSources)); return null; })()}
           {source.toLowerCase().includes("referral") && (
             <div className="space-y-1.5">
               <Label htmlFor="lead-referred-by">Referred By</Label>

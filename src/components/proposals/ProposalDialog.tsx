@@ -93,6 +93,7 @@ const proposalSchema = z.object({
   notes: z.string().optional(),
   terms_conditions: z.string().optional(),
   lead_source: z.string().optional(),
+  referred_by: z.string().optional(),
   project_type: z.string().optional(),
   sales_person_id: z.string().optional(),
   billed_to_name: z.string().optional(),
@@ -431,7 +432,7 @@ export function ProposalDialog({
       property_id: defaultPropertyId || "", title: "", payment_terms: "",
       deposit_required: undefined, deposit_percentage: undefined,
       valid_until: "", client_id: "", client_name: "", client_email: "",
-      notes: "", terms_conditions: defaultTerms, lead_source: "",
+      notes: "", terms_conditions: defaultTerms, lead_source: "", referred_by: "",
       project_type: "", sales_person_id: "", billed_to_name: "",
       billed_to_email: "", reminder_date: "", notable: false,
       items: [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0, fee_type: "fixed" }],
@@ -455,7 +456,7 @@ export function ProposalDialog({
         client_id: p.client_id || "", client_name: proposalWithItems.client_name || "",
         client_email: proposalWithItems.client_email || "", notes: proposalWithItems.notes || "",
         terms_conditions: p.terms_conditions || defaultTerms,
-        lead_source: p.lead_source || "", project_type: p.project_type || "",
+        lead_source: p.lead_source || "", referred_by: (p as any).referred_by || "", project_type: p.project_type || "",
         sales_person_id: p.sales_person_id || "", billed_to_name: p.billed_to_name || "",
         billed_to_email: p.billed_to_email || "", reminder_date: p.reminder_date || "",
         notable: p.notable || false,
@@ -476,7 +477,7 @@ export function ProposalDialog({
         property_id: defaultPropertyId || "", title: "", payment_terms: "",
         deposit_required: undefined, deposit_percentage: undefined,
         valid_until: "", client_id: "", client_name: "", client_email: "",
-        notes: "", terms_conditions: defaultTerms, lead_source: "",
+        notes: "", terms_conditions: defaultTerms, lead_source: "", referred_by: "",
         project_type: "", sales_person_id: "", billed_to_name: "",
         billed_to_email: "", reminder_date: "", notable: false,
         items: [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0, fee_type: "fixed" }],
@@ -567,6 +568,7 @@ export function ProposalDialog({
         notes: data.notes || null,
         terms_conditions: data.terms_conditions || null,
         lead_source: data.lead_source || null,
+        referred_by: data.referred_by || null,
         project_type: data.project_type || null,
         sales_person_id: data.sales_person_id || null,
         billed_to_name: data.billed_to_name || null,
@@ -808,6 +810,16 @@ export function ProposalDialog({
                       <SelectContent>{LEAD_SOURCES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
+                  {form.watch("lead_source")?.toLowerCase().includes("referral") && (
+                    <div className="space-y-1 col-span-2">
+                      <Label className="text-xs text-muted-foreground">Referred By</Label>
+                      <Input
+                        placeholder="Name of person or company who referred..."
+                        className="h-9 text-sm"
+                        {...form.register("referred_by")}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
