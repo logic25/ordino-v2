@@ -100,16 +100,17 @@ export function ProposalTable({
 
   return (
     <>
+      <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Proposal #</TableHead>
+            <TableHead className="whitespace-nowrap">Proposal #</TableHead>
             <TableHead>Property</TableHead>
             <TableHead>Title</TableHead>
             <TableHead>Client</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Follow-up</TableHead>
-            <TableHead className="text-right">Total</TableHead>
+            <TableHead className="text-right whitespace-nowrap">Total</TableHead>
             <TableHead>Creator</TableHead>
             <TableHead>Created</TableHead>
             <TableHead className="w-[60px]"></TableHead>
@@ -261,6 +262,7 @@ export function ProposalTable({
           })}
         </TableBody>
       </Table>
+      </div>
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
