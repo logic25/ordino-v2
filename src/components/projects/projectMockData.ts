@@ -126,6 +126,7 @@ export interface MockDocument {
   size: string;
   storage_path?: string;
   filename?: string;
+  storageBucket?: string;
 }
 
 export interface MockTimeEntry {

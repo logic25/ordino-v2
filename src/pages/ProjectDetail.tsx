@@ -1443,7 +1443,8 @@ function DocumentsFull({ documents }: { documents: MockDocument[] }) {
         return;
       }
 
-      const { data, error } = await supabase.storage.from("documents").download(storagePathKey);
+      const bucket = doc.storageBucket || "documents";
+      const { data, error } = await supabase.storage.from(bucket).download(storagePathKey);
       if (error || !data) {
         // If it's a proposal contract, offer to view the proposal instead
         if (doc.category === "contract" && doc.name.toLowerCase().includes("proposal")) {
