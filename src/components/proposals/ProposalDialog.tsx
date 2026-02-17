@@ -477,6 +477,16 @@ export function ProposalDialog({
 
   const watchedItems = form.watch("items");
 
+  // Auto-add empty row when last row gets a name
+  useEffect(() => {
+    if (watchedItems.length > 0) {
+      const lastItem = watchedItems[watchedItems.length - 1];
+      if (lastItem.name && lastItem.name.trim() !== "") {
+        appendItem({ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0, fee_type: "fixed", is_optional: false }, { shouldFocus: false });
+      }
+    }
+  }, [watchedItems.length > 0 && watchedItems[watchedItems.length - 1]?.name]);
+
   const calculateLineTotal = (item: typeof watchedItems[0]) => {
     const qty = Number(item.quantity) || 0;
     const price = Number(item.unit_price) || 0;
@@ -524,31 +534,37 @@ export function ProposalDialog({
   const [pendingAction, setPendingAction] = useState<ProposalSaveAction>("save");
 
   const handleSubmit = async (data: ProposalFormData) => {
-    const validItems = data.items.filter(i => i.name && i.name.trim() !== "");
-    const depositPct = Number(data.deposit_percentage) || 0;
-    const computedRetainer = depositPct > 0 ? Math.round(subtotal * depositPct / 100 * 100) / 100 : null;
-    const formData: ProposalFormInput = {
-      property_id: data.property_id, title: data.title,
-      payment_terms: data.payment_terms || null,
-      deposit_required: data.deposit_required || null,
-      deposit_percentage: data.deposit_percentage || null,
-      retainer_amount: computedRetainer,
-      valid_until: data.valid_until || null,
-      client_name: data.client_name || null,
-      client_email: data.client_email || null,
-      client_id: data.client_id || null,
-      notes: data.notes || null,
-      terms_conditions: data.terms_conditions || null,
-      lead_source: data.lead_source || null,
-      project_type: data.project_type || null,
-      sales_person_id: data.sales_person_id || null,
-      billed_to_name: data.billed_to_name || null,
-      billed_to_email: data.billed_to_email || null,
-      reminder_date: data.reminder_date || null,
-      items: validItems.map((item, idx) => ({
-        id: item.id, name: item.name, description: item.description || null,
-        quantity: item.quantity, unit_price: item.unit_price, sort_order: idx,
-      })),
+      const validItems = data.items.filter(i => i.name && i.name.trim() !== "");
+      const depositPct = Number(data.deposit_percentage) || 0;
+      const computedRetainer = depositPct > 0 ? Math.round(subtotal * depositPct / 100 * 100) / 100 : null;
+      const formData: ProposalFormInput = {
+        property_id: data.property_id, title: data.title,
+        payment_terms: data.payment_terms || null,
+        deposit_required: data.deposit_required || null,
+        deposit_percentage: data.deposit_percentage || null,
+        retainer_amount: computedRetainer,
+        valid_until: data.valid_until || null,
+        client_name: data.client_name || null,
+        client_email: data.client_email || null,
+        client_id: data.client_id || null,
+        notes: data.notes || null,
+        terms_conditions: data.terms_conditions || null,
+        lead_source: data.lead_source || null,
+        project_type: data.project_type || null,
+        sales_person_id: data.sales_person_id || null,
+        billed_to_name: data.billed_to_name || null,
+        billed_to_email: data.billed_to_email || null,
+        reminder_date: data.reminder_date || null,
+        items: validItems.map((item, idx) => ({
+          id: item.id, name: item.name, description: item.description || null,
+          quantity: item.quantity, unit_price: item.unit_price, sort_order: idx,
+          fee_type: item.fee_type || "fixed",
+          estimated_hours: item.estimated_hours || null,
+          discount_percent: item.discount_percent || null,
+          is_optional: item.is_optional || false,
+          disciplines: item.disciplines || null,
+          discipline_fee: item.discipline_fee || null,
+        })),
       milestones: [],
     };
     await onSubmit(formData, contacts, pendingAction);
@@ -752,15 +768,7 @@ export function ProposalDialog({
                     );
                   })}
                 </div>
-                <div className="px-4 pb-4">
-                  <Button type="button" variant="outline" size="sm" className="w-full border-dashed"
-                    onClick={() => {
-                      appendItem({ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0, fee_type: "fixed", is_optional: false });
-                      setLastAddedIndex(itemFields.length);
-                    }}>
-                    <Plus className="h-4 w-4 mr-2" /> Add Service
-                  </Button>
-                </div>
+                {/* Auto-add row is handled by the effect below */}
               </div>
             )}
 
