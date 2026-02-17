@@ -49,6 +49,7 @@ import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useToast } from "@/hooks/use-toast";
 import { ProposalContactsSection } from "@/components/proposals/ProposalContactsSection";
 import { useProposalContacts, type ProposalContactInput } from "@/hooks/useProposalContacts";
+import { ReferredByCombobox } from "@/components/proposals/ReferredByCombobox";
 
 const FEE_TYPES = [
   { value: "fixed", label: "Fixed" },
@@ -813,10 +814,9 @@ export function ProposalDialog({
                   {form.watch("lead_source")?.toLowerCase().includes("referral") && (
                     <div className="space-y-1 col-span-2">
                       <Label className="text-xs text-muted-foreground">Referred By</Label>
-                      <Input
-                        placeholder="Name of person or company who referred..."
-                        className="h-9 text-sm"
-                        {...form.register("referred_by")}
+                      <ReferredByCombobox
+                        value={form.watch("referred_by") || ""}
+                        onChange={(v) => form.setValue("referred_by", v)}
                       />
                     </div>
                   )}

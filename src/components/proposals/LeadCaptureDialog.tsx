@@ -23,6 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, UserPlus } from "lucide-react";
 import { useAssignableProfiles } from "@/hooks/useProfiles";
 import { useLeadSources } from "@/hooks/useLeadSources";
+import { ReferredByCombobox } from "@/components/proposals/ReferredByCombobox";
 
 export interface LeadCaptureData {
   source: string;
@@ -146,11 +147,9 @@ export function LeadCaptureDialog({ open, onOpenChange, onSubmit, isLoading }: L
           {source.toLowerCase().includes("referral") && (
             <div className="space-y-1.5">
               <Label htmlFor="lead-referred-by">Referred By</Label>
-              <Input
-                id="lead-referred-by"
-                placeholder="Name of person or company who referred..."
+              <ReferredByCombobox
                 value={referredBy}
-                onChange={(e) => setReferredBy(e.target.value)}
+                onChange={setReferredBy}
               />
             </div>
           )}
