@@ -790,35 +790,33 @@ export default function RfiForm() {
                 </p>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {sections.map((section, sIdx) => (
                   <div key={section.id} className="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
                     <button
                       onClick={() => { setDirection("back"); setCurrentStep(sIdx); }}
-                      className="w-full px-4 py-2.5 flex items-center justify-between bg-stone-50 hover:bg-amber-50/50 transition-colors text-left border-b border-stone-100"
+                      className="w-full px-5 py-3 flex items-center justify-between bg-stone-50 hover:bg-amber-50/50 transition-colors text-left border-b border-stone-100"
                     >
-                      <h3 className="text-xs font-semibold text-stone-700">{section.title}</h3>
-                      <span className="text-[10px] text-amber-600 font-medium">Edit</span>
+                      <h3 className="text-sm font-semibold text-stone-700">{section.title}</h3>
+                      <span className="text-xs text-amber-600 font-medium">Edit</span>
                     </button>
-                    <div className="px-4 py-3">
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5">
+                    <div className="px-5 py-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-5 gap-y-2">
                         {section.fields.filter(f => f.type !== "heading").map((field) => {
                           const key = getFieldKey(section.id, field.id);
 
-                          // Hide TBD-hidden fields in review too
                           if (isFieldHiddenByTbd(section.id, field.id)) return null;
 
-                          // Special rendering for work_type_picker
                           if (field.type === "work_type_picker") {
                             const selected: string[] = Array.isArray(responses[`${key}_selected`]) ? responses[`${key}_selected`] : [];
                             if (selected.length === 0) return null;
                             const otherLabel = responses[`${key}_other_label`];
                             return (
                               <div key={key} className="col-span-full py-1">
-                                <p className="text-[10px] text-stone-400">{field.label}</p>
-                                <div className="flex flex-wrap gap-1">
+                                <p className="text-xs text-stone-400 mb-1">{field.label}</p>
+                                <div className="flex flex-wrap gap-1.5">
                                   {selected.map((opt) => (
-                                    <span key={opt} className="inline-flex px-1.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-[10px] text-amber-800">
+                                    <span key={opt} className="inline-flex px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-xs text-amber-800">
                                       {opt === "Other" && otherLabel ? otherLabel : opt}
                                     </span>
                                   ))}
@@ -842,7 +840,7 @@ export default function RfiForm() {
                                     <button
                                       key={fIdx}
                                       onClick={(e) => { e.stopPropagation(); setPreviewFile({ name: file.name, url: publicUrl }); }}
-                                      className="flex items-center gap-1 text-xs text-amber-700 hover:text-amber-900 underline"
+                                      className="flex items-center gap-1.5 text-sm text-amber-700 hover:text-amber-900 underline"
                                     >
                                       <Eye className="h-3 w-3 shrink-0" />
                                       {file.name}
@@ -861,8 +859,8 @@ export default function RfiForm() {
 
                           return (
                             <div key={key} className={`py-1 ${field.width === "full" ? "col-span-full" : ""}`}>
-                              <p className="text-[10px] text-stone-400 leading-tight">{field.label}</p>
-                              <div className="text-xs text-stone-700 leading-snug">{displayVal}</div>
+                              <p className="text-xs text-stone-400">{field.label}</p>
+                              <div className="text-sm text-stone-700">{displayVal}</div>
                             </div>
                           );
                         })}
