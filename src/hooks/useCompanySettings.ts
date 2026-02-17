@@ -10,6 +10,23 @@ export interface PriceChangeEntry {
   reason: string;
 }
 
+export const WORK_TYPE_DISCIPLINES = [
+  "Plumbing",
+  "Mechanical",
+  "Electrical",
+  "General Construction",
+  "Sprinkler",
+  "Standpipe",
+  "Fire Alarm",
+  "Fire Suppression",
+  "Elevator",
+  "Boiler",
+  "Structural",
+  "Facade",
+] as const;
+
+export type WorkTypeDiscipline = typeof WORK_TYPE_DISCIPLINES[number];
+
 export interface ServiceCatalogItem {
   id: string;
   name: string;
@@ -17,6 +34,8 @@ export interface ServiceCatalogItem {
   default_price?: number;
   default_hours?: number;
   multiplier?: number;
+  has_discipline_pricing?: boolean;
+  discipline_fee?: number;
   price_history?: PriceChangeEntry[];
 }
 

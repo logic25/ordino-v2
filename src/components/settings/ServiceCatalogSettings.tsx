@@ -14,7 +14,11 @@ import {
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
-import { useCompanySettings, useUpdateCompanySettings, ServiceCatalogItem, PriceChangeEntry } from "@/hooks/useCompanySettings";
+import { useCompanySettings, useUpdateCompanySettings, ServiceCatalogItem, PriceChangeEntry, WORK_TYPE_DISCIPLINES } from "@/hooks/useCompanySettings";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Tooltip, TooltipContent, TooltipTrigger, TooltipProvider,
+} from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
@@ -176,12 +180,13 @@ export function ServiceCatalogSettings() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[22%]">Name</TableHead>
-                    <TableHead className="w-[28%]">Description</TableHead>
-                    <TableHead className="w-[12%]">Price</TableHead>
-                    <TableHead className="w-[10%]">Hours</TableHead>
-                    <TableHead className="w-[12%]">Multiplier</TableHead>
-                    <TableHead className="w-[16%]" />
+                     <TableHead className="w-[20%]">Name</TableHead>
+                     <TableHead className="w-[22%]">Description</TableHead>
+                     <TableHead className="w-[10%]">Base Price</TableHead>
+                     <TableHead className="w-[8%]">Hours</TableHead>
+                     <TableHead className="w-[10%]">Multiplier</TableHead>
+                     <TableHead className="w-[14%]">Per Discipline</TableHead>
+                     <TableHead className="w-[16%]" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -277,6 +282,30 @@ export function ServiceCatalogSettings() {
                             placeholder="1.0"
                             className="h-8 text-sm"
                           />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              checked={!!service.has_discipline_pricing}
+                              onCheckedChange={(checked) => {
+                                setServices(services.map(s => s.id === service.id ? { ...s, has_discipline_pricing: !!checked, discipline_fee: s.discipline_fee || 0 } : s));
+                              }}
+                              className="h-3.5 w-3.5"
+                            />
+                            {service.has_discipline_pricing && (
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={service.discipline_fee || ""}
+                                onChange={(e) => {
+                                  setServices(services.map(s => s.id === service.id ? { ...s, discipline_fee: parseFloat(e.target.value) || 0 } : s));
+                                }}
+                                placeholder="$/disc"
+                                className="h-8 text-sm w-20"
+                              />
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Button

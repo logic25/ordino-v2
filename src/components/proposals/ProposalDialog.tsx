@@ -42,7 +42,7 @@ import type { ProposalWithRelations, ProposalFormInput } from "@/hooks/usePropos
 import { useProperties, useCreateProperty, useUpdateProperty } from "@/hooks/useProperties";
 import { useNYCPropertyLookup } from "@/hooks/useNYCPropertyLookup";
 import { useClients, useCreateClient, Client } from "@/hooks/useClients";
-import { useCompanySettings, ServiceCatalogItem } from "@/hooks/useCompanySettings";
+import { useCompanySettings, ServiceCatalogItem, WORK_TYPE_DISCIPLINES } from "@/hooks/useCompanySettings";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useToast } from "@/hooks/use-toast";
 import { ProposalContactsSection } from "@/components/proposals/ProposalContactsSection";
@@ -65,6 +65,8 @@ const itemSchema = z.object({
   fee_type: z.string().optional(),
   sort_order: z.number().optional(),
   is_optional: z.boolean().optional(),
+  disciplines: z.array(z.string()).optional(),
+  discipline_fee: z.coerce.number().min(0).optional(),
 });
 
 const LEAD_SOURCES = [
@@ -150,6 +152,13 @@ function ServiceLineItem({
     form.setValue(`items.${index}.description`, service.description || "");
     form.setValue(`items.${index}.unit_price`, service.default_price || 0);
     form.setValue(`items.${index}.estimated_hours`, service.default_hours || 0);
+    if (service.has_discipline_pricing) {
+      form.setValue(`items.${index}.discipline_fee`, service.discipline_fee || 0);
+      form.setValue(`items.${index}.disciplines`, []);
+    } else {
+      form.setValue(`items.${index}.discipline_fee`, 0);
+      form.setValue(`items.${index}.disciplines`, []);
+    }
     setShowSuggestions(false);
   };
 
@@ -188,7 +197,15 @@ function ServiceLineItem({
               </div>
             )}
           </div>
-          {currentDesc && !expanded && <p className="text-xs text-muted-foreground truncate px-2 mt-0.5">{isOptional && <span className="text-accent font-medium mr-1">Optional ·</span>}{currentDesc}</p>}
+          {!expanded && (
+            <p className="text-xs text-muted-foreground truncate px-2 mt-0.5">
+              {isOptional && <span className="text-accent font-medium mr-1">Optional ·</span>}
+              {(form.watch(`items.${index}.disciplines`) || []).length > 0 && (
+                <span className="font-medium mr-1">{(form.watch(`items.${index}.disciplines`) || []).length} disciplines ·</span>
+              )}
+              {currentDesc}
+            </p>
+          )}
         </div>
 
         <Select value={currentFeeType} onValueChange={(v) => form.setValue(`items.${index}.fee_type`, v)}>
@@ -220,6 +237,61 @@ function ServiceLineItem({
             <div><Label className="text-xs text-muted-foreground mb-1 block">Discount %</Label><Input type="number" min="0" max="100" step="1" className="h-8 text-sm" {...form.register(`items.${index}.discount_percent`)} /></div>
             <div><Label className="text-xs text-muted-foreground mb-1 block">Line Total</Label><div className="h-8 flex items-center text-sm font-semibold">{formatCurrency(lineTotal)}</div></div>
           </div>
+
+          {/* Discipline / Work Type Pricing */}
+          {(() => {
+            const disciplineFee = Number(form.watch(`items.${index}.discipline_fee`)) || 0;
+            const selectedDisciplines: string[] = form.watch(`items.${index}.disciplines`) || [];
+            const catalogMatch = serviceCatalog.find(s => s.name === currentName);
+            const hasDisciplinePricing = disciplineFee > 0 || catalogMatch?.has_discipline_pricing;
+
+            if (!hasDisciplinePricing) return null;
+
+            const toggleDiscipline = (d: string) => {
+              const current = [...selectedDisciplines];
+              const idx = current.indexOf(d);
+              if (idx >= 0) current.splice(idx, 1);
+              else current.push(d);
+              form.setValue(`items.${index}.disciplines`, current);
+            };
+
+            return (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-muted-foreground">Work Types / Disciplines</Label>
+                  <span className="text-xs text-muted-foreground">
+                    {selectedDisciplines.length} selected · {formatCurrency(disciplineFee)}/discipline
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Label className="text-xs text-muted-foreground shrink-0">Fee per discipline</Label>
+                  <Input
+                    type="number" min="0" step="0.01" className="h-7 text-sm w-24"
+                    value={disciplineFee || ""}
+                    onChange={(e) => form.setValue(`items.${index}.discipline_fee`, parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {WORK_TYPE_DISCIPLINES.map((d) => (
+                    <label key={d} className="flex items-center gap-1.5 cursor-pointer text-xs py-1 px-2 rounded hover:bg-muted/50 transition-colors">
+                      <Checkbox
+                        checked={selectedDisciplines.includes(d)}
+                        onCheckedChange={() => toggleDiscipline(d)}
+                        className="h-3.5 w-3.5"
+                      />
+                      <span>{d}</span>
+                    </label>
+                  ))}
+                </div>
+                {selectedDisciplines.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Base {formatCurrency(Number(form.watch(`items.${index}.unit_price`)) || 0)} + {selectedDisciplines.length} × {formatCurrency(disciplineFee)} = {formatCurrency((Number(form.watch(`items.${index}.unit_price`)) || 0) + selectedDisciplines.length * disciplineFee)}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+
           <label className="flex items-center gap-2 cursor-pointer pt-1">
             <Checkbox
               checked={isOptional}
@@ -380,7 +452,9 @@ export function ProposalDialog({
     const qty = Number(item.quantity) || 0;
     const price = Number(item.unit_price) || 0;
     const discountPct = Number(item.discount_percent) || 0;
-    const subtotal = qty * price;
+    const disciplineFee = Number(item.discipline_fee) || 0;
+    const disciplineCount = (item.disciplines || []).length;
+    const subtotal = (qty * price) + (disciplineFee * disciplineCount);
     return subtotal - subtotal * (discountPct / 100);
   };
 
