@@ -196,6 +196,12 @@ export function useCreateProposal() {
           unit_price: item.unit_price,
           total_price: item.quantity * item.unit_price,
           sort_order: item.sort_order ?? idx,
+          fee_type: (item as any).fee_type || "fixed",
+          estimated_hours: (item as any).estimated_hours || null,
+          discount_percent: (item as any).discount_percent || null,
+          is_optional: (item as any).is_optional || false,
+          disciplines: (item as any).disciplines || null,
+          discipline_fee: (item as any).discipline_fee || null,
         }));
 
         const { error: itemsError } = await supabase
@@ -292,6 +298,12 @@ export function useUpdateProposal() {
           unit_price: item.unit_price,
           total_price: item.quantity * item.unit_price,
           sort_order: item.sort_order ?? idx,
+          fee_type: (item as any).fee_type || "fixed",
+          estimated_hours: (item as any).estimated_hours || null,
+          discount_percent: (item as any).discount_percent || null,
+          is_optional: (item as any).is_optional || false,
+          disciplines: (item as any).disciplines || null,
+          discipline_fee: (item as any).discipline_fee || null,
         }));
 
         await supabase.from("proposal_items").insert(itemsToInsert);
