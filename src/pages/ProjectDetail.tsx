@@ -45,8 +45,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import {
-  SERVICE_SETS, CONTACT_SETS, MILESTONE_SETS, CO_SETS,
-  EMAIL_SETS, DOCUMENT_SETS, TIME_SETS, CHECKLIST_SETS, PIS_SETS, PROPOSAL_SIG_SETS,
   formatCurrency, serviceStatusStyles, dobRoleLabels, coStatusStyles,
   checklistCategoryLabels, docCategoryLabels,
 } from "@/components/projects/projectMockData";
@@ -54,6 +52,9 @@ import type {
   MockService, MockContact, MockMilestone, MockChangeOrder,
   MockEmail, MockDocument, MockTimeEntry, MockChecklistItem, MockPISStatus, MockProposalSignature,
 } from "@/components/projects/projectMockData";
+import {
+  useProjectServices, useProjectContacts, useProjectTimeline, useProjectPISStatus,
+} from "@/hooks/useProjectDetail";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   open: { label: "Open", variant: "default" },
@@ -87,11 +88,18 @@ export default function ProjectDetail() {
   const queryClient = useQueryClient();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [litigationDialogOpen, setLitigationDialogOpen] = useState(false);
-  const [liveServices, setLiveServices] = useState<MockService[]>([]);
   const [extraCOs, setExtraCOs] = useState<MockChangeOrder[]>([]);
-  const [servicesInitialized, setServicesInitialized] = useState<string | null>(null);
 
   const project = projects.find((p) => p.id === id);
+
+  // Real data hooks
+  const { data: realServices = [] } = useProjectServices(project?.id);
+  const { data: realContacts = [] } = useProjectContacts(project?.id, project?.client_id, (project as any)?.proposal_id);
+  const { data: realTimeline = [] } = useProjectTimeline(project?.id, (project as any)?.proposal_id);
+  const { data: realPISStatus } = useProjectPISStatus(project?.id);
+
+  const [liveServices, setLiveServices] = useState<MockService[]>([]);
+  const [servicesInitialized, setServicesInitialized] = useState<string | null>(null);
 
   // Fetch primary contact from client's contacts
   const { data: primaryContact } = useQuery({
@@ -121,25 +129,12 @@ export default function ProjectDetail() {
     }
   };
 
-  const idx = projects.indexOf(project as ProjectWithRelations);
-
-  // Match mock data by project name keywords, fallback to index
-  const getMockIdx = () => {
-    if (!project) return 0;
-    const name = (project.name || "").toLowerCase();
-    if (name.includes("689") || name.includes("5th ave")) return 4;
-    if (name.includes("port richmond") || name.includes("331")) return 2;
-    if (name.includes("lobby") || name.includes("345 park")) return 0;
-    if (name.includes("1525") || name.includes("86th")) return 3;
-    return Math.max(idx, 0) % SERVICE_SETS.length;
-  };
-  const mockIdx = getMockIdx();
-
-  // Initialize live services when project changes
-  if (project && servicesInitialized !== project.id) {
-    setLiveServices(SERVICE_SETS[mockIdx % SERVICE_SETS.length]);
+  // Sync live services from real DB data
+  const realServicesKey = realServices.map(s => s.id).join(",");
+  if (project && realServices.length > 0 && servicesInitialized !== `${project.id}:${realServicesKey}`) {
+    setLiveServices(realServices);
     setExtraCOs([]);
-    setServicesInitialized(project.id);
+    setServicesInitialized(`${project.id}:${realServicesKey}`);
   }
 
   if (isLoading) {
@@ -167,16 +162,14 @@ export default function ProjectDetail() {
 
   const status = statusConfig[project.status] || statusConfig.open;
 
-  const contacts = CONTACT_SETS[mockIdx % CONTACT_SETS.length];
-  const milestones = MILESTONE_SETS[mockIdx % MILESTONE_SETS.length];
-  const baseCOs = CO_SETS[mockIdx % CO_SETS.length];
-  const changeOrders = [...baseCOs, ...extraCOs];
-  const emails = EMAIL_SETS[mockIdx % EMAIL_SETS.length];
-  const documents = DOCUMENT_SETS[mockIdx % DOCUMENT_SETS.length];
-  const timeEntries = TIME_SETS[mockIdx % TIME_SETS.length];
-  const checklistItems = CHECKLIST_SETS[mockIdx % CHECKLIST_SETS.length];
-  const pisStatus = PIS_SETS[mockIdx % PIS_SETS.length];
-  // proposalSig now comes from real project.proposals data
+  const contacts = realContacts;
+  const milestones = realTimeline;
+  const changeOrders = [...extraCOs];
+  const emails: MockEmail[] = [];
+  const documents: MockDocument[] = [];
+  const timeEntries: MockTimeEntry[] = [];
+  const checklistItems: MockChecklistItem[] = [];
+  const pisStatus: MockPISStatus = realPISStatus || { sentDate: null, totalFields: 0, completedFields: 0, missingFields: [] };
 
   const approvedCOs = changeOrders.filter(co => co.status === "approved").reduce((s, co) => s + co.amount, 0);
   const contractTotal = liveServices.reduce((s, svc) => s + svc.totalAmount, 0);
@@ -900,6 +893,13 @@ function ServiceExpandedDetail({ service }: { service: MockService }) {
 
 function ServicesFull({ services: initialServices, project, contacts, allServices, onServicesChange, onAddCOs }: { services: MockService[]; project: ProjectWithRelations; contacts: MockContact[]; allServices: MockService[]; onServicesChange?: (services: MockService[]) => void; onAddCOs?: (cos: MockChangeOrder[]) => void }) {
   const [orderedServices, setOrderedServicesLocal] = useState(initialServices);
+  // Re-sync when initialServices changes (e.g. async DB load)
+  const initialKey = initialServices.map(s => s.id).join(",");
+  const [lastKey, setLastKey] = useState(initialKey);
+  if (initialKey !== lastKey) {
+    setOrderedServicesLocal(initialServices);
+    setLastKey(initialKey);
+  }
   const setOrderedServices = (updater: MockService[] | ((prev: MockService[]) => MockService[])) => {
     setOrderedServicesLocal(prev => {
       const next = typeof updater === "function" ? updater(prev) : updater;
