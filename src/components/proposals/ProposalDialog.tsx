@@ -117,7 +117,10 @@ function ServiceLineItem({
   index: number; form: any; lineTotal: number; serviceCatalog: ServiceCatalogItem[];
   formatCurrency: (v: number) => string; canRemove: boolean; onRemove: () => void; autoFocus?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(!!autoFocus);
+  // Auto-expand if service has discipline pricing (one less click)
+  const hasDisciplines = Number(form.watch(`items.${index}.discipline_fee`)) > 0 || 
+    serviceCatalog.find(s => s.name === (form.watch(`items.${index}.name`) || ""))?.has_discipline_pricing;
+  const [expanded, setExpanded] = useState(!!autoFocus || !!hasDisciplines);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const nameInputRef = React.useRef<HTMLInputElement>(null);
   const suggestionsRef = React.useRef<HTMLDivElement>(null);
@@ -159,13 +162,14 @@ function ServiceLineItem({
     if (service.has_discipline_pricing) {
       form.setValue(`items.${index}.discipline_fee`, service.discipline_fee || 0);
       form.setValue(`items.${index}.disciplines`, []);
+      // Keep expanded for discipline services — user needs to pick disciplines
+      setExpanded(true);
     } else {
       form.setValue(`items.${index}.discipline_fee`, 0);
       form.setValue(`items.${index}.disciplines`, []);
+      setExpanded(false);
     }
     setShowSuggestions(false);
-    // Auto-collapse after selecting a catalog item (details are filled)
-    setExpanded(false);
   };
 
   return (
@@ -539,9 +543,10 @@ export function ProposalDialog({
     setStep(Math.max(step - 1, 0));
   };
 
-  const [pendingAction, setPendingAction] = useState<ProposalSaveAction>("save");
+  const pendingActionRef = useRef<ProposalSaveAction>("save");
 
   const handleSubmit = async (data: ProposalFormData) => {
+      const action = pendingActionRef.current;
       const validItems = data.items.filter(i => i.name && i.name.trim() !== "");
       const depositPct = Number(data.deposit_percentage) || 0;
       const computedRetainer = depositPct > 0 ? Math.round(subtotal * depositPct / 100 * 100) / 100 : null;
@@ -573,16 +578,15 @@ export function ProposalDialog({
         })),
       milestones: [],
     };
-    await onSubmit(formData, contacts, pendingAction);
+    await onSubmit(formData, contacts, action);
     form.reset();
     setContacts([]);
     setStep(0);
   };
 
   const doSave = (action: ProposalSaveAction) => {
-    setPendingAction(action);
-    // Need timeout to let state settle before handleSubmit reads it
-    setTimeout(() => form.handleSubmit(handleSubmit)(), 0);
+    pendingActionRef.current = action;
+    form.handleSubmit(handleSubmit)();
   };
 
   const selectedProperty = properties.find(p => p.id === form.watch("property_id"));
@@ -751,8 +755,8 @@ export function ProposalDialog({
 
             {/* ═══ STEP 2: SERVICES ═══ */}
             {step === 1 && (
-              <div className="min-h-[380px]">
-                <div className="grid grid-cols-[auto_1fr_80px_70px_90px_80px_auto] items-center gap-1 px-3 py-2 bg-muted/50 border-b text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <div className="flex flex-col min-h-0">
+                <div className="grid grid-cols-[auto_1fr_80px_70px_90px_80px_auto] items-center gap-1 px-3 py-2 bg-muted/50 border-b text-xs font-medium text-muted-foreground uppercase tracking-wider shrink-0">
                   <div className="w-7" />
                   <div className="px-2">Service</div>
                   <div>Type</div>
@@ -761,20 +765,21 @@ export function ProposalDialog({
                   <div className="text-right pr-1">Total</div>
                   <div className="w-7" />
                 </div>
-                <div className="border rounded-b-lg mx-4 mb-3">
-                  {itemFields.map((field, index) => {
-                    const lineTotal = calculateLineTotal(watchedItems[index] || {});
-                    return (
-                      <ServiceLineItem
-                        key={field.id} index={index} form={form} lineTotal={lineTotal}
-                        serviceCatalog={serviceCatalog} formatCurrency={formatCurrency}
-                        canRemove={itemFields.length > 1} onRemove={() => removeItem(index)}
-                        autoFocus={lastAddedIndex === index}
-                      />
-                    );
-                  })}
+                <div className="overflow-y-auto flex-1">
+                  <div className="border rounded-b-lg mx-4 mb-3">
+                    {itemFields.map((field, index) => {
+                      const lineTotal = calculateLineTotal(watchedItems[index] || {});
+                      return (
+                        <ServiceLineItem
+                          key={field.id} index={index} form={form} lineTotal={lineTotal}
+                          serviceCatalog={serviceCatalog} formatCurrency={formatCurrency}
+                          canRemove={itemFields.length > 1} onRemove={() => removeItem(index)}
+                          autoFocus={lastAddedIndex === index}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
-                {/* Auto-add row is handled by the effect below */}
               </div>
             )}
 
@@ -884,17 +889,17 @@ export function ProposalDialog({
                 <div className="flex items-center gap-1.5">
                   <Button type="button" size="sm" variant="outline" disabled={isLoading}
                     onClick={() => doSave("save")}>
-                    {isLoading && pendingAction === "save" ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+                    {isLoading && pendingActionRef.current === "save" ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
                     Save
                   </Button>
                   <Button type="button" size="sm" variant="outline" disabled={isLoading}
                     onClick={() => doSave("save_preview")}>
-                    {isLoading && pendingAction === "save_preview" ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+                    {isLoading && pendingActionRef.current === "save_preview" ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
                     Save & Preview
                   </Button>
                   <Button type="button" size="sm" disabled={isLoading} className="bg-accent text-accent-foreground hover:bg-accent/90"
                     onClick={() => doSave("save_send")}>
-                    {isLoading && pendingAction === "save_send" ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+                    {isLoading && pendingActionRef.current === "save_send" ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
                     <Send className="h-3.5 w-3.5 mr-1" /> Save & Send
                   </Button>
                 </div>
