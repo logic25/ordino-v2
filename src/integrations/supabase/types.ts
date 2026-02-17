@@ -2682,6 +2682,12 @@ export type Database = {
       }
       leads: {
         Row: {
+          architect_company: string | null
+          architect_email: string | null
+          architect_license_number: string | null
+          architect_license_type: string | null
+          architect_name: string | null
+          architect_phone: string | null
           assigned_to: string | null
           client_type: string | null
           company_id: string
@@ -2689,18 +2695,35 @@ export type Database = {
           contact_phone: string | null
           created_at: string
           created_by: string | null
+          drawings_uploaded: boolean | null
           full_name: string
+          gc_company: string | null
+          gc_email: string | null
+          gc_name: string | null
+          gc_phone: string | null
           id: string
           notes: string | null
           property_address: string | null
           proposal_id: string | null
           referred_by: string | null
+          sia_company: string | null
+          sia_email: string | null
+          sia_name: string | null
+          sia_phone: string | null
           source: string
           status: string
           subject: string | null
+          tpp_email: string | null
+          tpp_name: string | null
           updated_at: string
         }
         Insert: {
+          architect_company?: string | null
+          architect_email?: string | null
+          architect_license_number?: string | null
+          architect_license_type?: string | null
+          architect_name?: string | null
+          architect_phone?: string | null
           assigned_to?: string | null
           client_type?: string | null
           company_id: string
@@ -2708,18 +2731,35 @@ export type Database = {
           contact_phone?: string | null
           created_at?: string
           created_by?: string | null
+          drawings_uploaded?: boolean | null
           full_name: string
+          gc_company?: string | null
+          gc_email?: string | null
+          gc_name?: string | null
+          gc_phone?: string | null
           id?: string
           notes?: string | null
           property_address?: string | null
           proposal_id?: string | null
           referred_by?: string | null
+          sia_company?: string | null
+          sia_email?: string | null
+          sia_name?: string | null
+          sia_phone?: string | null
           source?: string
           status?: string
           subject?: string | null
+          tpp_email?: string | null
+          tpp_name?: string | null
           updated_at?: string
         }
         Update: {
+          architect_company?: string | null
+          architect_email?: string | null
+          architect_license_number?: string | null
+          architect_license_type?: string | null
+          architect_name?: string | null
+          architect_phone?: string | null
           assigned_to?: string | null
           client_type?: string | null
           company_id?: string
@@ -2727,15 +2767,26 @@ export type Database = {
           contact_phone?: string | null
           created_at?: string
           created_by?: string | null
+          drawings_uploaded?: boolean | null
           full_name?: string
+          gc_company?: string | null
+          gc_email?: string | null
+          gc_name?: string | null
+          gc_phone?: string | null
           id?: string
           notes?: string | null
           property_address?: string | null
           proposal_id?: string | null
           referred_by?: string | null
+          sia_company?: string | null
+          sia_email?: string | null
+          sia_name?: string | null
+          sia_phone?: string | null
           source?: string
           status?: string
           subject?: string | null
+          tpp_email?: string | null
+          tpp_name?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -3787,6 +3838,12 @@ export type Database = {
       proposals: {
         Row: {
           approval_method: string | null
+          architect_company: string | null
+          architect_email: string | null
+          architect_license_number: string | null
+          architect_license_type: string | null
+          architect_name: string | null
+          architect_phone: string | null
           assigned_pm_id: string | null
           billed_to_email: string | null
           billed_to_name: string | null
@@ -3806,10 +3863,15 @@ export type Database = {
           created_by: string | null
           deposit_percentage: number | null
           deposit_required: number | null
+          drawings_storage_paths: string[] | null
           follow_up_count: number | null
           follow_up_dismissed_at: string | null
           follow_up_dismissed_by: string | null
           follow_up_interval_days: number | null
+          gc_company: string | null
+          gc_email: string | null
+          gc_name: string | null
+          gc_phone: string | null
           id: string
           internal_signature_data: string | null
           internal_signed_at: string | null
@@ -3830,6 +3892,10 @@ export type Database = {
           sales_person_id: string | null
           scope_of_work: string | null
           sent_at: string | null
+          sia_company: string | null
+          sia_email: string | null
+          sia_name: string | null
+          sia_phone: string | null
           signed_document_url: string | null
           status: Database["public"]["Enums"]["proposal_status"] | null
           subtotal: number | null
@@ -3838,12 +3904,20 @@ export type Database = {
           terms_conditions: string | null
           title: string
           total_amount: number | null
+          tpp_email: string | null
+          tpp_name: string | null
           updated_at: string | null
           valid_until: string | null
           viewed_at: string | null
         }
         Insert: {
           approval_method?: string | null
+          architect_company?: string | null
+          architect_email?: string | null
+          architect_license_number?: string | null
+          architect_license_type?: string | null
+          architect_name?: string | null
+          architect_phone?: string | null
           assigned_pm_id?: string | null
           billed_to_email?: string | null
           billed_to_name?: string | null
@@ -3863,10 +3937,15 @@ export type Database = {
           created_by?: string | null
           deposit_percentage?: number | null
           deposit_required?: number | null
+          drawings_storage_paths?: string[] | null
           follow_up_count?: number | null
           follow_up_dismissed_at?: string | null
           follow_up_dismissed_by?: string | null
           follow_up_interval_days?: number | null
+          gc_company?: string | null
+          gc_email?: string | null
+          gc_name?: string | null
+          gc_phone?: string | null
           id?: string
           internal_signature_data?: string | null
           internal_signed_at?: string | null
@@ -3887,6 +3966,10 @@ export type Database = {
           sales_person_id?: string | null
           scope_of_work?: string | null
           sent_at?: string | null
+          sia_company?: string | null
+          sia_email?: string | null
+          sia_name?: string | null
+          sia_phone?: string | null
           signed_document_url?: string | null
           status?: Database["public"]["Enums"]["proposal_status"] | null
           subtotal?: number | null
@@ -3895,12 +3978,20 @@ export type Database = {
           terms_conditions?: string | null
           title: string
           total_amount?: number | null
+          tpp_email?: string | null
+          tpp_name?: string | null
           updated_at?: string | null
           valid_until?: string | null
           viewed_at?: string | null
         }
         Update: {
           approval_method?: string | null
+          architect_company?: string | null
+          architect_email?: string | null
+          architect_license_number?: string | null
+          architect_license_type?: string | null
+          architect_name?: string | null
+          architect_phone?: string | null
           assigned_pm_id?: string | null
           billed_to_email?: string | null
           billed_to_name?: string | null
@@ -3920,10 +4011,15 @@ export type Database = {
           created_by?: string | null
           deposit_percentage?: number | null
           deposit_required?: number | null
+          drawings_storage_paths?: string[] | null
           follow_up_count?: number | null
           follow_up_dismissed_at?: string | null
           follow_up_dismissed_by?: string | null
           follow_up_interval_days?: number | null
+          gc_company?: string | null
+          gc_email?: string | null
+          gc_name?: string | null
+          gc_phone?: string | null
           id?: string
           internal_signature_data?: string | null
           internal_signed_at?: string | null
@@ -3944,6 +4040,10 @@ export type Database = {
           sales_person_id?: string | null
           scope_of_work?: string | null
           sent_at?: string | null
+          sia_company?: string | null
+          sia_email?: string | null
+          sia_name?: string | null
+          sia_phone?: string | null
           signed_document_url?: string | null
           status?: Database["public"]["Enums"]["proposal_status"] | null
           subtotal?: number | null
@@ -3952,6 +4052,8 @@ export type Database = {
           terms_conditions?: string | null
           title?: string
           total_amount?: number | null
+          tpp_email?: string | null
+          tpp_name?: string | null
           updated_at?: string | null
           valid_until?: string | null
           viewed_at?: string | null

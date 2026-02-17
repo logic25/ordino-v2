@@ -58,6 +58,22 @@ export function useCreateLead() {
       notes?: string;
       referred_by?: string;
       assigned_to?: string;
+      architect_name?: string;
+      architect_company?: string;
+      architect_phone?: string;
+      architect_email?: string;
+      architect_license_type?: string;
+      architect_license_number?: string;
+      gc_name?: string;
+      gc_company?: string;
+      gc_phone?: string;
+      gc_email?: string;
+      sia_name?: string;
+      sia_company?: string;
+      sia_phone?: string;
+      sia_email?: string;
+      tpp_name?: string;
+      tpp_email?: string;
     }) => {
       if (!profile?.company_id) throw new Error("No company");
       const { data, error } = await supabase
