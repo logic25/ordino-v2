@@ -34,6 +34,7 @@ import {
   X,
   File,
   Eye,
+  Pencil,
 } from "lucide-react";
 
 export default function RfiForm() {
@@ -75,6 +76,7 @@ export default function RfiForm() {
 
   const rfi = isDemo ? demoRfi : rfiData?.rfi;
   const property = isDemo ? demoProperty : rfiData?.property;
+  const projectData = isDemo ? { building_owner_name: "ABC Realty Corp", gc_company_name: null, gc_contact_name: null, gc_phone: null, gc_email: null } : rfiData?.project;
 
   const [currentStep, setCurrentStep] = useState(-1); // -1 = welcome screen
   const [responses, setResponses] = useState<Record<string, any>>({});
@@ -84,6 +86,7 @@ export default function RfiForm() {
   const [direction, setDirection] = useState<"forward" | "back">("forward");
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const [previewFile, setPreviewFile] = useState<{ name: string; url: string } | null>(null);
+  const [ownerVerified, setOwnerVerified] = useState<boolean | null>(null); // null = not yet decided
 
   // File upload handler
   const handleFileUpload = async (key: string, files: FileList | null, accept?: string, maxFiles?: number) => {
@@ -944,6 +947,60 @@ export default function RfiForm() {
                     {/* Owner & other fields after the repeatable group */}
                     {afterFields.length > 0 && (
                       <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+                        {/* Owner verification banner */}
+                        {currentSection.id === "applicant_and_owner" && projectData?.building_owner_name && (
+                          <div className={`mb-5 p-4 rounded-xl border ${
+                            ownerVerified === true
+                              ? "bg-emerald-50 border-emerald-200"
+                              : ownerVerified === false
+                              ? "bg-amber-50 border-amber-200"
+                              : "bg-stone-50 border-stone-200"
+                          }`}>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <Building2 className="h-4 w-4 text-stone-500" />
+                                <span className="text-sm font-semibold text-stone-700">Owner on File</span>
+                              </div>
+                              {ownerVerified === true && (
+                                <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                                  <CheckCircle2 className="h-3 w-3" /> Verified
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-stone-600 mb-3">
+                              Our records show: <span className="font-medium">{projectData.building_owner_name}</span>
+                            </p>
+                            <p className="text-xs text-stone-400 mb-3">
+                              Please verify this is correct. If the signatory differs, you can update below — this won't change our company records.
+                            </p>
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                variant={ownerVerified === true ? "default" : "outline"}
+                                size="sm"
+                                className={`gap-1.5 text-xs ${ownerVerified === true ? "bg-emerald-600 hover:bg-emerald-700" : ""}`}
+                                onClick={() => {
+                                  setOwnerVerified(true);
+                                  setValue("applicant_and_owner_owner_verified", "true");
+                                }}
+                              >
+                                <CheckCircle2 className="h-3 w-3" /> Correct
+                              </Button>
+                              <Button
+                                type="button"
+                                variant={ownerVerified === false ? "default" : "outline"}
+                                size="sm"
+                                className={`gap-1.5 text-xs ${ownerVerified === false ? "bg-amber-600 hover:bg-amber-700" : ""}`}
+                                onClick={() => {
+                                  setOwnerVerified(false);
+                                  setValue("applicant_and_owner_owner_verified", "false");
+                                }}
+                              >
+                                <Pencil className="h-3 w-3" /> Update Below
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           {afterFields.map((field) => renderField(field, currentSection.id))}
                         </div>
