@@ -25,7 +25,6 @@ export default function ClientProposalPage() {
     queryKey: ["public-proposal", token],
     queryFn: async () => {
       if (!token) throw new Error("No token");
-
       const { data, error } = await supabase
         .from("proposals")
         .select(`
@@ -37,7 +36,6 @@ export default function ClientProposalPage() {
         `)
         .eq("public_token", token)
         .maybeSingle();
-
       if (error) throw error;
       if (!data) throw new Error("Proposal not found");
       return data as any;
@@ -45,7 +43,7 @@ export default function ClientProposalPage() {
     enabled: !!token,
   });
 
-  // Fetch company info for the proposal
+  // Fetch company info
   const { data: company } = useQuery({
     queryKey: ["public-company", proposal?.company_id],
     queryFn: async () => {
@@ -70,7 +68,7 @@ export default function ClientProposalPage() {
     enabled: !!proposal?.company_id,
   });
 
-  // Fetch proposal contacts for "Prepared For" section
+  // Fetch proposal contacts
   const { data: contacts = [] } = useQuery({
     queryKey: ["public-proposal-contacts", proposal?.id],
     queryFn: async () => {
@@ -84,7 +82,7 @@ export default function ClientProposalPage() {
     enabled: !!proposal?.id,
   });
 
-  // Fetch linked RFI to get the PIS access token
+  // Fetch linked RFI token
   const { data: rfiToken } = useQuery({
     queryKey: ["public-rfi-token", proposal?.id],
     queryFn: async () => {
@@ -205,6 +203,12 @@ export default function ClientProposalPage() {
     return desc.split(/\n|•|·/).map(s => s.replace(/^-\s*/, '').trim()).filter(s => s.length > 0);
   };
 
+  const feeNote = (type: string | undefined, qty: number, price: number) => {
+    if (type === "monthly") return `Monthly retainer${qty > 1 ? ` — ${fmt(price)} over estimated ${qty}-month timeline` : ""}`;
+    if (type === "hourly") return `Hourly rate × ${qty} hrs`;
+    return "";
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f9fa]">
@@ -225,375 +229,457 @@ export default function ClientProposalPage() {
   }
 
   const items = proposal.items || [];
-  const nonOptional = items.filter((i: any) => !i.is_optional);
-  const optional = items.filter((i: any) => i.is_optional);
-  const nonOptionalTotal = nonOptional.reduce((sum: number, i: any) => sum + Number(i.total_price || i.quantity * i.unit_price || 0), 0);
+  const nonOptionalItems = items.filter((i: any) => !i.is_optional);
+  const optionalItems = items.filter((i: any) => i.is_optional);
+  const nonOptionalTotal = nonOptionalItems.reduce((sum: number, i: any) => sum + Number(i.total_price || i.quantity * i.unit_price || 0), 0);
   const totalAmount = nonOptionalTotal || Number(proposal.total_amount || proposal.subtotal || 0);
   const depositPct = Number(proposal.deposit_percentage || 0);
   const depositAmt = Number(proposal.deposit_required || 0) || (depositPct > 0 ? totalAmount * (depositPct / 100) : 0);
   const alreadySigned = !!proposal.client_signed_at || signed;
 
+  const billTo = (contacts as any[]).find((c: any) => c.role === "bill_to");
+  const signer = (contacts as any[]).find((c: any) => c.role === "sign");
+
   const amber = "hsl(38, 92%, 50%)";
   const charcoal = "#1c2127";
   const slate = "#64748b";
+  const lightBg = "#f8f9fa";
 
   return (
     <div className="min-h-screen bg-[#f1f5f9]">
-      {/* Header Banner — matches internal preview */}
-      <div style={{ background: charcoal, color: "#fff", padding: "32px 48px 28px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", maxWidth: 740, margin: "0 auto" }}>
-        <div>
-          {company?.logo_url ? (
-            <img src={company.logo_url} alt={company.name} style={{ maxHeight: 48, marginBottom: 12, filter: "brightness(0) invert(1)" }} />
-          ) : (
-            <div style={{ fontSize: "20pt", fontWeight: 800, letterSpacing: -0.5, marginBottom: 8 }}>
-              {company?.name || "Our Team"}
-            </div>
-          )}
-          <div style={{ fontSize: "9pt", color: "#94a3b8", lineHeight: 1.6 }}>
-            {company?.address && <div>{company.address}</div>}
+      <div className="max-w-[720px] mx-auto py-6">
+        {/* ═══ The Contract Document — identical to internal preview ═══ */}
+        <div className="bg-white shadow-md" style={{ color: charcoal }}>
+
+          {/* ═══ Header Banner ═══ */}
+          <div style={{ background: charcoal, color: "#fff", padding: "32px 48px 28px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
-              {company?.phone && <span>Tel: {company.phone}</span>}
-            </div>
-            {company?.email && <div>{company.email}</div>}
-            {company?.website && <div>{company.website}</div>}
-          </div>
-        </div>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: "9pt", textTransform: "uppercase", letterSpacing: 2, color: amber, fontWeight: 700, marginBottom: 4 }}>
-            Proposal
-          </div>
-          <div style={{ fontSize: "16pt", fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>
-            #{proposal.proposal_number}
-          </div>
-          <div style={{ fontSize: "9pt", color: "#94a3b8", marginTop: 6 }}>
-            {fmtDate(proposal.created_at)}
-          </div>
-        </div>
-      </div>
-      <div style={{ height: 4, background: amber, maxWidth: 740, margin: "0 auto" }} />
-
-      {/* Proposal content */}
-      <div className="max-w-[740px] mx-auto py-0 px-0">
-        <div className="bg-white shadow-lg overflow-hidden" style={{ color: charcoal }}>
-
-          {/* Prepared For / Project Details */}
-          <div style={{ padding: "32px 48px 0", display: "flex", gap: 32 }}>
-            <div style={{ flex: 1, background: "#f8f9fa", padding: "16px 20px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
-              <div style={{ fontSize: "8pt", textTransform: "uppercase", letterSpacing: 1.5, color: slate, marginBottom: 8, fontWeight: 700 }}>
-                Prepared For
+              {company?.logo_url ? (
+                <img src={company.logo_url} alt={company?.name} style={{ maxHeight: 48, marginBottom: 12, filter: "brightness(0) invert(1)" }} />
+              ) : (
+                <div style={{ fontSize: "20pt", fontWeight: 800, letterSpacing: -0.5, marginBottom: 8 }}>
+                  {company?.name || ""}
+                </div>
+              )}
+              <div style={{ fontSize: "9pt", color: "#94a3b8", lineHeight: 1.6 }}>
+                {company?.address && <div>{company.address}</div>}
+                <div>
+                  {company?.phone && <span>Tel: {company.phone}</span>}
+                  {company?.fax && <span style={{ marginLeft: 12 }}>Fax: {company.fax}</span>}
+                </div>
+                {company?.email && <div>{company.email}</div>}
+                {company?.website && <div>{company.website}</div>}
               </div>
-              {(() => {
-                const billTo = (contacts as any[]).find((c: any) => c.role === "bill_to");
-                if (billTo) {
-                  return (
-                    <>
-                      <div style={{ fontWeight: 700, fontSize: "11pt" }}>{billTo.company_name || billTo.name}</div>
-                      {billTo.company_name && <div style={{ fontSize: "10pt" }}>{billTo.name}</div>}
-                      {billTo.email && <div style={{ fontSize: "9pt", color: slate }}>{billTo.email}</div>}
-                      {billTo.phone && <div style={{ fontSize: "9pt", color: slate }}>{billTo.phone}</div>}
-                    </>
-                  );
-                }
-                return proposal.client_name ? (
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: "9pt", textTransform: "uppercase", letterSpacing: 2, color: amber, fontWeight: 700, marginBottom: 4 }}>
+                Proposal
+              </div>
+              <div style={{ fontSize: "16pt", fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>
+                #{proposal.proposal_number}
+              </div>
+              <div style={{ fontSize: "9pt", color: "#94a3b8", marginTop: 6 }}>
+                {fmtDate(proposal.created_at)}
+              </div>
+            </div>
+          </div>
+
+          {/* ═══ Amber accent bar ═══ */}
+          <div style={{ height: 4, background: amber }} />
+
+          {/* ═══ Body ═══ */}
+          <div style={{ padding: "32px 48px 40px" }}>
+
+            {/* Account & Project Info */}
+            <div style={{ display: "flex", gap: 32, marginBottom: 28 }}>
+              <div style={{ flex: 1, background: lightBg, padding: "16px 20px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
+                <div style={{ fontSize: "8pt", textTransform: "uppercase", letterSpacing: 1.5, color: slate, marginBottom: 8, fontWeight: 700 }}>
+                  Prepared For
+                </div>
+                {billTo ? (
+                  <>
+                    <div style={{ fontWeight: 700, fontSize: "11pt" }}>{billTo.company_name || billTo.name}</div>
+                    {billTo.company_name && <div style={{ fontSize: "10pt" }}>{billTo.name}</div>}
+                    {billTo.email && <div style={{ fontSize: "9pt", color: slate }}>{billTo.email}</div>}
+                    {billTo.phone && <div style={{ fontSize: "9pt", color: slate }}>{billTo.phone}</div>}
+                  </>
+                ) : proposal.client_name ? (
                   <>
                     <div style={{ fontWeight: 700, fontSize: "11pt" }}>{proposal.client_name}</div>
                     {proposal.client_email && <div style={{ fontSize: "9pt", color: slate }}>{proposal.client_email}</div>}
                   </>
                 ) : (
                   <div style={{ color: slate, fontStyle: "italic" }}>No client specified</div>
-                );
-              })()}
-            </div>
-            <div style={{ flex: 1, background: "#f8f9fa", padding: "16px 20px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
-              <div style={{ fontSize: "8pt", textTransform: "uppercase", letterSpacing: 1.5, color: slate, marginBottom: 8, fontWeight: 700 }}>
-                Project Details
+                )}
               </div>
-              <div style={{ fontSize: "10pt", marginBottom: 4 }}><strong>Project:</strong> {proposal.title}</div>
-              <div style={{ fontSize: "10pt", marginBottom: 4 }}><strong>Address:</strong> {proposal.properties?.address || "—"}</div>
-              {proposal.properties?.borough && (
-                <div style={{ fontSize: "10pt" }}><strong>Borough:</strong> {proposal.properties.borough}</div>
-              )}
-              {proposal.valid_until && (
-                <div style={{ fontSize: "9pt", color: slate, marginTop: 6 }}>Valid until {fmtDate(proposal.valid_until)}</div>
-              )}
+              <div style={{ flex: 1, background: lightBg, padding: "16px 20px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
+                <div style={{ fontSize: "8pt", textTransform: "uppercase", letterSpacing: 1.5, color: slate, marginBottom: 8, fontWeight: 700 }}>
+                  Project Details
+                </div>
+                <div style={{ fontSize: "10pt", marginBottom: 4 }}><strong>Project:</strong> {proposal.title}</div>
+                <div style={{ fontSize: "10pt", marginBottom: 4 }}><strong>Address:</strong> {proposal.properties?.address || "—"}</div>
+                {proposal.properties?.borough && (
+                  <div style={{ fontSize: "10pt" }}><strong>Borough:</strong> {proposal.properties.borough}</div>
+                )}
+                {proposal.valid_until && (
+                  <div style={{ fontSize: "9pt", color: slate, marginTop: 6 }}>Valid until {fmtDate(proposal.valid_until)}</div>
+                )}
+              </div>
             </div>
-          </div>
 
-          {/* Greeting */}
-          {(() => {
-            const billTo = (contacts as any[]).find((c: any) => c.role === "bill_to");
-            const firstName = billTo?.name?.split(" ")[0] || proposal.client_name?.split(" ")[0];
-            if (!firstName) return null;
-            return (
-              <div style={{ padding: "24px 48px 0", fontSize: "10.5pt", lineHeight: 1.65 }}>
-                <p>{firstName},</p>
+            {/* Greeting */}
+            {billTo && (
+              <div style={{ fontSize: "10.5pt", marginBottom: 24, lineHeight: 1.65 }}>
+                <p>{billTo.name?.split(" ")[0]},</p>
                 <p style={{ marginTop: 8 }}>
                   Thank you for considering us to service your permit needs. Below is a detailed breakdown of the professional services we will provide at this address.
                 </p>
               </div>
-            );
-          })()}
+            )}
 
-          {/* Services */}
-          <div style={{ padding: "28px 48px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-              <div style={{ width: 4, height: 24, background: amber, borderRadius: 2 }} />
-              <h2 style={{ fontSize: "14pt", fontWeight: 800, margin: 0 }}>Scope of Work</h2>
+            {/* ═══ Scope of Work ═══ */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, marginTop: 8 }}>
+              <div style={{ width: 4, height: 28, background: amber, borderRadius: 2 }} />
+              <h2 style={{ fontSize: "15pt", fontWeight: 800, color: charcoal, margin: 0 }}>
+                Scope of Work
+              </h2>
             </div>
 
-            {nonOptional.map((item: any, i: number) => {
+            {/* Service Items */}
+            {nonOptionalItems.map((item: any, i: number) => {
               const bullets = parseBullets(item.description);
               const price = Number(item.total_price || item.quantity * item.unit_price);
+              const note = feeNote(item.fee_type, item.quantity, price);
+              const disciplines: string[] = item.disciplines || [];
+              const disciplineFee = Number(item.discipline_fee) || 0;
               return (
-                <div key={i} style={{ marginBottom: 18, paddingBottom: 16, borderBottom: i < nonOptional.length - 1 ? "1px solid #f1f5f9" : "none" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
-                    <span style={{ fontSize: "11pt", fontWeight: 700 }}>{item.name}</span>
-                    <span style={{ fontSize: "11pt", fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>{fmt(price)}</span>
+                <div key={i} style={{ marginBottom: 20, paddingBottom: 18, borderBottom: i < nonOptionalItems.length - 1 ? "1px solid #e2e8f0" : "none" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                    <span style={{ fontSize: "11pt", fontWeight: 700, color: charcoal }}>{item.name}</span>
+                    <span style={{ fontSize: "11pt", fontWeight: 700, color: charcoal, whiteSpace: "nowrap", fontFamily: "'JetBrains Mono', monospace" }}>{fmt(price)}</span>
                   </div>
-                  {bullets.length > 0 && (
-                    <ul style={{ listStyle: "none", margin: "4px 0 0", padding: 0, fontSize: "9.5pt", color: slate, lineHeight: 1.6 }}>
+                  {bullets.length > 0 ? (
+                    <ul style={{ listStyle: "none", margin: "4px 0 0 0", padding: 0, fontSize: "9.5pt", color: slate, lineHeight: 1.65 }}>
                       {bullets.map((b, bi) => (
-                        <li key={bi} style={{ paddingLeft: 14, position: "relative" }}>
-                          <span style={{ position: "absolute", left: 0, color: amber, fontWeight: 700 }}>›</span>{b}
+                        <li key={bi} style={{ paddingLeft: 16, position: "relative" }}>
+                          <span style={{ position: "absolute", left: 0, color: amber, fontWeight: 700 }}>›</span>
+                          {b}
                         </li>
                       ))}
                     </ul>
+                  ) : item.description ? (
+                    <p style={{ fontSize: "9.5pt", color: slate, lineHeight: 1.6, margin: "4px 0 0" }}>{item.description}</p>
+                  ) : null}
+                  {disciplines.length > 0 && (
+                    <div style={{ marginTop: 8, padding: "8px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }}>
+                      <div style={{ fontSize: "8.5pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: slate, marginBottom: 6 }}>
+                        Disciplines Included
+                        {disciplineFee > 0 && <span style={{ fontWeight: 400, marginLeft: 8 }}>({fmt(disciplineFee)} each)</span>}
+                      </div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                        {disciplines.map((d: string) => (
+                          <span key={d} style={{ fontSize: "8.5pt", padding: "2px 8px", background: "#e2e8f0", borderRadius: 4, color: charcoal, fontWeight: 500 }}>{d}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {note && (
+                    <div style={{ fontSize: "8.5pt", color: amber, fontWeight: 600, marginTop: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                      {note}
+                    </div>
                   )}
                 </div>
               );
             })}
 
-            {optional.length > 0 && (
+            {/* Optional Services */}
+            {optionalItems.length > 0 && (
               <>
-                <h3 style={{ fontSize: "11pt", fontWeight: 700, color: slate, margin: "20px 0 12px" }}>Optional Services</h3>
-                {optional.map((item: any, i: number) => {
+                <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "24px 0 16px" }}>
+                  <div style={{ width: 4, height: 22, background: "#cbd5e1", borderRadius: 2 }} />
+                  <h3 style={{ fontSize: "12pt", fontWeight: 700, color: slate, margin: 0 }}>
+                    Optional Services
+                  </h3>
+                </div>
+                {optionalItems.map((item: any, i: number) => {
+                  const bullets = parseBullets(item.description);
                   const price = Number(item.total_price || item.quantity * item.unit_price);
+                  const disciplines: string[] = item.disciplines || [];
+                  const disciplineFee = Number(item.discipline_fee) || 0;
                   return (
-                    <div key={i} style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, opacity: 0.8 }}>
-                      <span style={{ fontSize: "10pt" }}>{item.name} <span style={{ fontSize: "8pt", color: slate, background: "#f1f5f9", padding: "1px 5px", borderRadius: 3 }}>OPTIONAL</span></span>
-                      <span style={{ fontSize: "10pt", fontFamily: "'JetBrains Mono', monospace" }}>{fmt(price)}</span>
+                    <div key={i} style={{ marginBottom: 16, paddingBottom: 14, borderBottom: i < optionalItems.length - 1 ? "1px dashed #e2e8f0" : "none", opacity: 0.85 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+                        <span style={{ fontSize: "10.5pt", fontWeight: 600 }}>
+                          {item.name}
+                          <span style={{ display: "inline-block", background: "#f1f5f9", border: "1px solid #e2e8f0", fontSize: "7.5pt", padding: "1px 6px", borderRadius: 3, marginLeft: 8, color: slate, textTransform: "uppercase", letterSpacing: 0.5, verticalAlign: "middle" }}>Optional</span>
+                        </span>
+                        <span style={{ fontSize: "10.5pt", fontWeight: 600, whiteSpace: "nowrap", fontFamily: "'JetBrains Mono', monospace" }}>{fmt(price)}</span>
+                      </div>
+                      {bullets.length > 0 ? (
+                        <ul style={{ listStyle: "none", margin: "4px 0 0 0", padding: 0, fontSize: "9pt", color: slate, lineHeight: 1.6 }}>
+                          {bullets.map((b, bi) => (
+                            <li key={bi} style={{ paddingLeft: 16, position: "relative" }}>
+                              <span style={{ position: "absolute", left: 0, color: "#cbd5e1" }}>›</span>
+                              {b}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : item.description ? (
+                        <p style={{ fontSize: "9pt", color: slate, margin: "4px 0 0" }}>{item.description}</p>
+                      ) : null}
+                      {disciplines.length > 0 && (
+                        <div style={{ marginTop: 6, padding: "6px 10px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }}>
+                          <div style={{ fontSize: "8pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: slate, marginBottom: 4 }}>
+                            Disciplines
+                            {disciplineFee > 0 && <span style={{ fontWeight: 400, marginLeft: 6 }}>({fmt(disciplineFee)} each)</span>}
+                          </div>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                            {disciplines.map((d: string) => (
+                              <span key={d} style={{ fontSize: "8pt", padding: "1px 6px", background: "#e2e8f0", borderRadius: 3, color: charcoal, fontWeight: 500 }}>{d}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
               </>
             )}
 
-            {/* Total bar */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: charcoal, color: "#fff", padding: "12px 18px", borderRadius: 6, marginTop: 24 }}>
-              <span style={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, fontSize: "10pt" }}>Total</span>
-              <span style={{ fontSize: "14pt", fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>{fmt(totalAmount)}</span>
+            {/* ═══ Total ═══ */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: charcoal, color: "#fff", padding: "14px 20px", borderRadius: 6, marginTop: 28 }}>
+              <span style={{ fontSize: "12pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Total</span>
+              <span style={{ fontSize: "16pt", fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>{fmt(totalAmount)}</span>
             </div>
 
+            {/* Deposit callout */}
             {depositAmt > 0 && (
-              <div style={{ marginTop: 10, padding: "10px 18px", background: "rgba(245, 158, 11, 0.08)", borderLeft: `3px solid ${amber}`, borderRadius: "0 6px 6px 0", fontSize: "9.5pt" }}>
+              <div style={{ marginTop: 12, padding: "12px 20px", background: "hsl(38, 92%, 50%, 0.08)", borderLeft: `4px solid ${amber}`, borderRadius: "0 6px 6px 0", fontSize: "10pt" }}>
                 <strong>Retainer Due Upon Signing:</strong> {fmt(depositAmt)}
-                {depositPct > 0 && <span style={{ color: slate }}> ({depositPct}% of total)</span>}
+                {depositPct > 0 && <span style={{ color: slate, marginLeft: 6 }}>({depositPct}% of contract total)</span>}
               </div>
             )}
-          </div>
 
-          {/* Terms */}
-          {(proposal.payment_terms || proposal.terms_conditions) && (
-            <div style={{ padding: "0 48px 28px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
-                <h2 style={{ fontSize: "12pt", fontWeight: 800, margin: 0 }}>Terms & Conditions</h2>
-              </div>
-              {proposal.payment_terms && (
-                <div style={{ marginBottom: 12 }}>
-                  <h4 style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 3 }}>Payment Terms</h4>
-                  <p style={{ fontSize: "9pt", color: "#475569", whiteSpace: "pre-wrap", lineHeight: 1.6, margin: 0 }}>{interpolate(proposal.payment_terms)}</p>
-                </div>
-              )}
-              {proposal.terms_conditions && (
-                <div>
-                  {proposal.terms_conditions.split(/\n\n+/).map((block: string, bi: number) => {
-                    const lines = block.split('\n');
-                    const heading = lines[0]?.endsWith(':') ? lines[0] : null;
-                    const body = heading ? lines.slice(1).join('\n') : block;
-                    return (
-                      <div key={bi} style={{ marginBottom: 14 }}>
-                        {heading && <h4 style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 3 }}>{heading}</h4>}
-                        <p style={{ fontSize: "9pt", color: "#475569", whiteSpace: "pre-wrap", lineHeight: 1.6, margin: 0 }}>{interpolate(body)}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ═══ Signature Block — matches internal preview ═══ */}
-          <div style={{ padding: "20px 48px 36px", borderTop: "1px solid #e2e8f0" }}>
-            <p style={{ fontWeight: 600, fontSize: "10pt", color: slate, marginBottom: 4 }}>
-              Please sign the designated space provided below and return a copy
-            </p>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-              <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
-              <h3 style={{ fontSize: "12pt", fontWeight: 800, color: charcoal, margin: 0 }}>Agreed to and accepted by</h3>
-            </div>
-
-            <div style={{ display: "flex", gap: 32 }}>
-              {/* Company side */}
-              <div style={{ flex: 1, padding: "16px 20px", background: "#f8f9fa", borderRadius: 6, border: "1px solid #e2e8f0" }}>
-                <div style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 24, color: charcoal }}>{company?.name || "Company"}</div>
-                <div style={{ borderBottom: `2px solid ${charcoal}`, height: 32, marginBottom: 4 }}>
-                  {proposal.internal_signature_data && (
-                    <img src={proposal.internal_signature_data} alt="Company Signature" style={{ height: 28, objectFit: "contain" }} />
-                  )}
-                </div>
-                <div style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>
-                  <div><strong>By:</strong> {(proposal as any).internal_signer
-                    ? `${(proposal as any).internal_signer.first_name} ${(proposal as any).internal_signer.last_name}`
-                    : ""}</div>
-                  <div><strong>Date:</strong> {proposal.internal_signed_at ? fmtDate(proposal.internal_signed_at) : ""}</div>
-                </div>
-              </div>
-
-              {/* Client side */}
-              <div style={{ flex: 1, padding: "16px 20px", background: "#f8f9fa", borderRadius: 6, border: "1px solid #e2e8f0" }}>
-                <div style={{ fontSize: "10pt", fontWeight: 700, marginBottom: alreadySigned ? 24 : 8, color: charcoal }}>
-                  {(() => {
-                    const bt = (contacts as any[]).find((c: any) => c.role === "bill_to");
-                    return bt?.company_name || proposal.client_name || "Client";
-                  })()}
+            {/* ═══ Terms & Conditions ═══ */}
+            {(proposal.terms_conditions || proposal.payment_terms) && (
+              <div style={{ marginTop: 32 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                  <div style={{ width: 4, height: 24, background: amber, borderRadius: 2 }} />
+                  <h2 style={{ fontSize: "13pt", fontWeight: 800, color: charcoal, margin: 0 }}>Terms & Conditions</h2>
                 </div>
 
-                {alreadySigned ? (
-                  <>
-                    <div style={{ borderBottom: `2px solid ${charcoal}`, height: 32, marginBottom: 4 }}>
-                      {(proposal as any).client_signature_data && (
-                        <img src={(proposal as any).client_signature_data} alt="Client Signature" style={{ height: 28, objectFit: "contain" }} />
-                      )}
-                    </div>
-                    <div style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>
-                      <div><strong>By:</strong> {(proposal as any).client_signed_name || ""}</div>
-                      <div><strong>Date:</strong> {fmtDate(proposal.client_signed_at)}</div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-2 gap-3 mb-3">
-                      <div>
-                        <Label htmlFor="client-name" className="text-xs font-medium" style={{ color: slate }}>Full Name *</Label>
-                        <Input id="client-name" value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Your full name" className="mt-1 h-8 text-sm" />
-                      </div>
-                      <div>
-                        <Label htmlFor="client-title" className="text-xs font-medium" style={{ color: slate }}>Title</Label>
-                        <Input id="client-title" value={clientTitle} onChange={e => setClientTitle(e.target.value)} placeholder="e.g. Property Manager" className="mt-1 h-8 text-sm" />
-                      </div>
-                    </div>
-                    <div className="mb-3">
-                      <div className="flex items-center justify-between mb-1">
-                        <Label className="text-xs font-medium" style={{ color: slate }}>Signature *</Label>
-                        <Button type="button" variant="ghost" size="sm" onClick={clearSig} className="h-6 text-xs px-2">
-                          <RotateCcw className="h-3 w-3 mr-1" /> Clear
-                        </Button>
-                      </div>
-                      <div className="border-2 border-dashed rounded-lg overflow-hidden bg-white" style={{ borderColor: "#e2e8f0" }}>
-                        <canvas
-                          ref={canvasRef}
-                          width={400}
-                          height={120}
-                          className="w-full cursor-crosshair touch-none"
-                          onMouseDown={startDraw}
-                          onMouseMove={draw}
-                          onMouseUp={stopDraw}
-                          onMouseLeave={stopDraw}
-                          onTouchStart={startDraw}
-                          onTouchMove={draw}
-                          onTouchEnd={stopDraw}
-                        />
-                      </div>
-                      <p className="text-xs mt-1" style={{ color: slate }}>Draw your signature above</p>
-                    </div>
-                    <Button
-                      onClick={() => signMutation.mutate()}
-                      disabled={!hasSignature || !clientName || signMutation.isPending}
-                      className="w-full h-9 text-xs font-bold"
-                      style={{ background: amber, color: charcoal }}
-                    >
-                      {signMutation.isPending ? (
-                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing...</>
-                      ) : (
-                        <><PenLine className="mr-2 h-4 w-4" /> Sign & Accept Proposal</>
-                      )}
-                    </Button>
-                  </>
+                {proposal.payment_terms && (
+                  <div style={{ marginBottom: 16 }}>
+                    <h4 style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 4, color: charcoal }}>Payment Schedule</h4>
+                    <p style={{ fontSize: "9.5pt", color: "#475569", whiteSpace: "pre-wrap", lineHeight: 1.65, margin: 0 }}>
+                      {interpolate(proposal.payment_terms)}
+                    </p>
+                  </div>
+                )}
+
+                {proposal.terms_conditions && (
+                  <div>
+                    <p style={{ fontSize: "9.5pt", color: "#475569", whiteSpace: "pre-wrap", lineHeight: 1.65, margin: 0 }}>
+                      {interpolate(proposal.terms_conditions)}
+                    </p>
+                  </div>
                 )}
               </div>
-            </div>
-          </div>
+            )}
 
-          {/* ═══ Deposit Payment Section (shown after signing) ═══ */}
-          {alreadySigned && depositAmt > 0 && (
-            <div style={{ padding: "28px 40px 32px", borderTop: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-                <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
-                <h2 style={{ fontSize: "12pt", fontWeight: 800, margin: 0, color: charcoal }}>Pay Retainer Deposit</h2>
-              </div>
-              <p style={{ fontSize: "9.5pt", color: slate, marginBottom: 16, lineHeight: 1.6 }}>
-                Your retainer of <strong style={{ color: charcoal }}>{fmt(depositAmt)}</strong> is due to begin work. Select a payment method below.
+            {/* ═══ Signature Block — identical layout to internal preview ═══ */}
+            <div style={{ marginTop: 40 }}>
+              <p style={{ fontWeight: 600, fontSize: "10pt", color: slate, marginBottom: 4 }}>
+                Please sign the designated space provided below and return a copy
               </p>
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <button
-                  className="border-2 rounded-lg p-4 text-left hover:border-amber-400 transition-colors group cursor-pointer"
-                  style={{ borderColor: selectedPayment === "card" ? amber : "#e2e8f0", background: selectedPayment === "card" ? "hsl(38, 92%, 50%, 0.06)" : undefined }}
-                  onClick={() => setSelectedPayment("card")}
-                >
-                  <CreditCard className="h-5 w-5 mb-2" style={{ color: amber }} />
-                  <div style={{ fontSize: "10pt", fontWeight: 700, color: charcoal }}>Credit / Debit Card</div>
-                  <div style={{ fontSize: "8.5pt", color: slate, marginTop: 2 }}>Visa, Mastercard, Amex</div>
-                </button>
-                <button
-                  className="border-2 rounded-lg p-4 text-left hover:border-amber-400 transition-colors group cursor-pointer"
-                  style={{ borderColor: selectedPayment === "ach" ? amber : "#e2e8f0", background: selectedPayment === "ach" ? "hsl(38, 92%, 50%, 0.06)" : undefined }}
-                  onClick={() => setSelectedPayment("ach")}
-                >
-                  <Building2 className="h-5 w-5 mb-2" style={{ color: amber }} />
-                  <div style={{ fontSize: "10pt", fontWeight: 700, color: charcoal }}>ACH / Bank Transfer</div>
-                  <div style={{ fontSize: "8.5pt", color: slate, marginTop: 2 }}>Direct from your bank account</div>
-                </button>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
+                <h3 style={{ fontSize: "12pt", fontWeight: 800, color: charcoal, margin: 0 }}>Agreed to and accepted by</h3>
               </div>
-              <div className="rounded-lg p-3 text-center" style={{ background: "#f8f9fa", border: "1px solid #e2e8f0" }}>
-                <p style={{ fontSize: "8.5pt", color: slate }}>
-                  Secure payment processing powered by Stripe. Your information is encrypted and never stored on our servers.
-                </p>
-              </div>
-            </div>
-          )}
 
-          {/* ═══ Project Information Sheet (PIS) Section ═══ */}
-          <div style={{ padding: "28px 40px 32px", borderTop: "1px solid #e2e8f0" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-              <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
-              <h2 style={{ fontSize: "12pt", fontWeight: 800, margin: 0, color: charcoal }}>Project Information Sheet</h2>
-            </div>
-            <p style={{ fontSize: "9.5pt", color: slate, marginBottom: 16, lineHeight: 1.6 }}>
-              To expedite your project, please fill out the Project Information Sheet below. This helps us gather the details we need to begin filing on your behalf.
-            </p>
-            <a
-              href={rfiToken ? `/rfi?token=${rfiToken}` : `/rfi?property=${encodeURIComponent(proposal.properties?.address || "")}&proposal=${proposal.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-between rounded-lg p-4 hover:shadow-md transition-shadow"
-              style={{ background: "hsl(38, 92%, 50%, 0.06)", border: `1px solid hsl(38, 92%, 50%, 0.25)` }}
-            >
-              <div className="flex items-center gap-3">
-                <div className="rounded-full p-2" style={{ background: "hsl(38, 92%, 50%, 0.15)" }}>
-                  <FileText className="h-5 w-5" style={{ color: amber }} />
-                </div>
-                <div>
-                  <div style={{ fontSize: "10pt", fontWeight: 700, color: charcoal }}>Fill Out Project Information Sheet</div>
-                  <div style={{ fontSize: "8.5pt", color: slate, marginTop: 1 }}>
-                    Building details, applicant info, owner details & more
+              <div style={{ display: "flex", gap: 32 }}>
+                {/* Company side — static, shows company signature */}
+                <div style={{ flex: 1, padding: "16px 20px", background: lightBg, borderRadius: 6, border: "1px solid #e2e8f0" }}>
+                  <div style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 24, color: charcoal }}>{company?.name || ""}</div>
+                  <div style={{ borderBottom: `2px solid ${charcoal}`, height: 32, marginBottom: 4 }}>
+                    {proposal.internal_signature_data && (
+                      <img src={proposal.internal_signature_data} alt="Signature" style={{ height: 28, objectFit: "contain" }} />
+                    )}
+                  </div>
+                  <div style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>
+                    <div><strong>By:</strong> {proposal.internal_signer
+                      ? `${proposal.internal_signer.first_name} ${proposal.internal_signer.last_name}`
+                      : ""}</div>
+                    <div><strong>Date:</strong> {proposal.internal_signed_at ? fmtDate(proposal.internal_signed_at) : ""}</div>
                   </div>
                 </div>
+
+                {/* Client side — interactive if unsigned, static if signed */}
+                <div style={{ flex: 1, padding: "16px 20px", background: lightBg, borderRadius: 6, border: `1px solid ${alreadySigned ? "#e2e8f0" : amber}` }}>
+                  <div style={{ fontSize: "10pt", fontWeight: 700, marginBottom: alreadySigned ? 24 : 8, color: charcoal }}>
+                    {billTo?.company_name || proposal.client_name || "Client"}
+                  </div>
+
+                  {alreadySigned ? (
+                    <>
+                      <div style={{ borderBottom: `2px solid ${charcoal}`, height: 32, marginBottom: 4 }}>
+                        {proposal.client_signature_data && (
+                          <img src={proposal.client_signature_data} alt="Client Signature" style={{ height: 28, objectFit: "contain" }} />
+                        )}
+                      </div>
+                      <div style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>
+                        <div><strong>By:</strong> {proposal.client_signed_name || signer?.name || billTo?.name || ""}</div>
+                        <div><strong>Date:</strong> {proposal.client_signed_at ? fmtDate(proposal.client_signed_at) : ""}</div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                        <div style={{ flex: 1 }}>
+                          <Label className="text-xs" style={{ color: slate, fontSize: "8pt" }}>Full Name *</Label>
+                          <Input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Your full name" className="mt-1 h-7 text-xs" />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <Label className="text-xs" style={{ color: slate, fontSize: "8pt" }}>Title</Label>
+                          <Input value={clientTitle} onChange={e => setClientTitle(e.target.value)} placeholder="e.g. Property Manager" className="mt-1 h-7 text-xs" />
+                        </div>
+                      </div>
+                      <div style={{ marginBottom: 8 }}>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs" style={{ color: slate, fontSize: "8pt" }}>Signature *</Label>
+                          <button onClick={clearSig} style={{ fontSize: "7.5pt", color: slate, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}>
+                            <RotateCcw style={{ width: 10, height: 10 }} /> Clear
+                          </button>
+                        </div>
+                        <div style={{ border: "2px dashed #e2e8f0", borderRadius: 6, overflow: "hidden", background: "#fff", marginTop: 4 }}>
+                          <canvas
+                            ref={canvasRef}
+                            width={300}
+                            height={80}
+                            className="w-full cursor-crosshair touch-none"
+                            onMouseDown={startDraw}
+                            onMouseMove={draw}
+                            onMouseUp={stopDraw}
+                            onMouseLeave={stopDraw}
+                            onTouchStart={startDraw}
+                            onTouchMove={draw}
+                            onTouchEnd={stopDraw}
+                          />
+                        </div>
+                      </div>
+                      <Button
+                        onClick={() => signMutation.mutate()}
+                        disabled={!hasSignature || !clientName || signMutation.isPending}
+                        className="w-full h-8 text-xs font-bold"
+                        style={{ background: amber, color: charcoal }}
+                      >
+                        {signMutation.isPending ? (
+                          <><Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> Signing...</>
+                        ) : (
+                          <><PenLine className="mr-1.5 h-3 w-3" /> Sign & Accept</>
+                        )}
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
-              <ArrowRight className="h-4 w-4" style={{ color: amber }} />
-            </a>
+            </div>
+
+            {/* ═══ Footer ═══ */}
+            <div style={{ textAlign: "center", fontSize: "8.5pt", color: slate, marginTop: 36, paddingTop: 12, borderTop: "1px solid #e2e8f0" }}>
+              {company?.address && <div>{company.address}</div>}
+              <div>
+                {company?.phone && <span>Tel: {company.phone}</span>}
+                {company?.fax && <span style={{ marginLeft: 10 }}>Fax: {company.fax}</span>}
+                {company?.email && <span style={{ marginLeft: 10 }}>{company.email}</span>}
+              </div>
+              {company?.website && <div style={{ color: amber, marginTop: 2 }}>{company.website}</div>}
+            </div>
           </div>
         </div>
+
+        {/* ═══ Post-Signing Next Steps — OUTSIDE the contract document ═══ */}
+        {alreadySigned && (
+          <div className="mt-6 space-y-4">
+            {/* Confirmation Banner */}
+            <div className="bg-white shadow-md rounded-lg p-6 text-center">
+              <CheckCircle2 className="h-10 w-10 mx-auto mb-3" style={{ color: "#10b981" }} />
+              <h3 className="text-lg font-bold mb-1" style={{ color: charcoal }}>Proposal Accepted</h3>
+              <p className="text-sm" style={{ color: slate }}>
+                Thank you for signing! Your signed proposal is shown above. The team has been notified and will be in touch shortly.
+              </p>
+            </div>
+
+            {/* Retainer Payment */}
+            {depositAmt > 0 && (
+              <div className="bg-white shadow-md rounded-lg p-6">
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                  <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
+                  <h3 style={{ fontSize: "13pt", fontWeight: 800, margin: 0, color: charcoal }}>Pay Retainer Deposit</h3>
+                </div>
+                <p style={{ fontSize: "9.5pt", color: slate, marginBottom: 16, lineHeight: 1.6 }}>
+                  Your retainer of <strong style={{ color: charcoal }}>{fmt(depositAmt)}</strong> is due to begin work. Select a payment method below.
+                </p>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <button
+                    className="border-2 rounded-lg p-4 text-left hover:border-amber-400 transition-colors cursor-pointer"
+                    style={{ borderColor: selectedPayment === "card" ? amber : "#e2e8f0", background: selectedPayment === "card" ? "hsl(38, 92%, 50%, 0.06)" : undefined }}
+                    onClick={() => setSelectedPayment("card")}
+                  >
+                    <CreditCard className="h-5 w-5 mb-2" style={{ color: amber }} />
+                    <div style={{ fontSize: "10pt", fontWeight: 700, color: charcoal }}>Credit / Debit Card</div>
+                    <div style={{ fontSize: "8.5pt", color: slate, marginTop: 2 }}>Visa, Mastercard, Amex</div>
+                  </button>
+                  <button
+                    className="border-2 rounded-lg p-4 text-left hover:border-amber-400 transition-colors cursor-pointer"
+                    style={{ borderColor: selectedPayment === "ach" ? amber : "#e2e8f0", background: selectedPayment === "ach" ? "hsl(38, 92%, 50%, 0.06)" : undefined }}
+                    onClick={() => setSelectedPayment("ach")}
+                  >
+                    <Building2 className="h-5 w-5 mb-2" style={{ color: amber }} />
+                    <div style={{ fontSize: "10pt", fontWeight: 700, color: charcoal }}>ACH / Bank Transfer</div>
+                    <div style={{ fontSize: "8.5pt", color: slate, marginTop: 2 }}>Direct from your bank account</div>
+                  </button>
+                </div>
+                <div className="rounded-lg p-3 text-center" style={{ background: lightBg, border: "1px solid #e2e8f0" }}>
+                  <p style={{ fontSize: "8.5pt", color: slate }}>
+                    Secure payment processing powered by Stripe. Your information is encrypted and never stored on our servers.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Project Information Sheet */}
+            <div className="bg-white shadow-md rounded-lg p-6">
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
+                <h3 style={{ fontSize: "13pt", fontWeight: 800, margin: 0, color: charcoal }}>Project Information Sheet</h3>
+              </div>
+              <p style={{ fontSize: "9.5pt", color: slate, marginBottom: 16, lineHeight: 1.6 }}>
+                To expedite your project, please fill out the Project Information Sheet below. This helps us gather the details we need to begin filing on your behalf.
+              </p>
+              <a
+                href={rfiToken ? `/rfi?token=${rfiToken}` : `/rfi?property=${encodeURIComponent(proposal.properties?.address || "")}&proposal=${proposal.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between rounded-lg p-4 hover:shadow-md transition-shadow"
+                style={{ background: "hsl(38, 92%, 50%, 0.06)", border: `1px solid hsl(38, 92%, 50%, 0.25)` }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="rounded-full p-2" style={{ background: "hsl(38, 92%, 50%, 0.15)" }}>
+                    <FileText className="h-5 w-5" style={{ color: amber }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "10pt", fontWeight: 700, color: charcoal }}>Fill Out Project Information Sheet</div>
+                    <div style={{ fontSize: "8.5pt", color: slate, marginTop: 1 }}>Building details, applicant info, owner details & more</div>
+                  </div>
+                </div>
+                <ArrowRight className="h-4 w-4" style={{ color: amber }} />
+              </a>
+            </div>
+          </div>
+        )}
+
+        {/* Page footer */}
         <div className="text-center py-6" style={{ fontSize: "8.5pt", color: slate }}>
           {company?.name && <div>{company.name}</div>}
           {company?.address && <div>{company.address}</div>}
