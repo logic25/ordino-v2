@@ -371,9 +371,19 @@ export default function Proposals() {
     }
   };
 
-  const handleOpenSend = (id: string) => {
-    const p = displayProposals.find(pr => pr.id === id);
-    if (p) setSendingProposal(p);
+  const handleOpenSend = async (id: string) => {
+    // Fetch proposal with items for the send dialog
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { data: fullProposal } = await supabase
+      .from("proposals")
+      .select(`
+        *,
+        properties (id, address, borough),
+        items:proposal_items(*)
+      `)
+      .eq("id", id)
+      .single();
+    if (fullProposal) setSendingProposal(fullProposal as any);
   };
 
   const handleConfirmSend = async (id: string) => {

@@ -205,7 +205,7 @@ export function ProposalTable({
                         <Edit className="h-4 w-4 mr-2" />
                         Edit
                       </DropdownMenuItem>
-                      {proposal.status === "draft" && (
+                      {proposal.status === "signed_internal" && (
                         <DropdownMenuItem onClick={() => onSend(proposal.id)}>
                           <Send className="h-4 w-4 mr-2" />
                           Send to Client
