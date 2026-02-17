@@ -624,7 +624,7 @@ export function ProposalDialog({
 
         {/* ── Scrollable body ── */}
         <div className="flex flex-col flex-1 min-h-0">
-          <div className="flex-1 overflow-y-auto">
+          <div className={cn("flex-1", step === 1 ? "overflow-visible" : "overflow-y-auto")}>
 
             {/* ═══ STEP 1: PROPERTY & CONTACTS ═══ */}
             {step === 0 && (
@@ -770,7 +770,7 @@ export function ProposalDialog({
                   <div className="text-right pr-1">Total</div>
                   <div className="w-7" />
                 </div>
-                <div className="overflow-y-auto flex-1">
+                <div className="overflow-y-auto overflow-x-visible flex-1">
                   <div className="border rounded-b-lg mx-4 mb-3">
                     {itemFields.map((field, index) => {
                       const lineTotal = calculateLineTotal(watchedItems[index] || {});
