@@ -76,7 +76,7 @@ export default function RfiForm() {
 
   const rfi = isDemo ? demoRfi : rfiData?.rfi;
   const property = isDemo ? demoProperty : rfiData?.property;
-  const projectData = isDemo ? { building_owner_name: "ABC Realty Corp", gc_company_name: null, gc_contact_name: null, gc_phone: null, gc_email: null } : rfiData?.project;
+  const projectData = isDemo ? { building_owner_name: "ABC Realty Corp", gc_company_name: null, gc_contact_name: null, gc_phone: null, gc_email: null, architect_company_name: null, architect_contact_name: null, architect_phone: null, architect_email: null } : rfiData?.project;
 
   const [currentStep, setCurrentStep] = useState(-1); // -1 = welcome screen
   const [responses, setResponses] = useState<Record<string, any>>({});
@@ -176,31 +176,49 @@ export default function RfiForm() {
   const progress = totalSteps > 0 ? Math.max(0, ((Math.min(currentStep + 1, totalSteps)) / totalSteps) * 100) : 0;
   const currentSection = currentStep >= 0 && currentStep < totalSteps ? sections[currentStep] : null;
 
-  // Pre-populate property data when loaded
+  // Pre-populate property data + project data (applicant, owner, GC) when loaded
   useEffect(() => {
-    if (property && rfi) {
-      const newResponses = { ...responses };
-      const prefillMap: Record<string, string | null> = {
-        project_address: property.address,
-        borough: property.borough,
-        block: property.block,
-        lot: property.lot,
-      };
-      for (const section of rfi.sections) {
-        for (const field of section.fields) {
-          const prefillValue = prefillMap[field.id];
-          if (prefillValue && section.id === "building_and_scope") {
-            const key = `${section.id}_${field.id}`;
-            if (!newResponses[key]) {
-              newResponses[key] = prefillValue;
-            }
-          }
-        }
+    if (!rfi) return;
+    const newResponses = { ...responses };
+    let changed = false;
+
+    const setIfEmpty = (key: string, val: string | null | undefined) => {
+      if (val && !newResponses[key]) {
+        newResponses[key] = val;
+        changed = true;
       }
+    };
+
+    // Property fields
+    if (property) {
+      setIfEmpty("building_and_scope_project_address", property.address);
+      setIfEmpty("building_and_scope_borough", property.borough);
+      setIfEmpty("building_and_scope_block", property.block);
+      setIfEmpty("building_and_scope_lot", property.lot);
+    }
+
+    // Applicant (architect/engineer) from project
+    if (projectData) {
+      setIfEmpty("applicant_and_owner_applicant_name", projectData.architect_contact_name);
+      setIfEmpty("applicant_and_owner_applicant_business_name", projectData.architect_company_name);
+      setIfEmpty("applicant_and_owner_applicant_phone", projectData.architect_phone);
+      setIfEmpty("applicant_and_owner_applicant_email", projectData.architect_email);
+
+      // Building owner
+      setIfEmpty("applicant_and_owner_owner_name", projectData.building_owner_name);
+
+      // GC
+      setIfEmpty("contractors_inspections_gc_name", projectData.gc_contact_name);
+      setIfEmpty("contractors_inspections_gc_company", projectData.gc_company_name);
+      setIfEmpty("contractors_inspections_gc_phone", projectData.gc_phone);
+      setIfEmpty("contractors_inspections_gc_email", projectData.gc_email);
+    }
+
+    if (changed) {
       setResponses(newResponses);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [property, rfi]);
+  }, [property, rfi, projectData]);
 
   const getRepeatCount = (sectionId: string) => repeatCounts[sectionId] || 1;
 

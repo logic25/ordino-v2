@@ -285,7 +285,7 @@ export function useRfiByToken(token: string | null) {
       if (!token) return null;
       const { data, error } = await supabase
         .from("rfi_requests" as any)
-        .select("*, properties(*), projects(building_owner_name, gc_company_name, gc_contact_name, gc_phone, gc_email)")
+        .select("*, properties(*), projects(building_owner_name, gc_company_name, gc_contact_name, gc_phone, gc_email, architect_company_name, architect_contact_name, architect_phone, architect_email)")
         .eq("access_token", token)
         .maybeSingle();
       if (error) throw error;
@@ -294,7 +294,11 @@ export function useRfiByToken(token: string | null) {
       return {
         rfi: rfi as RfiRequest,
         property: properties as { address: string; borough: string | null; block: string | null; lot: string | null } | null,
-        project: projects as { building_owner_name: string | null; gc_company_name: string | null; gc_contact_name: string | null; gc_phone: string | null; gc_email: string | null } | null,
+        project: projects as {
+          building_owner_name: string | null;
+          gc_company_name: string | null; gc_contact_name: string | null; gc_phone: string | null; gc_email: string | null;
+          architect_company_name: string | null; architect_contact_name: string | null; architect_phone: string | null; architect_email: string | null;
+        } | null,
       };
     },
     enabled: !!token,
