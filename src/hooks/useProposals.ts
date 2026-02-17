@@ -519,6 +519,34 @@ export function useSignProposalInternal() {
         } as any);
       }
 
+      // Auto-create welcome RFI linked to proposal so client portal PIS link works
+      try {
+        // Fetch the default PIS template
+        const { data: template } = await supabase
+          .from("rfi_templates")
+          .select("id, sections")
+          .limit(1)
+          .maybeSingle();
+
+        const rfiSections = template?.sections || [];
+
+        await (supabase.from("rfi_requests") as any).insert({
+          company_id: profile.company_id,
+          template_id: template?.id || null,
+          project_id: (project as any).id,
+          proposal_id: id,
+          property_id: proposal.property_id,
+          title: `Project Information Sheet – ${(proposal as any).properties?.address || proposal.title}`,
+          recipient_name: (proposal as any).client_name || null,
+          recipient_email: null,
+          sections: rfiSections,
+          created_by: profile.id,
+          status: "sent",
+        });
+      } catch (rfiErr) {
+        console.error("Error creating welcome RFI:", rfiErr);
+      }
+
       return { proposal: data, project };
     },
     onSuccess: (data) => {
