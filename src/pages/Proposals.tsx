@@ -149,6 +149,7 @@ const MOCK_LEADS: Lead[] = [
     client_type: "homeowner",
     source: "phone_call",
     notes: "Called about ECB summons received last week. Needs help with hearing.",
+    referred_by: null,
     assigned_to: null,
     status: "new",
     proposal_id: null,
@@ -168,6 +169,7 @@ const MOCK_LEADS: Lead[] = [
     client_type: "developer",
     source: "website_form",
     notes: "Submitted via website form. Looking for full permit package for new 4-story residential.",
+    referred_by: null,
     assigned_to: null,
     status: "new",
     proposal_id: null,
@@ -187,6 +189,7 @@ const MOCK_LEADS: Lead[] = [
     client_type: "property_manager",
     source: "email",
     notes: "Emailed about violation on one of their managed properties. Waiting for address details.",
+    referred_by: null,
     assigned_to: null,
     status: "contacted",
     proposal_id: null,
@@ -402,26 +405,24 @@ export default function Proposals() {
 
   const handleSign = async (signatureData: string, assignedPmId: string) => {
     if (!signingProposal) return;
+    const proposalId = signingProposal.id;
     try {
-      const result = await signProposal.mutateAsync({ id: signingProposal.id, signatureData, assignedPmId });
+      await signProposal.mutateAsync({ id: proposalId, signatureData, assignedPmId });
       setSignDialogOpen(false);
       setSigningProposal(null);
 
-      // Auto-send email to client after signing
-      try {
-        const { supabase } = await import("@/integrations/supabase/client");
-        const { data: fullProposal } = await supabase
-          .from("proposals")
-          .select(`*, properties (id, address, borough), items:proposal_items(*)`)
-          .eq("id", signingProposal.id)
-          .single();
+      // Fetch full proposal and open send dialog
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data: fullProposal, error } = await supabase
+        .from("proposals")
+        .select(`*, properties (id, address, borough), items:proposal_items(*)`)
+        .eq("id", proposalId)
+        .single();
 
-        if (fullProposal) {
-          setSendingProposal(fullProposal as any);
-        }
-      } catch {
-        // If fetching fails, just show success without send dialog
-        toast({ title: "Proposal signed!", description: "Project created. Open the proposal to send to client." });
+      if (fullProposal && !error) {
+        setSendingProposal(fullProposal as any);
+      } else {
+        toast({ title: "Proposal signed!", description: "Open the proposal to send to client." });
       }
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to sign proposal.", variant: "destructive" });
@@ -484,6 +485,7 @@ export default function Proposals() {
         client_type: data.client_type,
         source: data.source,
         notes: data.notes,
+        referred_by: data.referred_by || undefined,
         assigned_to: data.assigned_pm_id || undefined,
       };
 

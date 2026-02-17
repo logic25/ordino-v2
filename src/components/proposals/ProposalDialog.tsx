@@ -154,19 +154,20 @@ function ServiceLineItem({
   );
 
   const handleSelectService = (service: ServiceCatalogItem) => {
-    form.setValue(`items.${index}.name`, service.name);
-    form.setValue(`items.${index}.description`, service.description || "");
-    form.setValue(`items.${index}.unit_price`, service.default_price || 0);
-    form.setValue(`items.${index}.estimated_hours`, service.default_hours || 0);
-    form.setValue(`items.${index}.fee_type`, service.default_fee_type || "fixed");
+    const opts = { shouldDirty: true, shouldValidate: false };
+    form.setValue(`items.${index}.name`, service.name, opts);
+    form.setValue(`items.${index}.description`, service.description || "", opts);
+    form.setValue(`items.${index}.unit_price`, service.default_price || 0, opts);
+    form.setValue(`items.${index}.estimated_hours`, service.default_hours || 0, opts);
+    form.setValue(`items.${index}.fee_type`, service.default_fee_type || "fixed", opts);
     if (service.has_discipline_pricing) {
-      form.setValue(`items.${index}.discipline_fee`, service.discipline_fee || 0);
-      form.setValue(`items.${index}.disciplines`, []);
+      form.setValue(`items.${index}.discipline_fee`, service.discipline_fee || 0, opts);
+      form.setValue(`items.${index}.disciplines`, [], opts);
       // Keep expanded for discipline services — user needs to pick disciplines
       setExpanded(true);
     } else {
-      form.setValue(`items.${index}.discipline_fee`, 0);
-      form.setValue(`items.${index}.disciplines`, []);
+      form.setValue(`items.${index}.discipline_fee`, 0, opts);
+      form.setValue(`items.${index}.disciplines`, [], opts);
       setExpanded(false);
     }
     setShowSuggestions(false);

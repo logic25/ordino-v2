@@ -13,6 +13,7 @@ export interface Lead {
   client_type: string | null;
   source: string;
   notes: string | null;
+  referred_by: string | null;
   assigned_to: string | null;
   status: string;
   proposal_id: string | null;
@@ -55,6 +56,7 @@ export function useCreateLead() {
       client_type?: string;
       source: string;
       notes?: string;
+      referred_by?: string;
       assigned_to?: string;
     }) => {
       if (!profile?.company_id) throw new Error("No company");
