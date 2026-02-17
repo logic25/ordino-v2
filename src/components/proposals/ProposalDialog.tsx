@@ -193,7 +193,7 @@ function ServiceLineItem({
               onFocus={() => { if (serviceCatalog.length > 0) setShowSuggestions(true); }}
             />
             {showSuggestions && filtered.length > 0 && (
-              <div ref={suggestionsRef} className="absolute left-0 top-full z-50 w-[340px] bg-popover border rounded-md shadow-lg mt-1 max-h-[200px] overflow-y-auto">
+              <div ref={suggestionsRef} className="absolute left-0 top-full z-[9999] w-[340px] bg-popover border rounded-md shadow-xl mt-1 max-h-[200px] overflow-y-auto">
                 {filtered.map((service) => (
                   <button key={service.id} type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex justify-between items-center border-b last:border-0"
                     onMouseDown={(e) => { e.preventDefault(); handleSelectService(service); }}>
@@ -770,7 +770,7 @@ export function ProposalDialog({
                   <div className="text-right pr-1">Total</div>
                   <div className="w-7" />
                 </div>
-                <div className="overflow-y-auto overflow-x-visible flex-1">
+                <div className="overflow-visible flex-1">
                   <div className="border rounded-b-lg mx-4 mb-3">
                     {itemFields.map((field, index) => {
                       const lineTotal = calculateLineTotal(watchedItems[index] || {});
