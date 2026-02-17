@@ -39,7 +39,7 @@ const DEFAULT_CHECKLIST: Omit<ChecklistItem, "checked">[] = [
   { id: "dep_cert", label: "DEP Sewer Certification (if applicable)", required: false },
   { id: "cc_info", label: "Credit card info for DOB filing fees", required: true },
   { id: "scope_desc", label: "Scope of work description finalized", required: true },
-  { id: "est_cost", label: "Estimated cost confirmed by client", required: false },
+  { id: "est_cost", label: "Estimated cost confirmed by client", required: true },
   { id: "restrictive", label: "Restrictive declaration (if required)", required: false },
 ];
 

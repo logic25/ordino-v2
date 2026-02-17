@@ -274,16 +274,6 @@ export default function RfiForm() {
           if (!val || (typeof val === "string" && val.trim() === "")) return false;
           if (Array.isArray(val) && val.length === 0) return false;
         }
-        // Validate cost fields for work_type_picker
-        if (field.type === "work_type_picker") {
-          const key = getFieldKey(currentSection.id, field.id, r);
-          const selected: string[] = Array.isArray(responses[`${key}_selected`]) ? responses[`${key}_selected`] : [];
-          for (const wt of selected) {
-            const costKey = `${key}_cost_${wt.toLowerCase().replace(/\s+/g, '_')}`;
-            const costVal = responses[costKey];
-            if (!costVal || String(costVal).trim() === "" || Number(costVal) <= 0) return false;
-          }
-        }
       }
     }
     return true;
