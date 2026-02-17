@@ -228,25 +228,65 @@ export function useProjectDocuments(projectId: string | undefined) {
     queryFn: async () => {
       if (!projectId) return [];
 
+      const docs: MockDocument[] = [];
+
+      // 1. Universal documents
       const { data, error } = await (supabase
         .from("universal_documents") as any)
         .select("*")
         .eq("project_id", projectId)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (!error && data) {
+        data.forEach((doc: any) => {
+          docs.push({
+            id: doc.id,
+            name: doc.title || doc.filename,
+            type: doc.mime_type === "application/pdf" ? "PDF" : (doc.mime_type || "File").split("/").pop()?.toUpperCase() || "File",
+            category: doc.category || "other",
+            size: doc.size_bytes ? `${Math.round(doc.size_bytes / 1024)} KB` : "—",
+            uploadedBy: "System",
+            uploadedDate: format(new Date(doc.created_at), "MM/dd/yyyy"),
+            storage_path: doc.storage_path,
+            filename: doc.filename,
+          });
+        });
+      }
 
-      return (data || []).map((doc: any): MockDocument => ({
-        id: doc.id,
-        name: doc.title || doc.filename,
-        type: doc.mime_type === "application/pdf" ? "PDF" : (doc.mime_type || "File").split("/").pop()?.toUpperCase() || "File",
-        category: doc.category || "other",
-        size: doc.size_bytes ? `${Math.round(doc.size_bytes / 1024)} KB` : "—",
-        uploadedBy: "System",
-        uploadedDate: format(new Date(doc.created_at), "MM/dd/yyyy"),
-        storage_path: doc.storage_path,
-        filename: doc.filename,
-      }));
+      // 2. PIS attachments from rfi_requests responses
+      const { data: rfis } = await (supabase.from("rfi_requests") as any)
+        .select("id, responses, created_at")
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (rfis?.responses) {
+        const resp = rfis.responses as Record<string, any>;
+        // Look for file upload fields (arrays of {name, path})
+        for (const [key, val] of Object.entries(resp)) {
+          if (Array.isArray(val)) {
+            val.forEach((file: any) => {
+              if (file && typeof file === "object" && file.path && file.name) {
+                docs.push({
+                  id: `pis-${rfis.id}-${file.name}`,
+                  name: file.name,
+                  type: file.name.split(".").pop()?.toUpperCase() || "File",
+                  category: "plans",
+                  size: "—",
+                  uploadedBy: "PIS Submission",
+                  uploadedDate: format(new Date(rfis.created_at), "MM/dd/yyyy"),
+                  storage_path: file.path,
+                  filename: file.name,
+                  storageBucket: "rfi-attachments",
+                });
+              }
+            });
+          }
+        }
+      }
+
+      return docs;
     },
     enabled: !!projectId,
   });

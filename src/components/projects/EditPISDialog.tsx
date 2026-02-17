@@ -360,11 +360,54 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
                         variant="outline"
                         size="sm"
                         className="ml-auto gap-1.5 h-7 text-xs"
-                        onClick={() => {
-                          toast({
-                            title: "Add Contact",
-                            description: `Navigate to Companies to add "${values[contactNameField!]}" as a contact.`,
-                          });
+                        onClick={async () => {
+                          try {
+                            const { data: profile } = await supabase
+                              .from("profiles")
+                              .select("company_id")
+                              .single();
+                            if (!profile?.company_id) throw new Error("No company found");
+
+                            const contactName = values[contactNameField!];
+                            // Extract related fields from this section
+                            const emailField = section.fields.find(f => f.id.endsWith("_email"));
+                            const phoneField = section.fields.find(f => f.id.endsWith("_phone"));
+                            const companyField = section.fields.find(f => f.id.endsWith("_company") || f.id.endsWith("_business_name"));
+
+                            // Create client (company) record
+                            const { data: newClient, error: clientErr } = await supabase
+                              .from("clients")
+                              .insert({
+                                company_id: profile.company_id,
+                                name: companyField ? (values[companyField.id] || contactName) : contactName,
+                                email: emailField ? values[emailField.id] || null : null,
+                                phone: phoneField ? values[phoneField.id] || null : null,
+                                client_type: section.contactRole || null,
+                              })
+                              .select()
+                              .single();
+                            if (clientErr) throw clientErr;
+
+                            // Create contact under that client
+                            const nameParts = contactName.split(" ");
+                            await supabase.from("client_contacts").insert({
+                              client_id: newClient.id,
+                              company_id: profile.company_id,
+                              name: contactName,
+                              first_name: nameParts[0] || contactName,
+                              last_name: nameParts.slice(1).join(" ") || null,
+                              email: emailField ? values[emailField.id] || null : null,
+                              phone: phoneField ? values[phoneField.id] || null : null,
+                              company_name: companyField ? values[companyField.id] || null : null,
+                              title: section.contactRole || null,
+                              is_primary: true,
+                            });
+
+                            queryClient.invalidateQueries({ queryKey: ["clients"] });
+                            toast({ title: "Contact Added", description: `"${contactName}" has been added to your CRM.` });
+                          } catch (err: any) {
+                            toast({ title: "Error", description: err.message, variant: "destructive" });
+                          }
                         }}
                       >
                         <UserPlus className="h-3 w-3" /> Add to CRM
