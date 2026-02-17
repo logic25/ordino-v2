@@ -319,6 +319,29 @@ export default function RfiForm() {
           submitted_at: new Date().toISOString(),
         })
         .eq("access_token", token);
+
+      // Notify PM that PIS was submitted
+      if (rfi.project_id && rfi.company_id) {
+        // Look up the assigned PM for this project
+        const { data: project } = await supabase
+          .from("projects")
+          .select("assigned_pm_id, name")
+          .eq("id", rfi.project_id)
+          .maybeSingle();
+
+        if (project?.assigned_pm_id) {
+          await supabase.from("notifications").insert({
+            company_id: rfi.company_id,
+            user_id: project.assigned_pm_id,
+            type: "pis_submitted",
+            title: `PIS submitted: ${project.name || rfi.title}`,
+            body: `The client has submitted the Project Information Sheet for ${property?.address || project.name}. Review the responses and update the project.`,
+            link: `/projects/${rfi.project_id}`,
+            project_id: rfi.project_id,
+          } as any);
+        }
+      }
+
       setSubmitted(true);
     } catch (err) {
       console.error("Error submitting RFI:", err);
