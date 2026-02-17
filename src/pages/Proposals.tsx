@@ -521,7 +521,7 @@ export default function Proposals() {
 
   const handleLeadSubmit = async (data: LeadCaptureData) => {
     try {
-      // Always persist the lead
+      // Always persist the lead (including party info)
       const leadData: any = {
         full_name: data.full_name,
         contact_phone: data.contact_phone,
@@ -533,10 +533,26 @@ export default function Proposals() {
         notes: data.notes,
         referred_by: data.referred_by || undefined,
         assigned_to: data.assigned_pm_id || undefined,
+        architect_name: data.architect_name,
+        architect_company: data.architect_company,
+        architect_phone: data.architect_phone,
+        architect_email: data.architect_email,
+        architect_license_type: data.architect_license_type,
+        architect_license_number: data.architect_license_number,
+        gc_name: data.gc_name,
+        gc_company: data.gc_company,
+        gc_phone: data.gc_phone,
+        gc_email: data.gc_email,
+        sia_name: data.sia_name,
+        sia_company: data.sia_company,
+        sia_phone: data.sia_phone,
+        sia_email: data.sia_email,
+        tpp_name: data.tpp_name,
+        tpp_email: data.tpp_email,
       };
 
       if (data.create_proposal) {
-        // Create proposal and link it to the lead
+        // Create proposal and link it to the lead — carry party info forward
         const newProposal = await createProposal.mutateAsync({
           property_id: null as any,
           title: `Lead: ${data.full_name}${data.property_address ? ` – ${data.property_address}` : ""}`,
@@ -551,6 +567,22 @@ export default function Proposals() {
           ].filter(Boolean).join("\n"),
           assigned_pm_id: data.assigned_pm_id || null,
           sales_person_id: data.assigned_pm_id || null,
+          architect_name: data.architect_name || null,
+          architect_company: data.architect_company || null,
+          architect_phone: data.architect_phone || null,
+          architect_email: data.architect_email || null,
+          architect_license_type: data.architect_license_type || null,
+          architect_license_number: data.architect_license_number || null,
+          gc_name: data.gc_name || null,
+          gc_company: data.gc_company || null,
+          gc_phone: data.gc_phone || null,
+          gc_email: data.gc_email || null,
+          sia_name: data.sia_name || null,
+          sia_company: data.sia_company || null,
+          sia_phone: data.sia_phone || null,
+          sia_email: data.sia_email || null,
+          tpp_name: data.tpp_name || null,
+          tpp_email: data.tpp_email || null,
         } as any);
 
         leadData.proposal_id = newProposal.id;

@@ -431,6 +431,23 @@ export function useSignProposalInternal() {
           status: "open",
           created_by: profile.id,
           notes: `Created from proposal ${proposal.proposal_number}`,
+          // Carry forward party info from proposal
+          architect_company_name: (proposal as any).architect_company || null,
+          architect_contact_name: (proposal as any).architect_name || null,
+          architect_phone: (proposal as any).architect_phone || null,
+          architect_email: (proposal as any).architect_email || null,
+          architect_license_type: (proposal as any).architect_license_type || null,
+          architect_license_number: (proposal as any).architect_license_number || null,
+          gc_company_name: (proposal as any).gc_company || null,
+          gc_contact_name: (proposal as any).gc_name || null,
+          gc_phone: (proposal as any).gc_phone || null,
+          gc_email: (proposal as any).gc_email || null,
+          sia_name: (proposal as any).sia_name || null,
+          sia_company: (proposal as any).sia_company || null,
+          sia_phone: (proposal as any).sia_phone || null,
+          sia_email: (proposal as any).sia_email || null,
+          tpp_name: (proposal as any).tpp_name || null,
+          tpp_email: (proposal as any).tpp_email || null,
         } as any)
         .select()
         .single();

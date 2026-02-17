@@ -3366,6 +3366,8 @@ export type Database = {
           architect_company_name: string | null
           architect_contact_name: string | null
           architect_email: string | null
+          architect_license_number: string | null
+          architect_license_type: string | null
           architect_phone: string | null
           assigned_pm_id: string | null
           building_owner_id: string | null
@@ -3399,8 +3401,16 @@ export type Database = {
           retainer_balance: number | null
           retainer_received_date: string | null
           senior_pm_id: string | null
+          sia_company: string | null
+          sia_email: string | null
+          sia_name: string | null
+          sia_number: string | null
+          sia_nys_lic: string | null
+          sia_phone: string | null
           status: Database["public"]["Enums"]["project_status"]
           tenant_name: string | null
+          tpp_email: string | null
+          tpp_name: string | null
           unit_number: string | null
           updated_at: string | null
         }
@@ -3410,6 +3420,8 @@ export type Database = {
           architect_company_name?: string | null
           architect_contact_name?: string | null
           architect_email?: string | null
+          architect_license_number?: string | null
+          architect_license_type?: string | null
           architect_phone?: string | null
           assigned_pm_id?: string | null
           building_owner_id?: string | null
@@ -3443,8 +3455,16 @@ export type Database = {
           retainer_balance?: number | null
           retainer_received_date?: string | null
           senior_pm_id?: string | null
+          sia_company?: string | null
+          sia_email?: string | null
+          sia_name?: string | null
+          sia_number?: string | null
+          sia_nys_lic?: string | null
+          sia_phone?: string | null
           status?: Database["public"]["Enums"]["project_status"]
           tenant_name?: string | null
+          tpp_email?: string | null
+          tpp_name?: string | null
           unit_number?: string | null
           updated_at?: string | null
         }
@@ -3454,6 +3474,8 @@ export type Database = {
           architect_company_name?: string | null
           architect_contact_name?: string | null
           architect_email?: string | null
+          architect_license_number?: string | null
+          architect_license_type?: string | null
           architect_phone?: string | null
           assigned_pm_id?: string | null
           building_owner_id?: string | null
@@ -3487,8 +3509,16 @@ export type Database = {
           retainer_balance?: number | null
           retainer_received_date?: string | null
           senior_pm_id?: string | null
+          sia_company?: string | null
+          sia_email?: string | null
+          sia_name?: string | null
+          sia_number?: string | null
+          sia_nys_lic?: string | null
+          sia_phone?: string | null
           status?: Database["public"]["Enums"]["project_status"]
           tenant_name?: string | null
+          tpp_email?: string | null
+          tpp_name?: string | null
           unit_number?: string | null
           updated_at?: string | null
         }
