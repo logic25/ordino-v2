@@ -212,7 +212,8 @@ export default function ClientProposalPage() {
   const items = proposal.items || [];
   const nonOptional = items.filter((i: any) => !i.is_optional);
   const optional = items.filter((i: any) => i.is_optional);
-  const totalAmount = Number(proposal.total_amount || proposal.subtotal || 0);
+  const nonOptionalTotal = nonOptional.reduce((sum: number, i: any) => sum + Number(i.total_price || i.quantity * i.unit_price || 0), 0);
+  const totalAmount = nonOptionalTotal || Number(proposal.total_amount || proposal.subtotal || 0);
   const depositPct = Number(proposal.deposit_percentage || 0);
   const depositAmt = Number(proposal.deposit_required || 0) || (depositPct > 0 ? totalAmount * (depositPct / 100) : 0);
   const alreadySigned = !!proposal.client_signed_at || signed;
@@ -246,11 +247,8 @@ export default function ClientProposalPage() {
           <div style={{ padding: "32px 40px 24px", borderBottom: "1px solid #e2e8f0" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
-                <h1 style={{ fontSize: "18pt", fontWeight: 800, marginBottom: 4 }}>{proposal.client_name || "Client"}</h1>
+                <h1 style={{ fontSize: "18pt", fontWeight: 800, marginBottom: 4 }}>{proposal.client_name || proposal.title || "Proposal"}</h1>
                 <p style={{ fontSize: "10pt", color: slate }}>{proposal.properties?.address}</p>
-                {proposal.title && proposal.title !== proposal.client_name && (
-                  <p style={{ fontSize: "9pt", color: slate, marginTop: 2 }}>{proposal.title}</p>
-                )}
               </div>
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontSize: "22pt", fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>{fmt(totalAmount)}</div>
