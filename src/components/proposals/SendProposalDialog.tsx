@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Copy, CheckCircle2, ExternalLink, Loader2 } from "lucide-react";
+import { Send, Copy, CheckCircle2, ExternalLink, Loader2, FileText } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { ProposalWithRelations } from "@/hooks/useProposals";
 import { useProposalContacts } from "@/hooks/useProposalContacts";
@@ -15,6 +15,7 @@ interface SendProposalDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirmSend: (id: string) => void;
+  onPreviewPdf?: (proposal: ProposalWithRelations) => void;
   companyName?: string;
 }
 
@@ -128,7 +129,7 @@ function buildProposalEmailHtml({
 </html>`;
 }
 
-export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend, companyName: companyNameProp }: SendProposalDialogProps) {
+export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend, onPreviewPdf, companyName: companyNameProp }: SendProposalDialogProps) {
   const [linkCopied, setLinkCopied] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -296,6 +297,16 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
         </div>
 
         <DialogFooter className="gap-2 pt-2">
+          {onPreviewPdf && proposal && (
+            <Button
+              variant="outline"
+              onClick={() => onPreviewPdf(proposal)}
+              className="mr-auto"
+            >
+              <FileText className="h-4 w-4 mr-1.5" />
+              Preview PDF
+            </Button>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {sent ? "Close" : "Cancel"}
           </Button>

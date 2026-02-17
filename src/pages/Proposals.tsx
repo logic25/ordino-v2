@@ -420,8 +420,10 @@ export default function Proposals() {
         .single();
 
       if (fullProposal && !error) {
+        console.log("[Sign&Send] Opening send dialog for proposal", proposalId, "public_token:", (fullProposal as any).public_token);
         setSendingProposal(fullProposal as any);
       } else {
+        console.error("[Sign&Send] Failed to fetch proposal after signing:", error);
         toast({ title: "Proposal signed!", description: "Open the proposal to send to client." });
       }
     } catch (error: any) {
@@ -845,6 +847,9 @@ export default function Proposals() {
         open={!!sendingProposal}
         onOpenChange={(open) => { if (!open) setSendingProposal(null); }}
         onConfirmSend={handleConfirmSend}
+        onPreviewPdf={(p) => {
+          setPreviewProposal(p);
+        }}
       />
     </AppLayout>
   );
