@@ -105,9 +105,10 @@ export function ProposalTable({
         <TableHeader>
           <TableRow>
             <TableHead className="whitespace-nowrap">Proposal #</TableHead>
-            <TableHead>Property</TableHead>
+             <TableHead>Property</TableHead>
             <TableHead>Title</TableHead>
             <TableHead>Client</TableHead>
+            <TableHead>PM</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Follow-up</TableHead>
             <TableHead className="text-right whitespace-nowrap">Total</TableHead>
@@ -145,6 +146,11 @@ export function ProposalTable({
                       {proposal.client_email}
                     </div>
                   )}
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {(proposal as any).assigned_pm
+                    ? `${(proposal as any).assigned_pm.first_name} ${(proposal as any).assigned_pm.last_name}`
+                    : "-"}
                 </TableCell>
                 <TableCell>
                   <Badge className={statusStyle.className}>
