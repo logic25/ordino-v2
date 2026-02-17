@@ -115,13 +115,14 @@ function ServiceLineItem({
   index: number; form: any; lineTotal: number; serviceCatalog: ServiceCatalogItem[];
   formatCurrency: (v: number) => string; canRemove: boolean; onRemove: () => void; autoFocus?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(!!autoFocus);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const nameInputRef = React.useRef<HTMLInputElement>(null);
   const suggestionsRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (autoFocus) {
+      setExpanded(true);
       setTimeout(() => nameInputRef.current?.focus(), 80);
     }
   }, [autoFocus]);
@@ -160,6 +161,8 @@ function ServiceLineItem({
       form.setValue(`items.${index}.disciplines`, []);
     }
     setShowSuggestions(false);
+    // Auto-collapse after selecting a catalog item (details are filled)
+    setExpanded(false);
   };
 
   return (
@@ -798,7 +801,7 @@ export function ProposalDialog({
 
                 <SectionLabel>Terms & Notes</SectionLabel>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Payment Terms</Label>
+                  <Label className="text-xs text-muted-foreground">Payment Schedule</Label>
                   <Textarea placeholder="e.g., 50% deposit upon signing, balance due upon permit approval" rows={2} className="text-sm" {...form.register("payment_terms")} />
                 </div>
                 <div className="space-y-1.5">
@@ -807,8 +810,9 @@ export function ProposalDialog({
                   <p className="text-xs text-muted-foreground">Default terms can be set in Settings → Company</p>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Internal Notes</Label>
-                  <Textarea placeholder="Notes visible only to your team…" rows={2} className="text-sm" {...form.register("notes")} />
+                  <Label className="text-xs text-muted-foreground">Internal Sales Notes</Label>
+                  <Textarea placeholder="Strategy notes for your team only — e.g., 'Client is price-sensitive, offer 10% if needed'" rows={2} className="text-sm" {...form.register("notes")} />
+                  <p className="text-xs text-muted-foreground">Never shown on proposals or PDFs — internal use only.</p>
                 </div>
               </div>
             )}

@@ -12,6 +12,7 @@ import { ProposalTable } from "@/components/proposals/ProposalTable";
 import { LeadsTable } from "@/components/proposals/LeadsTable";
 import { SignatureDialog } from "@/components/proposals/SignatureDialog";
 import { ProposalApprovalDialog } from "@/components/proposals/ProposalApprovalDialog";
+import { ProposalPreviewModal } from "@/components/proposals/ProposalPreviewModal";
 import { LeadCaptureDialog, type LeadCaptureData } from "@/components/proposals/LeadCaptureDialog";
 import {
   useProposals,
@@ -204,6 +205,7 @@ export default function Proposals() {
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
   const [leadDialogOpen, setLeadDialogOpen] = useState(false);
   const [editingProposal, setEditingProposal] = useState<ProposalWithRelations | null>(null);
+  const [previewProposal, setPreviewProposal] = useState<ProposalWithRelations | null>(null);
   const [signingProposal, setSigningProposal] = useState<ProposalWithRelations | null>(null);
   const [approvingProposal, setApprovingProposal] = useState<ProposalWithRelations | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -335,7 +337,13 @@ export default function Proposals() {
       if (action === "save_send") {
         await handleSend(proposalId);
       }
-      // TODO: "save_preview" — open PDF preview modal when available
+      if (action === "save_preview") {
+        // Re-fetch the proposal to get full data for preview
+        const saved = [...(proposals || []), ...MOCK_PROPOSALS].find(p => p.id === proposalId);
+        if (saved) {
+          setPreviewProposal(saved);
+        }
+      }
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Something went wrong.", variant: "destructive" });
     }
@@ -776,6 +784,13 @@ export default function Proposals() {
         onOpenChange={setLeadDialogOpen}
         onSubmit={handleLeadSubmit}
         isLoading={createLead.isPending || createProposal.isPending}
+      />
+
+      <ProposalPreviewModal
+        proposal={previewProposal}
+        open={!!previewProposal}
+        onOpenChange={(open) => { if (!open) setPreviewProposal(null); }}
+        onSend={handleSend}
       />
     </AppLayout>
   );
