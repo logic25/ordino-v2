@@ -37,7 +37,7 @@ import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Plus, Trash2, X } from "lucide-react";
+import { Loader2, Plus, Trash2, X, Send } from "lucide-react";
 import type { ProposalWithRelations, ProposalFormInput } from "@/hooks/useProposals";
 import { useProperties, useCreateProperty, useUpdateProperty } from "@/hooks/useProperties";
 import { useNYCPropertyLookup } from "@/hooks/useNYCPropertyLookup";
@@ -83,7 +83,7 @@ const proposalSchema = z.object({
   payment_terms: z.string().optional(),
   deposit_required: z.preprocess((v) => (v === "" || v === undefined || v === null ? undefined : Number(v)), z.number().min(0).optional()),
   deposit_percentage: z.preprocess((v) => (v === "" || v === undefined || v === null ? undefined : Number(v)), z.number().min(0).max(100).optional()),
-  retainer_amount: z.preprocess((v) => (v === "" || v === undefined || v === null ? undefined : Number(v)), z.number().min(0).optional()),
+  
   valid_until: z.string().optional(),
   client_id: z.string().optional(),
   client_name: z.string().optional(),
@@ -344,10 +344,12 @@ function StepIndicator({ currentStep, steps }: { currentStep: number; steps: rea
 }
 
 /* ─── Main Dialog ─── */
+export type ProposalSaveAction = "save" | "save_preview" | "save_send";
+
 interface ProposalDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: ProposalFormInput, contacts: ProposalContactInput[]) => Promise<void>;
+  onSubmit: (data: ProposalFormInput, contacts: ProposalContactInput[], action?: ProposalSaveAction) => Promise<void>;
   proposal?: ProposalWithRelations | null;
   isLoading?: boolean;
   defaultPropertyId?: string;
@@ -412,7 +414,7 @@ export function ProposalDialog({
         payment_terms: proposal.payment_terms || "",
         deposit_required: proposal.deposit_required ? Number(proposal.deposit_required) : undefined,
         deposit_percentage: proposal.deposit_percentage ? Number(proposal.deposit_percentage) : undefined,
-        retainer_amount: p.retainer_amount ? Number(p.retainer_amount) : undefined,
+        
         valid_until: proposal.valid_until || "",
         client_id: p.client_id || "", client_name: proposal.client_name || "",
         client_email: proposal.client_email || "", notes: proposal.notes || "",
@@ -492,14 +494,18 @@ export function ProposalDialog({
     setStep(Math.max(step - 1, 0));
   };
 
+  const [pendingAction, setPendingAction] = useState<ProposalSaveAction>("save");
+
   const handleSubmit = async (data: ProposalFormData) => {
     const validItems = data.items.filter(i => i.name && i.name.trim() !== "");
+    const depositPct = Number(data.deposit_percentage) || 0;
+    const computedRetainer = depositPct > 0 ? Math.round(subtotal * depositPct / 100 * 100) / 100 : null;
     const formData: ProposalFormInput = {
       property_id: data.property_id, title: data.title,
       payment_terms: data.payment_terms || null,
       deposit_required: data.deposit_required || null,
       deposit_percentage: data.deposit_percentage || null,
-      retainer_amount: data.retainer_amount || null,
+      retainer_amount: computedRetainer,
       valid_until: data.valid_until || null,
       client_name: data.client_name || null,
       client_email: data.client_email || null,
@@ -518,10 +524,16 @@ export function ProposalDialog({
       })),
       milestones: [],
     };
-    await onSubmit(formData, contacts);
+    await onSubmit(formData, contacts, pendingAction);
     form.reset();
     setContacts([]);
     setStep(0);
+  };
+
+  const doSave = (action: ProposalSaveAction) => {
+    setPendingAction(action);
+    // Need timeout to let state settle before handleSubmit reads it
+    setTimeout(() => form.handleSubmit(handleSubmit)(), 0);
   };
 
   const selectedProperty = properties.find(p => p.id === form.watch("property_id"));
@@ -766,18 +778,21 @@ export function ProposalDialog({
                 </div>
 
                 <SectionLabel>Financial</SectionLabel>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Deposit %</Label>
                     <Input type="number" min="0" max="100" placeholder="50" className="h-9 text-sm" {...form.register("deposit_percentage")} />
+                    {(() => {
+                      const pct = Number(form.watch("deposit_percentage")) || 0;
+                      const retainerAmt = pct > 0 ? subtotal * pct / 100 : 0;
+                      return retainerAmt > 0 ? (
+                        <p className="text-xs text-muted-foreground">Retainer: {formatCurrency(retainerAmt)}</p>
+                      ) : null;
+                    })()}
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Valid Until</Label>
                     <Input type="date" className="h-9 text-sm" {...form.register("valid_until")} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Retainer ($)</Label>
-                    <Input type="number" min="0" step="0.01" placeholder="0.00" className="h-9 text-sm" {...form.register("retainer_amount")} />
                   </div>
                 </div>
 
@@ -824,12 +839,23 @@ export function ProposalDialog({
                   Next <ChevronRightIcon className="h-4 w-4 ml-1" />
                 </Button>
               ) : (
-                <Button type="button" size="sm" disabled={isLoading} className="bg-accent text-accent-foreground hover:bg-accent/90"
-                  onClick={form.handleSubmit(handleSubmit)}>
-                  {isLoading ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isEditing ? "Updating…" : "Creating…"}</>
-                  ) : isEditing ? "Update Proposal" : "Create Proposal"}
-                </Button>
+                <div className="flex items-center gap-1.5">
+                  <Button type="button" size="sm" variant="outline" disabled={isLoading}
+                    onClick={() => doSave("save")}>
+                    {isLoading && pendingAction === "save" ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+                    Save
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" disabled={isLoading}
+                    onClick={() => doSave("save_preview")}>
+                    {isLoading && pendingAction === "save_preview" ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+                    Save & Preview
+                  </Button>
+                  <Button type="button" size="sm" disabled={isLoading} className="bg-accent text-accent-foreground hover:bg-accent/90"
+                    onClick={() => doSave("save_send")}>
+                    {isLoading && pendingAction === "save_send" ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+                    <Send className="h-3.5 w-3.5 mr-1" /> Save & Send
+                  </Button>
+                </div>
               )}
             </div>
           </div>
