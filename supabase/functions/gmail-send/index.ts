@@ -57,10 +57,15 @@ function createMimeMessage({
   const boundary = "boundary_" + Date.now();
   const altBoundary = "alt_boundary_" + Date.now();
 
+  // RFC 2047 encode subject for non-ASCII characters
+  const encodedSubject = /[^\x20-\x7E]/.test(subject)
+    ? `=?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`
+    : subject;
+
   let headers = [
     `To: ${to}`,
     `From: ${from}`,
-    `Subject: ${subject}`,
+    `Subject: ${encodedSubject}`,
     `MIME-Version: 1.0`,
   ];
 
