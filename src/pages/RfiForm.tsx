@@ -643,9 +643,23 @@ export default function RfiForm() {
             <FileText className="h-8 w-8 text-stone-400" />
           </div>
           <h2 className="text-2xl font-bold text-stone-800 mb-3">Form Not Found</h2>
-          <p className="text-stone-500 leading-relaxed">
+          <p className="text-stone-500 leading-relaxed mb-6">
             This link may be expired or invalid. Please contact your project manager for a new link.
           </p>
+          {!isDemo && (
+            <Button
+              variant="outline"
+              className="border-amber-300 text-amber-700 hover:bg-amber-50"
+              onClick={() => {
+                const url = new URL(window.location.href);
+                url.searchParams.set("demo", "true");
+                window.location.href = url.toString();
+              }}
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              Try Demo
+            </Button>
+          )}
         </div>
       </div>
     );
