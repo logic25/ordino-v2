@@ -194,7 +194,7 @@ export function useProjectPISStatus(projectId: string | undefined) {
       if (!projectId) return { sentDate: null, totalFields: 0, completedFields: 0, missingFields: [] };
 
       const { data: rfi } = await (supabase.from("rfi_requests") as any)
-        .select("id, status, created_at, sections, submitted_at")
+        .select("id, status, created_at, sections, responses, submitted_at")
         .eq("project_id", projectId)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -205,15 +205,44 @@ export function useProjectPISStatus(projectId: string | undefined) {
       }
 
       const sections = (rfi.sections as any[]) || [];
-      const totalFields = sections.length;
-      const completedFields = sections.filter((s: any) => s.value || s.completed).length;
-      const missingFields = sections
-        .filter((s: any) => !s.value && !s.completed)
-        .map((s: any) => s.label || s.title || "Unknown field");
+      const responses = (rfi.responses as Record<string, any>) || {};
+
+      // Collect all individual fields from section definitions
+      const allFields: { id: string; label: string; sectionId: string }[] = [];
+      for (const section of sections) {
+        const fields = (section.fields as any[]) || [];
+        for (const field of fields) {
+          if (field.type === "heading") continue;
+          allFields.push({ id: field.id, label: field.label || field.id, sectionId: section.id });
+        }
+      }
+
+      const totalFields = allFields.length || 7;
+
+      // Check which fields have responses (try both flat and prefixed keys)
+      const completedFields = allFields.filter(f => {
+        const flatVal = responses[f.id];
+        const prefixedVal = responses[`${f.sectionId}_${f.id}`];
+        const val = prefixedVal ?? flatVal;
+        if (val === null || val === undefined || val === "") return false;
+        if (Array.isArray(val)) return val.length > 0;
+        return String(val).trim().length > 0;
+      }).length;
+
+      const missingFields = allFields
+        .filter(f => {
+          const flatVal = responses[f.id];
+          const prefixedVal = responses[`${f.sectionId}_${f.id}`];
+          const val = prefixedVal ?? flatVal;
+          if (val === null || val === undefined || val === "") return true;
+          if (Array.isArray(val)) return val.length === 0;
+          return String(val).trim().length === 0;
+        })
+        .map(f => f.label);
 
       return {
         sentDate: format(new Date(rfi.created_at), "MM/dd/yyyy"),
-        totalFields: totalFields || 7,
+        totalFields,
         completedFields,
         missingFields,
       };
