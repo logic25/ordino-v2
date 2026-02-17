@@ -124,6 +124,8 @@ export interface MockDocument {
   uploadedBy: string;
   uploadedDate: string;
   size: string;
+  storage_path?: string;
+  filename?: string;
 }
 
 export interface MockTimeEntry {
