@@ -256,6 +256,8 @@ export default function ClientProposalPage() {
   const depositPct = Number(proposal.deposit_percentage || 0);
   const depositAmt = Number(proposal.deposit_required || 0) || (depositPct > 0 ? totalAmount * (depositPct / 100) : 0);
   const alreadySigned = !!proposal.client_signed_at || signed;
+  const internalSigned = !!proposal.internal_signed_at;
+  const canClientSign = internalSigned && !alreadySigned;
 
   const billTo = (contacts as any[]).find((c: any) => c.role === "bill_to");
   const signer = (contacts as any[]).find((c: any) => c.role === "sign");
@@ -552,6 +554,13 @@ export default function ClientProposalPage() {
                         <div><strong>Date:</strong> {proposal.client_signed_at ? fmtDate(proposal.client_signed_at) : ""}</div>
                       </div>
                     </>
+                  ) : !internalSigned ? (
+                    <div style={{ padding: "12px 0", textAlign: "center" }}>
+                      <Shield className="h-5 w-5 mx-auto mb-2" style={{ color: slate }} />
+                      <p style={{ fontSize: "9pt", color: slate, lineHeight: 1.5 }}>
+                        This proposal is pending internal authorization. You'll be able to sign once it has been reviewed and approved by the team.
+                      </p>
+                    </div>
                   ) : (
                     <>
                       <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
