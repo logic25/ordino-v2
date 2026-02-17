@@ -5098,6 +5098,8 @@ export type Database = {
           filename: string
           id: string
           mime_type: string | null
+          project_id: string | null
+          property_id: string | null
           size_bytes: number | null
           storage_path: string
           tags: string[] | null
@@ -5113,6 +5115,8 @@ export type Database = {
           filename: string
           id?: string
           mime_type?: string | null
+          project_id?: string | null
+          property_id?: string | null
           size_bytes?: number | null
           storage_path: string
           tags?: string[] | null
@@ -5128,6 +5132,8 @@ export type Database = {
           filename?: string
           id?: string
           mime_type?: string | null
+          project_id?: string | null
+          property_id?: string | null
           size_bytes?: number | null
           storage_path?: string
           tags?: string[] | null
@@ -5141,6 +5147,20 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "universal_documents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "universal_documents_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
             referencedColumns: ["id"]
           },
           {

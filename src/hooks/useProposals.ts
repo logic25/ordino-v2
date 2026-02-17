@@ -548,6 +548,25 @@ export function useSignProposalInternal() {
         console.error("Error creating welcome RFI:", rfiErr);
       }
 
+      // Save signed proposal as a project document reference
+      try {
+        await supabase.from("universal_documents").insert({
+          company_id: profile.company_id,
+          title: `Signed Proposal – ${proposal.proposal_number || proposal.title}`,
+          description: `Internally signed proposal contract for ${(proposal as any).properties?.address || proposal.title}`,
+          category: "contract",
+          filename: `Proposal_${proposal.proposal_number || "draft"}_signed.pdf`,
+          storage_path: `proposals/${id}/signed`,
+          mime_type: "application/pdf",
+          uploaded_by: profile.id,
+          project_id: (project as any).id,
+          property_id: proposal.property_id,
+          tags: ["proposal", "signed", "contract"],
+        } as any);
+      } catch (docErr) {
+        console.error("Error saving proposal document reference:", docErr);
+      }
+
       return { proposal: data, project };
     },
     onSuccess: (data) => {
