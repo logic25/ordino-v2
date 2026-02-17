@@ -32,7 +32,8 @@ export default function ClientProposalPage() {
           *,
           properties (id, address, borough),
           items:proposal_items(*),
-          milestones:proposal_milestones(*)
+          milestones:proposal_milestones(*),
+          internal_signer:profiles!proposals_internal_signed_by_fkey(first_name, last_name)
         `)
         .eq("public_token", token)
         .maybeSingle();
@@ -422,86 +423,106 @@ export default function ClientProposalPage() {
             </div>
           )}
 
-          {/* Company signature (already signed) */}
-          {proposal.internal_signature_data && (
-            <div style={{ padding: "0 48px 20px" }}>
-              <div style={{ padding: "16px 20px", background: "#f8f9fa", borderRadius: 6, border: "1px solid #e2e8f0" }}>
-                <div style={{ fontSize: "9pt", fontWeight: 700, color: slate, marginBottom: 8 }}>Signed by {company?.name}</div>
-                <img src={proposal.internal_signature_data} alt="Company Signature" style={{ height: 36, objectFit: "contain" }} />
-                <div style={{ fontSize: "8.5pt", color: slate, marginTop: 6 }}>
-                  Date: {fmtDate(proposal.internal_signed_at)}
+          {/* ═══ Signature Block — matches internal preview ═══ */}
+          <div style={{ padding: "20px 48px 36px", borderTop: "1px solid #e2e8f0" }}>
+            <p style={{ fontWeight: 600, fontSize: "10pt", color: slate, marginBottom: 4 }}>
+              Please sign the designated space provided below and return a copy
+            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+              <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
+              <h3 style={{ fontSize: "12pt", fontWeight: 800, color: charcoal, margin: 0 }}>Agreed to and accepted by</h3>
+            </div>
+
+            <div style={{ display: "flex", gap: 32 }}>
+              {/* Company side */}
+              <div style={{ flex: 1, padding: "16px 20px", background: "#f8f9fa", borderRadius: 6, border: "1px solid #e2e8f0" }}>
+                <div style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 24, color: charcoal }}>{company?.name || "Company"}</div>
+                <div style={{ borderBottom: `2px solid ${charcoal}`, height: 32, marginBottom: 4 }}>
+                  {proposal.internal_signature_data && (
+                    <img src={proposal.internal_signature_data} alt="Company Signature" style={{ height: 28, objectFit: "contain" }} />
+                  )}
                 </div>
+                <div style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>
+                  <div><strong>By:</strong> {(proposal as any).internal_signer
+                    ? `${(proposal as any).internal_signer.first_name} ${(proposal as any).internal_signer.last_name}`
+                    : ""}</div>
+                  <div><strong>Date:</strong> {proposal.internal_signed_at ? fmtDate(proposal.internal_signed_at) : ""}</div>
+                </div>
+              </div>
+
+              {/* Client side */}
+              <div style={{ flex: 1, padding: "16px 20px", background: "#f8f9fa", borderRadius: 6, border: "1px solid #e2e8f0" }}>
+                <div style={{ fontSize: "10pt", fontWeight: 700, marginBottom: alreadySigned ? 24 : 8, color: charcoal }}>
+                  {(() => {
+                    const bt = (contacts as any[]).find((c: any) => c.role === "bill_to");
+                    return bt?.company_name || proposal.client_name || "Client";
+                  })()}
+                </div>
+
+                {alreadySigned ? (
+                  <>
+                    <div style={{ borderBottom: `2px solid ${charcoal}`, height: 32, marginBottom: 4 }}>
+                      {(proposal as any).client_signature_data && (
+                        <img src={(proposal as any).client_signature_data} alt="Client Signature" style={{ height: 28, objectFit: "contain" }} />
+                      )}
+                    </div>
+                    <div style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>
+                      <div><strong>By:</strong> {(proposal as any).client_signed_name || ""}</div>
+                      <div><strong>Date:</strong> {fmtDate(proposal.client_signed_at)}</div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                      <div>
+                        <Label htmlFor="client-name" className="text-xs font-medium" style={{ color: slate }}>Full Name *</Label>
+                        <Input id="client-name" value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Your full name" className="mt-1 h-8 text-sm" />
+                      </div>
+                      <div>
+                        <Label htmlFor="client-title" className="text-xs font-medium" style={{ color: slate }}>Title</Label>
+                        <Input id="client-title" value={clientTitle} onChange={e => setClientTitle(e.target.value)} placeholder="e.g. Property Manager" className="mt-1 h-8 text-sm" />
+                      </div>
+                    </div>
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <Label className="text-xs font-medium" style={{ color: slate }}>Signature *</Label>
+                        <Button type="button" variant="ghost" size="sm" onClick={clearSig} className="h-6 text-xs px-2">
+                          <RotateCcw className="h-3 w-3 mr-1" /> Clear
+                        </Button>
+                      </div>
+                      <div className="border-2 border-dashed rounded-lg overflow-hidden bg-white" style={{ borderColor: "#e2e8f0" }}>
+                        <canvas
+                          ref={canvasRef}
+                          width={400}
+                          height={120}
+                          className="w-full cursor-crosshair touch-none"
+                          onMouseDown={startDraw}
+                          onMouseMove={draw}
+                          onMouseUp={stopDraw}
+                          onMouseLeave={stopDraw}
+                          onTouchStart={startDraw}
+                          onTouchMove={draw}
+                          onTouchEnd={stopDraw}
+                        />
+                      </div>
+                      <p className="text-xs mt-1" style={{ color: slate }}>Draw your signature above</p>
+                    </div>
+                    <Button
+                      onClick={() => signMutation.mutate()}
+                      disabled={!hasSignature || !clientName || signMutation.isPending}
+                      className="w-full h-9 text-xs font-bold"
+                      style={{ background: amber, color: charcoal }}
+                    >
+                      {signMutation.isPending ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing...</>
+                      ) : (
+                        <><PenLine className="mr-2 h-4 w-4" /> Sign & Accept Proposal</>
+                      )}
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
-          )}
-
-          {/* Client Signature Section */}
-          <div style={{ padding: "20px 48px 36px", borderTop: "1px solid #e2e8f0" }}>
-            {alreadySigned ? (
-              <div className="text-center py-8">
-                <CheckCircle2 className="h-12 w-12 mx-auto mb-3" style={{ color: "#10b981" }} />
-                <h3 className="text-lg font-bold mb-1">Proposal Signed</h3>
-                <p className="text-sm" style={{ color: slate }}>
-                  Thank you! This proposal was signed on {fmtDate(proposal.client_signed_at)}.
-                </p>
-              </div>
-            ) : (
-              <>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-                  <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
-                  <h2 style={{ fontSize: "12pt", fontWeight: 800, margin: 0 }}>Your Signature</h2>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <Label htmlFor="client-name" className="text-xs font-medium" style={{ color: slate }}>Full Name *</Label>
-                    <Input id="client-name" value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Your full name" className="mt-1" />
-                  </div>
-                  <div>
-                    <Label htmlFor="client-title" className="text-xs font-medium" style={{ color: slate }}>Title</Label>
-                    <Input id="client-title" value={clientTitle} onChange={e => setClientTitle(e.target.value)} placeholder="e.g. Property Manager" className="mt-1" />
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-1">
-                    <Label className="text-xs font-medium" style={{ color: slate }}>Signature *</Label>
-                    <Button type="button" variant="ghost" size="sm" onClick={clearSig} className="h-7 text-xs">
-                      <RotateCcw className="h-3 w-3 mr-1" /> Clear
-                    </Button>
-                  </div>
-                  <div className="border-2 border-dashed rounded-lg overflow-hidden bg-white" style={{ borderColor: "#e2e8f0" }}>
-                    <canvas
-                      ref={canvasRef}
-                      width={600}
-                      height={160}
-                      className="w-full cursor-crosshair touch-none"
-                      onMouseDown={startDraw}
-                      onMouseMove={draw}
-                      onMouseUp={stopDraw}
-                      onMouseLeave={stopDraw}
-                      onTouchStart={startDraw}
-                      onTouchMove={draw}
-                      onTouchEnd={stopDraw}
-                    />
-                  </div>
-                  <p className="text-xs mt-1" style={{ color: slate }}>Draw your signature above</p>
-                </div>
-
-                <Button
-                  onClick={() => signMutation.mutate()}
-                  disabled={!hasSignature || !clientName || signMutation.isPending}
-                  className="w-full h-11 text-sm font-bold"
-                  style={{ background: amber, color: charcoal }}
-                >
-                  {signMutation.isPending ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing...</>
-                  ) : (
-                    <><PenLine className="mr-2 h-4 w-4" /> Sign & Accept Proposal</>
-                  )}
-                </Button>
-              </>
-            )}
           </div>
 
           {/* ═══ Deposit Payment Section (shown after signing) ═══ */}
