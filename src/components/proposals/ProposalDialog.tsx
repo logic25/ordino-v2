@@ -39,6 +39,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Plus, Trash2, X, Send } from "lucide-react";
 import type { ProposalWithRelations, ProposalFormInput } from "@/hooks/useProposals";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useProperties, useCreateProperty, useUpdateProperty } from "@/hooks/useProperties";
 import { useNYCPropertyLookup } from "@/hooks/useNYCPropertyLookup";
 import { useClients, useCreateClient, Client } from "@/hooks/useClients";
@@ -380,6 +382,28 @@ export function ProposalDialog({
 
   const { data: existingContacts = [] } = useProposalContacts(proposal?.id);
 
+  // Fetch proposal items separately since the list query doesn't include them
+  const { data: fetchedItems } = useQuery({
+    queryKey: ["proposal-items", proposal?.id],
+    queryFn: async () => {
+      if (!proposal?.id) return [];
+      const { data, error } = await supabase
+        .from("proposal_items")
+        .select("*")
+        .eq("proposal_id", proposal.id)
+        .order("sort_order");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!proposal?.id,
+  });
+
+  // Merge fetched items into proposal for the form reset
+  const proposalWithItems = proposal ? {
+    ...proposal,
+    items: (proposal.items && proposal.items.length > 0) ? proposal.items : (fetchedItems || []),
+  } : null;
+
   useEffect(() => {
     if (proposal && existingContacts.length > 0) {
       setContacts(existingContacts.map(c => ({
@@ -411,23 +435,23 @@ export function ProposalDialog({
   });
 
   useEffect(() => {
-    if (proposal) {
-      const p = proposal as any;
+    if (proposalWithItems) {
+      const p = proposalWithItems as any;
       form.reset({
-        property_id: proposal.property_id || "", title: proposal.title || "",
-        payment_terms: proposal.payment_terms || "",
-        deposit_required: proposal.deposit_required ? Number(proposal.deposit_required) : undefined,
-        deposit_percentage: proposal.deposit_percentage ? Number(proposal.deposit_percentage) : undefined,
+        property_id: proposalWithItems.property_id || "", title: proposalWithItems.title || "",
+        payment_terms: proposalWithItems.payment_terms || "",
+        deposit_required: proposalWithItems.deposit_required ? Number(proposalWithItems.deposit_required) : undefined,
+        deposit_percentage: proposalWithItems.deposit_percentage ? Number(proposalWithItems.deposit_percentage) : undefined,
         
-        valid_until: proposal.valid_until || "",
-        client_id: p.client_id || "", client_name: proposal.client_name || "",
-        client_email: proposal.client_email || "", notes: proposal.notes || "",
+        valid_until: proposalWithItems.valid_until || "",
+        client_id: p.client_id || "", client_name: proposalWithItems.client_name || "",
+        client_email: proposalWithItems.client_email || "", notes: proposalWithItems.notes || "",
         terms_conditions: p.terms_conditions || defaultTerms,
         lead_source: p.lead_source || "", project_type: p.project_type || "",
         sales_person_id: p.sales_person_id || "", billed_to_name: p.billed_to_name || "",
         billed_to_email: p.billed_to_email || "", reminder_date: p.reminder_date || "",
         notable: p.notable || false,
-        items: proposal.items?.length ? proposal.items.map(i => ({
+        items: proposalWithItems.items?.length ? proposalWithItems.items.map(i => ({
           id: i.id, name: i.name, description: i.description || "",
           quantity: Number(i.quantity), unit_price: Number(i.unit_price),
           estimated_hours: Number((i as any).estimated_hours) || 0,
@@ -435,9 +459,8 @@ export function ProposalDialog({
           fee_type: (i as any).fee_type || "fixed", sort_order: i.sort_order ?? undefined,
         })) : [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0, fee_type: "fixed" }],
       });
-      // When editing, start on services step since property/contact are already set
       setStep(0);
-    } else {
+    } else if (!proposal) {
       form.reset({
         property_id: defaultPropertyId || "", title: "", payment_terms: "",
         deposit_required: undefined, deposit_percentage: undefined,
@@ -450,7 +473,7 @@ export function ProposalDialog({
       setContacts([]);
       setStep(0);
     }
-  }, [proposal, form, defaultPropertyId, defaultTerms]);
+  }, [proposalWithItems, proposal, form, defaultPropertyId, defaultTerms]);
 
   const watchedItems = form.watch("items");
 
