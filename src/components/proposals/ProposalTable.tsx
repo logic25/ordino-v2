@@ -14,6 +14,8 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
@@ -25,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Edit, Trash2, Send, PenLine, Eye, Loader2, CheckCircle2, Clock, X, Phone, Bell, FileText } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, Send, PenLine, Eye, Loader2, CheckCircle2, Clock, X, Phone, Bell, FileText, Settings2 } from "lucide-react";
 import { useState } from "react";
 import type { ProposalWithRelations } from "@/hooks/useProposals";
 import { format, isPast, parseISO } from "date-fns";
@@ -57,6 +59,33 @@ const STATUS_STYLES: Record<string, { label: string; className: string }> = {
   expired: { label: "Expired", className: "bg-stone-100 text-stone-600 border-transparent dark:bg-stone-800/40 dark:text-stone-400" },
 };
 
+type ColumnKey = "proposal_number" | "property" | "title" | "client" | "pm" | "status" | "follow_up" | "total" | "creator" | "created";
+
+const ALL_COLUMNS: { key: ColumnKey; label: string }[] = [
+  { key: "proposal_number", label: "Proposal #" },
+  { key: "property", label: "Property" },
+  { key: "title", label: "Title" },
+  { key: "client", label: "Client" },
+  { key: "pm", label: "PM" },
+  { key: "status", label: "Status" },
+  { key: "follow_up", label: "Follow-up" },
+  { key: "total", label: "Total" },
+  { key: "creator", label: "Creator" },
+  { key: "created", label: "Created" },
+];
+
+const DEFAULT_VISIBLE: ColumnKey[] = ["proposal_number", "property", "title", "client", "pm", "status", "follow_up", "total", "creator", "created"];
+
+const STORAGE_KEY = "proposal-table-columns";
+
+function loadVisibleColumns(): Set<ColumnKey> {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) return new Set(JSON.parse(stored) as ColumnKey[]);
+  } catch {}
+  return new Set(DEFAULT_VISIBLE);
+}
+
 export function ProposalTable({
   proposals,
   onEdit,
@@ -73,6 +102,23 @@ export function ProposalTable({
   isSending,
 }: ProposalTableProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [visibleCols, setVisibleCols] = useState<Set<ColumnKey>>(loadVisibleColumns);
+
+  const toggleColumn = (key: ColumnKey) => {
+    setVisibleCols(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        if (next.size <= 3) return prev; // minimum 3 columns
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  };
+
+  const show = (key: ColumnKey) => visibleCols.has(key);
 
   const formatCurrency = (value: number | null) => {
     if (!value) return "-";
@@ -101,19 +147,43 @@ export function ProposalTable({
   return (
     <>
       <div className="overflow-x-auto">
+        <div className="flex justify-end mb-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs">
+                <Settings2 className="h-3.5 w-3.5" />
+                Columns
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuLabel className="text-xs">Toggle columns</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {ALL_COLUMNS.map(col => (
+                <DropdownMenuCheckboxItem
+                  key={col.key}
+                  checked={visibleCols.has(col.key)}
+                  onCheckedChange={() => toggleColumn(col.key)}
+                  className="text-xs"
+                >
+                  {col.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="whitespace-nowrap">Proposal #</TableHead>
-             <TableHead>Property</TableHead>
-            <TableHead>Title</TableHead>
-            <TableHead>Client</TableHead>
-            <TableHead>PM</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Follow-up</TableHead>
-            <TableHead className="text-right whitespace-nowrap">Total</TableHead>
-            <TableHead>Creator</TableHead>
-            <TableHead>Created</TableHead>
+            {show("proposal_number") && <TableHead className="whitespace-nowrap">Proposal #</TableHead>}
+            {show("property") && <TableHead>Property</TableHead>}
+            {show("title") && <TableHead>Title</TableHead>}
+            {show("client") && <TableHead>Client</TableHead>}
+            {show("pm") && <TableHead>PM</TableHead>}
+            {show("status") && <TableHead>Status</TableHead>}
+            {show("follow_up") && <TableHead>Follow-up</TableHead>}
+            {show("total") && <TableHead className="text-right whitespace-nowrap">Total</TableHead>}
+            {show("creator") && <TableHead>Creator</TableHead>}
+            {show("created") && <TableHead>Created</TableHead>}
             <TableHead className="w-[60px]"></TableHead>
           </TableRow>
         </TableHeader>
@@ -123,73 +193,93 @@ export function ProposalTable({
 
             return (
               <TableRow key={proposal.id}>
-                <TableCell className="font-mono text-sm">
-                  {proposal.proposal_number || "-"}
-                </TableCell>
-                <TableCell>
-                  <div className="max-w-[200px] truncate">
-                    {proposal.properties?.address || "-"}
-                  </div>
-                  {proposal.properties?.borough && (
-                    <div className="text-xs text-muted-foreground">
-                      {proposal.properties.borough}
+                {show("proposal_number") && (
+                  <TableCell className="font-mono text-sm">
+                    {proposal.proposal_number || "-"}
+                  </TableCell>
+                )}
+                {show("property") && (
+                  <TableCell>
+                    <div className="max-w-[200px] truncate">
+                      {proposal.properties?.address || "-"}
                     </div>
-                  )}
-                </TableCell>
-                <TableCell className="font-medium">
-                  {proposal.title}
-                </TableCell>
-                <TableCell>
-                  {proposal.client_name || "-"}
-                  {proposal.client_email && (
-                    <div className="text-xs text-muted-foreground">
-                      {proposal.client_email}
-                    </div>
-                  )}
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {(proposal as any).assigned_pm
-                    ? `${(proposal as any).assigned_pm.first_name} ${(proposal as any).assigned_pm.last_name}`
-                    : "-"}
-                </TableCell>
-                <TableCell>
-                  <Badge className={statusStyle.className}>
-                    {statusStyle.label}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  {(() => {
-                    const nextDate = (proposal as any).next_follow_up_date;
-                    const dismissed = (proposal as any).follow_up_dismissed_at;
-                    const count = (proposal as any).follow_up_count || 0;
-                    if (!nextDate || dismissed) return <span className="text-xs text-muted-foreground">—</span>;
-                    const isOverdue = isPast(parseISO(nextDate));
-                    return (
-                      <div className="flex items-center gap-1">
-                        <Bell className={`h-3.5 w-3.5 ${isOverdue ? "text-destructive" : "text-muted-foreground"}`} />
-                        <span className={`text-xs ${isOverdue ? "text-destructive font-medium" : "text-muted-foreground"}`}>
-                          {format(parseISO(nextDate), "MMM d")}
-                        </span>
-                        {count > 0 && (
-                          <span className="text-[10px] text-muted-foreground">(×{count})</span>
-                        )}
+                    {proposal.properties?.borough && (
+                      <div className="text-xs text-muted-foreground">
+                        {proposal.properties.borough}
                       </div>
-                    );
-                  })()}
-                </TableCell>
-                <TableCell className="text-right font-medium">
-                  {formatCurrency(Number(proposal.total_amount))}
-                </TableCell>
-                <TableCell className="text-sm font-medium text-primary">
-                  {(proposal as any).creator
-                    ? `${(proposal as any).creator.first_name} ${(proposal as any).creator.last_name}`
-                    : "-"}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {proposal.created_at
-                    ? format(new Date(proposal.created_at), "MMM d, yyyy")
-                    : "-"}
-                </TableCell>
+                    )}
+                  </TableCell>
+                )}
+                {show("title") && (
+                  <TableCell className="font-medium">
+                    {proposal.title}
+                  </TableCell>
+                )}
+                {show("client") && (
+                  <TableCell>
+                    {proposal.client_name || "-"}
+                    {proposal.client_email && (
+                      <div className="text-xs text-muted-foreground">
+                        {proposal.client_email}
+                      </div>
+                    )}
+                  </TableCell>
+                )}
+                {show("pm") && (
+                  <TableCell className="text-sm text-muted-foreground">
+                    {(proposal as any).assigned_pm
+                      ? `${(proposal as any).assigned_pm.first_name} ${(proposal as any).assigned_pm.last_name}`
+                      : "-"}
+                  </TableCell>
+                )}
+                {show("status") && (
+                  <TableCell>
+                    <Badge className={statusStyle.className}>
+                      {statusStyle.label}
+                    </Badge>
+                  </TableCell>
+                )}
+                {show("follow_up") && (
+                  <TableCell>
+                    {(() => {
+                      const nextDate = (proposal as any).next_follow_up_date;
+                      const dismissed = (proposal as any).follow_up_dismissed_at;
+                      const count = (proposal as any).follow_up_count || 0;
+                      if (!nextDate || dismissed) return <span className="text-xs text-muted-foreground">—</span>;
+                      const isOverdue = isPast(parseISO(nextDate));
+                      return (
+                        <div className="flex items-center gap-1">
+                          <Bell className={`h-3.5 w-3.5 ${isOverdue ? "text-destructive" : "text-muted-foreground"}`} />
+                          <span className={`text-xs ${isOverdue ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                            {format(parseISO(nextDate), "MMM d")}
+                          </span>
+                          {count > 0 && (
+                            <span className="text-[10px] text-muted-foreground">(×{count})</span>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </TableCell>
+                )}
+                {show("total") && (
+                  <TableCell className="text-right font-medium">
+                    {formatCurrency(Number(proposal.total_amount))}
+                  </TableCell>
+                )}
+                {show("creator") && (
+                  <TableCell className="text-sm font-medium text-primary">
+                    {(proposal as any).creator
+                      ? `${(proposal as any).creator.first_name} ${(proposal as any).creator.last_name}`
+                      : "-"}
+                  </TableCell>
+                )}
+                {show("created") && (
+                  <TableCell className="text-muted-foreground">
+                    {proposal.created_at
+                      ? format(new Date(proposal.created_at), "MMM d, yyyy")
+                      : "-"}
+                  </TableCell>
+                )}
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
