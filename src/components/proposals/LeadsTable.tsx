@@ -180,6 +180,11 @@ export function LeadsTable({ leads, onDelete, onConvertToProposal, onUpdateLead,
                     <Badge variant="outline" className="text-xs">
                       {SOURCE_LABELS[lead.source] || lead.source}
                     </Badge>
+                    {lead.referred_by && (
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        via {lead.referred_by}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge variant={statusOption.variant}>{statusOption.label}</Badge>

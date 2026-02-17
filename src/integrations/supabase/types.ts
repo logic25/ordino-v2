@@ -2694,6 +2694,7 @@ export type Database = {
           notes: string | null
           property_address: string | null
           proposal_id: string | null
+          referred_by: string | null
           source: string
           status: string
           subject: string | null
@@ -2712,6 +2713,7 @@ export type Database = {
           notes?: string | null
           property_address?: string | null
           proposal_id?: string | null
+          referred_by?: string | null
           source?: string
           status?: string
           subject?: string | null
@@ -2730,6 +2732,7 @@ export type Database = {
           notes?: string | null
           property_address?: string | null
           proposal_id?: string | null
+          referred_by?: string | null
           source?: string
           status?: string
           subject?: string | null

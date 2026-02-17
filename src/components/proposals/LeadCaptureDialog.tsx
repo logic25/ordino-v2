@@ -31,7 +31,7 @@ export interface LeadCaptureData {
   contact_email?: string;
   property_address?: string;
   subject?: string;
-  
+  referred_by?: string;
   notes?: string;
   assigned_pm_id?: string;
   client_type?: string;
@@ -69,7 +69,7 @@ export function LeadCaptureDialog({ open, onOpenChange, onSubmit, isLoading }: L
   const [contactEmail, setContactEmail] = useState("");
   const [propertyAddress, setPropertyAddress] = useState("");
   const [subject, setSubject] = useState("");
-  
+  const [referredBy, setReferredBy] = useState("");
   const [notes, setNotes] = useState("");
   const [assignedPmId, setAssignedPmId] = useState("");
   const [clientType, setClientType] = useState("");
@@ -91,7 +91,7 @@ export function LeadCaptureDialog({ open, onOpenChange, onSubmit, isLoading }: L
       contact_email: contactEmail || undefined,
       property_address: propertyAddress || undefined,
       subject: subject || undefined,
-      
+      referred_by: referredBy || undefined,
       notes: notes || undefined,
       assigned_pm_id: assignedPmId || undefined,
       client_type: clientType || undefined,
@@ -103,7 +103,7 @@ export function LeadCaptureDialog({ open, onOpenChange, onSubmit, isLoading }: L
     setContactEmail("");
     setPropertyAddress("");
     setSubject("");
-    
+    setReferredBy("");
     setNotes("");
     setAssignedPmId("");
     setClientType("");
@@ -141,6 +141,19 @@ export function LeadCaptureDialog({ open, onOpenChange, onSubmit, isLoading }: L
               ))}
             </div>
           </div>
+
+          {/* Referred By — shown when source contains "referral" */}
+          {source.toLowerCase().includes("referral") && (
+            <div className="space-y-1.5">
+              <Label htmlFor="lead-referred-by">Referred By</Label>
+              <Input
+                id="lead-referred-by"
+                placeholder="Name of person or company who referred..."
+                value={referredBy}
+                onChange={(e) => setReferredBy(e.target.value)}
+              />
+            </div>
+          )}
 
           {/* Client Type — moved to top */}
           <div className="space-y-1.5">
