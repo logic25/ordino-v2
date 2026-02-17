@@ -464,6 +464,9 @@ export function ProposalDialog({
           estimated_hours: Number((i as any).estimated_hours) || 0,
           discount_percent: Number((i as any).discount_percent) || 0,
           fee_type: (i as any).fee_type || "fixed", sort_order: i.sort_order ?? undefined,
+          is_optional: (i as any).is_optional || false,
+          disciplines: (i as any).disciplines || [],
+          discipline_fee: Number((i as any).discipline_fee) || 0,
         })) : [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0, fee_type: "fixed" }],
       });
       setStep(0);
@@ -575,6 +578,8 @@ export function ProposalDialog({
           estimated_hours: item.estimated_hours || null,
           discount_percent: item.discount_percent || null,
           is_optional: item.is_optional || false,
+          disciplines: item.disciplines || null,
+          discipline_fee: item.discipline_fee || null,
         })),
       milestones: [],
     };

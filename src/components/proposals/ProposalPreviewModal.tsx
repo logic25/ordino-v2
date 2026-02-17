@@ -274,6 +274,8 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                 const bullets = parseBullets(item.description);
                 const price = Number(item.total_price || item.quantity * item.unit_price);
                 const note = feeNote(item.fee_type, item.quantity, price);
+                const disciplines: string[] = item.disciplines || [];
+                const disciplineFee = Number(item.discipline_fee) || 0;
                 return (
                   <div key={i} style={{ marginBottom: 20, paddingBottom: 18, borderBottom: i < nonOptionalItems.length - 1 ? "1px solid #e2e8f0" : "none" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
@@ -292,6 +294,19 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                     ) : item.description ? (
                       <p style={{ fontSize: "9.5pt", color: slate, lineHeight: 1.6, margin: "4px 0 0" }}>{item.description}</p>
                     ) : null}
+                    {disciplines.length > 0 && (
+                      <div style={{ marginTop: 8, padding: "8px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }}>
+                        <div style={{ fontSize: "8.5pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: slate, marginBottom: 6 }}>
+                          Disciplines Included
+                          {disciplineFee > 0 && <span style={{ fontWeight: 400, marginLeft: 8 }}>({fmt(disciplineFee)} each)</span>}
+                        </div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                          {disciplines.map((d: string) => (
+                            <span key={d} style={{ fontSize: "8.5pt", padding: "2px 8px", background: "#e2e8f0", borderRadius: 4, color: charcoal, fontWeight: 500 }}>{d}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     {note && (
                       <div style={{ fontSize: "8.5pt", color: amber, fontWeight: 600, marginTop: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
                         {note}
@@ -313,6 +328,8 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                   {optionalItems.map((item: any, i: number) => {
                     const bullets = parseBullets(item.description);
                     const price = Number(item.total_price || item.quantity * item.unit_price);
+                    const disciplines: string[] = item.disciplines || [];
+                    const disciplineFee = Number(item.discipline_fee) || 0;
                     return (
                       <div key={i} style={{ marginBottom: 16, paddingBottom: 14, borderBottom: i < optionalItems.length - 1 ? "1px dashed #e2e8f0" : "none", opacity: 0.85 }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
@@ -334,6 +351,19 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                         ) : item.description ? (
                           <p style={{ fontSize: "9pt", color: slate, margin: "4px 0 0" }}>{item.description}</p>
                         ) : null}
+                        {disciplines.length > 0 && (
+                          <div style={{ marginTop: 6, padding: "6px 10px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }}>
+                            <div style={{ fontSize: "8pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: slate, marginBottom: 4 }}>
+                              Disciplines
+                              {disciplineFee > 0 && <span style={{ fontWeight: 400, marginLeft: 6 }}>({fmt(disciplineFee)} each)</span>}
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                              {disciplines.map((d: string) => (
+                                <span key={d} style={{ fontSize: "8pt", padding: "1px 6px", background: "#e2e8f0", borderRadius: 3, color: charcoal, fontWeight: 500 }}>{d}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -401,7 +431,11 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                       )}
                     </div>
                     <div style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>
-                      <div><strong>By:</strong> {proposal.internal_signer ? `${proposal.internal_signer.first_name} ${proposal.internal_signer.last_name}` : ""}</div>
+                      <div><strong>By:</strong> {proposal.internal_signer
+                        ? `${proposal.internal_signer.first_name} ${proposal.internal_signer.last_name}`
+                        : (proposal as any).creator
+                        ? `${(proposal as any).creator.first_name} ${(proposal as any).creator.last_name}`
+                        : ""}</div>
                       <div><strong>Date:</strong> {proposal.internal_signed_at ? fmtDate(proposal.internal_signed_at) : ""}</div>
                     </div>
                   </div>
