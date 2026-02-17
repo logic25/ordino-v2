@@ -478,14 +478,19 @@ export function ProposalDialog({
   const watchedItems = form.watch("items");
 
   // Auto-add empty row when last row gets a name
+  const lastItemName = watchedItems.length > 0 ? watchedItems[watchedItems.length - 1]?.name : "";
+  const itemCount = watchedItems.length;
+  const appendingRef = useRef(false);
+
   useEffect(() => {
-    if (watchedItems.length > 0) {
-      const lastItem = watchedItems[watchedItems.length - 1];
-      if (lastItem.name && lastItem.name.trim() !== "") {
-        appendItem({ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0, fee_type: "fixed", is_optional: false }, { shouldFocus: false });
-      }
+    if (appendingRef.current) return;
+    if (itemCount > 0 && lastItemName && lastItemName.trim() !== "") {
+      appendingRef.current = true;
+      appendItem({ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0, fee_type: "fixed", is_optional: false }, { shouldFocus: false });
+      // Reset flag after React processes the update
+      setTimeout(() => { appendingRef.current = false; }, 0);
     }
-  }, [watchedItems.length > 0 && watchedItems[watchedItems.length - 1]?.name]);
+  }, [lastItemName, itemCount]);
 
   const calculateLineTotal = (item: typeof watchedItems[0]) => {
     const qty = Number(item.quantity) || 0;
