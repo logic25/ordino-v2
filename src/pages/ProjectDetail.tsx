@@ -1437,7 +1437,6 @@ function DocumentsFull({ documents }: { documents: MockDocument[] }) {
 
   const handleDownloadOrPreview = async (doc: MockDocument, action: "preview" | "download") => {
     try {
-      // Try to get file from storage
       const storagePathKey = (doc as any).storage_path as string | undefined;
       if (!storagePathKey) {
         toast({ title: "No file available", description: "This document is a reference record without an uploaded file.", variant: "destructive" });
@@ -1446,7 +1445,12 @@ function DocumentsFull({ documents }: { documents: MockDocument[] }) {
 
       const { data, error } = await supabase.storage.from("documents").download(storagePathKey);
       if (error || !data) {
-        toast({ title: "File not found", description: "The file could not be retrieved from storage.", variant: "destructive" });
+        // If it's a proposal contract, offer to view the proposal instead
+        if (doc.category === "contract" && doc.name.toLowerCase().includes("proposal")) {
+          toast({ title: "File not yet generated", description: "The signed PDF will be created on the next proposal signing. You can view the proposal from the header banner above." });
+        } else {
+          toast({ title: "File not found", description: "The file could not be retrieved from storage.", variant: "destructive" });
+        }
         return;
       }
 
