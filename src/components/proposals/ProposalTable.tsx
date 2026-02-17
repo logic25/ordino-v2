@@ -25,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Edit, Trash2, Send, PenLine, Eye, Loader2, CheckCircle2, Clock, X, Phone, Bell } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, Send, PenLine, Eye, Loader2, CheckCircle2, Clock, X, Phone, Bell, FileText } from "lucide-react";
 import { useState } from "react";
 import type { ProposalWithRelations } from "@/hooks/useProposals";
 import { format, isPast, parseISO } from "date-fns";
@@ -37,6 +37,7 @@ interface ProposalTableProps {
   onSend: (id: string) => void;
   onSign: (proposal: ProposalWithRelations) => void;
   onView: (proposal: ProposalWithRelations) => void;
+  onPreview?: (proposal: ProposalWithRelations) => void;
   onMarkApproved?: (proposal: ProposalWithRelations) => void;
   onDismissFollowUp?: (id: string) => void;
   onLogFollowUp?: (id: string) => void;
@@ -63,6 +64,7 @@ export function ProposalTable({
   onSend,
   onSign,
   onView,
+  onPreview,
   onMarkApproved,
   onDismissFollowUp,
   onLogFollowUp,
@@ -191,8 +193,14 @@ export function ProposalTable({
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => onView(proposal)}>
                         <Eye className="h-4 w-4 mr-2" />
-                        View
+                        View / Edit
                       </DropdownMenuItem>
+                      {onPreview && (
+                        <DropdownMenuItem onClick={() => onPreview(proposal)}>
+                          <FileText className="h-4 w-4 mr-2" />
+                          Preview PDF
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem onClick={() => onEdit(proposal)}>
                         <Edit className="h-4 w-4 mr-2" />
                         Edit

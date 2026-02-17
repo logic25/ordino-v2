@@ -14,6 +14,9 @@ import {
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { useCompanySettings, useUpdateCompanySettings, ServiceCatalogItem, PriceChangeEntry, WORK_TYPE_DISCIPLINES } from "@/hooks/useCompanySettings";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -180,14 +183,15 @@ export function ServiceCatalogSettings() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                     <TableHead className="w-[20%]">Name</TableHead>
-                     <TableHead className="w-[22%]">Description</TableHead>
-                     <TableHead className="w-[10%]">Base Price</TableHead>
-                     <TableHead className="w-[8%]">Hours</TableHead>
-                     <TableHead className="w-[10%]">Multiplier</TableHead>
+                     <TableHead className="w-[18%]">Name</TableHead>
+                     <TableHead className="w-[18%]">Description</TableHead>
+                     <TableHead className="w-[9%]">Fee Type</TableHead>
+                     <TableHead className="w-[9%]">Base Price</TableHead>
+                     <TableHead className="w-[7%]">Hours</TableHead>
+                     <TableHead className="w-[9%]">Multiplier</TableHead>
                      <TableHead className="w-[14%]">Per Discipline</TableHead>
                      <TableHead className="w-[16%]" />
-                  </TableRow>
+                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {services
@@ -216,6 +220,21 @@ export function ServiceCatalogSettings() {
                             placeholder="Description"
                             className="h-8 text-sm"
                           />
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={service.default_fee_type || "fixed"}
+                            onValueChange={(v) => {
+                              setServices(services.map(s => s.id === service.id ? { ...s, default_fee_type: v as any } : s));
+                            }}
+                          >
+                            <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="fixed">Fixed</SelectItem>
+                              <SelectItem value="hourly">Hourly</SelectItem>
+                              <SelectItem value="monthly">Monthly</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">

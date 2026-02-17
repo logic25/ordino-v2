@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -338,10 +338,21 @@ export default function Proposals() {
         await handleSend(proposalId);
       }
       if (action === "save_preview") {
-        // Re-fetch the proposal to get full data for preview
-        const saved = [...(proposals || []), ...MOCK_PROPOSALS].find(p => p.id === proposalId);
-        if (saved) {
-          setPreviewProposal(saved);
+        // Fetch fresh proposal data for preview
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data: freshProposal } = await supabase
+          .from("proposals")
+          .select(`
+            *,
+            properties (id, address, borough),
+            internal_signer:profiles!proposals_internal_signed_by_fkey (id, first_name, last_name),
+            assigned_pm:profiles!proposals_assigned_pm_id_fkey (id, first_name, last_name),
+            items:proposal_items(*)
+          `)
+          .eq("id", proposalId)
+          .single();
+        if (freshProposal) {
+          setPreviewProposal(freshProposal as any);
         }
       }
     } catch (error: any) {
@@ -694,6 +705,7 @@ export default function Proposals() {
                     onSend={handleSend}
                     onSign={handleOpenSign}
                     onView={handleView}
+                    onPreview={(p) => setPreviewProposal(p)}
                     onMarkApproved={handleOpenApproval}
                     onDismissFollowUp={handleDismissFollowUp}
                     onLogFollowUp={handleLogFollowUp}
