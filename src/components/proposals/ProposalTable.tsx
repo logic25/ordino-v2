@@ -205,16 +205,16 @@ export function ProposalTable({
                         <Edit className="h-4 w-4 mr-2" />
                         Edit
                       </DropdownMenuItem>
-                      {proposal.status === "signed_internal" && (
-                        <DropdownMenuItem onClick={() => onSend(proposal.id)}>
-                          <Send className="h-4 w-4 mr-2" />
-                          Send to Client
-                        </DropdownMenuItem>
-                      )}
                       {(proposal.status === "draft" || proposal.status === "sent" || proposal.status === "viewed") && (
                         <DropdownMenuItem onClick={() => onSign(proposal)}>
                           <PenLine className="h-4 w-4 mr-2" />
-                          Sign & Convert to Project
+                          Sign & Send
+                        </DropdownMenuItem>
+                      )}
+                      {proposal.status === "signed_internal" && (
+                        <DropdownMenuItem onClick={() => onSend(proposal.id)}>
+                          <Send className="h-4 w-4 mr-2" />
+                          Resend to Client
                         </DropdownMenuItem>
                       )}
                       {(proposal.status === "sent" || proposal.status === "viewed") && onMarkApproved && (
