@@ -1,10 +1,11 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Send, X, Printer } from "lucide-react";
+import { Send, X, Printer, Link2, Copy, CheckCircle2 } from "lucide-react";
 import type { ProposalWithRelations } from "@/hooks/useProposals";
 import { useProposalContacts } from "@/hooks/useProposalContacts";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useState, useRef } from "react";
 
 interface ProposalPreviewModalProps {
   proposal: ProposalWithRelations | null;
@@ -21,7 +22,7 @@ function useCompanyInfo() {
       if (!user) return null;
       const { data: profile } = await supabase.from("profiles").select("company_id").eq("user_id", user.id).single();
       if (!profile?.company_id) return null;
-      const { data: companyRow } = await supabase.from("companies").select("name, address, phone, email, settings").eq("id", profile.company_id).single();
+      const { data: companyRow } = await supabase.from("companies").select("name, address, phone, email, website, logo_url, settings").eq("id", profile.company_id).single();
       if (!companyRow) return null;
       const settings = (companyRow.settings || {}) as any;
       return {
@@ -30,8 +31,8 @@ function useCompanyInfo() {
         phone: settings.company_phone || companyRow.phone || "",
         fax: settings.company_fax || "",
         email: settings.company_email || companyRow.email || "",
-        website: settings.company_website || "",
-        logo_url: settings.company_logo_url || "",
+        website: settings.company_website || companyRow.website || "",
+        logo_url: settings.company_logo_url || companyRow.logo_url || "",
       };
     },
   });
@@ -40,6 +41,7 @@ function useCompanyInfo() {
 export function ProposalPreviewModal({ proposal, open, onOpenChange, onSend }: ProposalPreviewModalProps) {
   const { data: company } = useCompanyInfo();
   const { data: contacts = [] } = useProposalContacts(proposal?.id);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   if (!proposal) return null;
 
@@ -47,122 +49,82 @@ export function ProposalPreviewModal({ proposal, open, onOpenChange, onSend }: P
   const nonOptionalItems = items.filter((i: any) => !i.is_optional);
   const optionalItems = items.filter((i: any) => i.is_optional);
 
-  const formatCurrency = (v: number) =>
+  const fmt = (v: number) =>
     new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 }).format(v);
 
-  const formatDate = (d: string | null | undefined) => {
+  const fmtDate = (d: string | null | undefined) => {
     if (!d) return "";
-    return new Date(d).toLocaleDateString("en-US", { month: "long", day: "2-digit", year: "numeric" });
+    return new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
   };
 
-  const billToContact = contacts.find(c => c.role === "bill_to");
-  const signerContact = contacts.find(c => c.role === "sign");
+  const billTo = contacts.find(c => c.role === "bill_to");
+  const signer = contacts.find(c => c.role === "sign");
 
-  // Calculate retainer/deposit in actual dollars
   const totalAmount = Number(proposal.total_amount || proposal.subtotal || 0);
   const depositPct = Number(proposal.deposit_percentage || 0);
-  const depositAmount = Number(proposal.deposit_required || 0) || (depositPct > 0 ? totalAmount * (depositPct / 100) : 0);
+  const depositAmt = Number(proposal.deposit_required || 0) || (depositPct > 0 ? totalAmount * (depositPct / 100) : 0);
 
-  // Interpolate template variables in payment terms
-  const interpolateTerms = (text: string | null | undefined): string => {
+  const interpolate = (text: string | null | undefined): string => {
     if (!text) return "";
     return text
-      .replace(/\$\{retainer_amount\}|\$\{deposit_amount\}/gi, formatCurrency(depositAmount))
-      .replace(/\$\{total_amount\}/gi, formatCurrency(totalAmount))
+      .replace(/\$\{retainer_amount\}|\$\{deposit_amount\}/gi, fmt(depositAmt))
+      .replace(/\$\{total_amount\}/gi, fmt(totalAmount))
       .replace(/\$\{deposit_percentage\}/gi, `${depositPct}%`)
       .replace(/\$\{company_name\}/gi, company?.name || "")
-      .replace(/\$\{client_name\}/gi, billToContact?.company_name || proposal.client_name || "Client");
+      .replace(/\$\{client_name\}/gi, billTo?.company_name || proposal.client_name || "Client");
+  };
+
+  const clientLink = (proposal as any).public_token
+    ? `${window.location.origin}/proposal/${(proposal as any).public_token}`
+    : null;
+
+  const copyLink = () => {
+    if (clientLink) {
+      navigator.clipboard.writeText(clientLink);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    }
   };
 
   const handlePrint = () => {
-    const printContent = document.getElementById("proposal-preview-content");
-    if (!printContent) return;
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
-    printWindow.document.write(`
-      <html><head><title>${proposal.proposal_number} — ${proposal.title}</title>
-      <style>
-        @page { margin: 0.6in 0.7in; }
-        * { box-sizing: border-box; }
-        body { font-family: 'Georgia', 'Times New Roman', serif; color: #1a1a1a; max-width: 700px; margin: 0 auto; font-size: 11pt; line-height: 1.55; }
-        h1 { font-family: system-ui, -apple-system, sans-serif; }
-        .proposal-ref { font-family: system-ui, sans-serif; font-size: 10pt; color: #666; margin-bottom: 4px; }
-        .company-header { margin-bottom: 24px; }
-        .company-name { font-family: system-ui, -apple-system, sans-serif; font-size: 22pt; font-weight: 800; letter-spacing: -0.5px; margin: 0; }
-        .company-info { font-size: 9pt; color: #555; margin-top: 6px; line-height: 1.5; }
-        .account-box { border: 1.5px solid #222; padding: 14px 18px; margin: 20px 0; }
-        .account-label { font-family: system-ui, sans-serif; font-size: 9pt; text-transform: uppercase; letter-spacing: 1.5px; color: #888; margin-bottom: 8px; font-weight: 600; }
-        .account-name { font-weight: 700; font-size: 11pt; }
-        .account-detail { font-size: 10pt; color: #444; }
-        .billed-to { margin-top: 10px; padding-top: 8px; border-top: 1px solid #ddd; font-size: 10pt; }
-        .project-meta { margin: 16px 0 20px; font-size: 10.5pt; }
-        .project-meta strong { font-weight: 700; }
-        .greeting { margin: 16px 0 24px; font-size: 10.5pt; }
-        .scope-heading { font-family: system-ui, -apple-system, sans-serif; font-size: 16pt; font-weight: 800; margin: 28px 0 18px; border-bottom: 2px solid #222; padding-bottom: 6px; }
-        .service-block { margin-bottom: 22px; page-break-inside: avoid; }
-        .service-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
-        .service-name { font-family: system-ui, sans-serif; font-size: 11pt; font-weight: 700; }
-        .service-price { font-family: system-ui, sans-serif; font-size: 11pt; font-weight: 700; white-space: nowrap; }
-        .service-desc { font-size: 10pt; color: #444; margin-bottom: 4px; }
-        .service-bullets { list-style: disc; margin: 2px 0 4px 18px; padding: 0; font-size: 10pt; color: #444; line-height: 1.6; }
-        .service-bullets li { margin-bottom: 2px; }
-        .service-note { font-size: 9pt; color: #666; font-style: italic; margin-top: 4px; }
-        .fee-label { font-size: 9pt; color: #888; font-style: italic; }
-        .optional-heading { font-family: system-ui, sans-serif; font-size: 12pt; font-weight: 700; color: #666; margin: 28px 0 14px; border-bottom: 1px dashed #ccc; padding-bottom: 4px; }
-        .optional-badge { display: inline-block; font-family: system-ui, sans-serif; background: #f0f0f0; border: 1px solid #ddd; font-size: 8pt; padding: 1px 6px; border-radius: 3px; margin-left: 8px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; vertical-align: middle; }
-        .total-row { display: flex; justify-content: space-between; align-items: baseline; border-top: 3px solid #222; padding-top: 12px; margin-top: 32px; }
-        .total-label { font-family: system-ui, sans-serif; font-size: 14pt; font-weight: 800; }
-        .total-amount { font-family: system-ui, sans-serif; font-size: 14pt; font-weight: 800; }
-        .section-heading { font-family: system-ui, -apple-system, sans-serif; font-size: 14pt; font-weight: 800; margin: 32px 0 6px; border-bottom: 2px solid #222; padding-bottom: 4px; }
-        .subsection-heading { font-family: system-ui, sans-serif; font-size: 11pt; font-weight: 700; margin: 16px 0 4px; }
-        .terms-text { font-size: 10pt; color: #333; white-space: pre-wrap; line-height: 1.65; }
-        .deposit-callout { margin-top: 16px; padding: 12px 16px; border-left: 4px solid #222; background: #f8f8f6; font-size: 10.5pt; }
-        .deposit-callout strong { font-weight: 700; }
-        .sig-section { margin-top: 44px; page-break-inside: avoid; }
-        .sig-prompt { font-weight: 700; font-size: 10.5pt; margin-bottom: 4px; }
-        .sig-accepted { font-family: system-ui, sans-serif; font-size: 12pt; font-weight: 800; margin-bottom: 20px; }
-        .sig-grid { display: flex; gap: 36px; }
-        .sig-col { flex: 1; }
-        .sig-company { font-size: 10.5pt; margin-bottom: 28px; font-weight: 600; }
-        .sig-line { border-bottom: 1px solid #333; height: 28px; margin-bottom: 3px; }
-        .sig-field { font-size: 9pt; color: #666; display: flex; gap: 6px; margin-top: 3px; }
-        .page-footer { text-align: center; font-size: 9pt; color: #888; margin-top: 36px; padding-top: 10px; border-top: 1px solid #ddd; }
-      </style></head><body>
-    `);
-    printWindow.document.write(printContent.innerHTML);
-    printWindow.document.write("</body></html>");
-    printWindow.document.close();
-    printWindow.print();
+    const el = document.getElementById("proposal-preview-content");
+    if (!el) return;
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(`<html><head><title>${proposal.proposal_number} — ${proposal.title}</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@page { margin: 0.6in; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 720px; margin: 0 auto; font-size: 10pt; line-height: 1.55; }
+</style></head><body>`);
+    w.document.write(el.innerHTML);
+    w.document.write("</body></html>");
+    w.document.close();
+    w.print();
   };
 
-  const parseDescriptionBullets = (desc: string | null | undefined): string[] => {
+  const parseBullets = (desc: string | null | undefined): string[] => {
     if (!desc) return [];
-    return desc.split(/\n|•|·/)
-      .map(s => s.replace(/^-\s*/, '').trim())
-      .filter(s => s.length > 0);
+    return desc.split(/\n|•|·/).map(s => s.replace(/^-\s*/, '').trim()).filter(s => s.length > 0);
   };
 
-  const feeTypeLabel = (feeType: string | undefined, qty: number, price: number) => {
-    if (feeType === "monthly") return `Monthly retainer${qty > 1 ? ` — Total: ${formatCurrency(price)} over estimated ${qty}-month timeline` : ""}`;
-    if (feeType === "hourly") return `Hourly rate × ${qty} hrs`;
+  const feeNote = (type: string | undefined, qty: number, price: number) => {
+    if (type === "monthly") return `Monthly retainer${qty > 1 ? ` — ${fmt(price)} over estimated ${qty}-month timeline` : ""}`;
+    if (type === "hourly") return `Hourly rate × ${qty} hrs`;
     return "";
   };
 
-  // Inline styles using CSS custom props from the design system
-  const s = {
-    serif: "'Georgia', 'Times New Roman', serif",
-    sans: "system-ui, -apple-system, sans-serif",
-    fg: "hsl(var(--foreground))",
-    muted: "hsl(var(--muted-foreground))",
-    border: "hsl(var(--border))",
-    bg: "hsl(var(--background))",
-    mutedBg: "hsl(var(--muted))",
-  };
+  // Amber accent from design system
+  const amber = "hsl(38, 92%, 50%)";
+  const charcoal = "#1c2127";
+  const slate = "#64748b";
+  const lightBg = "#f8f9fa";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl h-[92vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden">
-        {/* Sticky toolbar */}
+        {/* Toolbar */}
         <div className="px-6 py-3 border-b flex items-center justify-between bg-background shrink-0">
           <div className="flex items-center gap-3">
             <DialogHeader>
@@ -173,6 +135,12 @@ export function ProposalPreviewModal({ proposal, open, onOpenChange, onSend }: P
             <span className="text-sm text-muted-foreground">RE: {proposal.properties?.address || "—"}</span>
           </div>
           <div className="flex items-center gap-2">
+            {clientLink && (
+              <Button variant="outline" size="sm" onClick={copyLink}>
+                {linkCopied ? <CheckCircle2 className="h-4 w-4 mr-1.5 text-emerald-600" /> : <Copy className="h-4 w-4 mr-1.5" />}
+                {linkCopied ? "Copied!" : "Copy Link"}
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={handlePrint}>
               <Printer className="h-4 w-4 mr-1.5" /> Print / PDF
             </Button>
@@ -188,252 +156,268 @@ export function ProposalPreviewModal({ proposal, open, onOpenChange, onSend }: P
           </div>
         </div>
 
-        {/* Scrollable preview */}
+        {/* Preview */}
         <div className="flex-1 overflow-y-auto bg-muted/40">
-          <div id="proposal-preview-content" className="max-w-[700px] mx-auto bg-background shadow-sm my-6 border" style={{ padding: "48px 54px 40px", fontFamily: s.serif, color: s.fg, fontSize: "11pt", lineHeight: 1.55 }}>
+          <div id="proposal-preview-content" className="max-w-[720px] mx-auto bg-white shadow-md my-6" style={{ color: charcoal }}>
 
-            {/* ── Proposal # & RE line ── */}
-            <div style={{ fontFamily: s.sans, fontSize: "10pt", color: s.muted, marginBottom: 4 }}>
-              Proposal #{proposal.proposal_number}
-            </div>
-            <div style={{ fontFamily: s.sans, fontSize: "10pt", color: s.muted, marginBottom: 20 }}>
-              RE: {proposal.properties?.address || "—"}
-            </div>
-
-            {/* ── Company Header ── */}
-            <div style={{ marginBottom: 24 }}>
-              {company?.logo_url ? (
-                <img src={company.logo_url} alt={company.name} style={{ maxHeight: 56, marginBottom: 10 }} />
-              ) : (
-                <h1 style={{ fontFamily: s.sans, fontSize: "22pt", fontWeight: 800, letterSpacing: -0.5, margin: 0, color: s.fg }}>
-                  {company?.name || "Your Company"}
-                </h1>
-              )}
-              <div style={{ fontSize: "9pt", color: s.muted, marginTop: 6, lineHeight: 1.5 }}>
-                {company?.address && <div>{company.address}</div>}
-                <div>
-                  {company?.phone && <span>Tel: {company.phone}</span>}
-                  {company?.fax && <span style={{ marginLeft: 12 }}>Fax: {company.fax}</span>}
+            {/* ═══ Header Banner ═══ */}
+            <div style={{ background: charcoal, color: "#fff", padding: "32px 48px 28px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                {company?.logo_url ? (
+                  <img src={company.logo_url} alt={company.name} style={{ maxHeight: 48, marginBottom: 12, filter: "brightness(0) invert(1)" }} />
+                ) : (
+                  <div style={{ fontSize: "20pt", fontWeight: 800, letterSpacing: -0.5, marginBottom: 8 }}>
+                    {company?.name || "Your Company"}
+                  </div>
+                )}
+                <div style={{ fontSize: "9pt", color: "#94a3b8", lineHeight: 1.6 }}>
+                  {company?.address && <div>{company.address}</div>}
+                  <div>
+                    {company?.phone && <span>Tel: {company.phone}</span>}
+                    {company?.fax && <span style={{ marginLeft: 12 }}>Fax: {company.fax}</span>}
+                  </div>
+                  {company?.email && <div>{company.email}</div>}
+                  {company?.website && <div>{company.website}</div>}
                 </div>
-                {company?.email && <div>Email: {company.email}</div>}
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: "9pt", textTransform: "uppercase", letterSpacing: 2, color: amber, fontWeight: 700, marginBottom: 4 }}>
+                  Proposal
+                </div>
+                <div style={{ fontSize: "16pt", fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>
+                  #{proposal.proposal_number}
+                </div>
+                <div style={{ fontSize: "9pt", color: "#94a3b8", marginTop: 6 }}>
+                  {fmtDate(proposal.created_at)}
+                </div>
               </div>
             </div>
 
-            {/* ── Account Details Box ── */}
-            <div style={{ border: `1.5px solid ${s.fg}`, padding: "14px 18px", marginBottom: 22 }}>
-              <div style={{ fontFamily: s.sans, fontSize: "9pt", textTransform: "uppercase", letterSpacing: 1.5, color: s.muted, marginBottom: 8, fontWeight: 600 }}>
-                Account Details
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <div>
-                  {billToContact ? (
+            {/* ═══ Amber accent bar ═══ */}
+            <div style={{ height: 4, background: amber }} />
+
+            {/* ═══ Body ═══ */}
+            <div style={{ padding: "32px 48px 40px" }}>
+
+              {/* Account & Project Info */}
+              <div style={{ display: "flex", gap: 32, marginBottom: 28 }}>
+                <div style={{ flex: 1, background: lightBg, padding: "16px 20px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
+                  <div style={{ fontSize: "8pt", textTransform: "uppercase", letterSpacing: 1.5, color: slate, marginBottom: 8, fontWeight: 700 }}>
+                    Prepared For
+                  </div>
+                  {billTo ? (
                     <>
-                      <div style={{ fontWeight: 700, fontSize: "11pt" }}>{billToContact.company_name || ""}</div>
-                      <div style={{ fontSize: "10.5pt" }}>{billToContact.name}</div>
-                      {billToContact.email && <div style={{ fontSize: "9.5pt", color: s.muted }}>{billToContact.email}</div>}
-                      {billToContact.phone && <div style={{ fontSize: "9.5pt", color: s.muted }}>{billToContact.phone}</div>}
+                      <div style={{ fontWeight: 700, fontSize: "11pt" }}>{billTo.company_name || billTo.name}</div>
+                      {billTo.company_name && <div style={{ fontSize: "10pt" }}>{billTo.name}</div>}
+                      {billTo.email && <div style={{ fontSize: "9pt", color: slate }}>{billTo.email}</div>}
+                      {billTo.phone && <div style={{ fontSize: "9pt", color: slate }}>{billTo.phone}</div>}
                     </>
                   ) : proposal.client_name ? (
                     <>
                       <div style={{ fontWeight: 700, fontSize: "11pt" }}>{proposal.client_name}</div>
-                      {proposal.client_email && <div style={{ fontSize: "9.5pt", color: s.muted }}>{proposal.client_email}</div>}
+                      {proposal.client_email && <div style={{ fontSize: "9pt", color: slate }}>{proposal.client_email}</div>}
                     </>
                   ) : (
-                    <div style={{ color: s.muted, fontStyle: "italic" }}>No client specified</div>
+                    <div style={{ color: slate, fontStyle: "italic" }}>No client specified</div>
                   )}
                 </div>
-                <div style={{ textAlign: "right", fontSize: "10pt", color: s.muted }}>
-                  {formatDate(proposal.created_at)}
+                <div style={{ flex: 1, background: lightBg, padding: "16px 20px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
+                  <div style={{ fontSize: "8pt", textTransform: "uppercase", letterSpacing: 1.5, color: slate, marginBottom: 8, fontWeight: 700 }}>
+                    Project Details
+                  </div>
+                  <div style={{ fontSize: "10pt", marginBottom: 4 }}><strong>Project:</strong> {proposal.title}</div>
+                  <div style={{ fontSize: "10pt", marginBottom: 4 }}><strong>Address:</strong> {proposal.properties?.address || "—"}</div>
+                  {proposal.properties?.borough && (
+                    <div style={{ fontSize: "10pt" }}><strong>Borough:</strong> {proposal.properties.borough}</div>
+                  )}
+                  {proposal.valid_until && (
+                    <div style={{ fontSize: "9pt", color: slate, marginTop: 6 }}>Valid until {fmtDate(proposal.valid_until)}</div>
+                  )}
                 </div>
               </div>
-              {billToContact && (
-                <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px solid ${s.border}`, fontSize: "10pt" }}>
-                  <span style={{ fontWeight: 600 }}>Billed to:</span> {billToContact.company_name || billToContact.name}
-                  <div>{billToContact.name}</div>
+
+              {/* Greeting */}
+              {billTo && (
+                <div style={{ fontSize: "10.5pt", marginBottom: 24, lineHeight: 1.65 }}>
+                  <p>{billTo.name?.split(" ")[0]},</p>
+                  <p style={{ marginTop: 8 }}>
+                    Thank you for considering us to service your permit needs. Below is a detailed breakdown of the professional services we will provide at this address.
+                  </p>
                 </div>
               )}
-            </div>
 
-            {/* ── Project Meta ── */}
-            <div style={{ marginBottom: 18, fontSize: "10.5pt" }}>
-              <div><strong>Project name:</strong> {proposal.title}</div>
-              <div><strong>Project address:</strong> {proposal.properties?.address || "—"}</div>
-            </div>
-
-            {/* ── Greeting ── */}
-            {billToContact && (
-              <div style={{ marginBottom: 24, fontSize: "10.5pt" }}>
-                <p style={{ margin: 0 }}>{billToContact.name?.split(" ")[0]},</p>
-                <p style={{ marginTop: 8 }}>
-                  Thank you for considering us to service your permit needs. Below you will find the list of services we will be providing you at this address.
-                </p>
+              {/* ═══ Scope of Work ═══ */}
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, marginTop: 8 }}>
+                <div style={{ width: 4, height: 28, background: amber, borderRadius: 2 }} />
+                <h2 style={{ fontSize: "15pt", fontWeight: 800, color: charcoal, margin: 0 }}>
+                  Scope of Work
+                </h2>
               </div>
-            )}
 
-            {/* ── Scope of Work heading ── */}
-            <h2 style={{ fontFamily: s.sans, fontSize: "16pt", fontWeight: 800, margin: "28px 0 18px", borderBottom: `2px solid ${s.fg}`, paddingBottom: 6, color: s.fg }}>
-              Scope of work :
-            </h2>
-
-            {/* ── Itemized Services ── */}
-            {nonOptionalItems.map((item: any, i: number) => {
-              const bullets = parseDescriptionBullets(item.description);
-              const price = Number(item.total_price || item.quantity * item.unit_price);
-              const feeType = item.fee_type;
-              const feeNote = feeTypeLabel(feeType, item.quantity, price);
-              return (
-                <div key={i} style={{ marginBottom: 22 }}>
-                  {/* Service name + price on same line */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-                    <span style={{ fontFamily: s.sans, fontSize: "11pt", fontWeight: 700, color: s.fg }}>{item.name}</span>
-                    <span style={{ fontFamily: s.sans, fontSize: "11pt", fontWeight: 700, whiteSpace: "nowrap", color: s.fg }}>{formatCurrency(price)}</span>
+              {/* Service Items */}
+              {nonOptionalItems.map((item: any, i: number) => {
+                const bullets = parseBullets(item.description);
+                const price = Number(item.total_price || item.quantity * item.unit_price);
+                const note = feeNote(item.fee_type, item.quantity, price);
+                return (
+                  <div key={i} style={{ marginBottom: 20, paddingBottom: 18, borderBottom: i < nonOptionalItems.length - 1 ? "1px solid #e2e8f0" : "none" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                      <span style={{ fontSize: "11pt", fontWeight: 700, color: charcoal }}>{item.name}</span>
+                      <span style={{ fontSize: "11pt", fontWeight: 700, color: charcoal, whiteSpace: "nowrap", fontFamily: "'JetBrains Mono', monospace" }}>{fmt(price)}</span>
+                    </div>
+                    {bullets.length > 0 ? (
+                      <ul style={{ listStyle: "none", margin: "4px 0 0 0", padding: 0, fontSize: "9.5pt", color: slate, lineHeight: 1.65 }}>
+                        {bullets.map((b, bi) => (
+                          <li key={bi} style={{ paddingLeft: 16, position: "relative" }}>
+                            <span style={{ position: "absolute", left: 0, color: amber, fontWeight: 700 }}>›</span>
+                            {b}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : item.description ? (
+                      <p style={{ fontSize: "9.5pt", color: slate, lineHeight: 1.6, margin: "4px 0 0" }}>{item.description}</p>
+                    ) : null}
+                    {note && (
+                      <div style={{ fontSize: "8.5pt", color: amber, fontWeight: 600, marginTop: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                        {note}
+                      </div>
+                    )}
                   </div>
-                  {/* Description as bullet list */}
-                  {bullets.length > 0 ? (
-                    <ul style={{ listStyle: "disc", margin: "2px 0 4px 18px", padding: 0, fontSize: "10pt", color: s.muted, lineHeight: 1.6 }}>
-                      {bullets.map((b, bi) => <li key={bi}>{b}</li>)}
-                    </ul>
-                  ) : item.description ? (
-                    <p style={{ fontSize: "10pt", color: s.muted, lineHeight: 1.6, margin: "2px 0" }}>{item.description}</p>
-                  ) : null}
-                  {/* Fee type note (e.g. "Monthly retainer — Total: $36,000 over estimated 18-month timeline") */}
-                  {feeNote && (
-                    <div style={{ fontSize: "9pt", color: s.muted, fontStyle: "italic", marginTop: 4 }}>
-                      {feeNote}
+                );
+              })}
+
+              {/* Optional Services */}
+              {optionalItems.length > 0 && (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "24px 0 16px" }}>
+                    <div style={{ width: 4, height: 22, background: "#cbd5e1", borderRadius: 2 }} />
+                    <h3 style={{ fontSize: "12pt", fontWeight: 700, color: slate, margin: 0 }}>
+                      Optional Services
+                    </h3>
+                  </div>
+                  {optionalItems.map((item: any, i: number) => {
+                    const bullets = parseBullets(item.description);
+                    const price = Number(item.total_price || item.quantity * item.unit_price);
+                    return (
+                      <div key={i} style={{ marginBottom: 16, paddingBottom: 14, borderBottom: i < optionalItems.length - 1 ? "1px dashed #e2e8f0" : "none", opacity: 0.85 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+                          <span style={{ fontSize: "10.5pt", fontWeight: 600 }}>
+                            {item.name}
+                            <span style={{ display: "inline-block", background: "#f1f5f9", border: "1px solid #e2e8f0", fontSize: "7.5pt", padding: "1px 6px", borderRadius: 3, marginLeft: 8, color: slate, textTransform: "uppercase", letterSpacing: 0.5, verticalAlign: "middle" }}>Optional</span>
+                          </span>
+                          <span style={{ fontSize: "10.5pt", fontWeight: 600, whiteSpace: "nowrap", fontFamily: "'JetBrains Mono', monospace" }}>{fmt(price)}</span>
+                        </div>
+                        {bullets.length > 0 ? (
+                          <ul style={{ listStyle: "none", margin: "4px 0 0 0", padding: 0, fontSize: "9pt", color: slate, lineHeight: 1.6 }}>
+                            {bullets.map((b, bi) => (
+                              <li key={bi} style={{ paddingLeft: 16, position: "relative" }}>
+                                <span style={{ position: "absolute", left: 0, color: "#cbd5e1" }}>›</span>
+                                {b}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : item.description ? (
+                          <p style={{ fontSize: "9pt", color: slate, margin: "4px 0 0" }}>{item.description}</p>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+
+              {/* ═══ Total ═══ */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: charcoal, color: "#fff", padding: "14px 20px", borderRadius: 6, marginTop: 28 }}>
+                <span style={{ fontSize: "12pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Total</span>
+                <span style={{ fontSize: "16pt", fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>{fmt(totalAmount)}</span>
+              </div>
+
+              {/* Deposit callout */}
+              {depositAmt > 0 && (
+                <div style={{ marginTop: 12, padding: "12px 20px", background: "hsl(38, 92%, 50%, 0.08)", borderLeft: `4px solid ${amber}`, borderRadius: "0 6px 6px 0", fontSize: "10pt" }}>
+                  <strong>Retainer Due Upon Signing:</strong> {fmt(depositAmt)}
+                  {depositPct > 0 && <span style={{ color: slate, marginLeft: 6 }}>({depositPct}% of contract total)</span>}
+                </div>
+              )}
+
+              {/* ═══ Terms & Conditions ═══ */}
+              {((proposal as any).terms_conditions || proposal.payment_terms) && (
+                <div style={{ marginTop: 32 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                    <div style={{ width: 4, height: 24, background: amber, borderRadius: 2 }} />
+                    <h2 style={{ fontSize: "13pt", fontWeight: 800, color: charcoal, margin: 0 }}>Terms & Conditions</h2>
+                  </div>
+
+                  {proposal.payment_terms && (
+                    <div style={{ marginBottom: 16 }}>
+                      <h4 style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 4, color: charcoal }}>Payment Schedule</h4>
+                      <p style={{ fontSize: "9.5pt", color: "#475569", whiteSpace: "pre-wrap", lineHeight: 1.65, margin: 0 }}>
+                        {interpolate(proposal.payment_terms)}
+                      </p>
+                    </div>
+                  )}
+
+                  {(proposal as any).terms_conditions && (
+                    <div>
+                      <p style={{ fontSize: "9.5pt", color: "#475569", whiteSpace: "pre-wrap", lineHeight: 1.65, margin: 0 }}>
+                        {interpolate((proposal as any).terms_conditions)}
+                      </p>
                     </div>
                   )}
                 </div>
-              );
-            })}
+              )}
 
-            {/* ── Optional Services ── */}
-            {optionalItems.length > 0 && (
-              <>
-                <div style={{ fontFamily: s.sans, fontSize: "12pt", fontWeight: 700, color: s.muted, margin: "28px 0 14px", borderBottom: `1px dashed ${s.border}`, paddingBottom: 4 }}>
-                  Optional Services
+              {/* ═══ Signature Block ═══ */}
+              <div style={{ marginTop: 40 }}>
+                <p style={{ fontWeight: 600, fontSize: "10pt", color: slate, marginBottom: 4 }}>
+                  Please sign the designated space provided below and return a copy
+                </p>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                  <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
+                  <h3 style={{ fontSize: "12pt", fontWeight: 800, color: charcoal, margin: 0 }}>Agreed to and accepted by</h3>
                 </div>
-                {optionalItems.map((item: any, i: number) => {
-                  const bullets = parseDescriptionBullets(item.description);
-                  const price = Number(item.total_price || item.quantity * item.unit_price);
-                  return (
-                    <div key={i} style={{ marginBottom: 20, opacity: 0.85 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-                        <span style={{ fontFamily: s.sans, fontSize: "10.5pt", fontWeight: 700 }}>
-                          {item.name}
-                          <span style={{ display: "inline-block", fontFamily: s.sans, background: s.mutedBg, border: `1px solid ${s.border}`, fontSize: "8pt", padding: "1px 6px", borderRadius: 3, marginLeft: 8, color: s.muted, textTransform: "uppercase", letterSpacing: 0.5, verticalAlign: "middle" }}>Optional</span>
-                        </span>
-                        <span style={{ fontFamily: s.sans, fontSize: "10.5pt", fontWeight: 700, whiteSpace: "nowrap" }}>{formatCurrency(price)}</span>
-                      </div>
-                      {bullets.length > 0 ? (
-                        <ul style={{ listStyle: "disc", margin: "2px 0 4px 18px", padding: 0, fontSize: "10pt", color: s.muted }}>
-                          {bullets.map((b, bi) => <li key={bi}>{b}</li>)}
-                        </ul>
-                      ) : item.description ? (
-                        <p style={{ fontSize: "10pt", color: s.muted, margin: "2px 0" }}>{item.description}</p>
-                      ) : null}
+
+                <div style={{ display: "flex", gap: 32 }}>
+                  {/* Company */}
+                  <div style={{ flex: 1, padding: "16px 20px", background: lightBg, borderRadius: 6, border: "1px solid #e2e8f0" }}>
+                    <div style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 24, color: charcoal }}>{company?.name || "Your Company"}</div>
+                    <div style={{ borderBottom: `2px solid ${charcoal}`, height: 32, marginBottom: 4 }}>
+                      {proposal.internal_signature_data && (
+                        <img src={proposal.internal_signature_data} alt="Signature" style={{ height: 28, objectFit: "contain" }} />
+                      )}
                     </div>
-                  );
-                })}
-              </>
-            )}
+                    <div style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>
+                      <div><strong>By:</strong> {proposal.internal_signer ? `${proposal.internal_signer.first_name} ${proposal.internal_signer.last_name}` : ""}</div>
+                      <div><strong>Date:</strong> {proposal.internal_signed_at ? fmtDate(proposal.internal_signed_at) : ""}</div>
+                    </div>
+                  </div>
 
-            {/* ── Total ── */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderTop: `3px solid ${s.fg}`, paddingTop: 12, marginTop: 32 }}>
-              <span style={{ fontFamily: s.sans, fontSize: "14pt", fontWeight: 800 }}>Total:</span>
-              <span style={{ fontFamily: s.sans, fontSize: "14pt", fontWeight: 800 }}>{formatCurrency(totalAmount)}</span>
-            </div>
-
-            {/* ── Terms & Conditions ── */}
-            {((proposal as any).terms_conditions || proposal.payment_terms || depositAmount > 0) && (
-              <div style={{ marginTop: 32 }}>
-                <h2 style={{ fontFamily: s.sans, fontSize: "14pt", fontWeight: 800, marginBottom: 6, borderBottom: `2px solid ${s.fg}`, paddingBottom: 4, color: s.fg }}>
-                  Terms & Conditions:
-                </h2>
-
-                {/* Payment Schedule — with interpolated deposit amount */}
-                {(proposal.payment_terms || depositAmount > 0) && (
-                  <div style={{ marginTop: 14, marginBottom: 16 }}>
-                    <h4 style={{ fontFamily: s.sans, fontSize: "11pt", fontWeight: 700, marginBottom: 4 }}>Payment Schedule:</h4>
-                    {proposal.payment_terms ? (
-                      <p style={{ fontSize: "10pt", color: "#333", whiteSpace: "pre-wrap", lineHeight: 1.65, margin: 0 }}>
-                        {interpolateTerms(proposal.payment_terms)}
-                      </p>
-                    ) : depositAmount > 0 ? (
-                      <p style={{ fontSize: "10pt", color: "#333", lineHeight: 1.65, margin: 0 }}>
-                        {company?.name || "Company"} upon signing this agreement shall receive a {formatCurrency(depositAmount)} retainer
-                        {depositPct > 0 ? ` (${depositPct}% of contract total)` : ""} to begin.
-                        Invoice(s) will be sent to your office as each item is completed and are due within 30 days.
-                      </p>
-                    ) : null}
-                  </div>
-                )}
-
-                {/* General T&C */}
-                {(proposal as any).terms_conditions && (
-                  <div>
-                    <p style={{ fontSize: "10pt", color: "#333", whiteSpace: "pre-wrap", lineHeight: 1.65, margin: 0 }}>
-                      {interpolateTerms((proposal as any).terms_conditions)}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── Signature Block — GLE style ── */}
-            <div style={{ marginTop: 44 }}>
-              <p style={{ fontWeight: 700, fontSize: "10.5pt", marginBottom: 4 }}>
-                Please sign the designated space provided below and email or fax us a copy
-              </p>
-              <h3 style={{ fontFamily: s.sans, fontSize: "12pt", fontWeight: 800, marginBottom: 20 }}>Agreed to and accepted by:</h3>
-
-              <div style={{ display: "flex", gap: 36 }}>
-                {/* Company side */}
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "10.5pt", marginBottom: 28, fontWeight: 600 }}>{company?.name || "Your Company"}</div>
-                  <div style={{ borderBottom: `1px solid ${s.fg}`, height: 28, marginBottom: 3 }}>
-                    {proposal.internal_signature_data && (
-                      <img src={proposal.internal_signature_data} alt="Signature" style={{ height: 26, objectFit: "contain" }} />
-                    )}
-                  </div>
-                  <div style={{ fontSize: "9pt", color: s.muted, display: "flex", gap: 6, marginTop: 3 }}>
-                    <span>By:</span>
-                    <span>{proposal.internal_signer ? `${proposal.internal_signer.first_name} ${proposal.internal_signer.last_name}` : ""}</span>
-                  </div>
-                  <div style={{ fontSize: "9pt", color: s.muted, display: "flex", gap: 6, marginTop: 3 }}>
-                    <span>Title:</span><span></span>
-                  </div>
-                  <div style={{ fontSize: "9pt", color: s.muted, display: "flex", gap: 6, marginTop: 3 }}>
-                    <span>Date:</span><span>{proposal.internal_signed_at ? formatDate(proposal.internal_signed_at) : ""}</span>
-                  </div>
-                </div>
-
-                {/* Client side */}
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "10.5pt", marginBottom: 28, fontWeight: 600 }}>
-                    {billToContact?.company_name || proposal.client_name || "Client"}
-                  </div>
-                  <div style={{ borderBottom: `1px solid ${s.fg}`, height: 28, marginBottom: 3 }} />
-                  <div style={{ fontSize: "9pt", color: s.muted, display: "flex", gap: 6, marginTop: 3 }}>
-                    <span>By:</span>
-                    <span>{signerContact?.name || billToContact?.name || ""}</span>
-                  </div>
-                  <div style={{ fontSize: "9pt", color: s.muted, display: "flex", gap: 6, marginTop: 3 }}>
-                    <span>Title:</span><span></span>
-                  </div>
-                  <div style={{ fontSize: "9pt", color: s.muted, display: "flex", gap: 6, marginTop: 3 }}>
-                    <span>Date:</span><span></span>
+                  {/* Client */}
+                  <div style={{ flex: 1, padding: "16px 20px", background: lightBg, borderRadius: 6, border: "1px solid #e2e8f0" }}>
+                    <div style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 24, color: charcoal }}>
+                      {billTo?.company_name || proposal.client_name || "Client"}
+                    </div>
+                    <div style={{ borderBottom: `2px solid ${charcoal}`, height: 32, marginBottom: 4 }}>
+                      {(proposal as any).client_signature_data && (
+                        <img src={(proposal as any).client_signature_data} alt="Client Signature" style={{ height: 28, objectFit: "contain" }} />
+                      )}
+                    </div>
+                    <div style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>
+                      <div><strong>By:</strong> {(proposal as any).client_signed_name || signer?.name || billTo?.name || ""}</div>
+                      <div><strong>Date:</strong> {proposal.client_signed_at ? fmtDate(proposal.client_signed_at) : ""}</div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* ── Page Footer ── */}
-            <div style={{ textAlign: "center", fontSize: "9pt", color: s.muted, marginTop: 36, paddingTop: 10, borderTop: `1px solid ${s.border}` }}>
-              {company?.address && <div>{company.address}</div>}
-              <div>
-                {company?.phone && <span>Tel: {company.phone}</span>}
-                {company?.fax && <span style={{ marginLeft: 8 }}>Fax: {company.fax}</span>}
-                {company?.email && <span style={{ marginLeft: 8 }}>Email: {company.email}</span>}
+              {/* ═══ Footer ═══ */}
+              <div style={{ textAlign: "center", fontSize: "8.5pt", color: slate, marginTop: 36, paddingTop: 12, borderTop: "1px solid #e2e8f0" }}>
+                {company?.address && <div>{company.address}</div>}
+                <div>
+                  {company?.phone && <span>Tel: {company.phone}</span>}
+                  {company?.fax && <span style={{ marginLeft: 10 }}>Fax: {company.fax}</span>}
+                  {company?.email && <span style={{ marginLeft: 10 }}>{company.email}</span>}
+                </div>
+                {company?.website && <div style={{ color: amber, marginTop: 2 }}>{company.website}</div>}
               </div>
             </div>
           </div>

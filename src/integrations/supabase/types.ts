@@ -3784,6 +3784,8 @@ export type Database = {
           client_name: string | null
           client_signature_data: string | null
           client_signed_at: string | null
+          client_signed_name: string | null
+          client_signed_title: string | null
           company_id: string
           converted_application_id: string | null
           converted_at: string | null
@@ -3809,6 +3811,7 @@ export type Database = {
           project_type: string | null
           property_id: string | null
           proposal_number: string | null
+          public_token: string | null
           reminder_date: string | null
           retainer_amount: number | null
           sales_person_id: string | null
@@ -3837,6 +3840,8 @@ export type Database = {
           client_name?: string | null
           client_signature_data?: string | null
           client_signed_at?: string | null
+          client_signed_name?: string | null
+          client_signed_title?: string | null
           company_id: string
           converted_application_id?: string | null
           converted_at?: string | null
@@ -3862,6 +3867,7 @@ export type Database = {
           project_type?: string | null
           property_id?: string | null
           proposal_number?: string | null
+          public_token?: string | null
           reminder_date?: string | null
           retainer_amount?: number | null
           sales_person_id?: string | null
@@ -3890,6 +3896,8 @@ export type Database = {
           client_name?: string | null
           client_signature_data?: string | null
           client_signed_at?: string | null
+          client_signed_name?: string | null
+          client_signed_title?: string | null
           company_id?: string
           converted_application_id?: string | null
           converted_at?: string | null
@@ -3915,6 +3923,7 @@ export type Database = {
           project_type?: string | null
           property_id?: string | null
           proposal_number?: string | null
+          public_token?: string | null
           reminder_date?: string | null
           retainer_amount?: number | null
           sales_person_id?: string | null

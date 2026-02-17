@@ -27,6 +27,7 @@ import Documents from "./pages/Documents";
 import Rfps from "./pages/Rfps";
 import RfpLibrary from "./pages/RfpLibrary";
 import RfpDiscovery from "./pages/RfpDiscovery";
+import ClientProposal from "./pages/ClientProposal";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -198,6 +199,9 @@ function AppRoutes() {
 
       {/* Public RFI form - no auth required */}
       <Route path="/rfi" element={<RfiForm />} />
+
+      {/* Public proposal page - client views & signs */}
+      <Route path="/proposal/:token" element={<ClientProposal />} />
 
       {/* Legacy redirects */}
       <Route path="/team" element={<Navigate to="/settings" replace />} />
