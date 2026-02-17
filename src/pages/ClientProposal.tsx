@@ -69,12 +69,12 @@ export default function ClientProposalPage() {
       const s = (data.settings || {}) as any;
       return {
         name: data.name,
-        address: s.company_address || data.address || "",
-        phone: s.company_phone || data.phone || "",
-        fax: s.company_fax || "",
-        email: s.company_email || data.email || "",
-        website: s.company_website || data.website || "",
-        logo_url: s.company_logo_url || data.logo_url || "",
+        address: s.company_address?.trim() || data.address || "",
+        phone: s.company_phone?.trim() || data.phone || "",
+        fax: s.company_fax?.trim() || "",
+        email: s.company_email?.trim() || data.email || "",
+        website: s.company_website?.trim() || data.website || "",
+        logo_url: s.company_logo_url?.trim() || data.logo_url || "",
       };
     },
     enabled: !!proposal?.company_id,

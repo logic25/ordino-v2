@@ -27,12 +27,12 @@ function useCompanyInfo() {
       const settings = (companyRow.settings || {}) as any;
       return {
         name: companyRow.name,
-        address: settings.company_address || companyRow.address || "",
-        phone: settings.company_phone || companyRow.phone || "",
-        fax: settings.company_fax || "",
-        email: settings.company_email || companyRow.email || "",
-        website: settings.company_website || companyRow.website || "",
-        logo_url: settings.company_logo_url || companyRow.logo_url || "",
+        address: settings.company_address?.trim() || companyRow.address || "",
+        phone: settings.company_phone?.trim() || companyRow.phone || "",
+        fax: settings.company_fax?.trim() || "",
+        email: settings.company_email?.trim() || companyRow.email || "",
+        website: settings.company_website?.trim() || companyRow.website || "",
+        logo_url: settings.company_logo_url?.trim() || companyRow.logo_url || "",
       };
     },
   });
