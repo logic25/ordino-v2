@@ -2,6 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -1433,43 +1434,57 @@ function TimelineFull({ milestones }: { milestones: MockMilestone[] }) {
 function DocumentsFull({ documents }: { documents: MockDocument[] }) {
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string } | null>(null);
   const { toast } = useToast();
 
-  const handleDownloadOrPreview = async (doc: MockDocument, action: "preview" | "download") => {
+  const loadDocBlob = async (doc: MockDocument): Promise<Blob | null> => {
+    const storagePathKey = doc.storage_path;
+    if (!storagePathKey) {
+      toast({ title: "No file available", description: "This document is a reference record without an uploaded file.", variant: "destructive" });
+      return null;
+    }
+    const bucket = doc.storageBucket || "documents";
+    const { data, error } = await supabase.storage.from(bucket).download(storagePathKey);
+    if (error || !data) {
+      if (doc.category === "contract" && doc.name.toLowerCase().includes("proposal")) {
+        toast({ title: "File not yet generated", description: "The signed PDF will be created on the next proposal signing. You can view the proposal from the header banner above." });
+      } else {
+        toast({ title: "File not found", description: "The file could not be retrieved from storage.", variant: "destructive" });
+      }
+      return null;
+    }
+    return data;
+  };
+
+  const handlePreview = async (doc: MockDocument) => {
     try {
-      const storagePathKey = (doc as any).storage_path as string | undefined;
-      if (!storagePathKey) {
-        toast({ title: "No file available", description: "This document is a reference record without an uploaded file.", variant: "destructive" });
-        return;
-      }
-
-      const bucket = doc.storageBucket || "documents";
-      const { data, error } = await supabase.storage.from(bucket).download(storagePathKey);
-      if (error || !data) {
-        // If it's a proposal contract, offer to view the proposal instead
-        if (doc.category === "contract" && doc.name.toLowerCase().includes("proposal")) {
-          toast({ title: "File not yet generated", description: "The signed PDF will be created on the next proposal signing. You can view the proposal from the header banner above." });
-        } else {
-          toast({ title: "File not found", description: "The file could not be retrieved from storage.", variant: "destructive" });
-        }
-        return;
-      }
-
+      const blob = await loadDocBlob(doc);
+      if (!blob) return;
+      // Convert to data URI for preview in sandboxed iframe
       const reader = new FileReader();
       reader.onload = () => {
-        const dataUri = reader.result as string;
-        if (action === "preview") {
-          window.open(dataUri, "_blank");
-        } else {
-          const a = document.createElement("a");
-          a.href = dataUri;
-          a.download = (doc as any).filename || doc.name;
-          a.click();
-        }
+        setPreviewDoc({ url: reader.result as string, name: doc.filename || doc.name });
       };
-      reader.readAsDataURL(data);
+      reader.readAsDataURL(blob);
     } catch {
       toast({ title: "Error", description: "Failed to load document.", variant: "destructive" });
+    }
+  };
+
+  const handleDownload = async (doc: MockDocument) => {
+    try {
+      const blob = await loadDocBlob(doc);
+      if (!blob) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const a = document.createElement("a");
+        a.href = reader.result as string;
+        a.download = doc.filename || doc.name;
+        a.click();
+      };
+      reader.readAsDataURL(blob);
+    } catch {
+      toast({ title: "Error", description: "Failed to download document.", variant: "destructive" });
     }
   };
 
@@ -1536,10 +1551,10 @@ function DocumentsFull({ documents }: { documents: MockDocument[] }) {
                 <TableCell className="text-muted-foreground text-sm">{doc.uploadedDate}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Preview" onClick={() => handleDownloadOrPreview(doc, "preview")}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Preview" onClick={() => handlePreview(doc)}>
                       <Eye className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Download" onClick={() => handleDownloadOrPreview(doc, "download")}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Download" onClick={() => handleDownload(doc)}>
                       <Download className="h-4 w-4" />
                     </Button>
                   </div>
@@ -1549,6 +1564,24 @@ function DocumentsFull({ documents }: { documents: MockDocument[] }) {
           </TableBody>
         </Table>
       )}
+
+      {/* Document Preview Modal */}
+      <Dialog open={!!previewDoc} onOpenChange={(open) => !open && setPreviewDoc(null)}>
+        <DialogContent className="sm:max-w-[900px] max-h-[90vh] p-0">
+          <DialogHeader className="p-4 pb-2">
+            <DialogTitle className="text-base">{previewDoc?.name}</DialogTitle>
+          </DialogHeader>
+          {previewDoc && (
+            <div className="px-4 pb-4" style={{ height: "75vh" }}>
+              <iframe
+                src={previewDoc.url}
+                className="w-full h-full rounded-md border"
+                title={previewDoc.name}
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
