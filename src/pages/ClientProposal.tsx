@@ -18,6 +18,7 @@ export default function ClientProposalPage() {
   const [clientName, setClientName] = useState("");
   const [clientTitle, setClientTitle] = useState("");
   const [signed, setSigned] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<"card" | "ach" | null>(null);
 
   // Fetch proposal by public token
   const { data: proposal, isLoading, error } = useQuery({
@@ -66,6 +67,21 @@ export default function ClientProposalPage() {
       };
     },
     enabled: !!proposal?.company_id,
+  });
+
+  // Fetch linked RFI to get the PIS access token
+  const { data: rfiToken } = useQuery({
+    queryKey: ["public-rfi-token", proposal?.id],
+    queryFn: async () => {
+      if (!proposal?.id) return null;
+      const { data } = await supabase
+        .from("rfi_requests")
+        .select("access_token")
+        .eq("proposal_id", proposal.id)
+        .maybeSingle();
+      return (data as any)?.access_token || null;
+    },
+    enabled: !!proposal?.id,
   });
 
   // Sign mutation
@@ -230,8 +246,11 @@ export default function ClientProposalPage() {
           <div style={{ padding: "32px 40px 24px", borderBottom: "1px solid #e2e8f0" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
-                <h1 style={{ fontSize: "18pt", fontWeight: 800, marginBottom: 4 }}>{proposal.title}</h1>
+                <h1 style={{ fontSize: "18pt", fontWeight: 800, marginBottom: 4 }}>{proposal.client_name || "Client"}</h1>
                 <p style={{ fontSize: "10pt", color: slate }}>{proposal.properties?.address}</p>
+                {proposal.title && proposal.title !== proposal.client_name && (
+                  <p style={{ fontSize: "9pt", color: slate, marginTop: 2 }}>{proposal.title}</p>
+                )}
               </div>
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontSize: "22pt", fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>{fmt(totalAmount)}</div>
@@ -423,18 +442,18 @@ export default function ClientProposalPage() {
               </p>
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <button
-                  className="border-2 rounded-lg p-4 text-left hover:border-amber-400 transition-colors group"
-                  style={{ borderColor: "#e2e8f0" }}
-                  onClick={() => {}}
+                  className="border-2 rounded-lg p-4 text-left hover:border-amber-400 transition-colors group cursor-pointer"
+                  style={{ borderColor: selectedPayment === "card" ? amber : "#e2e8f0", background: selectedPayment === "card" ? "hsl(38, 92%, 50%, 0.06)" : undefined }}
+                  onClick={() => setSelectedPayment("card")}
                 >
                   <CreditCard className="h-5 w-5 mb-2" style={{ color: amber }} />
                   <div style={{ fontSize: "10pt", fontWeight: 700, color: charcoal }}>Credit / Debit Card</div>
                   <div style={{ fontSize: "8.5pt", color: slate, marginTop: 2 }}>Visa, Mastercard, Amex</div>
                 </button>
                 <button
-                  className="border-2 rounded-lg p-4 text-left hover:border-amber-400 transition-colors group"
-                  style={{ borderColor: "#e2e8f0" }}
-                  onClick={() => {}}
+                  className="border-2 rounded-lg p-4 text-left hover:border-amber-400 transition-colors group cursor-pointer"
+                  style={{ borderColor: selectedPayment === "ach" ? amber : "#e2e8f0", background: selectedPayment === "ach" ? "hsl(38, 92%, 50%, 0.06)" : undefined }}
+                  onClick={() => setSelectedPayment("ach")}
                 >
                   <Building2 className="h-5 w-5 mb-2" style={{ color: amber }} />
                   <div style={{ fontSize: "10pt", fontWeight: 700, color: charcoal }}>ACH / Bank Transfer</div>
@@ -459,7 +478,7 @@ export default function ClientProposalPage() {
               To expedite your project, please fill out the Project Information Sheet below. This helps us gather the details we need to begin filing on your behalf.
             </p>
             <a
-              href={`/rfi?property=${encodeURIComponent(proposal.properties?.address || "")}&proposal=${proposal.id}`}
+              href={rfiToken ? `/rfi?token=${rfiToken}` : `/rfi?property=${encodeURIComponent(proposal.properties?.address || "")}&proposal=${proposal.id}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-between rounded-lg p-4 hover:shadow-md transition-shadow"
