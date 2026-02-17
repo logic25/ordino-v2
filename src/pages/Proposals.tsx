@@ -14,6 +14,7 @@ import { SignatureDialog } from "@/components/proposals/SignatureDialog";
 import { ProposalApprovalDialog } from "@/components/proposals/ProposalApprovalDialog";
 import { ProposalPreviewModal } from "@/components/proposals/ProposalPreviewModal";
 import { LeadCaptureDialog, type LeadCaptureData } from "@/components/proposals/LeadCaptureDialog";
+import { SendProposalDialog } from "@/components/proposals/SendProposalDialog";
 import {
   useProposals,
   useCreateProposal,
@@ -208,6 +209,7 @@ export default function Proposals() {
   const [previewProposal, setPreviewProposal] = useState<ProposalWithRelations | null>(null);
   const [signingProposal, setSigningProposal] = useState<ProposalWithRelations | null>(null);
   const [approvingProposal, setApprovingProposal] = useState<ProposalWithRelations | null>(null);
+  const [sendingProposal, setSendingProposal] = useState<ProposalWithRelations | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("proposals");
@@ -335,7 +337,7 @@ export default function Proposals() {
 
       // Handle post-save actions
       if (action === "save_send") {
-        await handleSend(proposalId);
+        await handleConfirmSend(proposalId);
       }
       if (action === "save_preview") {
         // Fetch fresh proposal data for preview
@@ -369,7 +371,12 @@ export default function Proposals() {
     }
   };
 
-  const handleSend = async (id: string) => {
+  const handleOpenSend = (id: string) => {
+    const p = displayProposals.find(pr => pr.id === id);
+    if (p) setSendingProposal(p);
+  };
+
+  const handleConfirmSend = async (id: string) => {
     try {
       await sendProposal.mutateAsync(id);
       toast({ title: "Proposal sent", description: "The proposal has been marked as sent. Follow-up scheduled." });
@@ -702,7 +709,7 @@ export default function Proposals() {
                     proposals={filteredProposals}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
-                    onSend={handleSend}
+                    onSend={handleOpenSend}
                     onSign={handleOpenSign}
                     onView={handleView}
                     onPreview={(p) => setPreviewProposal(p)}
@@ -802,7 +809,14 @@ export default function Proposals() {
         proposal={previewProposal}
         open={!!previewProposal}
         onOpenChange={(open) => { if (!open) setPreviewProposal(null); }}
-        onSend={handleSend}
+        onSend={handleOpenSend}
+      />
+
+      <SendProposalDialog
+        proposal={sendingProposal}
+        open={!!sendingProposal}
+        onOpenChange={(open) => { if (!open) setSendingProposal(null); }}
+        onConfirmSend={handleConfirmSend}
       />
     </AppLayout>
   );
