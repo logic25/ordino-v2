@@ -42,6 +42,7 @@ export function ServiceCatalogSettings() {
     serviceId: string;
     oldPrice: number;
     newPrice: number;
+    field: "default_price" | "discipline_fee";
   } | null>(null);
   const [priceChangeReason, setPriceChangeReason] = useState("");
 
@@ -77,16 +78,19 @@ export function ServiceCatalogSettings() {
     );
   };
 
-  const handlePriceBlur = (serviceId: string, newPriceStr: string) => {
+  const handlePriceBlur = (serviceId: string, newPriceStr: string, field: "default_price" | "discipline_fee" = "default_price") => {
     const service = services.find((s) => s.id === serviceId);
     if (!service) return;
 
     const newPrice = parseFloat(newPriceStr) || 0;
-    const oldPrice = companyData?.settings?.service_catalog?.find((s) => s.id === serviceId)?.default_price || 0;
+    const savedService = companyData?.settings?.service_catalog?.find((s) => s.id === serviceId);
+    const oldPrice = field === "discipline_fee" 
+      ? (savedService?.discipline_fee || 0) 
+      : (savedService?.default_price || 0);
 
     // Only prompt if price actually changed from saved value and service already existed
     if (oldPrice > 0 && newPrice !== oldPrice) {
-      setPriceChangeDialog({ serviceId, oldPrice, newPrice });
+      setPriceChangeDialog({ serviceId, oldPrice, newPrice, field });
       setPriceChangeReason("");
     }
   };
@@ -95,12 +99,13 @@ export function ServiceCatalogSettings() {
     if (!priceChangeDialog) return;
     const { serviceId, oldPrice, newPrice } = priceChangeDialog;
 
+    const fieldLabel = priceChangeDialog.field === "discipline_fee" ? "Discipline Fee" : "Base Price";
     const entry: PriceChangeEntry = {
       old_price: oldPrice,
       new_price: newPrice,
       changed_at: new Date().toISOString(),
       changed_by: profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : undefined,
-      reason: priceChangeReason || "No reason provided",
+      reason: `[${fieldLabel}] ${priceChangeReason || "No reason provided"}`,
     };
 
     setServices(
@@ -320,6 +325,7 @@ export function ServiceCatalogSettings() {
                                 onChange={(e) => {
                                   setServices(services.map(s => s.id === service.id ? { ...s, discipline_fee: parseFloat(e.target.value) || 0 } : s));
                                 }}
+                                onBlur={(e) => handlePriceBlur(service.id, e.target.value, "discipline_fee")}
                                 placeholder="$/disc"
                                 className="h-8 text-sm w-20"
                               />
