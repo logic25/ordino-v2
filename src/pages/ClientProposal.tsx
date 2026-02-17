@@ -121,7 +121,7 @@ export default function ClientProposalPage() {
           client_signed_name: clientName,
           client_signed_title: clientTitle,
           client_signed_at: new Date().toISOString(),
-          status: "signed_client",
+          status: "accepted",
         } as any)
         .eq("public_token", token);
       if (error) throw error;
