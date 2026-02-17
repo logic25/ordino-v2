@@ -43,9 +43,24 @@ export function ProposalPreviewModal({ proposal, open, onOpenChange, onSend }: P
   const { data: contacts = [] } = useProposalContacts(proposal?.id);
   const [linkCopied, setLinkCopied] = useState(false);
 
+  // Fetch items separately since list query doesn't include them
+  const { data: fetchedItems = [] } = useQuery({
+    queryKey: ["proposal-items-preview", proposal?.id],
+    queryFn: async () => {
+      if (!proposal?.id) return [];
+      const { data } = await supabase
+        .from("proposal_items")
+        .select("*")
+        .eq("proposal_id", proposal.id)
+        .order("sort_order");
+      return data || [];
+    },
+    enabled: !!proposal?.id && open,
+  });
+
   if (!proposal) return null;
 
-  const items = proposal.items || [];
+  const items = (proposal.items && proposal.items.length > 0) ? proposal.items : fetchedItems;
   const nonOptionalItems = items.filter((i: any) => !i.is_optional);
   const optionalItems = items.filter((i: any) => i.is_optional);
 
@@ -67,11 +82,11 @@ export function ProposalPreviewModal({ proposal, open, onOpenChange, onSend }: P
   const interpolate = (text: string | null | undefined): string => {
     if (!text) return "";
     return text
-      .replace(/\$\{retainer_amount\}|\$\{deposit_amount\}/gi, fmt(depositAmt))
-      .replace(/\$\{total_amount\}/gi, fmt(totalAmount))
-      .replace(/\$\{deposit_percentage\}/gi, `${depositPct}%`)
-      .replace(/\$\{company_name\}/gi, company?.name || "")
-      .replace(/\$\{client_name\}/gi, billTo?.company_name || proposal.client_name || "Client");
+      .replace(/\$[\{\[]retainer_amount[\}\]]|\$[\{\[]deposit_amount[\}\]]/gi, fmt(depositAmt))
+      .replace(/\$[\{\[]total_amount[\}\]]/gi, fmt(totalAmount))
+      .replace(/\$[\{\[]deposit_percentage[\}\]]/gi, `${depositPct}%`)
+      .replace(/\$[\{\[]company_name[\}\]]/gi, company?.name || "")
+      .replace(/\$[\{\[]client_name[\}\]]/gi, billTo?.company_name || proposal.client_name || "Client");
   };
 
   const clientLink = (proposal as any).public_token
