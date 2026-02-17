@@ -176,7 +176,7 @@ export default function ProjectDetail() {
   const timeEntries = TIME_SETS[mockIdx % TIME_SETS.length];
   const checklistItems = CHECKLIST_SETS[mockIdx % CHECKLIST_SETS.length];
   const pisStatus = PIS_SETS[mockIdx % PIS_SETS.length];
-  const proposalSig = PROPOSAL_SIG_SETS[mockIdx % PROPOSAL_SIG_SETS.length];
+  // proposalSig now comes from real project.proposals data
 
   const approvedCOs = changeOrders.filter(co => co.status === "approved").reduce((s, co) => s + co.amount, 0);
   const contractTotal = liveServices.reduce((s, svc) => s + svc.totalAmount, 0);
@@ -288,7 +288,7 @@ export default function ProjectDetail() {
         </div>
 
         {/* Proposal Execution Status + Readiness Checklist */}
-        <ProposalExecutionBanner proposalSig={proposalSig} changeOrders={changeOrders} />
+        <ProposalExecutionBanner project={project} changeOrders={changeOrders} />
         <ReadinessChecklist items={checklistItems} pisStatus={pisStatus} />
 
         {/* Main Tabbed Content */}
@@ -384,31 +384,42 @@ export default function ProjectDetail() {
 
 // ======== PROPOSAL EXECUTION BANNER ========
 
-function ProposalExecutionBanner({ proposalSig, changeOrders }: { proposalSig: MockProposalSignature; changeOrders: MockChangeOrder[] }) {
+function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWithRelations; changeOrders: MockChangeOrder[] }) {
   const unsignedCOs = changeOrders.filter(co => (!co.internalSigned || !co.clientSigned) && co.status !== "draft");
+  const proposal = project.proposals;
+
+  if (!proposal) return null;
+
+  const proposalNumber = proposal.proposal_number || "—";
+  const internalDate = proposal.internal_signed_at
+    ? format(new Date(proposal.internal_signed_at), "MM/dd/yyyy")
+    : null;
+  const clientDate = (proposal as any).client_signed_at
+    ? format(new Date((proposal as any).client_signed_at), "MM/dd/yyyy")
+    : null;
+  const fullyExecuted = !!internalDate && !!clientDate;
 
   return (
     <div className="flex items-center gap-3 flex-wrap">
-      {/* Proposal signature status */}
       <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${
-        proposalSig.fullyExecuted 
+        fullyExecuted 
           ? "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800" 
           : "bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800"
       }`}>
-        {proposalSig.fullyExecuted ? (
+        {fullyExecuted ? (
           <>
             <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            <span className="text-emerald-700 dark:text-emerald-300 font-medium">Proposal #{proposalSig.proposalNumber} — Fully Executed</span>
+            <span className="text-emerald-700 dark:text-emerald-300 font-medium">Proposal #{proposalNumber} — Fully Executed</span>
             <span className="text-xs text-muted-foreground">
-              Internal: {proposalSig.internalSignedDate} · Client: {proposalSig.clientSignedDate}
+              Internal: {internalDate} · Client: {clientDate}
             </span>
           </>
         ) : (
           <>
             <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-            <span className="text-amber-700 dark:text-amber-300 font-medium">Proposal #{proposalSig.proposalNumber} — Awaiting Client Signature</span>
-            {proposalSig.internalSignedDate && (
-              <span className="text-xs text-muted-foreground">Internal signed: {proposalSig.internalSignedDate}</span>
+            <span className="text-amber-700 dark:text-amber-300 font-medium">Proposal #{proposalNumber} — Awaiting Client Signature</span>
+            {internalDate && (
+              <span className="text-xs text-muted-foreground">Internal signed: {internalDate}</span>
             )}
             <Button variant="outline" size="sm" className="h-7 text-xs gap-1 ml-auto">
               <Send className="h-3 w-3" /> Resend for Signature
@@ -417,7 +428,6 @@ function ProposalExecutionBanner({ proposalSig, changeOrders }: { proposalSig: M
         )}
       </div>
 
-      {/* Unsigned CO warning */}
       {unsignedCOs.length > 0 && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800 text-sm">
           <PenLine className="h-4 w-4 text-amber-600 dark:text-amber-400" />
