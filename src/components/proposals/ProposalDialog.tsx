@@ -905,7 +905,7 @@ export function ProposalDialog({
                   <Button type="button" size="sm" disabled={isLoading} className="bg-accent text-accent-foreground hover:bg-accent/90"
                     onClick={() => doSave("save_send")}>
                     {isLoading && pendingActionRef.current === "save_send" ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
-                    <Send className="h-3.5 w-3.5 mr-1" /> Save & Send
+                    <Send className="h-3.5 w-3.5 mr-1" /> Sign & Send
                   </Button>
                 </div>
               )}
