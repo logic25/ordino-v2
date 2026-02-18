@@ -1,55 +1,45 @@
 
 
-## Two Fixes: Smarter AI Plan Prompt + Drag-to-Reorder Service Lines
+# Live CRM Sync for PIS + Save Confirmations
 
-### 1. Improve the AI Plan Analysis Prompt
+## What Changes
 
-**Problem:** The current prompt uses an apartment renovation example and says "state the work type," which leads the AI to classify filings (ALT1, ALT2, etc.). The plans could be for any building type -- commercial, industrial, mixed-use, residential, etc. The AI should describe only what it sees, not guess a DOB classification.
+### 1. Toast confirmations for Company and Contact dialogs
+Right now, saving a company (ClientDialog) or editing a contact (EditContactDialog) gives no visible feedback. We'll add success/error toast notifications to both, matching the pattern already added for inline contact row saves.
 
-**File:** `supabase/functions/analyze-plans/index.ts` (line 34)
+### 2. PIS form pulls latest CRM data on load
+Currently the PIS reads stale, copied fields from the project record (architect_contact_name, architect_email, etc.). If you update a contact in the CRM, the PIS doesn't reflect it. We'll fix this by having the PIS query the latest contact data directly from the CRM when it loads, using project.client_id to find the primary contact.
 
-Replace the prompt with a more versatile version:
+This means: edit a contact in the CRM, open the PIS link, and you'll see the updated info immediately -- no need to resend.
 
+## Files to Edit
+
+**`src/components/clients/ClientDialog.tsx`**
+- Add toast notification on successful company create/update
+- Add error toast on failure
+
+**`src/components/clients/EditContactDialog.tsx`**
+- Add toast notification on successful contact update
+- Add error toast on failure
+
+**`src/hooks/useRfi.ts`**
+- After fetching the project, query `client_contacts` for the project's `client_id`
+- Find the primary contact (is_primary = true, or first contact as fallback)
+- Override stale project fields (architect_contact_name, architect_email, architect_phone) with fresh CRM data
+- Fall back to existing project data if no contacts found
+
+## How It Works
+
+```text
+User edits contact in CRM
+  -> Toast confirms "Contact saved"
+
+Client opens PIS link
+  -> Form loads RFI + project (existing)
+  -> Also fetches latest client_contacts for that client (new)
+  -> Pre-fills applicant fields from live CRM data
+  -> Falls back to project record if no match
 ```
-You are a NYC DOB expediter assistant. Analyze these construction plans and write
-a plain-text job description suitable for a DOB Project Information Sheet (PIS).
 
-Rules:
-- 1-2 sentences maximum
-- No markdown formatting (no bold, headers, bullet points)
-- Do NOT classify the work type -- never mention ALT1, ALT2, ALT3, Alteration Type,
-  New Building, Demolition, or any DOB filing category
-- Do NOT assume the building use (residential, commercial, etc.) unless it is
-  clearly labeled on the plans
-- Describe only the physical scope of work and the areas affected
-- Use simple, professional language
+No database triggers or schema changes needed -- this is purely a read-layer fix.
 
-Examples:
-- "Interior renovation of 2nd-floor commercial space including new partitions,
-   ceiling grid, plumbing rough-in for restroom, and electrical distribution.
-   No change in use, occupancy, or egress."
-- "Gut renovation of apartment 4A including removal of non-load-bearing
-   partitions, new kitchen and bathroom layouts, and full MEP upgrades."
-- "New storefront installation at ground level with structural opening in
-   bearing wall, new lintel, and associated facade work."
-```
-
-This removes the ALT1 bias, avoids assuming building type, and provides varied examples.
-
----
-
-### 2. Add Drag-to-Reorder for Service Line Items
-
-**Problem:** Service rows in the proposal wizard cannot be reordered. The `useFieldArray` hook already exposes a `move` function, but it is not destructured or wired up.
-
-**File:** `src/components/proposals/ProposalDialog.tsx`
-
-Changes:
-- Destructure `move` from `useFieldArray` (line 625)
-- Wrap the service line items list in `DndContext` + `SortableContext` (already imported in the project via `@dnd-kit`)
-- Add a drag handle (GripVertical icon) to each `ServiceLineItem` row, replacing the current expand/collapse chevron column with a two-icon layout (grip + chevron)
-- On `dragEnd`, call `move(oldIndex, newIndex)` to reorder the form array
-
-The `ServiceLineItem` component will be wrapped with `useSortable` from `@dnd-kit/sortable`, following the same pattern already used in `ProposalContactsSection.tsx` and `SortableSectionItem.tsx`.
-
-**What the user will see:** A small drag handle icon on the left of each service row. Dragging a row repositions it in the list, and the proposal PDF/preview reflects the new order.
