@@ -129,7 +129,7 @@ export function useMyAssignedProjects() {
           *,
           properties(address, borough),
           clients!projects_client_id_fkey(name),
-          proposals(title, total_amount)
+          proposals!projects_proposal_id_fkey(title, total_amount)
         `)
         .or(`assigned_pm_id.eq.${profile.id},senior_pm_id.eq.${profile.id}`)
         .eq("status", "open")
