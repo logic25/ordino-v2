@@ -21,6 +21,7 @@ import { Switch } from "@/components/ui/switch";
 import { Loader2, Linkedin } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
 import type { ClientContact } from "@/hooks/useClients";
 
@@ -32,6 +33,7 @@ interface EditContactDialogProps {
 
 export function EditContactDialog({ open, onOpenChange, contact }: EditContactDialogProps) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const { data: profiles = [] } = useCompanyProfiles();
 
   const emptyForm = {
@@ -111,6 +113,10 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
       queryClient.invalidateQueries({ queryKey: ["client-contacts"] });
       queryClient.invalidateQueries({ queryKey: ["client-detail"] });
       onOpenChange(false);
+      toast({ title: "Contact updated", description: `${form.first_name} ${form.last_name}`.trim() + " saved successfully." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error saving contact", description: error.message, variant: "destructive" });
     },
   });
 

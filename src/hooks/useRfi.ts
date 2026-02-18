@@ -301,6 +301,23 @@ export function useRfiByToken(token: string | null) {
       const proposalContacts: any[] = prop.proposal_contacts || [];
       const applicantContact = proposalContacts.find((c: any) => c.role === "applicant");
 
+      // Fetch latest CRM contacts for live sync
+      let crmPrimary: any = null;
+      if (projects?.client_id) {
+        const { data: contacts } = await supabase
+          .from("client_contacts")
+          .select("first_name, last_name, email, phone, name")
+          .eq("client_id", projects.client_id)
+          .order("is_primary", { ascending: false })
+          .order("sort_order", { ascending: true });
+        if (contacts && contacts.length > 0) {
+          crmPrimary = contacts[0];
+        }
+      }
+
+      // CRM contact takes top priority for applicant fields
+      const crmName = crmPrimary ? `${crmPrimary.first_name || ""} ${crmPrimary.last_name || ""}`.trim() : null;
+
       return {
         rfi: rfi as RfiRequest,
         property: properties as { address: string; borough: string | null; block: string | null; lot: string | null } | null,
@@ -312,11 +329,11 @@ export function useRfiByToken(token: string | null) {
           gc_contact_name: projects?.gc_contact_name || prop.gc_name || null,
           gc_phone: projects?.gc_phone || prop.gc_phone || null,
           gc_email: projects?.gc_email || prop.gc_email || null,
-          // Applicant contact overrides proposal-level architect fields
+          // CRM primary contact > project fields > proposal contact > proposal fields
           architect_company_name: projects?.architect_company_name || applicantContact?.company_name || prop.architect_company || null,
-          architect_contact_name: projects?.architect_contact_name || applicantContact?.name || prop.architect_name || null,
-          architect_phone: projects?.architect_phone || applicantContact?.phone || prop.architect_phone || null,
-          architect_email: projects?.architect_email || applicantContact?.email || prop.architect_email || null,
+          architect_contact_name: crmName || projects?.architect_contact_name || applicantContact?.name || prop.architect_name || null,
+          architect_phone: crmPrimary?.phone || projects?.architect_phone || applicantContact?.phone || prop.architect_phone || null,
+          architect_email: crmPrimary?.email || projects?.architect_email || applicantContact?.email || prop.architect_email || null,
           architect_license_type: projects?.architect_license_type || prop.architect_license_type || null,
           architect_license_number: projects?.architect_license_number || prop.architect_license_number || null,
           sia_name: projects?.sia_name || prop.sia_name || null,
