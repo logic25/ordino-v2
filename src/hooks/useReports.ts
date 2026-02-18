@@ -52,7 +52,7 @@ export function useBillingReports() {
     queryKey: ["reports-billing", session?.user?.id],
     enabled: !!session?.user?.id,
     queryFn: async () => {
-      const { data: invoices } = await supabase.from("invoices").select("id, status, amount, paid_amount, due_date, paid_date, created_at");
+      const { data: invoices } = await supabase.from("invoices").select("id, status, total_due, payment_amount, due_date, paid_at, created_at");
       const now = new Date();
       const items = invoices || [];
 
@@ -65,8 +65,11 @@ export function useBillingReports() {
         items.forEach((inv: any) => {
           const created = new Date(inv.created_at);
           if (format(startOfMonth(created), "MMM yyyy") === label) {
-            collected += inv.paid_amount || 0;
-            outstanding += (inv.amount || 0) - (inv.paid_amount || 0);
+            if (inv.status === "paid") {
+              collected += inv.payment_amount || inv.total_due || 0;
+            } else {
+              outstanding += (inv.total_due || 0) - (inv.payment_amount || 0);
+            }
           }
         });
         months.push({ month: label, collected, outstanding });
@@ -76,19 +79,19 @@ export function useBillingReports() {
       const aging = { current: 0, "31-60": 0, "61-90": 0, "90+": 0 };
       items.filter((i: any) => i.status !== "paid").forEach((inv: any) => {
         const days = differenceInDays(now, new Date(inv.due_date));
-        if (days <= 30) aging.current += inv.amount || 0;
-        else if (days <= 60) aging["31-60"] += inv.amount || 0;
-        else if (days <= 90) aging["61-90"] += inv.amount || 0;
-        else aging["90+"] += inv.amount || 0;
+        if (days <= 30) aging.current += inv.total_due || 0;
+        else if (days <= 60) aging["31-60"] += inv.total_due || 0;
+        else if (days <= 90) aging["61-90"] += inv.total_due || 0;
+        else aging["90+"] += inv.total_due || 0;
       });
 
       // Collections
-      const paidInvoices = items.filter((i: any) => i.status === "paid" && i.paid_date);
+      const paidInvoices = items.filter((i: any) => i.status === "paid" && i.paid_at);
       const avgDaysToPay = paidInvoices.length > 0
-        ? Math.round(paidInvoices.reduce((a: number, i: any) => a + differenceInDays(new Date(i.paid_date), new Date(i.created_at)), 0) / paidInvoices.length)
+        ? Math.round(paidInvoices.reduce((a: number, i: any) => a + differenceInDays(new Date(i.paid_at), new Date(i.created_at)), 0) / paidInvoices.length)
         : 0;
-      const totalCollected = items.reduce((a: number, i: any) => a + (i.paid_amount || 0), 0);
-      const totalBilled = items.reduce((a: number, i: any) => a + (i.amount || 0), 0);
+      const totalCollected = items.filter((i: any) => i.status === "paid").reduce((a: number, i: any) => a + (i.payment_amount || i.total_due || 0), 0);
+      const totalBilled = items.reduce((a: number, i: any) => a + (i.total_due || 0), 0);
       const collectionRate = totalBilled > 0 ? Math.round((totalCollected / totalBilled) * 100) : 0;
 
       return { months, aging, avgDaysToPay, collectionRate, totalCollected, totalBilled };

@@ -180,7 +180,7 @@ export function useRevenueTrend(months: number = 6) {
     queryFn: async () => {
       const { data: invoices } = await supabase
         .from("invoices")
-        .select("id, status, amount, paid_amount, total_due, created_at, paid_date");
+        .select("id, status, total_due, payment_amount, created_at, paid_at");
 
       const now = new Date();
       const result: { month: string; billed: number; collected: number; outstanding: number }[] = [];
@@ -193,13 +193,15 @@ export function useRevenueTrend(months: number = 6) {
         let billed = 0, collected = 0, outstanding = 0;
         (invoices || []).forEach((inv: any) => {
           const created = inv.created_at?.substring(0, 7);
-          const paidMonth = inv.paid_date?.substring(0, 7);
+          const paidMonth = inv.paid_at?.substring(0, 7);
           if (created === monthStr) {
-            billed += inv.amount || inv.total_due || 0;
-            outstanding += (inv.amount || 0) - (inv.paid_amount || 0);
+            billed += inv.total_due || 0;
+            if (inv.status !== "paid") {
+              outstanding += (inv.total_due || 0) - (inv.payment_amount || 0);
+            }
           }
           if (paidMonth === monthStr) {
-            collected += inv.paid_amount || 0;
+            collected += inv.payment_amount || inv.total_due || 0;
           }
         });
 
