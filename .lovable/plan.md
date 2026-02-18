@@ -1,45 +1,126 @@
 
 
-# Live CRM Sync for PIS + Save Confirmations
+# PM Continuity Engine -- Final Build Plan
 
-## What Changes
+## Summary
 
-### 1. Toast confirmations for Company and Contact dialogs
-Right now, saving a company (ClientDialog) or editing a contact (EditContactDialog) gives no visible feedback. We'll add success/error toast notifications to both, matching the pattern already added for inline contact row saves.
+This plan eliminates PM handoff gaps by making every project self-documenting. When a PM is out, anyone stepping in sees exactly what's done, what's outstanding, who it's waiting on, and how long it's been waiting.
 
-### 2. PIS form pulls latest CRM data on load
-Currently the PIS reads stale, copied fields from the project record (architect_contact_name, architect_email, etc.). If you update a contact in the CRM, the PIS doesn't reflect it. We'll fix this by having the PIS query the latest contact data directly from the CRM when it loads, using project.client_id to find the primary contact.
+## Known Gaps (NOT in this plan, noted for future)
 
-This means: edit a contact in the CRM, open the PIS link, and you'll see the updated info immediately -- no need to resend.
+- Change orders / adding services mid-project
+- Per-service billing party changes (e.g., Samsung project billed partly to KSC, partly to Cheil)
+- DOB filing fee pass-through tracking on invoices
+- Subcontractor/vendor management (hiring architects for plans, tracking their deliverables and invoices)
+- AI-drafted automated follow-up emails for overdue checklist items
 
-## Files to Edit
+---
 
-**`src/components/clients/ClientDialog.tsx`**
-- Add toast notification on successful company create/update
-- Add error toast on failure
+## What Gets Built (4 Things)
 
-**`src/components/clients/EditContactDialog.tsx`**
-- Add toast notification on successful contact update
-- Add error toast on failure
+### 1. Persistent, Service-Driven Readiness Checklist
 
-**`src/hooks/useRfi.ts`**
-- After fetching the project, query `client_contacts` for the project's `client_id`
-- Find the primary contact (is_primary = true, or first contact as fallback)
-- Override stale project fields (architect_contact_name, architect_email, architect_phone) with fresh CRM data
-- Fall back to existing project data if no contacts found
+Replace the hard-coded, in-memory checklist on Project Detail with a database-backed one that auto-populates from service templates.
 
-## How It Works
+- Each service in the Service Catalog gets an optional "default requirements" list
+- When a project has those services, requirements auto-populate into the checklist
+- Items persist with status, "from whom," and days-waiting tracking
+- Duplicate services (e.g., 3x ALT-2 filings) deduplicate their template items -- one set of shared requirements, not 3x copies
 
-```text
-User edits contact in CRM
-  -> Toast confirms "Contact saved"
+### 2. PIS Clone for Repeat Addresses + New Fields
 
-Client opens PIS link
-  -> Form loads RFI + project (existing)
-  -> Also fetches latest client_contacts for that client (new)
-  -> Pre-fills applicant fields from live CRM data
-  -> Falls back to project record if no match
-```
+- When sending a PIS for a project at an address with prior projects, offer to pre-fill from the previous PIS
+- Add Filing Type field (Plan Exam / Pro-Cert / TBD) to PIS Applicant section
+- Add Client Reference Number field (e.g., NY Tent #611490) to PIS
+- Both sync back to project record
 
-No database triggers or schema changes needed -- this is purely a read-layer fix.
+### 3. Editable Instruction Templates
+
+User-managed templates in Settings for common instructions sent to owners and architects. Three defaults seeded:
+
+- DOB Registration -- owner creates a DOB NOW account
+- DOB E-Sign (Standard) -- owner signs and pays on one application
+- DOB E-Sign (Supersede) -- owner signs multiple supersede applications
+
+Templates support variables like job numbers that auto-fill when used from a project.
+
+### 4. Fix "Mark Approved" to Also Create the Project
+
+Currently marking a proposal as approved (physical copy, MSA, email confirmation) only changes status -- it does NOT create the project. The fix: Mark Approved also runs project creation (creates project, copies services, links contacts). One step instead of two.
+
+---
+
+## Technical Details
+
+### Database Migration
+
+**New table: `project_checklist_items`**
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| company_id | uuid FK | RLS scope |
+| project_id | uuid FK | to projects |
+| label | text | e.g., "Sealed plans from architect" |
+| category | text | missing_document, missing_info, pending_signature, pending_response |
+| from_whom | text | e.g., "Architect", "Owner" |
+| source_service_id | uuid nullable | FK to services |
+| source_catalog_name | text nullable | for dedup matching |
+| status | text DEFAULT 'open' | open, done, dismissed |
+| requested_date | timestamptz | |
+| completed_at | timestamptz | |
+| sort_order | integer DEFAULT 0 | |
+| created_at | timestamptz DEFAULT now() | |
+| updated_at | timestamptz DEFAULT now() | |
+
+RLS: SELECT, INSERT, UPDATE, DELETE scoped to company_id via profiles.
+
+**New columns on `projects`:**
+- `filing_type` text
+- `client_reference_number` text
+
+**Update `sync_pis_to_project()` trigger** to map new PIS response fields to these columns.
+
+**Company settings JSONB additions (no migration needed):**
+- `ServiceCatalogItem.default_requirements`: array of `{ label, category, from_whom_role }`
+- `instruction_templates`: array of `{ id, name, description, body, variables }`
+
+### New Files
+
+| File | Purpose |
+|------|---------|
+| `src/hooks/useProjectChecklist.ts` | CRUD for `project_checklist_items`, auto-populate from service templates with dedup |
+| `src/components/projects/QuickReferenceBar.tsx` | Post-filing header: job numbers with copy, filing type, "Send E-Sign Instructions" button |
+| `src/components/projects/ESignInstructionDialog.tsx` | Pre-filled email composer using instruction templates with variable substitution |
+| `src/components/settings/InstructionTemplateSettings.tsx` | Settings UI for managing instruction templates |
+
+### Modified Files
+
+| File | Change |
+|------|--------|
+| `src/pages/ProjectDetail.tsx` | Replace hard-coded checklist with database-backed items; add QuickReferenceBar when DOB applications exist |
+| `src/components/projects/EditPISDialog.tsx` | Clone-from-previous logic (query prior PIS by property_id); add filing_type and client_reference_number fields |
+| `src/hooks/useRfi.ts` | Add filing_type to applicant section; add client_reference_number to PIS template |
+| `src/pages/RfiForm.tsx` | Render new PIS fields |
+| `src/hooks/useProposalFollowUps.ts` | Update Mark Approved to also create the project (create project, copy services, link contacts) |
+| `src/components/proposals/ProposalTable.tsx` | Keep "Convert to Project" as fallback for legacy proposals |
+| `src/components/settings/ServiceCatalogSettings.tsx` | Add default requirements editor per service |
+| `src/hooks/useCompanySettings.ts` | Update types for templates and service requirements |
+| `src/pages/Settings.tsx` | Add Instruction Templates settings card |
+
+### Checklist Deduplication Logic
+
+When a project has 3x "ALT-2 Filing" services, the auto-populate generates ONE set of template items (not 3 copies), matched by catalog name. Per-service details (floor, description, cost) remain visible in the Services tab.
+
+### Build Order
+
+1. Database migration (checklist table + project columns + trigger update)
+2. `useProjectChecklist.ts` hook (CRUD + auto-populate with dedup)
+3. Refactor ProjectDetail.tsx checklist to use persisted items
+4. Service catalog default requirements editor
+5. PIS additions (filing_type, client_reference_number)
+6. PIS clone logic for repeat addresses
+7. Fix Mark Approved to also create project
+8. Instruction templates settings UI with 3 default seeds
+9. QuickReferenceBar + ESignInstructionDialog (post-filing)
 
