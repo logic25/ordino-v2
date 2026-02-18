@@ -31,11 +31,9 @@ const formatCurrency = (value: number) =>
 const statusColors: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
   sent: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  viewed: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-  signed_internal: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-  signed_client: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  accepted: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
-  rejected: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+  viewed: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+  executed: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
+  lost: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
   expired: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
 };
 
@@ -55,7 +53,7 @@ export function ClientProposalsModal({ open, onOpenChange, clientId, clientName 
   });
 
   const totalValue = proposals.reduce((sum, p) => sum + (p.total_amount || 0), 0);
-  const accepted = proposals.filter((p) => p.status === "accepted" || p.status === "signed_client").length;
+  const accepted = proposals.filter((p) => p.status === "executed").length;
   const sent = proposals.filter((p) => p.status !== "draft").length;
   const conversionRate = sent > 0 ? Math.round((accepted / sent) * 100) : 0;
 

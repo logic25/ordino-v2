@@ -5417,6 +5417,7 @@ export type Database = {
         | "rejected"
         | "expired"
         | "lost"
+        | "executed"
       service_status:
         | "not_started"
         | "in_progress"
@@ -5583,6 +5584,7 @@ export const Constants = {
         "rejected",
         "expired",
         "lost",
+        "executed",
       ],
       service_status: [
         "not_started",

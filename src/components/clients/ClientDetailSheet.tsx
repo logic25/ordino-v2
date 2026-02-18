@@ -75,12 +75,12 @@ function useClientRelations(clientId: string | undefined) {
 
       // Calculate stats
       const acceptedProposals = proposals.filter(
-        (p) => p.status === "accepted" || p.status === "signed_client"
+        (p) => p.status === "executed"
       ).length;
       const rejectedProposals = proposals.filter((p) => p.status === "rejected").length;
       const decidedProposals = acceptedProposals + rejectedProposals;
       const totalRevenue = proposals
-        .filter((p) => p.status === "accepted" || p.status === "signed_client")
+        .filter((p) => p.status === "executed")
         .reduce((sum, p) => sum + (p.total_amount || 0), 0);
       const activeProjects = projects.filter((p) => p.status === "open").length;
 
@@ -116,10 +116,9 @@ const statusVariant: Record<string, "default" | "secondary" | "outline" | "destr
   paid: "default",
   draft: "secondary",
   sent: "default",
-  accepted: "default",
-  signed_client: "default",
-  signed_internal: "default",
+  executed: "default",
   viewed: "secondary",
+  lost: "destructive",
   rejected: "destructive",
   expired: "outline",
 };
