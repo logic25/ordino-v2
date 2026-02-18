@@ -17,7 +17,9 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { useCompanySettings, useUpdateCompanySettings, ServiceCatalogItem, PriceChangeEntry, WORK_TYPE_DISCIPLINES } from "@/hooks/useCompanySettings";
+import { useCompanySettings, useUpdateCompanySettings, ServiceCatalogItem, PriceChangeEntry, WORK_TYPE_DISCIPLINES, type ServiceRequirement } from "@/hooks/useCompanySettings";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Tooltip, TooltipContent, TooltipTrigger, TooltipProvider,
@@ -344,6 +346,17 @@ export function ServiceCatalogSettings() {
                           </Button>
                         </TableCell>
                       </TableRow>
+                      {/* Default Requirements Row */}
+                      <TableRow key={`${service.id}-reqs`}>
+                        <TableCell colSpan={8} className="p-0">
+                          <ServiceRequirementsEditor
+                            requirements={service.default_requirements || []}
+                            onChange={(reqs) => {
+                              setServices(services.map(s => s.id === service.id ? { ...s, default_requirements: reqs } : s));
+                            }}
+                          />
+                        </TableCell>
+                      </TableRow>
                     ))}
                 </TableBody>
               </Table>
@@ -483,5 +496,82 @@ export function ServiceCatalogSettings() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// ======== SERVICE REQUIREMENTS EDITOR ========
+
+const REQUIREMENT_CATEGORIES = [
+  { value: "missing_document", label: "Missing Document" },
+  { value: "missing_info", label: "Missing Info" },
+  { value: "pending_signature", label: "Pending Signature" },
+  { value: "pending_response", label: "Pending Response" },
+];
+
+function ServiceRequirementsEditor({
+  requirements,
+  onChange,
+}: {
+  requirements: ServiceRequirement[];
+  onChange: (reqs: ServiceRequirement[]) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const addReq = () => {
+    onChange([...requirements, { label: "", category: "missing_document", from_whom_role: "" }]);
+    setIsOpen(true);
+  };
+
+  const removeReq = (idx: number) => {
+    onChange(requirements.filter((_, i) => i !== idx));
+  };
+
+  const updateReq = (idx: number, field: keyof ServiceRequirement, value: string) => {
+    onChange(requirements.map((r, i) => (i === idx ? { ...r, [field]: value } : r)));
+  };
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <CollapsibleTrigger asChild>
+        <button className="flex items-center gap-1.5 px-4 py-1.5 text-xs text-muted-foreground hover:text-foreground w-full text-left">
+          {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          Default Requirements ({requirements.length})
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="px-4 pb-3">
+        <div className="space-y-2">
+          {requirements.map((req, idx) => (
+            <div key={idx} className="flex items-center gap-2">
+              <Input
+                value={req.label}
+                onChange={(e) => updateReq(idx, "label", e.target.value)}
+                placeholder="e.g., Sealed plans from architect"
+                className="h-7 text-xs flex-1"
+              />
+              <Select value={req.category} onValueChange={(v) => updateReq(idx, "category", v)}>
+                <SelectTrigger className="h-7 text-xs w-36"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {REQUIREMENT_CATEGORIES.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                value={req.from_whom_role}
+                onChange={(e) => updateReq(idx, "from_whom_role", e.target.value)}
+                placeholder="From whom"
+                className="h-7 text-xs w-28"
+              />
+              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeReq(idx)}>
+                <Trash2 className="h-3 w-3 text-muted-foreground" />
+              </Button>
+            </div>
+          ))}
+          <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={addReq}>
+            <Plus className="h-3 w-3" /> Add Requirement
+          </Button>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

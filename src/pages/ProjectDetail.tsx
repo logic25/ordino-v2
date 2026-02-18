@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useProjectChecklist, useAddChecklistItem, useUpdateChecklistItem, useDeleteChecklistItem, type ChecklistItem } from "@/hooks/useProjectChecklist";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
@@ -172,19 +173,8 @@ export default function ProjectDetail() {
   const timeEntries: MockTimeEntry[] = [];
   const pisStatus: MockPISStatus = realPISStatus || { sentDate: null, totalFields: 0, completedFields: 0, missingFields: [] };
 
-  // Auto-derive checklist items from real project data
-  const checklistItems: MockChecklistItem[] = (() => {
-    const items: MockChecklistItem[] = [];
-    const proposal = (project as any).proposals;
-    items.push({ id: "cl-proposal-sig", category: "missing_document", label: "Proposal fully executed (dual signature)", fromWhom: "Internal / Client", requestedDate: "", daysWaiting: 0, done: !!(proposal?.internal_signed_at && proposal?.client_signed_at) });
-    const pisSubmitted = pisStatus.sentDate != null;
-    items.push({ id: "cl-pis", category: "missing_info", label: "Project Information Sheet (PIS) submitted", fromWhom: "Client", requestedDate: pisStatus.sentDate || "", daysWaiting: 0, done: pisSubmitted });
-    items.push({ id: "cl-owner", category: "missing_info", label: "Building owner identified", fromWhom: "Client / PIS", requestedDate: "", daysWaiting: 0, done: !!project.building_owner_name || !!project.building_owner_id });
-    items.push({ id: "cl-contacts", category: "missing_info", label: "Project contacts populated", fromWhom: "CRM", requestedDate: "", daysWaiting: 0, done: contacts.length > 0 });
-    items.push({ id: "cl-gc", category: "missing_info", label: "General Contractor info received", fromWhom: "Client / PIS", requestedDate: "", daysWaiting: 0, done: !!project.gc_company_name || !!project.gc_contact_name });
-    items.push({ id: "cl-services", category: "missing_document", label: "Services / scope defined", fromWhom: "Proposal", requestedDate: "", daysWaiting: 0, done: liveServices.length > 0 });
-    return items;
-  })();
+  // DB-backed checklist items
+  const { data: dbChecklistItems = [] } = useProjectChecklist(project?.id);
 
   const approvedCOs = changeOrders.filter(co => co.status === "approved").reduce((s, co) => s + co.amount, 0);
   const contractTotal = liveServices.reduce((s, svc) => s + svc.totalAmount, 0);
@@ -297,7 +287,7 @@ export default function ProjectDetail() {
 
         {/* Proposal Execution Status + Readiness Checklist */}
         <ProposalExecutionBanner project={project} changeOrders={changeOrders} />
-        <ReadinessChecklist items={checklistItems} pisStatus={pisStatus} projectId={id!} />
+        <ReadinessChecklist items={dbChecklistItems} pisStatus={pisStatus} projectId={id!} />
 
         {/* Main Tabbed Content */}
         <Card>
@@ -450,7 +440,7 @@ function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWi
 
 // ======== READINESS CHECKLIST ========
 
-function ReadinessChecklist({ items: initialItems, pisStatus, projectId }: { items: MockChecklistItem[]; pisStatus: MockPISStatus; projectId: string }) {
+function ReadinessChecklist({ items, pisStatus, projectId }: { items: ChecklistItem[]; pisStatus: MockPISStatus; projectId: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const [showReceived, setShowReceived] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -458,11 +448,19 @@ function ReadinessChecklist({ items: initialItems, pisStatus, projectId }: { ite
   const [newLabel, setNewLabel] = useState("");
   const [newFrom, setNewFrom] = useState("");
   const [newCategory, setNewCategory] = useState("missing_document");
-  const [localItems, setLocalItems] = useState<MockChecklistItem[]>(initialItems);
   const { toast } = useToast();
+  const addItem = useAddChecklistItem();
+  const updateItem = useUpdateChecklistItem();
+  const deleteItem = useDeleteChecklistItem();
 
-  const outstanding = localItems.filter(i => !i.done);
-  const completed = localItems.filter(i => i.done);
+  const getDaysWaiting = (requestedDate: string | null) => {
+    if (!requestedDate) return 0;
+    const diff = Date.now() - new Date(requestedDate).getTime();
+    return Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
+  };
+
+  const outstanding = items.filter(i => i.status === "open");
+  const completed = items.filter(i => i.status === "done" || i.status === "dismissed");
   const grouped = Object.entries(checklistCategoryLabels).map(([key, { label, icon }]) => ({
     key, label, icon,
     items: outstanding.filter(i => i.category === key),
@@ -470,28 +468,24 @@ function ReadinessChecklist({ items: initialItems, pisStatus, projectId }: { ite
 
   const pisComplete = pisStatus.completedFields === pisStatus.totalFields;
 
-  const markDone = (id: string) => {
-    setLocalItems(prev => prev.map(item => item.id === id ? { ...item, done: true } : item));
+  const handleMarkDone = (id: string) => {
+    updateItem.mutate({ id, projectId, status: "done" });
     toast({ title: "Received ✓", description: "Item moved to received list." });
   };
 
-  const removeItem = (id: string) => {
-    setLocalItems(prev => prev.filter(item => item.id !== id));
+  const handleRemoveItem = (id: string) => {
+    deleteItem.mutate({ id, projectId });
     toast({ title: "Removed", description: "Item removed from checklist." });
   };
 
-  const addItem = () => {
+  const handleAddItem = () => {
     if (!newLabel.trim()) return;
-    const newItem: MockChecklistItem = {
-      id: `cl-new-${Date.now()}`,
-      category: newCategory as MockChecklistItem["category"],
+    addItem.mutate({
+      project_id: projectId,
       label: newLabel,
-      fromWhom: newFrom || "—",
-      requestedDate: new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }),
-      daysWaiting: 0,
-      done: false,
-    };
-    setLocalItems(prev => [...prev, newItem]);
+      category: newCategory,
+      from_whom: newFrom || undefined,
+    });
     toast({ title: "Item added", description: newLabel });
     setNewLabel(""); setNewFrom(""); setShowAddForm(false);
   };
@@ -585,41 +579,44 @@ function ReadinessChecklist({ items: initialItems, pisStatus, projectId }: { ite
                   {icon} {label} ({groupItems.length})
                 </h4>
                 <div className="space-y-1.5">
-                  {groupItems.map((item) => (
-                    <div key={item.id} className="flex items-center gap-3 text-sm py-2 px-3 rounded-md bg-background border group/item">
-                      <Checkbox className="h-4 w-4" onCheckedChange={() => markDone(item.id)} />
-                      <span className="flex-1 min-w-0">{item.label}</span>
-                      <span className="text-xs text-muted-foreground shrink-0">from {item.fromWhom}</span>
-                      <Badge variant={item.daysWaiting > 7 ? "destructive" : "secondary"} className="text-[10px] shrink-0">
-                        {item.daysWaiting}d
-                      </Badge>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {item.category === "missing_document" && (
-                          <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 text-muted-foreground hover:text-foreground" onClick={() => toast({ title: "Request Sent", description: `Requested "${item.label}" from ${item.fromWhom}` })}>
-                            <Mail className="h-3 w-3" /> Request
+                  {groupItems.map((item) => {
+                    const daysWaiting = getDaysWaiting(item.requested_date);
+                    return (
+                      <div key={item.id} className="flex items-center gap-3 text-sm py-2 px-3 rounded-md bg-background border group/item">
+                        <Checkbox className="h-4 w-4" onCheckedChange={() => handleMarkDone(item.id)} />
+                        <span className="flex-1 min-w-0">{item.label}</span>
+                        {item.from_whom && <span className="text-xs text-muted-foreground shrink-0">from {item.from_whom}</span>}
+                        <Badge variant={daysWaiting > 7 ? "destructive" : "secondary"} className="text-[10px] shrink-0">
+                          {daysWaiting}d
+                        </Badge>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {item.category === "missing_document" && (
+                            <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 text-muted-foreground hover:text-foreground" onClick={() => toast({ title: "Request Sent", description: `Requested "${item.label}" from ${item.from_whom}` })}>
+                              <Mail className="h-3 w-3" /> Request
+                            </Button>
+                          )}
+                          {item.category === "missing_info" && (
+                            <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 text-muted-foreground hover:text-foreground" onClick={() => toast({ title: "Email Draft", description: `Drafting email to request "${item.label}"` })}>
+                              <Mail className="h-3 w-3" /> Email
+                            </Button>
+                          )}
+                          {item.category === "pending_signature" && (
+                            <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 text-muted-foreground hover:text-foreground" onClick={() => toast({ title: "Reminder Sent", description: `Signature reminder sent for "${item.label}"` })}>
+                              <Send className="h-3 w-3" /> Remind
+                            </Button>
+                          )}
+                          {item.category === "pending_response" && (
+                            <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 text-muted-foreground hover:text-foreground" onClick={() => toast({ title: "Follow-up Sent", description: `Follow-up sent for "${item.label}"` })}>
+                              <Phone className="h-3 w-3" /> Follow Up
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => handleRemoveItem(item.id)}>
+                            <Trash2 className="h-3 w-3" />
                           </Button>
-                        )}
-                        {item.category === "missing_info" && (
-                          <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 text-muted-foreground hover:text-foreground" onClick={() => toast({ title: "Email Draft", description: `Drafting email to request "${item.label}"` })}>
-                            <Mail className="h-3 w-3" /> Email
-                          </Button>
-                        )}
-                        {item.category === "pending_signature" && (
-                          <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 text-muted-foreground hover:text-foreground" onClick={() => toast({ title: "Reminder Sent", description: `Signature reminder sent for "${item.label}"` })}>
-                            <Send className="h-3 w-3" /> Remind
-                          </Button>
-                        )}
-                        {item.category === "pending_response" && (
-                          <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 text-muted-foreground hover:text-foreground" onClick={() => toast({ title: "Follow-up Sent", description: `Follow-up sent for "${item.label}"` })}>
-                            <Phone className="h-3 w-3" /> Follow Up
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeItem(item.id)}>
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -638,7 +635,7 @@ function ReadinessChecklist({ items: initialItems, pisStatus, projectId }: { ite
                       <div key={item.id} className="flex items-center gap-3 text-sm py-1.5 px-3 rounded-md text-muted-foreground">
                         <Checkbox checked className="h-4 w-4" />
                         <span className="line-through">{item.label}</span>
-                        <span className="text-xs ml-auto">from {item.fromWhom}</span>
+                        {item.from_whom && <span className="text-xs ml-auto">from {item.from_whom}</span>}
                       </div>
                     ))}
                   </div>
@@ -661,7 +658,7 @@ function ReadinessChecklist({ items: initialItems, pisStatus, projectId }: { ite
                   </Select>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" className="h-7 text-xs" onClick={addItem}>Add</Button>
+                  <Button size="sm" className="h-7 text-xs" onClick={handleAddItem} disabled={addItem.isPending}>Add</Button>
                   <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setNewLabel(""); setNewFrom(""); setShowAddForm(false); }}>Cancel</Button>
                 </div>
               </div>

@@ -3359,6 +3359,79 @@ export type Database = {
           },
         ]
       }
+      project_checklist_items: {
+        Row: {
+          category: string
+          company_id: string
+          completed_at: string | null
+          created_at: string
+          from_whom: string | null
+          id: string
+          label: string
+          project_id: string
+          requested_date: string | null
+          sort_order: number
+          source_catalog_name: string | null
+          source_service_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          company_id: string
+          completed_at?: string | null
+          created_at?: string
+          from_whom?: string | null
+          id?: string
+          label: string
+          project_id: string
+          requested_date?: string | null
+          sort_order?: number
+          source_catalog_name?: string | null
+          source_service_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          company_id?: string
+          completed_at?: string | null
+          created_at?: string
+          from_whom?: string | null
+          id?: string
+          label?: string
+          project_id?: string
+          requested_date?: string | null
+          sort_order?: number
+          source_catalog_name?: string | null
+          source_service_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_checklist_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_checklist_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_checklist_items_source_service_id_fkey"
+            columns: ["source_service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           actual_construction_completion: string | null
@@ -3373,12 +3446,14 @@ export type Database = {
           building_owner_id: string | null
           building_owner_name: string | null
           client_id: string | null
+          client_reference_number: string | null
           company_id: string
           completion_date: string | null
           created_at: string | null
           created_by: string | null
           estimated_construction_completion: string | null
           expected_construction_start: string | null
+          filing_type: string | null
           floor_number: string | null
           gc_company_name: string | null
           gc_contact_name: string | null
@@ -3427,12 +3502,14 @@ export type Database = {
           building_owner_id?: string | null
           building_owner_name?: string | null
           client_id?: string | null
+          client_reference_number?: string | null
           company_id: string
           completion_date?: string | null
           created_at?: string | null
           created_by?: string | null
           estimated_construction_completion?: string | null
           expected_construction_start?: string | null
+          filing_type?: string | null
           floor_number?: string | null
           gc_company_name?: string | null
           gc_contact_name?: string | null
@@ -3481,12 +3558,14 @@ export type Database = {
           building_owner_id?: string | null
           building_owner_name?: string | null
           client_id?: string | null
+          client_reference_number?: string | null
           company_id?: string
           completion_date?: string | null
           created_at?: string | null
           created_by?: string | null
           estimated_construction_completion?: string | null
           expected_construction_start?: string | null
+          filing_type?: string | null
           floor_number?: string | null
           gc_company_name?: string | null
           gc_contact_name?: string | null

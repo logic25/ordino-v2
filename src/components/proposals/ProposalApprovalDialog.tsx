@@ -11,14 +11,23 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, Upload, CheckCircle2, FileText, Mail, Handshake } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2, CheckCircle2, FileText, Mail, Handshake, FolderOpen } from "lucide-react";
+import { useAssignableProfiles } from "@/hooks/useProfiles";
 
 interface ProposalApprovalDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onApprove: (method: string, notes?: string, signedDocUrl?: string) => void;
+  onApprove: (method: string, notes?: string, signedDocUrl?: string, assignedPmId?: string) => void;
   isLoading?: boolean;
   proposalTitle?: string;
+  defaultPmId?: string;
 }
 
 const APPROVAL_METHODS = [
@@ -48,12 +57,15 @@ export function ProposalApprovalDialog({
   onApprove,
   isLoading,
   proposalTitle,
+  defaultPmId,
 }: ProposalApprovalDialogProps) {
   const [method, setMethod] = useState("physical_copy");
   const [notes, setNotes] = useState("");
+  const [assignedPmId, setAssignedPmId] = useState(defaultPmId || "");
+  const { data: assignableProfiles = [] } = useAssignableProfiles();
 
   const handleSubmit = () => {
-    onApprove(method, notes || undefined);
+    onApprove(method, notes || undefined, undefined, assignedPmId || undefined);
     setMethod("physical_copy");
     setNotes("");
   };
@@ -68,7 +80,7 @@ export function ProposalApprovalDialog({
           </DialogTitle>
           <DialogDescription>
             {proposalTitle ? `"${proposalTitle}" — ` : ""}
-            How was this proposal accepted?
+            How was this proposal accepted? A project will be created automatically.
           </DialogDescription>
         </DialogHeader>
 
@@ -96,6 +108,27 @@ export function ProposalApprovalDialog({
           </RadioGroup>
 
           <div className="space-y-2">
+            <Label htmlFor="approval-pm">
+              <span className="flex items-center gap-1.5">
+                <FolderOpen className="h-3.5 w-3.5" />
+                Assign Project Manager
+              </span>
+            </Label>
+            <Select value={assignedPmId} onValueChange={setAssignedPmId}>
+              <SelectTrigger id="approval-pm">
+                <SelectValue placeholder="Select PM..." />
+              </SelectTrigger>
+              <SelectContent>
+                {assignableProfiles.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {[p.first_name, p.last_name].filter(Boolean).join(" ") || p.user_id}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="approval-notes">Notes (optional)</Label>
             <Textarea
               id="approval-notes"
@@ -115,12 +148,12 @@ export function ProposalApprovalDialog({
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
+                Creating Project...
               </>
             ) : (
               <>
                 <CheckCircle2 className="mr-2 h-4 w-4" />
-                Mark Approved
+                Approve & Create Project
               </>
             )}
           </Button>
