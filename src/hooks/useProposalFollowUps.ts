@@ -80,7 +80,7 @@ export function useMarkProposalApproved() {
       const { error } = await supabase
         .from("proposals")
         .update({
-          status: "accepted",
+          status: "executed",
           approval_method: approvalMethod,
           signed_document_url: signedDocumentUrl || null,
           next_follow_up_date: null,

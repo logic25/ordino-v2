@@ -45,7 +45,7 @@ const MOCK_PROPOSALS: ProposalWithRelations[] = [
     property_id: "mock-p1",
     proposal_number: "021526-1",
     title: "Full Permit Package – Alt-1 Renovation",
-    status: "accepted",
+    status: "executed",
     client_name: "John Smith",
     client_email: "john@abcbusiness.com",
     total_amount: 8500,
@@ -118,7 +118,7 @@ const MOCK_PROPOSALS: ProposalWithRelations[] = [
     property_id: "mock-p4",
     proposal_number: "011526-2",
     title: "New Building Permit Filing",
-    status: "signed_internal",
+    status: "sent",
     client_name: "XYZ Development LLC",
     client_email: "permits@xyzdev.com",
     total_amount: 22000,
@@ -253,8 +253,8 @@ export default function Proposals() {
   const filteredProposals = displayProposals.filter((p) => {
     if (statusFilter) {
       if (statusFilter === "draft" && p.status !== "draft") return false;
-      if (statusFilter === "sent" && !["sent", "viewed", "signed_internal", "signed_client"].includes(p.status || "")) return false;
-      if (statusFilter === "accepted" && p.status !== "accepted") return false;
+      if (statusFilter === "sent" && !["sent", "viewed"].includes(p.status || "")) return false;
+      if (statusFilter === "executed" && p.status !== "executed") return false;
       if (statusFilter === "lost" && (p.status as string) !== "lost") return false;
       if (statusFilter === "follow_up") {
         const nextDate = (p as any).next_follow_up_date;
@@ -285,8 +285,8 @@ export default function Proposals() {
 
   // Stats
   const draftCount = displayProposals.filter((p) => p.status === "draft").length;
-  const sentCount = displayProposals.filter((p) => ["sent", "viewed", "signed_internal", "signed_client"].includes(p.status || "")).length;
-  const acceptedCount = displayProposals.filter((p) => p.status === "accepted").length;
+  const sentCount = displayProposals.filter((p) => ["sent", "viewed"].includes(p.status || "")).length;
+  const executedCount = displayProposals.filter((p) => p.status === "executed").length;
   const lostCount = displayProposals.filter((p) => (p.status as string) === "lost").length;
   const followUpDueCount = displayProposals.filter((p) => {
     const nextDate = (p as any).next_follow_up_date;
@@ -298,7 +298,7 @@ export default function Proposals() {
     .filter((p) => p.status === "draft")
     .reduce((sum, p) => sum + Number(p.total_amount || 0), 0);
   const sentTotal = displayProposals
-    .filter((p) => ["sent", "viewed", "signed_internal", "signed_client"].includes(p.status || ""))
+    .filter((p) => ["sent", "viewed"].includes(p.status || ""))
     .reduce((sum, p) => sum + Number(p.total_amount || 0), 0);
 
   const formatCurrency = (value: number) => {
@@ -696,15 +696,15 @@ export default function Proposals() {
             </CardContent>
           </Card>
           <Card
-            className={`cursor-pointer transition-colors hover:border-primary/50 ${statusFilter === "accepted" ? "border-primary ring-1 ring-primary/20" : ""}`}
-            onClick={() => { setStatusFilter(statusFilter === "accepted" ? null : "accepted"); setActiveTab("proposals"); }}
+            className={`cursor-pointer transition-colors hover:border-primary/50 ${statusFilter === "executed" ? "border-primary ring-1 ring-primary/20" : ""}`}
+            onClick={() => { setStatusFilter(statusFilter === "executed" ? null : "executed"); setActiveTab("proposals"); }}
           >
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Accepted</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Executed</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{acceptedCount}</div>
-              <p className="text-xs text-muted-foreground mt-1">This month</p>
+              <div className="text-3xl font-bold">{executedCount}</div>
+              <p className="text-xs text-muted-foreground mt-1">Fully signed</p>
             </CardContent>
           </Card>
           <Card

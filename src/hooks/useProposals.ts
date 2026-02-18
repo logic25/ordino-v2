@@ -415,20 +415,10 @@ export function useSendProposal() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      // Check current status — don't overwrite signed_internal
-      const { data: current } = await supabase
-        .from("proposals")
-        .select("status")
-        .eq("id", id)
-        .single();
-
+      // Send only updates sent_at — status is managed by sign flow
       const updatePayload: Record<string, any> = {
         sent_at: new Date().toISOString(),
       };
-      // Only set status to "sent" if not already signed internally
-      if (current?.status !== "signed_internal") {
-        updatePayload.status = "sent";
-      }
 
       const { data, error } = await supabase
         .from("proposals")
@@ -570,7 +560,7 @@ export function useSignProposalInternal() {
       const { data, error } = await supabase
         .from("proposals")
         .update({
-          status: "signed_internal",
+          status: "sent",
           internal_signed_by: profile.id,
           internal_signed_at: new Date().toISOString(),
           internal_signature_data: signatureData,
