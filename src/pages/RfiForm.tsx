@@ -83,6 +83,7 @@ export default function RfiForm() {
   const [repeatCounts, setRepeatCounts] = useState<Record<string, number>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [editingAfterSubmit, setEditingAfterSubmit] = useState(false);
   const [direction, setDirection] = useState<"forward" | "back">("forward");
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const [previewFile, setPreviewFile] = useState<{ name: string; url: string } | null>(null);
@@ -719,8 +720,8 @@ export default function RfiForm() {
     );
   }
 
-  // Already submitted
-  if (submitted || rfi.status === "submitted") {
+  // Already submitted — show summary with option to edit
+  if ((submitted || rfi.status === "submitted") && !editingAfterSubmit) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white flex items-center justify-center p-4">
         <div className="max-w-md w-full text-center">
@@ -728,9 +729,21 @@ export default function RfiForm() {
             <CheckCircle2 className="h-10 w-10 text-emerald-500" />
           </div>
           <h2 className="text-3xl font-bold text-stone-800 mb-3">All Done!</h2>
-          <p className="text-stone-500 leading-relaxed text-lg">
+          <p className="text-stone-500 leading-relaxed text-lg mb-6">
             Your project information has been submitted. Your project manager will review everything and be in touch shortly.
           </p>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setEditingAfterSubmit(true);
+              setSubmitted(false);
+              setCurrentStep(0);
+            }}
+            className="gap-2"
+          >
+            <Pencil className="h-4 w-4" />
+            Edit Responses
+          </Button>
         </div>
       </div>
     );
