@@ -57,6 +57,7 @@ export interface ProposalFormInput {
   tpp_name?: string | null;
   tpp_email?: string | null;
   job_description?: string | null;
+  unit_number?: string | null;
   items?: ProposalItemInput[];
   milestones?: ProposalMilestoneInput[];
 }
@@ -224,6 +225,7 @@ export function useCreateProposal() {
           tpp_name: proposalData.tpp_name || null,
           tpp_email: proposalData.tpp_email || null,
           job_description: proposalData.job_description || null,
+          unit_number: (proposalData as any).unit_number || null,
         } as any)
         .select()
         .single();
@@ -339,6 +341,7 @@ export function useUpdateProposal() {
           tpp_name: proposalData.tpp_name || null,
           tpp_email: proposalData.tpp_email || null,
           job_description: proposalData.job_description || null,
+          unit_number: (proposalData as any).unit_number || null,
         } as any)
         .eq("id", id)
         .select()

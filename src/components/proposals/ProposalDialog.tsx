@@ -104,6 +104,7 @@ const proposalSchema = z.object({
   reminder_date: z.string().optional(),
   notable: z.boolean().optional(),
   job_description: z.string().optional(),
+  unit_number: z.string().optional(),
   // Party info
   architect_company: z.string().optional(),
   architect_name: z.string().optional(),
@@ -616,6 +617,7 @@ export function ProposalDialog({
       sia_name: "", sia_company: "", sia_phone: "", sia_email: "",
       tpp_name: "", tpp_email: "",
       job_description: "",
+      unit_number: "",
       items: [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0, fee_type: "fixed" }],
     },
   });
@@ -652,6 +654,7 @@ export function ProposalDialog({
         sia_name: p.sia_name || "", sia_company: p.sia_company || "", sia_phone: p.sia_phone || "", sia_email: p.sia_email || "",
         tpp_name: p.tpp_name || "", tpp_email: p.tpp_email || "",
         job_description: p.job_description || "",
+        unit_number: p.unit_number || "",
         items: proposalWithItems.items?.length ? proposalWithItems.items.map(i => ({
           id: i.id, name: i.name, description: i.description || "",
           quantity: Number(i.quantity), unit_price: Number(i.unit_price),
@@ -679,6 +682,7 @@ export function ProposalDialog({
         sia_name: "", sia_company: "", sia_phone: "", sia_email: "",
         tpp_name: "", tpp_email: "",
         job_description: "",
+        unit_number: "",
         items: [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0, fee_type: "fixed" }],
       });
       setContacts([]);
@@ -791,6 +795,7 @@ export function ProposalDialog({
         tpp_name: data.tpp_name || null,
         tpp_email: data.tpp_email || null,
         job_description: data.job_description || null,
+        unit_number: (data as any).unit_number || null,
         items: validItems.map((item, idx) => ({
           id: item.id, name: item.name, description: item.description || null,
           quantity: item.quantity, unit_price: item.unit_price, sort_order: idx,
@@ -952,12 +957,18 @@ export function ProposalDialog({
                     </div>
                   )}
 
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Proposal Title *</Label>
-                    <Input className="h-10 text-sm" placeholder="e.g., Full Permit Package — 228 Greene Ave" {...form.register("title")} />
-                    {form.formState.errors.title && (
-                      <p className="text-xs text-destructive">{form.formState.errors.title.message}</p>
-                    )}
+                  <div className="grid grid-cols-[1fr_120px] gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Proposal Title *</Label>
+                      <Input className="h-10 text-sm" placeholder="e.g., Full Permit Package — 228 Greene Ave" {...form.register("title")} />
+                      {form.formState.errors.title && (
+                        <p className="text-xs text-destructive">{form.formState.errors.title.message}</p>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Apt / Unit</Label>
+                      <Input className="h-10 text-sm" placeholder="e.g., 46C" {...form.register("unit_number")} />
+                    </div>
                   </div>
                 </div>
 
