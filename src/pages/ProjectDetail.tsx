@@ -57,6 +57,7 @@ import type {
 import {
   useProjectServices, useProjectContacts, useProjectTimeline, useProjectPISStatus, useProjectDocuments,
 } from "@/hooks/useProjectDetail";
+import { QuickReferenceBar } from "@/components/projects/QuickReferenceBar";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   open: { label: "Open", variant: "default" },
@@ -100,6 +101,20 @@ export default function ProjectDetail() {
   const { data: realTimeline = [] } = useProjectTimeline(project?.id, (project as any)?.proposal_id);
   const { data: realPISStatus } = useProjectPISStatus(project?.id);
   const { data: realDocuments = [] } = useProjectDocuments(project?.id);
+
+  // DOB applications for QuickReferenceBar
+  const { data: dobApplications = [] } = useQuery({
+    queryKey: ["dob-apps-quick", project?.id],
+    enabled: !!project?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("dob_applications")
+        .select("id, job_number, application_type, status")
+        .eq("project_id", project!.id)
+        .order("created_at");
+      return (data || []) as { id: string; job_number: string | null; application_type: string | null; status: string | null }[];
+    },
+  });
 
   const [liveServices, setLiveServices] = useState<MockService[]>([]);
   const [servicesInitialized, setServicesInitialized] = useState<string | null>(null);
@@ -285,8 +300,18 @@ export default function ProjectDetail() {
           ))}
         </div>
 
-        {/* Proposal Execution Status + Readiness Checklist */}
+        {/* Proposal Execution Status + Quick Reference + Readiness Checklist */}
         <ProposalExecutionBanner project={project} changeOrders={changeOrders} />
+        {dobApplications.length > 0 && (
+          <QuickReferenceBar
+            applications={dobApplications}
+            filingType={(project as any).filing_type}
+            projectId={id!}
+            projectName={project.name || project.proposals?.title || "Untitled"}
+            ownerName={(project as any).building_owner_name}
+            ownerEmail={primaryContact?.email}
+          />
+        )}
         <ReadinessChecklist items={dbChecklistItems} pisStatus={pisStatus} projectId={id!} />
 
         {/* Main Tabbed Content */}

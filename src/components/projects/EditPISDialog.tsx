@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
-import { Save, AlertTriangle, UserPlus, CheckCircle2, Loader2 } from "lucide-react";
+import { Save, AlertTriangle, UserPlus, CheckCircle2, Loader2, Copy } from "lucide-react";
 import { useClients } from "@/hooks/useClients";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -55,6 +55,8 @@ const PIS_SECTIONS: PisSection[] = [
     description: "Licensed professional filing the application",
     contactRole: "Applicant",
     fields: [
+      { id: "filing_type", label: "Filing Type", type: "select", options: ["Plan Exam", "Pro-Cert", "TBD"], width: "half" },
+      { id: "client_reference_number", label: "Client Reference Number", type: "text", width: "half", placeholder: "e.g. NY Tent #611490" },
       { id: "applicant_name", label: "Full Name", type: "text", width: "half" },
       { id: "applicant_business_name", label: "Business Name", type: "text", width: "half" },
       { id: "applicant_business_address", label: "Business Address", type: "text", width: "full" },
@@ -165,6 +167,63 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
     },
     enabled: !!projectId && open,
   });
+
+  // Fetch prior PIS at same property for clone
+  const { data: priorPIS } = useQuery({
+    queryKey: ["prior-pis", projectId],
+    queryFn: async () => {
+      // Get this project's property_id
+      const { data: proj } = await supabase.from("projects").select("property_id").eq("id", projectId).single();
+      if (!proj?.property_id) return null;
+      // Find other projects at same property
+      const { data: otherProjects } = await supabase
+        .from("projects")
+        .select("id, name")
+        .eq("property_id", proj.property_id)
+        .neq("id", projectId)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      if (!otherProjects || otherProjects.length === 0) return null;
+      // Get latest RFI from those projects
+      const { data: priorRfi } = await (supabase.from("rfi_requests") as any)
+        .select("id, responses, project_id")
+        .in("project_id", otherProjects.map(p => p.id))
+        .eq("status", "submitted")
+        .order("submitted_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!priorRfi?.responses) return null;
+      const priorProject = otherProjects.find(p => p.id === priorRfi.project_id);
+      return { responses: priorRfi.responses as Record<string, any>, projectName: priorProject?.name || "Previous project" };
+    },
+    enabled: !!projectId && open,
+  });
+
+  const handleCloneFromPrior = () => {
+    if (!priorPIS?.responses) return;
+    const mapped: Record<string, string> = {};
+    const resp = priorPIS.responses;
+    for (const section of PIS_SECTIONS) {
+      for (const field of section.fields) {
+        if (field.type === "heading") continue;
+        // Skip scope-specific fields
+        if (["job_description", "filing_type", "client_reference_number"].includes(field.id)) continue;
+        const prefixedKey = `${section.id}_${field.id}`;
+        const val = resp[prefixedKey] ?? resp[field.id];
+        if (val && !values[field.id]) {
+          mapped[field.id] = String(val);
+        }
+        // Also try any key ending with field id
+        for (const [key, v] of Object.entries(resp)) {
+          if (key.endsWith(`_${field.id}`) && v && !values[field.id] && !mapped[field.id]) {
+            mapped[field.id] = String(v);
+          }
+        }
+      }
+    }
+    setValues(prev => ({ ...prev, ...mapped }));
+    toast({ title: "Pre-filled", description: `Data cloned from "${priorPIS.projectName}". Review and save.` });
+  };
 
   // Fetch proposal job_description if project was created from a proposal
   const { data: proposalJobDesc } = useQuery({
@@ -337,6 +396,15 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
             {pisStatus.sentDate && ` · Sent ${pisStatus.sentDate}`}
           </DialogDescription>
         </DialogHeader>
+
+        {priorPIS && (
+          <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 text-sm">
+            <span className="text-muted-foreground">Prior PIS found at this address from "{priorPIS.projectName}"</span>
+            <Button variant="outline" size="sm" className="gap-1.5 h-7 text-xs ml-auto" onClick={handleCloneFromPrior}>
+              <Copy className="h-3 w-3" /> Pre-fill from prior
+            </Button>
+          </div>
+        )}
 
         <Accordion type="multiple" defaultValue={PIS_SECTIONS.map((s) => s.id)} className="w-full">
           {PIS_SECTIONS.map((section) => {
