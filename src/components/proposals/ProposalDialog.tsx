@@ -434,11 +434,7 @@ function PartyInfoSection({ form, clients }: { form: any; clients: any[] }) {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const toggle = (key: string) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
 
-  // Filter clients by type for each party
-  const architectClients = clients.filter(c => !c.client_type || ["Architect", "Engineer", "Architect/Engineer"].includes(c.client_type));
-  const gcClients = clients.filter(c => !c.client_type || ["General Contractor", "GC", "Contractor"].includes(c.client_type));
-  const siaClients = clients.filter(c => !c.client_type || ["SIA", "Special Inspector", "Inspection"].includes(c.client_type));
-  const tppClients = clients.filter(c => !c.client_type || ["TPP", "Third Party Provider", "Testing"].includes(c.client_type));
+  // Show all companies in all party dropdowns - no type filtering
 
   const handleSelectClient = async (client: any, prefix: string) => {
     const opts = { shouldDirty: true };
@@ -460,7 +456,7 @@ function PartyInfoSection({ form, clients }: { form: any; clients: any[] }) {
   };
 
   const parties = [
-    { key: "architect", label: "Architect / Engineer", clientPool: architectClients, fields: [
+    { key: "architect", label: "Architect / Engineer", clientPool: clients, fields: [
       { name: "architect_company", label: "Company", placeholder: "Firm name", isCompany: true },
       { name: "architect_name", label: "Contact Name", placeholder: "Full name" },
       { name: "architect_phone", label: "Phone", placeholder: "(555) 000-0000" },
@@ -468,19 +464,19 @@ function PartyInfoSection({ form, clients }: { form: any; clients: any[] }) {
       { name: "architect_license_type", label: "License Type", placeholder: "RA / PE" },
       { name: "architect_license_number", label: "License #", placeholder: "License number" },
     ]},
-    { key: "gc", label: "General Contractor", clientPool: gcClients, fields: [
+    { key: "gc", label: "General Contractor", clientPool: clients, fields: [
       { name: "gc_company", label: "Company", placeholder: "Company name", isCompany: true },
       { name: "gc_name", label: "Contact Name", placeholder: "Full name" },
       { name: "gc_phone", label: "Phone", placeholder: "(555) 000-0000" },
       { name: "gc_email", label: "Email", placeholder: "email@company.com" },
     ]},
-    { key: "sia", label: "Special Inspector (SIA)", clientPool: siaClients, fields: [
+    { key: "sia", label: "Special Inspector (SIA)", clientPool: clients, fields: [
       { name: "sia_company", label: "Company", placeholder: "Inspection firm", isCompany: true },
       { name: "sia_name", label: "Contact Name", placeholder: "Full name" },
       { name: "sia_phone", label: "Phone", placeholder: "(555) 000-0000" },
       { name: "sia_email", label: "Email", placeholder: "email@company.com" },
     ]},
-    { key: "tpp", label: "Third Party Provider (TPP)", clientPool: tppClients, fields: [
+    { key: "tpp", label: "Third Party Provider (TPP)", clientPool: clients, fields: [
       { name: "tpp_name", label: "Name", placeholder: "Full name" },
       { name: "tpp_email", label: "Email", placeholder: "email@provider.com" },
     ]},

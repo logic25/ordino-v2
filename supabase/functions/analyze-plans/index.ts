@@ -31,16 +31,7 @@ serve(async (req) => {
     const contentParts: any[] = [
       {
         type: "text",
-        text: `You are a construction expediting specialist in New York City. Analyze these architectural/construction plan documents and produce a concise job description suitable for a NYC Department of Buildings (DOB) Project Information Sheet (PIS).
-
-The job description should include:
-- Type of work (e.g., general construction, plumbing, alteration, new building)
-- Approximate scope of work
-- Floors/areas affected
-- Key construction activities
-- Any notable features visible in the plans
-
-Keep the description professional, concise (2-4 sentences), and suitable for official DOB documentation. Do not include assumptions — only describe what you can see in the plans.`,
+        text: `You are a NYC DOB expediter. Analyze these construction plans and write a plain-text job description for a DOB Project Information Sheet (PIS). Rules: 1-2 sentences max. No markdown, no bold, no headers, no bullet points. No assumptions. Just state the work type, scope, and affected areas in simple professional language. Example: "Interior renovation of apartment 12B including removal of non-load-bearing partitions, new finishes, plumbing fixture replacement, and electrical upgrades. No change in use, occupancy, or egress."`,
       },
     ];
 
