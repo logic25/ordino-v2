@@ -743,7 +743,29 @@ export function ProposalDialog({
 
   const handleNext = () => {
     if (validateStep(step)) {
-      setStep(Math.min(step + 1, STEPS.length - 1));
+      const nextStep = Math.min(step + 1, STEPS.length - 1);
+
+      // When moving from Step 1 (Contacts) → Step 2 (Parties), pre-fill Architect from the "applicant" contact
+      if (step === 0 && nextStep === 1) {
+        const applicant = contacts.find((c) => c.role === "applicant");
+        if (applicant) {
+          const opts = { shouldDirty: true };
+          if (!form.getValues("architect_company") && applicant.company_name) {
+            form.setValue("architect_company", applicant.company_name, opts);
+          }
+          if (!form.getValues("architect_name") && applicant.name) {
+            form.setValue("architect_name", applicant.name, opts);
+          }
+          if (!form.getValues("architect_email") && applicant.email) {
+            form.setValue("architect_email", applicant.email, opts);
+          }
+          if (!form.getValues("architect_phone") && applicant.phone) {
+            form.setValue("architect_phone", applicant.phone, opts);
+          }
+        }
+      }
+
+      setStep(nextStep);
     }
   };
 
