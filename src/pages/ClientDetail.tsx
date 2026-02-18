@@ -551,6 +551,7 @@ function ContactRow({
   onDelete,
   onContactUpdated,
 }: ContactRowProps) {
+  const { toast } = useToast();
   const [form, setForm] = useState({
     first_name: contact.first_name || "",
     last_name: contact.last_name || "",
@@ -600,10 +601,15 @@ function ContactRow({
           is_primary: form.is_primary,
         })
         .eq("id", contact.id);
-      if (!error) {
+      if (error) {
+        toast({ title: "Error saving contact", description: error.message, variant: "destructive" });
+      } else {
         setDirty(false);
         onContactUpdated();
+        toast({ title: "Contact saved", description: `${form.first_name} ${form.last_name} updated successfully.` });
       }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to save contact.", variant: "destructive" });
     } finally {
       setSaving(false);
     }
