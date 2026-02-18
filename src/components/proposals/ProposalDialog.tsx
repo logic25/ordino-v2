@@ -48,6 +48,7 @@ import { useCompanySettings, ServiceCatalogItem, WORK_TYPE_DISCIPLINES } from "@
 import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useToast } from "@/hooks/use-toast";
 import { ProposalContactsSection } from "@/components/proposals/ProposalContactsSection";
+import { PlansUploadSection } from "@/components/proposals/PlansUploadSection";
 import { useProposalContacts, type ProposalContactInput } from "@/hooks/useProposalContacts";
 import { ReferredByCombobox } from "@/components/proposals/ReferredByCombobox";
 
@@ -102,6 +103,7 @@ const proposalSchema = z.object({
   billed_to_email: z.string().email().optional().or(z.literal("")),
   reminder_date: z.string().optional(),
   notable: z.boolean().optional(),
+  job_description: z.string().optional(),
   // Party info
   architect_company: z.string().optional(),
   architect_name: z.string().optional(),
@@ -126,6 +128,7 @@ type ProposalFormData = z.infer<typeof proposalSchema>;
 
 const STEPS = [
   { key: "property", label: "Property & Contacts" },
+  { key: "parties", label: "Parties & Plans" },
   { key: "services", label: "Services" },
   { key: "details", label: "Details & Terms" },
 ] as const;
@@ -529,6 +532,7 @@ export function ProposalDialog({
       gc_company: "", gc_name: "", gc_phone: "", gc_email: "",
       sia_name: "", sia_company: "", sia_phone: "", sia_email: "",
       tpp_name: "", tpp_email: "",
+      job_description: "",
       items: [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0, fee_type: "fixed" }],
     },
   });
@@ -562,6 +566,7 @@ export function ProposalDialog({
         gc_company: p.gc_company || "", gc_name: p.gc_name || "", gc_phone: p.gc_phone || "", gc_email: p.gc_email || "",
         sia_name: p.sia_name || "", sia_company: p.sia_company || "", sia_phone: p.sia_phone || "", sia_email: p.sia_email || "",
         tpp_name: p.tpp_name || "", tpp_email: p.tpp_email || "",
+        job_description: p.job_description || "",
         items: proposalWithItems.items?.length ? proposalWithItems.items.map(i => ({
           id: i.id, name: i.name, description: i.description || "",
           quantity: Number(i.quantity), unit_price: Number(i.unit_price),
@@ -588,6 +593,7 @@ export function ProposalDialog({
         gc_company: "", gc_name: "", gc_phone: "", gc_email: "",
         sia_name: "", sia_company: "", sia_phone: "", sia_email: "",
         tpp_name: "", tpp_email: "",
+        job_description: "",
         items: [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0, fee_type: "fixed" }],
       });
       setContacts([]);
@@ -699,6 +705,7 @@ export function ProposalDialog({
         sia_email: data.sia_email || null,
         tpp_name: data.tpp_name || null,
         tpp_email: data.tpp_email || null,
+        job_description: data.job_description || null,
         items: validItems.map((item, idx) => ({
           id: item.id, name: item.name, description: item.description || null,
           quantity: item.quantity, unit_price: item.unit_price, sort_order: idx,
@@ -752,7 +759,7 @@ export function ProposalDialog({
 
         {/* ── Scrollable body ── */}
         <div className="flex flex-col flex-1 min-h-0">
-          <div className={cn("flex-1", step === 1 ? "overflow-visible" : "overflow-y-auto")}>
+          <div className={cn("flex-1", step === 2 ? "overflow-visible" : "overflow-y-auto")}>
 
             {/* ═══ STEP 1: PROPERTY & CONTACTS ═══ */}
             {step === 0 && (
@@ -884,16 +891,32 @@ export function ProposalDialog({
                   isAddingClient={createClient.isPending}
                 />
 
+              </div>
+            )}
+
+            {/* ═══ STEP 2: PARTIES & PLANS ═══ */}
+            {step === 1 && (
+              <div className="px-6 py-5 space-y-5">
                 <SectionLabel>Project Parties</SectionLabel>
                 <p className="text-xs text-muted-foreground -mt-1 mb-2">
                   If known, enter key parties — this pre-fills the client PIS form.
                 </p>
                 <PartyInfoSection form={form} clients={clients} />
+
+                <SectionLabel>Plans</SectionLabel>
+                <p className="text-xs text-muted-foreground -mt-1 mb-2">
+                  Upload architectural plans to auto-extract a job description for the PIS.
+                </p>
+                <PlansUploadSection
+                  proposalId={proposal?.id}
+                  jobDescription={form.watch("job_description") || ""}
+                  onJobDescriptionChange={(v) => form.setValue("job_description", v)}
+                />
               </div>
             )}
 
-            {/* ═══ STEP 2: SERVICES ═══ */}
-            {step === 1 && (
+            {/* ═══ STEP 3: SERVICES ═══ */}
+            {step === 2 && (
               <div className="flex flex-col min-h-0">
                 <div className="grid grid-cols-[auto_1fr_80px_70px_90px_80px_auto] items-center gap-1 px-3 py-2 bg-muted/50 border-b text-xs font-medium text-muted-foreground uppercase tracking-wider shrink-0">
                   <div className="w-7" />
@@ -923,7 +946,7 @@ export function ProposalDialog({
             )}
 
             {/* ═══ STEP 3: DETAILS & TERMS ═══ */}
-            {step === 2 && (
+            {step === 3 && (
               <div className="px-6 py-5 space-y-4">
                 <SectionLabel>Classification</SectionLabel>
                 <div className="grid grid-cols-2 gap-3">
@@ -1039,6 +1062,11 @@ export function ProposalDialog({
               {step === 0 && (
                 <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
                   Cancel
+                </Button>
+              )}
+              {step === 1 && (
+                <Button type="button" variant="outline" size="sm" onClick={() => setStep(2)}>
+                  Skip
                 </Button>
               )}
               {step < STEPS.length - 1 ? (

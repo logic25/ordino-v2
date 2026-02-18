@@ -56,6 +56,7 @@ export interface ProposalFormInput {
   sia_email?: string | null;
   tpp_name?: string | null;
   tpp_email?: string | null;
+  job_description?: string | null;
   items?: ProposalItemInput[];
   milestones?: ProposalMilestoneInput[];
 }
@@ -222,6 +223,7 @@ export function useCreateProposal() {
           sia_email: proposalData.sia_email || null,
           tpp_name: proposalData.tpp_name || null,
           tpp_email: proposalData.tpp_email || null,
+          job_description: proposalData.job_description || null,
         } as any)
         .select()
         .single();
@@ -336,6 +338,7 @@ export function useUpdateProposal() {
           sia_email: proposalData.sia_email || null,
           tpp_name: proposalData.tpp_name || null,
           tpp_email: proposalData.tpp_email || null,
+          job_description: proposalData.job_description || null,
         } as any)
         .eq("id", id)
         .select()

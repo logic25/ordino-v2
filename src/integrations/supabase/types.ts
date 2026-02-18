@@ -3906,6 +3906,7 @@ export type Database = {
           internal_signature_data: string | null
           internal_signed_at: string | null
           internal_signed_by: string | null
+          job_description: string | null
           last_follow_up_at: string | null
           lead_source: string | null
           metadata: Json | null
@@ -3980,6 +3981,7 @@ export type Database = {
           internal_signature_data?: string | null
           internal_signed_at?: string | null
           internal_signed_by?: string | null
+          job_description?: string | null
           last_follow_up_at?: string | null
           lead_source?: string | null
           metadata?: Json | null
@@ -4054,6 +4056,7 @@ export type Database = {
           internal_signature_data?: string | null
           internal_signed_at?: string | null
           internal_signed_by?: string | null
+          job_description?: string | null
           last_follow_up_at?: string | null
           lead_source?: string | null
           metadata?: Json | null
@@ -5232,6 +5235,7 @@ export type Database = {
           mime_type: string | null
           project_id: string | null
           property_id: string | null
+          proposal_id: string | null
           size_bytes: number | null
           storage_path: string
           tags: string[] | null
@@ -5249,6 +5253,7 @@ export type Database = {
           mime_type?: string | null
           project_id?: string | null
           property_id?: string | null
+          proposal_id?: string | null
           size_bytes?: number | null
           storage_path: string
           tags?: string[] | null
@@ -5266,6 +5271,7 @@ export type Database = {
           mime_type?: string | null
           project_id?: string | null
           property_id?: string | null
+          proposal_id?: string | null
           size_bytes?: number | null
           storage_path?: string
           tags?: string[] | null
@@ -5293,6 +5299,13 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "universal_documents_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
             referencedColumns: ["id"]
           },
           {
