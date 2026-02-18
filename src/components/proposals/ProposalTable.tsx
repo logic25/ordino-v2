@@ -247,20 +247,6 @@ export function ProposalTable({
                           <FolderOpen className="h-3 w-3" />
                           {(proposal as any).converted_project.project_number}
                         </Badge>
-                      ) : proposal.status === "executed" && !(proposal as any).converted_project?.project_number ? (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-transparent gap-1">
-                                <AlertTriangle className="h-3 w-3" />
-                                Executed
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>No project linked — use menu to convert</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
                       ) : (
                         <Badge className={statusStyle.className}>
                           {statusStyle.label}
