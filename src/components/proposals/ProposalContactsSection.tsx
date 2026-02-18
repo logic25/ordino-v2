@@ -65,24 +65,40 @@ function flattenContacts(grouped: MultiRoleContact[]): ProposalContactInput[] {
   return flat;
 }
 
-/* ─── Company Combobox ─── */
+/* ─── Unified Company + Contact Combobox ─── */
 function CompanyCombobox({
   value,
   onSelect,
   onAddNew,
   clients,
+  onSelectContact,
 }: {
   value: string;
   onSelect: (client: Client) => void;
   onAddNew: (name: string) => void;
   clients: Client[];
+  onSelectContact?: (contact: ClientContact & { client_id: string; company_name: string }) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState(value);
+  const [contactResults, setContactResults] = useState<(ClientContact & { client_id: string; company_name: string })[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setSearch(value); }, [value]);
+
+  useEffect(() => {
+    if (search.length < 2) { setContactResults([]); return; }
+    const q = search.trim();
+    supabase
+      .from("client_contacts")
+      .select("id, name, email, phone, client_id, company_name")
+      .or(`name.ilike.%${q}%,email.ilike.%${q}%`)
+      .limit(6)
+      .then(({ data }) => {
+        setContactResults((data || []) as any);
+      });
+  }, [search]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -95,9 +111,9 @@ function CompanyCombobox({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const filtered = clients.filter((c) =>
+  const filteredCompanies = clients.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase())
-  );
+  ).slice(0, 8);
 
   return (
     <div className="relative flex-1">
@@ -105,7 +121,7 @@ function CompanyCombobox({
         <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <Input
           ref={inputRef}
-          placeholder="Search company…"
+          placeholder="Search company or contact…"
           value={search}
           onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
@@ -115,24 +131,56 @@ function CompanyCombobox({
       {open && (search.length > 0 || clients.length > 0) && (
         <div
           ref={dropdownRef}
-          className="absolute left-0 top-full z-50 w-full bg-popover border rounded-md shadow-lg mt-1 max-h-[220px] overflow-y-auto"
+          className="absolute left-0 top-full z-50 w-full bg-popover border rounded-md shadow-lg mt-1 max-h-[280px] overflow-y-auto"
         >
-          {filtered.map((client) => (
-            <button
-              key={client.id}
-              type="button"
-              className="w-full text-left px-3 py-2 text-sm hover:bg-muted truncate"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                onSelect(client);
-                setSearch(client.name);
-                setOpen(false);
-              }}
-            >
-              {client.name}
-            </button>
-          ))}
-          {search.trim() && !filtered.some(c => c.name.toLowerCase() === search.toLowerCase()) && (
+          {filteredCompanies.length > 0 && (
+            <>
+              <div className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/50">Companies</div>
+              {filteredCompanies.map((client) => (
+                <button
+                  key={client.id}
+                  type="button"
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted truncate flex items-center gap-2"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onSelect(client);
+                    setSearch(client.name);
+                    setOpen(false);
+                  }}
+                >
+                  <Building2 className="h-3 w-3 text-muted-foreground shrink-0" />
+                  {client.name}
+                </button>
+              ))}
+            </>
+          )}
+          {contactResults.length > 0 && onSelectContact && (
+            <>
+              <div className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/50 border-t">Contacts</div>
+              {contactResults.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex flex-col"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onSelectContact(c);
+                    setSearch(c.company_name || c.name);
+                    setOpen(false);
+                  }}
+                >
+                  <span className="flex items-center gap-2">
+                    <User className="h-3 w-3 text-muted-foreground shrink-0" />
+                    <span className="font-medium">{c.name}</span>
+                  </span>
+                  <span className="text-xs text-muted-foreground pl-5">
+                    {[c.company_name, c.email].filter(Boolean).join(" · ")}
+                  </span>
+                </button>
+              ))}
+            </>
+          )}
+          {search.trim() && !filteredCompanies.some(c => c.name.toLowerCase() === search.toLowerCase()) && (
             <button
               type="button"
               className="w-full text-left px-3 py-2 text-sm hover:bg-muted text-accent font-medium flex items-center gap-1.5 border-t"
@@ -347,6 +395,15 @@ export function ProposalContactsSection({
               clients={clients}
               onSelect={(client) => handleSelectCompany(index, client)}
               onAddNew={(name) => handleAddNewCompany(index, name)}
+              onSelectContact={(c) => {
+                updateContact(index, {
+                  client_id: c.client_id,
+                  company_name: c.company_name || "",
+                  name: c.name,
+                  email: c.email || "",
+                  phone: c.phone || "",
+                });
+              }}
             />
             <Button
               type="button"
