@@ -192,7 +192,7 @@ export function useOperationsReports() {
     queryFn: async () => {
       const { data: projects } = await supabase.from("projects").select("id, client_id, assigned_to, status, due_date");
       const { data: clients } = await supabase.from("clients").select("id, name");
-      const { data: invoices } = await supabase.from("invoices").select("id, client_id, amount, paid_amount");
+      const { data: invoices } = await supabase.from("invoices").select("id, client_id, total_due, payment_amount, status");
       const { data: profiles } = await supabase.from("profiles").select("id, display_name");
 
       // Client activity
@@ -204,7 +204,7 @@ export function useOperationsReports() {
         if (p.client_id && clientMap[p.client_id]) clientMap[p.client_id].projects++;
       });
       (invoices || []).forEach((i: any) => {
-        if (i.client_id && clientMap[i.client_id]) clientMap[i.client_id].revenue += i.paid_amount || 0;
+        if (i.client_id && clientMap[i.client_id]) clientMap[i.client_id].revenue += i.status === "paid" ? (i.payment_amount || i.total_due || 0) : 0;
       });
       const clientActivity = Object.values(clientMap)
         .filter((c) => c.projects > 0)
