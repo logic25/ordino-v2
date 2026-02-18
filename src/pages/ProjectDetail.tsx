@@ -116,6 +116,9 @@ export default function ProjectDetail() {
     },
   });
 
+  // DB-backed checklist items (must be before early returns)
+  const { data: dbChecklistItems = [] } = useProjectChecklist(id);
+
   const [liveServices, setLiveServices] = useState<MockService[]>([]);
   const [servicesInitialized, setServicesInitialized] = useState<string | null>(null);
 
@@ -188,8 +191,6 @@ export default function ProjectDetail() {
   const timeEntries: MockTimeEntry[] = [];
   const pisStatus: MockPISStatus = realPISStatus || { sentDate: null, totalFields: 0, completedFields: 0, missingFields: [] };
 
-  // DB-backed checklist items
-  const { data: dbChecklistItems = [] } = useProjectChecklist(project?.id);
 
   const approvedCOs = changeOrders.filter(co => co.status === "approved").reduce((s, co) => s + co.amount, 0);
   const contractTotal = liveServices.reduce((s, svc) => s + svc.totalAmount, 0);
