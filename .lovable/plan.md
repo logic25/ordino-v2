@@ -1,103 +1,112 @@
 
+# Dashboard Overhaul + Sidebar Fix + Legacy Proposal Insights
 
-# Three-Part Enhancement: Google Login, Reports Page, and Sidebar Polish
+## Problems to Fix
 
-## 1. Google Sign-In (OAuth)
-
-Add a "Sign in with Google" button to the Auth page alongside the existing email/password form. This uses Lovable Cloud's managed Google OAuth -- no API keys or configuration needed.
-
-### What changes
-- **Configure social auth**: Use the Lovable Cloud social auth tool to generate the Google OAuth integration module at `src/integrations/lovable/`
-- **Auth page (`src/pages/Auth.tsx`)**: Add a "Sign in with Google" button above the email/password form with a visual divider ("or continue with email"). The Google button will be visually prominent since it's the preferred method
-- **Auth hook (`src/hooks/useAuth.tsx`)**: No changes needed -- the OAuth flow redirects back and the existing `onAuthStateChange` listener picks up the session automatically
-- **Setup flow**: After Google sign-in, new users without a profile still get redirected to `/setup` as usual
-
-### User experience
-- Google button appears first (preferred), followed by an "or" divider, then the email/password form
-- Existing email/password login continues to work unchanged
-- Password reset flow is unaffected
+1. **Sidebar collapse button disappears** when collapsed -- the 16px width makes header content overflow/hidden
+2. **Dashboard is generic** -- PMs see the same "Recent Projects" list as everyone else with no actionable guidance
+3. **Reports Proposal tab is too basic** compared to the legacy system's rich conversion table, source charts, and yearly comparisons
+4. **No way to preview other role dashboards** for testing/development
 
 ---
 
-## 2. Dedicated Reports Page
+## 1. Sidebar Collapse Button Fix
 
-A new `/reports` route with a comprehensive reporting hub organized by category. Given the feature-rich nature of the app, reports will cover Projects, Billing, Time, Proposals, and Operations.
+When the sidebar collapses to `w-16`, the header row with logo + toggle still needs to be usable. The fix:
+- Keep the collapse/expand button visible and centered when collapsed (hide the "Ordino" text, keep the O logo and toggle stacked or side-by-side in the 64px width)
+- Ensure `w-16` (64px) gives enough room for the logo icon + toggle button
+- The current code already hides the text when collapsed, but the `justify-between` layout might push the toggle off-screen; switching to `justify-center` with a `gap` when collapsed fixes this
 
-### Report categories and specific reports
-
-**Projects**
-- Project Status Summary: breakdown by status (active, on hold, completed), with counts and aging
-- Checklist Completion Rate: % completion across all projects, flagging stalled ones
-- Application Pipeline: DOB applications by status, avg processing time
-
-**Billing / Invoices**
-- Revenue Summary: monthly revenue, collected vs outstanding, trend chart
-- Aging Report: invoices grouped by 0-30, 31-60, 61-90, 90+ days
-- Collections Performance: collections rate, avg days to pay, promise-kept rate (extends existing AnalyticsView data)
-
-**Time**
-- Utilization Report: hours logged per team member, billable vs non-billable
-- Project Hours: total hours per project with budget comparison
-- Weekly Summary: hours by day/week for the team
-
-**Proposals**
-- Win Rate: proposals sent vs executed vs lost, conversion funnel
-- Pipeline Value: total value of pending proposals
-- Follow-Up Effectiveness: avg follow-ups before conversion
-
-**Operations**
-- Client Activity: projects per client, revenue per client
-- Team Workload: projects assigned per PM, upcoming deadlines
-
-### What changes
-- **New page (`src/pages/Reports.tsx`)**: Tab-based layout with the 5 categories above. Each tab shows relevant report cards with charts (using recharts, already installed)
-- **New components in `src/components/reports/`**: Individual report components for each category
-- **New hook (`src/hooks/useReports.ts`)**: Aggregation queries pulling from existing tables (projects, invoices, time_entries, proposals)
-- **Routing (`src/App.tsx`)**: Add `/reports` protected route
-- **Sidebar (`src/components/layout/AppSidebar.tsx`)**: Add "Reports" nav item with the existing BarChart3 icon
-- **Permissions**: Use the existing `reports` resource key (already defined in the permissions system but currently disabled for all roles). Enable for admin and accounting roles
+**File**: `src/components/layout/AppSidebar.tsx`
 
 ---
 
-## 3. Relocate Sidebar Collapse Button
+## 2. Role-Based Dashboard Redesign
 
-The collapse toggle currently sits at the very bottom of the sidebar below the Sign Out button, which feels disconnected. Move it to the sidebar header area next to the logo.
+### PM Dashboard -- "My Day" Focus
+Replace the generic "Recent Projects" with actionable sections:
+- **Today's Priority Tasks**: Projects with upcoming deadlines, checklist items needing action, pending follow-ups -- grouped as "Today", "This Week", "Overdue"
+- **Status Changes**: Recent project status transitions (e.g., "Application approved", "Objection received") from project activity
+- **My Active Projects** (compact): Small cards showing project name, next milestone, and days since last activity
+- **Quick Time Log**: Keep existing but make it functional (actually logs time)
+- **Proposal Follow-Ups**: Keep existing, it's already useful
 
-### What changes
-- **Sidebar (`src/components/layout/AppSidebar.tsx`)**:
-  - Remove the collapse button from the footer section
-  - Add a small collapse/expand icon button in the header row, aligned to the right of the logo
-  - When collapsed, the button shows the expand chevron in the same header position
-  - Sign Out button remains in the footer alone, cleaner layout
+### Admin Dashboard -- Company Overview + PM Toggle
+- **Top section**: Key company KPIs (revenue, active projects, team utilization, overdue invoices) as stat cards
+- **Toggle button**: "My View" / "Company View" switch -- clicking "My View" shows the PM dashboard
+- **Company View**: Revenue trend mini-chart, team workload distribution, proposal pipeline value, overdue aging summary
+- **Recent Activity Feed**: Latest changes across the company (new proposals, status changes, invoices paid)
+
+### Accounting Dashboard -- Billing Focus
+- **Revenue KPIs**: Monthly revenue, collection rate, outstanding balance, avg days to pay
+- **Aging Summary**: Visual bar showing 0-30, 31-60, 61-90, 90+ day buckets with dollar amounts
+- **Unbilled Projects**: List of projects with unbilled hours, sorted by amount
+- **Recent Payments**: Latest invoices paid with amounts
+
+### Manager Dashboard
+- **Team Performance**: Hours logged per team member this week, project counts
+- **Project Health**: Projects at risk (overdue, stalled checklist)
+- **Proposal Pipeline**: Value of pending proposals
+
+### Role Preview (Dev/Testing)
+- Add a small dropdown in the dashboard header (only visible to admin role) that lets you preview other role dashboards: "Viewing as: Admin / PM / Accounting / Manager"
+
+---
+
+## 3. Enhance Proposal Reports (Legacy Parity)
+
+From the legacy system screenshot, add to the Proposals tab in Reports:
+
+### Conversion Rates Table (new)
+- Monthly rows showing: Proposals Count, Converted Count, Conversion Rate, Converted Value, Change Orders value, Converted Total, Proposals Total Value
+- Filters: User (sales person), Year, Month
+- Totals row at bottom
+- Data source: `proposals` table with `created_at`, `status`, `total_amount`, `sales_person_id`
+
+### Proposal Sources Pie Chart (new)
+- Pie chart breaking down proposals by `lead_source` (Referral, Architect, Repeat Client, Website, etc.)
+- Year filter
+
+### Yearly Comparison Bar Chart (new)
+- Multi-year overlay bar chart showing monthly proposal values
+- Selectable years (e.g., 2024, 2025, 2026)
+- X-axis: months, Y-axis: dollar value
+
+### Proposal Statuses Pie Chart (enhance existing)
+- Already exists but enhance with year filter and cleaner labels
 
 ---
 
 ## Technical Details
 
-### Files created
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/components/layout/AppSidebar.tsx` | Fix collapse button layout for `w-16` state |
+| `src/pages/Dashboard.tsx` | Full rewrite with role-based views and admin toggle |
+| `src/components/dashboard/DashboardStats.tsx` | Update stat cards per role with more relevant metrics |
+| `src/components/dashboard/RecentProjects.tsx` | Make compact variant for PM view |
+| `src/components/reports/ProposalReports.tsx` | Add conversion table, source chart, yearly comparison |
+| `src/hooks/useReports.ts` | Extend `useProposalReports` with monthly breakdown, lead source data, yearly data |
+| `src/hooks/useDashboard.ts` | Add queries for PM tasks, status changes, unbilled projects |
+
+### New Files
+
 | File | Purpose |
 |------|---------|
-| `src/pages/Reports.tsx` | Main reports page with category tabs |
-| `src/components/reports/ProjectReports.tsx` | Project status, checklist, application reports |
-| `src/components/reports/BillingReports.tsx` | Revenue, aging, collections reports |
-| `src/components/reports/TimeReports.tsx` | Utilization, project hours, weekly summary |
-| `src/components/reports/ProposalReports.tsx` | Win rate, pipeline, follow-up reports |
-| `src/components/reports/OperationsReports.tsx` | Client activity, team workload |
-| `src/hooks/useReports.ts` | Data aggregation hook for report queries |
+| `src/components/dashboard/PMDailyView.tsx` | PM-specific dashboard with tasks/priorities/status changes |
+| `src/components/dashboard/AdminCompanyView.tsx` | Admin company-wide metrics with mini-charts |
+| `src/components/dashboard/AccountingView.tsx` | Accounting-focused billing dashboard |
+| `src/components/dashboard/ManagerView.tsx` | Manager team performance view |
+| `src/components/dashboard/RolePreviewSelector.tsx` | Admin-only dropdown to preview other role dashboards |
+| `src/components/dashboard/RecentActivityFeed.tsx` | Company-wide activity feed for admin view |
+| `src/components/dashboard/AgingSummaryChart.tsx` | Visual aging buckets for accounting view |
 
-### Files modified
-| File | Change |
-|------|---------|
-| `src/pages/Auth.tsx` | Add Google sign-in button with divider |
-| `src/components/layout/AppSidebar.tsx` | Move collapse button to header, add Reports nav item |
-| `src/App.tsx` | Add `/reports` route |
-
-### Implementation order
-1. Google OAuth setup (configure social auth tool + Auth page update)
-2. Sidebar collapse button relocation
-3. Reports page scaffold with tabs
-4. Individual report components (one category at a time)
-
-### Database changes
-- A migration to seed the `reports` resource in `role_permissions` for admin and accounting roles (enabled with full access)
-
+### Implementation Order
+1. Fix sidebar collapse button (quick fix)
+2. Build PM Daily View component (most impactful)
+3. Build Admin Company View with role toggle
+4. Build Accounting and Manager views
+5. Add role preview selector
+6. Enhance Proposal Reports with legacy parity features
