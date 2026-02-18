@@ -97,7 +97,7 @@ function CompanyCombobox({
     supabase
       .from("client_contacts")
       .select("id, name, email, phone, client_id, company_name")
-      .or(`name.ilike.%${q}%,email.ilike.%${q}%`)
+      .or(`name.ilike.%${q}%,email.ilike.%${q}%,company_name.ilike.%${q}%`)
       .limit(6)
       .then(({ data }) => {
         setContactResults((data || []) as any);
@@ -132,7 +132,7 @@ function CompanyCombobox({
           className="h-8 text-sm pl-8"
         />
       </div>
-      {open && (search.length > 0 || clients.length > 0) && (
+      {open && (
         <div
           ref={dropdownRef}
           className="absolute left-0 top-full z-50 w-full bg-popover border rounded-md shadow-lg mt-1 max-h-[280px] overflow-y-auto"
@@ -224,21 +224,36 @@ function ContactPicker({
 
   useEffect(() => { setSearch(value); }, [value]);
 
-  // Fetch contacts when clientId changes
+  // Fetch contacts when clientId changes or search changes (global search when no clientId)
   useEffect(() => {
-    if (!clientId) { setContacts([]); return; }
-    setLoading(true);
-    supabase
-      .from("client_contacts")
-      .select("id, name, email, phone")
-      .eq("client_id", clientId)
-      .order("is_primary", { ascending: false })
-      .order("name")
-      .then(({ data }) => {
-        setContacts((data || []) as ClientContact[]);
-        setLoading(false);
-      });
-  }, [clientId]);
+    if (clientId) {
+      setLoading(true);
+      supabase
+        .from("client_contacts")
+        .select("id, name, email, phone")
+        .eq("client_id", clientId)
+        .order("is_primary", { ascending: false })
+        .order("name")
+        .then(({ data }) => {
+          setContacts((data || []) as ClientContact[]);
+          setLoading(false);
+        });
+    } else if (search.trim().length >= 2) {
+      setLoading(true);
+      const q = search.trim();
+      supabase
+        .from("client_contacts")
+        .select("id, name, email, phone, client_id, company_name")
+        .or(`name.ilike.%${q}%,email.ilike.%${q}%,company_name.ilike.%${q}%`)
+        .limit(8)
+        .then(({ data }) => {
+          setContacts((data || []) as ClientContact[]);
+          setLoading(false);
+        });
+    } else if (!clientId) {
+      setContacts([]);
+    }
+  }, [clientId, search]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -267,9 +282,7 @@ function ContactPicker({
           onFocus={() => setOpen(true)}
           className="h-8 text-sm pl-8"
         />
-        {contacts.length > 0 && (
-          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-        )}
+        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
       </div>
       {open && (contacts.length > 0 || search.trim()) && (
         <div
@@ -480,24 +493,27 @@ function SortableContactCard({
         </Button>
       </div>
 
-      {/* Row 2: Contact picker or manual name */}
+      {/* Row 2: Contact picker (always a dropdown, works globally or scoped to company) */}
       <div className="px-3 pb-2 pl-9">
-        {contact.client_id ? (
-          <ContactPicker
-            clientId={contact.client_id}
-            value={contact.name || ""}
-            onSelect={onSelectContact}
-            onAddNew={() => onUpdate({ name: "", email: "", phone: "" })}
-          />
-        ) : (
-          <Input
-            placeholder="Contact name *"
-            value={contact.name || ""}
-            onChange={(e) => onUpdate({ name: e.target.value })}
-            className="h-8 text-sm font-medium"
-            autoFocus={!contact.name && isLast}
-          />
-        )}
+        <ContactPicker
+          clientId={contact.client_id || ""}
+          value={contact.name || ""}
+          onSelect={(c) => {
+            // If picked from global search (no client_id yet), back-fill company
+            if (!contact.client_id && (c as any).client_id) {
+              onUpdate({
+                client_id: (c as any).client_id,
+                company_name: (c as any).company_name || "",
+                name: c.name,
+                email: c.email || "",
+                phone: c.phone || "",
+              });
+            } else {
+              onSelectContact(c);
+            }
+          }}
+          onAddNew={() => onUpdate({ name: "", email: "", phone: "" })}
+        />
       </div>
 
       {/* Row 3: Email + Phone */}
