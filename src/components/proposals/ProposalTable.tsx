@@ -27,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Edit, Trash2, Send, PenLine, Eye, Loader2, CheckCircle2, Clock, X, Phone, Bell, FileText, Settings2, XCircle, FolderOpen } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, Send, PenLine, Eye, Loader2, CheckCircle2, Clock, X, Phone, Bell, FileText, Settings2, XCircle, FolderOpen, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import type { ProposalWithRelations } from "@/hooks/useProposals";
 import { format, isPast, parseISO } from "date-fns";
@@ -311,6 +311,12 @@ export function ProposalTable({
                         <DropdownMenuItem onClick={() => onPreview(proposal)}>
                           <FileText className="h-4 w-4 mr-2" />
                           Preview PDF
+                        </DropdownMenuItem>
+                      )}
+                      {(proposal as any).public_token && (
+                        <DropdownMenuItem onClick={() => window.open(`/proposal/${(proposal as any).public_token}`, '_blank')}>
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          Client Preview
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuItem onClick={() => onEdit(proposal)}>
