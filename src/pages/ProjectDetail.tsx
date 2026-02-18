@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useProjectChecklist, useAddChecklistItem, useUpdateChecklistItem, useDeleteChecklistItem, type ChecklistItem } from "@/hooks/useProjectChecklist";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { useChecklistFollowupDrafts, useApproveDraft, useDismissDraft } from "@/hooks/useChecklistFollowupDrafts";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
@@ -495,6 +496,9 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
   const updateItem = useUpdateChecklistItem();
   const deleteItem = useDeleteChecklistItem();
   const { data: companyData } = useCompanySettings();
+  const { data: pendingDrafts = [] } = useChecklistFollowupDrafts(projectId);
+  const approveDraft = useApproveDraft();
+  const dismissDraft = useDismissDraft();
 
   const getDaysWaiting = (requestedDate: string | null) => {
     if (!requestedDate) return 0;
@@ -670,6 +674,56 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
                 </div>
                 <Button size="sm" className="shrink-0 gap-1.5">
                   <Send className="h-3.5 w-3.5" /> Send PIS
+                </Button>
+              </div>
+            )}
+
+            {/* Auto-generated follow-up drafts banner */}
+            {pendingDrafts.length > 0 && (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                <Sparkles className="h-4 w-4 text-primary shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-medium">
+                    {pendingDrafts.length} auto-generated follow-up{pendingDrafts.length > 1 ? "s" : ""} ready for review
+                  </span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 gap-1.5 border-primary/30 text-primary hover:bg-primary/5"
+                  onClick={() => {
+                    const draft = pendingDrafts[0];
+                    setAiDraft({
+                      draft: draft.draft_body,
+                      prompt: { system: draft.prompt_system || "", user: draft.prompt_user || "" },
+                      model: "auto-generated",
+                    });
+                    setShowAiDraft(true);
+                  }}
+                >
+                  <Eye className="h-3.5 w-3.5" /> Review
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 gap-1.5 text-muted-foreground"
+                  onClick={() => {
+                    approveDraft.mutate(pendingDrafts[0].id);
+                    toast({ title: "Approved", description: "Follow-up draft approved." });
+                  }}
+                >
+                  <CheckCheck className="h-3.5 w-3.5" /> Approve
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 gap-1.5 text-muted-foreground"
+                  onClick={() => {
+                    dismissDraft.mutate(pendingDrafts[0].id);
+                    toast({ title: "Dismissed", description: "Follow-up draft dismissed." });
+                  }}
+                >
+                  <XCircle className="h-3.5 w-3.5" /> Dismiss
                 </Button>
               </div>
             )}
