@@ -273,7 +273,7 @@ export default function ClientProposalPage() {
   const depositPct = Number(proposal.deposit_percentage || 0);
   const depositAmt = Number(proposal.deposit_required || 0) || (depositPct > 0 ? totalAmount * (depositPct / 100) : 0);
   const alreadySigned = !!proposal.client_signed_at || signed;
-  const internalSigned = !!proposal.internal_signed_at;
+  const internalSigned = !!proposal.internal_signed_at || proposal.status === "sent" || proposal.status === "executed";
   const canClientSign = internalSigned && !alreadySigned;
 
   const billTo = (contacts as any[]).find((c: any) => c.role === "bill_to");
