@@ -15,6 +15,7 @@ const ROLE_OPTIONS: { value: ContactRole; label: string }[] = [
   { value: "bill_to", label: "Bill To" },
   { value: "sign", label: "Signer" },
   { value: "cc", label: "CC" },
+  { value: "applicant", label: "Applicant" },
 ];
 
 interface ClientContact {

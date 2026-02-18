@@ -286,7 +286,7 @@ export function useRfiByToken(token: string | null) {
       if (!token) return null;
       const { data, error } = await supabase
         .from("rfi_requests" as any)
-        .select("*, properties(*, owner_name), projects(building_owner_name, unit_number, client_id, clients!projects_client_id_fkey(name), gc_company_name, gc_contact_name, gc_phone, gc_email, architect_company_name, architect_contact_name, architect_phone, architect_email, architect_license_type, architect_license_number, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email), proposals(architect_name, architect_company, architect_phone, architect_email, architect_license_type, architect_license_number, gc_name, gc_company, gc_phone, gc_email, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email, job_description, unit_number)")
+        .select("*, properties(*, owner_name), projects(building_owner_name, unit_number, client_id, clients!projects_client_id_fkey(name), gc_company_name, gc_contact_name, gc_phone, gc_email, architect_company_name, architect_contact_name, architect_phone, architect_email, architect_license_type, architect_license_number, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email), proposals(architect_name, architect_company, architect_phone, architect_email, architect_license_type, architect_license_number, gc_name, gc_company, gc_phone, gc_email, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email, job_description, unit_number, proposal_contacts(name, email, phone, company_name, role))")
         .eq("access_token", token)
         .maybeSingle();
       if (error) throw error;
@@ -296,6 +296,11 @@ export function useRfiByToken(token: string | null) {
 
       // Merge party info: project fields take priority, then proposal fields as fallback
       const prop = proposals || {};
+      
+      // Find applicant contact from proposal_contacts
+      const proposalContacts: any[] = prop.proposal_contacts || [];
+      const applicantContact = proposalContacts.find((c: any) => c.role === "applicant");
+
       return {
         rfi: rfi as RfiRequest,
         property: properties as { address: string; borough: string | null; block: string | null; lot: string | null } | null,
@@ -307,10 +312,11 @@ export function useRfiByToken(token: string | null) {
           gc_contact_name: projects?.gc_contact_name || prop.gc_name || null,
           gc_phone: projects?.gc_phone || prop.gc_phone || null,
           gc_email: projects?.gc_email || prop.gc_email || null,
-          architect_company_name: projects?.architect_company_name || prop.architect_company || null,
-          architect_contact_name: projects?.architect_contact_name || prop.architect_name || null,
-          architect_phone: projects?.architect_phone || prop.architect_phone || null,
-          architect_email: projects?.architect_email || prop.architect_email || null,
+          // Applicant contact overrides proposal-level architect fields
+          architect_company_name: projects?.architect_company_name || applicantContact?.company_name || prop.architect_company || null,
+          architect_contact_name: projects?.architect_contact_name || applicantContact?.name || prop.architect_name || null,
+          architect_phone: projects?.architect_phone || applicantContact?.phone || prop.architect_phone || null,
+          architect_email: projects?.architect_email || applicantContact?.email || prop.architect_email || null,
           architect_license_type: projects?.architect_license_type || prop.architect_license_type || null,
           architect_license_number: projects?.architect_license_number || prop.architect_license_number || null,
           sia_name: projects?.sia_name || prop.sia_name || null,
