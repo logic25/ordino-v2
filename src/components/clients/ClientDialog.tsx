@@ -26,6 +26,7 @@ import { Loader2 } from "lucide-react";
 import type { Client, ClientFormInput } from "@/hooks/useClients";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { useToast } from "@/hooks/use-toast";
 
 const DEFAULT_TYPES = [
   "Architect", "General Contractor", "Plumber", "Electrician", "Engineer",
@@ -66,6 +67,7 @@ export function ClientDialog({
   defaultName,
 }: ClientDialogProps) {
   const isEditing = !!client;
+  const { toast } = useToast();
   const { data: profiles = [] } = useCompanyProfiles();
   const { data: settingsData } = useCompanySettings();
   const companyTypes = settingsData?.settings?.company_types ?? DEFAULT_TYPES;
@@ -103,20 +105,25 @@ export function ClientDialog({
   }, [client, form, defaultName]);
 
   const handleSubmit = async (data: FormData) => {
-    await onSubmit({
-      name: data.name,
-      email: data.email || null,
-      phone: data.phone || null,
-      fax: data.fax || null,
-      address: data.address || null,
-      notes: data.notes || null,
-      lead_owner_id: data.lead_owner_id || null,
-      tax_id: data.tax_id || null,
-      client_type: data.client_type || null,
-      is_sia: data.is_sia || false,
-      is_rfp_partner: data.is_rfp_partner || false,
-    });
-    form.reset();
+    try {
+      await onSubmit({
+        name: data.name,
+        email: data.email || null,
+        phone: data.phone || null,
+        fax: data.fax || null,
+        address: data.address || null,
+        notes: data.notes || null,
+        lead_owner_id: data.lead_owner_id || null,
+        tax_id: data.tax_id || null,
+        client_type: data.client_type || null,
+        is_sia: data.is_sia || false,
+        is_rfp_partner: data.is_rfp_partner || false,
+      });
+      form.reset();
+      toast({ title: isEditing ? "Company updated" : "Company created", description: `${data.name} saved successfully.` });
+    } catch (error: any) {
+      toast({ title: "Error saving company", description: error?.message || "Something went wrong", variant: "destructive" });
+    }
   };
 
   const profileOptions = profiles.map((p) => ({
