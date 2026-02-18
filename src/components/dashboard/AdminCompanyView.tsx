@@ -8,6 +8,8 @@ import { useRevenueTrend } from "@/hooks/useDashboardData";
 import { PMDailyView } from "./PMDailyView";
 import { TeamOverview } from "./TeamOverview";
 import { ProposalFollowUps } from "./ProposalFollowUps";
+import { YearOverYearChart } from "./YearOverYearChart";
+import { ProposalActivityCard } from "./ProposalActivityCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
@@ -50,7 +52,7 @@ export function AdminCompanyView() {
         </Button>
       </div>
 
-      {/* KPI Row */}
+      {/* Row 1: KPIs */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {kpis.map((kpi) => (
           <Card key={kpi.label}>
@@ -68,53 +70,56 @@ export function AdminCompanyView() {
         ))}
       </div>
 
-      {/* Revenue Chart + Sidebar */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base">Revenue Trend</CardTitle>
-            <Select value={trendPeriod} onValueChange={setTrendPeriod}>
-              <SelectTrigger className="w-[130px] h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="3">3 Months</SelectItem>
-                <SelectItem value="6">6 Months</SelectItem>
-                <SelectItem value="12">12 Months</SelectItem>
-              </SelectContent>
-            </Select>
-          </CardHeader>
-          <CardContent>
-            {trendLoading ? (
-              <Skeleton className="h-[280px] w-full" />
-            ) : revenueTrend && revenueTrend.length > 0 ? (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={revenueTrend} barGap={2}>
-                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={formatCurrency} />
-                  <Tooltip
-                    formatter={(v: number, name: string) => [`$${v.toLocaleString()}`, name]}
-                    contentStyle={{ fontSize: 12 }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="billed" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Billed" />
-                  <Bar dataKey="collected" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} name="Collected" />
-                  <Bar dataKey="outstanding" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} name="Outstanding" opacity={0.5} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-[280px] flex items-center justify-center text-muted-foreground text-sm">
-                No invoice data yet. Revenue will appear here as invoices are created.
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {/* Row 2: Revenue Trend -- full width, taller */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-base">Revenue Trend</CardTitle>
+          <Select value={trendPeriod} onValueChange={setTrendPeriod}>
+            <SelectTrigger className="w-[130px] h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="3">3 Months</SelectItem>
+              <SelectItem value="6">6 Months</SelectItem>
+              <SelectItem value="12">12 Months</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardHeader>
+        <CardContent>
+          {trendLoading ? (
+            <Skeleton className="h-[360px] w-full" />
+          ) : revenueTrend && revenueTrend.length > 0 ? (
+            <ResponsiveContainer width="100%" height={360}>
+              <BarChart data={revenueTrend} barGap={2}>
+                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={formatCurrency} />
+                <Tooltip
+                  formatter={(v: number, name: string) => [`$${v.toLocaleString()}`, name]}
+                  contentStyle={{ fontSize: 12 }}
+                />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Bar dataKey="billed" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Billed" />
+                <Bar dataKey="collected" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} name="Collected" />
+                <Bar dataKey="outstanding" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} name="Outstanding" opacity={0.5} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[360px] flex items-center justify-center text-muted-foreground text-sm">
+              No invoice data yet. Revenue will appear here as invoices are created.
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-        <div className="space-y-6">
-          <ProposalFollowUps />
-          <TeamOverview />
-        </div>
+      {/* Row 3: YoY + Proposal Activity + Follow-Ups */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <YearOverYearChart />
+        <ProposalActivityCard />
+        <ProposalFollowUps />
       </div>
+
+      {/* Row 4: Team Overview */}
+      <TeamOverview />
     </div>
   );
 }
