@@ -628,7 +628,9 @@ export function ProposalDialog({
     control: form.control, name: "items",
   });
 
+  // Reset form when dialog opens for a new proposal
   useEffect(() => {
+    if (!open) return;
     if (proposalWithItems) {
       const p = proposalWithItems as any;
       form.reset({
@@ -666,7 +668,7 @@ export function ProposalDialog({
         })) : [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0, fee_type: "fixed" }],
       });
       setStep(0);
-    } else if (!proposal) {
+    } else {
       form.reset({
         property_id: defaultPropertyId || "", title: "", payment_terms: "",
         deposit_required: undefined, deposit_percentage: undefined,
@@ -686,7 +688,7 @@ export function ProposalDialog({
       setContacts([]);
       setStep(0);
     }
-  }, [proposalWithItems, proposal, form, defaultPropertyId, defaultTerms]);
+  }, [open, proposalWithItems, proposal, defaultPropertyId, defaultTerms]);
 
   const watchedItems = form.watch("items");
 
