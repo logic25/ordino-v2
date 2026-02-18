@@ -743,6 +743,76 @@ export type Database = {
           },
         ]
       }
+      checklist_followup_drafts: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          company_id: string
+          created_at: string
+          draft_body: string
+          id: string
+          items_snapshot: Json | null
+          project_id: string
+          prompt_system: string | null
+          prompt_user: string | null
+          status: string
+          trigger_threshold_days: number | null
+          triggered_by: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          company_id: string
+          created_at?: string
+          draft_body: string
+          id?: string
+          items_snapshot?: Json | null
+          project_id: string
+          prompt_system?: string | null
+          prompt_user?: string | null
+          status?: string
+          trigger_threshold_days?: number | null
+          triggered_by?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          company_id?: string
+          created_at?: string
+          draft_body?: string
+          id?: string
+          items_snapshot?: Json | null
+          project_id?: string
+          prompt_system?: string | null
+          prompt_user?: string | null
+          status?: string
+          trigger_threshold_days?: number | null
+          triggered_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_followup_drafts_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_followup_drafts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_followup_drafts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       claimflow_referrals: {
         Row: {
           case_notes: string | null

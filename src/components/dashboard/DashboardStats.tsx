@@ -1,7 +1,8 @@
-import { Clock, Building2, FileText, AlertCircle, Users, DollarSign } from "lucide-react";
+import { Clock, Building2, FileText, AlertCircle, Users, DollarSign, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useDashboardStats } from "@/hooks/useDashboard";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePendingDraftsCount } from "@/hooks/useChecklistFollowupDrafts";
 
 interface StatCardProps {
   title: string;
@@ -45,6 +46,7 @@ interface DashboardStatsProps {
 
 export function DashboardStats({ role }: DashboardStatsProps) {
   const { data: stats, isLoading } = useDashboardStats();
+  const { data: pendingDraftsCount = 0 } = usePendingDraftsCount();
 
   // Role-based stat configuration
   const getStatsForRole = () => {
@@ -156,17 +158,28 @@ export function DashboardStats({ role }: DashboardStatsProps) {
   const statsToShow = getStatsForRole();
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      {statsToShow.map((stat, i) => (
-        <StatCard
-          key={stat.title}
-          title={stat.title}
-          value={stat.value}
-          subtitle={stat.subtitle}
-          icon={stat.icon}
-          loading={isLoading}
-        />
-      ))}
+    <div className="space-y-4">
+      {pendingDraftsCount > 0 && (
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <span className="text-sm font-medium">
+            {pendingDraftsCount} auto-generated follow-up draft{pendingDraftsCount > 1 ? "s" : ""} pending review
+          </span>
+          <span className="text-xs text-muted-foreground ml-auto">Check project readiness checklists</span>
+        </div>
+      )}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {statsToShow.map((stat, i) => (
+          <StatCard
+            key={stat.title}
+            title={stat.title}
+            value={stat.value}
+            subtitle={stat.subtitle}
+            icon={stat.icon}
+            loading={isLoading}
+          />
+        ))}
+      </div>
     </div>
   );
 }
