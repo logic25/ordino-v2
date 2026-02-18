@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Plus, Search, Loader2, Send, UserPlus } from "lucide-react";
+import { FileText, Plus, Search, Loader2, Send, UserPlus, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Bell } from "lucide-react";
+import { startOfMonth, subMonths, endOfMonth, isWithinInterval } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { ProposalDialog } from "@/components/proposals/ProposalDialog";
 import { ProposalTable } from "@/components/proposals/ProposalTable";
@@ -283,30 +284,80 @@ export default function Proposals() {
     );
   });
 
-  // Stats
-  const draftCount = displayProposals.filter((p) => p.status === "draft").length;
-  const sentCount = displayProposals.filter((p) => ["sent", "viewed"].includes(p.status || "")).length;
-  const executedCount = displayProposals.filter((p) => p.status === "executed").length;
-  const lostCount = displayProposals.filter((p) => (p.status as string) === "lost").length;
+  // Month-over-month analytics
+  const now = new Date();
+  const thisMonthStart = startOfMonth(now);
+  const lastMonthStart = startOfMonth(subMonths(now, 1));
+  const lastMonthEnd = endOfMonth(subMonths(now, 1));
+
+  const thisMonthProposals = displayProposals.filter(p => {
+    const d = new Date(p.created_at || "");
+    return isWithinInterval(d, { start: thisMonthStart, end: now });
+  });
+  const lastMonthProposals = displayProposals.filter(p => {
+    const d = new Date(p.created_at || "");
+    return isWithinInterval(d, { start: lastMonthStart, end: lastMonthEnd });
+  });
+
+  const thisMonthCount = thisMonthProposals.length;
+  const lastMonthCount = lastMonthProposals.length;
+  const thisMonthValue = thisMonthProposals.reduce((s, p) => s + Number(p.total_amount || 0), 0);
+
+  const thisMonthSent = thisMonthProposals.filter(p => ["sent", "viewed"].includes(p.status || "")).length;
+  const lastMonthSent = lastMonthProposals.filter(p => ["sent", "viewed"].includes(p.status || "")).length;
+  const awaitingValue = displayProposals
+    .filter(p => ["sent", "viewed"].includes(p.status || ""))
+    .reduce((s, p) => s + Number(p.total_amount || 0), 0);
+
+  const thisMonthExecuted = thisMonthProposals.filter(p => p.status === "executed");
+  const lastMonthExecuted = lastMonthProposals.filter(p => p.status === "executed");
+  const thisMonthLost = thisMonthProposals.filter(p => (p.status as string) === "lost").length;
+  const thisMonthDecided = thisMonthExecuted.length + thisMonthLost;
+  const lastMonthLostCount = lastMonthProposals.filter(p => (p.status as string) === "lost").length;
+  const lastMonthDecided = lastMonthExecuted.length + lastMonthLostCount;
+  const conversionRate = thisMonthDecided > 0 ? (thisMonthExecuted.length / thisMonthDecided) * 100 : 0;
+  const lastConversionRate = lastMonthDecided > 0 ? (lastMonthExecuted.length / lastMonthDecided) * 100 : 0;
+
+  const revenueWon = thisMonthExecuted.reduce((s, p) => s + Number(p.total_amount || 0), 0);
+  const lastRevenueWon = lastMonthExecuted.reduce((s, p) => s + Number(p.total_amount || 0), 0);
+
   const followUpDueCount = displayProposals.filter((p) => {
     const nextDate = (p as any).next_follow_up_date;
     const dismissed = (p as any).follow_up_dismissed_at;
     return nextDate && !dismissed && new Date(nextDate) <= new Date();
   }).length;
-  
-  const draftTotal = displayProposals
-    .filter((p) => p.status === "draft")
-    .reduce((sum, p) => sum + Number(p.total_amount || 0), 0);
-  const sentTotal = displayProposals
-    .filter((p) => ["sent", "viewed"].includes(p.status || ""))
-    .reduce((sum, p) => sum + Number(p.total_amount || 0), 0);
 
   const formatCurrency = (value: number) => {
+    if (value >= 1000) {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(value);
+    }
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
       minimumFractionDigits: 0,
     }).format(value);
+  };
+
+  const getDelta = (current: number, previous: number) => {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return Math.round(((current - previous) / previous) * 100);
+  };
+
+  const TrendBadge = ({ current, previous, suffix = "" }: { current: number; previous: number; suffix?: string }) => {
+    const delta = getDelta(current, previous);
+    if (delta === 0 && current === 0 && previous === 0) return null;
+    const isUp = delta >= 0;
+    return (
+      <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${isUp ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
+        {isUp ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+        {Math.abs(delta)}%{suffix}
+      </span>
+    );
   };
 
   const handleOpenCreate = () => {
@@ -672,65 +723,82 @@ export default function Proposals() {
 
         <div className="grid gap-4 md:grid-cols-5">
           <Card
-            className={`cursor-pointer transition-colors hover:border-primary/50 ${statusFilter === "draft" ? "border-primary ring-1 ring-primary/20" : ""}`}
-            onClick={() => { setStatusFilter(statusFilter === "draft" ? null : "draft"); setActiveTab("proposals"); }}
+            className={`cursor-pointer transition-colors hover:border-primary/50 ${statusFilter === null && !["draft","sent","executed","lost","follow_up"].includes(statusFilter || "") ? "border-primary ring-1 ring-primary/20" : ""}`}
+            onClick={() => { setStatusFilter(statusFilter === null ? null : null); setActiveTab("proposals"); }}
           >
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Draft</CardTitle>
+            <CardHeader className="pb-1">
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Proposals</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{draftCount}</div>
-              <p className="text-xs text-muted-foreground mt-1">{formatCurrency(draftTotal)} pending</p>
+            <CardContent className="space-y-1">
+              <div className="flex items-baseline justify-between">
+                <span className="text-3xl font-bold">{thisMonthCount}</span>
+                <TrendBadge current={thisMonthCount} previous={lastMonthCount} />
+              </div>
+              <p className="text-xs text-muted-foreground">{formatCurrency(thisMonthValue)} this month</p>
             </CardContent>
           </Card>
+
           <Card
             className={`cursor-pointer transition-colors hover:border-primary/50 ${statusFilter === "sent" ? "border-primary ring-1 ring-primary/20" : ""}`}
             onClick={() => { setStatusFilter(statusFilter === "sent" ? null : "sent"); setActiveTab("proposals"); }}
           >
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Sent</CardTitle>
+            <CardHeader className="pb-1">
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Sent / Awaiting</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{sentCount}</div>
-              <p className="text-xs text-muted-foreground mt-1">{formatCurrency(sentTotal)} awaiting</p>
+            <CardContent className="space-y-1">
+              <div className="flex items-baseline justify-between">
+                <span className="text-3xl font-bold">{thisMonthSent}</span>
+                <TrendBadge current={thisMonthSent} previous={lastMonthSent} />
+              </div>
+              <p className="text-xs text-muted-foreground">{formatCurrency(awaitingValue)} awaiting</p>
             </CardContent>
           </Card>
+
           <Card
             className={`cursor-pointer transition-colors hover:border-primary/50 ${statusFilter === "executed" ? "border-primary ring-1 ring-primary/20" : ""}`}
             onClick={() => { setStatusFilter(statusFilter === "executed" ? null : "executed"); setActiveTab("proposals"); }}
           >
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Executed</CardTitle>
+            <CardHeader className="pb-1">
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Conversion Rate</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{executedCount}</div>
-              <p className="text-xs text-muted-foreground mt-1">Fully signed</p>
+            <CardContent className="space-y-1">
+              <div className="flex items-baseline justify-between">
+                <span className="text-3xl font-bold">{conversionRate.toFixed(0)}%</span>
+                <TrendBadge current={conversionRate} previous={lastConversionRate} />
+              </div>
+              <p className="text-xs text-muted-foreground">{thisMonthExecuted.length} won · {thisMonthLost} lost</p>
             </CardContent>
           </Card>
+
           <Card
             className={`cursor-pointer transition-colors hover:border-primary/50 ${statusFilter === "lost" ? "border-primary ring-1 ring-primary/20" : ""}`}
             onClick={() => { setStatusFilter(statusFilter === "lost" ? null : "lost"); setActiveTab("proposals"); }}
           >
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Lost</CardTitle>
+            <CardHeader className="pb-1">
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Revenue Won</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{lostCount}</div>
-              <p className="text-xs text-muted-foreground mt-1">Not converted</p>
+            <CardContent className="space-y-1">
+              <div className="flex items-baseline justify-between">
+                <span className="text-3xl font-bold">{formatCurrency(revenueWon)}</span>
+                <TrendBadge current={revenueWon} previous={lastRevenueWon} />
+              </div>
+              <p className="text-xs text-muted-foreground">{thisMonthExecuted.length} executed this month</p>
             </CardContent>
           </Card>
+
           <Card
             className={`cursor-pointer transition-colors hover:border-primary/50 ${followUpDueCount > 0 ? "border-destructive/50" : ""} ${statusFilter === "follow_up" ? "border-primary ring-1 ring-primary/20" : ""}`}
             onClick={() => { setStatusFilter(statusFilter === "follow_up" ? null : "follow_up"); setActiveTab("proposals"); }}
           >
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Follow-ups Due</CardTitle>
+            <CardHeader className="pb-1">
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                <Bell className="h-3 w-3" />
+                Follow-ups Due
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className={`text-3xl font-bold ${followUpDueCount > 0 ? "text-destructive" : ""}`}>
-                {followUpDueCount}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">Need attention</p>
+            <CardContent className="space-y-1">
+              <div className="text-3xl font-bold text-destructive">{followUpDueCount}</div>
+              <p className="text-xs text-muted-foreground">Need attention</p>
             </CardContent>
           </Card>
         </div>

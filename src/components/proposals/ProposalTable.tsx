@@ -27,7 +27,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Edit, Trash2, Send, PenLine, Eye, Loader2, CheckCircle2, Clock, X, Phone, Bell, FileText, Settings2, XCircle, FolderOpen, ExternalLink } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, Send, PenLine, Eye, Loader2, CheckCircle2, Clock, X, Phone, Bell, FileText, Settings2, XCircle, FolderOpen, ExternalLink, AlertTriangle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState } from "react";
 import type { ProposalWithRelations } from "@/hooks/useProposals";
 import { format, isPast, parseISO } from "date-fns";
@@ -246,6 +247,20 @@ export function ProposalTable({
                           <FolderOpen className="h-3 w-3" />
                           {(proposal as any).converted_project.project_number}
                         </Badge>
+                      ) : proposal.status === "executed" && !(proposal as any).converted_project?.project_number ? (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-transparent gap-1">
+                                <AlertTriangle className="h-3 w-3" />
+                                Executed
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>No project linked — use menu to convert</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       ) : (
                         <Badge className={statusStyle.className}>
                           {statusStyle.label}
@@ -339,6 +354,12 @@ export function ProposalTable({
                         <DropdownMenuItem onClick={() => onMarkApproved(proposal)}>
                           <CheckCircle2 className="h-4 w-4 mr-2" />
                           Mark as Approved
+                        </DropdownMenuItem>
+                      )}
+                      {proposal.status === "executed" && !(proposal as any).converted_project_id && onMarkApproved && (
+                        <DropdownMenuItem onClick={() => onMarkApproved(proposal)}>
+                          <FolderOpen className="h-4 w-4 mr-2" />
+                          Convert to Project
                         </DropdownMenuItem>
                       )}
                       {["sent", "viewed", "draft"].includes(proposal.status || "") && onMarkLost && (
