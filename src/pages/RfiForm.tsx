@@ -199,7 +199,11 @@ export default function RfiForm() {
 
     // Applicant (architect/engineer) from project
     if (projectData) {
-      setIfEmpty("applicant_and_owner_applicant_name", projectData.architect_contact_name);
+      // Split architect name into first/last for new fields
+      const architectName = projectData.architect_contact_name || "";
+      const nameParts = architectName.trim().split(/\s+/);
+      setIfEmpty("applicant_and_owner_applicant_first_name", nameParts[0] || null);
+      setIfEmpty("applicant_and_owner_applicant_last_name", nameParts.length > 1 ? nameParts.slice(1).join(" ") : null);
       setIfEmpty("applicant_and_owner_applicant_business_name", projectData.architect_company_name);
       setIfEmpty("applicant_and_owner_applicant_phone", projectData.architect_phone);
       setIfEmpty("applicant_and_owner_applicant_email", projectData.architect_email);

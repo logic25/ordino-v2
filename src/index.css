@@ -221,3 +221,11 @@
     font-variant-numeric: tabular-nums;
   }
 }
+
+/* Print styles for client-facing proposal */
+@media print {
+  body { background: white !important; }
+  .bg-\[\\#f1f5f9\] { background: white !important; }
+  button, [role="button"] { display: none !important; }
+  .shadow-md { box-shadow: none !important; }
+}
