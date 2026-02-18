@@ -3937,6 +3937,7 @@ export type Database = {
           total_amount: number | null
           tpp_email: string | null
           tpp_name: string | null
+          unit_number: string | null
           updated_at: string | null
           valid_until: string | null
           viewed_at: string | null
@@ -4012,6 +4013,7 @@ export type Database = {
           total_amount?: number | null
           tpp_email?: string | null
           tpp_name?: string | null
+          unit_number?: string | null
           updated_at?: string | null
           valid_until?: string | null
           viewed_at?: string | null
@@ -4087,6 +4089,7 @@ export type Database = {
           total_amount?: number | null
           tpp_email?: string | null
           tpp_name?: string | null
+          unit_number?: string | null
           updated_at?: string | null
           valid_until?: string | null
           viewed_at?: string | null

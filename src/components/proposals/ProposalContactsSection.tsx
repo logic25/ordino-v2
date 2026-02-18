@@ -2,8 +2,11 @@ import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, UserPlus, Building2, User, ChevronDown } from "lucide-react";
+import { Plus, Trash2, UserPlus, Building2, User, ChevronDown, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { supabase } from "@/integrations/supabase/client";
 import type { ContactRole, ProposalContactInput } from "@/hooks/useProposalContacts";
 import type { Client } from "@/hooks/useClients";
@@ -384,94 +387,133 @@ export function ProposalContactsSection({
     );
   }
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor)
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = grouped.findIndex((_, i) => `contact-${i}` === active.id);
+      const newIndex = grouped.findIndex((_, i) => `contact-${i}` === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        emit(arrayMove(grouped, oldIndex, newIndex));
+      }
+    }
+  };
+
   return (
     <div className="space-y-3">
-      {grouped.map((contact, index) => (
-        <div key={index} className="border rounded-lg bg-card">
-          {/* Row 1: Company search + Delete */}
-          <div className="flex items-center gap-2 px-3 pt-3 pb-2">
-            <CompanyCombobox
-              value={contact.company_name || ""}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={grouped.map((_, i) => `contact-${i}`)} strategy={verticalListSortingStrategy}>
+          {grouped.map((contact, index) => (
+            <SortableContactCard
+              key={`contact-${index}`}
+              id={`contact-${index}`}
+              contact={contact}
+              index={index}
+              isLast={index === grouped.length - 1}
               clients={clients}
-              onSelect={(client) => handleSelectCompany(index, client)}
-              onAddNew={(name) => handleAddNewCompany(index, name)}
-              onSelectContact={(c) => {
-                updateContact(index, {
-                  client_id: c.client_id,
-                  company_name: c.company_name || "",
-                  name: c.name,
-                  email: c.email || "",
-                  phone: c.phone || "",
-                });
-              }}
+              onUpdate={(updates) => updateContact(index, updates)}
+              onRemove={() => removeContact(index)}
+              onToggleRole={(role) => toggleRole(index, role)}
+              onSelectCompany={(client) => handleSelectCompany(index, client)}
+              onSelectContact={(c) => handleSelectContact(index, c)}
+              onAddNewCompany={(name) => handleAddNewCompany(index, name)}
             />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-              onClick={() => removeContact(index)}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-
-          {/* Row 2: Contact picker (if company selected) or manual name */}
-          <div className="px-3 pb-2">
-            {contact.client_id ? (
-              <ContactPicker
-                clientId={contact.client_id}
-                value={contact.name || ""}
-                onSelect={(c) => handleSelectContact(index, c)}
-                onAddNew={() => updateContact(index, { name: "", email: "", phone: "" })}
-              />
-            ) : (
-              <Input
-                placeholder="Contact name *"
-                value={contact.name || ""}
-                onChange={(e) => updateContact(index, { name: e.target.value })}
-                className="h-8 text-sm font-medium"
-                autoFocus={!contact.name && index === grouped.length - 1}
-              />
-            )}
-          </div>
-
-          {/* Row 3: Email + Phone */}
-          <div className="px-3 pb-2 grid grid-cols-2 gap-2">
-            <Input
-              placeholder="Email"
-              type="email"
-              value={contact.email || ""}
-              onChange={(e) => updateContact(index, { email: e.target.value })}
-              className="h-8 text-sm"
-            />
-            <Input
-              placeholder="Phone"
-              value={contact.phone || ""}
-              onChange={(e) => updateContact(index, { phone: e.target.value })}
-              className="h-8 text-sm"
-            />
-          </div>
-
-          {/* Row 4: Roles */}
-          <div className="flex items-center gap-5 px-3 pb-3 border-t pt-2">
-            {ROLE_OPTIONS.map((opt) => (
-              <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer">
-                <Checkbox
-                  checked={contact.roles.includes(opt.value)}
-                  onCheckedChange={() => toggleRole(index, opt.value)}
-                  className="h-3.5 w-3.5"
-                />
-                <span className="text-xs text-muted-foreground">{opt.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-      ))}
+          ))}
+        </SortableContext>
+      </DndContext>
 
       <Button type="button" variant="outline" size="sm" className="w-full border-dashed" onClick={addContact}>
         <Plus className="h-4 w-4 mr-2" /> Add Another Contact
       </Button>
+    </div>
+  );
+}
+
+/* ─── Sortable Contact Card ─── */
+function SortableContactCard({
+  id, contact, index, isLast, clients, onUpdate, onRemove, onToggleRole, onSelectCompany, onSelectContact, onAddNewCompany,
+}: {
+  id: string;
+  contact: MultiRoleContact;
+  index: number;
+  isLast: boolean;
+  clients: Client[];
+  onUpdate: (updates: Partial<MultiRoleContact>) => void;
+  onRemove: () => void;
+  onToggleRole: (role: ContactRole) => void;
+  onSelectCompany: (client: Client) => void;
+  onSelectContact: (contact: ClientContact) => void;
+  onAddNewCompany: (name: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+
+  return (
+    <div ref={setNodeRef} style={style} className={cn("border rounded-lg bg-card", isDragging && "shadow-lg")}>
+      {/* Row 1: Drag handle + Company search + Delete */}
+      <div className="flex items-center gap-1 px-3 pt-3 pb-2">
+        <button type="button" className="cursor-grab active:cursor-grabbing p-1 text-muted-foreground hover:text-foreground" {...attributes} {...listeners}>
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
+        <CompanyCombobox
+          value={contact.company_name || ""}
+          clients={clients}
+          onSelect={onSelectCompany}
+          onAddNew={onAddNewCompany}
+          onSelectContact={(c) => {
+            onUpdate({
+              client_id: c.client_id,
+              company_name: c.company_name || "",
+              name: c.name,
+              email: c.email || "",
+              phone: c.phone || "",
+            });
+          }}
+        />
+        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={onRemove}>
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+
+      {/* Row 2: Contact picker or manual name */}
+      <div className="px-3 pb-2 pl-9">
+        {contact.client_id ? (
+          <ContactPicker
+            clientId={contact.client_id}
+            value={contact.name || ""}
+            onSelect={onSelectContact}
+            onAddNew={() => onUpdate({ name: "", email: "", phone: "" })}
+          />
+        ) : (
+          <Input
+            placeholder="Contact name *"
+            value={contact.name || ""}
+            onChange={(e) => onUpdate({ name: e.target.value })}
+            className="h-8 text-sm font-medium"
+            autoFocus={!contact.name && isLast}
+          />
+        )}
+      </div>
+
+      {/* Row 3: Email + Phone */}
+      <div className="px-3 pb-2 pl-9 grid grid-cols-2 gap-2">
+        <Input placeholder="Email" type="email" value={contact.email || ""} onChange={(e) => onUpdate({ email: e.target.value })} className="h-8 text-sm" />
+        <Input placeholder="Phone" value={contact.phone || ""} onChange={(e) => onUpdate({ phone: e.target.value })} className="h-8 text-sm" />
+      </div>
+
+      {/* Row 4: Roles */}
+      <div className="flex items-center gap-5 px-3 pb-3 pl-9 border-t pt-2">
+        {ROLE_OPTIONS.map((opt) => (
+          <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer">
+            <Checkbox checked={contact.roles.includes(opt.value)} onCheckedChange={() => onToggleRole(opt.value)} className="h-3.5 w-3.5" />
+            <span className="text-xs text-muted-foreground">{opt.label}</span>
+          </label>
+        ))}
+      </div>
     </div>
   );
 }

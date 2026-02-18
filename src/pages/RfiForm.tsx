@@ -197,9 +197,10 @@ export default function RfiForm() {
       setIfEmpty("building_and_scope_lot", property.lot);
     }
 
-    // Job description from project/proposal
+    // Job description and unit from project/proposal
     if (projectData) {
       setIfEmpty("building_and_scope_job_description", (projectData as any).job_description);
+      setIfEmpty("building_and_scope_apt_numbers", (projectData as any).unit_number);
     }
 
     // Applicant (architect/engineer) from project
