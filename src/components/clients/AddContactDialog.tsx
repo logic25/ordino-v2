@@ -22,6 +22,7 @@ import { Loader2, Linkedin } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
+import { toast } from "@/hooks/use-toast";
 
 interface AddContactDialogProps {
   open: boolean;
@@ -58,10 +59,12 @@ export function AddContactDialog({ open, onOpenChange, clientId, onContactCreate
     mutationFn: async () => {
       if (!form.first_name.trim()) throw new Error("First name is required");
 
+      const { data: { user } } = await supabase.auth.getUser();
       const { data: profile } = await supabase
         .from("profiles")
         .select("company_id")
-        .single();
+        .eq("user_id", user?.id)
+        .maybeSingle();
       if (!profile?.company_id) throw new Error("No company found");
 
       const { data, error } = await supabase.from("client_contacts").insert({
@@ -99,6 +102,9 @@ export function AddContactDialog({ open, onOpenChange, clientId, onContactCreate
         state: "", zip: "", is_primary: false,
       });
       onOpenChange(false);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error adding contact", description: error.message, variant: "destructive" });
     },
   });
 
