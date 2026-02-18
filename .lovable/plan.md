@@ -1,94 +1,151 @@
 
-# Admin Dashboard Enhancement + Additional Reports
 
-## 1. Admin Dashboard -- Revenue Trend Fix and New Widgets
+# Revised Plan: Notification Settings + Complexity-Weighted PM Capacity
 
-### Revenue Trend Chart -- Make it Bigger and Better
-- Increase chart height from 280px to 360px so it fills the card properly
-- Give it the full width of the row (remove the sidebar column with ProposalFollowUps/TeamOverview from being side-by-side with it)
-- Restructure the layout: Revenue Trend takes full width as its own row, then below it a 3-column grid with ProposalFollowUps, Year-over-Year Comparison, and Activity Summary
+## Key Revisions from Previous Plan
 
-### Year-over-Year Comparison Chart (new)
-- A line or grouped bar chart comparing the current period's revenue against the same period last year
-- Uses the same invoice data, just sliced into two ranges: current year vs. previous year
-- Monthly bars side-by-side labeled "2025" and "2026" (or whichever years apply)
-- Placed in the second row alongside the other cards
+**1. Notification Preferences move to Settings page (not Profile)**
+A new "Notifications" section in the Settings page where users configure all notification preferences -- billing digests, email alerts, project updates, etc.
 
-### Proposal Activity Card (new)
-- A compact card showing:
-  - Number of proposals created this month vs. last month
-  - Arrow up/down indicator with percentage change
-  - Total value of proposals this month vs. last month
-  - Simple "Proposals are up 23% this month" or "down 12%" message
-- Uses proposals table, comparing `created_at` month ranges
+**2. PM Billing Goal uses complexity-weighted capacity, not project count**
+A PM with 60 "Pull Permit" projects has very different capacity than a PM with 60 "Alt-1" or "CO" projects. The system will assign a **complexity weight** to each service in the Service Catalog, then calculate a PM's weighted workload to determine their available billing capacity.
 
-### Layout Restructure
-```text
-Row 1: [KPI] [KPI] [KPI] [KPI]
-Row 2: [Revenue Trend -- full width, taller chart with period selector]
-Row 3: [YoY Comparison] [Proposal Activity Card] [Proposal Follow-Ups]
-Row 4: [Team Overview]
-```
+---
 
-## 2. Additional Reports (New Tabs and Enhancements)
+## 1. Notification Settings (New Settings Section)
 
-### Referrals Tab (new report tab)
-- **Top Referrers Table**: Rows for each unique `referred_by` value from proposals showing: referrer name, number of proposals, number converted, conversion rate, total value referred, converted value
-- **Referral Source Breakdown**: Pie chart by `lead_source` field
-- **Year filter** to scope data
-- Hook: `useReferralReports` querying proposals grouped by `referred_by` and `lead_source`
+### What it does
+A new card in the Settings page called "Notifications" where users can configure:
+- **Billing Submissions**: Realtime / Daily Summary / Weekly Summary
+- **Project Updates**: When assigned, when checklist items change
+- **Proposal Activity**: New proposals, status changes
+- **Email Alerts**: New emails, follow-up reminders
+- **System Alerts**: Feature request updates, product news
 
-### Data Exports Tab (new report tab)
-- Grid of export cards: Projects, Clients, Invoices, Proposals, Time Entries, Contacts
-- Each card has a "Download CSV" button that fetches data and generates a CSV file client-side
-- Summary stats at the top: total projects, total invoices value, total collected
+Each category has a toggle (on/off) and a frequency selector (Realtime / Daily / Weekly).
 
-### Enhancements to Existing Reports
+### How it works
+- Stores preferences in the user's `profiles` row using a `notification_preferences` JSONB column (new)
+- The notification dropdown in the TopBar continues to work as-is; this just controls what generates notifications and how they're batched
+- No changes to ProfileSettings -- notification config lives purely in the new Settings section
 
-**Projects Tab -- add:**
-- Projects created per month trend (bar chart, last 12 months)
-- Average project duration (from created to closed)
+### Files
+- **New**: `src/components/settings/NotificationSettings.tsx` -- The full notification preferences UI
+- **Modified**: `src/pages/Settings.tsx` -- Add "Notifications" card with Bell icon to the settings sections list
+- **Database**: Add `notification_preferences` JSONB column to `profiles`
 
-**Billing Tab -- add:**
-- Revenue collected vs. billed comparison (already exists but ensure it uses correct columns)
-- Top 10 clients by outstanding balance (horizontal bar)
+---
 
-**Time Tab -- add:**
-- Weekly hours trend chart (last 8 weeks)
-- Billable vs. non-billable split as a donut chart
+## 2. Complexity-Weighted PM Billing Capacity
 
-**Operations Tab -- add:**
-- Project completion rate trend (monthly)
-- Stalled projects list (no activity in 30+ days)
+### The Problem
+Counting projects is misleading. A PM with 60 small "Pull Permit" jobs looks overloaded but has far more billing headroom than a PM with 20 "Alt-1" filings that each require extensive coordination.
+
+### The Solution
+
+**Step A: Add complexity weight to Service Catalog**
+Each service type in the catalog gets a `complexity_weight` field (numeric, 1-10 scale):
+- Pull Permit = 1
+- TCO Renewal = 2
+- Alt-2 = 3
+- Alt-1 = 5
+- CO = 6
+- Full new building = 8
+
+Admins configure these weights in Settings > Proposals & Services alongside existing service pricing.
+
+**Step B: Calculate Weighted Workload per PM**
+For each PM, look at their active projects and the services attached to each project. Sum the complexity weights of all active services. This gives a "Weighted Workload Score."
+
+**Step C: Smart Billing Target**
+- Define a company-wide "max weighted capacity" per PM (configurable, e.g., 100 points)
+- Calculate: `Utilization % = (PM's weighted workload) / max capacity`
+- Billing target = based on the dollar value of their active services scaled by checklist readiness
+- Example: PM has services worth $50K total, average 60% readiness = ~$30K should be billable
+
+**Step D: Dashboard Display**
+The `BillingGoalTracker` component (on Admin and Manager dashboards) shows per PM:
+- Weighted workload score (e.g., 72/100)
+- Number of projects (for context, but de-emphasized)
+- Service mix breakdown (e.g., "12 Pull Permits, 3 Alt-1s, 2 COs")
+- Billed this month vs. smart target
+- Progress bar with color coding
+
+### Files
+- **Modified**: `src/hooks/useCompanySettings.ts` -- Add `complexity_weight` to `ServiceCatalogItem` interface
+- **Modified**: `src/components/settings/ServiceCatalogSettings.tsx` -- Add complexity weight column to service table
+- **New**: `src/components/dashboard/BillingGoalTracker.tsx` -- PM billing capacity cards
+- **Modified**: `src/hooks/useDashboardData.ts` -- Add `usePMBillingGoals` hook that queries projects, their checklist items, and joins with service catalog weights
+- **Modified**: `src/components/dashboard/AdminCompanyView.tsx` -- Add BillingGoalTracker
+- **Modified**: `src/components/dashboard/ManagerView.tsx` -- Add BillingGoalTracker
+- **Modified**: `src/components/settings/TeamSettings.tsx` -- Add "max weighted capacity" field per team member
+
+---
+
+## 3. Remaining Items (Unchanged from Previous Plan)
+
+These items carry forward as-is:
+
+- **Accounting Dashboard**: Submissions-by-PM summary with invoice status tracking
+- **Proposal Reports**: Year multi-select for comparison chart, activity trend lines
+- **Project Reports**: Rename "Application Pipeline" to "DOB Application Status"
+- **Help Desk Page**: `/help` route with How-To Guides, What's New, and Feature Requests tabs
+- **Data Exports Tab**: CSV export cards for all major data tables
+- **Referrals Tab**: Top referrers table and source pie chart
+
+---
 
 ## Technical Details
 
-### Files Modified
+### Database Migration
 
-| File | Changes |
-|------|---------|
-| `src/components/dashboard/AdminCompanyView.tsx` | Restructure layout: full-width revenue trend, add YoY chart and proposal activity card |
-| `src/hooks/useDashboardData.ts` | Add `useYearOverYearRevenue` and `useProposalActivity` hooks |
-| `src/pages/Reports.tsx` | Add "Referrals" and "Exports" tabs |
-| `src/hooks/useReports.ts` | Add `useReferralReports` hook |
-| `src/components/reports/ProjectReports.tsx` | Add monthly creation trend and avg duration |
-| `src/components/reports/BillingReports.tsx` | Add top clients by outstanding |
-| `src/components/reports/TimeReports.tsx` | Add weekly trend and billable donut |
-| `src/components/reports/OperationsReports.tsx` | Add completion rate trend and stalled projects |
+```sql
+-- Notification preferences on profiles
+ALTER TABLE public.profiles
+ADD COLUMN IF NOT EXISTS notification_preferences jsonb DEFAULT '{}';
+```
+
+The `feature_requests` table migration from the previous plan also applies.
 
 ### New Files
 
 | File | Purpose |
 |------|---------|
-| `src/components/dashboard/ProposalActivityCard.tsx` | Month-over-month proposal activity with up/down indicator |
-| `src/components/dashboard/YearOverYearChart.tsx` | Side-by-side yearly revenue comparison |
-| `src/components/reports/ReferralReports.tsx` | Referral analytics with top referrers table and source pie chart |
-| `src/components/reports/DataExports.tsx` | CSV export cards for all major data tables |
+| `src/components/settings/NotificationSettings.tsx` | Notification preference toggles and frequency selectors |
+| `src/components/dashboard/BillingGoalTracker.tsx` | Complexity-weighted PM billing capacity cards |
+| `src/pages/HelpDesk.tsx` | Help desk page |
+| `src/components/helpdesk/HowToGuides.tsx` | Searchable guides |
+| `src/components/helpdesk/WhatsNew.tsx` | Changelog |
+| `src/components/helpdesk/FeatureRequests.tsx` | Feature request form and list |
+| `src/components/reports/ReferralReports.tsx` | Referral analytics |
+| `src/components/reports/DataExports.tsx` | CSV exports |
+
+### Modified Files
+
+| File | Changes |
+|------|---------|
+| `src/pages/Settings.tsx` | Add "Notifications" section |
+| `src/hooks/useCompanySettings.ts` | Add `complexity_weight` to ServiceCatalogItem |
+| `src/components/settings/ServiceCatalogSettings.tsx` | Add complexity weight column |
+| `src/components/settings/TeamSettings.tsx` | Add max weighted capacity field |
+| `src/components/dashboard/AdminCompanyView.tsx` | Add BillingGoalTracker |
+| `src/components/dashboard/ManagerView.tsx` | Add BillingGoalTracker |
+| `src/components/dashboard/AccountingView.tsx` | Submissions-by-PM summary |
+| `src/hooks/useDashboardData.ts` | PM billing goals hook with complexity weighting |
+| `src/pages/Reports.tsx` | Add Referrals and Exports tabs |
+| `src/components/reports/ProposalReports.tsx` | Year selector and trend lines |
+| `src/components/reports/ProjectReports.tsx` | Rename Application Pipeline |
+| `src/App.tsx` | Add `/help` route |
+| `src/components/layout/AppSidebar.tsx` | Add Help nav item |
 
 ### Implementation Order
-1. Restructure AdminCompanyView layout (full-width revenue trend, taller chart)
-2. Build YearOverYearChart and ProposalActivityCard components with hooks
-3. Create ReferralReports component and hook
-4. Create DataExports component
-5. Enhance existing report tabs (Projects, Billing, Time, Operations)
-6. Add new tabs to Reports page
+1. Database migration (notification_preferences column + feature_requests table)
+2. Notification Settings component + add to Settings page
+3. Add complexity_weight to service catalog interface and settings UI
+4. Build BillingGoalTracker with weighted capacity logic
+5. Accounting dashboard submissions-by-PM
+6. Proposal Reports year selector and trend lines
+7. Project Reports rename
+8. Referral Reports and Data Exports tabs
+9. Help Desk page with all tabs
+10. Sidebar and routing updates
