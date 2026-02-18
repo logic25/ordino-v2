@@ -1,57 +1,47 @@
-# Fix Executed Status Display & Modernize Proposal Summary Cards
-
-## Problem 1: 021726-4 Shows "Executed" Instead of Project Number
-
-Proposal `021726-4` has status `executed` but `converted_project_id` is NULL -- meaning no project was created when it was marked as approved/executed. The table code in `ProposalTable.tsx` only shows the green project number badge when `converted_project?.project_number` exists, otherwise it falls back to the plain "Executed" badge.
-
-**Fix:** Two changes needed:
-
-- **Data fix:** If the proposal was legitimately executed, either create the project or link it. We'll add a "Convert to Project" action in the dropdown menu for executed proposals that are missing a linked project, so you can fix this and any future cases.
-- **Visual indicator:** When an executed proposal has no linked project, show the "Executed" badge with a small warning icon and a tooltip saying "No project linked -- use menu to convert." - there should be no condition where the proposal is exectuted and a project is NOT created
-
-## Problem 2: Modernize Summary Cards with Month-over-Month Trends 
-
-In the legacy system i look at the number of proposals mom/yoy to see or find trends and acitivty, i aslo look at the amounts if we have less but there are bigger. Inspired by the legacy Ordino screenshot, replace the current 5 simple count cards with richer analytics cards that show:
 
 
-| Card                | Primary Value                                 | Detail Line            | Trend Arrow         |
-| ------------------- | --------------------------------------------- | ---------------------- | ------------------- |
-| **Total Proposals** | Count this month                              | Total value this month | vs last month count |
-| **Sent / Awaiting** | Count sent this month                         | Dollar value awaiting  | vs last month       |
-| **Conversion Rate** | % executed out of decided                     | Won count / Lost count | vs last month rate  |
-| **Revenue Won**     | Dollar value of executed proposals this month | Executed count         | vs last month       |
-| **Follow-ups Due**  | Count overdue                                 | "Need attention"       | (no trend)          |
+# Fix Client Preview Header/Footer and Post-Signing Flow
 
+## Problem 1: Header & Footer Missing on Client Preview
 
-Each card (except Follow-ups) shows a small green up-arrow or red down-arrow with the delta vs. the previous month, calculated from `created_at` dates in the proposal data.
+The header and footer code exists in `ClientProposal.tsx` and renders unconditionally. The company data (name, address, phone, email, website) all exist in the database for your company. The most likely cause is a **query timing issue** -- the `company` query depends on `proposal?.company_id` being available, and if the proposal query is slow or the component re-renders before company data loads, the header renders with empty values (no logo, no name, no address = visually blank).
+
+**Fix:**
+- Add a loading guard so the document only renders once BOTH `proposal` AND `company` data have loaded (currently only checks for `proposal`)
+- Add a fallback company name in the header when `company` is still loading, so the header is never visually empty
+- Ensure the footer always shows something (at minimum, the company name) even if settings fields are blank
+
+## Problem 2: Post-Signing -- Dedicated Next Steps Page
+
+Currently after signing, the retainer payment card and PIS card appear as small cards stacked below the full contract document. The user has to scroll past the entire proposal to see them.
+
+**Change:** After the client signs, replace the contract view with a dedicated "Next Steps" page that shows:
+
+1. **Confirmation banner** at the top (proposal accepted, checkmark)
+2. **Welcome email status** card
+3. **Retainer Payment** section (full-width, prominent) with the existing card/ACH payment flow
+4. **Project Information Sheet** link card
+5. A "View Signed Proposal" button at the bottom to toggle back to the full contract if they want to review it
+
+This is a view-state toggle within the same component -- when `alreadySigned` is true, the component shows the "Next Steps" view by default, with an option to switch back to viewing the signed contract.
 
 ## Technical Steps
 
-### 1. ProposalTable.tsx -- Executed badge with missing project handling
+### 1. ClientProposal.tsx -- Loading guard
+- Add `isCompanyLoading` from the company query
+- Show the spinner until BOTH proposal AND company are loaded
+- Ensures the header always has data when it renders
 
-- When `status === "executed"` and no `converted_project`, show the Executed badge with an `AlertTriangle` icon
-- Add a "Convert to Project" dropdown menu item for executed proposals without a linked project (calls existing conversion logic or opens the approval dialog)
-
-### 2. Proposals.tsx -- Modernize summary cards
-
-- Extract month-over-month stats from `displayProposals` using `date-fns` (`startOfMonth`, `subMonths`, `isWithinInterval`)
-- Calculate: this month count, last month count, delta, value totals, conversion rate
-- Replace the current 5 `Card` blocks with a reusable card layout showing:
-  - Primary metric (large number)
-  - Secondary detail (small text)
-  - Trend indicator: up/down arrow with percentage or absolute change, colored green/red
-- Keep the click-to-filter behavior on each card
-- Keep the Follow-ups Due card with its destructive styling when overdue
-
-### 3. ProposalTable.tsx -- "Convert to Project" menu item
-
-- For executed proposals where `converted_project_id` is null, add a dropdown item with `FolderOpen` icon labeled "Convert to Project"
-- This triggers `onMarkApproved` (the existing approval flow that creates the project and links it)
+### 2. ClientProposal.tsx -- Post-signing view toggle
+- Add a `viewMode` state: `"next-steps" | "contract"` (defaults to `"next-steps"` when `alreadySigned`)
+- When `viewMode === "next-steps"`: render the confirmation, payment, and PIS sections as a dedicated full-page layout (not below the contract)
+- When `viewMode === "contract"`: render the signed contract as it is now
+- Add a "View Signed Proposal" button in the next-steps view and a "Back to Next Steps" button in the contract view
+- The retainer payment and PIS sections get more visual prominence in this dedicated layout
 
 ## Files to Edit
 
+| File | Change |
+|------|--------|
+| `src/pages/ClientProposal.tsx` | Add company loading guard, implement post-signing view toggle with dedicated Next Steps page |
 
-| File                                         | Change                                                                      |
-| -------------------------------------------- | --------------------------------------------------------------------------- |
-| `src/pages/Proposals.tsx`                    | Rewrite summary cards section with month-over-month trend logic             |
-| `src/components/proposals/ProposalTable.tsx` | Add warning on executed-without-project, add "Convert to Project" menu item |
