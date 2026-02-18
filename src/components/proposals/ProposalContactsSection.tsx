@@ -388,9 +388,13 @@ export function ProposalContactsSection({
           client={null}
           defaultName={addCompanyState.prefillName}
           onSubmit={async (data) => {
-            const newClient = await onAddClient(data);
-            handleSelectCompany(addCompanyState.index, newClient);
-            setAddCompanyState({ open: false, index: -1, prefillName: "" });
+            try {
+              const newClient = await onAddClient(data);
+              handleSelectCompany(addCompanyState.index, newClient);
+              setAddCompanyState({ open: false, index: -1, prefillName: "" });
+            } catch (err: any) {
+              console.error("Failed to create company:", err);
+            }
           }}
           isLoading={isAddingClient}
         />
