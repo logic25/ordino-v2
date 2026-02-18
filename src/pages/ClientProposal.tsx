@@ -508,8 +508,8 @@ export default function ClientProposalPage() {
               )}
               <a
                 href={rfiToken ? `/rfi?token=${rfiToken}` : `/rfi?property=${encodeURIComponent(proposal.properties?.address || "")}&proposal=${proposal.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
+
+
                 className="flex items-center justify-between rounded-lg p-4 transition-shadow"
                 style={{ background: "hsl(38, 92%, 50%, 0.06)", border: `1px solid hsl(38, 92%, 50%, 0.25)` }}
               >
