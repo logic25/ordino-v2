@@ -883,6 +883,12 @@ export function ProposalDialog({
                   }}
                   isAddingClient={createClient.isPending}
                 />
+
+                <SectionLabel>Project Parties</SectionLabel>
+                <p className="text-xs text-muted-foreground -mt-1 mb-2">
+                  If known, enter key parties — this pre-fills the client PIS form.
+                </p>
+                <PartyInfoSection form={form} clients={clients} />
               </div>
             )}
 
@@ -964,12 +970,6 @@ export function ProposalDialog({
                     </Select>
                   </div>
                 </div>
-
-                <SectionLabel>Project Parties</SectionLabel>
-                <p className="text-xs text-muted-foreground -mt-1 mb-2">
-                  If known, enter key parties — this pre-fills the client PIS form.
-                </p>
-                <PartyInfoSection form={form} clients={clients} />
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
