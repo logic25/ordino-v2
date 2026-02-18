@@ -445,11 +445,30 @@ export default function Proposals() {
   };
 
   const handleDelete = async (id: string) => {
+    // Check if proposal is executed — cannot delete
+    const proposal = proposals.find((p) => p.id === id);
+    if (proposal?.status === "executed") {
+      toast({
+        title: "Cannot delete executed proposal",
+        description: "This proposal has been fully signed and converted to a project. It cannot be deleted.",
+        variant: "destructive",
+      });
+      return;
+    }
     try {
       await deleteProposal.mutateAsync(id);
       toast({ title: "Proposal deleted", description: "The proposal has been removed." });
     } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to delete proposal.", variant: "destructive" });
+      const msg = error.message || "";
+      if (msg.includes("foreign key") || msg.includes("projects")) {
+        toast({
+          title: "Cannot delete this proposal",
+          description: "This proposal is linked to a project and cannot be deleted.",
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Error", description: msg || "Failed to delete proposal.", variant: "destructive" });
+      }
     }
   };
 
