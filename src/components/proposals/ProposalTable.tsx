@@ -237,7 +237,7 @@ export function ProposalTable({
                     <div className="flex items-center gap-1 flex-wrap">
                       {proposal.status === "executed" && (proposal as any).converted_project?.project_number ? (
                         <Badge
-                          className="cursor-pointer hover:bg-emerald-200 dark:hover:bg-emerald-800 transition-colors bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border-transparent gap-1"
+                          className="cursor-pointer hover:bg-emerald-200 dark:hover:bg-emerald-800 transition-colors bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border-transparent gap-1 text-xs px-1.5 py-0 font-mono"
                           onClick={() => {
                             const projectId = (proposal as any).converted_project?.id;
                             if (projectId) window.location.href = `/projects/${projectId}`;
