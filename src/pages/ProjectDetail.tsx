@@ -313,7 +313,15 @@ export default function ProjectDetail() {
             ownerEmail={primaryContact?.email}
           />
         )}
-        <ReadinessChecklist items={dbChecklistItems} pisStatus={pisStatus} projectId={id!} />
+        <ReadinessChecklist
+          items={dbChecklistItems}
+          pisStatus={pisStatus}
+          projectId={id!}
+          projectName={project.name || project.proposals?.title || "Untitled"}
+          propertyAddress={project.properties?.address || ""}
+          ownerName={(project as any).building_owner_name || primaryContact?.name}
+          contactEmail={primaryContact?.email}
+        />
 
         {/* Main Tabbed Content */}
         <Card>
@@ -466,7 +474,10 @@ function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWi
 
 // ======== READINESS CHECKLIST ========
 
-function ReadinessChecklist({ items, pisStatus, projectId }: { items: ChecklistItem[]; pisStatus: MockPISStatus; projectId: string }) {
+function ReadinessChecklist({ items, pisStatus, projectId, projectName, propertyAddress, ownerName, contactEmail }: {
+  items: ChecklistItem[]; pisStatus: MockPISStatus; projectId: string;
+  projectName?: string; propertyAddress?: string; ownerName?: string; contactEmail?: string;
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [showReceived, setShowReceived] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -474,6 +485,10 @@ function ReadinessChecklist({ items, pisStatus, projectId }: { items: ChecklistI
   const [newLabel, setNewLabel] = useState("");
   const [newFrom, setNewFrom] = useState("");
   const [newCategory, setNewCategory] = useState("missing_document");
+  const [aiDraft, setAiDraft] = useState<{ draft: string; prompt: { system: string; user: string }; model: string } | null>(null);
+  const [showAiDraft, setShowAiDraft] = useState(false);
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const { toast } = useToast();
   const addItem = useAddChecklistItem();
   const updateItem = useUpdateChecklistItem();
@@ -514,6 +529,54 @@ function ReadinessChecklist({ items, pisStatus, projectId }: { items: ChecklistI
     });
     toast({ title: "Item added", description: newLabel });
     setNewLabel(""); setNewFrom(""); setShowAddForm(false);
+  };
+
+  const handleAiFollowUp = async () => {
+    if (outstanding.length === 0) {
+      toast({ title: "No outstanding items", description: "All checklist items are complete." });
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const itemsPayload = outstanding.map(item => ({
+        label: item.label,
+        from_whom: item.from_whom,
+        category: item.category,
+        daysWaiting: getDaysWaiting(item.requested_date),
+      }));
+
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/draft-checklist-followup`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            items: itemsPayload,
+            projectName,
+            propertyAddress,
+            ownerName,
+            contactEmail,
+          }),
+        }
+      );
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: "Unknown error" }));
+        toast({ title: "AI Error", description: err.error || `Status ${resp.status}`, variant: "destructive" });
+        return;
+      }
+
+      const data = await resp.json();
+      setAiDraft(data);
+      setShowAiDraft(true);
+    } catch (e) {
+      toast({ title: "Error", description: e instanceof Error ? e.message : "Failed to generate draft", variant: "destructive" });
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   return (
@@ -636,6 +699,11 @@ function ReadinessChecklist({ items, pisStatus, projectId }: { items: ChecklistI
                               <Phone className="h-3 w-3" /> Follow Up
                             </Button>
                           )}
+                          {item.category === "ai_follow_up" && (
+                            <Badge variant="outline" className="text-[10px] gap-1 border-primary/30 text-primary">
+                              <Sparkles className="h-2.5 w-2.5" /> AI
+                            </Badge>
+                          )}
                           <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => handleRemoveItem(item.id)}>
                             <Trash2 className="h-3 w-3" />
                           </Button>
@@ -696,6 +764,21 @@ function ReadinessChecklist({ items, pisStatus, projectId }: { items: ChecklistI
                 <Button variant="outline" size="sm" className="gap-1.5">
                   <Sparkles className="h-3.5 w-3.5" /> Extract from Emails
                 </Button>
+                {outstanding.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 border-primary/30 text-primary hover:bg-primary/5"
+                    onClick={handleAiFollowUp}
+                    disabled={aiLoading}
+                  >
+                    {aiLoading ? (
+                      <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Drafting...</>
+                    ) : (
+                      <><Sparkles className="h-3.5 w-3.5" /> AI Follow-Up Draft</>
+                    )}
+                  </Button>
+                )}
               </div>
             )}
           </CardContent>
@@ -703,10 +786,79 @@ function ReadinessChecklist({ items, pisStatus, projectId }: { items: ChecklistI
       </Card>
     </Collapsible>
     <EditPISDialog open={showEditPIS} onOpenChange={setShowEditPIS} pisStatus={pisStatus} projectId={projectId} />
+
+    {/* AI Draft Dialog */}
+    <Dialog open={showAiDraft} onOpenChange={setShowAiDraft}>
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            AI Follow-Up Draft
+          </DialogTitle>
+        </DialogHeader>
+
+        {aiDraft && (
+          <div className="space-y-4">
+            {/* Draft content */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Generated Email Draft</span>
+                <Badge variant="outline" className="text-[10px]">
+                  {aiDraft.model} · {(aiDraft as any).itemCount} items
+                </Badge>
+              </div>
+              <div className="rounded-lg border bg-muted/20 p-4">
+                <pre className="text-sm whitespace-pre-wrap font-sans leading-relaxed">{aiDraft.draft}</pre>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" className="gap-1.5" onClick={() => {
+                  navigator.clipboard.writeText(aiDraft.draft);
+                  toast({ title: "Copied", description: "Draft copied to clipboard." });
+                }}>
+                  <FileText className="h-3.5 w-3.5" /> Copy Draft
+                </Button>
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {
+                  toast({ title: "Opening Composer", description: "Draft will be loaded into email composer." });
+                  setShowAiDraft(false);
+                }}>
+                  <Mail className="h-3.5 w-3.5" /> Open in Composer
+                </Button>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Prompt transparency */}
+            <Collapsible open={showPrompt} onOpenChange={setShowPrompt}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground w-full justify-start h-8">
+                  {showPrompt ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                  <Eye className="h-3 w-3" />
+                  View Prompt Used
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2 space-y-3">
+                <div className="space-y-1.5">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">System Prompt</span>
+                  <div className="rounded-md border bg-muted/30 p-3">
+                    <pre className="text-xs whitespace-pre-wrap font-mono text-muted-foreground leading-relaxed">{aiDraft.prompt.system}</pre>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">User Prompt</span>
+                  <div className="rounded-md border bg-muted/30 p-3">
+                    <pre className="text-xs whitespace-pre-wrap font-mono text-muted-foreground leading-relaxed">{aiDraft.prompt.user}</pre>
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
     </>
   );
 }
-
 // ======== SERVICES ========
 
 function ServiceExpandedDetail({ service }: { service: MockService }) {

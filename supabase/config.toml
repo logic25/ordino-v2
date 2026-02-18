@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.analyze-plans]
 verify_jwt = false
+
+[functions.draft-checklist-followup]
+verify_jwt = false
