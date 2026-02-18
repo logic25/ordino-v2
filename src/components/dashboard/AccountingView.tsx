@@ -9,7 +9,7 @@ import { useAccountingDashboard } from "@/hooks/useDashboardData";
 import { AgingSummaryChart } from "./AgingSummaryChart";
 import { useBillingReports } from "@/hooks/useReports";
 
-export function AccountingView() {
+export function AccountingView({ isVisible }: { isVisible?: (id: string) => boolean }) {
   const navigate = useNavigate();
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: billing, isLoading: billingLoading } = useBillingReports();

@@ -7,6 +7,8 @@ import { AdminCompanyView } from "@/components/dashboard/AdminCompanyView";
 import { AccountingView } from "@/components/dashboard/AccountingView";
 import { ManagerView } from "@/components/dashboard/ManagerView";
 import { RolePreviewSelector } from "@/components/dashboard/RolePreviewSelector";
+import { DashboardLayoutConfig } from "@/components/dashboard/DashboardLayoutConfig";
+import { useDashboardLayout } from "@/hooks/useDashboardLayout";
 
 type DashboardRole = "admin" | "pm" | "accounting" | "manager";
 
@@ -16,6 +18,7 @@ export default function Dashboard() {
   const [previewRole, setPreviewRole] = useState<DashboardRole>(actualRole as DashboardRole);
 
   const role = previewRole;
+  const layout = useDashboardLayout(role);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -42,21 +45,21 @@ export default function Dashboard() {
   const renderDashboard = () => {
     switch (role) {
       case "pm":
-        return <PMDailyView />;
+        return <PMDailyView isVisible={layout.isVisible} />;
       case "admin":
-        return <AdminCompanyView />;
+        return <AdminCompanyView isVisible={layout.isVisible} />;
       case "accounting":
-        return <AccountingView />;
+        return <AccountingView isVisible={layout.isVisible} />;
       case "manager":
-        return <ManagerView />;
+        return <ManagerView isVisible={layout.isVisible} />;
       default:
-        return <PMDailyView />;
+        return <PMDailyView isVisible={layout.isVisible} />;
     }
   };
 
   return (
     <AppLayout>
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-6 animate-fade-in" data-tour="dashboard">
         {/* Header */}
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div>
@@ -65,11 +68,18 @@ export default function Dashboard() {
             </h1>
             <p className="text-muted-foreground mt-1">{getRoleDescription()}</p>
           </div>
-          <RolePreviewSelector
-            currentRole={actualRole}
-            previewRole={previewRole}
-            onPreviewChange={setPreviewRole}
-          />
+          <div className="flex items-center gap-2">
+            <DashboardLayoutConfig
+              widgets={layout.widgets}
+              visibility={layout.visibility}
+              onToggle={layout.toggleWidget}
+            />
+            <RolePreviewSelector
+              currentRole={actualRole}
+              previewRole={previewRole}
+              onPreviewChange={setPreviewRole}
+            />
+          </div>
         </div>
 
         {/* Stats Grid - only for PM (others have KPIs built in) */}

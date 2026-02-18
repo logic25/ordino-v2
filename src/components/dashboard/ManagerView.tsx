@@ -8,7 +8,8 @@ import { Users, Clock, FileText, FolderKanban } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { BillingGoalTracker } from "./BillingGoalTracker";
 
-export function ManagerView() {
+export function ManagerView({ isVisible }: { isVisible?: (id: string) => boolean }) {
+  const show = isVisible || (() => true);
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: utilization = [], isLoading: utilLoading } = useTeamUtilization();
   const { data: projectsByPM = [], isLoading: pmLoading } = useProjectsByPM();
@@ -23,6 +24,7 @@ export function ManagerView() {
   return (
     <div className="space-y-6">
       {/* KPI Row */}
+      {show("kpis") && (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {kpis.map((kpi) => (
           <Card key={kpi.label}>
@@ -42,7 +44,9 @@ export function ManagerView() {
           </Card>
         ))}
       </div>
+      )}
 
+      {show("team-utilization") && (
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Team Utilization */}
         <Card>
@@ -101,16 +105,19 @@ export function ManagerView() {
           </CardContent>
         </Card>
       </div>
+      )}
 
       {/* Billing Goal Tracker */}
-      <BillingGoalTracker />
+      {show("billing-goal-tracker") && <BillingGoalTracker />}
 
+      {show("proposal-followups") && (
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <ProposalFollowUps />
         </div>
-        <TeamOverview />
+        {show("team-overview") && <TeamOverview />}
       </div>
+      )}
     </div>
   );
 }

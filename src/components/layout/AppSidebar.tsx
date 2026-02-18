@@ -77,6 +77,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <aside
+      data-tour="sidebar"
       className={cn(
         "sticky top-0 flex flex-col h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300 z-30",
         collapsed ? "w-16" : "w-64"
@@ -116,6 +117,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
               key={item.href}
               to={item.href}
               onClick={onNavigate}
+              data-tour={`nav-${item.href.replace("/", "")}`}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150",
                 "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
@@ -139,6 +141,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
               key={item.href}
               to={item.href}
               onClick={onNavigate}
+              data-tour={`nav-${item.href.replace("/", "")}`}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150",
                 "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",

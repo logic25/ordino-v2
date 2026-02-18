@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute, SetupRoute, PublicRoute } from "@/components/routing/RouteGuards";
+import { WalkthroughProvider } from "@/components/walkthrough/WalkthroughProvider";
 
 // Pages
 import Auth from "./pages/Auth";
@@ -238,7 +239,9 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <AppRoutes />
+          <WalkthroughProvider>
+            <AppRoutes />
+          </WalkthroughProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

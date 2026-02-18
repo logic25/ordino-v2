@@ -63,10 +63,12 @@ function useMyProjectReadiness() {
   });
 }
 
-export function PMDailyView() {
+export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean }) {
   const navigate = useNavigate();
   const { data: projects, isLoading } = useMyAssignedProjects();
   const { data: readiness = [], isLoading: readinessLoading } = useMyProjectReadiness();
+
+  const show = isVisible || (() => true);
 
   const now = new Date();
 
@@ -90,8 +92,8 @@ export function PMDailyView() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
-      {/* Left: Priority tasks + Readiness */}
-      <div className="lg:col-span-2 space-y-6">
+      {show("my-projects") && (
+        <div className="lg:col-span-2 space-y-6">
         {/* My Active Projects */}
         <Card>
           <CardHeader>
@@ -155,6 +157,7 @@ export function PMDailyView() {
         </Card>
 
         {/* Project Readiness */}
+        {show("project-readiness") && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
@@ -223,12 +226,14 @@ export function PMDailyView() {
             )}
           </CardContent>
         </Card>
+        )}
       </div>
+      )}
 
       {/* Right: Follow-ups + Quick log */}
       <div className="space-y-6">
-        <ProposalFollowUps />
-        <QuickTimeLog />
+        {show("proposal-followups") && <ProposalFollowUps />}
+        {show("quick-time-log") && <QuickTimeLog />}
       </div>
     </div>
   );
