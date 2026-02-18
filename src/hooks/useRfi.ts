@@ -286,7 +286,7 @@ export function useRfiByToken(token: string | null) {
       if (!token) return null;
       const { data, error } = await supabase
         .from("rfi_requests" as any)
-        .select("*, properties(*, owner_name), projects(building_owner_name, client_id, clients!projects_client_id_fkey(name), gc_company_name, gc_contact_name, gc_phone, gc_email, architect_company_name, architect_contact_name, architect_phone, architect_email, architect_license_type, architect_license_number, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email), proposals(architect_name, architect_company, architect_phone, architect_email, architect_license_type, architect_license_number, gc_name, gc_company, gc_phone, gc_email, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email)")
+        .select("*, properties(*, owner_name), projects(building_owner_name, client_id, clients!projects_client_id_fkey(name), gc_company_name, gc_contact_name, gc_phone, gc_email, architect_company_name, architect_contact_name, architect_phone, architect_email, architect_license_type, architect_license_number, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email), proposals(architect_name, architect_company, architect_phone, architect_email, architect_license_type, architect_license_number, gc_name, gc_company, gc_phone, gc_email, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email, job_description)")
         .eq("access_token", token)
         .maybeSingle();
       if (error) throw error;
@@ -301,6 +301,7 @@ export function useRfiByToken(token: string | null) {
         property: properties as { address: string; borough: string | null; block: string | null; lot: string | null } | null,
         project: {
           building_owner_name: ownerName,
+          job_description: prop.job_description || null,
           gc_company_name: projects?.gc_company_name || prop.gc_company || null,
           gc_contact_name: projects?.gc_contact_name || prop.gc_name || null,
           gc_phone: projects?.gc_phone || prop.gc_phone || null,
