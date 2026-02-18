@@ -254,7 +254,7 @@ export default function ClientProposalPage() {
     if (isSigned) setViewMode("next-steps");
   }, [isSigned]);
 
-  if (isLoading || (proposal?.company_id && isCompanyLoading)) {
+  if (isLoading || (proposal?.company_id && !company)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f9fa]">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
