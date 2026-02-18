@@ -6,6 +6,7 @@ import { TeamOverview } from "./TeamOverview";
 import { ProposalFollowUps } from "./ProposalFollowUps";
 import { Users, Clock, FileText, FolderKanban } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { BillingGoalTracker } from "./BillingGoalTracker";
 
 export function ManagerView() {
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
@@ -100,6 +101,9 @@ export function ManagerView() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Billing Goal Tracker */}
+      <BillingGoalTracker />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">

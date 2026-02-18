@@ -190,14 +190,15 @@ export function ServiceCatalogSettings() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                     <TableHead className="w-[18%]">Name</TableHead>
-                     <TableHead className="w-[18%]">Description</TableHead>
-                     <TableHead className="w-[9%]">Fee Type</TableHead>
-                     <TableHead className="w-[9%]">Base Price</TableHead>
-                     <TableHead className="w-[7%]">Hours</TableHead>
-                     <TableHead className="w-[9%]">Multiplier</TableHead>
-                     <TableHead className="w-[14%]">Per Discipline</TableHead>
-                     <TableHead className="w-[16%]" />
+                     <TableHead className="w-[16%]">Name</TableHead>
+                     <TableHead className="w-[16%]">Description</TableHead>
+                     <TableHead className="w-[8%]">Fee Type</TableHead>
+                     <TableHead className="w-[8%]">Base Price</TableHead>
+                     <TableHead className="w-[6%]">Hours</TableHead>
+                     <TableHead className="w-[7%]">Multiplier</TableHead>
+                     <TableHead className="w-[6%]">Weight</TableHead>
+                     <TableHead className="w-[13%]">Per Discipline</TableHead>
+                     <TableHead className="w-[10%]" />
                    </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -311,6 +312,27 @@ export function ServiceCatalogSettings() {
                           />
                         </TableCell>
                         <TableCell>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  max="10"
+                                  step="1"
+                                  value={(service as any).complexity_weight || ""}
+                                  onChange={(e) => {
+                                    setServices(services.map(s => s.id === service.id ? { ...s, complexity_weight: parseInt(e.target.value) || 1 } : s));
+                                  }}
+                                  placeholder="1"
+                                  className="h-8 text-sm w-14"
+                                />
+                              </TooltipTrigger>
+                              <TooltipContent><p className="text-xs">Complexity weight (1-10) for PM capacity tracking</p></TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </TableCell>
+                        <TableCell>
                           <div className="flex items-center gap-2">
                             <Checkbox
                               checked={!!service.has_discipline_pricing}
@@ -349,7 +371,7 @@ export function ServiceCatalogSettings() {
                       </TableRow>
                       {/* Default Requirements Row */}
                       <TableRow>
-                        <TableCell colSpan={8} className="p-0">
+                        <TableCell colSpan={9} className="p-0">
                           <ServiceRequirementsEditor
                             requirements={service.default_requirements || []}
                             onChange={(reqs) => {

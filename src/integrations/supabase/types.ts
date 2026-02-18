@@ -2203,6 +2203,53 @@ export type Database = {
           },
         ]
       }
+      feature_requests: {
+        Row: {
+          category: string | null
+          company_id: string
+          created_at: string | null
+          description: string | null
+          id: string
+          priority: string | null
+          status: string | null
+          title: string
+          upvotes: number | null
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          company_id: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          priority?: string | null
+          status?: string | null
+          title: string
+          upvotes?: number | null
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          company_id?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          priority?: string | null
+          status?: string | null
+          title?: string
+          upvotes?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feature_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gmail_connections: {
         Row: {
           access_token: string | null
@@ -3367,6 +3414,7 @@ export type Database = {
           job_title: string | null
           last_name: string | null
           monthly_goal: number | null
+          notification_preferences: Json | null
           phone: string | null
           phone_extension: string | null
           preferences: Json | null
@@ -3389,6 +3437,7 @@ export type Database = {
           job_title?: string | null
           last_name?: string | null
           monthly_goal?: number | null
+          notification_preferences?: Json | null
           phone?: string | null
           phone_extension?: string | null
           preferences?: Json | null
@@ -3411,6 +3460,7 @@ export type Database = {
           job_title?: string | null
           last_name?: string | null
           monthly_goal?: number | null
+          notification_preferences?: Json | null
           phone?: string | null
           phone_extension?: string | null
           preferences?: Json | null

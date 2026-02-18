@@ -10,6 +10,7 @@ import { TeamOverview } from "./TeamOverview";
 import { ProposalFollowUps } from "./ProposalFollowUps";
 import { YearOverYearChart } from "./YearOverYearChart";
 import { ProposalActivityCard } from "./ProposalActivityCard";
+import { BillingGoalTracker } from "./BillingGoalTracker";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
@@ -118,7 +119,10 @@ export function AdminCompanyView() {
         <ProposalFollowUps />
       </div>
 
-      {/* Row 4: Team Overview */}
+      {/* Row 4: Billing Goal Tracker */}
+      <BillingGoalTracker />
+
+      {/* Row 5: Team Overview */}
       <TeamOverview />
     </div>
   );
