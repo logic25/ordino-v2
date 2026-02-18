@@ -166,27 +166,40 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
     enabled: !!projectId && open,
   });
 
+  // Fetch proposal job_description if project was created from a proposal
+  const { data: proposalJobDesc } = useQuery({
+    queryKey: ["proposal-job-desc", projectId],
+    queryFn: async () => {
+      const { data: project } = await supabase
+        .from("projects")
+        .select("proposal_id")
+        .eq("id", projectId)
+        .single();
+      if (!project?.proposal_id) return null;
+      const { data: proposal } = await (supabase.from("proposals") as any)
+        .select("job_description")
+        .eq("id", project.proposal_id)
+        .single();
+      return (proposal?.job_description as string) || null;
+    },
+    enabled: !!projectId && open,
+  });
+
   // Map RFI response keys (section_field) to flat field IDs
   useEffect(() => {
     if (!rfiData?.responses) return;
     const mapped: Record<string, string> = {};
     const resp = rfiData.responses;
-    // The RFI stores keys as "sectionId_fieldId", e.g. "building_and_scope_project_address"
-    // Our PIS_SECTIONS use flat field IDs like "project_address"
-    // Build a lookup from flat field ID to value
     for (const section of PIS_SECTIONS) {
       for (const field of section.fields) {
         if (field.type === "heading") continue;
-        // Try exact match first
         if (resp[field.id] !== undefined) {
           mapped[field.id] = String(resp[field.id]);
         }
-        // Try prefixed match: sectionId_fieldId
         const prefixedKey = `${section.id}_${field.id}`;
         if (resp[prefixedKey] !== undefined) {
           mapped[field.id] = String(resp[prefixedKey]);
         }
-        // Try other section prefixes (RFI uses different section IDs)
         for (const [key, val] of Object.entries(resp)) {
           if (key.endsWith(`_${field.id}`) && val && !mapped[field.id]) {
             mapped[field.id] = String(val);
@@ -194,8 +207,12 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
         }
       }
     }
+    // Pre-fill job_description from proposal if not already filled
+    if (!mapped["job_description"] && proposalJobDesc) {
+      mapped["job_description"] = proposalJobDesc;
+    }
     setValues(mapped);
-  }, [rfiData]);
+  }, [rfiData, proposalJobDesc]);
 
   const updateValue = (key: string, value: string) => {
     setValues((prev) => ({ ...prev, [key]: value }));
