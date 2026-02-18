@@ -1,8 +1,9 @@
-import { Clock, Building2, FileText, AlertCircle, Users, DollarSign, Sparkles } from "lucide-react";
+import { Clock, Building2, FileText, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useDashboardStats } from "@/hooks/useDashboard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePendingDraftsCount } from "@/hooks/useChecklistFollowupDrafts";
+import { Sparkles } from "lucide-react";
 
 interface StatCardProps {
   title: string;
@@ -48,114 +49,33 @@ export function DashboardStats({ role }: DashboardStatsProps) {
   const { data: stats, isLoading } = useDashboardStats();
   const { data: pendingDraftsCount = 0 } = usePendingDraftsCount();
 
-  // Role-based stat configuration
-  const getStatsForRole = () => {
-    const baseStats = [
-      {
-        title: "Active Projects",
-        value: stats?.activeProjects ?? 0,
-        subtitle: `${stats?.overdueInvoices ?? 0} overdue invoices`,
-        icon: <Building2 className="h-4 w-4 text-muted-foreground" />,
-      },
-    ];
-
-    switch (role) {
-      case "pm":
-        return [
-          {
-            title: "Hours Today",
-            value: stats?.todayHours ?? 0,
-            subtitle: "Keep logging!",
-            icon: <Clock className="h-4 w-4 text-muted-foreground" />,
-          },
-          ...baseStats,
-          {
-            title: "Pending Proposals",
-            value: stats?.pendingProposals ?? 0,
-            subtitle: "Awaiting client response",
-            icon: <FileText className="h-4 w-4 text-muted-foreground" />,
-          },
-          {
-            title: "Overdue Invoices",
-            value: stats?.overdueInvoices ?? 0,
-            subtitle: "Need follow-up",
-            icon: <AlertCircle className="h-4 w-4 text-muted-foreground" />,
-          },
-        ];
-
-      case "accounting":
-        return [
-          {
-            title: "Unbilled Hours",
-            value: stats?.unbilledHours ?? 0,
-            subtitle: "Ready to invoice",
-            icon: <DollarSign className="h-4 w-4 text-muted-foreground" />,
-          },
-          ...baseStats,
-          {
-            title: "Overdue Invoices",
-            value: stats?.overdueInvoices ?? 0,
-            subtitle: `$${((stats?.totalOutstanding ?? 0) / 1000).toFixed(0)}k outstanding`,
-            icon: <AlertCircle className="h-4 w-4 text-muted-foreground" />,
-          },
-          {
-            title: "Pending Proposals",
-            value: stats?.pendingProposals ?? 0,
-            subtitle: "Awaiting approval",
-            icon: <FileText className="h-4 w-4 text-muted-foreground" />,
-          },
-        ];
-
-      case "manager":
-        return [
-          {
-            title: "Team Members",
-            value: stats?.teamMembers ?? 0,
-            subtitle: "Active staff",
-            icon: <Users className="h-4 w-4 text-muted-foreground" />,
-          },
-          ...baseStats,
-          {
-            title: "Hours Today",
-            value: stats?.todayHours ?? 0,
-            subtitle: "Team total",
-            icon: <Clock className="h-4 w-4 text-muted-foreground" />,
-          },
-          {
-            title: "Overdue Invoices",
-            value: stats?.overdueInvoices ?? 0,
-            subtitle: "Need attention",
-            icon: <AlertCircle className="h-4 w-4 text-muted-foreground" />,
-          },
-        ];
-
-      case "admin":
-      default:
-        return [
-          {
-            title: "Team Members",
-            value: stats?.teamMembers ?? 0,
-            subtitle: "Active staff",
-            icon: <Users className="h-4 w-4 text-muted-foreground" />,
-          },
-          ...baseStats,
-          {
-            title: "Outstanding",
-            value: `$${((stats?.totalOutstanding ?? 0) / 1000).toFixed(0)}k`,
-            subtitle: `${stats?.overdueInvoices ?? 0} overdue`,
-            icon: <DollarSign className="h-4 w-4 text-muted-foreground" />,
-          },
-          {
-            title: "Unbilled Hours",
-            value: stats?.unbilledHours ?? 0,
-            subtitle: "Ready to invoice",
-            icon: <Clock className="h-4 w-4 text-muted-foreground" />,
-          },
-        ];
-    }
-  };
-
-  const statsToShow = getStatsForRole();
+  // PM-only stats (admin/accounting/manager have KPIs built into their views)
+  const pmStats = [
+    {
+      title: "Hours Today",
+      value: stats?.todayHours ?? 0,
+      subtitle: "Keep logging!",
+      icon: <Clock className="h-4 w-4 text-muted-foreground" />,
+    },
+    {
+      title: "My Projects",
+      value: stats?.activeProjects ?? 0,
+      subtitle: "Currently assigned",
+      icon: <Building2 className="h-4 w-4 text-muted-foreground" />,
+    },
+    {
+      title: "Pending Proposals",
+      value: stats?.pendingProposals ?? 0,
+      subtitle: "Awaiting client response",
+      icon: <FileText className="h-4 w-4 text-muted-foreground" />,
+    },
+    {
+      title: "Team Members",
+      value: stats?.teamMembers ?? 0,
+      subtitle: "Active staff",
+      icon: <Users className="h-4 w-4 text-muted-foreground" />,
+    },
+  ];
 
   return (
     <div className="space-y-4">
@@ -169,7 +89,7 @@ export function DashboardStats({ role }: DashboardStatsProps) {
         </div>
       )}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {statsToShow.map((stat, i) => (
+        {pmStats.map((stat) => (
           <StatCard
             key={stat.title}
             title={stat.title}

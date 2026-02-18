@@ -1,20 +1,21 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building2, TrendingUp, Users } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Building2, TrendingUp, Users, DollarSign } from "lucide-react";
 import { useDashboardStats } from "@/hooks/useDashboard";
+import { useRevenueTrend } from "@/hooks/useDashboardData";
 import { PMDailyView } from "./PMDailyView";
-import { RecentProjects } from "./RecentProjects";
 import { TeamOverview } from "./TeamOverview";
 import { ProposalFollowUps } from "./ProposalFollowUps";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { useBillingReports } from "@/hooks/useReports";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 export function AdminCompanyView() {
   const [view, setView] = useState<"company" | "my">("company");
+  const [trendPeriod, setTrendPeriod] = useState("6");
   const { data: stats, isLoading } = useDashboardStats();
-  const { data: billing } = useBillingReports();
+  const { data: revenueTrend, isLoading: trendLoading } = useRevenueTrend(parseInt(trendPeriod));
 
   if (view === "my") {
     return (
@@ -32,9 +33,14 @@ export function AdminCompanyView() {
   const kpis = [
     { label: "Active Projects", value: stats?.activeProjects ?? 0, icon: Building2 },
     { label: "Team Members", value: stats?.teamMembers ?? 0, icon: Users },
-    { label: "Outstanding", value: `$${((stats?.totalOutstanding ?? 0) / 1000).toFixed(0)}k`, icon: TrendingUp },
+    { label: "Outstanding", value: `$${((stats?.totalOutstanding ?? 0) / 1000).toFixed(0)}k`, icon: DollarSign },
     { label: "Overdue Invoices", value: stats?.overdueInvoices ?? 0, icon: TrendingUp },
   ];
+
+  const formatCurrency = (v: number) => {
+    if (v >= 1000) return `$${(v / 1000).toFixed(0)}k`;
+    return `$${v}`;
+  };
 
   return (
     <div className="space-y-6">
@@ -65,22 +71,41 @@ export function AdminCompanyView() {
       {/* Revenue Chart + Sidebar */}
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base">Revenue Trend (6 Months)</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-base">Revenue Trend</CardTitle>
+            <Select value={trendPeriod} onValueChange={setTrendPeriod}>
+              <SelectTrigger className="w-[130px] h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="3">3 Months</SelectItem>
+                <SelectItem value="6">6 Months</SelectItem>
+                <SelectItem value="12">12 Months</SelectItem>
+              </SelectContent>
+            </Select>
           </CardHeader>
           <CardContent>
-            {billing?.months ? (
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={billing.months}>
-                  <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} />
-                  <Bar dataKey="collected" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Collected" />
-                  <Bar dataKey="outstanding" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} name="Outstanding" />
+            {trendLoading ? (
+              <Skeleton className="h-[280px] w-full" />
+            ) : revenueTrend && revenueTrend.length > 0 ? (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={revenueTrend} barGap={2}>
+                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={formatCurrency} />
+                  <Tooltip
+                    formatter={(v: number, name: string) => [`$${v.toLocaleString()}`, name]}
+                    contentStyle={{ fontSize: 12 }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar dataKey="billed" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Billed" />
+                  <Bar dataKey="collected" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} name="Collected" />
+                  <Bar dataKey="outstanding" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} name="Outstanding" opacity={0.5} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <Skeleton className="h-[250px] w-full" />
+              <div className="h-[280px] flex items-center justify-center text-muted-foreground text-sm">
+                No invoice data yet. Revenue will appear here as invoices are created.
+              </div>
             )}
           </CardContent>
         </Card>
@@ -90,8 +115,6 @@ export function AdminCompanyView() {
           <TeamOverview />
         </div>
       </div>
-
-      <RecentProjects />
     </div>
   );
 }
