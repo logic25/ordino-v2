@@ -404,7 +404,22 @@ export default function Proposals() {
 
       // Handle post-save actions
       if (action === "save_send") {
-        await handleConfirmSend(proposalId);
+        // Fetch full proposal data and open the sign dialog (which triggers the full sign & send flow)
+        const { data: freshProposal } = await supabase
+          .from("proposals")
+          .select(`
+            *,
+            properties (id, address, borough),
+            internal_signer:profiles!proposals_internal_signed_by_fkey (id, first_name, last_name),
+            assigned_pm:profiles!proposals_assigned_pm_id_fkey (id, first_name, last_name),
+            items:proposal_items(*)
+          `)
+          .eq("id", proposalId)
+          .single();
+        if (freshProposal) {
+          setSigningProposal(freshProposal as any);
+          setSignDialogOpen(true);
+        }
       }
       if (action === "save_preview") {
         // Fetch fresh proposal data for preview
