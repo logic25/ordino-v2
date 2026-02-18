@@ -1002,10 +1002,10 @@ export function ProposalDialog({
                   contacts={contacts}
                   onChange={setContacts}
                   clients={clients}
-                  onAddClient={async (name, email) => {
-                    const newClient = await createClient.mutateAsync({ name, email: email || null });
-                    return newClient;
-                  }}
+                   onAddClient={async (data) => {
+                     const newClient = await createClient.mutateAsync(data);
+                     return newClient;
+                   }}
                   isAddingClient={createClient.isPending}
                 />
 

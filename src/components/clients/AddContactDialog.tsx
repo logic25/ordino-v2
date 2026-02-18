@@ -27,9 +27,10 @@ interface AddContactDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   clientId: string;
+  onContactCreated?: (contact: { id: string; name: string; email: string | null; phone: string | null }) => void;
 }
 
-export function AddContactDialog({ open, onOpenChange, clientId }: AddContactDialogProps) {
+export function AddContactDialog({ open, onOpenChange, clientId, onContactCreated }: AddContactDialogProps) {
   const queryClient = useQueryClient();
   const { data: profiles = [] } = useCompanyProfiles();
   const [form, setForm] = useState({
@@ -63,7 +64,7 @@ export function AddContactDialog({ open, onOpenChange, clientId }: AddContactDia
         .single();
       if (!profile?.company_id) throw new Error("No company found");
 
-      const { error } = await supabase.from("client_contacts").insert({
+      const { data, error } = await supabase.from("client_contacts").insert({
         client_id: clientId,
         company_id: profile.company_id,
         name: [form.first_name, form.last_name].filter(Boolean).join(" "),
@@ -82,11 +83,15 @@ export function AddContactDialog({ open, onOpenChange, clientId }: AddContactDia
         state: form.state || null,
         zip: form.zip || null,
         is_primary: form.is_primary,
-      });
+      }).select("id, name, email, phone").single();
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["client-contacts", clientId] });
+      if (onContactCreated && data) {
+        onContactCreated({ id: data.id, name: data.name, email: data.email, phone: data.phone });
+      }
       setForm({
         first_name: "", last_name: "", title: "", email: "", phone: "",
         mobile: "", fax: "", linkedin_url: "",

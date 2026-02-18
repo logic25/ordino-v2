@@ -10,6 +10,9 @@ import { CSS } from "@dnd-kit/utilities";
 import { supabase } from "@/integrations/supabase/client";
 import type { ContactRole, ProposalContactInput } from "@/hooks/useProposalContacts";
 import type { Client } from "@/hooks/useClients";
+import { ClientDialog } from "@/components/clients/ClientDialog";
+import { AddContactDialog } from "@/components/clients/AddContactDialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
 const ROLE_OPTIONS: { value: ContactRole; label: string }[] = [
   { value: "bill_to", label: "Bill To" },
@@ -32,7 +35,7 @@ interface ProposalContactsSectionProps {
   contacts: ProposalContactInput[];
   onChange: (contacts: ProposalContactInput[]) => void;
   clients: Client[];
-  onAddClient: (name: string, email: string) => Promise<Client>;
+  onAddClient: (data: { name: string; email?: string | null; phone?: string | null; fax?: string | null; address?: string | null; notes?: string | null; lead_owner_id?: string | null; tax_id?: string | null; client_type?: string | null; is_sia?: boolean; is_rfp_partner?: boolean }) => Promise<Client>;
   isAddingClient: boolean;
 }
 
@@ -68,40 +71,24 @@ function flattenContacts(grouped: MultiRoleContact[]): ProposalContactInput[] {
   return flat;
 }
 
-/* ─── Unified Company + Contact Combobox ─── */
+/* ─── Company Combobox ─── */
 function CompanyCombobox({
   value,
   onSelect,
   onAddNew,
   clients,
-  onSelectContact,
 }: {
   value: string;
   onSelect: (client: Client) => void;
   onAddNew: (name: string) => void;
   clients: Client[];
-  onSelectContact?: (contact: ClientContact & { client_id: string; company_name: string }) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState(value);
-  const [contactResults, setContactResults] = useState<(ClientContact & { client_id: string; company_name: string })[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setSearch(value); }, [value]);
-
-  useEffect(() => {
-    if (search.length < 2) { setContactResults([]); return; }
-    const q = search.trim();
-    supabase
-      .from("client_contacts")
-      .select("id, name, email, phone, client_id, company_name")
-      .or(`name.ilike.%${q}%,email.ilike.%${q}%,company_name.ilike.%${q}%`)
-      .limit(6)
-      .then(({ data }) => {
-        setContactResults((data || []) as any);
-      });
-  }, [search]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -124,7 +111,7 @@ function CompanyCombobox({
         <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <Input
           ref={inputRef}
-          placeholder="Search company or contact…"
+          placeholder="Search company…"
           value={search}
           onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
@@ -157,32 +144,6 @@ function CompanyCombobox({
               ))}
             </>
           )}
-          {contactResults.length > 0 && onSelectContact && (
-            <>
-              <div className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/50 border-t">Contacts</div>
-              {contactResults.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex flex-col"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    onSelectContact(c);
-                    setSearch(c.company_name || c.name);
-                    setOpen(false);
-                  }}
-                >
-                  <span className="flex items-center gap-2">
-                    <User className="h-3 w-3 text-muted-foreground shrink-0" />
-                    <span className="font-medium">{c.name}</span>
-                  </span>
-                  <span className="text-xs text-muted-foreground pl-5">
-                    {[c.company_name, c.email].filter(Boolean).join(" · ")}
-                  </span>
-                </button>
-              ))}
-            </>
-          )}
           {search.trim() && !filteredCompanies.some(c => c.name.toLowerCase() === search.toLowerCase()) && (
             <button
               type="button"
@@ -202,7 +163,7 @@ function CompanyCombobox({
   );
 }
 
-/* ─── Contact Picker (loads contacts for a selected company) ─── */
+/* ─── Contact Picker (only loads contacts for the selected company) ─── */
 function ContactPicker({
   clientId,
   value,
@@ -223,36 +184,24 @@ function ContactPicker({
 
   useEffect(() => { setSearch(value); }, [value]);
 
-  // Fetch contacts when clientId changes or search changes (global search when no clientId)
+  // Only fetch contacts for the selected company
   useEffect(() => {
-    if (clientId) {
-      setLoading(true);
-      supabase
-        .from("client_contacts")
-        .select("id, name, email, phone")
-        .eq("client_id", clientId)
-        .order("is_primary", { ascending: false })
-        .order("name")
-        .then(({ data }) => {
-          setContacts((data || []) as ClientContact[]);
-          setLoading(false);
-        });
-    } else if (search.trim().length >= 2) {
-      setLoading(true);
-      const q = search.trim();
-      supabase
-        .from("client_contacts")
-        .select("id, name, email, phone, client_id, company_name")
-        .or(`name.ilike.%${q}%,email.ilike.%${q}%,company_name.ilike.%${q}%`)
-        .limit(8)
-        .then(({ data }) => {
-          setContacts((data || []) as ClientContact[]);
-          setLoading(false);
-        });
-    } else if (!clientId) {
+    if (!clientId) {
       setContacts([]);
+      return;
     }
-  }, [clientId, search]);
+    setLoading(true);
+    supabase
+      .from("client_contacts")
+      .select("id, name, email, phone")
+      .eq("client_id", clientId)
+      .order("is_primary", { ascending: false })
+      .order("name")
+      .then(({ data }) => {
+        setContacts((data || []) as ClientContact[]);
+        setLoading(false);
+      });
+  }, [clientId]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -275,15 +224,16 @@ function ContactPicker({
         <User className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <Input
           ref={inputRef}
-          placeholder="Select or type contact name…"
+          placeholder={clientId ? "Select or type contact name…" : "Select a company first"}
           value={search}
           onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
+          onFocus={() => { if (clientId) setOpen(true); }}
+          disabled={!clientId}
           className="h-8 text-sm pl-8"
         />
-        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+        {clientId && <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />}
       </div>
-      {open && (contacts.length > 0 || search.trim()) && (
+      {open && clientId && (
         <div
           ref={dropdownRef}
           className="absolute left-0 top-full z-50 w-full bg-popover border rounded-md shadow-lg mt-1 max-h-[200px] overflow-y-auto"
@@ -310,6 +260,9 @@ function ContactPicker({
           {!loading && filtered.length === 0 && contacts.length > 0 && search.trim() && (
             <div className="px-3 py-1.5 text-xs text-muted-foreground">No matching contacts</div>
           )}
+          {!loading && contacts.length === 0 && (
+            <div className="px-3 py-1.5 text-xs text-muted-foreground">No contacts yet for this company</div>
+          )}
           <button
             type="button"
             className="w-full text-left px-3 py-2 text-sm hover:bg-muted text-accent font-medium flex items-center gap-1.5 border-t"
@@ -335,6 +288,10 @@ export function ProposalContactsSection({
   isAddingClient,
 }: ProposalContactsSectionProps) {
   const grouped = groupContacts(contacts);
+
+  // State for slide-out dialogs
+  const [addCompanyState, setAddCompanyState] = useState<{ open: boolean; index: number; prefillName: string }>({ open: false, index: -1, prefillName: "" });
+  const [addContactState, setAddContactState] = useState<{ open: boolean; index: number; clientId: string }>({ open: false, index: -1, clientId: "" });
 
   const emit = (updated: MultiRoleContact[]) => onChange(flattenContacts(updated));
 
@@ -365,7 +322,6 @@ export function ProposalContactsSection({
     updateContact(index, {
       client_id: client.id,
       company_name: client.name,
-      // Clear contact fields so user picks from the contact list
       name: "",
       email: "",
       phone: "",
@@ -380,23 +336,27 @@ export function ProposalContactsSection({
     });
   };
 
-  const handleAddNewCompany = async (index: number, name: string) => {
-    try {
-      const newClient = await onAddClient(name, "");
-      handleSelectCompany(index, newClient);
-    } catch { /* handled by parent */ }
+  const handleAddNewCompany = (index: number, name: string) => {
+    setAddCompanyState({ open: true, index, prefillName: name });
+  };
+
+  const handleAddNewContact = (index: number, clientId: string) => {
+    setAddContactState({ open: true, index, clientId });
   };
 
   if (grouped.length === 0) {
     return (
-      <div className="border border-dashed rounded-lg p-6 text-center">
-        <p className="text-sm text-muted-foreground mb-3">
-          Add contacts — who gets the proposal, who pays, and who signs.
-        </p>
-        <Button type="button" variant="outline" size="sm" onClick={addContact}>
-          <UserPlus className="h-4 w-4 mr-2" /> Add Contact
-        </Button>
-      </div>
+      <>
+        <div className="border border-dashed rounded-lg p-6 text-center">
+          <p className="text-sm text-muted-foreground mb-3">
+            Add contacts — who gets the proposal, who pays, and who signs.
+          </p>
+          <Button type="button" variant="outline" size="sm" onClick={addContact}>
+            <UserPlus className="h-4 w-4 mr-2" /> Add Contact
+          </Button>
+        </div>
+        {renderDialogs()}
+      </>
     );
   }
 
@@ -416,6 +376,42 @@ export function ProposalContactsSection({
     }
   };
 
+  function renderDialogs() {
+    return (
+      <>
+        {/* New Company Dialog */}
+        <ClientDialog
+          open={addCompanyState.open}
+          onOpenChange={(open) => {
+            if (!open) setAddCompanyState({ open: false, index: -1, prefillName: "" });
+          }}
+          client={null}
+          onSubmit={async (data) => {
+            const newClient = await onAddClient(data);
+            handleSelectCompany(addCompanyState.index, newClient);
+            setAddCompanyState({ open: false, index: -1, prefillName: "" });
+          }}
+          isLoading={isAddingClient}
+        />
+
+        {/* New Contact Dialog */}
+        {addContactState.clientId && (
+          <AddContactDialog
+            open={addContactState.open}
+            onOpenChange={(open) => {
+              if (!open) setAddContactState({ open: false, index: -1, clientId: "" });
+            }}
+            clientId={addContactState.clientId}
+            onContactCreated={(contact) => {
+              handleSelectContact(addContactState.index, contact);
+              setAddContactState({ open: false, index: -1, clientId: "" });
+            }}
+          />
+        )}
+      </>
+    );
+  }
+
   return (
     <div className="space-y-3">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -434,6 +430,7 @@ export function ProposalContactsSection({
               onSelectCompany={(client) => handleSelectCompany(index, client)}
               onSelectContact={(c) => handleSelectContact(index, c)}
               onAddNewCompany={(name) => handleAddNewCompany(index, name)}
+              onAddNewContact={() => handleAddNewContact(index, contact.client_id || "")}
             />
           ))}
         </SortableContext>
@@ -442,13 +439,15 @@ export function ProposalContactsSection({
       <Button type="button" variant="outline" size="sm" className="w-full border-dashed" onClick={addContact}>
         <Plus className="h-4 w-4 mr-2" /> Add Another Contact
       </Button>
+
+      {renderDialogs()}
     </div>
   );
 }
 
 /* ─── Sortable Contact Card ─── */
 function SortableContactCard({
-  id, contact, index, isLast, clients, onUpdate, onRemove, onToggleRole, onSelectCompany, onSelectContact, onAddNewCompany,
+  id, contact, index, isLast, clients, onUpdate, onRemove, onToggleRole, onSelectCompany, onSelectContact, onAddNewCompany, onAddNewContact,
 }: {
   id: string;
   contact: MultiRoleContact;
@@ -461,6 +460,7 @@ function SortableContactCard({
   onSelectCompany: (client: Client) => void;
   onSelectContact: (contact: ClientContact) => void;
   onAddNewCompany: (name: string) => void;
+  onAddNewContact: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
@@ -477,41 +477,19 @@ function SortableContactCard({
           clients={clients}
           onSelect={onSelectCompany}
           onAddNew={onAddNewCompany}
-          onSelectContact={(c) => {
-            onUpdate({
-              client_id: c.client_id,
-              company_name: c.company_name || "",
-              name: c.name,
-              email: c.email || "",
-              phone: c.phone || "",
-            });
-          }}
         />
         <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={onRemove}>
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
       </div>
 
-      {/* Row 2: Contact picker (always a dropdown, works globally or scoped to company) */}
+      {/* Row 2: Contact picker (scoped to selected company only) */}
       <div className="px-3 pb-2 pl-9">
         <ContactPicker
           clientId={contact.client_id || ""}
           value={contact.name || ""}
-          onSelect={(c) => {
-            // If picked from global search (no client_id yet), back-fill company
-            if (!contact.client_id && (c as any).client_id) {
-              onUpdate({
-                client_id: (c as any).client_id,
-                company_name: (c as any).company_name || "",
-                name: c.name,
-                email: c.email || "",
-                phone: c.phone || "",
-              });
-            } else {
-              onSelectContact(c);
-            }
-          }}
-          onAddNew={() => onUpdate({ name: "", email: "", phone: "" })}
+          onSelect={onSelectContact}
+          onAddNew={onAddNewContact}
         />
       </div>
 
