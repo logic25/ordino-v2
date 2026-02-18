@@ -102,6 +102,23 @@ const proposalSchema = z.object({
   billed_to_email: z.string().email().optional().or(z.literal("")),
   reminder_date: z.string().optional(),
   notable: z.boolean().optional(),
+  // Party info
+  architect_company: z.string().optional(),
+  architect_name: z.string().optional(),
+  architect_phone: z.string().optional(),
+  architect_email: z.string().optional(),
+  architect_license_type: z.string().optional(),
+  architect_license_number: z.string().optional(),
+  gc_company: z.string().optional(),
+  gc_name: z.string().optional(),
+  gc_phone: z.string().optional(),
+  gc_email: z.string().optional(),
+  sia_name: z.string().optional(),
+  sia_company: z.string().optional(),
+  sia_phone: z.string().optional(),
+  sia_email: z.string().optional(),
+  tpp_name: z.string().optional(),
+  tpp_email: z.string().optional(),
   items: z.array(itemSchema),
 });
 
@@ -357,6 +374,75 @@ function StepIndicator({ currentStep, steps }: { currentStep: number; steps: rea
   );
 }
 
+/* ─── Party Info Section ─── */
+function PartyInfoSection({ form, clients }: { form: any; clients: any[] }) {
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  const toggle = (key: string) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
+
+  const parties = [
+    { key: "architect", label: "Architect / Engineer", fields: [
+      { name: "architect_company", label: "Company", placeholder: "Firm name" },
+      { name: "architect_name", label: "Contact Name", placeholder: "Full name" },
+      { name: "architect_phone", label: "Phone", placeholder: "(555) 000-0000" },
+      { name: "architect_email", label: "Email", placeholder: "email@firm.com" },
+      { name: "architect_license_type", label: "License Type", placeholder: "RA / PE" },
+      { name: "architect_license_number", label: "License #", placeholder: "License number" },
+    ]},
+    { key: "gc", label: "General Contractor", fields: [
+      { name: "gc_company", label: "Company", placeholder: "Company name" },
+      { name: "gc_name", label: "Contact Name", placeholder: "Full name" },
+      { name: "gc_phone", label: "Phone", placeholder: "(555) 000-0000" },
+      { name: "gc_email", label: "Email", placeholder: "email@company.com" },
+    ]},
+    { key: "sia", label: "Special Inspector (SIA)", fields: [
+      { name: "sia_company", label: "Company", placeholder: "Inspection firm" },
+      { name: "sia_name", label: "Contact Name", placeholder: "Full name" },
+      { name: "sia_phone", label: "Phone", placeholder: "(555) 000-0000" },
+      { name: "sia_email", label: "Email", placeholder: "email@company.com" },
+    ]},
+    { key: "tpp", label: "Third Party Provider (TPP)", fields: [
+      { name: "tpp_name", label: "Name", placeholder: "Full name" },
+      { name: "tpp_email", label: "Email", placeholder: "email@provider.com" },
+    ]},
+  ];
+
+  return (
+    <div className="space-y-1">
+      {parties.map(party => {
+        const isOpen = openSections[party.key] || false;
+        const hasData = party.fields.some(f => form.watch(f.name));
+        return (
+          <div key={party.key} className="border rounded-lg">
+            <button
+              type="button"
+              className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+              onClick={() => toggle(party.key)}
+            >
+              <span className="flex items-center gap-2">
+                {isOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                <span className="font-medium">{party.label}</span>
+                {hasData && <span className="text-xs text-accent">✓ Info entered</span>}
+              </span>
+            </button>
+            {isOpen && (
+              <div className="px-3 pb-3 pt-1 border-t bg-muted/20">
+                <div className={cn("grid gap-2", party.fields.length <= 2 ? "grid-cols-2" : "grid-cols-3")}>
+                  {party.fields.map(field => (
+                    <div key={field.name} className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">{field.label}</Label>
+                      <Input className="h-8 text-sm" placeholder={field.placeholder} {...form.register(field.name)} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ─── Main Dialog ─── */
 export type ProposalSaveAction = "save" | "save_preview" | "save_send";
 
@@ -435,9 +521,14 @@ export function ProposalDialog({
       deposit_required: undefined, deposit_percentage: undefined,
       valid_until: "", client_id: "", client_name: "", client_email: "",
       assigned_pm_id: "",
-      notes: "", terms_conditions: defaultTerms, lead_source: "", referred_by: "",
+       notes: "", terms_conditions: defaultTerms, lead_source: "", referred_by: "",
       project_type: "", sales_person_id: "", billed_to_name: "",
       billed_to_email: "", reminder_date: "", notable: false,
+      architect_company: "", architect_name: "", architect_phone: "", architect_email: "",
+      architect_license_type: "", architect_license_number: "",
+      gc_company: "", gc_name: "", gc_phone: "", gc_email: "",
+      sia_name: "", sia_company: "", sia_phone: "", sia_email: "",
+      tpp_name: "", tpp_email: "",
       items: [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0, fee_type: "fixed" }],
     },
   });
@@ -465,6 +556,12 @@ export function ProposalDialog({
         sales_person_id: p.sales_person_id || "", billed_to_name: p.billed_to_name || "",
         billed_to_email: p.billed_to_email || "", reminder_date: p.reminder_date || "",
         notable: p.notable || false,
+        architect_company: p.architect_company || "", architect_name: p.architect_name || "",
+        architect_phone: p.architect_phone || "", architect_email: p.architect_email || "",
+        architect_license_type: p.architect_license_type || "", architect_license_number: p.architect_license_number || "",
+        gc_company: p.gc_company || "", gc_name: p.gc_name || "", gc_phone: p.gc_phone || "", gc_email: p.gc_email || "",
+        sia_name: p.sia_name || "", sia_company: p.sia_company || "", sia_phone: p.sia_phone || "", sia_email: p.sia_email || "",
+        tpp_name: p.tpp_name || "", tpp_email: p.tpp_email || "",
         items: proposalWithItems.items?.length ? proposalWithItems.items.map(i => ({
           id: i.id, name: i.name, description: i.description || "",
           quantity: Number(i.quantity), unit_price: Number(i.unit_price),
@@ -483,9 +580,14 @@ export function ProposalDialog({
         deposit_required: undefined, deposit_percentage: undefined,
         valid_until: "", client_id: "", client_name: "", client_email: "",
         assigned_pm_id: "",
-        notes: "", terms_conditions: defaultTerms, lead_source: "", referred_by: "",
+       notes: "", terms_conditions: defaultTerms, lead_source: "", referred_by: "",
         project_type: "", sales_person_id: "", billed_to_name: "",
         billed_to_email: "", reminder_date: "", notable: false,
+        architect_company: "", architect_name: "", architect_phone: "", architect_email: "",
+        architect_license_type: "", architect_license_number: "",
+        gc_company: "", gc_name: "", gc_phone: "", gc_email: "",
+        sia_name: "", sia_company: "", sia_phone: "", sia_email: "",
+        tpp_name: "", tpp_email: "",
         items: [{ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0, fee_type: "fixed" }],
       });
       setContacts([]);
@@ -581,6 +683,22 @@ export function ProposalDialog({
         billed_to_name: data.billed_to_name || null,
         billed_to_email: data.billed_to_email || null,
         reminder_date: data.reminder_date || null,
+        architect_company: data.architect_company || null,
+        architect_name: data.architect_name || null,
+        architect_phone: data.architect_phone || null,
+        architect_email: data.architect_email || null,
+        architect_license_type: data.architect_license_type || null,
+        architect_license_number: data.architect_license_number || null,
+        gc_company: data.gc_company || null,
+        gc_name: data.gc_name || null,
+        gc_phone: data.gc_phone || null,
+        gc_email: data.gc_email || null,
+        sia_name: data.sia_name || null,
+        sia_company: data.sia_company || null,
+        sia_phone: data.sia_phone || null,
+        sia_email: data.sia_email || null,
+        tpp_name: data.tpp_name || null,
+        tpp_email: data.tpp_email || null,
         items: validItems.map((item, idx) => ({
           id: item.id, name: item.name, description: item.description || null,
           quantity: item.quantity, unit_price: item.unit_price, sort_order: idx,
@@ -846,6 +964,12 @@ export function ProposalDialog({
                     </Select>
                   </div>
                 </div>
+
+                <SectionLabel>Project Parties</SectionLabel>
+                <p className="text-xs text-muted-foreground -mt-1 mb-2">
+                  If known, enter key parties — this pre-fills the client PIS form.
+                </p>
+                <PartyInfoSection form={form} clients={clients} />
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">

@@ -320,19 +320,25 @@ export function ProposalTable({
                         <Edit className="h-4 w-4 mr-2" />
                         Edit
                       </DropdownMenuItem>
-                      {(proposal.status === "draft" || proposal.status === "sent" || proposal.status === "viewed") && (
+                      {(proposal.status === "draft" || proposal.status === "viewed") && (
                         <DropdownMenuItem onClick={() => onSign(proposal)}>
                           <PenLine className="h-4 w-4 mr-2" />
                           Sign & Send
                         </DropdownMenuItem>
                       )}
-                      {proposal.status === "signed_internal" && (
+                      {(proposal.status === "sent" && !proposal.internal_signed_at) && (
+                        <DropdownMenuItem onClick={() => onSign(proposal)}>
+                          <PenLine className="h-4 w-4 mr-2" />
+                          Sign & Send
+                        </DropdownMenuItem>
+                      )}
+                      {(proposal.status === "signed_internal" || (proposal.status === "sent" && proposal.internal_signed_at)) && (
                         <DropdownMenuItem onClick={() => onSend(proposal.id)}>
                           <Send className="h-4 w-4 mr-2" />
                           Resend to Client
                         </DropdownMenuItem>
                       )}
-                      {(proposal.status === "sent" || proposal.status === "viewed") && onMarkApproved && (
+                      {(proposal.status === "sent" || proposal.status === "viewed" || proposal.status === "signed_internal") && onMarkApproved && (
                         <DropdownMenuItem onClick={() => onMarkApproved(proposal)}>
                           <CheckCircle2 className="h-4 w-4 mr-2" />
                           Mark as Approved
