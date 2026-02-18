@@ -126,7 +126,7 @@ export default function ProjectReports() {
         {/* Application Pipeline */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Application Pipeline</CardTitle>
+            <CardTitle className="text-base">DOB Application Status</CardTitle>
           </CardHeader>
           <CardContent>
             {appData.length > 0 ? (

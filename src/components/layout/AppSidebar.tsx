@@ -19,6 +19,7 @@ import {
   BarChart3,
   PanelLeftClose,
   PanelLeftOpen,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ const secondaryNav = [
   { title: "Companies", icon: Users, href: "/clients", resource: "clients" as ResourceKey },
   { title: "Documents", icon: FileArchive, href: "/documents", resource: "documents" as ResourceKey },
   { title: "Settings", icon: Settings, href: "/settings", resource: "settings" as ResourceKey },
+  { title: "Help", icon: HelpCircle, href: "/help", resource: "dashboard" as ResourceKey },
 ];
 
 export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {

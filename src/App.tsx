@@ -29,6 +29,7 @@ import RfpLibrary from "./pages/RfpLibrary";
 import RfpDiscovery from "./pages/RfpDiscovery";
 import ClientProposal from "./pages/ClientProposal";
 import Reports from "./pages/Reports";
+import HelpDesk from "./pages/HelpDesk";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -202,6 +203,15 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Reports />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/help"
+        element={
+          <ProtectedRoute>
+            <HelpDesk />
           </ProtectedRoute>
         }
       />

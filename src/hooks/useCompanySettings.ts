@@ -53,6 +53,7 @@ export interface ServiceCatalogItem {
   discipline_fee?: number;
   price_history?: PriceChangeEntry[];
   default_requirements?: ServiceRequirement[];
+  complexity_weight?: number;
 }
 
 export interface CompanySettings {

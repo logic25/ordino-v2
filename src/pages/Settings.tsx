@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Settings as SettingsIcon, User, Building, Package, ChevronLeft, FileText, Receipt, Zap, Users, ListChecks, ShieldCheck, Radio } from "lucide-react";
+import { Settings as SettingsIcon, User, Building, Package, ChevronLeft, FileText, Receipt, Zap, Users, ListChecks, ShieldCheck, Radio, Bell } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ServiceCatalogSettings } from "@/components/settings/ServiceCatalogSettings";
 import { RfiTemplateSettings } from "@/components/settings/RfiTemplateSettings";
@@ -17,10 +17,11 @@ import { SignalSettings } from "@/components/settings/SignalSettings";
 import { PartnerEmailTemplateSettings } from "@/components/settings/PartnerEmailTemplateSettings";
 import { InstructionTemplateSettings } from "@/components/settings/InstructionTemplateSettings";
 import { RolesSettings } from "@/components/settings/RolesSettings";
+import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { Mail } from "lucide-react";
 
-type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists" | "roles" | "partner_templates" | "signal" | "instruction_templates";
+type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists" | "roles" | "partner_templates" | "signal" | "instruction_templates" | "notifications";
 
 const settingsSections = [
   {
@@ -28,6 +29,12 @@ const settingsSections = [
     title: "Profile",
     description: "Your personal information, hourly rate, and signature",
     icon: User,
+  },
+  {
+    id: "notifications" as const,
+    title: "Notifications",
+    description: "Control which alerts you receive and how often",
+    icon: Bell,
   },
   {
     id: "company" as const,
@@ -135,6 +142,8 @@ export default function Settings() {
         return <SignalSettings />;
       case "roles":
         return <RolesSettings />;
+      case "notifications":
+        return <NotificationSettings />;
       default:
         return (
           <>
