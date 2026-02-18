@@ -167,6 +167,20 @@ export function useProposalReports() {
   });
 }
 
+export function useProposalDetailedReports() {
+  const { session } = useAuth();
+  return useQuery({
+    queryKey: ["reports-proposals-detailed", session?.user?.id],
+    enabled: !!session?.user?.id,
+    queryFn: async () => {
+      const { data: proposals } = await supabase
+        .from("proposals")
+        .select("id, status, total_amount, created_at, lead_source, sales_person_id");
+      return { allProposals: proposals || [] };
+    },
+  });
+}
+
 export function useOperationsReports() {
   const { session } = useAuth();
   return useQuery({

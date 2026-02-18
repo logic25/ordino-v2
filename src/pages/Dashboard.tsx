@@ -1,15 +1,21 @@
+import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
-import { RecentProjects } from "@/components/dashboard/RecentProjects";
-import { QuickTimeLog } from "@/components/dashboard/QuickTimeLog";
-import { BillingSummary } from "@/components/dashboard/BillingSummary";
-import { TeamOverview } from "@/components/dashboard/TeamOverview";
-import { ProposalFollowUps } from "@/components/dashboard/ProposalFollowUps";
+import { PMDailyView } from "@/components/dashboard/PMDailyView";
+import { AdminCompanyView } from "@/components/dashboard/AdminCompanyView";
+import { AccountingView } from "@/components/dashboard/AccountingView";
+import { ManagerView } from "@/components/dashboard/ManagerView";
+import { RolePreviewSelector } from "@/components/dashboard/RolePreviewSelector";
+
+type DashboardRole = "admin" | "pm" | "accounting" | "manager";
 
 export default function Dashboard() {
   const { profile } = useAuth();
-  const role = profile?.role || "pm";
+  const actualRole = profile?.role || "pm";
+  const [previewRole, setPreviewRole] = useState<DashboardRole>(actualRole as DashboardRole);
+
+  const role = previewRole;
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -21,11 +27,11 @@ export default function Dashboard() {
   const getRoleDescription = () => {
     switch (role) {
       case "pm":
-        return "Here are your assigned projects and quick actions.";
+        return "Here's what needs your attention today.";
       case "accounting":
-        return "Here's your billing overview and revenue opportunities.";
+        return "Here's your billing overview and collection status.";
       case "manager":
-        return "Here's your team's progress and project status.";
+        return "Here's your team's performance and workload.";
       case "admin":
         return "Here's an overview of your company's operations.";
       default:
@@ -33,61 +39,44 @@ export default function Dashboard() {
     }
   };
 
+  const renderDashboard = () => {
+    switch (role) {
+      case "pm":
+        return <PMDailyView />;
+      case "admin":
+        return <AdminCompanyView />;
+      case "accounting":
+        return <AccountingView />;
+      case "manager":
+        return <ManagerView />;
+      default:
+        return <PMDailyView />;
+    }
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            {getGreeting()}, {profile?.first_name || "there"}!
-          </h1>
-          <p className="text-muted-foreground mt-1">{getRoleDescription()}</p>
+        <div className="flex items-start justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">
+              {getGreeting()}, {profile?.first_name || "there"}!
+            </h1>
+            <p className="text-muted-foreground mt-1">{getRoleDescription()}</p>
+          </div>
+          <RolePreviewSelector
+            currentRole={actualRole}
+            previewRole={previewRole}
+            onPreviewChange={setPreviewRole}
+          />
         </div>
 
-        {/* Stats Grid - role-based */}
-        <DashboardStats role={role} />
+        {/* Stats Grid - only for PM (others have KPIs built in) */}
+        {role === "pm" && <DashboardStats role={role} />}
 
-        {/* Main Content Grid - role-based layout */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* PM View: My projects + Quick log */}
-          {role === "pm" && (
-            <>
-              <RecentProjects showOnlyMine />
-              <div className="space-y-6">
-                <ProposalFollowUps />
-                <QuickTimeLog />
-              </div>
-            </>
-          )}
-
-          {/* Accounting View: Billing summary + Recent projects */}
-          {role === "accounting" && (
-            <>
-              <RecentProjects />
-              <BillingSummary />
-            </>
-          )}
-
-          {/* Manager View: Team + Recent projects */}
-          {role === "manager" && (
-            <>
-              <RecentProjects />
-              <TeamOverview />
-            </>
-          )}
-
-          {/* Admin View: Everything */}
-          {role === "admin" && (
-            <>
-              <RecentProjects />
-              <div className="space-y-6">
-                <ProposalFollowUps />
-                <TeamOverview />
-                <QuickTimeLog />
-              </div>
-            </>
-          )}
-        </div>
+        {/* Role-specific dashboard */}
+        {renderDashboard()}
       </div>
     </AppLayout>
   );
