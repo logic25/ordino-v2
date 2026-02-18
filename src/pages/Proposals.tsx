@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -244,9 +244,11 @@ export default function Proposals() {
   const showingMockProposals = proposals.length === 0 && !isLoading;
   const showingMockLeads = leads.length === 0 && !leadsLoading;
 
-  // Open dialog if coming from properties with a property pre-selected
+  // Open dialog if coming from properties with a property pre-selected (once only)
+  const didAutoOpen = useRef(false);
   useEffect(() => {
-    if (defaultPropertyId && !editingProposal) {
+    if (defaultPropertyId && !editingProposal && !didAutoOpen.current) {
+      didAutoOpen.current = true;
       setDialogOpen(true);
     }
   }, [defaultPropertyId]);

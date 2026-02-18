@@ -1,0 +1,2 @@
+ALTER TABLE public.proposal_contacts DROP CONSTRAINT proposal_contacts_role_check;
+ALTER TABLE public.proposal_contacts ADD CONSTRAINT proposal_contacts_role_check CHECK (role::text = ANY (ARRAY['bill_to', 'sign', 'cc', 'applicant']::text[]));
