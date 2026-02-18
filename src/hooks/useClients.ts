@@ -91,7 +91,7 @@ export function useCreateClient() {
       const { data: profile } = await supabase
         .from("profiles")
         .select("company_id")
-        .eq("id", user?.id)
+        .eq("user_id", user?.id)
         .maybeSingle();
 
       if (!profile?.company_id) {
@@ -172,7 +172,7 @@ export function useUpdateClient() {
       const { data: profile } = await supabase
         .from("profiles")
         .select("company_id")
-        .eq("id", user?.id)
+        .eq("user_id", user?.id)
         .maybeSingle();
       if (!profile?.company_id) throw new Error("No company found for user.");
 
