@@ -326,13 +326,7 @@ export function ProposalTable({
                           Sign & Send
                         </DropdownMenuItem>
                       )}
-                      {(proposal.status === "sent" && !proposal.internal_signed_at) && (
-                        <DropdownMenuItem onClick={() => onSign(proposal)}>
-                          <PenLine className="h-4 w-4 mr-2" />
-                          Sign & Send
-                        </DropdownMenuItem>
-                      )}
-                      {(proposal.status === "signed_internal" || (proposal.status === "sent" && proposal.internal_signed_at)) && (
+                      {(proposal.status === "signed_internal" || proposal.status === "sent") && (
                         <DropdownMenuItem onClick={() => onSend(proposal.id)}>
                           <Send className="h-4 w-4 mr-2" />
                           Resend to Client
