@@ -559,6 +559,7 @@ export const checklistCategoryLabels: Record<string, { label: string; icon: stri
   missing_info: { label: "Missing Info", icon: "❓" },
   pending_signature: { label: "Pending Signatures", icon: "✍️" },
   pending_response: { label: "Pending Responses", icon: "⏳" },
+  ai_follow_up: { label: "AI Follow-Up", icon: "🤖" },
 };
 
 export const formatCurrency = (value: number | null) => {
