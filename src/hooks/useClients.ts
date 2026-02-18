@@ -87,13 +87,15 @@ export function useCreateClient() {
 
   return useMutation({
     mutationFn: async (input: ClientFormInput) => {
+      const { data: { user } } = await supabase.auth.getUser();
       const { data: profile } = await supabase
         .from("profiles")
         .select("company_id")
-        .single();
+        .eq("id", user?.id)
+        .maybeSingle();
 
       if (!profile?.company_id) {
-        throw new Error("No company found for user");
+        throw new Error("No company found for user. Please complete your profile setup first.");
       }
 
       const { data, error } = await supabase
@@ -166,11 +168,13 @@ export function useUpdateClient() {
 
   return useMutation({
     mutationFn: async ({ id, ...input }: ClientFormInput & { id: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
       const { data: profile } = await supabase
         .from("profiles")
         .select("company_id")
-        .single();
-      if (!profile?.company_id) throw new Error("No company found");
+        .eq("id", user?.id)
+        .maybeSingle();
+      if (!profile?.company_id) throw new Error("No company found for user.");
 
       const { data, error } = await supabase
         .from("clients")

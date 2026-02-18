@@ -1012,8 +1012,13 @@ export function ProposalDialog({
                   onChange={setContacts}
                   clients={clients}
                    onAddClient={async (data) => {
-                     const newClient = await createClient.mutateAsync(data);
-                     return newClient;
+                     try {
+                       const newClient = await createClient.mutateAsync(data);
+                       return newClient;
+                     } catch (err: any) {
+                       toast({ title: "Error creating company", description: err?.message || "Please try again.", variant: "destructive" });
+                       throw err;
+                     }
                    }}
                   isAddingClient={createClient.isPending}
                 />
