@@ -996,7 +996,7 @@ export function ProposalDialog({
 
                 <SectionLabel>Contacts</SectionLabel>
                 <p className="text-xs text-muted-foreground -mt-1">
-                  Add the people involved — who you're billing, who signs, and who should be CC'd.
+                  Add the people involved — who you're billing, who signs, and who is the applicant.
                 </p>
                 <ProposalContactsSection
                   contacts={contacts}
