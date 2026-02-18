@@ -54,6 +54,7 @@ interface ClientDialogProps {
   onSubmit: (data: ClientFormInput) => Promise<void>;
   client?: Client | null;
   isLoading?: boolean;
+  defaultName?: string;
 }
 
 export function ClientDialog({
@@ -62,6 +63,7 @@ export function ClientDialog({
   onSubmit,
   client,
   isLoading,
+  defaultName,
 }: ClientDialogProps) {
   const isEditing = !!client;
   const { data: profiles = [] } = useCompanyProfiles();
@@ -93,12 +95,12 @@ export function ClientDialog({
       });
     } else {
       form.reset({
-        name: "", email: "", phone: "", fax: "", address: "", notes: "",
+        name: defaultName || "", email: "", phone: "", fax: "", address: "", notes: "",
         lead_owner_id: "", tax_id: "", client_type: "", is_sia: false,
         is_rfp_partner: false,
       });
     }
-  }, [client, form]);
+  }, [client, form, defaultName]);
 
   const handleSubmit = async (data: FormData) => {
     await onSubmit({

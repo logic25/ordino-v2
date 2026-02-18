@@ -386,6 +386,7 @@ export function ProposalContactsSection({
             if (!open) setAddCompanyState({ open: false, index: -1, prefillName: "" });
           }}
           client={null}
+          defaultName={addCompanyState.prefillName}
           onSubmit={async (data) => {
             const newClient = await onAddClient(data);
             handleSelectCompany(addCompanyState.index, newClient);

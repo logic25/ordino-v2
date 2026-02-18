@@ -847,8 +847,17 @@ export function ProposalDialog({
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent
         className="sm:max-w-[900px] max-h-[96vh] h-[96vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden overflow-hidden"
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => {
+          // Allow interactions with nested dialog portals (ClientDialog, AddContactDialog)
+          const target = e.target as HTMLElement;
+          if (target.closest('[role="dialog"]') || target.closest('[data-radix-popper-content-wrapper]')) return;
+          e.preventDefault();
+        }}
+        onInteractOutside={(e) => {
+          const target = e.target as HTMLElement;
+          if (target.closest('[role="dialog"]') || target.closest('[data-radix-popper-content-wrapper]')) return;
+          e.preventDefault();
+        }}
         onEscapeKeyDown={(e) => e.preventDefault()}
         onCloseAutoFocus={(e) => e.preventDefault()}
       >
