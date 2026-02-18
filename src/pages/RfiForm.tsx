@@ -217,8 +217,17 @@ export default function RfiForm() {
       setIfEmpty("applicant_and_owner_applicant_lic_type", (projectData as any).architect_license_type);
       setIfEmpty("applicant_and_owner_applicant_nys_lic", (projectData as any).architect_license_number);
 
-      // Building owner — use individual contact name when available
-      setIfEmpty("applicant_and_owner_owner_name", projectData.building_owner_name);
+      // Building owner — entity names go to company field, not person name
+      const ownerVal = projectData.building_owner_name;
+      if (ownerVal) {
+        // If it looks like a company (contains LLC, Corp, Inc, LP, etc.), put in company field
+        const isEntity = /\b(llc|corp|inc|ltd|lp|partnership|associates|group|realty|holdings|trust|co\b)/i.test(ownerVal);
+        if (isEntity) {
+          setIfEmpty("applicant_and_owner_owner_company", ownerVal);
+        } else {
+          setIfEmpty("applicant_and_owner_owner_name", ownerVal);
+        }
+      }
 
       // GC — pre-fill and auto-expand if data exists
       if (projectData.gc_contact_name || projectData.gc_company_name) {
@@ -251,6 +260,34 @@ export default function RfiForm() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [property, rfi, projectData]);
+
+  // Auto-fill TPP fields when "Same as Applicant" is selected
+  useEffect(() => {
+    const tppKnown = responses["contractors_inspections_tpp_known"];
+    if (tppKnown === "Yes — Same as Applicant") {
+      const firstName = responses["applicant_and_owner_applicant_first_name"] || "";
+      const lastName = responses["applicant_and_owner_applicant_last_name"] || "";
+      const fullName = [firstName, lastName].filter(Boolean).join(" ");
+      const email = responses["applicant_and_owner_applicant_email"] || "";
+      
+      const newResponses = { ...responses };
+      let changed = false;
+      if (newResponses["contractors_inspections_tpp_name"] !== fullName) {
+        newResponses["contractors_inspections_tpp_name"] = fullName;
+        changed = true;
+      }
+      if (newResponses["contractors_inspections_tpp_email"] !== email) {
+        newResponses["contractors_inspections_tpp_email"] = email;
+        changed = true;
+      }
+      if (changed) setResponses(newResponses);
+    }
+  }, [
+    responses["contractors_inspections_tpp_known"],
+    responses["applicant_and_owner_applicant_first_name"],
+    responses["applicant_and_owner_applicant_last_name"],
+    responses["applicant_and_owner_applicant_email"],
+  ]);
 
   const getRepeatCount = (sectionId: string) => repeatCounts[sectionId] || 1;
 
@@ -420,8 +457,9 @@ export default function RfiForm() {
     for (const [knownKey, showFields] of Object.entries(knownGroupFields)) {
       if (knownKey.startsWith(sectionId) && showFields.includes(fieldId)) {
         const knownValue = responses[knownKey];
-        // Hide unless explicitly "Yes"
-        if (knownValue !== "Yes") return true;
+        // Show fields for "Yes" or "Yes — Same as Applicant"
+        if (knownValue === "Yes" || knownValue === "Yes — Same as Applicant") return false;
+        return true;
       }
     }
     return false;

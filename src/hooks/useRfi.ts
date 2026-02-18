@@ -124,7 +124,7 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
       { id: "gc_dob_tracking", label: "DOB Tracking #", type: "text", width: "half" },
       { id: "gc_hic_lic", label: "HIC License #", type: "text", width: "half" },
       { id: "tpp_heading", label: "TPP Applicant", type: "heading" },
-      { id: "tpp_known", label: "Do you know who the TPP Applicant is?", type: "select", options: ["Yes", "No"], width: "full" },
+      { id: "tpp_known", label: "Do you know who the TPP Applicant is?", type: "select", options: ["Yes — Same as Applicant", "Yes", "No"], width: "full" },
       { id: "tpp_name", label: "Name", type: "text", width: "half" },
       { id: "tpp_email", label: "Email", type: "email", width: "half" },
       { id: "rent_controlled", label: "Rent Controlled?", type: "select", options: ["Yes", "No"], width: "half" },
