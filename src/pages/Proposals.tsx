@@ -962,7 +962,7 @@ export default function Proposals() {
 
       <ProposalDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={(v) => { setDialogOpen(v); if (!v) setEditingProposal(null); }}
         onSubmit={handleSubmit}
         proposal={editingProposal}
         isLoading={createProposal.isPending || updateProposal.isPending}
