@@ -14,7 +14,8 @@ import { BillingGoalTracker } from "./BillingGoalTracker";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
-export function AdminCompanyView() {
+export function AdminCompanyView({ isVisible }: { isVisible?: (id: string) => boolean }) {
+  const show = isVisible || (() => true);
   const [view, setView] = useState<"company" | "my">("company");
   const [trendPeriod, setTrendPeriod] = useState("6");
   const { data: stats, isLoading } = useDashboardStats();
@@ -54,6 +55,7 @@ export function AdminCompanyView() {
       </div>
 
       {/* Row 1: KPIs */}
+      {show("kpis") && (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {kpis.map((kpi) => (
           <Card key={kpi.label}>
@@ -70,8 +72,10 @@ export function AdminCompanyView() {
           </Card>
         ))}
       </div>
+      )}
 
       {/* Row 2: Revenue Trend -- full width, taller */}
+      {show("revenue-trend") && (
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-base">Revenue Trend</CardTitle>
@@ -111,19 +115,22 @@ export function AdminCompanyView() {
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* Row 3: YoY + Proposal Activity + Follow-Ups */}
+      {show("yoy-proposals-followups") && (
       <div className="grid gap-6 lg:grid-cols-3">
         <YearOverYearChart />
         <ProposalActivityCard />
         <ProposalFollowUps />
       </div>
+      )}
 
       {/* Row 4: Billing Goal Tracker */}
-      <BillingGoalTracker />
+      {show("billing-goal-tracker") && <BillingGoalTracker />}
 
       {/* Row 5: Team Overview */}
-      <TeamOverview />
+      {show("team-overview") && <TeamOverview />}
     </div>
   );
 }

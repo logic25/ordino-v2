@@ -4,6 +4,7 @@ import { HelpCircle } from "lucide-react";
 import { HowToGuides } from "@/components/helpdesk/HowToGuides";
 import { WhatsNew } from "@/components/helpdesk/WhatsNew";
 import { FeatureRequests } from "@/components/helpdesk/FeatureRequests";
+import { InteractiveTraining } from "@/components/helpdesk/InteractiveTraining";
 
 export default function HelpDesk() {
   return (
@@ -13,17 +14,19 @@ export default function HelpDesk() {
           <HelpCircle className="h-7 w-7 text-primary" />
           <div>
             <h1 className="text-2xl font-bold text-foreground">Help Center</h1>
-            <p className="text-sm text-muted-foreground">Guides, updates, and feature requests</p>
+            <p className="text-sm text-muted-foreground">Guides, training, updates, and feature requests</p>
           </div>
         </div>
 
-        <Tabs defaultValue="guides" className="space-y-4">
+        <Tabs defaultValue="training" className="space-y-4">
           <TabsList>
+            <TabsTrigger value="training">Interactive Training</TabsTrigger>
             <TabsTrigger value="guides">How-To Guides</TabsTrigger>
             <TabsTrigger value="whats-new">What's New</TabsTrigger>
             <TabsTrigger value="requests">Feature Requests</TabsTrigger>
           </TabsList>
 
+          <TabsContent value="training"><InteractiveTraining /></TabsContent>
           <TabsContent value="guides"><HowToGuides /></TabsContent>
           <TabsContent value="whats-new"><WhatsNew /></TabsContent>
           <TabsContent value="requests"><FeatureRequests /></TabsContent>
