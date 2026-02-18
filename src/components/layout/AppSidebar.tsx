@@ -16,6 +16,9 @@ import {
   LogOut,
   FileArchive,
   ScrollText,
+  BarChart3,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -34,6 +37,7 @@ const mainNav = [
   { title: "Email", icon: Mail, href: "/emails", resource: "emails" as ResourceKey },
   { title: "Calendar", icon: CalendarDays, href: "/calendar", resource: "calendar" as ResourceKey },
   { title: "RFPs", icon: ScrollText, href: "/rfps", resource: "rfps" as ResourceKey },
+  { title: "Reports", icon: BarChart3, href: "/reports", resource: "reports" as ResourceKey },
 ];
 
 const secondaryNav = [
@@ -76,8 +80,8 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
         collapsed ? "w-16" : "w-64"
       )}
     >
-      {/* Logo */}
-      <div className="flex items-center h-16 px-4 border-b border-sidebar-border">
+      {/* Logo + Collapse Toggle */}
+      <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center">
             <span className="text-sidebar-primary-foreground font-bold text-sm">O</span>
@@ -88,6 +92,12 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
             </span>
           )}
         </div>
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors p-1 rounded-md hover:bg-sidebar-accent"
+        >
+          {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+        </button>
       </div>
 
       {/* Main Navigation */}
@@ -151,19 +161,6 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
           <LogOut className="h-5 w-5 flex-shrink-0" />
           {!collapsed && <span>Sign Out</span>}
         </button>
-
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setCollapsed(!collapsed)}
-          className={cn(
-            "w-full mt-2 text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent",
-            collapsed && "px-0"
-          )}
-        >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-          {!collapsed && <span className="ml-2">Collapse</span>}
-        </Button>
       </div>
     </aside>
   );
