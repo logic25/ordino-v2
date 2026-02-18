@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,7 +27,7 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Build content parts: text prompt + image URLs for vision
+    // Build content parts: text prompt + images/PDFs
     const contentParts: any[] = [
       {
         type: "text",
@@ -43,12 +44,44 @@ Keep the description professional, concise (2-4 sentences), and suitable for off
       },
     ];
 
-    // Add each file as an image URL for vision analysis
+    // For each file URL, download it and convert to base64 data URL
+    // This handles PDFs which can't be sent as image_url
     for (const url of file_urls) {
-      contentParts.push({
-        type: "image_url",
-        image_url: { url },
-      });
+      try {
+        const fileRes = await fetch(url);
+        if (!fileRes.ok) {
+          console.error(`Failed to fetch file: ${fileRes.status} ${url}`);
+          continue;
+        }
+        const contentType = fileRes.headers.get("content-type") || "application/octet-stream";
+        const arrayBuffer = await fileRes.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        
+        // Convert to base64
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        const base64 = btoa(binary);
+        
+        // Determine the MIME type for the data URL
+        const mimeType = contentType.split(";")[0].trim();
+        const dataUrl = `data:${mimeType};base64,${base64}`;
+
+        contentParts.push({
+          type: "image_url",
+          image_url: { url: dataUrl },
+        });
+      } catch (fetchErr) {
+        console.error(`Error fetching file ${url}:`, fetchErr);
+      }
+    }
+
+    if (contentParts.length <= 1) {
+      return new Response(
+        JSON.stringify({ error: "Could not process any of the uploaded files" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -58,7 +91,7 @@ Keep the description professional, concise (2-4 sentences), and suitable for off
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: "google/gemini-2.5-flash",
         messages: [
           {
             role: "user",

@@ -377,33 +377,110 @@ function StepIndicator({ currentStep, steps }: { currentStep: number; steps: rea
   );
 }
 
+/* ─── Party Company Combobox ─── */
+function PartyCompanyCombobox({ value, onChange, onSelect, clients, placeholder }: {
+  value: string;
+  onChange: (v: string) => void;
+  onSelect: (client: any) => void;
+  clients: any[];
+  placeholder: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const filtered = clients.filter(c =>
+    c.name.toLowerCase().includes((value || "").toLowerCase())
+  ).slice(0, 10);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <div className="relative">
+          <Input
+            className="h-8 text-sm pr-7"
+            placeholder={placeholder}
+            value={value}
+            onChange={(e) => { onChange(e.target.value); if (!open) setOpen(true); }}
+            onFocus={() => setOpen(true)}
+          />
+          <ChevronsUpDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+        </div>
+      </PopoverTrigger>
+      <PopoverContent className="w-[280px] p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <Command>
+          <CommandInput placeholder="Search companies…" value={value} onValueChange={onChange} />
+          <CommandList>
+            <CommandEmpty className="py-2 px-3 text-xs text-muted-foreground">No match — type to add new</CommandEmpty>
+            <CommandGroup>
+              {filtered.map(c => (
+                <CommandItem
+                  key={c.id}
+                  value={c.name}
+                  onSelect={() => { onSelect(c); setOpen(false); }}
+                  className="text-sm"
+                >
+                  <span className="truncate">{c.name}</span>
+                  {c.client_type && <span className="ml-auto text-xs text-muted-foreground">{c.client_type}</span>}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 /* ─── Party Info Section ─── */
 function PartyInfoSection({ form, clients }: { form: any; clients: any[] }) {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const toggle = (key: string) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
 
+  // Filter clients by type for each party
+  const architectClients = clients.filter(c => !c.client_type || ["Architect", "Engineer", "Architect/Engineer"].includes(c.client_type));
+  const gcClients = clients.filter(c => !c.client_type || ["General Contractor", "GC", "Contractor"].includes(c.client_type));
+  const siaClients = clients.filter(c => !c.client_type || ["SIA", "Special Inspector", "Inspection"].includes(c.client_type));
+  const tppClients = clients.filter(c => !c.client_type || ["TPP", "Third Party Provider", "Testing"].includes(c.client_type));
+
+  const handleSelectClient = async (client: any, prefix: string) => {
+    const opts = { shouldDirty: true };
+    form.setValue(`${prefix}_company`, client.name, opts);
+    // Try to get primary contact for this client
+    const { data: contacts } = await supabase
+      .from("client_contacts")
+      .select("name, first_name, last_name, email, phone")
+      .eq("client_id", client.id)
+      .eq("is_primary", true)
+      .limit(1);
+    const contact = contacts?.[0];
+    if (contact) {
+      const contactName = [contact.first_name, contact.last_name].filter(Boolean).join(" ") || contact.name;
+      form.setValue(`${prefix}_name`, contactName, opts);
+      if (contact.email) form.setValue(`${prefix}_email`, contact.email, opts);
+      if (contact.phone) form.setValue(`${prefix}_phone`, contact.phone, opts);
+    }
+  };
+
   const parties = [
-    { key: "architect", label: "Architect / Engineer", fields: [
-      { name: "architect_company", label: "Company", placeholder: "Firm name" },
+    { key: "architect", label: "Architect / Engineer", clientPool: architectClients, fields: [
+      { name: "architect_company", label: "Company", placeholder: "Firm name", isCompany: true },
       { name: "architect_name", label: "Contact Name", placeholder: "Full name" },
       { name: "architect_phone", label: "Phone", placeholder: "(555) 000-0000" },
       { name: "architect_email", label: "Email", placeholder: "email@firm.com" },
       { name: "architect_license_type", label: "License Type", placeholder: "RA / PE" },
       { name: "architect_license_number", label: "License #", placeholder: "License number" },
     ]},
-    { key: "gc", label: "General Contractor", fields: [
-      { name: "gc_company", label: "Company", placeholder: "Company name" },
+    { key: "gc", label: "General Contractor", clientPool: gcClients, fields: [
+      { name: "gc_company", label: "Company", placeholder: "Company name", isCompany: true },
       { name: "gc_name", label: "Contact Name", placeholder: "Full name" },
       { name: "gc_phone", label: "Phone", placeholder: "(555) 000-0000" },
       { name: "gc_email", label: "Email", placeholder: "email@company.com" },
     ]},
-    { key: "sia", label: "Special Inspector (SIA)", fields: [
-      { name: "sia_company", label: "Company", placeholder: "Inspection firm" },
+    { key: "sia", label: "Special Inspector (SIA)", clientPool: siaClients, fields: [
+      { name: "sia_company", label: "Company", placeholder: "Inspection firm", isCompany: true },
       { name: "sia_name", label: "Contact Name", placeholder: "Full name" },
       { name: "sia_phone", label: "Phone", placeholder: "(555) 000-0000" },
       { name: "sia_email", label: "Email", placeholder: "email@company.com" },
     ]},
-    { key: "tpp", label: "Third Party Provider (TPP)", fields: [
+    { key: "tpp", label: "Third Party Provider (TPP)", clientPool: tppClients, fields: [
       { name: "tpp_name", label: "Name", placeholder: "Full name" },
       { name: "tpp_email", label: "Email", placeholder: "email@provider.com" },
     ]},
@@ -433,7 +510,17 @@ function PartyInfoSection({ form, clients }: { form: any; clients: any[] }) {
                   {party.fields.map(field => (
                     <div key={field.name} className="space-y-1">
                       <Label className="text-xs text-muted-foreground">{field.label}</Label>
-                      <Input className="h-8 text-sm" placeholder={field.placeholder} {...form.register(field.name)} />
+                      {(field as any).isCompany ? (
+                        <PartyCompanyCombobox
+                          value={form.watch(field.name) || ""}
+                          onChange={(v) => form.setValue(field.name, v, { shouldDirty: true })}
+                          onSelect={(client) => handleSelectClient(client, party.key)}
+                          clients={(party as any).clientPool || clients}
+                          placeholder={field.placeholder}
+                        />
+                      ) : (
+                        <Input className="h-8 text-sm" placeholder={field.placeholder} {...form.register(field.name)} />
+                      )}
                     </div>
                   ))}
                 </div>
