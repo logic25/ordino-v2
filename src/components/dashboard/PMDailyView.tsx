@@ -3,44 +3,100 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertTriangle, CheckCircle2, Clock, FolderKanban, ArrowRight } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, FolderKanban, ArrowRight, ClipboardCheck } from "lucide-react";
 import { useMyAssignedProjects } from "@/hooks/useDashboard";
 import { ProposalFollowUps } from "./ProposalFollowUps";
 import { QuickTimeLog } from "./QuickTimeLog";
 import { differenceInDays } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+
+function useMyProjectReadiness() {
+  const { profile } = useAuth();
+  return useQuery({
+    queryKey: ["my-project-readiness", profile?.id],
+    queryFn: async () => {
+      if (!profile?.id) return [];
+
+      const { data: projects } = await supabase
+        .from("projects")
+        .select(`
+          id, name, project_number, status,
+          properties(address),
+          clients!projects_client_id_fkey(name)
+        `)
+        .or(`assigned_pm_id.eq.${profile.id},senior_pm_id.eq.${profile.id}`)
+        .eq("status", "open");
+
+      if (!projects || projects.length === 0) return [];
+
+      const projectIds = projects.map((p: any) => p.id);
+      const { data: checklistItems } = await supabase
+        .from("project_checklist_items")
+        .select("id, project_id, status, label")
+        .in("project_id", projectIds);
+
+      const byProject: Record<string, { total: number; done: number; missing: string[] }> = {};
+      (checklistItems || []).forEach((item: any) => {
+        if (!byProject[item.project_id]) byProject[item.project_id] = { total: 0, done: 0, missing: [] };
+        byProject[item.project_id].total++;
+        if (item.status === "received") {
+          byProject[item.project_id].done++;
+        } else {
+          byProject[item.project_id].missing.push(item.label || "Unnamed item");
+        }
+      });
+
+      return projects.map((p: any) => {
+        const checklist = byProject[p.id] || { total: 0, done: 0, missing: [] };
+        return {
+          ...p,
+          checklistTotal: checklist.total,
+          checklistDone: checklist.done,
+          missingItems: checklist.missing.slice(0, 3),
+          readyPercent: checklist.total > 0 ? Math.round((checklist.done / checklist.total) * 100) : 0,
+        };
+      }).sort((a: any, b: any) => a.readyPercent - b.readyPercent);
+    },
+    enabled: !!profile?.id,
+  });
+}
 
 export function PMDailyView() {
   const navigate = useNavigate();
   const { data: projects, isLoading } = useMyAssignedProjects();
+  const { data: readiness = [], isLoading: readinessLoading } = useMyProjectReadiness();
 
   const now = new Date();
 
   const categorized = (projects || []).reduce<{
-    overdue: any[];
-    today: any[];
-    upcoming: any[];
+    stale: any[];
+    needsUpdate: any[];
     active: any[];
+    all: any[];
   }>(
     (acc, p) => {
       const daysSinceUpdate = differenceInDays(now, new Date(p.updated_at));
-      if (daysSinceUpdate > 14) acc.overdue.push({ ...p, daysSinceUpdate });
-      else if (daysSinceUpdate > 7) acc.upcoming.push({ ...p, daysSinceUpdate });
-      else acc.today.push({ ...p, daysSinceUpdate });
-      acc.active.push({ ...p, daysSinceUpdate });
+      const item = { ...p, daysSinceUpdate };
+      if (daysSinceUpdate > 14) acc.stale.push(item);
+      else if (daysSinceUpdate > 7) acc.needsUpdate.push(item);
+      else acc.active.push(item);
+      acc.all.push(item);
       return acc;
     },
-    { overdue: [], today: [], upcoming: [], active: [] }
+    { stale: [], needsUpdate: [], active: [], all: [] }
   );
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
-      {/* Left: Priority tasks + Active projects */}
+      {/* Left: Priority tasks + Readiness */}
       <div className="lg:col-span-2 space-y-6">
-        {/* Priority Tasks */}
+        {/* My Active Projects */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">My Day</CardTitle>
-            <CardDescription>Projects needing your attention</CardDescription>
+            <CardTitle className="text-base">My Projects</CardTitle>
+            <CardDescription>Projects assigned to you, sorted by activity</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {isLoading ? (
@@ -53,39 +109,39 @@ export function PMDailyView() {
                   </div>
                 </div>
               ))
-            ) : categorized.active.length === 0 ? (
+            ) : categorized.all.length === 0 ? (
               <div className="flex flex-col items-center py-8 text-center">
                 <CheckCircle2 className="h-10 w-10 text-primary/50 mb-3" />
                 <p className="text-muted-foreground">No projects assigned to you yet</p>
               </div>
             ) : (
               <>
-                {categorized.overdue.length > 0 && (
+                {categorized.stale.length > 0 && (
                   <div className="space-y-2">
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-destructive flex items-center gap-1.5">
                       <AlertTriangle className="h-3 w-3" /> Stale — No activity 14+ days
                     </h4>
-                    {categorized.overdue.map((p) => (
+                    {categorized.stale.map((p) => (
                       <ProjectRow key={p.id} project={p} onClick={() => navigate(`/projects/${p.id}`)} />
                     ))}
                   </div>
                 )}
-                {categorized.upcoming.length > 0 && (
+                {categorized.needsUpdate.length > 0 && (
                   <div className="space-y-2">
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-amber-600 flex items-center gap-1.5">
                       <Clock className="h-3 w-3" /> Needs Update — 7-14 days
                     </h4>
-                    {categorized.upcoming.map((p) => (
+                    {categorized.needsUpdate.map((p) => (
                       <ProjectRow key={p.id} project={p} onClick={() => navigate(`/projects/${p.id}`)} />
                     ))}
                   </div>
                 )}
-                {categorized.today.length > 0 && (
+                {categorized.active.length > 0 && (
                   <div className="space-y-2">
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-primary flex items-center gap-1.5">
                       <CheckCircle2 className="h-3 w-3" /> Recently Active
                     </h4>
-                    {categorized.today.map((p) => (
+                    {categorized.active.map((p) => (
                       <ProjectRow key={p.id} project={p} onClick={() => navigate(`/projects/${p.id}`)} />
                     ))}
                   </div>
@@ -94,6 +150,76 @@ export function PMDailyView() {
                   View All Projects <ArrowRight className="h-4 w-4 ml-1" />
                 </Button>
               </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Project Readiness */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <ClipboardCheck className="h-4 w-4" />
+              Project Readiness
+            </CardTitle>
+            <CardDescription>Checklist completion and missing items</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {readinessLoading ? (
+              [1, 2].map((i) => (
+                <div key={i} className="p-3 rounded-lg border space-y-2">
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-2 w-full" />
+                </div>
+              ))
+            ) : readiness.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No project checklists found</p>
+            ) : (
+              readiness.map((p: any) => (
+                <div
+                  key={p.id}
+                  className="p-3 rounded-lg border border-border hover:border-accent/50 hover:bg-accent/5 transition-all cursor-pointer"
+                  onClick={() => navigate(`/projects/${p.id}`)}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium text-sm truncate">
+                      {p.name || p.properties?.address || "Untitled"}
+                    </span>
+                    <Badge
+                      variant={p.readyPercent === 100 ? "default" : p.readyPercent >= 50 ? "secondary" : "destructive"}
+                      className="text-xs shrink-0"
+                    >
+                      {p.checklistDone}/{p.checklistTotal} ({p.readyPercent}%)
+                    </Badge>
+                  </div>
+                  {/* Progress bar */}
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-2">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        p.readyPercent === 100
+                          ? "bg-green-500"
+                          : p.readyPercent >= 50
+                          ? "bg-amber-500"
+                          : "bg-destructive"
+                      }`}
+                      style={{ width: `${p.readyPercent}%` }}
+                    />
+                  </div>
+                  {p.missingItems.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {p.missingItems.map((item: string, i: number) => (
+                        <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive">
+                          Missing: {item}
+                        </span>
+                      ))}
+                      {p.checklistTotal - p.checklistDone > 3 && (
+                        <span className="text-[10px] text-muted-foreground">
+                          +{p.checklistTotal - p.checklistDone - 3} more
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))
             )}
           </CardContent>
         </Card>
