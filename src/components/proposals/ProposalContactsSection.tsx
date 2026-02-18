@@ -293,6 +293,11 @@ export function ProposalContactsSection({
   const [addCompanyState, setAddCompanyState] = useState<{ open: boolean; index: number; prefillName: string }>({ open: false, index: -1, prefillName: "" });
   const [addContactState, setAddContactState] = useState<{ open: boolean; index: number; clientId: string }>({ open: false, index: -1, clientId: "" });
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor)
+  );
+
   const emit = (updated: MultiRoleContact[]) => onChange(flattenContacts(updated));
 
   const addContact = () => {
@@ -359,11 +364,6 @@ export function ProposalContactsSection({
       </>
     );
   }
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor)
-  );
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
