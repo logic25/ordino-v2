@@ -56,7 +56,7 @@ export default function ClientProposalPage() {
   });
 
   // Fetch company info
-  const { data: company } = useQuery({
+  const { data: company, isLoading: isCompanyLoading } = useQuery({
     queryKey: ["public-company", proposal?.company_id],
     queryFn: async () => {
       if (!proposal?.company_id) return null;
@@ -246,7 +246,15 @@ export default function ClientProposalPage() {
     return "";
   };
 
-  if (isLoading) {
+  const [viewMode, setViewMode] = useState<"next-steps" | "contract">("contract");
+
+  // Default to next-steps when already signed
+  const isSigned = !!proposal?.client_signed_at || signed;
+  useEffect(() => {
+    if (isSigned) setViewMode("next-steps");
+  }, [isSigned]);
+
+  if (isLoading || (proposal?.company_id && isCompanyLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f9fa]">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -287,7 +295,251 @@ export default function ClientProposalPage() {
   return (
     <div className="min-h-screen bg-[#f1f5f9]">
       <div className="max-w-[720px] mx-auto py-6">
-        {/* ═══ The Contract Document — identical to internal preview ═══ */}
+        {/* ═══ View Toggle: Next Steps or Contract ═══ */}
+        {alreadySigned && viewMode === "next-steps" ? (
+          <div className="space-y-4">
+            {/* Confirmation Banner */}
+            <div className="bg-white shadow-md rounded-lg p-8 text-center">
+              <div className="inline-flex items-center justify-center rounded-full p-3 mb-4" style={{ background: "hsl(160, 84%, 39%, 0.1)" }}>
+                <CheckCircle2 className="h-12 w-12" style={{ color: "#10b981" }} />
+              </div>
+              <h2 className="text-xl font-bold mb-2" style={{ color: charcoal }}>Proposal Accepted!</h2>
+              <p className="text-sm max-w-md mx-auto" style={{ color: slate }}>
+                Thank you for signing proposal <strong>#{proposal.proposal_number}</strong>. The team has been notified and will be in touch shortly.
+              </p>
+            </div>
+
+            {/* Welcome Email Status */}
+            <div className="bg-white shadow-md rounded-lg p-5 overflow-hidden" style={{ borderLeft: `4px solid ${welcomeEmailSent ? "#10b981" : amber}` }}>
+              <div className="flex items-center gap-3">
+                {welcomeEmailSent ? (
+                  <div className="rounded-full p-2" style={{ background: "hsl(160, 84%, 39%, 0.1)" }}>
+                    <Mail className="h-5 w-5" style={{ color: "#10b981" }} />
+                  </div>
+                ) : (
+                  <div className="rounded-full p-2 animate-pulse" style={{ background: "hsl(38, 92%, 50%, 0.1)" }}>
+                    <Clock className="h-5 w-5" style={{ color: amber }} />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <div style={{ fontSize: "10pt", fontWeight: 700, color: charcoal }}>
+                    {welcomeEmailSent ? "Welcome Email Sent" : "Sending Welcome Email..."}
+                  </div>
+                  <div style={{ fontSize: "8.5pt", color: slate, marginTop: 2 }}>
+                    {welcomeEmailSent
+                      ? `A welcome email has been sent to ${billTo?.email || proposal.client_email || "your email"} with your project manager's contact info and next steps.`
+                      : "Preparing your personalized welcome email with project manager details..."}
+                  </div>
+                </div>
+                {welcomeEmailSent && <CheckCircle2 className="h-5 w-5 shrink-0" style={{ color: "#10b981" }} />}
+              </div>
+            </div>
+
+            {/* Retainer Payment — prominent full-width */}
+            {depositAmt > 0 && (
+              <div className="bg-white shadow-md rounded-lg p-6">
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                  <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
+                  <h3 style={{ fontSize: "13pt", fontWeight: 800, margin: 0, color: charcoal }}>Pay Retainer Deposit</h3>
+                </div>
+
+                {paymentStep === "success" ? (
+                  <div className="text-center py-6">
+                    <CheckCircle2 className="h-12 w-12 mx-auto mb-4" style={{ color: "#10b981" }} />
+                    <h4 style={{ fontSize: "13pt", fontWeight: 800, color: charcoal, marginBottom: 4 }}>Payment Received!</h4>
+                    <p style={{ fontSize: "10pt", color: slate, marginBottom: 12 }}>
+                      Your retainer payment of <strong style={{ color: charcoal }}>{fmt(depositAmt)}</strong> has been processed successfully.
+                    </p>
+                    <div className="rounded-lg p-4 text-left" style={{ background: lightBg, border: "1px solid #e2e8f0" }}>
+                      <div style={{ fontSize: "8.5pt", color: slate, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1, fontWeight: 700 }}>Receipt</div>
+                      <div className="space-y-1" style={{ fontSize: "9pt" }}>
+                        <div className="flex justify-between"><span style={{ color: slate }}>Amount</span><span style={{ fontWeight: 600, fontFamily: "'JetBrains Mono', monospace" }}>{fmt(depositAmt)}</span></div>
+                        <div className="flex justify-between"><span style={{ color: slate }}>Method</span><span style={{ fontWeight: 600 }}>{selectedPayment === "card" ? "Credit Card" : "ACH Transfer"}</span></div>
+                        <div className="flex justify-between"><span style={{ color: slate }}>Date</span><span style={{ fontWeight: 600 }}>{new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span></div>
+                      </div>
+                    </div>
+                    <p style={{ fontSize: "8pt", color: slate, marginTop: 10 }}>A confirmation email with your receipt has been sent.</p>
+                  </div>
+                ) : paymentStep === "processing" ? (
+                  <div className="text-center py-10">
+                    <Loader2 className="h-8 w-8 mx-auto mb-4 animate-spin" style={{ color: amber }} />
+                    <p style={{ fontSize: "10pt", fontWeight: 600, color: charcoal }}>Processing your payment...</p>
+                    <p style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>Please do not close this page.</p>
+                  </div>
+                ) : paymentStep === "form" && selectedPayment === "card" ? (
+                  <>
+                    <div className="flex items-center gap-2 mb-4">
+                      <button onClick={() => { setPaymentStep("select"); setSelectedPayment(null); }} style={{ fontSize: "8.5pt", color: amber, background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>← Back</button>
+                      <span style={{ fontSize: "9pt", color: slate }}>Pay with Card</span>
+                    </div>
+                    <div className="space-y-3">
+                      <div>
+                        <Label style={{ fontSize: "8.5pt", color: slate }}>Cardholder Name</Label>
+                        <Input value={cardName} onChange={e => setCardName(e.target.value)} placeholder="John Smith" className="mt-1" />
+                      </div>
+                      <div>
+                        <Label style={{ fontSize: "8.5pt", color: slate }}>Card Number</Label>
+                        <Input value={cardNumber} onChange={e => setCardNumber(e.target.value.replace(/\D/g, '').replace(/(\d{4})/g, '$1 ').trim().substring(0, 19))} placeholder="4242 4242 4242 4242" className="mt-1 font-mono" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label style={{ fontSize: "8.5pt", color: slate }}>Expiry</Label>
+                          <Input value={cardExpiry} onChange={e => { let v = e.target.value.replace(/\D/g, ''); if (v.length >= 2) v = v.substring(0,2) + '/' + v.substring(2,4); setCardExpiry(v.substring(0,5)); }} placeholder="MM/YY" className="mt-1 font-mono" />
+                        </div>
+                        <div>
+                          <Label style={{ fontSize: "8.5pt", color: slate }}>CVC</Label>
+                          <Input value={cardCvc} onChange={e => setCardCvc(e.target.value.replace(/\D/g, '').substring(0,4))} placeholder="123" className="mt-1 font-mono" />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 p-2 rounded" style={{ background: lightBg, border: "1px solid #e2e8f0" }}>
+                        <Shield className="h-3.5 w-3.5" style={{ color: "#10b981" }} />
+                        <span style={{ fontSize: "8pt", color: slate }}>256-bit SSL encrypted. Your card details are never stored on our servers.</span>
+                      </div>
+                      <Button
+                        className="w-full font-bold"
+                        style={{ background: amber, color: charcoal }}
+                        disabled={!cardName || cardNumber.replace(/\s/g, '').length < 16 || cardExpiry.length < 5 || cardCvc.length < 3}
+                        onClick={() => {
+                          setPaymentStep("processing");
+                          setTimeout(() => setPaymentStep("success"), 2500);
+                        }}
+                      >
+                        Pay {fmt(depositAmt)}
+                      </Button>
+                    </div>
+                  </>
+                ) : paymentStep === "form" && selectedPayment === "ach" ? (
+                  <>
+                    <div className="flex items-center gap-2 mb-4">
+                      <button onClick={() => { setPaymentStep("select"); setSelectedPayment(null); }} style={{ fontSize: "8.5pt", color: amber, background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>← Back</button>
+                      <span style={{ fontSize: "9pt", color: slate }}>Pay with ACH / Bank Transfer</span>
+                    </div>
+                    <div className="space-y-3">
+                      <div>
+                        <Label style={{ fontSize: "8.5pt", color: slate }}>Bank Name</Label>
+                        <Input value={bankName} onChange={e => setBankName(e.target.value)} placeholder="Chase, Bank of America, etc." className="mt-1" />
+                      </div>
+                      <div>
+                        <Label style={{ fontSize: "8.5pt", color: slate }}>Routing Number</Label>
+                        <Input value={bankRouting} onChange={e => setBankRouting(e.target.value.replace(/\D/g, '').substring(0,9))} placeholder="021000021" className="mt-1 font-mono" />
+                      </div>
+                      <div>
+                        <Label style={{ fontSize: "8.5pt", color: slate }}>Account Number</Label>
+                        <Input value={bankAccount} onChange={e => setBankAccount(e.target.value.replace(/\D/g, '').substring(0,17))} placeholder="Your account number" className="mt-1 font-mono" />
+                      </div>
+                      <div className="flex items-center gap-2 p-2 rounded" style={{ background: lightBg, border: "1px solid #e2e8f0" }}>
+                        <Shield className="h-3.5 w-3.5" style={{ color: "#10b981" }} />
+                        <span style={{ fontSize: "8pt", color: slate }}>NACHA-compliant ACH transfer. Bank details are encrypted and securely processed.</span>
+                      </div>
+                      <Button
+                        className="w-full font-bold"
+                        style={{ background: amber, color: charcoal }}
+                        disabled={!bankName || bankRouting.length < 9 || bankAccount.length < 4}
+                        onClick={() => {
+                          setPaymentStep("processing");
+                          setTimeout(() => setPaymentStep("success"), 3000);
+                        }}
+                      >
+                        Authorize ACH Payment — {fmt(depositAmt)}
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p style={{ fontSize: "9.5pt", color: slate, marginBottom: 16, lineHeight: 1.6 }}>
+                      Your retainer of <strong style={{ color: charcoal }}>{fmt(depositAmt)}</strong> is due to begin work. Select a payment method below.
+                    </p>
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      <button
+                        className="border-2 rounded-lg p-4 text-left transition-colors cursor-pointer"
+                        style={{ borderColor: selectedPayment === "card" ? amber : "#e2e8f0", background: selectedPayment === "card" ? "hsl(38, 92%, 50%, 0.06)" : undefined }}
+                        onClick={() => setSelectedPayment("card")}
+                      >
+                        <CreditCard className="h-5 w-5 mb-2" style={{ color: amber }} />
+                        <div style={{ fontSize: "10pt", fontWeight: 700, color: charcoal }}>Credit / Debit Card</div>
+                        <div style={{ fontSize: "8.5pt", color: slate, marginTop: 2 }}>Visa, Mastercard, Amex</div>
+                      </button>
+                      <button
+                        className="border-2 rounded-lg p-4 text-left transition-colors cursor-pointer"
+                        style={{ borderColor: selectedPayment === "ach" ? amber : "#e2e8f0", background: selectedPayment === "ach" ? "hsl(38, 92%, 50%, 0.06)" : undefined }}
+                        onClick={() => setSelectedPayment("ach")}
+                      >
+                        <Building2 className="h-5 w-5 mb-2" style={{ color: amber }} />
+                        <div style={{ fontSize: "10pt", fontWeight: 700, color: charcoal }}>ACH / Bank Transfer</div>
+                        <div style={{ fontSize: "8.5pt", color: slate, marginTop: 2 }}>Direct from your bank account</div>
+                      </button>
+                    </div>
+                    {selectedPayment && (
+                      <Button
+                        className="w-full font-bold"
+                        style={{ background: amber, color: charcoal }}
+                        onClick={() => setPaymentStep("form")}
+                      >
+                        Continue with {selectedPayment === "card" ? "Card" : "ACH"} <ChevronRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    )}
+                    <div className="rounded-lg p-3 text-center mt-3" style={{ background: lightBg, border: "1px solid #e2e8f0" }}>
+                      <p style={{ fontSize: "8.5pt", color: slate }}>
+                        Secure payment processing powered by Stripe. Your information is encrypted and never stored on our servers.
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Project Information Sheet */}
+            <div className="bg-white shadow-md rounded-lg p-6">
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
+                <h3 style={{ fontSize: "13pt", fontWeight: 800, margin: 0, color: charcoal }}>Project Information Sheet</h3>
+              </div>
+              <p style={{ fontSize: "9.5pt", color: slate, marginBottom: 16, lineHeight: 1.6 }}>
+                To expedite your project, please fill out the Project Information Sheet below. This helps us gather the details we need to begin filing on your behalf.
+              </p>
+              {pisAutoCreated && (
+                <div className="flex items-center gap-2 mb-3 p-2.5 rounded-md" style={{ background: "hsl(160, 84%, 39%, 0.06)", border: "1px solid hsl(160, 84%, 39%, 0.15)" }}>
+                  <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: "#10b981" }} />
+                  <span style={{ fontSize: "8.5pt", color: "#10b981", fontWeight: 600 }}>
+                    A tracked PIS has been auto-created for this project. Reminders will be sent if not completed within 3 business days.
+                  </span>
+                </div>
+              )}
+              <a
+                href={rfiToken ? `/rfi?token=${rfiToken}` : `/rfi?property=${encodeURIComponent(proposal.properties?.address || "")}&proposal=${proposal.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between rounded-lg p-4 transition-shadow"
+                style={{ background: "hsl(38, 92%, 50%, 0.06)", border: `1px solid hsl(38, 92%, 50%, 0.25)` }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="rounded-full p-2" style={{ background: "hsl(38, 92%, 50%, 0.15)" }}>
+                    <FileText className="h-5 w-5" style={{ color: amber }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "10pt", fontWeight: 700, color: charcoal }}>Fill Out Project Information Sheet</div>
+                    <div style={{ fontSize: "8.5pt", color: slate, marginTop: 1 }}>Building details, applicant info, owner details & more</div>
+                  </div>
+                </div>
+                <ArrowRight className="h-4 w-4" style={{ color: amber }} />
+              </a>
+            </div>
+
+            {/* View Signed Proposal button */}
+            <div className="text-center">
+              <Button
+                variant="outline"
+                onClick={() => setViewMode("contract")}
+                className="gap-2"
+              >
+                <FileText className="h-4 w-4" />
+                View Signed Proposal
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+        {/* ═══ The Contract Document ═══ */}
         <div className="bg-white shadow-md" style={{ color: charcoal }}>
 
           {/* ═══ Header Banner ═══ */}
@@ -644,235 +896,20 @@ export default function ClientProposalPage() {
           </div>
         </div>
 
-        {/* ═══ Post-Signing Next Steps — OUTSIDE the contract document ═══ */}
+        {/* Back to Next Steps button when viewing contract after signing */}
         {alreadySigned && (
-          <div className="mt-6 space-y-4">
-            {/* Confirmation Banner */}
-            <div className="bg-white shadow-md rounded-lg p-6 text-center">
-              <CheckCircle2 className="h-10 w-10 mx-auto mb-3" style={{ color: "#10b981" }} />
-              <h3 className="text-lg font-bold mb-1" style={{ color: charcoal }}>Proposal Accepted</h3>
-              <p className="text-sm" style={{ color: slate }}>
-                Thank you for signing! Your signed proposal is shown above. The team has been notified and will be in touch shortly.
-              </p>
-            </div>
-
-            {/* Welcome Email Confirmation */}
-            <div className="bg-white shadow-md rounded-lg p-5 overflow-hidden" style={{ borderLeft: `4px solid ${welcomeEmailSent ? "#10b981" : amber}` }}>
-              <div className="flex items-center gap-3">
-                {welcomeEmailSent ? (
-                  <div className="rounded-full p-2" style={{ background: "hsl(160, 84%, 39%, 0.1)" }}>
-                    <Mail className="h-5 w-5" style={{ color: "#10b981" }} />
-                  </div>
-                ) : (
-                  <div className="rounded-full p-2 animate-pulse" style={{ background: "hsl(38, 92%, 50%, 0.1)" }}>
-                    <Clock className="h-5 w-5" style={{ color: amber }} />
-                  </div>
-                )}
-                <div className="flex-1">
-                  <div style={{ fontSize: "10pt", fontWeight: 700, color: charcoal }}>
-                    {welcomeEmailSent ? "Welcome Email Sent" : "Sending Welcome Email..."}
-                  </div>
-                  <div style={{ fontSize: "8.5pt", color: slate, marginTop: 2 }}>
-                    {welcomeEmailSent
-                      ? `A welcome email has been sent to ${billTo?.email || proposal.client_email || "your email"} with your project manager's contact info and next steps.`
-                      : "Preparing your personalized welcome email with project manager details..."}
-                  </div>
-                </div>
-                {welcomeEmailSent && <CheckCircle2 className="h-5 w-5 shrink-0" style={{ color: "#10b981" }} />}
-              </div>
-            </div>
-
-            {/* Retainer Payment */}
-            {depositAmt > 0 && (
-              <div className="bg-white shadow-md rounded-lg p-6">
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                  <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
-                  <h3 style={{ fontSize: "13pt", fontWeight: 800, margin: 0, color: charcoal }}>Pay Retainer Deposit</h3>
-                </div>
-
-                {paymentStep === "success" ? (
-                  <div className="text-center py-6">
-                    <CheckCircle2 className="h-12 w-12 mx-auto mb-4" style={{ color: "#10b981" }} />
-                    <h4 style={{ fontSize: "13pt", fontWeight: 800, color: charcoal, marginBottom: 4 }}>Payment Received!</h4>
-                    <p style={{ fontSize: "10pt", color: slate, marginBottom: 12 }}>
-                      Your retainer payment of <strong style={{ color: charcoal }}>{fmt(depositAmt)}</strong> has been processed successfully.
-                    </p>
-                    <div className="rounded-lg p-4 text-left" style={{ background: lightBg, border: "1px solid #e2e8f0" }}>
-                      <div style={{ fontSize: "8.5pt", color: slate, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1, fontWeight: 700 }}>Receipt</div>
-                      <div className="space-y-1" style={{ fontSize: "9pt" }}>
-                        <div className="flex justify-between"><span style={{ color: slate }}>Amount</span><span style={{ fontWeight: 600, fontFamily: "'JetBrains Mono', monospace" }}>{fmt(depositAmt)}</span></div>
-                        <div className="flex justify-between"><span style={{ color: slate }}>Method</span><span style={{ fontWeight: 600 }}>{selectedPayment === "card" ? "Credit Card" : "ACH Transfer"}</span></div>
-                        <div className="flex justify-between"><span style={{ color: slate }}>Reference</span><span style={{ fontWeight: 600, fontFamily: "'JetBrains Mono', monospace" }}>TXN-{Math.random().toString(36).substring(2, 10).toUpperCase()}</span></div>
-                        <div className="flex justify-between"><span style={{ color: slate }}>Date</span><span style={{ fontWeight: 600 }}>{new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span></div>
-                      </div>
-                    </div>
-                    <p style={{ fontSize: "8pt", color: slate, marginTop: 10 }}>A confirmation email with your receipt has been sent.</p>
-                  </div>
-                ) : paymentStep === "processing" ? (
-                  <div className="text-center py-10">
-                    <Loader2 className="h-8 w-8 mx-auto mb-4 animate-spin" style={{ color: amber }} />
-                    <p style={{ fontSize: "10pt", fontWeight: 600, color: charcoal }}>Processing your payment...</p>
-                    <p style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>Please do not close this page.</p>
-                  </div>
-                ) : paymentStep === "form" && selectedPayment === "card" ? (
-                  <>
-                    <div className="flex items-center gap-2 mb-4">
-                      <button onClick={() => { setPaymentStep("select"); setSelectedPayment(null); }} style={{ fontSize: "8.5pt", color: amber, background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>← Back</button>
-                      <span style={{ fontSize: "9pt", color: slate }}>Pay with Card</span>
-                    </div>
-                    <div className="space-y-3">
-                      <div>
-                        <Label style={{ fontSize: "8.5pt", color: slate }}>Cardholder Name</Label>
-                        <Input value={cardName} onChange={e => setCardName(e.target.value)} placeholder="John Smith" className="mt-1" />
-                      </div>
-                      <div>
-                        <Label style={{ fontSize: "8.5pt", color: slate }}>Card Number</Label>
-                        <Input value={cardNumber} onChange={e => setCardNumber(e.target.value.replace(/\D/g, '').replace(/(\d{4})/g, '$1 ').trim().substring(0, 19))} placeholder="4242 4242 4242 4242" className="mt-1 font-mono" />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label style={{ fontSize: "8.5pt", color: slate }}>Expiry</Label>
-                          <Input value={cardExpiry} onChange={e => { let v = e.target.value.replace(/\D/g, ''); if (v.length >= 2) v = v.substring(0,2) + '/' + v.substring(2,4); setCardExpiry(v.substring(0,5)); }} placeholder="MM/YY" className="mt-1 font-mono" />
-                        </div>
-                        <div>
-                          <Label style={{ fontSize: "8.5pt", color: slate }}>CVC</Label>
-                          <Input value={cardCvc} onChange={e => setCardCvc(e.target.value.replace(/\D/g, '').substring(0,4))} placeholder="123" className="mt-1 font-mono" />
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 p-2 rounded" style={{ background: lightBg, border: "1px solid #e2e8f0" }}>
-                        <Shield className="h-3.5 w-3.5" style={{ color: "#10b981" }} />
-                        <span style={{ fontSize: "8pt", color: slate }}>256-bit SSL encrypted. Your card details are never stored on our servers.</span>
-                      </div>
-                      <Button
-                        className="w-full font-bold"
-                        style={{ background: amber, color: charcoal }}
-                        disabled={!cardName || cardNumber.replace(/\s/g, '').length < 16 || cardExpiry.length < 5 || cardCvc.length < 3}
-                        onClick={() => {
-                          setPaymentStep("processing");
-                          setTimeout(() => setPaymentStep("success"), 2500);
-                        }}
-                      >
-                        Pay {fmt(depositAmt)}
-                      </Button>
-                    </div>
-                  </>
-                ) : paymentStep === "form" && selectedPayment === "ach" ? (
-                  <>
-                    <div className="flex items-center gap-2 mb-4">
-                      <button onClick={() => { setPaymentStep("select"); setSelectedPayment(null); }} style={{ fontSize: "8.5pt", color: amber, background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>← Back</button>
-                      <span style={{ fontSize: "9pt", color: slate }}>Pay with ACH / Bank Transfer</span>
-                    </div>
-                    <div className="space-y-3">
-                      <div>
-                        <Label style={{ fontSize: "8.5pt", color: slate }}>Bank Name</Label>
-                        <Input value={bankName} onChange={e => setBankName(e.target.value)} placeholder="Chase, Bank of America, etc." className="mt-1" />
-                      </div>
-                      <div>
-                        <Label style={{ fontSize: "8.5pt", color: slate }}>Routing Number</Label>
-                        <Input value={bankRouting} onChange={e => setBankRouting(e.target.value.replace(/\D/g, '').substring(0,9))} placeholder="021000021" className="mt-1 font-mono" />
-                      </div>
-                      <div>
-                        <Label style={{ fontSize: "8.5pt", color: slate }}>Account Number</Label>
-                        <Input value={bankAccount} onChange={e => setBankAccount(e.target.value.replace(/\D/g, '').substring(0,17))} placeholder="Your account number" className="mt-1 font-mono" />
-                      </div>
-                      <div className="flex items-center gap-2 p-2 rounded" style={{ background: lightBg, border: "1px solid #e2e8f0" }}>
-                        <Shield className="h-3.5 w-3.5" style={{ color: "#10b981" }} />
-                        <span style={{ fontSize: "8pt", color: slate }}>NACHA-compliant ACH transfer. Bank details are encrypted and securely processed.</span>
-                      </div>
-                      <Button
-                        className="w-full font-bold"
-                        style={{ background: amber, color: charcoal }}
-                        disabled={!bankName || bankRouting.length < 9 || bankAccount.length < 4}
-                        onClick={() => {
-                          setPaymentStep("processing");
-                          setTimeout(() => setPaymentStep("success"), 3000);
-                        }}
-                      >
-                        Authorize ACH Payment — {fmt(depositAmt)}
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <p style={{ fontSize: "9.5pt", color: slate, marginBottom: 16, lineHeight: 1.6 }}>
-                      Your retainer of <strong style={{ color: charcoal }}>{fmt(depositAmt)}</strong> is due to begin work. Select a payment method below.
-                    </p>
-                    <div className="grid grid-cols-2 gap-3 mb-4">
-                      <button
-                        className="border-2 rounded-lg p-4 text-left hover:border-amber-400 transition-colors cursor-pointer"
-                        style={{ borderColor: selectedPayment === "card" ? amber : "#e2e8f0", background: selectedPayment === "card" ? "hsl(38, 92%, 50%, 0.06)" : undefined }}
-                        onClick={() => setSelectedPayment("card")}
-                      >
-                        <CreditCard className="h-5 w-5 mb-2" style={{ color: amber }} />
-                        <div style={{ fontSize: "10pt", fontWeight: 700, color: charcoal }}>Credit / Debit Card</div>
-                        <div style={{ fontSize: "8.5pt", color: slate, marginTop: 2 }}>Visa, Mastercard, Amex</div>
-                      </button>
-                      <button
-                        className="border-2 rounded-lg p-4 text-left hover:border-amber-400 transition-colors cursor-pointer"
-                        style={{ borderColor: selectedPayment === "ach" ? amber : "#e2e8f0", background: selectedPayment === "ach" ? "hsl(38, 92%, 50%, 0.06)" : undefined }}
-                        onClick={() => setSelectedPayment("ach")}
-                      >
-                        <Building2 className="h-5 w-5 mb-2" style={{ color: amber }} />
-                        <div style={{ fontSize: "10pt", fontWeight: 700, color: charcoal }}>ACH / Bank Transfer</div>
-                        <div style={{ fontSize: "8.5pt", color: slate, marginTop: 2 }}>Direct from your bank account</div>
-                      </button>
-                    </div>
-                    {selectedPayment && (
-                      <Button
-                        className="w-full font-bold"
-                        style={{ background: amber, color: charcoal }}
-                        onClick={() => setPaymentStep("form")}
-                      >
-                        Continue with {selectedPayment === "card" ? "Card" : "ACH"} <ChevronRight className="h-4 w-4 ml-1" />
-                      </Button>
-                    )}
-                    <div className="rounded-lg p-3 text-center mt-3" style={{ background: lightBg, border: "1px solid #e2e8f0" }}>
-                      <p style={{ fontSize: "8.5pt", color: slate }}>
-                        Secure payment processing powered by Stripe. Your information is encrypted and never stored on our servers.
-                      </p>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* Project Information Sheet */}
-            <div className="bg-white shadow-md rounded-lg p-6">
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
-                <h3 style={{ fontSize: "13pt", fontWeight: 800, margin: 0, color: charcoal }}>Project Information Sheet</h3>
-              </div>
-              <p style={{ fontSize: "9.5pt", color: slate, marginBottom: 16, lineHeight: 1.6 }}>
-                To expedite your project, please fill out the Project Information Sheet below. This helps us gather the details we need to begin filing on your behalf.
-              </p>
-              {pisAutoCreated && (
-                <div className="flex items-center gap-2 mb-3 p-2.5 rounded-md" style={{ background: "hsl(160, 84%, 39%, 0.06)", border: "1px solid hsl(160, 84%, 39%, 0.15)" }}>
-                  <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: "#10b981" }} />
-                  <span style={{ fontSize: "8.5pt", color: "#10b981", fontWeight: 600 }}>
-                    A tracked PIS has been auto-created for this project. Reminders will be sent if not completed within 3 business days.
-                  </span>
-                </div>
-              )}
-              <a
-                href={rfiToken ? `/rfi?token=${rfiToken}` : `/rfi?property=${encodeURIComponent(proposal.properties?.address || "")}&proposal=${proposal.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-between rounded-lg p-4 hover:shadow-md transition-shadow"
-                style={{ background: "hsl(38, 92%, 50%, 0.06)", border: `1px solid hsl(38, 92%, 50%, 0.25)` }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="rounded-full p-2" style={{ background: "hsl(38, 92%, 50%, 0.15)" }}>
-                    <FileText className="h-5 w-5" style={{ color: amber }} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: "10pt", fontWeight: 700, color: charcoal }}>Fill Out Project Information Sheet</div>
-                    <div style={{ fontSize: "8.5pt", color: slate, marginTop: 1 }}>Building details, applicant info, owner details & more</div>
-                  </div>
-                </div>
-                <ArrowRight className="h-4 w-4" style={{ color: amber }} />
-              </a>
-            </div>
+          <div className="text-center mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setViewMode("next-steps")}
+              className="gap-2"
+            >
+              <ArrowRight className="h-4 w-4 rotate-180" />
+              Back to Next Steps
+            </Button>
           </div>
+        )}
+          </>
         )}
 
         {/* Page footer */}
