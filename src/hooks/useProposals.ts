@@ -39,6 +39,23 @@ export interface ProposalFormInput {
   reminder_date?: string | null;
   terms_conditions?: string | null;
   retainer_amount?: number | null;
+  // Party info
+  architect_company?: string | null;
+  architect_name?: string | null;
+  architect_phone?: string | null;
+  architect_email?: string | null;
+  architect_license_type?: string | null;
+  architect_license_number?: string | null;
+  gc_company?: string | null;
+  gc_name?: string | null;
+  gc_phone?: string | null;
+  gc_email?: string | null;
+  sia_name?: string | null;
+  sia_company?: string | null;
+  sia_phone?: string | null;
+  sia_email?: string | null;
+  tpp_name?: string | null;
+  tpp_email?: string | null;
   items?: ProposalItemInput[];
   milestones?: ProposalMilestoneInput[];
 }
@@ -189,6 +206,22 @@ export function useCreateProposal() {
           billed_to_email: proposalData.billed_to_email || null,
           reminder_date: proposalData.reminder_date || null,
           retainer_amount: proposalData.retainer_amount || 0,
+          architect_company: proposalData.architect_company || null,
+          architect_name: proposalData.architect_name || null,
+          architect_phone: proposalData.architect_phone || null,
+          architect_email: proposalData.architect_email || null,
+          architect_license_type: proposalData.architect_license_type || null,
+          architect_license_number: proposalData.architect_license_number || null,
+          gc_company: proposalData.gc_company || null,
+          gc_name: proposalData.gc_name || null,
+          gc_phone: proposalData.gc_phone || null,
+          gc_email: proposalData.gc_email || null,
+          sia_name: proposalData.sia_name || null,
+          sia_company: proposalData.sia_company || null,
+          sia_phone: proposalData.sia_phone || null,
+          sia_email: proposalData.sia_email || null,
+          tpp_name: proposalData.tpp_name || null,
+          tpp_email: proposalData.tpp_email || null,
         } as any)
         .select()
         .single();
@@ -287,6 +320,22 @@ export function useUpdateProposal() {
           billed_to_email: proposalData.billed_to_email || null,
           reminder_date: proposalData.reminder_date || null,
           retainer_amount: proposalData.retainer_amount || 0,
+          architect_company: proposalData.architect_company || null,
+          architect_name: proposalData.architect_name || null,
+          architect_phone: proposalData.architect_phone || null,
+          architect_email: proposalData.architect_email || null,
+          architect_license_type: proposalData.architect_license_type || null,
+          architect_license_number: proposalData.architect_license_number || null,
+          gc_company: proposalData.gc_company || null,
+          gc_name: proposalData.gc_name || null,
+          gc_phone: proposalData.gc_phone || null,
+          gc_email: proposalData.gc_email || null,
+          sia_name: proposalData.sia_name || null,
+          sia_company: proposalData.sia_company || null,
+          sia_phone: proposalData.sia_phone || null,
+          sia_email: proposalData.sia_email || null,
+          tpp_name: proposalData.tpp_name || null,
+          tpp_email: proposalData.tpp_email || null,
         } as any)
         .eq("id", id)
         .select()
@@ -366,12 +415,24 @@ export function useSendProposal() {
 
   return useMutation({
     mutationFn: async (id: string) => {
+      // Check current status — don't overwrite signed_internal
+      const { data: current } = await supabase
+        .from("proposals")
+        .select("status")
+        .eq("id", id)
+        .single();
+
+      const updatePayload: Record<string, any> = {
+        sent_at: new Date().toISOString(),
+      };
+      // Only set status to "sent" if not already signed internally
+      if (current?.status !== "signed_internal") {
+        updatePayload.status = "sent";
+      }
+
       const { data, error } = await supabase
         .from("proposals")
-        .update({
-          status: "sent",
-          sent_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq("id", id)
         .select()
         .single();
