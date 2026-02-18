@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useProjectChecklist, useAddChecklistItem, useUpdateChecklistItem, useDeleteChecklistItem, type ChecklistItem } from "@/hooks/useProjectChecklist";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
@@ -493,6 +494,7 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
   const addItem = useAddChecklistItem();
   const updateItem = useUpdateChecklistItem();
   const deleteItem = useDeleteChecklistItem();
+  const { data: companyData } = useCompanySettings();
 
   const getDaysWaiting = (requestedDate: string | null) => {
     if (!requestedDate) return 0;
@@ -545,6 +547,14 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
         daysWaiting: getDaysWaiting(item.requested_date),
       }));
 
+      const completedPayload = completed
+        .filter(i => i.status === "done")
+        .map(item => ({
+          label: item.label,
+          category: item.category,
+          completedAt: item.completed_at ? new Date(item.completed_at).toLocaleDateString("en-US") : "recently",
+        }));
+
       const resp = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/draft-checklist-followup`,
         {
@@ -555,10 +565,12 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
           },
           body: JSON.stringify({
             items: itemsPayload,
+            completedItems: completedPayload,
             projectName,
             propertyAddress,
             ownerName,
             contactEmail,
+            firmName: companyData?.name || undefined,
           }),
         }
       );
