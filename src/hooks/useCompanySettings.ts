@@ -27,6 +27,20 @@ export const WORK_TYPE_DISCIPLINES = [
 
 export type WorkTypeDiscipline = typeof WORK_TYPE_DISCIPLINES[number];
 
+export interface ServiceRequirement {
+  label: string;
+  category: string;
+  from_whom_role: string;
+}
+
+export interface InstructionTemplate {
+  id: string;
+  name: string;
+  description: string;
+  body: string;
+  variables: string[];
+}
+
 export interface ServiceCatalogItem {
   id: string;
   name: string;
@@ -38,6 +52,7 @@ export interface ServiceCatalogItem {
   has_discipline_pricing?: boolean;
   discipline_fee?: number;
   price_history?: PriceChangeEntry[];
+  default_requirements?: ServiceRequirement[];
 }
 
 export interface CompanySettings {
@@ -79,6 +94,8 @@ export interface CompanySettings {
   invoice_footer_text?: string;
   // Bonus tiers
   bonus_tiers?: { min_pct: number; max_pct: number; amount: number }[];
+  // Instruction templates
+  instruction_templates?: InstructionTemplate[];
 }
 
 export function useCompanySettings() {

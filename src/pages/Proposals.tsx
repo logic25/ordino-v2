@@ -557,11 +557,15 @@ export default function Proposals() {
     setApprovalDialogOpen(true);
   };
 
-  const handleApprove = async (method: string, notes?: string) => {
+  const handleApprove = async (method: string, notes?: string, _signedDocUrl?: string, assignedPmId?: string) => {
     if (!approvingProposal) return;
     try {
-      await markApproved.mutateAsync({ id: approvingProposal.id, approvalMethod: method, notes });
-      toast({ title: "Proposal approved", description: `Marked as approved via ${method.replace(/_/g, " ")}.` });
+      const result = await markApproved.mutateAsync({ id: approvingProposal.id, approvalMethod: method, notes, assignedPmId });
+      const projectId = result?.projectId;
+      toast({
+        title: "Proposal approved & project created",
+        description: `Marked as approved via ${method.replace(/_/g, " ")}.${projectId ? " Project created." : ""}`,
+      });
       setApprovalDialogOpen(false);
       setApprovingProposal(null);
     } catch (error: any) {
@@ -1019,6 +1023,7 @@ export default function Proposals() {
         onApprove={handleApprove}
         isLoading={markApproved.isPending}
         proposalTitle={approvingProposal?.title}
+        defaultPmId={(approvingProposal as any)?.assigned_pm_id || ""}
       />
 
       <LeadCaptureDialog

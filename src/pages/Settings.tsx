@@ -15,11 +15,12 @@ import { CompanySettings } from "@/components/settings/CompanySettings";
 import { ListsAndLookupsSettings } from "@/components/settings/ListsAndLookupsSettings";
 import { SignalSettings } from "@/components/settings/SignalSettings";
 import { PartnerEmailTemplateSettings } from "@/components/settings/PartnerEmailTemplateSettings";
+import { InstructionTemplateSettings } from "@/components/settings/InstructionTemplateSettings";
 import { RolesSettings } from "@/components/settings/RolesSettings";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { Mail } from "lucide-react";
 
-type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists" | "roles" | "partner_templates" | "signal";
+type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists" | "roles" | "partner_templates" | "signal" | "instruction_templates";
 
 const settingsSections = [
   {
@@ -57,6 +58,12 @@ const settingsSections = [
     title: "RFI Templates",
     description: "Configure client questionnaire forms",
     icon: FileText,
+  },
+  {
+    id: "instruction_templates" as const,
+    title: "Instruction Templates",
+    description: "Reusable email templates for DOB instructions",
+    icon: Mail,
   },
   {
     id: "invoices" as const,
@@ -122,6 +129,8 @@ export default function Settings() {
         return <AutomationRulesSettings />;
       case "partner_templates":
         return <PartnerEmailTemplateSettings />;
+      case "instruction_templates":
+        return <InstructionTemplateSettings />;
       case "signal":
         return <SignalSettings />;
       case "roles":
