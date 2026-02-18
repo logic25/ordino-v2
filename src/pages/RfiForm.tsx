@@ -214,8 +214,10 @@ export default function RfiForm() {
       setIfEmpty("applicant_and_owner_applicant_business_name", projectData.architect_company_name);
       setIfEmpty("applicant_and_owner_applicant_phone", projectData.architect_phone);
       setIfEmpty("applicant_and_owner_applicant_email", projectData.architect_email);
+      setIfEmpty("applicant_and_owner_applicant_lic_type", (projectData as any).architect_license_type);
+      setIfEmpty("applicant_and_owner_applicant_nys_lic", (projectData as any).architect_license_number);
 
-      // Building owner
+      // Building owner — use individual contact name when available
       setIfEmpty("applicant_and_owner_owner_name", projectData.building_owner_name);
 
       // GC — pre-fill and auto-expand if data exists
@@ -380,6 +382,7 @@ export default function RfiForm() {
       }
 
       setSubmitted(true);
+      setEditingAfterSubmit(false);
     } catch (err) {
       console.error("Error submitting RFI:", err);
     } finally {
