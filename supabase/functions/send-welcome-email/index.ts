@@ -310,9 +310,29 @@ Deno.serve(async (req) => {
         .eq("id", gmailConnection.id);
     }
 
-    const clientName = (proposal as any).client_name || "Valued Client";
-    const projectTitle = (proposal as any).title || "Your Project";
+    // Resolve client name: proposal.client_name → primary contact → "Valued Client"
+    let clientName = (proposal as any).client_name;
+    if (!clientName && (proposal as any).client_id) {
+      const { data: primaryContact } = await supabaseAdmin
+        .from("client_contacts")
+        .select("name, first_name, last_name")
+        .eq("client_id", (proposal as any).client_id)
+        .eq("is_primary", true)
+        .maybeSingle();
+      if (primaryContact) {
+        clientName = [primaryContact.first_name, primaryContact.last_name].filter(Boolean).join(" ") || primaryContact.name;
+      }
+    }
+    if (!clientName) clientName = "Valued Client";
+
     const propertyAddress = (proposal as any).properties?.address || "";
+    // Use proposal title but strip address suffix to avoid duplication in the email body
+    let projectTitle = (proposal as any).title || "Your Project";
+    const titleIncludesAddress = propertyAddress && projectTitle.includes(propertyAddress);
+
+    const subject = `Welcome to ${companyName} — ${projectTitle}`;
+    // In body, only show "at <address>" if the title doesn't already contain it
+    const bodyPropertyAddress = titleIncludesAddress ? "" : propertyAddress;
 
     const htmlBody = buildWelcomeEmailHtml({
       clientName,
@@ -321,7 +341,7 @@ Deno.serve(async (req) => {
       pmEmail,
       pmPhone,
       projectTitle,
-      propertyAddress,
+      propertyAddress: bodyPropertyAddress,
       pisLink,
       companyEmail,
       companyPhone,
