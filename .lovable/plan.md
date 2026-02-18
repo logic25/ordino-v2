@@ -1,49 +1,52 @@
 
-# Fix Proposal Contact Search Flow
+## Fix: Blank Page When Creating New Company From Proposal Wizard
 
-## Problem
-The contact card has two issues:
-1. The company search field ("Search company...") does not reliably show a dropdown when typing -- the contact search query may fail or return no results, and company matches require an exact client list match.
-2. The contact name field (row 2) is a plain text input unless a company is already selected. There's no dropdown to pick from existing contacts without first choosing a company.
+### Problem Identified
 
-The desired flow is: **Company first, then Contact** -- which is already the intended design but the dropdown isn't appearing reliably.
+When clicking "Create Company" from the slide-out dialog in the proposal wizard, the app crashes to a blank page. Through sandbox testing, I found the root cause:
 
-## Root Causes
-- The `CompanyCombobox` dropdown only opens when `search.length > 0 || clients.length > 0`, but the `clients` array passed in may be empty or the search text doesn't match any company names.
-- The contact query in the combobox searches `client_contacts` by `name` and `email` but not by `company_name`, so typing a company name won't surface contacts either.
-- When no company is selected (`client_id` is null), the contact name row renders as a plain `Input` with no dropdown at all.
+1. The `useCreateClient` hook queries the `profiles` table for `company_id` using `.single()` 
+2. This query returns a **406 error** (meaning `.single()` got zero or multiple rows)
+3. This throws "No company found for user" -- an **unhandled promise rejection**
+4. Since there's no error boundary, React's entire tree unmounts, resulting in a blank page
 
-## Plan
+### Fix Plan
 
-### 1. Fix CompanyCombobox dropdown visibility
-- Show the dropdown immediately on focus even with empty search (show all companies up to a limit)
-- Add `company_name` to the contact search `.or()` filter so typing a company name surfaces its contacts too
-- Ensure the dropdown appears reliably by removing the `search.length > 0` gate (just require `open` state)
+**1. Fix the profiles query in `useCreateClient` (src/hooks/useClients.ts)**
+- Change `.single()` to `.maybeSingle()` to avoid the 406 crash when the query returns no results
+- Add the user's auth ID filter (`eq("id", user.id)`) so the query targets the correct profile row
+- This is the same pattern used elsewhere in the codebase
 
-### 2. Make Contact Picker always a dropdown
-- Even when no company is selected, the contact name field should be a searchable dropdown that queries all `client_contacts` matching the typed text
-- When a contact is picked from this global search, auto-fill the company field from the contact's `client_id` / `company_name`
-- This gives users two entry points: start from company OR start from contact name -- either way the full record gets populated
+**2. Add error handling to the `onSubmit` in ProposalContactsSection (src/components/proposals/ProposalContactsSection.tsx)**
+- Wrap the `onAddClient` call in a try/catch so that if the mutation fails, it shows a toast error instead of crashing the whole page
+- Same for the `onContactCreated` flow
 
-### 3. Improve search relevance
-- Prioritize company name matches in the dropdown ordering (companies section first, then individual contacts)
-- Show company name alongside each contact result for disambiguation
+**3. Add error handling in ProposalDialog's onAddClient callback (src/components/proposals/ProposalDialog.tsx)**
+- Wrap `createClient.mutateAsync` in try/catch with a toast notification on failure
 
----
+### Technical Details
 
-## Technical Details
+**File: `src/hooks/useClients.ts` (lines 88-97)**
+```typescript
+// Before (broken):
+const { data: profile } = await supabase
+  .from("profiles")
+  .select("company_id")
+  .single();  // crashes with 406 if 0 or 2+ rows
 
-### File: `src/components/proposals/ProposalContactsSection.tsx`
+// After (fixed):
+const { data: { user } } = await supabase.auth.getUser();
+const { data: profile } = await supabase
+  .from("profiles")
+  .select("company_id")
+  .eq("id", user?.id)
+  .maybeSingle();
+```
 
-**CompanyCombobox changes:**
-- Remove `search.length > 0` condition from dropdown visibility -- show on focus always
-- Update the Supabase query on line ~100 to include `company_name` in the `.or()` filter: `name.ilike.%${q}%,email.ilike.%${q}%,company_name.ilike.%${q}%`
-- Show all companies (up to 8) when search is empty on focus
+**File: `src/components/proposals/ProposalContactsSection.tsx` (renderDialogs)**
+- Add try/catch around `onAddClient(data)` call with toast error fallback
 
-**SortableContactCard changes (around line 430-460):**
-- Replace the plain `Input` fallback (when no `client_id`) with a `ContactPicker`-like component that searches all contacts globally
-- When a contact is selected from this global search, set `client_id`, `company_name`, `name`, `email`, and `phone` on the card simultaneously
+**File: `src/components/proposals/ProposalDialog.tsx` (onAddClient callback)**
+- Add try/catch around `createClient.mutateAsync(data)` with toast error fallback
 
-**ContactPicker changes (line 207+):**
-- Make it work without a `clientId` prop -- when `clientId` is empty, search all contacts globally instead of filtering by client
-- Always show the chevron dropdown indicator
+This is a 3-file fix that addresses both the root cause (bad query) and adds safety nets (error handling) so even if future errors occur, the user sees a toast message instead of a blank page.
