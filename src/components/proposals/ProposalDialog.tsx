@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -32,7 +32,10 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Check, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft, ChevronRightIcon } from "lucide-react";
+import { Check, ChevronsUpDown, ChevronDown, ChevronRight, ChevronLeft, ChevronRightIcon, GripVertical } from "lucide-react";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -136,11 +139,12 @@ const STEPS = [
 
 /* ─── Service Line Item ─── */
 function ServiceLineItem({
-  index, form, lineTotal, serviceCatalog, formatCurrency, canRemove, onRemove, autoFocus,
+  index, form, lineTotal, serviceCatalog, formatCurrency, canRemove, onRemove, autoFocus, sortableId,
 }: {
   index: number; form: any; lineTotal: number; serviceCatalog: ServiceCatalogItem[];
-  formatCurrency: (v: number) => string; canRemove: boolean; onRemove: () => void; autoFocus?: boolean;
+  formatCurrency: (v: number) => string; canRemove: boolean; onRemove: () => void; autoFocus?: boolean; sortableId: string;
 }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sortableId });
   // Auto-expand if service has discipline pricing (one less click)
   const hasDisciplines = Number(form.watch(`items.${index}.discipline_fee`)) > 0 || 
     serviceCatalog.find(s => s.name === (form.watch(`items.${index}.name`) || ""))?.has_discipline_pricing;
@@ -197,9 +201,19 @@ function ServiceLineItem({
     setShowSuggestions(false);
   };
 
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : undefined,
+  };
+
   return (
-    <div className={cn("border-b last:border-b-0 transition-colors", expanded && "bg-muted/20", isOptional && "opacity-70 border-l-2 border-l-muted-foreground/30")}>
-      <div className="grid grid-cols-[auto_1fr_80px_70px_90px_80px_auto] items-center gap-1 px-3 py-2 min-h-[44px]">
+    <div ref={setNodeRef} style={style} className={cn("border-b last:border-b-0 transition-colors", expanded && "bg-muted/20", isOptional && "opacity-70 border-l-2 border-l-muted-foreground/30", isDragging && "shadow-lg")}>
+      <div className="grid grid-cols-[auto_auto_1fr_80px_70px_90px_80px_auto] items-center gap-1 px-3 py-2 min-h-[44px]">
+        <button type="button" {...attributes} {...listeners} className="p-1 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none">
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
         <button type="button" className="p-1 rounded hover:bg-muted transition-colors" onClick={() => setExpanded(!expanded)}>
           {expanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
         </button>
@@ -622,9 +636,23 @@ export function ProposalDialog({
     },
   });
 
-  const { fields: itemFields, append: appendItem, remove: removeItem } = useFieldArray({
+  const { fields: itemFields, append: appendItem, remove: removeItem, move: moveItem } = useFieldArray({
     control: form.control, name: "items",
   });
+
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor),
+  );
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = itemFields.findIndex((f) => f.id === active.id);
+      const newIndex = itemFields.findIndex((f) => f.id === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) moveItem(oldIndex, newIndex);
+    }
+  }, [itemFields, moveItem]);
 
   // Reset form when dialog opens for a new proposal
   useEffect(() => {
@@ -1050,7 +1078,8 @@ export function ProposalDialog({
             {/* ═══ STEP 3: SERVICES ═══ */}
             {step === 2 && (
               <div className="flex flex-col min-h-0">
-                <div className="grid grid-cols-[auto_1fr_80px_70px_90px_80px_auto] items-center gap-1 px-3 py-2 bg-muted/50 border-b text-xs font-medium text-muted-foreground uppercase tracking-wider shrink-0">
+                <div className="grid grid-cols-[auto_auto_1fr_80px_70px_90px_80px_auto] items-center gap-1 px-3 py-2 bg-muted/50 border-b text-xs font-medium text-muted-foreground uppercase tracking-wider shrink-0">
+                  <div className="w-7" />
                   <div className="w-7" />
                   <div className="px-2">Service</div>
                   <div>Type</div>
@@ -1060,19 +1089,23 @@ export function ProposalDialog({
                   <div className="w-7" />
                 </div>
                 <div className="overflow-visible flex-1">
-                  <div className="border rounded-b-lg mx-4 mb-3">
-                    {itemFields.map((field, index) => {
-                      const lineTotal = calculateLineTotal(watchedItems[index] || {});
-                      return (
-                        <ServiceLineItem
-                          key={field.id} index={index} form={form} lineTotal={lineTotal}
-                          serviceCatalog={serviceCatalog} formatCurrency={formatCurrency}
-                          canRemove={itemFields.length > 1} onRemove={() => removeItem(index)}
-                          autoFocus={lastAddedIndex === index}
-                        />
-                      );
-                    })}
-                  </div>
+                  <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <SortableContext items={itemFields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
+                      <div className="border rounded-b-lg mx-4 mb-3">
+                        {itemFields.map((field, index) => {
+                          const lineTotal = calculateLineTotal(watchedItems[index] || {});
+                          return (
+                            <ServiceLineItem
+                              key={field.id} sortableId={field.id} index={index} form={form} lineTotal={lineTotal}
+                              serviceCatalog={serviceCatalog} formatCurrency={formatCurrency}
+                              canRemove={itemFields.length > 1} onRemove={() => removeItem(index)}
+                              autoFocus={lastAddedIndex === index}
+                            />
+                          );
+                        })}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
                 </div>
               </div>
             )}
