@@ -1,3 +1,4 @@
+// Client proposal page - public facing
 import { useRef, useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
