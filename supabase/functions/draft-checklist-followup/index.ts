@@ -11,7 +11,7 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
 
   try {
-    const { items, projectName, propertyAddress, ownerName, contactEmail } =
+    const { items, completedItems, projectName, propertyAddress, ownerName, contactEmail, firmName } =
       await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -30,12 +30,23 @@ serve(async (req) => {
         `${idx + 1}. "${i.label}" — waiting on: ${i.from_whom || "unknown"}, ${i.daysWaiting} days outstanding (category: ${i.category})`
     ).join("\n");
 
-    const systemPrompt = `You are a professional project coordinator at an architecture/engineering firm that handles NYC Department of Buildings filings.
+    // Build completed items list
+    const completedLines = (completedItems && completedItems.length > 0)
+      ? completedItems.map(
+          (i: any, idx: number) =>
+            `${idx + 1}. "${i.label}" — received ${i.completedAt || "recently"}`
+        ).join("\n")
+      : "None yet";
+
+    const firm = firmName || "our firm";
+
+    const systemPrompt = `You are a professional project coordinator at ${firm}, an architecture/engineering firm that handles NYC Department of Buildings filings.
 Write a polite but firm follow-up email requesting the outstanding items listed below.
 The email should:
 - Open with a professional greeting using the recipient's name if available
 - Reference the project name and property address
-- List each outstanding item clearly with how long it's been waiting
+- Briefly acknowledge items already received to show progress
+- List each outstanding item clearly with how long it has been waiting
 - Explain that these items are blocking the filing/project progress
 - Close with a clear call-to-action and timeline (request response within 3 business days)
 - Keep the tone professional but warm — these are valued clients
@@ -44,10 +55,14 @@ The email should:
 
     const userPrompt = `Draft a follow-up email for these outstanding checklist items:
 
+Firm: ${firm}
 Project: ${projectName || "Untitled Project"}
 Property: ${propertyAddress || "N/A"}
 Recipient: ${ownerName || "the responsible party"}
 Contact email: ${contactEmail || "N/A"}
+
+Already received:
+${completedLines}
 
 Outstanding items:
 ${itemLines}`;
