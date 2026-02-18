@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, RotateCcw, CheckCircle2, PenLine, CreditCard, Building2, FileText, ArrowRight, Mail, Clock, Shield, ChevronRight } from "lucide-react";
+import { Loader2, RotateCcw, CheckCircle2, PenLine, CreditCard, Building2, FileText, ArrowRight, Mail, Clock, Shield, ChevronRight, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function ClientProposalPage() {
@@ -897,9 +897,17 @@ export default function ClientProposalPage() {
           </div>
         </div>
 
-        {/* Back to Next Steps button when viewing contract after signing */}
-        {alreadySigned && (
-          <div className="text-center mt-4">
+        {/* Download & Back buttons */}
+        <div className="flex items-center justify-center gap-3 mt-4">
+          <Button
+            variant="outline"
+            onClick={() => window.print()}
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Download PDF
+          </Button>
+          {alreadySigned && (
             <Button
               variant="outline"
               onClick={() => setViewMode("next-steps")}
@@ -908,8 +916,8 @@ export default function ClientProposalPage() {
               <ArrowRight className="h-4 w-4 rotate-180" />
               Back to Next Steps
             </Button>
-          </div>
-        )}
+          )}
+        </div>
           </>
         )}
 

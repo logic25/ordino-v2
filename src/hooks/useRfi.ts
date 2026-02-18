@@ -85,8 +85,9 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
     description: "Licensed professional and building owner details",
     fields: [
       { id: "applicant_heading", label: "Applicant (Architect / Engineer)", type: "heading", repeatableGroup: true, maxRepeatGroup: 5 },
-      { id: "applicant_name", label: "Full Name", type: "text", required: true, width: "half" },
-      { id: "applicant_business_name", label: "Business Name", type: "text", width: "half" },
+      { id: "applicant_first_name", label: "First Name", type: "text", required: true, width: "half" },
+      { id: "applicant_last_name", label: "Last Name", type: "text", width: "half" },
+      { id: "applicant_business_name", label: "Business Name", type: "text", width: "full" },
       { id: "applicant_business_address", label: "Business Address", type: "text", width: "full" },
       { id: "applicant_phone", label: "Phone", type: "phone", width: "half" },
       { id: "applicant_email", label: "Email", type: "email", width: "half" },
@@ -285,13 +286,13 @@ export function useRfiByToken(token: string | null) {
       if (!token) return null;
       const { data, error } = await supabase
         .from("rfi_requests" as any)
-        .select("*, properties(*), projects(building_owner_name, client_id, clients!projects_client_id_fkey(name), gc_company_name, gc_contact_name, gc_phone, gc_email, architect_company_name, architect_contact_name, architect_phone, architect_email, architect_license_type, architect_license_number, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email), proposals(architect_name, architect_company, architect_phone, architect_email, architect_license_type, architect_license_number, gc_name, gc_company, gc_phone, gc_email, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email)")
+        .select("*, properties(*, owner_name), projects(building_owner_name, client_id, clients!projects_client_id_fkey(name), gc_company_name, gc_contact_name, gc_phone, gc_email, architect_company_name, architect_contact_name, architect_phone, architect_email, architect_license_type, architect_license_number, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email), proposals(architect_name, architect_company, architect_phone, architect_email, architect_license_type, architect_license_number, gc_name, gc_company, gc_phone, gc_email, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email)")
         .eq("access_token", token)
         .maybeSingle();
       if (error) throw error;
       if (!data) return null;
       const { properties, projects, proposals, ...rfi } = data as any;
-      const ownerName = projects?.building_owner_name || projects?.clients?.name || null;
+      const ownerName = projects?.building_owner_name || properties?.owner_name || projects?.clients?.name || null;
 
       // Merge party info: project fields take priority, then proposal fields as fallback
       const prop = proposals || {};
