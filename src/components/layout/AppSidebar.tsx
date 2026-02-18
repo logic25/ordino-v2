@@ -81,22 +81,25 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
       )}
     >
       {/* Logo + Collapse Toggle */}
-      <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center">
-            <span className="text-sidebar-primary-foreground font-bold text-sm">O</span>
-          </div>
-          {!collapsed && (
+      <div className={cn(
+        "flex items-center h-16 border-b border-sidebar-border",
+        collapsed ? "justify-center gap-0 px-2" : "justify-between px-4"
+      )}>
+        {!collapsed && (
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center">
+              <span className="text-sidebar-primary-foreground font-bold text-sm">O</span>
+            </div>
             <span className="text-sidebar-foreground font-semibold text-lg tracking-tight">
               Ordino
             </span>
-          )}
-        </div>
+          </div>
+        )}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors p-1 rounded-md hover:bg-sidebar-accent"
+          className="text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors p-1.5 rounded-md hover:bg-sidebar-accent"
         >
-          {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          {collapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-4 w-4" />}
         </button>
       </div>
 
