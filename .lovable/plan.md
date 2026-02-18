@@ -1,81 +1,65 @@
 
-# Dashboard Overhaul + Sidebar Fix + Legacy Proposal Insights
+# Admin Dashboard Enhancement + Additional Reports
 
-## Problems to Fix
+## 1. Admin Dashboard -- Revenue Trend Fix and New Widgets
 
-1. **Sidebar collapse button disappears** when collapsed -- the 16px width makes header content overflow/hidden
-2. **Dashboard is generic** -- PMs see the same "Recent Projects" list as everyone else with no actionable guidance
-3. **Reports Proposal tab is too basic** compared to the legacy system's rich conversion table, source charts, and yearly comparisons
-4. **No way to preview other role dashboards** for testing/development
+### Revenue Trend Chart -- Make it Bigger and Better
+- Increase chart height from 280px to 360px so it fills the card properly
+- Give it the full width of the row (remove the sidebar column with ProposalFollowUps/TeamOverview from being side-by-side with it)
+- Restructure the layout: Revenue Trend takes full width as its own row, then below it a 3-column grid with ProposalFollowUps, Year-over-Year Comparison, and Activity Summary
 
----
+### Year-over-Year Comparison Chart (new)
+- A line or grouped bar chart comparing the current period's revenue against the same period last year
+- Uses the same invoice data, just sliced into two ranges: current year vs. previous year
+- Monthly bars side-by-side labeled "2025" and "2026" (or whichever years apply)
+- Placed in the second row alongside the other cards
 
-## 1. Sidebar Collapse Button Fix
+### Proposal Activity Card (new)
+- A compact card showing:
+  - Number of proposals created this month vs. last month
+  - Arrow up/down indicator with percentage change
+  - Total value of proposals this month vs. last month
+  - Simple "Proposals are up 23% this month" or "down 12%" message
+- Uses proposals table, comparing `created_at` month ranges
 
-When the sidebar collapses to `w-16`, the header row with logo + toggle still needs to be usable. The fix:
-- Keep the collapse/expand button visible and centered when collapsed (hide the "Ordino" text, keep the O logo and toggle stacked or side-by-side in the 64px width)
-- Ensure `w-16` (64px) gives enough room for the logo icon + toggle button
-- The current code already hides the text when collapsed, but the `justify-between` layout might push the toggle off-screen; switching to `justify-center` with a `gap` when collapsed fixes this
+### Layout Restructure
+```text
+Row 1: [KPI] [KPI] [KPI] [KPI]
+Row 2: [Revenue Trend -- full width, taller chart with period selector]
+Row 3: [YoY Comparison] [Proposal Activity Card] [Proposal Follow-Ups]
+Row 4: [Team Overview]
+```
 
-**File**: `src/components/layout/AppSidebar.tsx`
+## 2. Additional Reports (New Tabs and Enhancements)
 
----
+### Referrals Tab (new report tab)
+- **Top Referrers Table**: Rows for each unique `referred_by` value from proposals showing: referrer name, number of proposals, number converted, conversion rate, total value referred, converted value
+- **Referral Source Breakdown**: Pie chart by `lead_source` field
+- **Year filter** to scope data
+- Hook: `useReferralReports` querying proposals grouped by `referred_by` and `lead_source`
 
-## 2. Role-Based Dashboard Redesign
+### Data Exports Tab (new report tab)
+- Grid of export cards: Projects, Clients, Invoices, Proposals, Time Entries, Contacts
+- Each card has a "Download CSV" button that fetches data and generates a CSV file client-side
+- Summary stats at the top: total projects, total invoices value, total collected
 
-### PM Dashboard -- "My Day" Focus
-Replace the generic "Recent Projects" with actionable sections:
-- **Today's Priority Tasks**: Projects with upcoming deadlines, checklist items needing action, pending follow-ups -- grouped as "Today", "This Week", "Overdue"
-- **Status Changes**: Recent project status transitions (e.g., "Application approved", "Objection received") from project activity
-- **My Active Projects** (compact): Small cards showing project name, next milestone, and days since last activity
-- **Quick Time Log**: Keep existing but make it functional (actually logs time)
-- **Proposal Follow-Ups**: Keep existing, it's already useful
+### Enhancements to Existing Reports
 
-### Admin Dashboard -- Company Overview + PM Toggle
-- **Top section**: Key company KPIs (revenue, active projects, team utilization, overdue invoices) as stat cards
-- **Toggle button**: "My View" / "Company View" switch -- clicking "My View" shows the PM dashboard
-- **Company View**: Revenue trend mini-chart, team workload distribution, proposal pipeline value, overdue aging summary
-- **Recent Activity Feed**: Latest changes across the company (new proposals, status changes, invoices paid)
+**Projects Tab -- add:**
+- Projects created per month trend (bar chart, last 12 months)
+- Average project duration (from created to closed)
 
-### Accounting Dashboard -- Billing Focus
-- **Revenue KPIs**: Monthly revenue, collection rate, outstanding balance, avg days to pay
-- **Aging Summary**: Visual bar showing 0-30, 31-60, 61-90, 90+ day buckets with dollar amounts
-- **Unbilled Projects**: List of projects with unbilled hours, sorted by amount
-- **Recent Payments**: Latest invoices paid with amounts
+**Billing Tab -- add:**
+- Revenue collected vs. billed comparison (already exists but ensure it uses correct columns)
+- Top 10 clients by outstanding balance (horizontal bar)
 
-### Manager Dashboard
-- **Team Performance**: Hours logged per team member this week, project counts
-- **Project Health**: Projects at risk (overdue, stalled checklist)
-- **Proposal Pipeline**: Value of pending proposals
+**Time Tab -- add:**
+- Weekly hours trend chart (last 8 weeks)
+- Billable vs. non-billable split as a donut chart
 
-### Role Preview (Dev/Testing)
-- Add a small dropdown in the dashboard header (only visible to admin role) that lets you preview other role dashboards: "Viewing as: Admin / PM / Accounting / Manager"
-
----
-
-## 3. Enhance Proposal Reports (Legacy Parity)
-
-From the legacy system screenshot, add to the Proposals tab in Reports:
-
-### Conversion Rates Table (new)
-- Monthly rows showing: Proposals Count, Converted Count, Conversion Rate, Converted Value, Change Orders value, Converted Total, Proposals Total Value
-- Filters: User (sales person), Year, Month
-- Totals row at bottom
-- Data source: `proposals` table with `created_at`, `status`, `total_amount`, `sales_person_id`
-
-### Proposal Sources Pie Chart (new)
-- Pie chart breaking down proposals by `lead_source` (Referral, Architect, Repeat Client, Website, etc.)
-- Year filter
-
-### Yearly Comparison Bar Chart (new)
-- Multi-year overlay bar chart showing monthly proposal values
-- Selectable years (e.g., 2024, 2025, 2026)
-- X-axis: months, Y-axis: dollar value
-
-### Proposal Statuses Pie Chart (enhance existing)
-- Already exists but enhance with year filter and cleaner labels
-
----
+**Operations Tab -- add:**
+- Project completion rate trend (monthly)
+- Stalled projects list (no activity in 30+ days)
 
 ## Technical Details
 
@@ -83,30 +67,28 @@ From the legacy system screenshot, add to the Proposals tab in Reports:
 
 | File | Changes |
 |------|---------|
-| `src/components/layout/AppSidebar.tsx` | Fix collapse button layout for `w-16` state |
-| `src/pages/Dashboard.tsx` | Full rewrite with role-based views and admin toggle |
-| `src/components/dashboard/DashboardStats.tsx` | Update stat cards per role with more relevant metrics |
-| `src/components/dashboard/RecentProjects.tsx` | Make compact variant for PM view |
-| `src/components/reports/ProposalReports.tsx` | Add conversion table, source chart, yearly comparison |
-| `src/hooks/useReports.ts` | Extend `useProposalReports` with monthly breakdown, lead source data, yearly data |
-| `src/hooks/useDashboard.ts` | Add queries for PM tasks, status changes, unbilled projects |
+| `src/components/dashboard/AdminCompanyView.tsx` | Restructure layout: full-width revenue trend, add YoY chart and proposal activity card |
+| `src/hooks/useDashboardData.ts` | Add `useYearOverYearRevenue` and `useProposalActivity` hooks |
+| `src/pages/Reports.tsx` | Add "Referrals" and "Exports" tabs |
+| `src/hooks/useReports.ts` | Add `useReferralReports` hook |
+| `src/components/reports/ProjectReports.tsx` | Add monthly creation trend and avg duration |
+| `src/components/reports/BillingReports.tsx` | Add top clients by outstanding |
+| `src/components/reports/TimeReports.tsx` | Add weekly trend and billable donut |
+| `src/components/reports/OperationsReports.tsx` | Add completion rate trend and stalled projects |
 
 ### New Files
 
 | File | Purpose |
 |------|---------|
-| `src/components/dashboard/PMDailyView.tsx` | PM-specific dashboard with tasks/priorities/status changes |
-| `src/components/dashboard/AdminCompanyView.tsx` | Admin company-wide metrics with mini-charts |
-| `src/components/dashboard/AccountingView.tsx` | Accounting-focused billing dashboard |
-| `src/components/dashboard/ManagerView.tsx` | Manager team performance view |
-| `src/components/dashboard/RolePreviewSelector.tsx` | Admin-only dropdown to preview other role dashboards |
-| `src/components/dashboard/RecentActivityFeed.tsx` | Company-wide activity feed for admin view |
-| `src/components/dashboard/AgingSummaryChart.tsx` | Visual aging buckets for accounting view |
+| `src/components/dashboard/ProposalActivityCard.tsx` | Month-over-month proposal activity with up/down indicator |
+| `src/components/dashboard/YearOverYearChart.tsx` | Side-by-side yearly revenue comparison |
+| `src/components/reports/ReferralReports.tsx` | Referral analytics with top referrers table and source pie chart |
+| `src/components/reports/DataExports.tsx` | CSV export cards for all major data tables |
 
 ### Implementation Order
-1. Fix sidebar collapse button (quick fix)
-2. Build PM Daily View component (most impactful)
-3. Build Admin Company View with role toggle
-4. Build Accounting and Manager views
-5. Add role preview selector
-6. Enhance Proposal Reports with legacy parity features
+1. Restructure AdminCompanyView layout (full-width revenue trend, taller chart)
+2. Build YearOverYearChart and ProposalActivityCard components with hooks
+3. Create ReferralReports component and hook
+4. Create DataExports component
+5. Enhance existing report tabs (Projects, Billing, Time, Operations)
+6. Add new tabs to Reports page
