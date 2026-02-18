@@ -347,8 +347,6 @@ Deno.serve(async (req) => {
       companyPhone,
     });
 
-    const subject = `Welcome to ${companyName} — ${projectTitle}`;
-
     const raw = createMimeMessage({
       to: clientEmail,
       from: gmailConnection.email_address,
