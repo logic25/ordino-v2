@@ -202,9 +202,9 @@ export default function Calendar() {
 
   return (
     <AppLayout>
-      <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="p-6 space-y-6 max-w-7xl mx-auto" data-tour="calendar-page">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between" data-tour="calendar-header">
           <div>
             <h1 className="text-2xl font-bold text-foreground tracking-tight">Calendar</h1>
             <p className="text-sm text-muted-foreground">

@@ -144,9 +144,9 @@ export default function Emails() {
 
   return (
     <AppLayout>
-      <div className="flex flex-col h-[calc(100vh-theme(spacing.16))]">
+      <div className="flex flex-col h-[calc(100vh-theme(spacing.16))]" data-tour="email-page">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4" data-tour="email-header">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Email</h1>
             <p className="text-sm text-muted-foreground">
@@ -175,7 +175,7 @@ export default function Emails() {
         </div>
 
         {/* Search */}
-        <div className="flex items-center gap-3 flex-wrap mb-3">
+        <div className="flex items-center gap-3 flex-wrap mb-3" data-tour="email-search">
           <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input

@@ -153,8 +153,8 @@ export default function Projects() {
 
   return (
     <AppLayout>
-      <div className="space-y-6 animate-fade-in">
-        <div className="flex items-center justify-between">
+      <div className="space-y-6 animate-fade-in" data-tour="projects-page">
+        <div className="flex items-center justify-between" data-tour="projects-header">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Projects</h1>
             <p className="text-muted-foreground mt-1">
@@ -174,7 +174,7 @@ export default function Projects() {
           )}
         </div>
 
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-4" data-tour="projects-stats">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Open</CardTitle>

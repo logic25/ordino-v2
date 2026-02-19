@@ -180,9 +180,9 @@ export default function Invoices() {
 
   return (
     <AppLayout>
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-6 animate-fade-in" data-tour="billing-page">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between" data-tour="billing-header">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Billing</h1>
             <p className="text-muted-foreground mt-1">
@@ -211,6 +211,7 @@ export default function Invoices() {
           activeFilter={activeFilter}
           onFilterChange={(f) => setActiveFilter(f)}
           retainerSummary={retainerSummary}
+          data-tour="billing-summary-cards"
         />
 
         {/* Filter Tabs + Search */}
