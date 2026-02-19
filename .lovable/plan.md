@@ -1,151 +1,90 @@
 
 
-# Revised Plan: Notification Settings + Complexity-Weighted PM Capacity
+# Service Duration Analytics
 
-## Key Revisions from Previous Plan
+## What This Adds
 
-**1. Notification Preferences move to Settings page (not Profile)**
-A new "Notifications" section in the Settings page where users configure all notification preferences -- billing digests, email alerts, project updates, etc.
+A new "Service Performance" report tab (or section within the Operations tab) that shows how long each type of service takes from creation to completion, with robust statistics beyond just averages.
 
-**2. PM Billing Goal uses complexity-weighted capacity, not project count**
-A PM with 60 "Pull Permit" projects has very different capacity than a PM with 60 "Alt-1" or "CO" projects. The system will assign a **complexity weight** to each service in the Service Catalog, then calculate a PM's weighted workload to determine their available billing capacity.
+## Why Average Alone Is Not Enough
 
----
+A single average is misleading when outliers exist. If 9 "Pull Permits" take 5 days but one takes 90 days (stalled, waiting on client), the average shows 13.5 days -- not representative. The system should show:
 
-## 1. Notification Settings (New Settings Section)
+- **Median**: The "typical" duration (50th percentile), not skewed by outliers
+- **P75 and P90**: How long the slow cases take -- useful for setting client expectations
+- **Min / Max**: Fastest and slowest instance
+- **Volume**: How many of each service type have been completed (low sample sizes get flagged)
+- **Trend**: Monthly average duration plotted over time to see if the team is getting faster or slower
+- **By PM**: Which PMs complete which services faster (identifies coaching opportunities and best practices)
 
-### What it does
-A new card in the Settings page called "Notifications" where users can configure:
-- **Billing Submissions**: Realtime / Daily Summary / Weekly Summary
-- **Project Updates**: When assigned, when checklist items change
-- **Proposal Activity**: New proposals, status changes
-- **Email Alerts**: New emails, follow-up reminders
-- **System Alerts**: Feature request updates, product news
+## Data Source
 
-Each category has a toggle (on/off) and a frequency selector (Realtime / Daily / Weekly).
+The `services` table already has:
+- `name` (service type, e.g., "ALT-2", "Pull Permit", "CO")
+- `created_at` (when service was added to the project)
+- `completed_date` (when marked complete)
+- `status` (not_started, in_progress, complete, billed, paid)
+- `project_id` (to join to projects for PM assignment)
 
-### How it works
-- Stores preferences in the user's `profiles` row using a `notification_preferences` JSONB column (new)
-- The notification dropdown in the TopBar continues to work as-is; this just controls what generates notifications and how they're batched
-- No changes to ProfileSettings -- notification config lives purely in the new Settings section
+Duration = `completed_date - created_at` in days, filtered to services with status in (complete, billed, paid).
 
-### Files
-- **New**: `src/components/settings/NotificationSettings.tsx` -- The full notification preferences UI
-- **Modified**: `src/pages/Settings.tsx` -- Add "Notifications" card with Bell icon to the settings sections list
-- **Database**: Add `notification_preferences` JSONB column to `profiles`
+## What Gets Built
 
----
+### 1. Service Duration Summary Table
 
-## 2. Complexity-Weighted PM Billing Capacity
+A table with one row per service type showing:
 
-### The Problem
-Counting projects is misleading. A PM with 60 small "Pull Permit" jobs looks overloaded but has far more billing headroom than a PM with 20 "Alt-1" filings that each require extensive coordination.
+| Service Type | Completed | Median Days | Avg Days | P75 | P90 | Fastest | Slowest |
+|---|---|---|---|---|---|---|---|
+| Pull Permit | 45 | 5 | 7.2 | 8 | 14 | 2 | 42 |
+| ALT-2 | 28 | 18 | 22.1 | 28 | 35 | 8 | 60 |
+| CO | 12 | 45 | 52.3 | 62 | 78 | 22 | 95 |
 
-### The Solution
+Services with fewer than 3 completed instances show a "Low sample" badge.
 
-**Step A: Add complexity weight to Service Catalog**
-Each service type in the catalog gets a `complexity_weight` field (numeric, 1-10 scale):
-- Pull Permit = 1
-- TCO Renewal = 2
-- Alt-2 = 3
-- Alt-1 = 5
-- CO = 6
-- Full new building = 8
+### 2. Duration Trend Chart
 
-Admins configure these weights in Settings > Proposals & Services alongside existing service pricing.
+A line chart showing monthly median duration per service type (filterable by service). Shows whether the team is getting faster or slower over the last 12 months.
 
-**Step B: Calculate Weighted Workload per PM**
-For each PM, look at their active projects and the services attached to each project. Sum the complexity weights of all active services. This gives a "Weighted Workload Score."
+### 3. PM Comparison View
 
-**Step C: Smart Billing Target**
-- Define a company-wide "max weighted capacity" per PM (configurable, e.g., 100 points)
-- Calculate: `Utilization % = (PM's weighted workload) / max capacity`
-- Billing target = based on the dollar value of their active services scaled by checklist readiness
-- Example: PM has services worth $50K total, average 60% readiness = ~$30K should be billable
+A grouped bar chart or table showing median duration by PM for each service type. Highlights outliers (PMs significantly above the company median for a service type).
 
-**Step D: Dashboard Display**
-The `BillingGoalTracker` component (on Admin and Manager dashboards) shows per PM:
-- Weighted workload score (e.g., 72/100)
-- Number of projects (for context, but de-emphasized)
-- Service mix breakdown (e.g., "12 Pull Permits, 3 Alt-1s, 2 COs")
-- Billed this month vs. smart target
-- Progress bar with color coding
+### 4. Active Services "Time in Progress"
 
-### Files
-- **Modified**: `src/hooks/useCompanySettings.ts` -- Add `complexity_weight` to `ServiceCatalogItem` interface
-- **Modified**: `src/components/settings/ServiceCatalogSettings.tsx` -- Add complexity weight column to service table
-- **New**: `src/components/dashboard/BillingGoalTracker.tsx` -- PM billing capacity cards
-- **Modified**: `src/hooks/useDashboardData.ts` -- Add `usePMBillingGoals` hook that queries projects, their checklist items, and joins with service catalog weights
-- **Modified**: `src/components/dashboard/AdminCompanyView.tsx` -- Add BillingGoalTracker
-- **Modified**: `src/components/dashboard/ManagerView.tsx` -- Add BillingGoalTracker
-- **Modified**: `src/components/settings/TeamSettings.tsx` -- Add "max weighted capacity" field per team member
-
----
-
-## 3. Remaining Items (Unchanged from Previous Plan)
-
-These items carry forward as-is:
-
-- **Accounting Dashboard**: Submissions-by-PM summary with invoice status tracking
-- **Proposal Reports**: Year multi-select for comparison chart, activity trend lines
-- **Project Reports**: Rename "Application Pipeline" to "DOB Application Status"
-- **Help Desk Page**: `/help` route with How-To Guides, What's New, and Feature Requests tabs
-- **Data Exports Tab**: CSV export cards for all major data tables
-- **Referrals Tab**: Top referrers table and source pie chart
-
----
+For services currently in progress (not yet completed), show how many days they've been open. Flag services exceeding the P75 duration for their type as "at risk of delay."
 
 ## Technical Details
 
-### Database Migration
+### New Hook: `useServiceDurationReports`
 
-```sql
--- Notification preferences on profiles
-ALTER TABLE public.profiles
-ADD COLUMN IF NOT EXISTS notification_preferences jsonb DEFAULT '{}';
+Queries the `services` table for all completed services, joins to `projects` for PM info. Calculates percentiles client-side (data volume should be manageable). Returns:
+- Per-service-type stats (median, avg, P25/P75/P90, min, max, count)
+- Monthly trend data
+- Per-PM breakdown
+- Active services with days-open and risk flags
+
+### Files
+
+| File | Change |
+|------|--------|
+| `src/hooks/useReports.ts` | Add `useServiceDurationReports` hook |
+| `src/components/reports/OperationsReports.tsx` | Add Service Duration section with summary table, trend chart, PM comparison, and at-risk list |
+
+### Percentile Calculation (Client-Side)
+
+```text
+function percentile(sorted: number[], p: number): number {
+  const idx = (p / 100) * (sorted.length - 1);
+  const lower = Math.floor(idx);
+  const frac = idx - lower;
+  return sorted[lower] + frac * ((sorted[lower + 1] ?? sorted[lower]) - sorted[lower]);
+}
 ```
 
-The `feature_requests` table migration from the previous plan also applies.
-
-### New Files
-
-| File | Purpose |
-|------|---------|
-| `src/components/settings/NotificationSettings.tsx` | Notification preference toggles and frequency selectors |
-| `src/components/dashboard/BillingGoalTracker.tsx` | Complexity-weighted PM billing capacity cards |
-| `src/pages/HelpDesk.tsx` | Help desk page |
-| `src/components/helpdesk/HowToGuides.tsx` | Searchable guides |
-| `src/components/helpdesk/WhatsNew.tsx` | Changelog |
-| `src/components/helpdesk/FeatureRequests.tsx` | Feature request form and list |
-| `src/components/reports/ReferralReports.tsx` | Referral analytics |
-| `src/components/reports/DataExports.tsx` | CSV exports |
-
-### Modified Files
-
-| File | Changes |
-|------|---------|
-| `src/pages/Settings.tsx` | Add "Notifications" section |
-| `src/hooks/useCompanySettings.ts` | Add `complexity_weight` to ServiceCatalogItem |
-| `src/components/settings/ServiceCatalogSettings.tsx` | Add complexity weight column |
-| `src/components/settings/TeamSettings.tsx` | Add max weighted capacity field |
-| `src/components/dashboard/AdminCompanyView.tsx` | Add BillingGoalTracker |
-| `src/components/dashboard/ManagerView.tsx` | Add BillingGoalTracker |
-| `src/components/dashboard/AccountingView.tsx` | Submissions-by-PM summary |
-| `src/hooks/useDashboardData.ts` | PM billing goals hook with complexity weighting |
-| `src/pages/Reports.tsx` | Add Referrals and Exports tabs |
-| `src/components/reports/ProposalReports.tsx` | Year selector and trend lines |
-| `src/components/reports/ProjectReports.tsx` | Rename Application Pipeline |
-| `src/App.tsx` | Add `/help` route |
-| `src/components/layout/AppSidebar.tsx` | Add Help nav item |
-
 ### Implementation Order
-1. Database migration (notification_preferences column + feature_requests table)
-2. Notification Settings component + add to Settings page
-3. Add complexity_weight to service catalog interface and settings UI
-4. Build BillingGoalTracker with weighted capacity logic
-5. Accounting dashboard submissions-by-PM
-6. Proposal Reports year selector and trend lines
-7. Project Reports rename
-8. Referral Reports and Data Exports tabs
-9. Help Desk page with all tabs
-10. Sidebar and routing updates
+1. Add `useServiceDurationReports` hook to `useReports.ts`
+2. Build the service duration summary table in OperationsReports
+3. Add the duration trend line chart
+4. Add PM comparison view
+5. Add active services "at risk" section
