@@ -1,212 +1,427 @@
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
-import { AlertTriangle, Clock, Lightbulb, Rocket, CheckCircle2 } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
+  type DragEndEvent, DragOverlay, type DragStartEvent,
+} from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
+  Plus, GripVertical, MoreHorizontal, Pencil, Trash2,
+  AlertTriangle, Clock, Lightbulb, CheckCircle2, Rocket,
+  ArrowRight, Inbox,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
-type RoadmapStatus = "gap" | "planned" | "in_progress" | "done";
-type RoadmapCategory = "billing" | "projects" | "integrations" | "security" | "documents" | "operations";
-
+// Types
 interface RoadmapItem {
+  id: string;
+  company_id: string;
   title: string;
   description: string;
-  category: RoadmapCategory;
-  status: RoadmapStatus;
-  priority: "high" | "medium" | "low";
+  category: string;
+  status: string;
+  priority: string;
+  sort_order: number;
+  feature_request_id: string | null;
+  created_at: string;
 }
 
-const ROADMAP_ITEMS: RoadmapItem[] = [
-  // Known gaps
-  {
-    title: "Mid-Project Change Orders",
-    description: "Allow modifying project scope and services after the project has started. Currently, once a proposal converts to a project, the service list is fixed. This should support adding/removing services, adjusting fees, and tracking the change order history with timestamps and approval records.",
-    category: "projects",
-    status: "gap",
-    priority: "high",
-  },
-  {
-    title: "Per-Service Billing Party Transitions",
-    description: "Support splitting one project's billing among multiple clients. For example, a project may start billing Client A, then transition specific services to Client B mid-stream. Requires tracking which services are billed to which contact/client at any given time.",
-    category: "billing",
-    status: "gap",
-    priority: "high",
-  },
-  {
-    title: "DOB Filing Fee Pass-Through Tracking",
-    description: "Track DOB filing fees that are paid on behalf of clients and need to be passed through on invoices. Currently there's no structured way to log these fees, tie them to specific applications, and ensure they're included in the next billing cycle.",
-    category: "billing",
-    status: "gap",
-    priority: "medium",
-  },
-  {
-    title: "Subcontractor / Vendor Management",
-    description: "Track third-party deliverables and invoices from subcontractors (e.g., expeditors, special inspectors). Include vendor contact info, scope assignments, deliverable tracking, and cost reconciliation against project budgets.",
-    category: "operations",
-    status: "gap",
-    priority: "medium",
-  },
-  // Planned
-  {
-    title: "File Migration to Cloud Storage",
-    description: "Migrate legacy project files to cloud storage with automatic versioning, folder structures per project, and searchable metadata. Replace current ad-hoc file references with a structured document management system.",
-    category: "documents",
-    status: "planned",
-    priority: "high",
-  },
-  {
-    title: "PDF Annotation Tools",
-    description: "Enable in-app annotation of uploaded PDFs — markup, comments, stamps, and redlining. Critical for plan review workflows where PMs need to highlight issues on architectural drawings without leaving the platform.",
-    category: "documents",
-    status: "planned",
-    priority: "medium",
-  },
-  {
-    title: "AI-Powered Project Discovery from Plans",
-    description: "Automatically analyze uploaded architectural plans to extract project scope, identify required services (e.g., Alt-2, CO, Pull Permit), and pre-populate proposal line items. Reduces manual data entry when onboarding new projects.",
-    category: "projects",
-    status: "planned",
-    priority: "medium",
-  },
-  {
-    title: "Google Chat Integration",
-    description: "Send automated notifications and alerts to Google Chat spaces — new proposals, overdue invoices, project status changes. Allows team communication without switching to email for routine updates.",
-    category: "integrations",
-    status: "planned",
-    priority: "low",
-  },
-  {
-    title: "Browser Extension for DOB Form-Filling",
-    description: "A companion browser extension that reads project data from Ordino and auto-fills DOB NOW forms, reducing manual data entry and transcription errors during the filing process.",
-    category: "integrations",
-    status: "planned",
-    priority: "medium",
-  },
-  {
-    title: "Password Guardian Credential Vault",
-    description: "Secure, encrypted storage for shared credentials (DOB accounts, client portals, vendor logins). Role-based access ensures only authorized team members can view or use stored credentials, with full audit logging.",
-    category: "security",
-    status: "planned",
-    priority: "low",
-  },
-  {
-    title: "Project Phase Tracking",
-    description: "Track project lifecycle phases (Pre-filing → Filing → Approval → Closeout) with visual status indicators. Each phase has configurable milestones, and the system surfaces which phase each project is in across all views.",
-    category: "projects",
-    status: "done",
-    priority: "high",
-  },
+type RoadmapStatus = "gap" | "planned" | "in_progress" | "done";
+
+const STATUSES: { key: RoadmapStatus; label: string; icon: React.ElementType; color: string }[] = [
+  { key: "gap", label: "Known Gaps", icon: AlertTriangle, color: "text-destructive" },
+  { key: "planned", label: "Planned", icon: Lightbulb, color: "text-blue-600" },
+  { key: "in_progress", label: "In Progress", icon: Clock, color: "text-amber-600" },
+  { key: "done", label: "Done", icon: CheckCircle2, color: "text-green-600" },
 ];
 
-const STATUS_CONFIG: Record<RoadmapStatus, { label: string; style: string; icon: React.ElementType }> = {
-  gap: { label: "Known Gap", style: "bg-destructive/10 text-destructive border-destructive/30", icon: AlertTriangle },
-  planned: { label: "Planned", style: "bg-blue-500/10 text-blue-700 border-blue-300", icon: Lightbulb },
-  in_progress: { label: "In Progress", style: "bg-amber-500/10 text-amber-700 border-amber-300", icon: Clock },
-  done: { label: "Done", style: "bg-green-500/10 text-green-700 border-green-300", icon: CheckCircle2 },
-};
-
-const CATEGORY_LABELS: Record<RoadmapCategory, string> = {
-  billing: "Billing",
-  projects: "Projects",
-  integrations: "Integrations",
-  security: "Security",
-  documents: "Documents",
-  operations: "Operations",
-};
+const CATEGORIES = ["billing", "projects", "integrations", "security", "documents", "operations", "general"];
+const PRIORITIES = ["high", "medium", "low"];
 
 const PRIORITY_STYLES: Record<string, string> = {
-  high: "bg-destructive/10 text-destructive",
-  medium: "bg-amber-500/10 text-amber-700",
-  low: "bg-muted text-muted-foreground",
+  high: "bg-destructive/10 text-destructive border-destructive/30",
+  medium: "bg-amber-500/10 text-amber-700 border-amber-300",
+  low: "bg-muted text-muted-foreground border-border",
 };
 
+// Hook
+function useRoadmapItems() {
+  const { session } = useAuth();
+  return useQuery({
+    queryKey: ["roadmap-items", session?.user?.id],
+    enabled: !!session?.user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("roadmap_items")
+        .select("*")
+        .order("sort_order", { ascending: true });
+      if (error) throw error;
+      return (data || []) as unknown as RoadmapItem[];
+    },
+  });
+}
+
+function useFeatureRequestsForPromotion() {
+  const { session } = useAuth();
+  return useQuery({
+    queryKey: ["feature-requests-for-roadmap", session?.user?.id],
+    enabled: !!session?.user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("feature_requests")
+        .select("id, title, description, category, priority")
+        .order("upvotes", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+}
+
+// Sortable Card
+function SortableRoadmapCard({
+  item, onEdit, onDelete, onStatusChange,
+}: {
+  item: RoadmapItem;
+  onEdit: (item: RoadmapItem) => void;
+  onDelete: (id: string) => void;
+  onStatusChange: (id: string, status: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <Card className="group">
+        <CardContent className="p-3 space-y-1.5">
+          <div className="flex items-start gap-1.5">
+            <button {...listeners} className="mt-0.5 cursor-grab text-muted-foreground hover:text-foreground shrink-0">
+              <GripVertical className="h-3.5 w-3.5" />
+            </button>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground leading-tight">{item.title}</p>
+              {item.description && (
+                <p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">{item.description}</p>
+              )}
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100">
+                  <MoreHorizontal className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onEdit(item)}>
+                  <Pencil className="h-3.5 w-3.5 mr-2" /> Edit
+                </DropdownMenuItem>
+                {STATUSES.filter((s) => s.key !== item.status).map((s) => (
+                  <DropdownMenuItem key={s.key} onClick={() => onStatusChange(item.id, s.key)}>
+                    <ArrowRight className="h-3.5 w-3.5 mr-2" /> Move to {s.label}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuItem className="text-destructive" onClick={() => onDelete(item.id)}>
+                  <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 capitalize">{item.category}</Badge>
+            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${PRIORITY_STYLES[item.priority] || ""}`}>
+              {item.priority}
+            </Badge>
+            {item.feature_request_id && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-primary/5 text-primary border-primary/20">
+                From request
+              </Badge>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Main Component
 export function ProductRoadmap() {
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterCategory, setFilterCategory] = useState<string>("all");
+  const { data: items = [], isLoading } = useRoadmapItems();
+  const { data: featureRequests = [] } = useFeatureRequestsForPromotion();
+  const { session, profile } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const filtered = ROADMAP_ITEMS.filter((item) => {
-    if (filterStatus !== "all" && item.status !== filterStatus) return false;
-    if (filterCategory !== "all" && item.category !== filterCategory) return false;
-    return true;
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<RoadmapItem | null>(null);
+  const [promoteOpen, setPromoteOpen] = useState(false);
+  const [form, setForm] = useState({ title: "", description: "", category: "general", status: "gap", priority: "medium" });
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  const companyId = (profile as any)?.company_id;
+
+  // Already-promoted feature request IDs
+  const promotedIds = new Set(items.filter((i) => i.feature_request_id).map((i) => i.feature_request_id));
+  const unpromotedRequests = featureRequests.filter((r: any) => !promotedIds.has(r.id));
+
+  const createMutation = useMutation({
+    mutationFn: async (data: { title: string; description: string; category: string; status: string; priority: string; feature_request_id?: string }) => {
+      const maxOrder = items.filter((i) => i.status === data.status).reduce((m, i) => Math.max(m, i.sort_order), 0);
+      const { error } = await supabase.from("roadmap_items").insert({
+        company_id: companyId,
+        created_by: (profile as any)?.id,
+        sort_order: maxOrder + 1,
+        ...data,
+      } as any);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["roadmap-items"] });
+      toast({ title: "Roadmap item added" });
+    },
   });
 
-  const statusOrder: RoadmapStatus[] = ["gap", "in_progress", "planned", "done"];
-  const sorted = [...filtered].sort((a, b) => {
-    const si = statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status);
-    if (si !== 0) return si;
-    const pi = ["high", "medium", "low"].indexOf(a.priority) - ["high", "medium", "low"].indexOf(b.priority);
-    return pi;
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, ...data }: { id: string; [key: string]: any }) => {
+      const { error } = await supabase.from("roadmap_items").update(data as any).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["roadmap-items"] });
+    },
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("roadmap_items").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["roadmap-items"] });
+      toast({ title: "Item removed" });
+    },
+  });
+
+  const handleSave = () => {
+    if (!form.title.trim()) return;
+    if (editingItem) {
+      updateMutation.mutate({ id: editingItem.id, ...form });
+    } else {
+      createMutation.mutate(form);
+    }
+    setDialogOpen(false);
+    setEditingItem(null);
+    setForm({ title: "", description: "", category: "general", status: "gap", priority: "medium" });
+  };
+
+  const handleEdit = (item: RoadmapItem) => {
+    setEditingItem(item);
+    setForm({ title: item.title, description: item.description, category: item.category, status: item.status, priority: item.priority });
+    setDialogOpen(true);
+  };
+
+  const handleStatusChange = (id: string, newStatus: string) => {
+    const maxOrder = items.filter((i) => i.status === newStatus).reduce((m, i) => Math.max(m, i.sort_order), 0);
+    updateMutation.mutate({ id, status: newStatus, sort_order: maxOrder + 1 });
+  };
+
+  const handlePromote = (req: any) => {
+    createMutation.mutate({
+      title: req.title,
+      description: req.description || "",
+      category: req.category || "general",
+      status: "planned",
+      priority: req.priority || "medium",
+      feature_request_id: req.id,
+    });
+    setPromoteOpen(false);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    // Find which column both items are in
+    const activeItem = items.find((i) => i.id === active.id);
+    const overItem = items.find((i) => i.id === over.id);
+    if (!activeItem || !overItem || activeItem.status !== overItem.status) return;
+
+    const columnItems = items.filter((i) => i.status === activeItem.status).sort((a, b) => a.sort_order - b.sort_order);
+    const oldIndex = columnItems.findIndex((i) => i.id === active.id);
+    const newIndex = columnItems.findIndex((i) => i.id === over.id);
+    const reordered = arrayMove(columnItems, oldIndex, newIndex);
+
+    // Update sort orders
+    reordered.forEach((item, idx) => {
+      if (item.sort_order !== idx) {
+        updateMutation.mutate({ id: item.id, sort_order: idx });
+      }
+    });
+  };
+
+  if (isLoading) return <div className="text-muted-foreground text-sm py-8 text-center">Loading roadmap...</div>;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <Rocket className="h-5 w-5 text-primary" />
-        <p className="text-sm text-muted-foreground flex-1">
-          Internal product roadmap — tracks known gaps, planned features, and what's in progress.
-        </p>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-[140px] h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="gap">Known Gaps</SelectItem>
-            <SelectItem value="planned">Planned</SelectItem>
-            <SelectItem value="in_progress">In Progress</SelectItem>
-            <SelectItem value="done">Done</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filterCategory} onValueChange={setFilterCategory}>
-          <SelectTrigger className="w-[140px] h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
-              <SelectItem key={key} value={key}>{label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-2">
-        {sorted.map((item, i) => {
-          const statusConf = STATUS_CONFIG[item.status];
-          const StatusIcon = statusConf.icon;
-          return (
-            <Card key={i}>
-              <CardContent className="p-4 space-y-2">
-                <div className="flex items-start gap-2">
-                  <StatusIcon className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <p className="font-medium text-sm text-foreground">{item.title}</p>
-                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${statusConf.style}`}>
-                        {statusConf.label}
-                      </Badge>
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                        {CATEGORY_LABELS[item.category]}
-                      </Badge>
-                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${PRIORITY_STYLES[item.priority]}`}>
-                        {item.priority}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{item.description}</p>
-                  </div>
+      {/* Actions Bar */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Rocket className="h-5 w-5 text-primary" />
+          <p className="text-sm text-muted-foreground">
+            Drag cards to reorder. Use the menu to move between columns.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {unpromotedRequests.length > 0 && (
+            <Dialog open={promoteOpen} onOpenChange={setPromoteOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Inbox className="h-4 w-4 mr-1" /> From Requests ({unpromotedRequests.length})
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-h-[70vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Promote Feature Request to Roadmap</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-2">
+                  {unpromotedRequests.map((req: any) => (
+                    <Card key={req.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handlePromote(req)}>
+                      <CardContent className="p-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">{req.title}</p>
+                            {req.description && <p className="text-xs text-muted-foreground line-clamp-1">{req.description}</p>}
+                          </div>
+                          <Button variant="ghost" size="sm">
+                            <ArrowRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+              </DialogContent>
+            </Dialog>
+          )}
+          <Button size="sm" onClick={() => {
+            setEditingItem(null);
+            setForm({ title: "", description: "", category: "general", status: "gap", priority: "medium" });
+            setDialogOpen(true);
+          }}>
+            <Plus className="h-4 w-4 mr-1" /> Add Item
+          </Button>
+        </div>
       </div>
 
-      {sorted.length === 0 && (
-        <Card>
-          <CardContent className="text-center py-12 text-muted-foreground">
-            No items match the selected filters.
-          </CardContent>
-        </Card>
-      )}
+      {/* Kanban Board */}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          {STATUSES.map((col) => {
+            const StatusIcon = col.icon;
+            const columnItems = items.filter((i) => i.status === col.key).sort((a, b) => a.sort_order - b.sort_order);
+
+            return (
+              <div key={col.key} className="space-y-2">
+                <div className="flex items-center gap-2 px-1">
+                  <StatusIcon className={`h-4 w-4 ${col.color}`} />
+                  <h3 className="text-sm font-semibold text-foreground">{col.label}</h3>
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{columnItems.length}</Badge>
+                </div>
+                <div className="space-y-2 min-h-[100px] p-2 rounded-lg bg-muted/30 border border-dashed border-border">
+                  <SortableContext items={columnItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                    {columnItems.map((item) => (
+                      <SortableRoadmapCard
+                        key={item.id}
+                        item={item}
+                        onEdit={handleEdit}
+                        onDelete={(id) => deleteMutation.mutate(id)}
+                        onStatusChange={handleStatusChange}
+                      />
+                    ))}
+                  </SortableContext>
+                  {columnItems.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-6">No items</p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </DndContext>
+
+      {/* Add/Edit Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingItem ? "Edit Roadmap Item" : "Add Roadmap Item"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Title</Label>
+              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Feature name" />
+            </div>
+            <div>
+              <Label>Description</Label>
+              <Textarea
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                placeholder="Explain what this is and why it matters..."
+                rows={4}
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label>Status</Label>
+                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                  <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {STATUSES.map((s) => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Category</Label>
+                <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                  <SelectTrigger className="h-8 capitalize"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map((c) => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Priority</Label>
+                <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v })}>
+                  <SelectTrigger className="h-8 capitalize"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PRIORITIES.map((p) => <SelectItem key={p} value={p} className="capitalize">{p}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleSave} disabled={!form.title.trim()}>
+              {editingItem ? "Save Changes" : "Add Item"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
