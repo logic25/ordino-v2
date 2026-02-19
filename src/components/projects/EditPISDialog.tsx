@@ -449,11 +449,14 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
                         className="ml-auto gap-1.5 h-7 text-xs"
                         onClick={async () => {
                           try {
+                            const { data: { user } } = await supabase.auth.getUser();
+                            if (!user) throw new Error("Not authenticated");
                             const { data: profile } = await supabase
                               .from("profiles")
                               .select("company_id")
-                              .single();
-                            if (!profile?.company_id) throw new Error("No company found");
+                              .eq("user_id", user.id)
+                              .maybeSingle();
+                            if (!profile?.company_id) throw new Error("No company found. Please complete your profile setup first.");
 
                             const contactName = values[contactNameField!];
                             // Extract related fields from this section
