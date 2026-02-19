@@ -635,7 +635,13 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
   return (
     <>
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card className={outstanding.length > 0 ? "border-amber-300/50 dark:border-amber-700/50" : "border-emerald-300/50 dark:border-emerald-700/50"}>
+      <Card className={
+        outstanding.length > 3
+          ? "border-l-4 border-l-red-500 bg-red-500/5"
+          : outstanding.length > 0
+          ? "border-l-4 border-l-amber-500 bg-amber-500/5"
+          : "border-l-4 border-l-green-500 bg-green-500/5"
+      }>
         <CollapsibleTrigger asChild>
           <CardHeader className="cursor-pointer hover:bg-muted/20 transition-colors py-4">
             <div className="flex items-center justify-between">
