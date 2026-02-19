@@ -261,31 +261,47 @@ export default function OperationsReports() {
         </>
       )}
 
-      {/* ── Active Jobs by PM ── */}
+      {/* ── Services by PM (stacked by service type) ── */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
             <Users className="h-4 w-4" />
-            Active Jobs by PM
+            Services by PM
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {data.teamWorkload.length > 0 ? (
-            <ResponsiveContainer width="100%" height={Math.max(200, data.teamWorkload.length * 40)}>
-              <BarChart data={data.teamWorkload} layout="vertical">
+          {data.servicesByPM && data.servicesByPM.length > 0 ? (
+            <ResponsiveContainer width="100%" height={Math.max(250, data.servicesByPM.length * 45)}>
+              <BarChart data={data.servicesByPM} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
                 <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 11 }} />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="active" name="Active" stackId="a" fill="hsl(var(--primary))" />
-                <Bar dataKey="upcoming" name="Due Soon" stackId="a" fill="hsl(var(--accent))" radius={[0, 4, 4, 0]} />
+                {data.serviceTypes.map((svcType: string, idx: number) => {
+                  const colors = [
+                    "hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--destructive))",
+                    "hsl(var(--muted-foreground))", "hsl(142, 76%, 36%)", "hsl(45, 93%, 47%)",
+                    "hsl(280, 67%, 55%)", "hsl(200, 80%, 50%)", "hsl(340, 70%, 50%)",
+                  ];
+                  const isLast = idx === data.serviceTypes.length - 1;
+                  return (
+                    <Bar
+                      key={svcType}
+                      dataKey={svcType}
+                      name={svcType}
+                      stackId="a"
+                      fill={colors[idx % colors.length]}
+                      radius={isLast ? [0, 4, 4, 0] : undefined}
+                    />
+                  );
+                })}
               </BarChart>
             </ResponsiveContainer>
           ) : (
             <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
               <Users className="h-8 w-8 mb-2 opacity-40" />
-              <p className="text-sm">Jobs will appear here as projects are assigned to PMs</p>
+              <p className="text-sm">Service breakdown will appear as projects with services are assigned to PMs</p>
             </div>
           )}
         </CardContent>
