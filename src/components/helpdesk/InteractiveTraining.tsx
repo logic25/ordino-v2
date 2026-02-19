@@ -26,10 +26,10 @@ export function InteractiveTraining() {
   const navigate = useNavigate();
 
   const handleStart = (wt: typeof WALKTHROUGHS[0]) => {
-    // Navigate to dashboard first so sidebar targets are visible
+    // Navigate to dashboard first so sidebar/dashboard targets are visible
     navigate("/dashboard");
-    // Small delay to let page render
-    setTimeout(() => startWalkthrough(wt), 400);
+    // Delay to let page render, then WalkthroughProvider will retry finding elements
+    setTimeout(() => startWalkthrough(wt), 600);
   };
 
   return (
