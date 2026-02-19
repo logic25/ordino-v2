@@ -15,7 +15,7 @@ export const WALKTHROUGHS: Walkthrough[] = [
         target: '[data-tour="dashboard"]',
         title: "Your Dashboard",
         content: "The dashboard shows role-specific views. PMs see their daily tasks, Admins see company-wide KPIs, and Accounting sees billing summaries.",
-        placement: "bottom",
+        placement: "top",
       },
       {
         target: '[data-tour="topbar-search"]',
