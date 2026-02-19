@@ -190,10 +190,11 @@ export function useOperationsReports() {
     queryKey: ["reports-operations", session?.user?.id],
     enabled: !!session?.user?.id,
     queryFn: async () => {
-      const { data: projects } = await supabase.from("projects").select("id, client_id, assigned_to, status, due_date");
+      const { data: projects } = await supabase.from("projects").select("id, client_id, assigned_pm_id, status, completion_date");
       const { data: clients } = await supabase.from("clients").select("id, name");
       const { data: invoices } = await supabase.from("invoices").select("id, client_id, total_due, payment_amount, status");
       const { data: profiles } = await supabase.from("profiles").select("id, display_name");
+      const { data: services } = await supabase.from("services").select("id, name, project_id, status");
 
       // Client activity
       const clientMap: Record<string, { name: string; projects: number; revenue: number }> = {};
@@ -218,16 +219,47 @@ export function useOperationsReports() {
       });
       const now = new Date();
       (projects || []).forEach((p: any) => {
-        if (p.assigned_to && teamMap[p.assigned_to]) {
-          if (p.status === "active") teamMap[p.assigned_to].active++;
-          if (p.due_date && differenceInDays(new Date(p.due_date), now) <= 14 && differenceInDays(new Date(p.due_date), now) >= 0) {
-            teamMap[p.assigned_to].upcoming++;
+        if (p.assigned_pm_id && teamMap[p.assigned_pm_id]) {
+          if (p.status === "active") teamMap[p.assigned_pm_id].active++;
+          if (p.completion_date && differenceInDays(new Date(p.completion_date), now) <= 14 && differenceInDays(new Date(p.completion_date), now) >= 0) {
+            teamMap[p.assigned_pm_id].upcoming++;
           }
         }
       });
       const teamWorkload = Object.values(teamMap).filter((t) => t.active > 0).sort((a, b) => b.active - a.active);
 
-      return { clientActivity, teamWorkload };
+      // Services by PM — build a map of project_id → assigned_pm_id
+      const projectPmMap: Record<string, string> = {};
+      (projects || []).forEach((p: any) => {
+        if (p.assigned_pm_id) projectPmMap[p.id] = p.assigned_pm_id;
+      });
+
+      const profileMap: Record<string, string> = {};
+      (profiles || []).forEach((p: any) => { profileMap[p.id] = p.display_name || "Unknown"; });
+
+      // Collect all service types for chart keys
+      const allServiceTypes = new Set<string>();
+      const pmServiceMap: Record<string, Record<string, number>> = {};
+
+      (services || []).forEach((s: any) => {
+        const pmId = projectPmMap[s.project_id];
+        if (!pmId) return;
+        const svcName = s.name || "Other";
+        allServiceTypes.add(svcName);
+        if (!pmServiceMap[pmId]) pmServiceMap[pmId] = {};
+        pmServiceMap[pmId][svcName] = (pmServiceMap[pmId][svcName] || 0) + 1;
+      });
+
+      const serviceTypes = Array.from(allServiceTypes).sort();
+      const servicesByPM = Object.entries(pmServiceMap)
+        .map(([pmId, svcCounts]) => ({
+          name: profileMap[pmId] || "Unknown",
+          ...svcCounts,
+          total: Object.values(svcCounts).reduce((a, b) => a + b, 0),
+        }))
+        .sort((a, b) => b.total - a.total);
+
+      return { clientActivity, teamWorkload, servicesByPM, serviceTypes };
     },
   });
 }

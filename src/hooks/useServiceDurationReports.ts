@@ -59,7 +59,7 @@ export function useServiceDurationReports() {
 
       const { data: projects } = await supabase
         .from("projects")
-        .select("id, assigned_to");
+        .select("id, assigned_pm_id");
 
       const { data: profiles } = await supabase
         .from("profiles")
@@ -139,7 +139,7 @@ export function useServiceDurationReports() {
       const pmGroups: Record<string, Record<string, number[]>> = {};
       completed.forEach((s: any) => {
         const proj = projectMap.get(s.project_id);
-        const pmId = proj?.assigned_to;
+        const pmId = proj?.assigned_pm_id;
         if (!pmId) return;
         const days = differenceInDays(new Date(s.completed_date), new Date(s.created_at));
         if (days < 0) return;
