@@ -3586,6 +3586,7 @@ export type Database = {
           name: string | null
           notable: boolean
           notes: string | null
+          phase: string
           project_complexity_tier: string | null
           project_number: string | null
           project_type: string | null
@@ -3642,6 +3643,7 @@ export type Database = {
           name?: string | null
           notable?: boolean
           notes?: string | null
+          phase?: string
           project_complexity_tier?: string | null
           project_number?: string | null
           project_type?: string | null
@@ -3698,6 +3700,7 @@ export type Database = {
           name?: string | null
           notable?: boolean
           notes?: string | null
+          phase?: string
           project_complexity_tier?: string | null
           project_number?: string | null
           project_type?: string | null
