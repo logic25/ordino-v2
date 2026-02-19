@@ -26,8 +26,11 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   Plus, GripVertical, MoreHorizontal, Pencil, Trash2,
   AlertTriangle, Clock, Lightbulb, CheckCircle2, Rocket,
-  ArrowRight, Inbox,
+  ArrowRight, Inbox, LayoutGrid, List,
 } from "lucide-react";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 
 // Types
@@ -170,6 +173,7 @@ export function ProductRoadmap() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RoadmapItem | null>(null);
   const [promoteOpen, setPromoteOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
   const [form, setForm] = useState({ title: "", description: "", category: "general", status: "gap", priority: "medium" });
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -284,10 +288,18 @@ export function ProductRoadmap() {
         <div className="flex items-center gap-2">
           <Rocket className="h-5 w-5 text-primary" />
           <p className="text-sm text-muted-foreground">
-            Drag cards to reorder. Use the menu to move between columns.
+            {viewMode === "kanban" ? "Drag cards to reorder. Use the menu to move between columns." : "Click column headers to sort. Use actions to edit or move items."}
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex items-center border rounded-md">
+            <Button variant={viewMode === "kanban" ? "secondary" : "ghost"} size="sm" className="h-7 px-2 rounded-r-none" onClick={() => setViewMode("kanban")}>
+              <LayoutGrid className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant={viewMode === "table" ? "secondary" : "ghost"} size="sm" className="h-7 px-2 rounded-l-none" onClick={() => setViewMode("table")}>
+              <List className="h-3.5 w-3.5" />
+            </Button>
+          </div>
           {unpromotedRequests.length > 0 && (
             <Dialog open={promoteOpen} onOpenChange={setPromoteOpen}>
               <DialogTrigger asChild>
@@ -329,7 +341,76 @@ export function ProductRoadmap() {
         </div>
       </div>
 
-      {/* Kanban Board */}
+      {viewMode === "table" ? (
+        /* Table View */
+        <div className="overflow-x-auto border rounded-lg">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Title</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Priority</TableHead>
+                <TableHead className="w-[50px]" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[...items]
+                .sort((a, b) => {
+                  const statusOrder = ["gap", "in_progress", "planned", "done"];
+                  const si = statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status);
+                  if (si !== 0) return si;
+                  const pi = ["high", "medium", "low"].indexOf(a.priority) - ["high", "medium", "low"].indexOf(b.priority);
+                  return pi;
+                })
+                .map((item) => {
+                  const statusConf = STATUSES.find((s) => s.key === item.status);
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium text-sm max-w-[200px]">{item.title}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[350px]">
+                        <p className="line-clamp-2">{item.description}</p>
+                      </TableCell>
+                      <TableCell>
+                        <Select value={item.status} onValueChange={(v) => handleStatusChange(item.id, v)}>
+                          <SelectTrigger className="h-7 w-[120px] text-xs border-none bg-transparent shadow-none p-0 px-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {STATUSES.map((s) => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="text-[10px] capitalize">{item.category}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={`text-[10px] ${PRIORITY_STYLES[item.priority] || ""}`}>{item.priority}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-3.5 w-3.5" /></Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEdit(item)}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(item.id)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              {items.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No roadmap items yet</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      ) : (
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {STATUSES.map((col) => {
@@ -364,6 +445,7 @@ export function ProductRoadmap() {
           })}
         </div>
       </DndContext>
+      )}
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
