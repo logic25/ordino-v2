@@ -1184,31 +1184,18 @@ function ServiceExpandedDetail({ service }: { service: MockService }) {
   );
 }
 
-function SortableServiceRow({ svc, isChild, isDraggable, children }: { svc: MockService; isChild: boolean; isDraggable: boolean; children: (attributes: Record<string, any>, listeners: Record<string, any> | undefined) => React.ReactNode }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: svc.id,
-    disabled: !isDraggable,
-  });
-  const style = {
+function SortableServiceRowWrapper({ id, disabled, children }: { id: string; disabled: boolean; children: (attributes: Record<string, any>, listeners: Record<string, any> | undefined, ref: (node: HTMLElement | null) => void, style: React.CSSProperties) => React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled });
+  const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
-  return (
-    <tr ref={setNodeRef} style={style}>
-      <td colSpan={12} className="p-0 border-0">
-        <table className="w-full">
-          <tbody>
-            {children(attributes, listeners)}
-          </tbody>
-        </table>
-      </td>
-    </tr>
-  );
+  return <>{children(attributes, disabled ? undefined : listeners, setNodeRef, style)}</>;
 }
+
 function ServicesFull({ services: initialServices, project, contacts, allServices, onServicesChange, onAddCOs }: { services: MockService[]; project: ProjectWithRelations; contacts: MockContact[]; allServices: MockService[]; onServicesChange?: (services: MockService[]) => void; onAddCOs?: (cos: MockChangeOrder[]) => void }) {
   const [orderedServices, setOrderedServicesLocal] = useState(initialServices);
-  // Re-sync when initialServices changes (e.g. async DB load)
   const initialKey = initialServices.map(s => `${s.id}:${s.needsDobFiling ? 1 : 0}:${s.status}`).join(",");
   const [lastKey, setLastKey] = useState(initialKey);
   if (initialKey !== lastKey) {
@@ -1234,7 +1221,6 @@ function ServicesFull({ services: initialServices, project, contacts, allService
     toast({ title: "Updated", description: `Service ${field === "assignedTo" ? "assignment" : "bill date"} updated.` });
   };
 
-  // DnD handler for reordering top-level services
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -1243,7 +1229,6 @@ function ServicesFull({ services: initialServices, project, contacts, allService
     const newIndex = topLevel.findIndex(s => s.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
     const reordered = arrayMove(topLevel, oldIndex, newIndex);
-    // Rebuild full list: interleave children after their parent
     const childMap = new Map<string, MockService[]>();
     orderedServices.forEach(s => {
       if (s.parentServiceId) {
@@ -1280,7 +1265,6 @@ function ServicesFull({ services: initialServices, project, contacts, allService
     const newCOs: MockChangeOrder[] = [];
     setOrderedServices(prev => prev.map(s => {
       if (!selectedIds.has(s.id) || s.status === "dropped") return s;
-      // Auto-create a negative change order
       const coNum = `CO-DROP-${s.id}`;
       newCOs.push({
         id: `co-drop-${s.id}`,
@@ -1356,7 +1340,6 @@ function ServicesFull({ services: initialServices, project, contacts, allService
         </TableHeader>
         <TableBody>
           {(() => {
-            // Build parent-child groups
             const childMap = new Map<string, MockService[]>();
             services.forEach((svc) => {
               if (svc.parentServiceId) {
@@ -1374,10 +1357,10 @@ function ServicesFull({ services: initialServices, project, contacts, allService
               const children = childMap.get(svc.id) || [];
 
               return (
-                <SortableServiceRow key={svc.id} svc={svc} isChild={isChild} isDraggable={!isChild}>
-                  {(dragAttributes, dragListeners) => (
+                <SortableServiceRowWrapper key={svc.id} id={svc.id} disabled={isChild}>
+                  {(dragAttributes, dragListeners, sortableRef, sortableStyle) => (
                     <>
-                      <TableRow className={cn("cursor-pointer hover:bg-muted/20 group/row", isChild && "bg-muted/5")} onClick={() => toggle(svc.id)}>
+                      <TableRow ref={sortableRef} style={sortableStyle} className={cn("cursor-pointer hover:bg-muted/20 group/row", isChild && "bg-muted/5")} onClick={() => toggle(svc.id)}>
                         <TableCell className="pl-6" onClick={(e) => e.stopPropagation()}>
                           <Checkbox checked={selectedIds.has(svc.id)} onCheckedChange={() => toggleSelect(svc.id)} className="h-4 w-4" />
                         </TableCell>
@@ -1497,11 +1480,10 @@ function ServicesFull({ services: initialServices, project, contacts, allService
                           <TableCell colSpan={12} className="p-0"><ServiceExpandedDetail service={svc} /></TableCell>
                         </TableRow>
                       )}
-                      {/* Render children inline after parent */}
                       {!isChild && children.map((child) => renderServiceRow(child, svcIndex, true))}
                     </>
                   )}
-                </SortableServiceRow>
+                </SortableServiceRowWrapper>
               );
             };
 
@@ -1522,10 +1504,11 @@ function ServicesFull({ services: initialServices, project, contacts, allService
         <Separator orientation="vertical" className="h-4" />
         <span><span className="text-muted-foreground">Cost:</span> <span className="font-semibold">{formatCurrency(cost)}</span></span>
       </div>
+
       {dobPrepService && (
         <DobNowFilingPrepSheet
           open={!!dobPrepService}
-          onOpenChange={(open) => { if (!open) setDobPrepService(null); }}
+          onOpenChange={(open) => !open && setDobPrepService(null)}
           service={dobPrepService}
           project={project}
           contacts={contacts}
