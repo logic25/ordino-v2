@@ -1,5 +1,9 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { useSensors, useSensor, PointerSensor } from "@dnd-kit/core";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -152,8 +156,8 @@ export default function ProjectDetail() {
     }
   };
 
-  // Sync live services from real DB data
-  const realServicesKey = realServices.map(s => s.id).join(",");
+  // Sync live services from real DB data (include data hash to catch field changes like needs_dob_filing)
+  const realServicesKey = realServices.map(s => `${s.id}:${s.needsDobFiling ? 1 : 0}:${s.status}`).join(",");
   if (project && realServices.length > 0 && servicesInitialized !== `${project.id}:${realServicesKey}`) {
     setLiveServices(realServices);
     setExtraCOs([]);
@@ -1180,10 +1184,32 @@ function ServiceExpandedDetail({ service }: { service: MockService }) {
   );
 }
 
+function SortableServiceRow({ svc, isChild, isDraggable, children }: { svc: MockService; isChild: boolean; isDraggable: boolean; children: (attributes: Record<string, any>, listeners: Record<string, any> | undefined) => React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: svc.id,
+    disabled: !isDraggable,
+  });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <tr ref={setNodeRef} style={style}>
+      <td colSpan={12} className="p-0 border-0">
+        <table className="w-full">
+          <tbody>
+            {children(attributes, listeners)}
+          </tbody>
+        </table>
+      </td>
+    </tr>
+  );
+}
 function ServicesFull({ services: initialServices, project, contacts, allServices, onServicesChange, onAddCOs }: { services: MockService[]; project: ProjectWithRelations; contacts: MockContact[]; allServices: MockService[]; onServicesChange?: (services: MockService[]) => void; onAddCOs?: (cos: MockChangeOrder[]) => void }) {
   const [orderedServices, setOrderedServicesLocal] = useState(initialServices);
   // Re-sync when initialServices changes (e.g. async DB load)
-  const initialKey = initialServices.map(s => s.id).join(",");
+  const initialKey = initialServices.map(s => `${s.id}:${s.needsDobFiling ? 1 : 0}:${s.status}`).join(",");
   const [lastKey, setLastKey] = useState(initialKey);
   if (initialKey !== lastKey) {
     setOrderedServicesLocal(initialServices);
@@ -1208,13 +1234,36 @@ function ServicesFull({ services: initialServices, project, contacts, allService
     toast({ title: "Updated", description: `Service ${field === "assignedTo" ? "assignment" : "bill date"} updated.` });
   };
 
-  const moveService = (index: number, direction: "up" | "down") => {
-    const newIdx = direction === "up" ? index - 1 : index + 1;
-    if (newIdx < 0 || newIdx >= orderedServices.length) return;
-    const updated = [...orderedServices];
-    [updated[index], updated[newIdx]] = [updated[newIdx], updated[index]];
-    setOrderedServices(updated);
+  // DnD handler for reordering top-level services
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const topLevel = orderedServices.filter(s => !s.parentServiceId);
+    const oldIndex = topLevel.findIndex(s => s.id === active.id);
+    const newIndex = topLevel.findIndex(s => s.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(topLevel, oldIndex, newIndex);
+    // Rebuild full list: interleave children after their parent
+    const childMap = new Map<string, MockService[]>();
+    orderedServices.forEach(s => {
+      if (s.parentServiceId) {
+        const arr = childMap.get(s.parentServiceId) || [];
+        arr.push(s);
+        childMap.set(s.parentServiceId, arr);
+      }
+    });
+    const result: MockService[] = [];
+    reordered.forEach(p => {
+      result.push(p);
+      (childMap.get(p.id) || []).forEach(c => result.push(c));
+    });
+    setOrderedServices(result);
   };
+
+  const topLevelIds = orderedServices.filter(s => !s.parentServiceId).map(s => s.id);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
 
   const handleSendToBilling = () => {
     const today = format(new Date(), "MM/dd/yyyy");
@@ -1284,6 +1333,8 @@ function ServicesFull({ services: initialServices, project, contacts, allService
           <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30" onClick={handleDropService}><XCircle className="h-3.5 w-3.5" /> Drop</Button>
         </div>
       )}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={topLevelIds} strategy={verticalListSortingStrategy}>
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
@@ -1291,7 +1342,7 @@ function ServicesFull({ services: initialServices, project, contacts, allService
               <Checkbox checked={selectedIds.size === services.length && services.length > 0} onCheckedChange={() => selectedIds.size === services.length ? setSelectedIds(new Set()) : setSelectedIds(new Set(services.map(s => s.id)))} className="h-4 w-4" />
             </TableHead>
             <TableHead className="w-[36px]" />
-            <TableHead className="w-[36px]" />
+            <TableHead className="w-[28px]" />
             <TableHead>Service</TableHead>
             <TableHead className="whitespace-nowrap">Status</TableHead>
             <TableHead>Assigned</TableHead>
@@ -1307,17 +1358,14 @@ function ServicesFull({ services: initialServices, project, contacts, allService
           {(() => {
             // Build parent-child groups
             const childMap = new Map<string, MockService[]>();
-            const parentIds = new Set<string>();
             services.forEach((svc) => {
               if (svc.parentServiceId) {
-                parentIds.add(svc.parentServiceId);
                 const existing = childMap.get(svc.parentServiceId) || [];
                 existing.push(svc);
                 childMap.set(svc.parentServiceId, existing);
               }
             });
 
-            // Render rows: parents then their children, skip orphan children from top-level
             const renderServiceRow = (svc: MockService, svcIndex: number, isChild: boolean) => {
               const sStatus = serviceStatusStyles[svc.status] || serviceStatusStyles.not_started;
               const isExpanded = expandedIds.has(svc.id);
@@ -1326,142 +1374,145 @@ function ServicesFull({ services: initialServices, project, contacts, allService
               const children = childMap.get(svc.id) || [];
 
               return (
-                <>
-                  <TableRow key={svc.id} className={cn("cursor-pointer hover:bg-muted/20 group/row", isChild && "bg-muted/5")} onClick={() => toggle(svc.id)}>
-                    <TableCell className="pl-6" onClick={(e) => e.stopPropagation()}>
-                      <Checkbox checked={selectedIds.has(svc.id)} onCheckedChange={() => toggleSelect(svc.id)} className="h-4 w-4" />
-                    </TableCell>
-                    <TableCell className="pr-0">
-                      {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                    </TableCell>
-                    <TableCell className="pr-0 w-[28px]" onClick={(e) => e.stopPropagation()}>
-                      {!isChild && (
-                        <div className="flex flex-col items-center opacity-0 group-hover/row:opacity-100 transition-opacity">
-                          <button className="p-0.5 rounded hover:bg-muted disabled:opacity-20" disabled={svcIndex === 0} onClick={() => moveService(svcIndex, "up")}>
-                            <ArrowUp className="h-2.5 w-2.5 text-muted-foreground" />
-                          </button>
-                          <GripVertical className="h-3 w-3 text-muted-foreground/40" />
-                          <button className="p-0.5 rounded hover:bg-muted disabled:opacity-20" disabled={svcIndex === services.length - 1} onClick={() => moveService(svcIndex, "down")}>
-                            <ArrowDown className="h-2.5 w-2.5 text-muted-foreground" />
-                          </button>
-                        </div>
-                      )}
-                    </TableCell>
-                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        {isChild && (
-                          <span className="text-muted-foreground/50 ml-2 mr-1 border-l-2 border-b-2 border-muted-foreground/20 w-3 h-3 inline-block rounded-bl-sm" style={{ marginBottom: -4 }} />
-                        )}
-                        <span className={cn("font-medium whitespace-nowrap", isChild && "text-sm")}>{svc.name}</span>
-                        {svc.requirements.length > 0 && (
-                          <Badge
-                            variant="secondary"
-                            className={cn(
-                              "text-[10px] px-1.5 py-0 whitespace-nowrap cursor-pointer hover:opacity-80",
-                              pendingReqs > 0
-                                ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
-                                : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+                <SortableServiceRow key={svc.id} svc={svc} isChild={isChild} isDraggable={!isChild}>
+                  {(dragAttributes, dragListeners) => (
+                    <>
+                      <TableRow className={cn("cursor-pointer hover:bg-muted/20 group/row", isChild && "bg-muted/5")} onClick={() => toggle(svc.id)}>
+                        <TableCell className="pl-6" onClick={(e) => e.stopPropagation()}>
+                          <Checkbox checked={selectedIds.has(svc.id)} onCheckedChange={() => toggleSelect(svc.id)} className="h-4 w-4" />
+                        </TableCell>
+                        <TableCell className="pr-0">
+                          {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                        </TableCell>
+                        <TableCell className="pr-0 w-[28px]" onClick={(e) => e.stopPropagation()}>
+                          {!isChild && (
+                            <div
+                              className="flex items-center justify-center cursor-grab active:cursor-grabbing opacity-0 group-hover/row:opacity-100 transition-opacity"
+                              {...dragAttributes}
+                              {...dragListeners}
+                            >
+                              <GripVertical className="h-4 w-4 text-muted-foreground/60" />
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {isChild && (
+                              <span className="text-muted-foreground/50 ml-2 mr-1 border-l-2 border-b-2 border-muted-foreground/20 w-3 h-3 inline-block rounded-bl-sm" style={{ marginBottom: -4 }} />
                             )}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (!isExpanded) toggle(svc.id);
-                            }}
+                            <span className={cn("font-medium whitespace-nowrap", isChild && "text-sm")}>{svc.name}</span>
+                            {svc.requirements.length > 0 && (
+                              <Badge
+                                variant="secondary"
+                                className={cn(
+                                  "text-[10px] px-1.5 py-0 whitespace-nowrap cursor-pointer hover:opacity-80",
+                                  pendingReqs > 0
+                                    ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+                                    : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+                                )}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!isExpanded) toggle(svc.id);
+                                }}
+                              >
+                                {svc.requirements.filter(r => r.met).length}/{svc.requirements.length} req
+                              </Badge>
+                            )}
+                            {isChild && !svc.application && svc.parentServiceId && (() => {
+                              const parent = services.find(s => s.id === svc.parentServiceId);
+                              return parent?.application ? (
+                                <Badge variant="outline" className="font-mono text-[10px] px-1.5 py-0">#{parent.application.jobNumber}</Badge>
+                              ) : null;
+                            })()}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${sStatus.className}`}>{sStatus.label}</span>
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Select
+                            value={svc.assignedTo || "__none__"}
+                            onValueChange={(val) => updateServiceField(svc.id, "assignedTo", val === "__none__" ? "" : val)}
                           >
-                            {svc.requirements.filter(r => r.met).length}/{svc.requirements.length} req
-                          </Badge>
-                        )}
-                        {isChild && !svc.application && svc.parentServiceId && (() => {
-                          const parent = services.find(s => s.id === svc.parentServiceId);
-                          return parent?.application ? (
-                            <Badge variant="outline" className="font-mono text-[10px] px-1.5 py-0">#{parent.application.jobNumber}</Badge>
-                          ) : null;
-                        })()}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${sStatus.className}`}>{sStatus.label}</span>
-                    </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Select
-                        value={svc.assignedTo || "__none__"}
-                        onValueChange={(val) => updateServiceField(svc.id, "assignedTo", val === "__none__" ? "" : val)}
-                      >
-                        <SelectTrigger className="h-7 w-auto min-w-[100px] border-none bg-transparent shadow-none text-sm p-0 px-1 hover:bg-muted/40 focus:ring-0 gap-1 text-muted-foreground">
-                          <SelectValue placeholder="Assign" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">Unassigned</SelectItem>
-                          {companyProfiles.map((p) => (
-                            <SelectItem key={p.id} value={[p.first_name, p.last_name].filter(Boolean).join(" ") || p.user_id}>
-                              {[p.first_name, p.last_name].filter(Boolean).join(" ") || p.user_id}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      {svc.subServices.length > 0 ? (
-                        <div className="flex gap-1 flex-wrap">{svc.subServices.map((d) => <Badge key={d} variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">{d}</Badge>)}</div>
-                      ) : <span className="text-xs text-muted-foreground">—</span>}
-                    </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Popover open={editingBillDate === svc.id} onOpenChange={(open) => setEditingBillDate(open ? svc.id : null)}>
-                        <PopoverTrigger asChild>
-                          <button className="h-7 px-1 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/40 rounded cursor-pointer whitespace-nowrap">
-                            {svc.estimatedBillDate || "— Set date"}
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={svc.estimatedBillDate ? new Date(svc.estimatedBillDate) : undefined}
-                            onSelect={(date) => {
-                              if (date) {
-                                updateServiceField(svc.id, "estimatedBillDate", format(date, "MM/dd/yyyy"));
-                              }
-                              setEditingBillDate(null);
-                            }}
-                            className={cn("p-3 pointer-events-auto")}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums font-medium">{formatCurrency(svc.totalAmount)}</TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">{svc.costAmount > 0 ? formatCurrency(svc.costAmount) : "—"}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {svc.costAmount > 0 ? <span className={svcMargin > 50 ? "text-emerald-600 dark:text-emerald-400" : svcMargin < 20 ? "text-red-600 dark:text-red-400" : ""}>{svcMargin}%</span> : "—"}
-                    </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      {svc.needsDobFiling ? (
-                        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setDobPrepService(svc)}><ExternalLink className="h-3.5 w-3.5" /> Start DOB NOW</Button>
-                      ) : svc.application ? (
-                        <Badge variant="outline" className="font-mono text-xs">#{svc.application.jobNumber}</Badge>
-                      ) : isChild && svc.parentServiceId ? (() => {
-                        const parent = services.find(s => s.id === svc.parentServiceId);
-                        return parent?.application ? (
-                          <Badge variant="outline" className="font-mono text-xs text-muted-foreground">#{parent.application.jobNumber}</Badge>
-                        ) : null;
-                      })() : null}
-                    </TableCell>
-                  </TableRow>
-                  {isExpanded && (
-                    <TableRow key={`${svc.id}-detail`} className="hover:bg-transparent">
-                      <TableCell colSpan={12} className="p-0"><ServiceExpandedDetail service={svc} /></TableCell>
-                    </TableRow>
+                            <SelectTrigger className="h-7 w-auto min-w-[100px] border-none bg-transparent shadow-none text-sm p-0 px-1 hover:bg-muted/40 focus:ring-0 gap-1 text-muted-foreground">
+                              <SelectValue placeholder="Assign" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">Unassigned</SelectItem>
+                              {companyProfiles.map((p) => (
+                                <SelectItem key={p.id} value={[p.first_name, p.last_name].filter(Boolean).join(" ") || p.user_id}>
+                                  {[p.first_name, p.last_name].filter(Boolean).join(" ") || p.user_id}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          {svc.subServices.length > 0 ? (
+                            <div className="flex gap-1 flex-wrap">{svc.subServices.map((d) => <Badge key={d} variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">{d}</Badge>)}</div>
+                          ) : <span className="text-xs text-muted-foreground">—</span>}
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Popover open={editingBillDate === svc.id} onOpenChange={(open) => setEditingBillDate(open ? svc.id : null)}>
+                            <PopoverTrigger asChild>
+                              <button className="h-7 px-1 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/40 rounded cursor-pointer whitespace-nowrap">
+                                {svc.estimatedBillDate || "— Set date"}
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={svc.estimatedBillDate ? new Date(svc.estimatedBillDate) : undefined}
+                                onSelect={(date) => {
+                                  if (date) {
+                                    updateServiceField(svc.id, "estimatedBillDate", format(date, "MM/dd/yyyy"));
+                                  }
+                                  setEditingBillDate(null);
+                                }}
+                                className={cn("p-3 pointer-events-auto")}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums font-medium">{formatCurrency(svc.totalAmount)}</TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">{svc.costAmount > 0 ? formatCurrency(svc.costAmount) : "—"}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {svc.costAmount > 0 ? <span className={svcMargin > 50 ? "text-emerald-600 dark:text-emerald-400" : svcMargin < 20 ? "text-red-600 dark:text-red-400" : ""}>{svcMargin}%</span> : "—"}
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          {svc.needsDobFiling ? (
+                            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setDobPrepService(svc)}><ExternalLink className="h-3.5 w-3.5" /> Start DOB NOW</Button>
+                          ) : svc.application ? (
+                            <Badge variant="outline" className="font-mono text-xs">#{svc.application.jobNumber}</Badge>
+                          ) : isChild && svc.parentServiceId ? (() => {
+                            const parent = services.find(s => s.id === svc.parentServiceId);
+                            return parent?.application ? (
+                              <Badge variant="outline" className="font-mono text-xs text-muted-foreground">#{parent.application.jobNumber}</Badge>
+                            ) : null;
+                          })() : null}
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded && (
+                        <TableRow key={`${svc.id}-detail`} className="hover:bg-transparent">
+                          <TableCell colSpan={12} className="p-0"><ServiceExpandedDetail service={svc} /></TableCell>
+                        </TableRow>
+                      )}
+                      {/* Render children inline after parent */}
+                      {!isChild && children.map((child) => renderServiceRow(child, svcIndex, true))}
+                    </>
                   )}
-                  {/* Render children inline after parent */}
-                  {!isChild && children.map((child) => renderServiceRow(child, svcIndex, true))}
-                </>
+                </SortableServiceRow>
               );
             };
 
-            // Only render top-level services (not children)
             return services
               .filter((svc) => !svc.parentServiceId)
               .map((svc, i) => renderServiceRow(svc, i, false));
           })()}
         </TableBody>
       </Table>
+        </SortableContext>
+      </DndContext>
       <div className="px-6 py-4 bg-muted/20 border-t flex items-center gap-8 text-sm flex-wrap">
         <span><span className="text-muted-foreground">Contract:</span> <span className="font-semibold">{formatCurrency(total)}</span></span>
         <Separator orientation="vertical" className="h-4" />
