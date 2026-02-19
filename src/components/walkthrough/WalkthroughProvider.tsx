@@ -36,32 +36,17 @@ export function WalkthroughProvider({ children }: { children: ReactNode }) {
   const [activeWalkthrough, setActiveWalkthrough] = useState<Walkthrough | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number; placement: string }>({
-    top: 0,
-    left: 0,
+    top: window.innerHeight / 2,
+    left: window.innerWidth / 2,
     placement: "bottom",
   });
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
 
-  const positionTooltip = useCallback((step: WalkthroughStep, attempt = 0) => {
-    const el = document.querySelector(step.target);
-    if (!el) {
-      // Retry up to 10 times (2 seconds total) if element not found yet
-      if (attempt < 10) {
-        setTimeout(() => positionTooltip(step, attempt + 1), 200);
-        return;
-      }
-      setHighlightRect(null);
-      setTooltipPos({ top: window.innerHeight / 2, left: window.innerWidth / 2, placement: "bottom" });
-      return;
-    }
-
+  const applyPosition = useCallback((el: Element, placement: string) => {
     const rect = el.getBoundingClientRect();
     setHighlightRect(rect);
-
-    const placement = step.placement || "bottom";
     const pad = 12;
     let top = 0, left = 0;
-
     switch (placement) {
       case "bottom":
         top = rect.bottom + pad;
@@ -79,29 +64,54 @@ export function WalkthroughProvider({ children }: { children: ReactNode }) {
         top = rect.top + rect.height / 2;
         left = rect.left - pad;
         break;
+      default:
+        top = rect.bottom + pad;
+        left = rect.left + rect.width / 2;
     }
-
     setTooltipPos({ top, left, placement });
-
     el.scrollIntoView({ behavior: "smooth", block: "center" });
   }, []);
 
+  // Poll for the target element when step changes
   useEffect(() => {
     if (!activeWalkthrough) return;
     const step = activeWalkthrough.steps[currentStep];
-    if (step) {
-      const timer = setTimeout(() => positionTooltip(step), 150);
-      return () => clearTimeout(timer);
-    }
-  }, [activeWalkthrough, currentStep, positionTooltip]);
+    if (!step) return;
+
+    const placement = step.placement || "bottom";
+    let attempts = 0;
+    const maxAttempts = 15; // 3 seconds
+
+    const tryFind = () => {
+      const el = document.querySelector(step.target);
+      if (el) {
+        applyPosition(el, placement);
+      } else if (attempts < maxAttempts) {
+        attempts++;
+        pollTimer = window.setTimeout(tryFind, 200);
+      } else {
+        // Element not found after retries — show centered tooltip without highlight
+        setHighlightRect(null);
+        setTooltipPos({ top: window.innerHeight / 2, left: window.innerWidth / 2, placement: "bottom" });
+      }
+    };
+
+    let pollTimer = window.setTimeout(tryFind, 100);
+    return () => clearTimeout(pollTimer);
+  }, [activeWalkthrough, currentStep, applyPosition]);
 
   // Reposition on resize
   useEffect(() => {
     if (!activeWalkthrough) return;
-    const handler = () => positionTooltip(activeWalkthrough.steps[currentStep]);
+    const step = activeWalkthrough.steps[currentStep];
+    if (!step) return;
+    const handler = () => {
+      const el = document.querySelector(step.target);
+      if (el) applyPosition(el, step.placement || "bottom");
+    };
     window.addEventListener("resize", handler);
     return () => window.removeEventListener("resize", handler);
-  }, [activeWalkthrough, currentStep, positionTooltip]);
+  }, [activeWalkthrough, currentStep, applyPosition]);
 
   const startWalkthrough = useCallback((wt: Walkthrough) => {
     setActiveWalkthrough(wt);
