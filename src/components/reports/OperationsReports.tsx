@@ -1,11 +1,20 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useOperationsReports } from "@/hooks/useReports";
+import { useServiceDurationReports } from "@/hooks/useServiceDurationReports";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  LineChart, Line, Legend,
+} from "recharts";
 import { subMonths, startOfMonth, format, differenceInDays } from "date-fns";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Clock, TrendingUp, Users } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 
 function useOperationsTrends() {
   const { session } = useAuth();
@@ -17,7 +26,6 @@ function useOperationsTrends() {
       const now = new Date();
       const items = projects || [];
 
-      // Monthly completion rate (last 12 months)
       const completionTrend: { month: string; completed: number; total: number }[] = [];
       for (let i = 11; i >= 0; i--) {
         const d = startOfMonth(subMonths(now, i));
@@ -27,7 +35,6 @@ function useOperationsTrends() {
         completionTrend.push({ month: label, completed: closed.length, total: created.length });
       }
 
-      // Stalled projects (open, no update in 30+ days)
       const stalled = items
         .filter((p: any) => p.status === "open" && p.updated_at && differenceInDays(now, new Date(p.updated_at)) > 30)
         .map((p: any) => ({ id: p.id, daysSinceUpdate: differenceInDays(now, new Date(p.updated_at)) }))
@@ -42,14 +49,220 @@ function useOperationsTrends() {
 export default function OperationsReports() {
   const { data, isLoading } = useOperationsReports();
   const { data: trends, isLoading: trendsLoading } = useOperationsTrends();
+  const { data: svcData, isLoading: svcLoading } = useServiceDurationReports();
+  const [trendService, setTrendService] = useState<string>("all");
+  const [pmService, setPmService] = useState<string>("all");
 
-  if (isLoading || trendsLoading) return <div className="text-muted-foreground">Loading...</div>;
+  if (isLoading || trendsLoading || svcLoading) return <div className="text-muted-foreground">Loading...</div>;
   if (!data) return null;
 
+  const filteredPmStats = svcData?.pmStats.filter(
+    (s) => pmService === "all" || s.serviceType === pmService
+  ) || [];
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* ── Service Duration Analytics ── */}
+      {svcData && svcData.summaryStats.length > 0 && (
+        <>
+          <div className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold text-foreground">Service Duration Analytics</h2>
+          </div>
+
+          {/* Summary Table */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Duration by Service Type</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Service Type</TableHead>
+                    <TableHead className="text-right">Completed</TableHead>
+                    <TableHead className="text-right">Median Days</TableHead>
+                    <TableHead className="text-right">Avg Days</TableHead>
+                    <TableHead className="text-right">P75</TableHead>
+                    <TableHead className="text-right">P90</TableHead>
+                    <TableHead className="text-right">Fastest</TableHead>
+                    <TableHead className="text-right">Slowest</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {svcData.summaryStats.map((s) => (
+                    <TableRow key={s.name}>
+                      <TableCell className="font-medium">
+                        {s.name}
+                        {s.lowSample && (
+                          <Badge variant="outline" className="ml-2 text-xs">Low sample</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">{s.count}</TableCell>
+                      <TableCell className="text-right font-semibold">{s.median}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">{s.avg}</TableCell>
+                      <TableCell className="text-right">{s.p75}</TableCell>
+                      <TableCell className="text-right">{s.p90}</TableCell>
+                      <TableCell className="text-right text-primary">{s.min}</TableCell>
+                      <TableCell className="text-right text-destructive">{s.max}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Duration Trend Chart */}
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4" />
+                    Duration Trend (Monthly Median)
+                  </CardTitle>
+                  <Select value={trendService} onValueChange={setTrendService}>
+                    <SelectTrigger className="w-[160px] h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Services</SelectItem>
+                      {svcData.serviceTypes.map((t) => (
+                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {(() => {
+                  const types = trendService === "all"
+                    ? svcData.serviceTypes.slice(0, 5)
+                    : [trendService];
+                  const colors = ["hsl(var(--primary))", "hsl(var(--accent))", "#f59e0b", "#10b981", "#8b5cf6"];
+                  // Build unified data
+                  const months = svcData.trendData[types[0]]?.map((p) => p.month) || [];
+                  const chartData = months.map((month, i) => {
+                    const point: any = { month };
+                    types.forEach((t) => {
+                      const val = svcData.trendData[t]?.[i]?.median;
+                      point[t] = val && val > 0 ? val : null;
+                    });
+                    return point;
+                  });
+                  return (
+                    <ResponsiveContainer width="100%" height={250}>
+                      <LineChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                        <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 11 }} label={{ value: "Days", angle: -90, position: "insideLeft", fontSize: 11 }} />
+                        <Tooltip />
+                        {types.length > 1 && <Legend />}
+                        {types.map((t, idx) => (
+                          <Line
+                            key={t}
+                            type="monotone"
+                            dataKey={t}
+                            stroke={colors[idx % colors.length]}
+                            strokeWidth={2}
+                            dot={{ r: 3 }}
+                            connectNulls
+                          />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+
+            {/* PM Comparison */}
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    PM Comparison (Median Days)
+                  </CardTitle>
+                  <Select value={pmService} onValueChange={setPmService}>
+                    <SelectTrigger className="w-[160px] h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Services</SelectItem>
+                      {svcData.serviceTypes.map((t) => (
+                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {filteredPmStats.length > 0 ? (
+                  <div className="space-y-2 max-h-[250px] overflow-y-auto">
+                    {filteredPmStats
+                      .sort((a, b) => a.median - b.median)
+                      .map((pm, i) => (
+                        <div key={`${pm.pmId}-${pm.serviceType}-${i}`} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium text-foreground">{pm.pmName}</span>
+                            {pmService === "all" && (
+                              <span className="text-xs text-muted-foreground">{pm.serviceType}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">{pm.count} completed</span>
+                            <span className={`text-sm font-semibold ${pm.aboveCompanyMedian ? "text-destructive" : "text-foreground"}`}>
+                              {pm.median}d
+                            </span>
+                            {pm.aboveCompanyMedian && (
+                              <Badge variant="destructive" className="text-[10px] px-1">Slow</Badge>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground py-8 text-center">No PM data available</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* At-Risk Active Services */}
+          {svcData.atRisk.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                  Active Services at Risk of Delay
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {svcData.atRisk.map((s) => (
+                    <div key={s.serviceId} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-foreground">{s.serviceName}</span>
+                        <span className="text-xs text-muted-foreground font-mono">{s.projectId.slice(0, 8)}…</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-muted-foreground">P75: {s.p75Threshold}d</span>
+                        <span className="text-sm text-destructive font-semibold">{s.daysOpen} days open</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <Separator />
+        </>
+      )}
+
+      {/* ── Existing Operations Reports ── */}
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Client Activity */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Top Clients by Revenue</CardTitle>
@@ -69,7 +282,6 @@ export default function OperationsReports() {
           </CardContent>
         </Card>
 
-        {/* Team Workload */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Team Workload</CardTitle>
@@ -95,7 +307,6 @@ export default function OperationsReports() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Completion Rate Trend */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Project Completion Trend</CardTitle>
@@ -116,7 +327,6 @@ export default function OperationsReports() {
           </CardContent>
         </Card>
 
-        {/* Stalled Projects */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
