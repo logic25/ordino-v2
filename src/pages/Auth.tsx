@@ -396,6 +396,9 @@ export default function Auth() {
                     try {
                       const { error } = await lovable.auth.signInWithOAuth("google", {
                         redirect_uri: window.location.origin,
+                        extraParams: {
+                          prompt: "select_account",
+                        },
                       });
                       if (error) {
                         toast({
@@ -416,6 +419,35 @@ export default function Auth() {
                     <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                   </svg>
                   Continue with Google
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-11 gap-2"
+                  disabled={isLoading}
+                  onClick={async () => {
+                    setIsLoading(true);
+                    try {
+                      const { error } = await lovable.auth.signInWithOAuth("apple", {
+                        redirect_uri: window.location.origin,
+                      });
+                      if (error) {
+                        toast({
+                          title: "Apple sign-in failed",
+                          description: error.message,
+                          variant: "destructive",
+                        });
+                      }
+                    } finally {
+                      setIsLoading(false);
+                    }
+                  }}
+                >
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.7 9.05 7.4c1.39.07 2.36.74 3.17.8 1.21-.24 2.38-.93 3.68-.84 1.56.12 2.73.73 3.49 1.88-3.2 1.9-2.44 5.97.66 7.14-.51 1.37-1.15 2.72-2.99 3.9zM13 3.5c.12 1.94-1.5 3.5-3.33 3.5C9.44 5.13 11.19 3.5 13 3.5z"/>
+                  </svg>
+                  Continue with Apple
                 </Button>
 
                 <div className="relative my-4">
