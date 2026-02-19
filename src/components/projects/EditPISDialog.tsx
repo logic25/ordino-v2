@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,11 +9,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
-import { Save, AlertTriangle, UserPlus, CheckCircle2, Loader2, Copy } from "lucide-react";
+import { Save, AlertTriangle, UserPlus, CheckCircle2, Loader2, Copy, Search, Building2, User, Zap } from "lucide-react";
 import { useClients } from "@/hooks/useClients";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { MockPISStatus } from "./projectMockData";
+import { usePISContactOptions, getPriorSectionFields } from "@/hooks/usePISAutoFill";
 
 interface PisFieldDef {
   id: string;
@@ -138,6 +139,85 @@ const PIS_SECTIONS: PisSection[] = [
   },
 ];
 
+interface SectionAutoFillProps {
+  sectionId: string;
+  sectionTitle: string;
+  getOptions: (sectionId: string, query: string) => { id: string; label: string; sublabel?: string; source: string; fields: Record<string, string> }[];
+  priorResponses: Record<string, any> | null;
+  onApply: (fields: Record<string, string>) => void;
+}
+
+function SectionAutoFill({ sectionId, sectionTitle, getOptions, priorResponses, onApply }: SectionAutoFillProps) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const results = getOptions(sectionId, search);
+  const priorFields = priorResponses ? getPriorSectionFields(priorResponses, sectionId) : null;
+
+  return (
+    <div className="flex items-center gap-2 mb-3 flex-wrap">
+      {priorFields && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="gap-1.5 h-7 text-xs shrink-0"
+          onClick={() => onApply(priorFields)}
+        >
+          <Zap className="h-3 w-3" /> Same as last time
+        </Button>
+      )}
+      <div ref={wrapperRef} className="relative flex-1 min-w-[180px]">
+        <div className="relative">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          <Input
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
+            onFocus={() => { if (search.trim()) setOpen(true); }}
+            placeholder={`Search contacts for ${sectionTitle}...`}
+            className="h-7 text-xs pl-7"
+          />
+        </div>
+        {open && search.trim() && results.length > 0 && (
+          <div className="absolute left-0 right-0 top-full mt-1 z-[9999] rounded-md border bg-popover shadow-lg max-h-[180px] overflow-y-auto">
+            {results.map((r) => (
+              <button
+                key={r.id}
+                type="button"
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-accent text-left transition-colors"
+                onClick={() => {
+                  onApply(r.fields);
+                  setSearch("");
+                  setOpen(false);
+                }}
+              >
+                {r.source === "client" ? (
+                  <Building2 className="h-3 w-3 text-muted-foreground shrink-0" />
+                ) : (
+                  <User className="h-3 w-3 text-muted-foreground shrink-0" />
+                )}
+                <div className="min-w-0">
+                  <div className="truncate">{r.label}</div>
+                  {r.sublabel && <div className="text-[10px] text-muted-foreground truncate">{r.sublabel}</div>}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 interface EditPISDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -149,6 +229,7 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: clients = [] } = useClients();
+  const { getOptionsForSection, sectionFieldMap } = usePISContactOptions();
   const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [addedToCRM, setAddedToCRM] = useState<Set<string>>(new Set());
@@ -434,6 +515,18 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
+                  {section.contactRole && sectionFieldMap[section.id] && (
+                    <SectionAutoFill
+                      sectionId={section.id}
+                      sectionTitle={section.contactRole}
+                      getOptions={getOptionsForSection}
+                      priorResponses={priorPIS?.responses || null}
+                      onApply={(fields) => {
+                        setValues(prev => ({ ...prev, ...fields }));
+                        toast({ title: "Auto-filled", description: `${section.contactRole} details populated.` });
+                      }}
+                    />
+                  )}
                   <div className="grid grid-cols-2 gap-3 pb-2">
                     {section.fields.map((field) => renderField(field))}
                   </div>
