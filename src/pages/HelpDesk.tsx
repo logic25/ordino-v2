@@ -5,8 +5,12 @@ import { HowToGuides } from "@/components/helpdesk/HowToGuides";
 import { WhatsNew } from "@/components/helpdesk/WhatsNew";
 import { FeatureRequests } from "@/components/helpdesk/FeatureRequests";
 import { InteractiveTraining } from "@/components/helpdesk/InteractiveTraining";
+import { ProductRoadmap } from "@/components/helpdesk/ProductRoadmap";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export default function HelpDesk() {
+  const { isAdmin } = usePermissions();
+
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
@@ -19,17 +23,21 @@ export default function HelpDesk() {
         </div>
 
         <Tabs defaultValue="training" className="space-y-4">
-          <TabsList>
+          <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="training">Interactive Training</TabsTrigger>
             <TabsTrigger value="guides">How-To Guides</TabsTrigger>
             <TabsTrigger value="whats-new">What's New</TabsTrigger>
             <TabsTrigger value="requests">Feature Requests</TabsTrigger>
+            {isAdmin && <TabsTrigger value="roadmap">Product Roadmap</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="training"><InteractiveTraining /></TabsContent>
           <TabsContent value="guides"><HowToGuides /></TabsContent>
           <TabsContent value="whats-new"><WhatsNew /></TabsContent>
           <TabsContent value="requests"><FeatureRequests /></TabsContent>
+          {isAdmin && (
+            <TabsContent value="roadmap"><ProductRoadmap /></TabsContent>
+          )}
         </Tabs>
       </div>
     </AppLayout>
