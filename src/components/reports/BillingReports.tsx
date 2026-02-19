@@ -3,7 +3,50 @@ import { useBillingReports } from "@/hooks/useReports";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from "recharts";
+import { DollarSign } from "lucide-react";
+
+const DONUT_COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--destructive))", "hsl(var(--muted-foreground))", "hsl(142, 76%, 36%)", "hsl(45, 93%, 47%)"];
+
+function useRevenueByServiceType() {
+  const { session } = useAuth();
+  return useQuery({
+    queryKey: ["revenue-by-service-type", session?.user?.id],
+    enabled: !!session?.user?.id,
+    queryFn: async () => {
+      const { data: invoices } = await supabase
+        .from("invoices")
+        .select("id, total_due, payment_amount, status, project_id")
+        .in("status", ["paid"]);
+
+      if (!invoices || invoices.length === 0) return [];
+
+      const projectIds = [...new Set(invoices.map((i: any) => i.project_id).filter(Boolean))];
+      if (projectIds.length === 0) return [];
+
+      const { data: services } = await supabase
+        .from("services")
+        .select("id, name, project_id")
+        .in("project_id", projectIds);
+
+      // Map project → primary service name
+      const projectServiceMap: Record<string, string> = {};
+      (services || []).forEach((s: any) => {
+        if (!projectServiceMap[s.project_id]) projectServiceMap[s.project_id] = s.name;
+      });
+
+      const byService: Record<string, number> = {};
+      invoices.forEach((inv: any) => {
+        const svc = projectServiceMap[inv.project_id] || "Other";
+        byService[svc] = (byService[svc] || 0) + (inv.payment_amount || inv.total_due || 0);
+      });
+
+      return Object.entries(byService)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+    },
+  });
+}
 
 function useTopOutstandingClients() {
   const { session } = useAuth();
@@ -32,8 +75,9 @@ function useTopOutstandingClients() {
 export default function BillingReports() {
   const { data, isLoading } = useBillingReports();
   const { data: topClients, isLoading: clientsLoading } = useTopOutstandingClients();
+  const { data: revenueByService, isLoading: svcLoading } = useRevenueByServiceType();
 
-  if (isLoading || clientsLoading) return <div className="text-muted-foreground">Loading...</div>;
+  if (isLoading || clientsLoading || svcLoading) return <div className="text-muted-foreground">Loading...</div>;
   if (!data) return null;
 
   const agingData = Object.entries(data.aging).map(([name, value]) => ({ name: name === "current" ? "0-30 days" : name + " days", value }));
@@ -82,6 +126,30 @@ export default function BillingReports() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Revenue by Service Type */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Revenue by Service Type</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {revenueByService && revenueByService.length > 0 ? (
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie data={revenueByService} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={90} label={({ name, value }) => `${name}: $${(value / 1000).toFixed(0)}k`}>
+                  {revenueByService.map((_: any, i: number) => <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />)}
+                </Pie>
+                <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+              <DollarSign className="h-8 w-8 mb-2 opacity-40" />
+              <p className="text-sm">Revenue by service will appear as invoices are paid</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
         {/* Aging Report */}

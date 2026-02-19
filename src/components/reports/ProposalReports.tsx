@@ -3,7 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useProposalReports, useProposalDetailedReports } from "@/hooks/useReports";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Legend } from "recharts";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Legend, CartesianGrid } from "recharts";
+import { Users } from "lucide-react";
 
 const COLORS = [
   "hsl(var(--primary))",
@@ -17,11 +21,52 @@ const COLORS = [
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+function useYTDSalesByRep() {
+  const { session } = useAuth();
+  const currentYear = new Date().getFullYear();
+  return useQuery({
+    queryKey: ["ytd-sales-by-rep", session?.user?.id, currentYear],
+    enabled: !!session?.user?.id,
+    queryFn: async () => {
+      const startOfYear = `${currentYear}-01-01`;
+      const { data: proposals } = await supabase
+        .from("proposals")
+        .select("id, status, total_amount, sales_person_id, created_at")
+        .eq("status", "executed")
+        .gte("created_at", startOfYear);
+
+      if (!proposals || proposals.length === 0) return [];
+
+      const repIds = [...new Set(proposals.map((p: any) => p.sales_person_id).filter(Boolean))];
+      if (repIds.length === 0) return [];
+
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, display_name")
+        .in("id", repIds);
+
+      const profileMap: Record<string, string> = {};
+      (profiles || []).forEach((p: any) => { profileMap[p.id] = p.display_name || "Unknown"; });
+
+      const byRep: Record<string, { name: string; value: number }> = {};
+      proposals.forEach((p: any) => {
+        const rid = p.sales_person_id;
+        if (!rid) return;
+        if (!byRep[rid]) byRep[rid] = { name: profileMap[rid] || "Unknown", value: 0 };
+        byRep[rid].value += p.total_amount || 0;
+      });
+
+      return Object.values(byRep).sort((a, b) => b.value - a.value);
+    },
+  });
+}
+
 export default function ProposalReports() {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(String(currentYear));
   const { data, isLoading } = useProposalReports();
   const { data: detailed, isLoading: detailedLoading } = useProposalDetailedReports();
+  const { data: salesByRep } = useYTDSalesByRep();
 
   const years: string[] = useMemo(() => {
     if (!detailed?.allProposals) return [String(currentYear)];
@@ -242,29 +287,55 @@ export default function ProposalReports() {
         </Card>
       </div>
 
-      {/* Yearly Comparison */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Yearly Comparison — Proposal Value by Month</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {yearlyComparison.length > 0 && years.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={yearlyComparison}>
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
-                <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} />
-                <Legend />
-                {years.slice(0, 3).map((yr, i) => (
-                  <Bar key={yr} dataKey={yr} fill={COLORS[i % COLORS.length]} radius={[4, 4, 0, 0]} />
-                ))}
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">No data</p>
-          )}
-        </CardContent>
-      </Card>
+      {/* YTD Sales by Rep + Yearly Comparison */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">YTD Sales by Rep — {currentYear}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {salesByRep && salesByRep.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={salesByRep}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} />
+                  <Bar dataKey="value" name="Executed Value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                <Users className="h-8 w-8 mb-2 opacity-40" />
+                <p className="text-sm">Sales data will appear as proposals are executed</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Yearly Comparison — Proposal Value by Month</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {yearlyComparison.length > 0 && years.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={yearlyComparison}>
+                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} />
+                  <Legend />
+                  {years.slice(0, 3).map((yr, i) => (
+                    <Bar key={yr} dataKey={yr} fill={COLORS[i % COLORS.length]} radius={[4, 4, 0, 0]} />
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-8">No data</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

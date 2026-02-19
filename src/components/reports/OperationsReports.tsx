@@ -10,7 +10,7 @@ import {
   LineChart, Line, Legend,
 } from "recharts";
 import { subMonths, startOfMonth, format, differenceInDays } from "date-fns";
-import { AlertTriangle, Clock, TrendingUp, Users } from "lucide-react";
+import { AlertTriangle, Clock, DollarSign, TrendingUp, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -261,6 +261,36 @@ export default function OperationsReports() {
         </>
       )}
 
+      {/* ── Active Jobs by PM ── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Active Jobs by PM
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {data.teamWorkload.length > 0 ? (
+            <ResponsiveContainer width="100%" height={Math.max(200, data.teamWorkload.length * 40)}>
+              <BarChart data={data.teamWorkload} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="active" name="Active" stackId="a" fill="hsl(var(--primary))" />
+                <Bar dataKey="upcoming" name="Due Soon" stackId="a" fill="hsl(var(--accent))" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+              <Users className="h-8 w-8 mb-2 opacity-40" />
+              <p className="text-sm">Jobs will appear here as projects are assigned to PMs</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* ── Existing Operations Reports ── */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
@@ -278,7 +308,12 @@ export default function OperationsReports() {
                   <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-            ) : <p className="text-sm text-muted-foreground">No client data</p>}
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                <DollarSign className="h-8 w-8 mb-2 opacity-40" />
+                <p className="text-sm">Revenue will appear here as invoices are paid</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -301,7 +336,12 @@ export default function OperationsReports() {
                   </div>
                 ))}
               </div>
-            ) : <p className="text-sm text-muted-foreground">No workload data</p>}
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                <Users className="h-8 w-8 mb-2 opacity-40" />
+                <p className="text-sm">Workload will appear as projects are assigned</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -323,7 +363,12 @@ export default function OperationsReports() {
                   <Bar dataKey="completed" name="Completed" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-            ) : <p className="text-sm text-muted-foreground py-8 text-center">No data yet</p>}
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                <TrendingUp className="h-8 w-8 mb-2 opacity-40" />
+                <p className="text-sm">Trend data will appear as projects are created and closed</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
