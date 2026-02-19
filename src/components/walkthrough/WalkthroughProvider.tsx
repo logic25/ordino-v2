@@ -28,9 +28,10 @@ const WalkthroughContext = createContext<WalkthroughContextValue>({
 
 export const useWalkthrough = () => useContext(WalkthroughContext);
 
-const TOOLTIP_W = 320;
-const TOOLTIP_H = 180;
-const PAD = 14;
+const TOOLTIP_W = 300;
+const TOOLTIP_H = 200;
+const PAD = 16;
+const HIGHLIGHT_PAD = 8;
 
 function computeTooltipPos(rect: DOMRect, placement: string) {
   const vw = window.innerWidth;
@@ -73,13 +74,16 @@ export function WalkthroughProvider({ children }: { children: ReactNode }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 });
+  const [resolvedPlacement, setResolvedPlacement] = useState("bottom");
 
   const applyStep = useCallback((step: WalkthroughStep) => {
     const el = document.querySelector(step.target);
     if (!el) return false;
     const rect = el.getBoundingClientRect();
+    const placement = step.placement || "bottom";
     setHighlightRect(rect);
-    setTooltipPos(computeTooltipPos(rect, step.placement || "bottom"));
+    setTooltipPos(computeTooltipPos(rect, placement));
+    setResolvedPlacement(placement);
     el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
     return true;
   }, []);
@@ -92,7 +96,7 @@ export function WalkthroughProvider({ children }: { children: ReactNode }) {
 
     let cancelled = false;
     let attempts = 0;
-    const MAX = 20; // 4 seconds
+    const MAX = 20;
 
     const tryFind = () => {
       if (cancelled) return;
@@ -101,12 +105,12 @@ export function WalkthroughProvider({ children }: { children: ReactNode }) {
         attempts++;
         setTimeout(tryFind, 200);
       } else if (!found) {
-        // Fallback: center screen
         setHighlightRect(null);
         setTooltipPos({
           top: window.innerHeight / 2 - TOOLTIP_H / 2,
           left: window.innerWidth / 2 - TOOLTIP_W / 2,
         });
+        setResolvedPlacement("bottom");
       }
     };
 
@@ -160,60 +164,96 @@ export function WalkthroughProvider({ children }: { children: ReactNode }) {
   const isLast = activeWalkthrough ? currentStep === activeWalkthrough.steps.length - 1 : false;
   const total = activeWalkthrough?.steps.length ?? 0;
 
+  // Compute 4 overlay rects to create a "hole" around the highlighted element
+  const vw = typeof window !== "undefined" ? window.innerWidth : 1920;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 1080;
+
+  const hl = highlightRect
+    ? {
+        top: Math.max(0, highlightRect.top - HIGHLIGHT_PAD),
+        left: Math.max(0, highlightRect.left - HIGHLIGHT_PAD),
+        right: Math.min(vw, highlightRect.right + HIGHLIGHT_PAD),
+        bottom: Math.min(vh, highlightRect.bottom + HIGHLIGHT_PAD),
+      }
+    : null;
+
+  // Arrow direction (points FROM tooltip TOWARD highlighted element)
+  const arrowStyle = (): React.CSSProperties => {
+    const base: React.CSSProperties = {
+      position: "absolute",
+      width: 0,
+      height: 0,
+    };
+    switch (resolvedPlacement) {
+      case "bottom": // tooltip is below target → arrow points up
+        return { ...base, top: -8, left: "50%", transform: "translateX(-50%)", borderLeft: "8px solid transparent", borderRight: "8px solid transparent", borderBottom: "8px solid hsl(var(--border))" };
+      case "top": // tooltip is above target → arrow points down
+        return { ...base, bottom: -8, left: "50%", transform: "translateX(-50%)", borderLeft: "8px solid transparent", borderRight: "8px solid transparent", borderTop: "8px solid hsl(var(--border))" };
+      case "right": // tooltip is right of target → arrow points left
+        return { ...base, left: -8, top: "50%", transform: "translateY(-50%)", borderTop: "8px solid transparent", borderBottom: "8px solid transparent", borderRight: "8px solid hsl(var(--border))" };
+      case "left": // tooltip is left of target → arrow points right
+        return { ...base, right: -8, top: "50%", transform: "translateY(-50%)", borderTop: "8px solid transparent", borderBottom: "8px solid transparent", borderLeft: "8px solid hsl(var(--border))" };
+      default:
+        return base;
+    }
+  };
+
   return (
     <WalkthroughContext.Provider value={{ startWalkthrough, isActive: !!activeWalkthrough }}>
       {children}
       {activeWalkthrough && step &&
         createPortal(
           <>
-            {/* Dark overlay with SVG cutout */}
-            <svg
-              className="fixed inset-0 w-full h-full pointer-events-none"
-              style={{ zIndex: 9998 }}
-            >
-              <defs>
-                <mask id="wt-mask">
-                  <rect width="100%" height="100%" fill="white" />
-                  {highlightRect && (
-                    <rect
-                      x={highlightRect.left - 8}
-                      y={highlightRect.top - 8}
-                      width={highlightRect.width + 16}
-                      height={highlightRect.height + 16}
-                      rx={8}
-                      fill="black"
-                    />
-                  )}
-                </mask>
-              </defs>
-              <rect
-                width="100%"
-                height="100%"
-                fill="rgba(0,0,0,0.6)"
-                mask="url(#wt-mask)"
-              />
-            </svg>
-
-            {/* Click-to-close overlay (below tooltip) */}
-            <div
-              className="fixed inset-0"
-              style={{ zIndex: 9999 }}
-              onClick={close}
-            />
-
-            {/* Highlight ring */}
-            {highlightRect && (
+            {/* 4-panel overlay creating a spotlight cutout — much more reliable than SVG mask */}
+            {hl ? (
+              <>
+                {/* Top panel */}
+                <div
+                  className="fixed bg-black/60 pointer-events-none"
+                  style={{ zIndex: 9998, top: 0, left: 0, right: 0, height: hl.top }}
+                />
+                {/* Left panel */}
+                <div
+                  className="fixed bg-black/60 pointer-events-none"
+                  style={{ zIndex: 9998, top: hl.top, left: 0, width: hl.left, bottom: vh - hl.bottom }}
+                />
+                {/* Right panel */}
+                <div
+                  className="fixed bg-black/60 pointer-events-none"
+                  style={{ zIndex: 9998, top: hl.top, left: hl.right, right: 0, bottom: vh - hl.bottom }}
+                />
+                {/* Bottom panel */}
+                <div
+                  className="fixed bg-black/60 pointer-events-none"
+                  style={{ zIndex: 9998, top: hl.bottom, left: 0, right: 0, bottom: 0 }}
+                />
+                {/* Highlight ring */}
+                <div
+                  className="fixed pointer-events-none rounded-lg"
+                  style={{
+                    zIndex: 9999,
+                    top: hl.top,
+                    left: hl.left,
+                    width: hl.right - hl.left,
+                    height: hl.bottom - hl.top,
+                    boxShadow: "0 0 0 3px hsl(var(--primary)), 0 0 20px hsl(var(--primary) / 0.5)",
+                  }}
+                />
+              </>
+            ) : (
+              /* No target found — full overlay */
               <div
-                className="fixed pointer-events-none rounded-lg border-2 border-primary animate-pulse"
-                style={{
-                  zIndex: 10000,
-                  top: highlightRect.top - 8,
-                  left: highlightRect.left - 8,
-                  width: highlightRect.width + 16,
-                  height: highlightRect.height + 16,
-                }}
+                className="fixed inset-0 bg-black/60 pointer-events-none"
+                style={{ zIndex: 9998 }}
               />
             )}
+
+            {/* Click-to-close backdrop (behind tooltip) */}
+            <div
+              className="fixed inset-0"
+              style={{ zIndex: 10000 }}
+              onClick={close}
+            />
 
             {/* Tooltip */}
             <div
@@ -226,6 +266,9 @@ export function WalkthroughProvider({ children }: { children: ReactNode }) {
               }}
               onClick={(e) => e.stopPropagation()}
             >
+              {/* Arrow */}
+              {highlightRect && <div style={arrowStyle()} />}
+
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="text-xs text-muted-foreground font-medium">
