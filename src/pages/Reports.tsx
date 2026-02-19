@@ -8,6 +8,7 @@ import ProposalReports from "@/components/reports/ProposalReports";
 import OperationsReports from "@/components/reports/OperationsReports";
 import ReferralReports from "@/components/reports/ReferralReports";
 import DataExports from "@/components/reports/DataExports";
+import ReportsKPISummary from "@/components/reports/ReportsKPISummary";
 
 export default function Reports() {
   return (
@@ -20,6 +21,8 @@ export default function Reports() {
             <p className="text-sm text-muted-foreground">Company-wide insights and analytics</p>
           </div>
         </div>
+
+        <ReportsKPISummary />
 
         <Tabs defaultValue="projects" className="space-y-4">
           <TabsList className="flex-wrap h-auto gap-1">
