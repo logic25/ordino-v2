@@ -52,6 +52,7 @@ export default function OperationsReports() {
   const { data: svcData, isLoading: svcLoading } = useServiceDurationReports();
   const [trendService, setTrendService] = useState<string>("all");
   const [pmService, setPmService] = useState<string>("all");
+  const [pmChartService, setPmChartService] = useState<string>("all");
 
   if (isLoading || trendsLoading || svcLoading) return <div className="text-muted-foreground">Loading...</div>;
   if (!data) return null;
@@ -264,41 +265,74 @@ export default function OperationsReports() {
       {/* ── Services by PM (stacked by service type) ── */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Services by PM
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Services by PM
+            </CardTitle>
+            {data.serviceTypes && data.serviceTypes.length > 0 && (
+              <Select value={pmChartService} onValueChange={setPmChartService}>
+                <SelectTrigger className="w-[180px] h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Services</SelectItem>
+                  {data.serviceTypes.map((t: string) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
-          {data.servicesByPM && data.servicesByPM.length > 0 ? (
-            <ResponsiveContainer width="100%" height={Math.max(250, data.servicesByPM.length * 45)}>
-              <BarChart data={data.servicesByPM} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-                <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Legend />
-                {data.serviceTypes.map((svcType: string, idx: number) => {
-                  const colors = [
-                    "hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--destructive))",
-                    "hsl(var(--muted-foreground))", "hsl(142, 76%, 36%)", "hsl(45, 93%, 47%)",
-                    "hsl(280, 67%, 55%)", "hsl(200, 80%, 50%)", "hsl(340, 70%, 50%)",
-                  ];
-                  const isLast = idx === data.serviceTypes.length - 1;
-                  return (
-                    <Bar
-                      key={svcType}
-                      dataKey={svcType}
-                      name={svcType}
-                      stackId="a"
-                      fill={colors[idx % colors.length]}
-                      radius={isLast ? [0, 4, 4, 0] : undefined}
-                    />
-                  );
-                })}
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
+          {data.servicesByPM && data.servicesByPM.length > 0 ? (() => {
+            const filteredTypes = pmChartService === "all" ? data.serviceTypes : [pmChartService];
+            const filteredData = data.servicesByPM
+              .map((pm: any) => {
+                const total = filteredTypes.reduce((s: number, t: string) => s + (pm[t] || 0), 0);
+                return { ...pm, _total: total };
+              })
+              .filter((pm: any) => pm._total > 0)
+              .sort((a: any, b: any) => b._total - a._total);
+
+            if (filteredData.length === 0) return (
+              <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                <Users className="h-8 w-8 mb-2 opacity-40" />
+                <p className="text-sm">No PMs have this service type assigned</p>
+              </div>
+            );
+
+            const colors = [
+              "hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--destructive))",
+              "hsl(var(--muted-foreground))", "hsl(142, 76%, 36%)", "hsl(45, 93%, 47%)",
+              "hsl(280, 67%, 55%)", "hsl(200, 80%, 50%)", "hsl(340, 70%, 50%)",
+            ];
+            return (
+              <ResponsiveContainer width="100%" height={Math.max(250, filteredData.length * 45)}>
+                <BarChart data={filteredData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                  <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Legend />
+                  {filteredTypes.map((svcType: string, idx: number) => {
+                    const isLast = idx === filteredTypes.length - 1;
+                    return (
+                      <Bar
+                        key={svcType}
+                        dataKey={svcType}
+                        name={svcType}
+                        stackId="a"
+                        fill={colors[idx % colors.length]}
+                        radius={isLast ? [0, 4, 4, 0] : undefined}
+                      />
+                    );
+                  })}
+                </BarChart>
+              </ResponsiveContainer>
+            );
+          })() : (
             <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
               <Users className="h-8 w-8 mb-2 opacity-40" />
               <p className="text-sm">Service breakdown will appear as projects with services are assigned to PMs</p>
