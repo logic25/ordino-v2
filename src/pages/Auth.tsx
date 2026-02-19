@@ -46,6 +46,26 @@ export default function Auth() {
   const { toast } = useToast();
   const { signIn } = useAuth();
 
+  // Detect OAuth error redirect (e.g. signup disabled bouncing Google login)
+  useEffect(() => {
+    const errorCode = searchParams.get("error_code");
+    const errorDescription = searchParams.get("error_description");
+    if (errorCode || errorDescription) {
+      const isSignupDisabled =
+        errorCode === "user_not_found" ||
+        (errorDescription || "").toLowerCase().includes("signup") ||
+        (errorDescription || "").toLowerCase().includes("not found") ||
+        (errorDescription || "").toLowerCase().includes("disabled");
+      toast({
+        title: "Access denied",
+        description: isSignupDisabled
+          ? "Your Google account is not authorized. Contact your administrator to get access."
+          : (errorDescription?.replace(/\+/g, " ") ?? "Sign-in failed. Please try again."),
+        variant: "destructive",
+      });
+    }
+  }, [searchParams]);
+
   // Check for password reset flow from email link
   useEffect(() => {
     const isReset = searchParams.get("reset") === "true";
@@ -58,12 +78,11 @@ export default function Auth() {
     });
 
     if (isReset) {
-      // Show reset form immediately - the recovery session should be active
       setIsPasswordReset(true);
     }
     
     return () => subscription.unsubscribe();
-  }, [searchParams]);
+  }, []);
 
   const form = useForm<AuthFormData>({
     resolver: zodResolver(authSchema),
