@@ -68,8 +68,15 @@ export function WalkthroughProvider({ children }: { children: ReactNode }) {
         top = rect.bottom + pad;
         left = rect.left + rect.width / 2;
     }
+    // Clamp tooltip to remain within viewport (tooltip is ~320px wide, ~160px tall)
+    const tooltipW = 320;
+    const tooltipH = 160;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    left = Math.max(tooltipW / 2 + 8, Math.min(left, vw - tooltipW / 2 - 8));
+    top = Math.max(8, Math.min(top, vh - tooltipH - 8));
     setTooltipPos({ top, left, placement });
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, []);
 
   // Poll for the target element when step changes
