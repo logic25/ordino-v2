@@ -240,7 +240,7 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
                   )}
                 </div>
                 );
-              }))
+              })
             )}
           </CardContent>
         </Card>
