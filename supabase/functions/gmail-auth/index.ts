@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { action, code, redirect_uri } = body;
+    const { action, code, redirect_uri, login_hint } = body;
 
     // Get user profile
     const { data: profile } = await supabaseAdmin
@@ -73,14 +73,22 @@ Deno.serve(async (req) => {
         "https://www.googleapis.com/auth/calendar",
       ].join(" ");
 
-      const authUrl =
+      // Get the user's email to use as login_hint so Google pre-selects the right account
+      const { data: authUser } = await supabaseUser.auth.getUser();
+      const userEmail = login_hint || authUser?.user?.email || "";
+
+      let authUrl =
         `https://accounts.google.com/o/oauth2/v2/auth?` +
         `client_id=${encodeURIComponent(gmailClientId)}` +
         `&redirect_uri=${encodeURIComponent(redirect_uri)}` +
         `&response_type=code` +
         `&scope=${encodeURIComponent(scopes)}` +
         `&access_type=offline` +
-        `&prompt=consent`;
+        `&prompt=select_account`;
+
+      if (userEmail) {
+        authUrl += `&login_hint=${encodeURIComponent(userEmail)}`;
+      }
 
       return new Response(JSON.stringify({ auth_url: authUrl }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
