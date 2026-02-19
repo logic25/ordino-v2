@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertTriangle, CheckCircle2, Clock, FolderKanban, ArrowRight, ClipboardCheck } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, Circle, FolderKanban, ArrowRight, ClipboardCheck } from "lucide-react";
 import { useMyAssignedProjects } from "@/hooks/useDashboard";
 import { ProposalFollowUps } from "./ProposalFollowUps";
 import { QuickTimeLog } from "./QuickTimeLog";
@@ -177,18 +177,35 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
             ) : readiness.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">No project checklists found</p>
             ) : (
-              readiness.map((p: any) => (
+              readiness.map((p: any) => {
+                const isComplete = p.readyPercent === 100;
+                const isInProgress = p.readyPercent > 0 && p.readyPercent < 100;
+                const cardClass = isComplete
+                  ? "border-l-4 border-l-green-500 bg-green-500/5"
+                  : isInProgress
+                  ? "border-l-4 border-l-amber-500 bg-amber-500/5"
+                  : "";
+                return (
                 <div
                   key={p.id}
-                  className="p-3 rounded-lg border border-border hover:border-accent/50 hover:bg-accent/5 transition-all cursor-pointer"
+                  className={`p-3 rounded-lg border border-border hover:border-accent/50 hover:bg-accent/5 transition-all cursor-pointer ${cardClass}`}
                   onClick={() => navigate(`/projects/${p.id}`)}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-sm truncate">
-                      {p.name || p.properties?.address || "Untitled"}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {isComplete ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                      ) : isInProgress ? (
+                        <Clock className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                      ) : (
+                        <Circle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      )}
+                      <span className="font-medium text-sm truncate">
+                        {p.name || p.properties?.address || "Untitled"}
+                      </span>
+                    </div>
                     <Badge
-                      variant={p.readyPercent === 100 ? "default" : p.readyPercent >= 50 ? "secondary" : "destructive"}
+                      variant={isComplete ? "default" : p.readyPercent >= 50 ? "secondary" : "destructive"}
                       className="text-xs shrink-0"
                     >
                       {p.checklistDone}/{p.checklistTotal} ({p.readyPercent}%)
@@ -198,7 +215,7 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
                   <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-2">
                     <div
                       className={`h-full rounded-full transition-all ${
-                        p.readyPercent === 100
+                        isComplete
                           ? "bg-green-500"
                           : p.readyPercent >= 50
                           ? "bg-amber-500"
@@ -222,7 +239,8 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
                     </div>
                   )}
                 </div>
-              ))
+                );
+              }))
             )}
           </CardContent>
         </Card>
