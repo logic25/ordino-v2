@@ -36,7 +36,6 @@ type ResetFormData = z.infer<typeof resetSchema>;
 type NewPasswordFormData = z.infer<typeof newPasswordSchema>;
 
 export default function Auth() {
-  const [isLogin, setIsLogin] = useState(true);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [isPasswordReset, setIsPasswordReset] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -45,7 +44,7 @@ export default function Auth() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const { signIn, signUp } = useAuth();
+  const { signIn } = useAuth();
 
   // Check for password reset flow from email link
   useEffect(() => {
@@ -92,48 +91,24 @@ export default function Auth() {
   const onSubmit = async (data: AuthFormData) => {
     setIsLoading(true);
     try {
-      if (isLogin) {
-        const { error } = await signIn(data.email, data.password);
-        if (error) {
-          if (error.message.includes("Invalid login credentials")) {
-            toast({
-              title: "Invalid credentials",
-              description: "Please check your email and password.",
-              variant: "destructive",
-            });
-          } else {
-            toast({
-              title: "Sign in failed",
-              description: error.message,
-              variant: "destructive",
-            });
-          }
-          return;
+      const { error } = await signIn(data.email, data.password);
+      if (error) {
+        if (error.message.includes("Invalid login credentials")) {
+          toast({
+            title: "Invalid credentials",
+            description: "Please check your email and password.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Sign in failed",
+            description: error.message,
+            variant: "destructive",
+          });
         }
-        navigate("/dashboard");
-      } else {
-        const { error } = await signUp(data.email, data.password);
-        if (error) {
-          if (error.message.includes("already registered")) {
-            toast({
-              title: "Account exists",
-              description: "This email is already registered. Please sign in instead.",
-              variant: "destructive",
-            });
-          } else {
-            toast({
-              title: "Sign up failed",
-              description: error.message,
-              variant: "destructive",
-            });
-          }
-          return;
-        }
-        toast({
-          title: "Check your email",
-          description: "We've sent you a confirmation link to verify your account.",
-        });
+        return;
       }
+      navigate("/dashboard");
     } finally {
       setIsLoading(false);
     }
@@ -263,18 +238,14 @@ export default function Auth() {
                 ? "Set new password"
                 : isForgotPassword 
                   ? "Reset password" 
-                  : isLogin 
-                    ? "Welcome back" 
-                    : "Create your account"}
+                  : "Welcome back"}
             </CardTitle>
             <CardDescription>
               {isPasswordReset
                 ? "Enter your new password below"
                 : isForgotPassword
                   ? "Enter your email and we'll send you a reset link"
-                  : isLogin 
-                    ? "Sign in to access your projects and time tracking" 
-                    : "Get started with Ordino for your team"}
+                  : "Sign in to access your projects and time tracking"}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -477,15 +448,13 @@ export default function Auth() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label htmlFor="password">Password</Label>
-                      {isLogin && (
-                        <button
-                          type="button"
-                          onClick={() => setIsForgotPassword(true)}
-                          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          Forgot password?
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => setIsForgotPassword(true)}
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        Forgot password?
+                      </button>
                     </div>
                     <div className="relative">
                       <Input
@@ -517,7 +486,7 @@ export default function Auth() {
                       <span className="animate-pulse-soft">Processing...</span>
                     ) : (
                       <>
-                        {isLogin ? "Sign In" : "Create Account"}
+                        Sign In
                         <ArrowRight className="ml-2 h-4 w-4" />
                       </>
                     )}
@@ -525,15 +494,9 @@ export default function Auth() {
                 </form>
 
                 <div className="mt-6 text-center">
-                  <button
-                    type="button"
-                    onClick={() => setIsLogin(!isLogin)}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {isLogin 
-                      ? "Don't have an account? Sign up" 
-                      : "Already have an account? Sign in"}
-                  </button>
+                  <p className="text-xs text-muted-foreground">
+                    Access is by invitation only. Contact your administrator to request access.
+                  </p>
                 </div>
               </>
             )}
