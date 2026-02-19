@@ -1,0 +1,1 @@
+ALTER TABLE public.services ADD COLUMN needs_dob_filing boolean NOT NULL DEFAULT false;
