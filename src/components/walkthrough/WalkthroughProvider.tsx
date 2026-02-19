@@ -42,9 +42,14 @@ export function WalkthroughProvider({ children }: { children: ReactNode }) {
   });
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
 
-  const positionTooltip = useCallback((step: WalkthroughStep) => {
+  const positionTooltip = useCallback((step: WalkthroughStep, attempt = 0) => {
     const el = document.querySelector(step.target);
     if (!el) {
+      // Retry up to 10 times (2 seconds total) if element not found yet
+      if (attempt < 10) {
+        setTimeout(() => positionTooltip(step, attempt + 1), 200);
+        return;
+      }
       setHighlightRect(null);
       setTooltipPos({ top: window.innerHeight / 2, left: window.innerWidth / 2, placement: "bottom" });
       return;
