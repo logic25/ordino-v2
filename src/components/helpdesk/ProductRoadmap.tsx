@@ -112,7 +112,7 @@ function SortableRoadmapCard({
 
   return (
     <div ref={setNodeRef} style={style} {...attributes}>
-      <Card className="group">
+      <Card className="group cursor-pointer hover:shadow-md transition-shadow" onClick={() => onEdit(item)}>
         <CardContent className="p-3 space-y-1.5">
           <div className="flex items-start gap-1.5">
             <button {...listeners} className="mt-0.5 cursor-grab text-muted-foreground hover:text-foreground shrink-0">
