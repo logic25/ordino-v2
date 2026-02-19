@@ -1,16 +1,12 @@
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
-import { X, ChevronRight, ChevronLeft, Play } from "lucide-react";
+import { X, ChevronRight, ChevronLeft } from "lucide-react";
 
 export interface WalkthroughStep {
-  /** CSS selector for the target element */
   target: string;
-  /** Title shown in the tooltip */
   title: string;
-  /** Description text */
   content: string;
-  /** Which side to show the tooltip */
   placement?: "top" | "bottom" | "left" | "right";
 }
 
@@ -32,202 +28,231 @@ const WalkthroughContext = createContext<WalkthroughContextValue>({
 
 export const useWalkthrough = () => useContext(WalkthroughContext);
 
+const TOOLTIP_W = 320;
+const TOOLTIP_H = 180;
+const PAD = 14;
+
+function computeTooltipPos(rect: DOMRect, placement: string) {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  let top = 0;
+  let left = 0;
+
+  switch (placement) {
+    case "bottom":
+      top = rect.bottom + PAD;
+      left = rect.left + rect.width / 2 - TOOLTIP_W / 2;
+      break;
+    case "top":
+      top = rect.top - PAD - TOOLTIP_H;
+      left = rect.left + rect.width / 2 - TOOLTIP_W / 2;
+      break;
+    case "right":
+      top = rect.top + rect.height / 2 - TOOLTIP_H / 2;
+      left = rect.right + PAD;
+      break;
+    case "left":
+      top = rect.top + rect.height / 2 - TOOLTIP_H / 2;
+      left = rect.left - PAD - TOOLTIP_W;
+      break;
+    default:
+      top = rect.bottom + PAD;
+      left = rect.left + rect.width / 2 - TOOLTIP_W / 2;
+  }
+
+  // Clamp within viewport
+  left = Math.max(8, Math.min(left, vw - TOOLTIP_W - 8));
+  top = Math.max(8, Math.min(top, vh - TOOLTIP_H - 8));
+
+  return { top, left };
+}
+
 export function WalkthroughProvider({ children }: { children: ReactNode }) {
   const [activeWalkthrough, setActiveWalkthrough] = useState<Walkthrough | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
-  const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number; placement: string }>({
-    top: window.innerHeight / 2,
-    left: window.innerWidth / 2,
-    placement: "bottom",
-  });
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
+  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 });
 
-  const applyPosition = useCallback((el: Element, placement: string) => {
+  const applyStep = useCallback((step: WalkthroughStep) => {
+    const el = document.querySelector(step.target);
+    if (!el) return false;
     const rect = el.getBoundingClientRect();
     setHighlightRect(rect);
-    const pad = 12;
-    let top = 0, left = 0;
-    switch (placement) {
-      case "bottom":
-        top = rect.bottom + pad;
-        left = rect.left + rect.width / 2;
-        break;
-      case "top":
-        top = rect.top - pad;
-        left = rect.left + rect.width / 2;
-        break;
-      case "right":
-        top = rect.top + rect.height / 2;
-        left = rect.right + pad;
-        break;
-      case "left":
-        top = rect.top + rect.height / 2;
-        left = rect.left - pad;
-        break;
-      default:
-        top = rect.bottom + pad;
-        left = rect.left + rect.width / 2;
-    }
-    // Clamp tooltip to remain within viewport (tooltip is ~320px wide, ~160px tall)
-    const tooltipW = 320;
-    const tooltipH = 160;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    left = Math.max(tooltipW / 2 + 8, Math.min(left, vw - tooltipW / 2 - 8));
-    top = Math.max(8, Math.min(top, vh - tooltipH - 8));
-    setTooltipPos({ top, left, placement });
-    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    setTooltipPos(computeTooltipPos(rect, step.placement || "bottom"));
+    el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+    return true;
   }, []);
 
-  // Poll for the target element when step changes
+  // Poll for element when step changes
   useEffect(() => {
     if (!activeWalkthrough) return;
     const step = activeWalkthrough.steps[currentStep];
     if (!step) return;
 
-    const placement = step.placement || "bottom";
+    let cancelled = false;
     let attempts = 0;
-    const maxAttempts = 15; // 3 seconds
+    const MAX = 20; // 4 seconds
 
     const tryFind = () => {
-      const el = document.querySelector(step.target);
-      if (el) {
-        applyPosition(el, placement);
-      } else if (attempts < maxAttempts) {
+      if (cancelled) return;
+      const found = applyStep(step);
+      if (!found && attempts < MAX) {
         attempts++;
-        pollTimer = window.setTimeout(tryFind, 200);
-      } else {
-        // Element not found after retries — show centered tooltip without highlight
+        setTimeout(tryFind, 200);
+      } else if (!found) {
+        // Fallback: center screen
         setHighlightRect(null);
-        setTooltipPos({ top: window.innerHeight / 2, left: window.innerWidth / 2, placement: "bottom" });
+        setTooltipPos({
+          top: window.innerHeight / 2 - TOOLTIP_H / 2,
+          left: window.innerWidth / 2 - TOOLTIP_W / 2,
+        });
       }
     };
 
-    let pollTimer = window.setTimeout(tryFind, 100);
-    return () => clearTimeout(pollTimer);
-  }, [activeWalkthrough, currentStep, applyPosition]);
+    const t = setTimeout(tryFind, 150);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [activeWalkthrough, currentStep, applyStep]);
 
-  // Reposition on resize
+  // Reposition on resize/scroll
   useEffect(() => {
     if (!activeWalkthrough) return;
     const step = activeWalkthrough.steps[currentStep];
     if (!step) return;
-    const handler = () => {
-      const el = document.querySelector(step.target);
-      if (el) applyPosition(el, step.placement || "bottom");
-    };
+    const handler = () => applyStep(step);
     window.addEventListener("resize", handler);
-    return () => window.removeEventListener("resize", handler);
-  }, [activeWalkthrough, currentStep, applyPosition]);
+    window.addEventListener("scroll", handler, true);
+    return () => {
+      window.removeEventListener("resize", handler);
+      window.removeEventListener("scroll", handler, true);
+    };
+  }, [activeWalkthrough, currentStep, applyStep]);
 
   const startWalkthrough = useCallback((wt: Walkthrough) => {
     setActiveWalkthrough(wt);
     setCurrentStep(0);
+    setHighlightRect(null);
   }, []);
 
-  const close = () => {
+  const close = useCallback(() => {
     setActiveWalkthrough(null);
     setCurrentStep(0);
     setHighlightRect(null);
-  };
+  }, []);
 
-  const next = () => {
+  const next = useCallback(() => {
     if (!activeWalkthrough) return;
     if (currentStep < activeWalkthrough.steps.length - 1) {
       setCurrentStep((s) => s + 1);
     } else {
       close();
     }
-  };
+  }, [activeWalkthrough, currentStep, close]);
 
-  const prev = () => {
+  const prev = useCallback(() => {
     if (currentStep > 0) setCurrentStep((s) => s - 1);
-  };
+  }, [currentStep]);
 
   const step = activeWalkthrough?.steps[currentStep];
   const isLast = activeWalkthrough ? currentStep === activeWalkthrough.steps.length - 1 : false;
-
-  const tooltipTransform =
-    tooltipPos.placement === "bottom"
-      ? "translate(-50%, 0)"
-      : tooltipPos.placement === "top"
-      ? "translate(-50%, -100%)"
-      : tooltipPos.placement === "right"
-      ? "translate(0, -50%)"
-      : "translate(-100%, -50%)";
+  const total = activeWalkthrough?.steps.length ?? 0;
 
   return (
     <WalkthroughContext.Provider value={{ startWalkthrough, isActive: !!activeWalkthrough }}>
       {children}
-      {activeWalkthrough &&
-        step &&
+      {activeWalkthrough && step &&
         createPortal(
           <>
-            {/* Overlay with cutout */}
-            <div className="fixed inset-0 z-[9998]" onClick={close}>
-              <svg className="absolute inset-0 w-full h-full">
-                <defs>
-                  <mask id="walkthrough-mask">
-                    <rect x="0" y="0" width="100%" height="100%" fill="white" />
-                    {highlightRect && (
-                      <rect
-                        x={highlightRect.left - 6}
-                        y={highlightRect.top - 6}
-                        width={highlightRect.width + 12}
-                        height={highlightRect.height + 12}
-                        rx="8"
-                        fill="black"
-                      />
-                    )}
-                  </mask>
-                </defs>
-                <rect
-                  x="0"
-                  y="0"
-                  width="100%"
-                  height="100%"
-                  fill="rgba(0,0,0,0.55)"
-                  mask="url(#walkthrough-mask)"
-                />
-              </svg>
-              {/* Highlight ring */}
-              {highlightRect && (
-                <div
-                  className="absolute border-2 border-accent rounded-lg pointer-events-none animate-pulse"
-                  style={{
-                    top: highlightRect.top - 6,
-                    left: highlightRect.left - 6,
-                    width: highlightRect.width + 12,
-                    height: highlightRect.height + 12,
-                  }}
-                />
-              )}
-            </div>
+            {/* Dark overlay with SVG cutout */}
+            <svg
+              className="fixed inset-0 w-full h-full pointer-events-none"
+              style={{ zIndex: 9998 }}
+            >
+              <defs>
+                <mask id="wt-mask">
+                  <rect width="100%" height="100%" fill="white" />
+                  {highlightRect && (
+                    <rect
+                      x={highlightRect.left - 8}
+                      y={highlightRect.top - 8}
+                      width={highlightRect.width + 16}
+                      height={highlightRect.height + 16}
+                      rx={8}
+                      fill="black"
+                    />
+                  )}
+                </mask>
+              </defs>
+              <rect
+                width="100%"
+                height="100%"
+                fill="rgba(0,0,0,0.6)"
+                mask="url(#wt-mask)"
+              />
+            </svg>
+
+            {/* Click-to-close overlay (below tooltip) */}
+            <div
+              className="fixed inset-0"
+              style={{ zIndex: 9999 }}
+              onClick={close}
+            />
+
+            {/* Highlight ring */}
+            {highlightRect && (
+              <div
+                className="fixed pointer-events-none rounded-lg border-2 border-primary animate-pulse"
+                style={{
+                  zIndex: 10000,
+                  top: highlightRect.top - 8,
+                  left: highlightRect.left - 8,
+                  width: highlightRect.width + 16,
+                  height: highlightRect.height + 16,
+                }}
+              />
+            )}
 
             {/* Tooltip */}
             <div
-              className="fixed z-[9999] w-80 bg-card border border-border rounded-xl shadow-lg p-4 space-y-3"
-              style={{ top: tooltipPos.top, left: tooltipPos.left, transform: tooltipTransform }}
+              className="fixed bg-card border border-border rounded-xl shadow-2xl p-4 space-y-3"
+              style={{
+                zIndex: 10001,
+                top: tooltipPos.top,
+                left: tooltipPos.left,
+                width: TOOLTIP_W,
+              }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-start justify-between">
-                <div>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
                   <p className="text-xs text-muted-foreground font-medium">
-                    Step {currentStep + 1} of {activeWalkthrough.steps.length}
+                    Step {currentStep + 1} of {total}
                   </p>
-                  <h4 className="font-semibold text-foreground text-sm mt-0.5">{step.title}</h4>
+                  <h4 className="font-semibold text-foreground text-sm mt-0.5 leading-snug">
+                    {step.title}
+                  </h4>
                 </div>
-                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={close}>
+                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 -mt-1 -mr-1" onClick={close}>
                   <X className="h-3.5 w-3.5" />
                 </Button>
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed">{step.content}</p>
               <div className="flex items-center justify-between pt-1">
-                <Button variant="ghost" size="sm" onClick={prev} disabled={currentStep === 0} className="text-xs">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={prev}
+                  disabled={currentStep === 0}
+                  className="text-xs"
+                >
                   <ChevronLeft className="h-3 w-3 mr-1" /> Back
                 </Button>
                 <Button size="sm" onClick={next} className="text-xs">
-                  {isLast ? "Finish" : "Next"} {!isLast && <ChevronRight className="h-3 w-3 ml-1" />}
+                  {isLast ? "Finish" : "Next"}
+                  {!isLast && <ChevronRight className="h-3 w-3 ml-1" />}
                 </Button>
               </div>
             </div>
