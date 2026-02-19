@@ -1,32 +1,48 @@
 
-## Project Readiness Color Coding
+## Add Apple Sign-In Button to Login Page
 
-Add visual color differentiation to the Project Readiness cards based on three states:
+### What changes
 
-### States and Colors
+One file: `src/pages/Auth.tsx`
 
-| State | Condition | Border Color | Left Accent | Icon |
-|-------|-----------|-------------|-------------|------|
-| **Complete** (100%) | All checklist items received | Green border | Green left bar | CheckCircle2 (green) |
-| **In Progress** (1-99%) | Some items received | Amber/yellow border | Amber left bar | Clock (amber) |
-| **Not Started** (0% or no items) | No checklist items at all | Default/gray border | No accent | Circle (muted) |
+An Apple sign-in button will be added directly below the Google button, before the "or continue with email" divider. The `lovable.auth.signInWithOAuth("apple", ...)` function is already available through the existing `lovable` integration — no new packages needed.
 
-### Changes
+### New layout order (inside the sign-in/sign-up form section)
 
-**File: `src/components/dashboard/PMDailyView.tsx`**
+```text
+[ Continue with Google  ]
+[ Continue with Apple   ]  ← NEW
+----or continue with email----
+[ Email field          ]
+[ Password field       ]
+[ Sign In button       ]
+```
 
-1. Add a left border accent and conditional border color to each readiness card based on `readyPercent`:
-   - `readyPercent === 100` --> green left border, subtle green background tint
-   - `readyPercent > 0` --> amber left border, subtle amber background tint
-   - `readyPercent === 0` or no checklist --> neutral/gray, no accent
+### Technical details
 
-2. Add a small status icon next to the project name matching the state color
+In `src/pages/Auth.tsx`, after the closing `</Button>` tag for Google (line ~419), insert a new Apple button block with:
 
-3. Group the readiness items by state (complete at bottom, not started at top) so the ones needing attention are most visible -- this aligns with the current sort by `readyPercent` ascending
+- Same `variant="outline"` and `h-11` height to match Google button styling
+- Apple SVG logo in black (standard Apple branding)
+- Calls `lovable.auth.signInWithOAuth("apple", { redirect_uri: window.location.origin })`
+- Same error toast handling as Google button
+- Shares the existing `isLoading` state
 
-### Technical Details
+Also add `prompt: "select_account"` as an `extraParam` to the **Google** button to fix the cached-account issue your partner hit — this forces Google to always show the account picker instead of auto-signing in with a cached account.
 
-- Use Tailwind classes like `border-l-4 border-l-green-500`, `border-l-amber-500`, `border-l-border` for the left accent
-- Add subtle background: `bg-green-500/5`, `bg-amber-500/5` for complete/in-progress
-- The existing progress bar colors already differentiate (green/amber/red) -- this extends that visual language to the whole card
-- No database changes needed; purely a UI update
+### Google button fix (same file)
+
+```typescript
+const { error } = await lovable.auth.signInWithOAuth("google", {
+  redirect_uri: window.location.origin,
+  extraParams: {
+    prompt: "select_account",
+  },
+});
+```
+
+This means your partner (and all future users) will always be shown the Google account chooser, preventing the wrong-account auto-login situation entirely — no incognito needed.
+
+### Pre-requisite (you do this in the Cloud panel, no code)
+
+Before testing Apple sign-in, in the Authentication Settings panel click **Apple** and toggle it **Enabled**. Lovable Cloud manages the Apple credentials automatically — nothing else needed.
