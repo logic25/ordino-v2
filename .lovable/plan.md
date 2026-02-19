@@ -1,67 +1,32 @@
 
+## Project Readiness Color Coding
 
-# Enhanced Reports: Missing Report Types and Improvements
+Add visual color differentiation to the Project Readiness cards based on three states:
 
-## What's Happening Now
+### States and Colors
 
-The Operations tab shows empty cards because the database has no completed service records or client revenue data yet. The Service Duration Analytics section is correctly hidden when there's no data, but the remaining cards ("Top Clients by Revenue", "Team Workload") also show "No data" because no projects have been assigned to PMs or invoices paid. The other tabs (Projects, Billing, Time, Proposals) similarly depend on having real data.
+| State | Condition | Border Color | Left Accent | Icon |
+|-------|-----------|-------------|-------------|------|
+| **Complete** (100%) | All checklist items received | Green border | Green left bar | CheckCircle2 (green) |
+| **In Progress** (1-99%) | Some items received | Amber/yellow border | Amber left bar | Clock (amber) |
+| **Not Started** (0% or no items) | No checklist items at all | Default/gray border | No accent | Circle (muted) |
 
-## What's Missing (Inspired by Reference Dashboard)
+### Changes
 
-Looking at your reference screenshot and comparing to what Ordino currently has, here are the gaps:
+**File: `src/components/dashboard/PMDailyView.tsx`**
 
-### 1. Company-Wide KPI Summary Bar (New -- Top of Reports Page)
-A row of headline KPI cards visible above all tabs, showing at-a-glance numbers:
-- **# Pending Proposals** and **$ Pending Proposals**
-- **# Open Invoices** and **$ Open Invoices**
-- **Active Projects** count
-- **YTD Revenue Collected**
+1. Add a left border accent and conditional border color to each readiness card based on `readyPercent`:
+   - `readyPercent === 100` --> green left border, subtle green background tint
+   - `readyPercent > 0` --> amber left border, subtle amber background tint
+   - `readyPercent === 0` or no checklist --> neutral/gray, no accent
 
-These pull from existing data (proposals, invoices, projects) and always show something even if some values are zero.
+2. Add a small status icon next to the project name matching the state color
 
-### 2. Active Jobs by PM (Operations Tab)
-A **stacked horizontal bar chart** showing each PM's active project count, broken down by service type (color-coded). This is more useful than just "X active" because it shows the mix -- a PM with 40 Pull Permits looks very different from one with 10 Alt-1s.
+3. Group the readiness items by state (complete at bottom, not started at top) so the ones needing attention are most visible -- this aligns with the current sort by `readyPercent` ascending
 
-### 3. Active Jobs by Status (Projects Tab)
-A **vertical bar chart** showing project count per status (Active, Pending, Closed, On Hold, etc.). The existing pie chart shows this but a bar chart matches the reference and is easier to read with many categories.
+### Technical Details
 
-### 4. Revenue by Service Type (Billing Tab)
-A **donut chart** showing total billed or collected revenue broken down by service type (e.g., "Pull Permit: $45K, Alt-2: $120K, CO: $200K"). Shows what service lines generate the most money.
-
-### 5. YTD Sales by Sales Rep (Proposals Tab)
-A **bar chart** showing each sales person's year-to-date proposal value (executed proposals). Identifies top performers.
-
-### 6. Better Empty States
-Instead of just "No data", show helpful context like "Revenue will appear here as invoices are created and paid" with an icon. Makes the reports page feel intentional even before data flows in.
-
-## Technical Details
-
-### Files Modified
-
-| File | Change |
-|------|--------|
-| `src/pages/Reports.tsx` | Add KPI summary bar above tabs |
-| `src/components/reports/OperationsReports.tsx` | Add "Active Jobs by PM" stacked bar chart |
-| `src/components/reports/ProjectReports.tsx` | Add "Active Jobs by Status" bar chart alongside existing pie |
-| `src/components/reports/BillingReports.tsx` | Add "Revenue by Service Type" donut chart |
-| `src/components/reports/ProposalReports.tsx` | Add "YTD Sales by Rep" bar chart |
-| `src/hooks/useReports.ts` | Extend existing hooks to return additional breakdowns (service-type revenue, PM job mix, sales rep totals) |
-
-### New Data Queries
-
-**KPI Summary (Reports.tsx)**: Simple counts from proposals (status in draft/sent), invoices (status in sent/overdue), and projects (status = active). All use existing tables.
-
-**Active Jobs by PM**: Query `projects` joined with `services` and `profiles` to get each PM's active service breakdown. Group by `assigned_to` then by `service.name`.
-
-**Revenue by Service Type**: Query `invoices` joined to `projects` and `services` to attribute invoice amounts to service types. Uses existing foreign keys.
-
-**YTD Sales by Rep**: Query `proposals` where status = executed and created_at is current year, grouped by `sales_person_id`, joined to `profiles` for display names.
-
-### Implementation Order
-1. Add KPI summary bar to Reports page (always visible, above tabs)
-2. Improve empty states across all report tabs
-3. Add Active Jobs by PM stacked chart to Operations
-4. Add Revenue by Service Type donut to Billing
-5. Add YTD Sales by Rep chart to Proposals
-6. Add Active Jobs by Status bar chart to Projects
-
+- Use Tailwind classes like `border-l-4 border-l-green-500`, `border-l-amber-500`, `border-l-border` for the left accent
+- Add subtle background: `bg-green-500/5`, `bg-amber-500/5` for complete/in-progress
+- The existing progress bar colors already differentiate (green/amber/red) -- this extends that visual language to the whole card
+- No database changes needed; purely a UI update
