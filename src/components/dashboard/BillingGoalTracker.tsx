@@ -2,7 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Target, Users, Briefcase } from "lucide-react";
+import { Target, Briefcase, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanySettings, type ServiceCatalogItem } from "@/hooks/useCompanySettings";
@@ -150,6 +151,19 @@ export function BillingGoalTracker() {
         <CardTitle className="flex items-center gap-2 text-base">
           <Target className="h-5 w-5" />
           PM Billing Capacity
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-xs text-xs space-y-1.5 p-3">
+                <p className="font-semibold">How this is calculated:</p>
+                <p><span className="font-medium">Weighted Workload</span> — each active service is assigned a complexity weight (1–10). The PM's total workload is the sum of all their services' weights.</p>
+                <p><span className="font-medium">Monthly Goal ($)</span> — the PM's configured monthly billing target in dollars.</p>
+                <p><span className="font-medium">Billing Progress</span> — invoices created this month on the PM's projects vs. their smart target (total service value × checklist readiness %).</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </CardTitle>
         <CardDescription>
           Complexity-weighted workload and billing progress per PM
@@ -178,7 +192,7 @@ export function BillingGoalTracker() {
                           <Briefcase className="h-3 w-3" /> {pm.projectCount} projects
                         </span>
                         <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                          {pm.weightedWorkload}/{pm.maxCapacity} capacity
+                          {pm.weightedWorkload} pts · ${pm.maxCapacity.toLocaleString()} goal
                         </Badge>
                       </div>
                     </div>
