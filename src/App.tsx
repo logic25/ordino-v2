@@ -32,6 +32,7 @@ import ClientProposal from "./pages/ClientProposal";
 import Reports from "./pages/Reports";
 import HelpDesk from "./pages/HelpDesk";
 import NotFound from "./pages/NotFound";
+import AuthCallback from "./pages/AuthCallback";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,7 @@ function AppRoutes() {
           </PublicRoute>
         }
       />
+      <Route path="/auth/callback" element={<AuthCallback />} />
 
       {/* Setup route - requires auth but no profile */}
       <Route
