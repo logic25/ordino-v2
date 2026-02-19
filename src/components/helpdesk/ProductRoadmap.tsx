@@ -92,7 +92,7 @@ const ROADMAP_ITEMS: RoadmapItem[] = [
     title: "Project Phase Tracking",
     description: "Track project lifecycle phases (Pre-filing → Filing → Approval → Closeout) with visual status indicators. Each phase has configurable milestones, and the system surfaces which phase each project is in across all views.",
     category: "projects",
-    status: "in_progress",
+    status: "done",
     priority: "high",
   },
 ];

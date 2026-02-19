@@ -12,6 +12,7 @@ export interface Project {
   project_type: string | null;
   floor_number: string | null;
   status: "open" | "on_hold" | "closed" | "paid";
+  phase: string;
   assigned_pm_id: string | null;
   senior_pm_id: string | null;
   client_id: string | null;
@@ -61,6 +62,7 @@ export interface ProjectFormInput {
   project_type?: string | null;
   floor_number?: string | null;
   status?: "open" | "on_hold" | "closed" | "paid";
+  phase?: string;
   assigned_pm_id?: string | null;
   senior_pm_id?: string | null;
   client_id?: string | null;

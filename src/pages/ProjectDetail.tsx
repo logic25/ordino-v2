@@ -217,6 +217,39 @@ export default function ProjectDetail() {
                 </h1>
                 <Badge variant={status.variant} className="shrink-0">{status.label}</Badge>
               </div>
+              {/* Phase Stepper */}
+              <div className="flex items-center gap-1 mt-2">
+                {(["pre_filing", "filing", "approval", "closeout"] as const).map((phase, idx) => {
+                  const labels: Record<string, string> = { pre_filing: "Pre-Filing", filing: "Filing", approval: "Approval", closeout: "Closeout" };
+                  const currentPhase = (project as any).phase || "pre_filing";
+                  const phaseOrder = ["pre_filing", "filing", "approval", "closeout"];
+                  const currentIdx = phaseOrder.indexOf(currentPhase);
+                  const isActive = phase === currentPhase;
+                  const isPast = idx < currentIdx;
+                  return (
+                    <div key={phase} className="flex items-center gap-1">
+                      {idx > 0 && <div className={`w-6 h-0.5 ${isPast ? "bg-primary" : "bg-border"}`} />}
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const { error } = await supabase.from("projects").update({ phase } as any).eq("id", project.id);
+                          if (!error) {
+                            queryClient.invalidateQueries({ queryKey: ["projects"] });
+                            toast({ title: "Phase updated", description: `Set to ${labels[phase]}` });
+                          }
+                        }}
+                        className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
+                          isActive ? "bg-primary text-primary-foreground border-primary font-semibold" :
+                          isPast ? "bg-primary/10 text-primary border-primary/30" :
+                          "bg-muted text-muted-foreground border-border hover:bg-muted/80"
+                        }`}
+                      >
+                        {labels[phase]}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
               <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
                 {project.project_number && <span className="font-mono">{project.project_number}</span>}
                {project.properties?.address && (
