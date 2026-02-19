@@ -40,7 +40,7 @@ export function useProjectServices(projectId: string | undefined) {
         jobDescription: svc.job_description || undefined,
         estimatedCosts: undefined,
         notes: svc.notes || "",
-        needsDobFiling: false,
+        needsDobFiling: svc.needs_dob_filing ?? false,
         tasks: [],
         requirements: [],
         allottedHours: svc.estimated_hours || 0,

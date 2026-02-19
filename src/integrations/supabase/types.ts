@@ -5245,6 +5245,7 @@ export type Database = {
           id: string
           metadata: Json | null
           name: string
+          needs_dob_filing: boolean
           notes: string | null
           project_id: string | null
           qb_invoice_id: string | null
@@ -5268,6 +5269,7 @@ export type Database = {
           id?: string
           metadata?: Json | null
           name: string
+          needs_dob_filing?: boolean
           notes?: string | null
           project_id?: string | null
           qb_invoice_id?: string | null
@@ -5291,6 +5293,7 @@ export type Database = {
           id?: string
           metadata?: Json | null
           name?: string
+          needs_dob_filing?: boolean
           notes?: string | null
           project_id?: string | null
           qb_invoice_id?: string | null
