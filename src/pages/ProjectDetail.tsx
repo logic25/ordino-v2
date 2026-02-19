@@ -649,16 +649,20 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
                 <ClipboardList className="h-5 w-5 text-muted-foreground" />
                 <CardTitle className="text-base">
                   Project Readiness
-                  {outstanding.length > 0 && (
-                    <Badge variant="secondary" className="ml-2 bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-                      {outstanding.length} outstanding
-                    </Badge>
-                  )}
-                  {outstanding.length === 0 && (
-                    <Badge variant="secondary" className="ml-2 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
-                      All clear
-                    </Badge>
-                  )}
+                  {(() => {
+                    const pisMissing = pisStatus.totalFields - pisStatus.completedFields;
+                    const totalIssues = outstanding.length + pisMissing;
+                    if (totalIssues === 0) return (
+                      <Badge variant="secondary" className="ml-2 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+                        All clear
+                      </Badge>
+                    );
+                    return (
+                      <Badge variant="secondary" className="ml-2 bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                        {totalIssues} outstanding
+                      </Badge>
+                    );
+                  })()}
                 </CardTitle>
               </div>
               <div className="flex items-center gap-3">
@@ -682,6 +686,22 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
                 {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
               </div>
             </div>
+            {!isOpen && pisStatus.totalFields > 0 && (
+              <div className="mt-3">
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      pisComplete ? "bg-green-500" : pisStatus.completedFields / pisStatus.totalFields >= 0.5 ? "bg-amber-500" : "bg-red-500"
+                    }`}
+                    style={{ width: `${(pisStatus.completedFields / pisStatus.totalFields) * 100}%` }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {pisStatus.completedFields}/{pisStatus.totalFields} PIS fields complete
+                  {outstanding.length > 0 && ` · ${outstanding.length} checklist items open`}
+                </p>
+              </div>
+            )}
           </CardHeader>
         </CollapsibleTrigger>
         <CollapsibleContent>
