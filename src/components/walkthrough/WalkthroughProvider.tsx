@@ -14,6 +14,8 @@ export interface Walkthrough {
   id: string;
   name: string;
   steps: WalkthroughStep[];
+  /** Optional route to navigate to before starting the walkthrough */
+  startPath?: string;
 }
 
 interface WalkthroughContextValue {

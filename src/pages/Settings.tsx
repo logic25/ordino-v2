@@ -147,7 +147,7 @@ export default function Settings() {
       default:
         return (
           <>
-            <div className="grid gap-4">
+            <div className="grid gap-4" data-tour="settings-sections">
               {settingsSections
                 .filter((section) => !(section as any).adminOnly || isAdmin)
                 .map((section) => (
@@ -196,8 +196,8 @@ export default function Settings() {
 
   return (
     <AppLayout>
-      <div className="space-y-6 animate-fade-in">
-        <div className="flex items-center gap-4">
+      <div className="space-y-6 animate-fade-in" data-tour="settings-page">
+        <div className="flex items-center gap-4" data-tour="settings-header">
           {activeSection !== "main" && (
             <Button
               variant="ghost"

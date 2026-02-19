@@ -733,8 +733,8 @@ export default function Proposals() {
 
   return (
     <AppLayout>
-      <div className="space-y-6 animate-fade-in">
-        <div className="flex items-center justify-between">
+      <div className="space-y-6 animate-fade-in" data-tour="proposals-page">
+        <div className="flex items-center justify-between" data-tour="proposals-header">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Proposals</h1>
             <p className="text-muted-foreground mt-1">
@@ -761,7 +761,7 @@ export default function Proposals() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-5">
+        <div className="grid gap-4 md:grid-cols-5" data-tour="proposals-stats">
           <Card
             className={`cursor-pointer transition-colors hover:border-primary/50 ${statusFilter === null && !["draft","sent","executed","lost","follow_up"].includes(statusFilter || "") ? "border-primary ring-1 ring-primary/20" : ""}`}
             onClick={() => { setStatusFilter(statusFilter === null ? null : null); setActiveTab("proposals"); }}
