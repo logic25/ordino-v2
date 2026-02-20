@@ -538,35 +538,60 @@ export function AIUsageDashboard() {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <span className="text-base">🎯</span> Session Recordings &amp; Heatmaps
-            <InfoTip>Microsoft Clarity records real user sessions and generates heatmaps so you can see exactly where people click, scroll, and get stuck.</InfoTip>
+            <InfoTip>Microsoft Clarity records real user sessions and generates heatmaps so you can see exactly where people click, scroll, and get stuck. Click any card to open that section.</InfoTip>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-xs text-muted-foreground mb-4">
-            Clarity tracks rage-clicks, dead-clicks, and session replays automatically. Open the dashboard to see recordings and heatmaps for any page.
+            Clarity doesn't expose a public API, so data lives in the Clarity dashboard. Click a card below to jump straight to that section.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
             {[
-              { icon: "🖱️", label: "Session Recordings", desc: "Watch real users navigate the app" },
-              { icon: "🔥", label: "Heatmaps", desc: "See where people click and scroll" },
-              { icon: "😤", label: "Rage Click Detection", desc: "Find frustrating UI moments" },
+              {
+                icon: "🖱️",
+                label: "Session Recordings",
+                desc: "Watch real users navigate the app",
+                href: "https://clarity.microsoft.com/projects/view/vk5l5rkwge/recordings",
+                cta: "View recordings →",
+              },
+              {
+                icon: "🔥",
+                label: "Heatmaps",
+                desc: "See where people click and scroll",
+                href: "https://clarity.microsoft.com/projects/view/vk5l5rkwge/heatmaps",
+                cta: "View heatmaps →",
+              },
+              {
+                icon: "😤",
+                label: "Rage Clicks",
+                desc: "Find frustrating UI moments",
+                href: "https://clarity.microsoft.com/projects/view/vk5l5rkwge/recordings?filters=N4XyA",
+                cta: "View rage clicks →",
+              },
             ].map((item) => (
-              <div key={item.label} className="rounded-lg border bg-muted/30 p-3 flex gap-3 items-start">
+              <a
+                key={item.label}
+                href={item.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg border bg-muted/30 hover:bg-muted/60 hover:border-primary/40 transition-colors p-3 flex gap-3 items-start group cursor-pointer"
+              >
                 <span className="text-xl">{item.icon}</span>
                 <div>
                   <p className="text-xs font-medium text-foreground">{item.label}</p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">{item.desc}</p>
+                  <p className="text-[11px] text-primary mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">{item.cta}</p>
                 </div>
-              </div>
+              </a>
             ))}
           </div>
-          <Button asChild size="sm" className="h-8 gap-1.5 text-xs">
+          <Button asChild size="sm" variant="outline" className="h-8 gap-1.5 text-xs">
             <a
               href="https://clarity.microsoft.com/projects/view/vk5l5rkwge/dashboard"
               target="_blank"
               rel="noopener noreferrer"
             >
-              <ExternalLink className="h-3 w-3" /> Open Clarity Dashboard
+              <ExternalLink className="h-3 w-3" /> Open Full Clarity Dashboard
             </a>
           </Button>
         </CardContent>
