@@ -206,6 +206,10 @@ export function ProductRoadmap() {
   const [aiResult, setAiResult] = useState<StressTestResult | null>(null);
   const [aiForm, setAiForm] = useState({ status: "gap", priority: "medium", category: "general" });
 
+  // Quick Add inline AI test
+  const [quickAiTesting, setQuickAiTesting] = useState(false);
+  const [quickAiResult, setQuickAiResult] = useState<StressTestResult | null>(null);
+
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const companyId = (profile as any)?.company_id;
@@ -259,7 +263,34 @@ export function ProductRoadmap() {
     setAiIdeaText("");
     setAiResult(null);
     setAiForm({ status: "gap", priority: "medium", category: "general" });
+    setQuickAiResult(null);
     setDialogTab("quick");
+  };
+
+  const handleQuickAiTest = async () => {
+    if (!form.title.trim()) return;
+    setQuickAiTesting(true);
+    setQuickAiResult(null);
+    try {
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+      const ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const token = (await supabase.auth.getSession()).data.session?.access_token || "";
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/analyze-telemetry`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, apikey: ANON_KEY },
+        body: JSON.stringify({ mode: "idea", company_id: companyId, raw_idea: `${form.title}: ${form.description}` }),
+      });
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      const result = await res.json();
+      const suggestion = result.suggestions?.[0];
+      if (!suggestion) throw new Error("No analysis returned");
+      setQuickAiResult(suggestion);
+      setForm((f) => ({ ...f, priority: suggestion.priority || f.priority, category: suggestion.category || f.category }));
+    } catch (err: any) {
+      toast({ title: "AI test failed", description: err.message, variant: "destructive" });
+    } finally {
+      setQuickAiTesting(false);
+    }
   };
 
   const handleSave = () => {
@@ -728,7 +759,83 @@ export function ProductRoadmap() {
                     </Select>
                   </div>
                 </div>
-                <Button className="w-full" onClick={handleSave} disabled={!form.title.trim()}>Add Item</Button>
+
+                {/* Inline AI Result Panel */}
+                {quickAiResult && (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Brain className="h-3.5 w-3.5 text-violet-600" />
+                        <p className="text-xs font-medium">AI Analysis</p>
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-violet-500/10 text-violet-600 border-violet-300 dark:text-violet-400 dark:border-violet-700 gap-1 ml-auto font-normal">
+                          <Sparkles className="h-2.5 w-2.5" /> Will be saved with item
+                        </Badge>
+                      </div>
+                      <div className="rounded-md bg-muted/50 border px-3 py-2">
+                        <p className="text-[10px] text-muted-foreground font-medium mb-0.5">Evidence</p>
+                        <p className="text-xs leading-relaxed">{quickAiResult.evidence}</p>
+                      </div>
+                      {quickAiResult.duplicate_warning && (
+                        <div className="rounded-md border border-border bg-muted/30 px-3 py-2 flex items-start gap-2">
+                          <AlertCircle className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                          <p className="text-xs text-muted-foreground">Similar exists: "{quickAiResult.duplicate_warning}"</p>
+                        </div>
+                      )}
+                      {quickAiResult.challenges?.length > 0 && (
+                        <ul className="space-y-0.5">
+                          {quickAiResult.challenges.map((c, i) => (
+                            <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                              <ChevronRight className="h-3 w-3 mt-0.5 shrink-0" />{c}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={handleQuickAiTest}
+                    disabled={quickAiTesting || !form.title.trim()}
+                  >
+                    {quickAiTesting
+                      ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Testing…</>
+                      : <><Brain className="h-3.5 w-3.5" /> {quickAiResult ? "Re-run AI Test" : "Run AI Test"}</>
+                    }
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    onClick={() => {
+                      if (!form.title.trim()) return;
+                      if (quickAiResult) {
+                        // Save with stress test result attached
+                        const maxOrder = items.filter((i) => i.status === form.status).reduce((m, i) => Math.max(m, i.sort_order), 0);
+                        supabase.from("roadmap_items").insert({
+                          company_id: companyId,
+                          created_by: (profile as any)?.id,
+                          sort_order: maxOrder + 1,
+                          ...form,
+                          stress_test_result: quickAiResult as any,
+                          stress_tested_at: new Date().toISOString(),
+                        } as any).then(({ error }) => {
+                          if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+                          queryClient.invalidateQueries({ queryKey: ["roadmap-items"] });
+                          toast({ title: "Roadmap item added" });
+                        });
+                        closeDialog();
+                      } else {
+                        handleSave();
+                      }
+                    }}
+                    disabled={!form.title.trim()}
+                  >
+                    {quickAiResult ? <><CheckCircle2 className="h-4 w-4 mr-1.5" /> Add to Roadmap</> : "Add Item"}
+                  </Button>
+                </div>
               </TabsContent>
 
               {/* AI Stress-Test Tab */}
