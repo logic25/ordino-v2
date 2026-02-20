@@ -2,9 +2,10 @@ import { Document, Page, Text, View, StyleSheet, Font } from "@react-pdf/rendere
 import { format } from "date-fns";
 import type { ProjectWithRelations } from "@/hooks/useProjects";
 import type {
-  MockService, MockContact, MockMilestone, MockChangeOrder,
+  MockService, MockContact, MockMilestone,
   MockEmail, MockDocument, MockTimeEntry,
 } from "./projectMockData";
+import type { ChangeOrder } from "@/hooks/useChangeOrders";
 
 Font.register({
   family: "Helvetica",
@@ -47,7 +48,7 @@ interface LitigationPDFProps {
   emails: MockEmail[];
   documents: MockDocument[];
   timeEntries: MockTimeEntry[];
-  changeOrders: MockChangeOrder[];
+  changeOrders: ChangeOrder[];
   contacts: MockContact[];
   services: MockService[];
   startDate: Date;
@@ -85,7 +86,7 @@ export function LitigationPDF({
   }
   if (includes.changeOrders) {
     changeOrders.forEach((co) => {
-      timelineEvents.push({ date: co.createdDate, type: "Change Order", description: `${co.number}: ${co.description} ($${co.amount})`, details: `Reason: ${co.reason}. Requested by: ${co.requestedBy}. Status: ${co.status}` });
+      timelineEvents.push({ date: co.created_at, type: "Change Order", description: `${co.co_number}: ${co.title} ($${co.amount})`, details: `Reason: ${co.reason || "—"}. Requested by: ${co.requested_by || "—"}. Status: ${co.status}` });
     });
   }
   if (includes.timeLogs) {
@@ -289,8 +290,8 @@ export function LitigationPDF({
               <Text style={s.subTitle}>Change Order Detail</Text>
               {changeOrders.map((co, i) => (
                 <View key={i} style={s.row} wrap={false}>
-                  <Text style={s.colQuarter}>{co.number} — {co.status}</Text>
-                  <Text style={s.colHalf}>{co.description}</Text>
+                  <Text style={s.colQuarter}>{co.co_number} — {co.status}</Text>
+                  <Text style={s.colHalf}>{co.title}</Text>
                   <Text style={s.colQuarter}>${co.amount.toLocaleString()}</Text>
                 </View>
               ))}

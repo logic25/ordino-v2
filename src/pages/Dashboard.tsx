@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
@@ -9,16 +9,68 @@ import { ManagerView } from "@/components/dashboard/ManagerView";
 import { RolePreviewSelector } from "@/components/dashboard/RolePreviewSelector";
 import { DashboardLayoutConfig } from "@/components/dashboard/DashboardLayoutConfig";
 import { useDashboardLayout } from "@/hooks/useDashboardLayout";
+import { Button } from "@/components/ui/button";
+import { X, BookOpen, Map } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useWalkthrough } from "@/components/walkthrough/WalkthroughProvider";
+import { WALKTHROUGHS } from "@/components/walkthrough/walkthroughs";
 
 type DashboardRole = "admin" | "pm" | "accounting" | "manager";
+
+function NewHireWelcomeBanner({ name, onDismiss }: { name: string; onDismiss: () => void }) {
+  const { startWalkthrough } = useWalkthrough();
+  return (
+    <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-4 px-5 py-4 rounded-xl border bg-primary/5 border-primary/20">
+      <button
+        onClick={onDismiss}
+        className="absolute top-3 right-3 text-muted-foreground hover:text-foreground transition-colors"
+        aria-label="Dismiss"
+      >
+        <X className="h-4 w-4" />
+      </button>
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-foreground">👋 Welcome to Ordino, {name}!</p>
+        <p className="text-sm text-muted-foreground mt-0.5">Get oriented quickly — take a guided tour or explore the Help Desk.</p>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { const wt = WALKTHROUGHS.find(w => w.id === "getting-started"); if (wt) startWalkthrough(wt); onDismiss(); }}>
+          <Map className="h-3.5 w-3.5" /> Guided Tour
+        </Button>
+        <Button size="sm" variant="outline" className="gap-1.5" asChild>
+          <a href="/help"><BookOpen className="h-3.5 w-3.5" /> Help Desk</a>
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const { profile } = useAuth();
   const actualRole = profile?.role || "pm";
   const [previewRole, setPreviewRole] = useState<DashboardRole>(actualRole as DashboardRole);
+  const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
 
   const role = previewRole;
   const layout = useDashboardLayout(role);
+
+  // Check if new hire (onboarding_completed = false)
+  useEffect(() => {
+    if (!profile?.id) return;
+    const dismissed = localStorage.getItem(`welcome-dismissed-${profile.id}`);
+    if (dismissed) return;
+    const profileAny = profile as any;
+    if (profileAny.onboarding_completed === false) {
+      setShowWelcomeBanner(true);
+    }
+  }, [profile]);
+
+  const handleDismissBanner = async () => {
+    setShowWelcomeBanner(false);
+    if (profile?.id) {
+      localStorage.setItem(`welcome-dismissed-${profile.id}`, "true");
+      await supabase.from("profiles").update({ onboarding_completed: true } as any).eq("id", profile.id);
+    }
+  };
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -81,6 +133,14 @@ export default function Dashboard() {
             />
           </div>
         </div>
+
+        {/* New hire welcome banner */}
+        {showWelcomeBanner && (
+          <NewHireWelcomeBanner
+            name={profile?.first_name || "there"}
+            onDismiss={handleDismissBanner}
+          />
+        )}
 
         {/* Stats Grid - only for PM (others have KPIs built in) */}
         {role === "pm" && <DashboardStats role={role} />}
