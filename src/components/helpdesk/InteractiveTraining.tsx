@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Play, Navigation, Receipt, Mail, Settings, FolderKanban, FileText } from "lucide-react";
+import { Play, Navigation, Receipt, Mail, Settings, FolderKanban, FileText, GitBranch, Brain, CreditCard, FileSearch } from "lucide-react";
 import { useWalkthrough } from "@/components/walkthrough/WalkthroughProvider";
 import { WALKTHROUGHS } from "@/components/walkthrough/walkthroughs";
 import { useNavigate } from "react-router-dom";
@@ -14,6 +14,10 @@ const TOUR_ICONS: Record<string, React.ElementType> = {
   "billing-workflow": Receipt,
   "email-calendar": Mail,
   "settings-overview": Settings,
+  "change-orders-workflow": GitBranch,
+  "ai-stress-test": Brain,
+  "ai-collections": CreditCard,
+  "ai-plan-analysis": FileSearch,
 };
 
 const TOUR_DESCRIPTIONS: Record<string, string> = {
@@ -23,6 +27,10 @@ const TOUR_DESCRIPTIONS: Record<string, string> = {
   "billing-workflow": "Walk through invoicing, time tracking, and client management.",
   "email-calendar": "Learn email integration and calendar features.",
   "settings-overview": "Explore settings and reporting options.",
+  "change-orders-workflow": "Create, sign, and approve change orders inside projects.",
+  "ai-stress-test": "Run AI analysis on roadmap items to surface risks and evidence.",
+  "ai-collections": "Use AI to score payment risk and generate personalized collection messages.",
+  "ai-plan-analysis": "Upload architectural plans and let AI extract scope for proposals. Discover and build RFP responses with AI.",
 };
 
 export function InteractiveTraining() {
