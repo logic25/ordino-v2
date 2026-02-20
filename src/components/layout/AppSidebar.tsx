@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Building2,
   FileText,
@@ -48,11 +49,22 @@ const secondaryNav = [
   { title: "Help", icon: HelpCircle, href: "/help", resource: "dashboard" as ResourceKey },
 ];
 
+function getInitials(profile: any, email?: string | null): string {
+  const first = profile?.first_name?.trim();
+  const last = profile?.last_name?.trim();
+  if (first && last) return `${first[0]}${last[0]}`.toUpperCase();
+  if (first) return first.slice(0, 2).toUpperCase();
+  if (profile?.display_name) return profile.display_name.slice(0, 2).toUpperCase();
+  if (email) return email.slice(0, 2).toUpperCase();
+  return "??";
+}
+
 export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const { toast } = useToast();
   const { canAccess, loading: permLoading } = usePermissions();
+  const { user, profile, signOut } = useAuth();
 
   const filteredMainNav = useMemo(() =>
     mainNav.filter((item) => canAccess(item.resource)),
@@ -64,16 +76,12 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
     [canAccess]
   );
 
-  const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast({
-        title: "Error signing out",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
+  const initials = getInitials(profile, user?.email);
+  const displayName =
+    profile?.display_name ||
+    [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
+    user?.email ||
+    "User";
 
   return (
     <aside
@@ -156,18 +164,26 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
         })}
       </nav>
 
-      {/* Footer */}
+      {/* Footer — user avatar */}
       <div className="p-3 border-t border-sidebar-border">
         <button
-          onClick={handleLogout}
+          onClick={() => signOut()}
           className={cn(
             "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 w-full",
             "text-sidebar-foreground/70 hover:text-destructive hover:bg-destructive/10",
             collapsed && "justify-center px-2"
           )}
+          title="Sign out"
         >
-          <LogOut className="h-5 w-5 flex-shrink-0" />
-          {!collapsed && <span>Sign Out</span>}
+          <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center shrink-0 text-primary-foreground font-semibold text-xs">
+            {initials}
+          </div>
+          {!collapsed && (
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-xs font-medium text-sidebar-foreground truncate">{displayName}</p>
+              <p className="text-[10px] text-sidebar-foreground/50 truncate">Sign out</p>
+            </div>
+          )}
         </button>
       </div>
     </aside>
