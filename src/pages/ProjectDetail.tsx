@@ -172,6 +172,9 @@ export default function ProjectDetail() {
   // Real change orders
   const { data: realChangeOrders = [] } = useChangeOrders(project?.id);
 
+  // Must be before any early returns (Rules of Hooks)
+  const createCO = useCreateChangeOrder();
+
   if (isLoading) {
     return (
       <AppLayout>
@@ -205,7 +208,6 @@ export default function ProjectDetail() {
   const timeEntries: MockTimeEntry[] = [];
   const pisStatus: MockPISStatus = realPISStatus || { sentDate: null, totalFields: 0, completedFields: 0, missingFields: [] };
 
-  const createCO = useCreateChangeOrder();
   const approvedCOs = changeOrders.filter(co => co.status === "approved").reduce((s, co) => s + Number(co.amount), 0);
   const contractTotal = liveServices.reduce((s, svc) => s + svc.totalAmount, 0);
   const adjustedTotal = contractTotal + approvedCOs;
