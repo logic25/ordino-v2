@@ -105,8 +105,9 @@ PRIORITY SCORING RULES (be strict — do not inflate):
 DUPLICATE DETECTION: Compare against existing_roadmap_items and existing_suggestions. If title overlap >70%, set duplicate_warning to the matching item title and do NOT create the suggestion.
 
 OUTPUT FORMAT: Return ONLY a valid JSON array. Max 5 suggestions. Only include items with clear evidence.
-Each item must have: title, description, category, priority, evidence, duplicate_warning (or null), challenges (array of 2-4 strings).
+Each item must have: title, description, category, priority, evidence, duplicate_warning (or null), challenges (array of 2-4 objects, each with "problem" string and "solution" string).
 category must be one of: "billing", "projects", "integrations", "operations", "general"`;
+
 
       userMessage = `Telemetry data (last 30 days, aggregated):
 ${JSON.stringify(aggregatedRows, null, 2)}
@@ -124,7 +125,7 @@ A user has submitted a product idea. Your job is to stress-test it: challenge as
 DUPLICATE DETECTION: Compare against existing_roadmap_items. If overlap >70%, set duplicate_warning.
 PRIORITY: high (directly impacts revenue/billing), medium (core workflow), low (nice-to-have)
 
-OUTPUT FORMAT: Return ONLY a valid JSON array with exactly 1 item containing: title (refined), description (problem-first, 1-2 sentences), category, priority, evidence (why this matters based on the app context), duplicate_warning (or null), challenges (array of 2-4 realistic implementation challenges).
+OUTPUT FORMAT: Return ONLY a valid JSON array with exactly 1 item containing: title (refined), description (problem-first, 1-2 sentences), category, priority, evidence (why this matters based on the app context), duplicate_warning (or null), challenges (array of 2-4 objects, each with "problem" string and "solution" string).
 category must be one of: "billing", "projects", "integrations", "operations", "general"`;
 
       userMessage = `Raw idea: "${raw_idea}"
