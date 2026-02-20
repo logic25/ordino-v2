@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
-  type DragEndEvent, DragOverlay, type DragStartEvent,
+  type DragEndEvent,
 } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -27,12 +27,14 @@ import {
   Plus, GripVertical, MoreHorizontal, Pencil, Trash2,
   AlertTriangle, Clock, Lightbulb, CheckCircle2, Rocket,
   ArrowRight, Inbox, LayoutGrid, List, Brain, Sparkles, ChevronRight, AlertCircle, Loader2,
+  BarChart2,
 } from "lucide-react";
 import { AIRoadmapIntake } from "./AIRoadmapIntake";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 
 // Types
@@ -190,12 +192,19 @@ export function ProductRoadmap() {
   const queryClient = useQueryClient();
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogTab, setDialogTab] = useState<"quick" | "ai">("quick");
   const [aiIntakeOpen, setAiIntakeOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RoadmapItem | null>(null);
   const [promoteOpen, setPromoteOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
   const [form, setForm] = useState({ title: "", description: "", category: "general", status: "gap", priority: "medium" });
   const [stressTesting, setStressTesting] = useState(false);
+
+  // AI Stress-Test for new item (Add dialog)
+  const [aiIdeaText, setAiIdeaText] = useState("");
+  const [aiAnalyzing, setAiAnalyzing] = useState(false);
+  const [aiResult, setAiResult] = useState<StressTestResult | null>(null);
+  const [aiForm, setAiForm] = useState({ status: "gap", priority: "medium", category: "general" });
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -243,6 +252,16 @@ export function ProductRoadmap() {
     },
   });
 
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setEditingItem(null);
+    setForm({ title: "", description: "", category: "general", status: "gap", priority: "medium" });
+    setAiIdeaText("");
+    setAiResult(null);
+    setAiForm({ status: "gap", priority: "medium", category: "general" });
+    setDialogTab("quick");
+  };
+
   const handleSave = () => {
     if (!form.title.trim()) return;
     if (editingItem) {
@@ -250,9 +269,54 @@ export function ProductRoadmap() {
     } else {
       createMutation.mutate(form);
     }
-    setDialogOpen(false);
-    setEditingItem(null);
-    setForm({ title: "", description: "", category: "general", status: "gap", priority: "medium" });
+    closeDialog();
+  };
+
+  const handleAddAiResult = async () => {
+    if (!aiResult) return;
+    const maxOrder = items.filter((i) => i.status === aiForm.status).reduce((m, i) => Math.max(m, i.sort_order), 0);
+    const { error } = await supabase.from("roadmap_items").insert({
+      company_id: companyId,
+      created_by: (profile as any)?.id,
+      title: aiResult.title,
+      description: aiResult.description,
+      category: aiForm.category,
+      status: aiForm.status,
+      priority: aiForm.priority,
+      sort_order: maxOrder + 1,
+      stress_test_result: aiResult as any,
+      stress_tested_at: new Date().toISOString(),
+    } as any);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    queryClient.invalidateQueries({ queryKey: ["roadmap-items"] });
+    toast({ title: "Added to roadmap", description: aiResult.title });
+    closeDialog();
+  };
+
+  const handleAnalyzeNewIdea = async () => {
+    if (!aiIdeaText.trim()) return;
+    setAiAnalyzing(true);
+    setAiResult(null);
+    try {
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+      const ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const token = (await supabase.auth.getSession()).data.session?.access_token || "";
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/analyze-telemetry`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, apikey: ANON_KEY },
+        body: JSON.stringify({ mode: "idea", company_id: companyId, raw_idea: aiIdeaText.trim() }),
+      });
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      const result = await res.json();
+      const suggestion = result.suggestions?.[0];
+      if (!suggestion) throw new Error("No analysis returned");
+      setAiResult(suggestion);
+      setAiForm({ status: "gap", priority: suggestion.priority || "medium", category: suggestion.category || "general" });
+    } catch (err: any) {
+      toast({ title: "Analysis failed", description: err.message, variant: "destructive" });
+    } finally {
+      setAiAnalyzing(false);
+    }
   };
 
   const handleStressTest = async () => {
@@ -262,29 +326,17 @@ export function ProductRoadmap() {
       const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
       const ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const token = (await supabase.auth.getSession()).data.session?.access_token || "";
-
       const res = await fetch(`${SUPABASE_URL}/functions/v1/analyze-telemetry`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          apikey: ANON_KEY,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, apikey: ANON_KEY },
         body: JSON.stringify({ mode: "idea", company_id: companyId, raw_idea: `${form.title}: ${form.description}`, exclude_item_id: editingItem.id }),
       });
-
       if (!res.ok) throw new Error(`Error ${res.status}`);
       const result = await res.json();
       const suggestion = result.suggestions?.[0];
       if (!suggestion) throw new Error("No analysis returned");
-
       const testedAt = new Date().toISOString();
-      await supabase.from("roadmap_items").update({
-        stress_test_result: suggestion as any,
-        stress_tested_at: testedAt,
-      } as any).eq("id", editingItem.id);
-
-      // Update local editing state so badge + panel appear immediately
+      await supabase.from("roadmap_items").update({ stress_test_result: suggestion as any, stress_tested_at: testedAt } as any).eq("id", editingItem.id);
       setEditingItem({ ...editingItem, stress_test_result: suggestion, stress_tested_at: testedAt });
       queryClient.invalidateQueries({ queryKey: ["roadmap-items"] });
       toast({ title: "AI stress test complete", description: "Analysis saved to this roadmap item." });
@@ -298,6 +350,7 @@ export function ProductRoadmap() {
   const handleEdit = (item: RoadmapItem) => {
     setEditingItem(item);
     setForm({ title: item.title, description: item.description, category: item.category, status: item.status, priority: item.priority });
+    setDialogTab("quick");
     setDialogOpen(true);
   };
 
@@ -398,12 +451,15 @@ export function ProductRoadmap() {
             onClick={() => setAiIntakeOpen(true)}
             className="gap-1.5"
           >
-            <Brain className="h-3.5 w-3.5" />
-            AI Intake
+            <BarChart2 className="h-3.5 w-3.5" />
+            Analyze Behavior
           </Button>
           <Button size="sm" onClick={() => {
             setEditingItem(null);
             setForm({ title: "", description: "", category: "general", status: "gap", priority: "medium" });
+            setAiIdeaText("");
+            setAiResult(null);
+            setDialogTab("quick");
             setDialogOpen(true);
           }}>
             <Plus className="h-4 w-4 mr-1" /> Add Item
@@ -527,7 +583,7 @@ export function ProductRoadmap() {
       )}
 
       {/* Add/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={(o) => { if (!o) closeDialog(); else setDialogOpen(true); }}>
         <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -539,119 +595,239 @@ export function ProductRoadmap() {
               )}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Title</Label>
-              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Feature name" />
-            </div>
-            <div>
-              <Label>Description</Label>
-              <Textarea
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                placeholder="Explain what this is and why it matters..."
-                rows={4}
-              />
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <Label>Status</Label>
-                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                  <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {STATUSES.map((s) => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Category</Label>
-                <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                  <SelectTrigger className="h-8 capitalize"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map((c) => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Priority</Label>
-                <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v })}>
-                  <SelectTrigger className="h-8 capitalize"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PRIORITIES.map((p) => <SelectItem key={p} value={p} className="capitalize">{p}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
 
-            {/* AI Stress-Test Panel */}
-            {editingItem?.stress_test_result && (() => {
-              const ai = editingItem.stress_test_result!;
-              return (
-                <>
-                  <Separator />
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Brain className="h-4 w-4 text-violet-500" />
-                      <p className="text-sm font-medium">AI Analysis</p>
-                      {editingItem.stress_tested_at && (
-                        <span className="text-[10px] text-muted-foreground ml-auto">
-                          {new Date(editingItem.stress_tested_at).toLocaleDateString()}
-                        </span>
-                      )}
-                    </div>
-                    <div className="rounded-md bg-muted/50 border px-3 py-2">
-                      <p className="text-[10px] text-muted-foreground font-medium mb-0.5 uppercase tracking-wide">Evidence</p>
-                      <p className="text-xs leading-relaxed">{ai.evidence}</p>
-                    </div>
-                    {ai.duplicate_warning && (
-                      <div className="rounded-md border border-amber-300 bg-amber-500/5 px-3 py-2 flex items-start gap-2">
-                        <AlertCircle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
-                        <div>
-                          <p className="text-[10px] text-amber-700 font-medium mb-0.5">Similar item exists</p>
-                          <p className="text-xs text-amber-700">"{ai.duplicate_warning}"</p>
+          {editingItem ? (
+            /* ── Editing existing item: standard form + re-run AI ── */
+            <>
+              <div className="space-y-4">
+                <div>
+                  <Label>Title</Label>
+                  <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Feature name" />
+                </div>
+                <div>
+                  <Label>Description</Label>
+                  <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Explain what this is and why it matters..." rows={3} />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label>Status</Label>
+                    <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                      <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                      <SelectContent>{STATUSES.map((s) => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Category</Label>
+                    <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                      <SelectTrigger className="h-8 capitalize"><SelectValue /></SelectTrigger>
+                      <SelectContent>{CATEGORIES.map((c) => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Priority</Label>
+                    <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v })}>
+                      <SelectTrigger className="h-8 capitalize"><SelectValue /></SelectTrigger>
+                      <SelectContent>{PRIORITIES.map((p) => <SelectItem key={p} value={p} className="capitalize">{p}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* AI Analysis Panel */}
+                {editingItem.stress_test_result && (() => {
+                  const ai = editingItem.stress_test_result!;
+                  return (
+                    <>
+                      <Separator />
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Brain className="h-4 w-4 text-violet-600" />
+                          <p className="text-sm font-medium">AI Analysis</p>
+                          {editingItem.stress_tested_at && (
+                            <span className="text-[10px] text-muted-foreground ml-auto">{new Date(editingItem.stress_tested_at).toLocaleDateString()}</span>
+                          )}
                         </div>
+                        <div className="rounded-md bg-muted/50 border px-3 py-2">
+                          <p className="text-[10px] text-muted-foreground font-medium mb-0.5 uppercase tracking-wide">Evidence</p>
+                          <p className="text-xs leading-relaxed">{ai.evidence}</p>
+                        </div>
+                        {ai.duplicate_warning && (
+                          <div className="rounded-md border border-border bg-muted/30 px-3 py-2 flex items-start gap-2">
+                            <AlertCircle className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                            <div>
+                              <p className="text-[10px] text-foreground font-medium mb-0.5">Similar item exists</p>
+                              <p className="text-xs text-muted-foreground">"{ai.duplicate_warning}"</p>
+                            </div>
+                          </div>
+                        )}
+                        {ai.challenges?.length > 0 && (
+                          <div className="space-y-1.5">
+                            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Implementation challenges</p>
+                            <ul className="space-y-1">
+                              {ai.challenges.map((c, i) => (
+                                <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                                  <ChevronRight className="h-3 w-3 mt-0.5 shrink-0" />{c}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </div>
-                    )}
-                    {ai.challenges?.length > 0 && (
-                      <div className="space-y-1.5">
-                        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Implementation challenges</p>
-                        <ul className="space-y-1">
-                          {ai.challenges.map((c, i) => (
+                    </>
+                  );
+                })()}
+              </div>
+              <DialogFooter className="flex items-center justify-between gap-2 flex-row">
+                <Button variant="outline" size="sm" onClick={handleStressTest} disabled={stressTesting} className="gap-1.5 mr-auto">
+                  {stressTesting ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Running…</> : <><Brain className="h-3.5 w-3.5" /> {editingItem.stress_tested_at ? "Re-run AI Test" : "Run AI Stress Test"}</>}
+                </Button>
+                <Button onClick={handleSave} disabled={!form.title.trim()}>Save Changes</Button>
+              </DialogFooter>
+            </>
+          ) : (
+            /* ── Adding new item: two-tab dialog ── */
+            <Tabs value={dialogTab} onValueChange={(v) => setDialogTab(v as "quick" | "ai")}>
+              <TabsList className="w-full">
+                <TabsTrigger value="quick" className="flex-1">
+                  <Plus className="h-3.5 w-3.5 mr-1.5" /> Quick Add
+                </TabsTrigger>
+                <TabsTrigger value="ai" className="flex-1">
+                  <Sparkles className="h-3.5 w-3.5 mr-1.5" /> AI Stress-Test
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Quick Add Tab */}
+              <TabsContent value="quick" className="space-y-4 mt-4">
+                <div>
+                  <Label>Title</Label>
+                  <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Feature name" />
+                </div>
+                <div>
+                  <Label>Description</Label>
+                  <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Explain what this is and why it matters..." rows={3} />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label>Status</Label>
+                    <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                      <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                      <SelectContent>{STATUSES.map((s) => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Category</Label>
+                    <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                      <SelectTrigger className="h-8 capitalize"><SelectValue /></SelectTrigger>
+                      <SelectContent>{CATEGORIES.map((c) => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Priority</Label>
+                    <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v })}>
+                      <SelectTrigger className="h-8 capitalize"><SelectValue /></SelectTrigger>
+                      <SelectContent>{PRIORITIES.map((p) => <SelectItem key={p} value={p} className="capitalize">{p}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <Button className="w-full" onClick={handleSave} disabled={!form.title.trim()}>Add Item</Button>
+              </TabsContent>
+
+              {/* AI Stress-Test Tab */}
+              <TabsContent value="ai" className="space-y-4 mt-4">
+                <div className="rounded-md border bg-muted/30 p-3 space-y-1">
+                  <p className="text-sm font-medium">How this works</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Describe your idea in plain English. AI refines it, scores priority, surfaces implementation challenges, and checks for duplicate roadmap items — then saves it pre-tagged with the analysis.
+                  </p>
+                </div>
+
+                {!aiResult ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      placeholder="e.g. Allow users to set up recurring invoices for retainer clients"
+                      value={aiIdeaText}
+                      onChange={(e) => setAiIdeaText(e.target.value)}
+                      rows={4}
+                      className="resize-none"
+                    />
+                    <Button className="w-full" onClick={handleAnalyzeNewIdea} disabled={aiAnalyzing || !aiIdeaText.trim()}>
+                      {aiAnalyzing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Analyzing…</> : <><Sparkles className="h-4 w-4 mr-2" /> Stress-Test This Idea</>}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Result preview */}
+                    <div className="rounded-md border p-3 space-y-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="secondary" className="text-[10px] capitalize">{aiResult.category}</Badge>
+                        <Badge variant="outline" className={`text-[10px] ${PRIORITY_STYLES[aiResult.priority] || ""}`}>{aiResult.priority} priority</Badge>
+                        {aiResult.duplicate_warning && (
+                          <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground border-border">
+                            <AlertCircle className="h-2.5 w-2.5 mr-1" /> Similar exists
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm font-semibold">{aiResult.title}</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{aiResult.description}</p>
+                      <div className="rounded bg-muted/50 border px-2.5 py-1.5">
+                        <p className="text-[10px] text-muted-foreground font-medium mb-0.5">Evidence</p>
+                        <p className="text-xs">{aiResult.evidence}</p>
+                      </div>
+                      {aiResult.duplicate_warning && (
+                        <div className="rounded border border-border bg-muted/30 px-2.5 py-1.5 flex items-start gap-1.5">
+                          <AlertCircle className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+                          <p className="text-xs text-muted-foreground">Similar: "{aiResult.duplicate_warning}"</p>
+                        </div>
+                      )}
+                      {aiResult.challenges?.length > 0 && (
+                        <ul className="space-y-0.5">
+                          {aiResult.challenges.map((c, i) => (
                             <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
-                              <ChevronRight className="h-3 w-3 mt-0.5 shrink-0 text-muted-foreground/50" />
-                              {c}
+                              <ChevronRight className="h-3 w-3 mt-0.5 shrink-0" />{c}
                             </li>
                           ))}
                         </ul>
+                      )}
+                    </div>
+
+                    {/* Editable dropdowns before saving */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <Label>Status</Label>
+                        <Select value={aiForm.status} onValueChange={(v) => setAiForm({ ...aiForm, status: v })}>
+                          <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                          <SelectContent>{STATUSES.map((s) => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}</SelectContent>
+                        </Select>
                       </div>
-                    )}
+                      <div>
+                        <Label>Category</Label>
+                        <Select value={aiForm.category} onValueChange={(v) => setAiForm({ ...aiForm, category: v })}>
+                          <SelectTrigger className="h-8 capitalize"><SelectValue /></SelectTrigger>
+                          <SelectContent>{CATEGORIES.map((c) => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Priority</Label>
+                        <Select value={aiForm.priority} onValueChange={(v) => setAiForm({ ...aiForm, priority: v })}>
+                          <SelectTrigger className="h-8 capitalize"><SelectValue /></SelectTrigger>
+                          <SelectContent>{PRIORITIES.map((p) => <SelectItem key={p} value={p} className="capitalize">{p}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button variant="outline" className="flex-1" onClick={() => { setAiResult(null); setAiIdeaText(""); }}>Try Again</Button>
+                      <Button className="flex-1" onClick={handleAddAiResult}>
+                        <CheckCircle2 className="h-4 w-4 mr-1.5" /> Add to Roadmap
+                      </Button>
+                    </div>
                   </div>
-                </>
-              );
-            })()}
-          </div>
-          <DialogFooter className="flex items-center justify-between gap-2 flex-row">
-            {editingItem && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleStressTest}
-                disabled={stressTesting}
-                className="gap-1.5 mr-auto"
-              >
-                {stressTesting ? (
-                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Running AI test…</>
-                ) : (
-                  <><Brain className="h-3.5 w-3.5" /> {editingItem.stress_tested_at ? "Re-run AI Test" : "Run AI Stress Test"}</>
                 )}
-              </Button>
-            )}
-            <Button onClick={handleSave} disabled={!form.title.trim()}>
-              {editingItem ? "Save Changes" : "Add Item"}
-            </Button>
-          </DialogFooter>
+              </TabsContent>
+            </Tabs>
+          )}
         </DialogContent>
       </Dialog>
     </div>
   );
 }
+
