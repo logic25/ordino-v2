@@ -743,6 +743,113 @@ export type Database = {
           },
         ]
       }
+      change_orders: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          client_signature_data: string | null
+          client_signed_at: string | null
+          client_signer_name: string | null
+          co_number: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          internal_signature_data: string | null
+          internal_signed_at: string | null
+          internal_signed_by: string | null
+          linked_service_names: string[] | null
+          notes: string | null
+          project_id: string
+          reason: string | null
+          requested_by: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["co_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          approved_at?: string | null
+          client_signature_data?: string | null
+          client_signed_at?: string | null
+          client_signer_name?: string | null
+          co_number?: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          internal_signature_data?: string | null
+          internal_signed_at?: string | null
+          internal_signed_by?: string | null
+          linked_service_names?: string[] | null
+          notes?: string | null
+          project_id: string
+          reason?: string | null
+          requested_by?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["co_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          client_signature_data?: string | null
+          client_signed_at?: string | null
+          client_signer_name?: string | null
+          co_number?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          internal_signature_data?: string | null
+          internal_signed_at?: string | null
+          internal_signed_by?: string | null
+          linked_service_names?: string[] | null
+          notes?: string | null
+          project_id?: string
+          reason?: string | null
+          requested_by?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["co_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "change_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "change_orders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "change_orders_internal_signed_by_fkey"
+            columns: ["internal_signed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "change_orders_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checklist_followup_drafts: {
         Row: {
           approved_at: string | null
@@ -3415,6 +3522,7 @@ export type Database = {
           last_name: string | null
           monthly_goal: number | null
           notification_preferences: Json | null
+          onboarding_completed: boolean
           phone: string | null
           phone_extension: string | null
           preferences: Json | null
@@ -3438,6 +3546,7 @@ export type Database = {
           last_name?: string | null
           monthly_goal?: number | null
           notification_preferences?: Json | null
+          onboarding_completed?: boolean
           phone?: string | null
           phone_extension?: string | null
           preferences?: Json | null
@@ -3461,6 +3570,7 @@ export type Database = {
           last_name?: string | null
           monthly_goal?: number | null
           notification_preferences?: Json | null
+          onboarding_completed?: boolean
           phone?: string | null
           phone_extension?: string | null
           preferences?: Json | null
@@ -5694,6 +5804,13 @@ export type Database = {
         | "inspection"
         | "complete"
         | "closed"
+      co_status:
+        | "draft"
+        | "pending_internal"
+        | "pending_client"
+        | "approved"
+        | "rejected"
+        | "voided"
       project_status: "open" | "on_hold" | "closed" | "paid"
       proposal_status:
         | "draft"
@@ -5860,6 +5977,14 @@ export const Constants = {
         "inspection",
         "complete",
         "closed",
+      ],
+      co_status: [
+        "draft",
+        "pending_internal",
+        "pending_client",
+        "approved",
+        "rejected",
+        "voided",
       ],
       project_status: ["open", "on_hold", "closed", "paid"],
       proposal_status: [
