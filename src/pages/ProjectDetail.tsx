@@ -64,6 +64,10 @@ import {
   useProjectServices, useProjectContacts, useProjectTimeline, useProjectPISStatus, useProjectDocuments,
 } from "@/hooks/useProjectDetail";
 import { QuickReferenceBar } from "@/components/projects/QuickReferenceBar";
+import { useChangeOrders, useCreateChangeOrder } from "@/hooks/useChangeOrders";
+import { ChangeOrderDialog } from "@/components/projects/ChangeOrderDialog";
+import { ChangeOrderDetailSheet } from "@/components/projects/ChangeOrderDetailSheet";
+import type { ChangeOrder } from "@/hooks/useChangeOrders";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   open: { label: "Open", variant: "default" },
@@ -97,7 +101,9 @@ export default function ProjectDetail() {
   const queryClient = useQueryClient();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [litigationDialogOpen, setLitigationDialogOpen] = useState(false);
-  const [extraCOs, setExtraCOs] = useState<MockChangeOrder[]>([]);
+  const [coDialogOpen, setCoDialogOpen] = useState(false);
+  const [selectedCO, setSelectedCO] = useState<ChangeOrder | null>(null);
+  const [coSheetOpen, setCoSheetOpen] = useState(false);
 
   const project = projects.find((p) => p.id === id);
 
@@ -160,9 +166,11 @@ export default function ProjectDetail() {
   const realServicesKey = realServices.map(s => `${s.id}:${s.needsDobFiling ? 1 : 0}:${s.status}`).join(",");
   if (project && realServices.length > 0 && servicesInitialized !== `${project.id}:${realServicesKey}`) {
     setLiveServices(realServices);
-    setExtraCOs([]);
     setServicesInitialized(`${project.id}:${realServicesKey}`);
   }
+
+  // Real change orders
+  const { data: realChangeOrders = [] } = useChangeOrders(project?.id);
 
   if (isLoading) {
     return (
@@ -191,14 +199,14 @@ export default function ProjectDetail() {
 
   const contacts = realContacts;
   const milestones = realTimeline;
-  const changeOrders = [...extraCOs];
+  const changeOrders = realChangeOrders;
   const emails: MockEmail[] = [];
   const documents: MockDocument[] = realDocuments;
   const timeEntries: MockTimeEntry[] = [];
   const pisStatus: MockPISStatus = realPISStatus || { sentDate: null, totalFields: 0, completedFields: 0, missingFields: [] };
 
-
-  const approvedCOs = changeOrders.filter(co => co.status === "approved").reduce((s, co) => s + co.amount, 0);
+  const createCO = useCreateChangeOrder();
+  const approvedCOs = changeOrders.filter(co => co.status === "approved").reduce((s, co) => s + Number(co.amount), 0);
   const contractTotal = liveServices.reduce((s, svc) => s + svc.totalAmount, 0);
   const adjustedTotal = contractTotal + approvedCOs;
   const billed = liveServices.reduce((s, svc) => s + svc.billedAmount, 0);
@@ -394,7 +402,13 @@ export default function ProjectDetail() {
 
             <CardContent className="p-0">
               <TabsContent value="services" className="mt-0">
-                <ServicesFull services={liveServices} project={project} contacts={contacts} allServices={liveServices} onServicesChange={setLiveServices} onAddCOs={(cos) => setExtraCOs(prev => [...prev, ...cos])} />
+                <ServicesFull services={liveServices} project={project} contacts={contacts} allServices={liveServices} onServicesChange={setLiveServices} onAddCOs={async (cos) => {
+                  for (const co of cos) {
+                    try {
+                      await createCO.mutateAsync({ ...co, project_id: project.id, company_id: project.company_id, status: "voided" });
+                    } catch { /* non-critical */ }
+                  }
+                }} />
               </TabsContent>
               <TabsContent value="emails" className="mt-0">
                 <EmailsFullLive projectId={project.id} mockEmails={emails} />
@@ -412,7 +426,14 @@ export default function ProjectDetail() {
                 <TimeLogsFull timeEntries={timeEntries} services={liveServices} />
               </TabsContent>
               <TabsContent value="change-orders" className="mt-0">
-                <ChangeOrdersFull changeOrders={changeOrders} />
+                <ChangeOrdersFull
+                  changeOrders={changeOrders}
+                  projectId={project.id}
+                  companyId={project.company_id}
+                  serviceNames={liveServices.map(s => s.name)}
+                  onOpenCreate={() => setCoDialogOpen(true)}
+                  onSelectCO={(co) => { setSelectedCO(co); setCoSheetOpen(true); }}
+                />
               </TabsContent>
               <TabsContent value="job-costing" className="mt-0">
                 <JobCostingFull services={liveServices} timeEntries={timeEntries} />
