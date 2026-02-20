@@ -26,15 +26,26 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   Plus, GripVertical, MoreHorizontal, Pencil, Trash2,
   AlertTriangle, Clock, Lightbulb, CheckCircle2, Rocket,
-  ArrowRight, Inbox, LayoutGrid, List, Brain,
+  ArrowRight, Inbox, LayoutGrid, List, Brain, Sparkles, ChevronRight, AlertCircle,
 } from "lucide-react";
 import { AIRoadmapIntake } from "./AIRoadmapIntake";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 
 // Types
+interface StressTestResult {
+  title: string;
+  description: string;
+  category: string;
+  priority: string;
+  evidence: string;
+  duplicate_warning: string | null;
+  challenges: string[];
+}
+
 interface RoadmapItem {
   id: string;
   company_id: string;
@@ -45,6 +56,8 @@ interface RoadmapItem {
   priority: string;
   sort_order: number;
   feature_request_id: string | null;
+  stress_test_result: StressTestResult | null;
+  stress_tested_at: string | null;
   created_at: string;
 }
 
@@ -154,6 +167,11 @@ function SortableRoadmapCard({
             {item.feature_request_id && (
               <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-primary/5 text-primary border-primary/20">
                 From request
+              </Badge>
+            )}
+            {item.stress_tested_at && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-violet-500/10 text-violet-600 border-violet-300 dark:text-violet-400 dark:border-violet-700 gap-1">
+                <Sparkles className="h-2.5 w-2.5" /> AI tested
               </Badge>
             )}
           </div>
@@ -469,9 +487,16 @@ export function ProductRoadmap() {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingItem ? "Edit Roadmap Item" : "Add Roadmap Item"}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              {editingItem ? "Edit Roadmap Item" : "Add Roadmap Item"}
+              {editingItem?.stress_tested_at && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-violet-500/10 text-violet-600 border-violet-300 dark:text-violet-400 dark:border-violet-700 gap-1 font-normal">
+                  <Sparkles className="h-2.5 w-2.5" /> AI stress-tested
+                </Badge>
+              )}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -516,6 +541,53 @@ export function ProductRoadmap() {
                 </Select>
               </div>
             </div>
+
+            {/* AI Stress-Test Panel */}
+            {editingItem?.stress_test_result && (() => {
+              const ai = editingItem.stress_test_result!;
+              return (
+                <>
+                  <Separator />
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Brain className="h-4 w-4 text-violet-500" />
+                      <p className="text-sm font-medium">AI Analysis</p>
+                      {editingItem.stress_tested_at && (
+                        <span className="text-[10px] text-muted-foreground ml-auto">
+                          {new Date(editingItem.stress_tested_at).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                    <div className="rounded-md bg-muted/50 border px-3 py-2">
+                      <p className="text-[10px] text-muted-foreground font-medium mb-0.5 uppercase tracking-wide">Evidence</p>
+                      <p className="text-xs leading-relaxed">{ai.evidence}</p>
+                    </div>
+                    {ai.duplicate_warning && (
+                      <div className="rounded-md border border-amber-300 bg-amber-500/5 px-3 py-2 flex items-start gap-2">
+                        <AlertCircle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-[10px] text-amber-700 font-medium mb-0.5">Similar item exists</p>
+                          <p className="text-xs text-amber-700">"{ai.duplicate_warning}"</p>
+                        </div>
+                      </div>
+                    )}
+                    {ai.challenges?.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Implementation challenges</p>
+                        <ul className="space-y-1">
+                          {ai.challenges.map((c, i) => (
+                            <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                              <ChevronRight className="h-3 w-3 mt-0.5 shrink-0 text-muted-foreground/50" />
+                              {c}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
           </div>
           <DialogFooter>
             <Button onClick={handleSave} disabled={!form.title.trim()}>
