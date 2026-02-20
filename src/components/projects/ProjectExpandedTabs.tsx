@@ -641,7 +641,8 @@ export function ProjectExpandedTabs({
       </div>
 
       <Tabs defaultValue="services" className="w-full">
-        <TabsList className="w-full justify-start rounded-none border-b bg-muted/20 h-9 px-4 flex-wrap">
+        <div className="overflow-x-auto border-b bg-muted/20">
+        <TabsList className="w-max justify-start rounded-none bg-transparent h-9 px-4 gap-0">
           <TabsTrigger value="services" className="text-xs gap-1 data-[state=active]:bg-background">
             <FileText className="h-3 w-3" /> Services ({services.length})
           </TabsTrigger>
@@ -670,6 +671,7 @@ export function ProjectExpandedTabs({
             <DollarSign className="h-3 w-3" /> Job Costing
           </TabsTrigger>
         </TabsList>
+        </div>
 
         <TabsContent value="services" className="mt-0"><ServicesTab services={services} /></TabsContent>
         <TabsContent value="notes" className="mt-0"><NotesTab services={services} /></TabsContent>

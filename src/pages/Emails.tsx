@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, X, HelpCircle, Globe, Loader2, Plus, Clock, Trash2, FileEdit, Pencil } from "lucide-react";
+import { Search, X, HelpCircle, Globe, Loader2, Plus, Clock, Trash2, FileEdit, Pencil, Mail } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,7 @@ import { useEmails, type EmailWithTags, type EmailFilters } from "@/hooks/useEma
 import { useScheduledEmails, useCancelScheduledEmail } from "@/hooks/useScheduledEmails";
 import { useEmailDrafts, useDeleteDraft, type EmailDraft } from "@/hooks/useEmailDrafts";
 import { useEmailKeyboardShortcuts } from "@/hooks/useEmailKeyboardShortcuts";
-import { useConnectGmail } from "@/hooks/useGmailConnection";
+import { useConnectGmail, useGmailConnection } from "@/hooks/useGmailConnection";
 import { useNewEmailNotifications } from "@/hooks/useNewEmailNotifications";
 import { useGmailSearch } from "@/hooks/useGmailSearch";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +36,7 @@ export default function Emails() {
   const { toast } = useToast();
   const { track } = useTelemetry();
   const connectGmail = useConnectGmail();
+  const { data: gmailConnection, isLoading: gmailLoading } = useGmailConnection();
   const { data: scheduledEmails = [] } = useScheduledEmails();
   const cancelScheduled = useCancelScheduledEmail();
   const { data: drafts = [] } = useEmailDrafts();
@@ -143,6 +144,25 @@ export default function Emails() {
   useEffect(() => {
     setHighlightedIndex(-1);
   }, [activeTab, search]);
+
+  if (!gmailLoading && !gmailConnection) {
+    return (
+      <AppLayout>
+        <div className="flex flex-col items-center justify-center h-[calc(100vh-theme(spacing.16))] gap-6 text-center">
+          <div className="rounded-full bg-muted p-6">
+            <Mail className="h-12 w-12 text-muted-foreground" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight">Connect Gmail to continue</h2>
+            <p className="text-muted-foreground mt-2 max-w-sm">
+              Your email inbox is powered by Gmail. Connect your account to send, receive, and sync emails directly in the app.
+            </p>
+          </div>
+          <GmailConnectButton />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
