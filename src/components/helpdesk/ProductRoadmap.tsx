@@ -695,24 +695,28 @@ export function ProductRoadmap() {
                             </div>
                           </div>
                         )}
-                        {ai.challenges?.length > 0 && (
+                         {ai.challenges?.length > 0 && (
                           <div className="space-y-1.5">
                             <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Implementation challenges</p>
                             <ul className="space-y-2">
-                              {ai.challenges.map((c, i) => (
-                                <li key={i} className="text-xs rounded border bg-muted/30 p-2 space-y-1">
-                                  <div className="flex items-start gap-1.5 text-muted-foreground">
-                                    <ChevronRight className="h-3 w-3 mt-0.5 shrink-0" />
-                                    <span>{typeof c === "string" ? c : c.problem}</span>
-                                  </div>
-                                  {typeof c !== "string" && c.solution && (
-                                    <div className="flex items-start gap-1.5 pl-4">
-                                      <span className="text-[10px] text-primary font-medium shrink-0 mt-0.5">→</span>
-                                      <span className="text-[11px] text-primary/80">{c.solution}</span>
+                              {ai.challenges.map((c: any, i) => {
+                                const problem = typeof c === "string" ? c : (c?.problem || c);
+                                const solution = typeof c === "string" ? null : (c?.solution || null);
+                                return (
+                                  <li key={i} className="text-xs rounded border bg-muted/30 p-2 space-y-1">
+                                    <div className="flex items-start gap-1.5 text-muted-foreground">
+                                      <ChevronRight className="h-3 w-3 mt-0.5 shrink-0" />
+                                      <span>{problem}</span>
                                     </div>
-                                  )}
-                                </li>
-                              ))}
+                                    {solution && (
+                                      <div className="flex items-start gap-1.5 pl-4">
+                                        <span className="text-[10px] text-primary font-medium shrink-0 mt-0.5">→</span>
+                                        <span className="text-[11px] text-primary/80">{solution}</span>
+                                      </div>
+                                    )}
+                                  </li>
+                                );
+                              })}
                             </ul>
                           </div>
                         )}
@@ -798,20 +802,24 @@ export function ProductRoadmap() {
                       )}
                       {quickAiResult.challenges?.length > 0 && (
                         <ul className="space-y-2">
-                          {quickAiResult.challenges.map((c, i) => (
-                            <li key={i} className="text-xs rounded border bg-muted/30 p-2 space-y-1">
-                              <div className="flex items-start gap-1.5 text-muted-foreground">
-                                <ChevronRight className="h-3 w-3 mt-0.5 shrink-0" />
-                                <span>{typeof c === "string" ? c : c.problem}</span>
-                              </div>
-                              {typeof c !== "string" && c.solution && (
-                                <div className="flex items-start gap-1.5 pl-4">
-                                  <span className="text-[10px] text-primary font-medium shrink-0 mt-0.5">→</span>
-                                  <span className="text-[11px] text-primary/80">{c.solution}</span>
+                          {quickAiResult.challenges.map((c: any, i) => {
+                            const problem = typeof c === "string" ? c : (c?.problem || c);
+                            const solution = typeof c === "string" ? null : (c?.solution || null);
+                            return (
+                              <li key={i} className="text-xs rounded border bg-muted/30 p-2 space-y-1">
+                                <div className="flex items-start gap-1.5 text-muted-foreground">
+                                  <ChevronRight className="h-3 w-3 mt-0.5 shrink-0" />
+                                  <span>{problem}</span>
                                 </div>
-                              )}
-                            </li>
-                          ))}
+                                {solution && (
+                                  <div className="flex items-start gap-1.5 pl-4">
+                                    <span className="text-[10px] text-primary font-medium shrink-0 mt-0.5">→</span>
+                                    <span className="text-[11px] text-primary/80">{solution}</span>
+                                  </div>
+                                )}
+                              </li>
+                            );
+                          })}
                         </ul>
                       )}
                     </div>
@@ -910,20 +918,24 @@ export function ProductRoadmap() {
                       )}
                       {aiResult.challenges?.length > 0 && (
                         <ul className="space-y-2">
-                          {aiResult.challenges.map((c, i) => (
-                            <li key={i} className="text-xs rounded border bg-muted/30 p-2 space-y-1">
-                              <div className="flex items-start gap-1.5 text-muted-foreground">
-                                <ChevronRight className="h-3 w-3 mt-0.5 shrink-0" />
-                                <span>{typeof c === "string" ? c : c.problem}</span>
-                              </div>
-                              {typeof c !== "string" && c.solution && (
-                                <div className="flex items-start gap-1.5 pl-4">
-                                  <span className="text-[10px] text-primary font-medium shrink-0 mt-0.5">→</span>
-                                  <span className="text-[11px] text-primary/80">{c.solution}</span>
+                          {aiResult.challenges.map((c: any, i) => {
+                            const problem = typeof c === "string" ? c : (c?.problem || c);
+                            const solution = typeof c === "string" ? null : (c?.solution || null);
+                            return (
+                              <li key={i} className="text-xs rounded border bg-muted/30 p-2 space-y-1">
+                                <div className="flex items-start gap-1.5 text-muted-foreground">
+                                  <ChevronRight className="h-3 w-3 mt-0.5 shrink-0" />
+                                  <span>{problem}</span>
                                 </div>
-                              )}
-                            </li>
-                          ))}
+                                {solution && (
+                                  <div className="flex items-start gap-1.5 pl-4">
+                                    <span className="text-[10px] text-primary font-medium shrink-0 mt-0.5">→</span>
+                                    <span className="text-[11px] text-primary/80">{solution}</span>
+                                  </div>
+                                )}
+                              </li>
+                            );
+                          })}
                         </ul>
                       )}
                     </div>
