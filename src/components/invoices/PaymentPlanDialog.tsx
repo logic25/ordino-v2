@@ -13,6 +13,7 @@ import { useCreatePaymentPlan, useSaveACHAuthorization } from "@/hooks/usePaymen
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { ACHAuthorizationStep } from "./ACHAuthorizationStep";
 import { toast } from "@/hooks/use-toast";
+import { useTelemetry } from "@/hooks/useTelemetry";
 import { format, addMonths } from "date-fns";
 import { Calendar, Loader2, Percent, SplitSquareVertical } from "lucide-react";
 
@@ -29,6 +30,7 @@ interface PaymentPlanDialogProps {
 export function PaymentPlanDialog({
   open, onOpenChange, invoiceId, invoiceNumber, totalDue, clientId, clientName,
 }: PaymentPlanDialogProps) {
+  const { track } = useTelemetry();
   const [step, setStep] = useState<1 | 2>(1);
   const [numInstallmentsStr, setNumInstallmentsStr] = useState("3");
   const [useCustomAmounts, setUseCustomAmounts] = useState(false);
@@ -86,6 +88,7 @@ export function PaymentPlanDialog({
   };
 
   const handleProceedToACH = () => {
+    track("invoices", "payment_plan_started");
     if (!isBalanced && useCustomAmounts) {
       toast({
         title: "Amounts don't add up",

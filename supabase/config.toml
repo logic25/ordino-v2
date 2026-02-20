@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.auto-checklist-followups]
 verify_jwt = false
+
+[functions.analyze-telemetry]
+verify_jwt = false

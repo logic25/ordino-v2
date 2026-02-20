@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCreateClaimFlowReferral, useGenerateClaimFlowPackage } from "@/hooks/useClaimFlow";
+import { useTelemetry } from "@/hooks/useTelemetry";
 import { toast } from "@/hooks/use-toast";
 import {
   Gavel, Loader2, FileText, Mail, HandCoins, Clock,
@@ -40,6 +41,7 @@ const packageItems = [
 export function ClaimFlowDialog({
   open, onOpenChange, invoiceId, invoiceNumber, totalDue, dueDate, clientId, clientName, companyName,
 }: ClaimFlowDialogProps) {
+  const { track } = useTelemetry();
   const [caseNotes, setCaseNotes] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [packageUrl, setPackageUrl] = useState<string | null>(null);
@@ -56,6 +58,7 @@ export function ClaimFlowDialog({
     : null;
 
   const handleSubmit = async () => {
+    track("invoices", "claimflow_started");
     try {
       // Step 1: Create the referral
       const referral = await createReferral.mutateAsync({
