@@ -26,14 +26,14 @@ export default function HelpDesk() {
           <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="training">Interactive Training</TabsTrigger>
             <TabsTrigger value="guides">How-To Guides</TabsTrigger>
-            <TabsTrigger value="whats-new">What's New</TabsTrigger>
+            {isAdmin && <TabsTrigger value="whats-new">What's New</TabsTrigger>}
             <TabsTrigger value="requests">Feature Requests</TabsTrigger>
             {isAdmin && <TabsTrigger value="roadmap">Product Roadmap</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="training"><InteractiveTraining /></TabsContent>
           <TabsContent value="guides"><HowToGuides /></TabsContent>
-          <TabsContent value="whats-new"><WhatsNew /></TabsContent>
+          {isAdmin && <TabsContent value="whats-new"><WhatsNew /></TabsContent>}
           <TabsContent value="requests"><FeatureRequests /></TabsContent>
           {isAdmin && (
             <TabsContent value="roadmap"><ProductRoadmap /></TabsContent>

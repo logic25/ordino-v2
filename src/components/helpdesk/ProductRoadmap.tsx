@@ -26,7 +26,7 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   Plus, GripVertical, MoreHorizontal, Pencil, Trash2,
   AlertTriangle, Clock, Lightbulb, CheckCircle2, Rocket,
-  ArrowRight, Inbox, LayoutGrid, List, Brain, Sparkles, ChevronRight, AlertCircle,
+  ArrowRight, Inbox, LayoutGrid, List, Brain, Sparkles, ChevronRight, AlertCircle, Loader2,
 } from "lucide-react";
 import { AIRoadmapIntake } from "./AIRoadmapIntake";
 import {
@@ -195,6 +195,7 @@ export function ProductRoadmap() {
   const [promoteOpen, setPromoteOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
   const [form, setForm] = useState({ title: "", description: "", category: "general", status: "gap", priority: "medium" });
+  const [stressTesting, setStressTesting] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -252,6 +253,46 @@ export function ProductRoadmap() {
     setDialogOpen(false);
     setEditingItem(null);
     setForm({ title: "", description: "", category: "general", status: "gap", priority: "medium" });
+  };
+
+  const handleStressTest = async () => {
+    if (!editingItem) return;
+    setStressTesting(true);
+    try {
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+      const ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const token = (await supabase.auth.getSession()).data.session?.access_token || "";
+
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/analyze-telemetry`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          apikey: ANON_KEY,
+        },
+        body: JSON.stringify({ mode: "idea", company_id: companyId, raw_idea: `${form.title}: ${form.description}` }),
+      });
+
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      const result = await res.json();
+      const suggestion = result.suggestions?.[0];
+      if (!suggestion) throw new Error("No analysis returned");
+
+      const testedAt = new Date().toISOString();
+      await supabase.from("roadmap_items").update({
+        stress_test_result: suggestion as any,
+        stress_tested_at: testedAt,
+      } as any).eq("id", editingItem.id);
+
+      // Update local editing state so badge + panel appear immediately
+      setEditingItem({ ...editingItem, stress_test_result: suggestion, stress_tested_at: testedAt });
+      queryClient.invalidateQueries({ queryKey: ["roadmap-items"] });
+      toast({ title: "AI stress test complete", description: "Analysis saved to this roadmap item." });
+    } catch (err: any) {
+      toast({ title: "Stress test failed", description: err.message, variant: "destructive" });
+    } finally {
+      setStressTesting(false);
+    }
   };
 
   const handleEdit = (item: RoadmapItem) => {
@@ -589,7 +630,22 @@ export function ProductRoadmap() {
               );
             })()}
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex items-center justify-between gap-2 flex-row">
+            {editingItem && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleStressTest}
+                disabled={stressTesting}
+                className="gap-1.5 mr-auto"
+              >
+                {stressTesting ? (
+                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Running AI test…</>
+                ) : (
+                  <><Brain className="h-3.5 w-3.5" /> {editingItem.stress_tested_at ? "Re-run AI Test" : "Run AI Stress Test"}</>
+                )}
+              </Button>
+            )}
             <Button onClick={handleSave} disabled={!form.title.trim()}>
               {editingItem ? "Save Changes" : "Add Item"}
             </Button>

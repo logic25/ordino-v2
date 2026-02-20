@@ -9,9 +9,11 @@ interface ChangelogEntry {
 }
 
 const CHANGELOG: ChangelogEntry[] = [
+  { date: "2026-02-20", title: "AI Roadmap Stress Test", description: "Run AI analysis on any roadmap item directly from the edit dialog. Results (evidence, priority rationale, implementation risks) are saved to the card and shown with a purple AI badge.", tag: "feature" },
+  { date: "2026-02-20", title: "Interactive Training for AI Features", description: "New guided walkthroughs for AI Stress Test, AI Collections & Payment Risk, and AI Plan & Proposal Analysis added to the Help Center training tab.", tag: "feature" },
+  { date: "2026-02-20", title: "Product Roadmap (Admin)", description: "Admin-only Kanban/table roadmap with AI Intake, behavior analysis, and drag-and-drop reordering. Feature requests can be promoted into roadmap items.", tag: "feature" },
   { date: "2026-02-18", title: "PM Billing Capacity Tracker", description: "Complexity-weighted workload tracking for PMs with smart billing targets based on service mix and checklist readiness.", tag: "feature" },
   { date: "2026-02-18", title: "Notification Preferences", description: "Configure notification frequency (realtime, daily, weekly) for billing, projects, proposals, and email alerts in Settings.", tag: "feature" },
-  { date: "2026-02-18", title: "Help Center", description: "Searchable how-to guides, changelog, and feature request submission.", tag: "feature" },
   { date: "2026-02-17", title: "Year-over-Year Revenue Chart", description: "Compare monthly revenue across years on the admin dashboard.", tag: "feature" },
   { date: "2026-02-17", title: "Proposal Activity Card", description: "Month-over-month proposal volume and value change indicators.", tag: "feature" },
   { date: "2026-02-17", title: "Referral Reports", description: "Track top referrers, conversion rates, and referral source breakdown.", tag: "feature" },
