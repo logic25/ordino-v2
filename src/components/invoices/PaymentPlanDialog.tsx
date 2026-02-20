@@ -170,14 +170,14 @@ export function PaymentPlanDialog({
               <div className="flex items-center justify-between p-3 rounded-md bg-muted/50 border">
                 <div>
                   <p className="text-sm font-medium">{invoiceNumber}</p>
-                  <p className="text-xs text-muted-foreground">{clientName || "Unknown Client"}</p>
+                <p className="text-xs text-muted-foreground" data-clarity-mask="true">{clientName || "Unknown Client"}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-bold font-mono">
+                  <p className="text-lg font-bold font-mono" data-clarity-mask="true">
                     ${totalDue.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                   </p>
                   {interestRate > 0 && (
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground" data-clarity-mask="true">
                       + {interestRate}% = ${totalWithInterest.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                     </p>
                   )}
@@ -263,7 +263,7 @@ export function PaymentPlanDialog({
                         </>
                       ) : (
                         <>
-                          <span className="text-sm font-mono font-medium w-28">
+                          <span className="text-sm font-mono font-medium w-28" data-clarity-mask="true">
                             ${inst.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                           </span>
                           <span className="text-sm text-muted-foreground flex-1">
@@ -278,7 +278,7 @@ export function PaymentPlanDialog({
                 {/* Total validation */}
                 <div className="flex items-center justify-between pt-2 text-sm">
                   <span className="text-muted-foreground">Schedule Total</span>
-                  <span className={`font-mono font-medium ${isBalanced ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}>
+                  <span className={`font-mono font-medium ${isBalanced ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`} data-clarity-mask="true">
                     ${installmentTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                     {!isBalanced && useCustomAmounts && (
                       <span className="text-xs ml-1">

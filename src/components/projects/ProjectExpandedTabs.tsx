@@ -62,7 +62,7 @@ function ServiceDetail({ service }: { service: MockService }) {
         <div className="flex items-center gap-4 text-sm flex-wrap">
           <span className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Est. Cost:</span>
           {service.estimatedCosts.map((ec, i) => (
-            <span key={i} className="text-sm">{ec.discipline}: <span className="font-semibold">${ec.amount.toLocaleString()}</span></span>
+            <span key={i} className="text-sm">{ec.discipline}: <span className="font-semibold" data-clarity-mask="true">${ec.amount.toLocaleString()}</span></span>
           ))}
         </div>
       )}
@@ -227,8 +227,8 @@ function ServicesTab({ services }: { services: MockService[] }) {
                     ) : <span className="text-xs text-muted-foreground">—</span>}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{svc.estimatedBillDate || "—"}</TableCell>
-                  <TableCell className="text-sm text-right tabular-nums font-medium">{formatCurrency(svc.totalAmount)}</TableCell>
-                  <TableCell className="text-sm text-right tabular-nums text-muted-foreground">
+                  <TableCell className="text-sm text-right tabular-nums font-medium" data-clarity-mask="true">{formatCurrency(svc.totalAmount)}</TableCell>
+                   <TableCell className="text-sm text-right tabular-nums text-muted-foreground" data-clarity-mask="true">
                     {svc.costAmount > 0 ? formatCurrency(svc.costAmount) : "—"}
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
@@ -257,13 +257,13 @@ function ServicesTab({ services }: { services: MockService[] }) {
 
       {/* Job Cost Summary */}
       <div className="px-4 py-3 bg-muted/20 border-t flex items-center gap-6 text-sm flex-wrap">
-        <span><span className="text-muted-foreground">Contract:</span> <span className="font-semibold">{formatCurrency(total)}</span></span>
+        <span><span className="text-muted-foreground">Contract:</span> <span className="font-semibold" data-clarity-mask="true">{formatCurrency(total)}</span></span>
         <Separator orientation="vertical" className="h-4" />
-        <span><span className="text-muted-foreground">Billed:</span> <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(billed)}</span></span>
+        <span><span className="text-muted-foreground">Billed:</span> <span className="font-semibold text-emerald-600 dark:text-emerald-400" data-clarity-mask="true">{formatCurrency(billed)}</span></span>
         <Separator orientation="vertical" className="h-4" />
-        <span><span className="text-muted-foreground">Remaining:</span> <span className="font-semibold">{formatCurrency(remaining)}</span></span>
+        <span><span className="text-muted-foreground">Remaining:</span> <span className="font-semibold" data-clarity-mask="true">{formatCurrency(remaining)}</span></span>
         <Separator orientation="vertical" className="h-4" />
-        <span><span className="text-muted-foreground">Cost:</span> <span className="font-semibold">{formatCurrency(cost)}</span></span>
+        <span><span className="text-muted-foreground">Cost:</span> <span className="font-semibold" data-clarity-mask="true">{formatCurrency(cost)}</span></span>
         <Separator orientation="vertical" className="h-4" />
         <span><span className="text-muted-foreground">Margin:</span> <span className="font-semibold">{total > 0 ? `${Math.round((total - cost) / total * 100)}%` : "—"}</span></span>
       </div>
@@ -372,7 +372,7 @@ function ChangeOrdersTab({ changeOrders }: { changeOrders: MockChangeOrder[] }) 
               </div>
               <p className="text-xs text-muted-foreground mt-0.5 truncate">{co.description}</p>
             </div>
-            <div className="text-right shrink-0 pl-4">
+            <div className="text-right shrink-0 pl-4" data-clarity-mask="true">
               <span className="text-sm font-semibold tabular-nums">{formatCurrency(co.amount)}</span>
               <div className="text-[10px] text-muted-foreground">{co.createdDate}</div>
             </div>

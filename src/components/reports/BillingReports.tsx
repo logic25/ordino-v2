@@ -121,7 +121,7 @@ export default function BillingReports() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Collected</p>
-              <p className="text-xl font-semibold text-foreground">${data.totalCollected.toLocaleString()}</p>
+              <p className="text-xl font-semibold text-foreground" data-clarity-mask="true">${data.totalCollected.toLocaleString()}</p>
             </div>
           </CardContent>
         </Card>
@@ -177,6 +177,7 @@ export default function BillingReports() {
           </CardHeader>
           <CardContent>
             {topClients && topClients.length > 0 ? (
+              <div data-clarity-mask="true">
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={topClients} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -186,6 +187,7 @@ export default function BillingReports() {
                   <Bar dataKey="outstanding" fill="hsl(var(--destructive))" radius={[0, 4, 4, 0]} opacity={0.8} />
                 </BarChart>
               </ResponsiveContainer>
+              </div>
             ) : <p className="text-sm text-muted-foreground py-8 text-center">No outstanding balances</p>}
           </CardContent>
         </Card>

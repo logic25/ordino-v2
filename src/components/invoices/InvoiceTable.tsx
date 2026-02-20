@@ -226,14 +226,14 @@ export function InvoiceTable({
                 </TableCell>
                 <TableCell colSpan={1}>
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold">{clientGroup.clientName}</span>
+                    <span className="font-semibold" data-clarity-mask="true">{clientGroup.clientName}</span>
                     <Badge variant="secondary" className="text-[10px]">
                       {clientGroup.invoices.length} invoice{clientGroup.invoices.length !== 1 ? "s" : ""}
                     </Badge>
                   </div>
                 </TableCell>
                 <TableCell className="text-right tabular-nums font-bold">
-                  ${clientGroup.totalDue.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  <span data-clarity-mask="true">${clientGroup.totalDue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
                 </TableCell>
                 <TableCell></TableCell>
                 <TableCell></TableCell>
@@ -268,7 +268,7 @@ export function InvoiceTable({
                         </div>
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-sm font-medium">
-                        ${projGroup.totalDue.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        <span data-clarity-mask="true">${projGroup.totalDue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
                       </TableCell>
                       <TableCell></TableCell>
                       <TableCell></TableCell>
@@ -297,13 +297,13 @@ export function InvoiceTable({
                             </span>
                             {inv.billed_to_contact?.name && (
                               <p className="text-xs text-muted-foreground mt-0.5">
-                                → {inv.billed_to_contact.name}
+                                → <span data-clarity-mask="true">{inv.billed_to_contact.name}</span>
                               </p>
                             )}
                           </div>
                         </TableCell>
                         <TableCell className="text-right tabular-nums text-sm">
-                          ${Number(inv.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          <span data-clarity-mask="true">${Number(inv.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
                         </TableCell>
                         <TableCell>
                           <InvoiceStatusBadge status={inv.status} />

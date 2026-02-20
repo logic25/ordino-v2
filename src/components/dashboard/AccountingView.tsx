@@ -64,7 +64,7 @@ export function AccountingView({ isVisible }: { isVisible?: (id: string) => bool
               ) : (
                 <>
                   <div className="flex items-center justify-between">
-                    <p className="text-2xl font-bold">{kpi.value}</p>
+                    <p className="text-2xl font-bold" data-clarity-mask="true">{kpi.value}</p>
                     <kpi.icon className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <p className="text-sm text-muted-foreground">{kpi.label}</p>
@@ -145,15 +145,15 @@ export function AccountingView({ isVisible }: { isVisible?: (id: string) => bool
                   onClick={() => navigate("/invoices")}
                 >
                   <div className="space-y-0.5">
-                    <p className="font-medium text-sm">
+                  <p className="font-medium text-sm" data-clarity-mask="true">
                       {br.projects?.name || br.projects?.project_number || "Unknown project"}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground" data-clarity-mask="true">
                       Submitted by {br.created_by_profile?.first_name} {br.created_by_profile?.last_name}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-sm">${(br.total_amount || 0).toLocaleString()}</p>
+                    <p className="font-semibold text-sm" data-clarity-mask="true">${(br.total_amount || 0).toLocaleString()}</p>
                     <Badge variant="secondary" className="text-[10px]">Pending</Badge>
                   </div>
                 </div>

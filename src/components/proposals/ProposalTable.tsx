@@ -217,7 +217,7 @@ export function ProposalTable({
                   </TableCell>
                 )}
                 {show("client") && (
-                  <TableCell>
+                  <TableCell data-clarity-mask="true">
                     {proposal.client_name || "-"}
                     {proposal.client_email && (
                       <div className="text-xs text-muted-foreground">
@@ -278,7 +278,7 @@ export function ProposalTable({
                   </TableCell>
                 )}
                 {show("total") && (
-                  <TableCell className="text-right font-medium">
+                  <TableCell className="text-right font-medium" data-clarity-mask="true">
                     {formatCurrency(Number(proposal.total_amount))}
                   </TableCell>
                 )}

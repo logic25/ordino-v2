@@ -471,11 +471,11 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
                 </div>
               ) : (
                 <div className="rounded-lg border p-3 space-y-2">
-                  <p className="text-sm font-medium">{invoice.clients?.name || "—"}</p>
+                <p className="text-sm font-medium" data-clarity-mask="true">{invoice.clients?.name || "—"}</p>
                   {invoice.clients?.phone && (
                     <div className="flex items-center gap-2 text-sm">
                       <Phone className="h-3 w-3 text-muted-foreground" />
-                      <a href={`tel:${invoice.clients.phone}`} className="text-primary hover:underline">
+                      <a href={`tel:${invoice.clients.phone}`} className="text-primary hover:underline" data-clarity-mask="true">
                         {invoice.clients.phone}
                       </a>
                     </div>
@@ -483,13 +483,13 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
                   {invoice.clients?.email && (
                     <div className="flex items-center gap-2 text-sm">
                       <Mail className="h-3 w-3 text-muted-foreground" />
-                      <a href={`mailto:${invoice.clients.email}`} className="text-primary hover:underline">
+                      <a href={`mailto:${invoice.clients.email}`} className="text-primary hover:underline" data-clarity-mask="true">
                         {invoice.clients.email}
                       </a>
                     </div>
                   )}
                   {invoice.clients?.address && (
-                    <p className="text-xs text-muted-foreground">{invoice.clients.address}</p>
+                    <p className="text-xs text-muted-foreground" data-clarity-mask="true">{invoice.clients.address}</p>
                   )}
                 </div>
               )}
@@ -501,14 +501,14 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
                 </h4>
                 {invoice.billed_to_contact ? (
                   <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-1.5">
-                    <p className="text-sm font-semibold">{invoice.billed_to_contact.name}</p>
+                    <p className="text-sm font-semibold" data-clarity-mask="true">{invoice.billed_to_contact.name}</p>
                     {invoice.billed_to_contact.title && (
                       <p className="text-xs text-muted-foreground">{invoice.billed_to_contact.title}{invoice.billed_to_contact.company_name ? ` at ${invoice.billed_to_contact.company_name}` : ""}</p>
                     )}
                     {invoice.billed_to_contact.email && (
                       <div className="flex items-center gap-2 text-sm">
                         <Mail className="h-3 w-3 text-muted-foreground" />
-                        <a href={`mailto:${invoice.billed_to_contact.email}`} className="text-primary hover:underline">
+                        <a href={`mailto:${invoice.billed_to_contact.email}`} className="text-primary hover:underline" data-clarity-mask="true">
                           {invoice.billed_to_contact.email}
                         </a>
                       </div>
@@ -517,7 +517,7 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
                       <div className="flex items-center gap-2 text-sm">
                         <Phone className="h-3 w-3 text-muted-foreground" />
                         <span className="text-xs text-muted-foreground">Office</span>
-                        <a href={`tel:${invoice.billed_to_contact.phone}`} className="text-primary hover:underline">
+                        <a href={`tel:${invoice.billed_to_contact.phone}`} className="text-primary hover:underline" data-clarity-mask="true">
                           {invoice.billed_to_contact.phone}
                         </a>
                       </div>
@@ -526,7 +526,7 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
                       <div className="flex items-center gap-2 text-sm">
                         <Phone className="h-3 w-3 text-muted-foreground" />
                         <span className="text-xs text-muted-foreground">Mobile</span>
-                        <a href={`tel:${invoice.billed_to_contact.mobile}`} className="text-primary hover:underline">
+                        <a href={`tel:${invoice.billed_to_contact.mobile}`} className="text-primary hover:underline" data-clarity-mask="true">
                           {invoice.billed_to_contact.mobile}
                         </a>
                       </div>
@@ -717,17 +717,17 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
             <section className="space-y-1 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span className="tabular-nums">${Number(invoice.subtotal).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                <span className="tabular-nums" data-clarity-mask="true">${Number(invoice.subtotal).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
               </div>
               {Number(invoice.retainer_applied) > 0 && (
                 <div className="flex justify-between text-success">
                   <span>Retainer Applied</span>
-                  <span className="tabular-nums">-${Number(invoice.retainer_applied).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                  <span className="tabular-nums" data-clarity-mask="true">-${Number(invoice.retainer_applied).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
                 </div>
               )}
               <div className="flex justify-between text-base font-bold pt-1 border-t">
                 <span>Total Due</span>
-                <span className="tabular-nums">${Number(invoice.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                <span className="tabular-nums" data-clarity-mask="true">${Number(invoice.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
               </div>
             </section>
 
@@ -1018,7 +1018,7 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Amount</span>
-                  <span className="tabular-nums font-medium">
+                  <span className="tabular-nums font-medium" data-clarity-mask="true">
                     ${Number(invoice.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                   </span>
                 </div>
@@ -1106,7 +1106,7 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
               <div className="rounded-lg border p-3 bg-muted/50 space-y-1">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">To</span>
-                  <span className="font-medium">{invoice.clients?.name || "—"}</span>
+                  <span className="font-medium" data-clarity-mask="true">{invoice.clients?.name || "—"}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Re: Invoice</span>
@@ -1114,7 +1114,7 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Amount</span>
-                  <span className="tabular-nums font-bold text-destructive">
+                  <span className="tabular-nums font-bold text-destructive" data-clarity-mask="true">
                     ${Number(invoice.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                   </span>
                 </div>
