@@ -458,66 +458,76 @@ export function AIUsageDashboard() {
           ) : byFeature.length === 0 ? (
             <p className="text-xs text-muted-foreground py-4 text-center">No AI usage recorded yet</p>
           ) : (
-            <div className="space-y-0">
-              <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-4 text-[10px] font-medium text-muted-foreground uppercase tracking-wide pb-2 border-b">
-                <span>Feature</span>
-                <span className="text-right">Model</span>
-                <span className="text-right">Requests</span>
-                <span className="text-right">Words Processed</span>
-                <span className="text-right">Est. Cost</span>
-              </div>
-              <div className="divide-y">
-                {byFeature.map((f) => {
-                  const isPro = f.dominantModel.includes("pro");
-                  const isFlash25 = f.dominantModel.includes("2.5-flash");
-                  return (
-                    <div key={f.feature} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-4 py-2 text-xs items-center">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="truncate">{f.label}</span>
-                        {f.desc && <InfoTip>{f.desc}</InfoTip>}
-                      </div>
-                      <div className="text-right">
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <Badge
-                              variant="outline"
-                              className={`text-[9px] px-1.5 py-0 cursor-default ${
-                                isPro
-                                  ? "border-violet-400 text-violet-600 bg-violet-50 dark:bg-violet-950/30"
+            <div className="w-full overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="border-b text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                    <th className="text-left pb-2 pr-3">Feature</th>
+                    <th className="text-left pb-2 pr-3 w-[140px]">Model</th>
+                    <th className="text-right pb-2 pr-3 w-[80px]">Requests</th>
+                    <th className="text-right pb-2 pr-3 w-[110px]">Words Processed</th>
+                    <th className="text-right pb-2 w-[80px]">Est. Cost</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {byFeature.map((f) => {
+                    const isPro = f.dominantModel.includes("pro");
+                    const isFlash25 = f.dominantModel.includes("2.5-flash");
+                    return (
+                      <tr key={f.feature} className="hover:bg-muted/40 transition-colors">
+                        <td className="py-2 pr-3">
+                          <div className="flex items-center gap-1.5">
+                            <span>{f.label}</span>
+                            {f.desc && <InfoTip>{f.desc}</InfoTip>}
+                          </div>
+                        </td>
+                        <td className="py-2 pr-3">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="inline-flex cursor-default">
+                                <Badge
+                                  variant="outline"
+                                  className={`text-[9px] px-1.5 py-0 ${
+                                    isPro
+                                      ? "border-violet-400 text-violet-600 bg-violet-50 dark:bg-violet-950/30"
+                                      : isFlash25
+                                      ? "border-blue-400 text-blue-600 bg-blue-50 dark:bg-blue-950/30"
+                                      : "border-green-400 text-green-600 bg-green-50 dark:bg-green-950/30"
+                                  }`}
+                                >
+                                  {isPro ? "⚡ Pro" : isFlash25 ? "Flash 2.5" : "Flash"}
+                                </Badge>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent className="text-xs max-w-[200px]">
+                              <p className="font-medium">{f.dominantModelFriendly}</p>
+                              <p className="text-muted-foreground mt-0.5">
+                                {isPro
+                                  ? "Most powerful — best for complex reasoning and nuanced tasks"
                                   : isFlash25
-                                  ? "border-blue-400 text-blue-600 bg-blue-50 dark:bg-blue-950/30"
-                                  : "border-green-400 text-green-600 bg-green-50 dark:bg-green-950/30"
-                              }`}
-                            >
-                              {isPro ? "⚡ Pro" : isFlash25 ? "Flash 2.5" : "Flash"}
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent className="text-xs max-w-[200px]">
-                            <p className="font-medium">{f.dominantModelFriendly}</p>
-                            <p className="text-muted-foreground mt-0.5">
-                              {isPro
-                                ? "Most powerful — best for complex reasoning and nuanced tasks"
-                                : isFlash25
-                                ? "Multimodal — handles text + images efficiently"
-                                : "Fast & efficient — ideal for structured generation"}
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                      <span className="text-right text-muted-foreground">{f.count}</span>
-                      <span className="text-right text-muted-foreground">{formatWords(f.tokens)}</span>
-                      <span className="text-right font-medium">{formatCostFull(f.cost)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-4 pt-2 border-t text-xs font-semibold">
-                <span>Total</span>
-                <span />
-                <span className="text-right">{totalRequests}</span>
-                <span className="text-right">{formatWords(totalTokens)}</span>
-                <span className="text-right">{formatCostFull(totalCost)}</span>
-              </div>
+                                  ? "Multimodal — handles text + images efficiently"
+                                  : "Fast & efficient — ideal for structured generation"}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </td>
+                        <td className="py-2 pr-3 text-right text-muted-foreground">{f.count}</td>
+                        <td className="py-2 pr-3 text-right text-muted-foreground">{formatWords(f.tokens)}</td>
+                        <td className="py-2 text-right font-medium">{formatCostFull(f.cost)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t font-semibold">
+                    <td className="pt-2 pr-3">Total</td>
+                    <td className="pt-2 pr-3" />
+                    <td className="pt-2 pr-3 text-right">{totalRequests}</td>
+                    <td className="pt-2 pr-3 text-right">{formatWords(totalTokens)}</td>
+                    <td className="pt-2 text-right">{formatCostFull(totalCost)}</td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
           )}
         </CardContent>
