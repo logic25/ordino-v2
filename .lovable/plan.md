@@ -1,215 +1,392 @@
 
-# Three-Part Plan: Change Order Workflow + New Hire Onboarding + Heatmap Tracking
+# Comprehensive Telemetry Layer + AI Roadmap Intake Button
+
+## Overview
+
+The app has 12 distinct modules, each with multiple user flows. The telemetry design below covers every meaningful action across all of them — not just invoices. The AI Roadmap Intake is a single button inside the Product Roadmap tab that opens a modal with two modes: analyze behavior or stress-test a typed idea.
 
 ---
 
-## Part 1: Rethinking Onboarding for an Internal Tool
+## Part 1 — Database Schema (2 new tables)
 
-You are absolutely right. Since this is an internal tool for your team, onboarding needs to serve a different purpose than a public SaaS product. The company is already set up — new hires just need to learn the tool.
-
-The refined onboarding strategy has two layers:
-
-**Layer 1 — First Login Welcome Banner (Dashboard)**
-When a new team member logs in for the first time and their profile has no `onboarding_completed` flag, they see a dismissible banner on the dashboard:
-
-```text
-Welcome to Ordino, [Name]!
-[ Take the guided tour ]  [ Browse Help Desk ]  [ Dismiss ]
+### `telemetry_events`
+```
+id, company_id, user_id, session_id, page, action,
+metadata jsonb  -- { role, entity_id, entity_type, step, error_code }
+created_at
 ```
 
-That's it. Clean, non-blocking. Clicking "guided tour" launches the existing walkthrough engine.
+RLS: authenticated users can INSERT their own rows (user_id = auth.uid()). Only admins can SELECT.
 
-**Layer 2 — Add a "Change Orders" Walkthrough to Help Desk**
-A new CO walkthrough is added to the interactive training system so any team member — new or experienced — can self-serve learn the CO workflow on demand.
+### `ai_roadmap_suggestions`
+```
+id, company_id, title, description, category, priority,
+evidence text, duplicate_warning text, challenges text[],
+status (pending_review | approved | dismissed),
+source (telemetry | manual_idea), raw_idea text,
+created_at, reviewed_at, reviewed_by
+```
 
-No multi-step wizard. No company setup steps. Just smart defaults that meet new hires where they are.
-
-**Files to modify:**
-- `src/pages/Dashboard.tsx` — add first-login banner using `onboarding_completed` check
-- `src/components/walkthrough/walkthroughs.ts` — add new "Change Orders" walkthrough
-- `src/integrations/supabase/` — migration to add `onboarding_completed` boolean to profiles (defaults to `false`, gets set to `true` on dismiss or tour completion)
+RLS: admins only for all operations.
 
 ---
 
-## Part 2: Change Order Workflow — Full Build with Dual-Signature
+## Part 2 — Complete Telemetry Event Catalog
 
-Yes, COs will behave exactly like proposals, including:
-- Internal signature capture (canvas pad, saved signature support)
-- Client signature step (sent to client, they sign)
-- Same dual-signature status tracking already visible in the mock data (`internalSigned`, `clientSigned`)
-- A dedicated detail sheet (slide-out panel) — same pattern as `ProposalDetailSheet`
-- CO numbering: `CO#1`, `CO#2`... sequential per project (not proposal-style date prefix)
+Every event is `page__action` format. Metadata captures extra context without extra columns.
 
-### Database Migration
+### INVOICES (Billing page) — highest value, most thorough
+| Event | Trigger point | Why it matters |
+|---|---|---|
+| `invoices__create_started` | Create Invoice dialog opens | |
+| `invoices__create_completed` | Invoice saved (draft or ready) | Drop-off between these = friction |
+| `invoices__create_abandoned` | Dialog closed with no save | |
+| `invoices__send_started` | Send Invoice modal opens | |
+| `invoices__send_completed` | Invoice successfully sent | Core revenue action |
+| `invoices__send_failed` | Send fails (no email, gmail error) | Technical blocker |
+| `invoices__retainer_applied` | Retainer toggle switched on | Feature adoption signal |
+| `invoices__payment_plan_started` | PaymentPlanDialog opens | |
+| `invoices__payment_plan_completed` | Plan saved | |
+| `invoices__payment_plan_abandoned` | Dialog closed at step 1 or 2 | Multi-step drop-off |
+| `invoices__ach_authorization_reached` | User reaches ACH step in plan | Step penetration |
+| `invoices__claimflow_started` | ClaimFlowDialog opens | Escalation signal |
+| `invoices__claimflow_submitted` | Referral submitted | |
+| `invoices__collection_message_generated` | AI message requested | AI adoption |
+| `invoices__collection_message_sent` | Message sent from collections view | |
+| `invoices__payment_promise_logged` | Promise created | |
+| `invoices__ai_priority_mode_toggled` | AI view switched on/off | Feature adoption |
+| `invoices__send_to_billing_opened` | SendToBillingDialog opened | |
+| `invoices__pdf_previewed` | PDF preview opened | |
+| `invoices__qbo_widget_viewed` | QBO widget visible on page | Integration adoption |
+| `invoices__filter_tab_changed` | Tab changed (sent/overdue/paid etc.) | Navigation pattern |
+| `invoices__collections_tab_viewed` | Collections sub-view opened | Feature discovery |
+| `invoices__retainers_tab_viewed` | Retainers sub-view opened | |
+| `invoices__analytics_tab_viewed` | Analytics sub-view opened | |
 
-New `change_orders` table:
+### PROPOSALS
+| Event | Trigger point |
+|---|---|
+| `proposals__create_started` | ProposalDialog opens (new) |
+| `proposals__create_completed` | Proposal saved |
+| `proposals__create_abandoned` | Dialog closed without save |
+| `proposals__send_started` | SendProposalDialog opens |
+| `proposals__send_completed` | Proposal marked sent |
+| `proposals__send_abandoned` | Dialog closed without send |
+| `proposals__internal_sign_started` | SignatureDialog opens |
+| `proposals__internal_sign_completed` | Signature saved |
+| `proposals__client_approved` | ProposalApprovalDialog — approved |
+| `proposals__preview_opened` | ProposalPreviewModal opens |
+| `proposals__lead_capture_started` | LeadCaptureDialog opens |
+| `proposals__lead_capture_completed` | Lead saved |
+| `proposals__followup_logged` | Manual follow-up logged |
+| `proposals__followup_snoozed` | Snooze used |
+| `proposals__followup_dismissed` | Follow-up dismissed |
 
-```text
-change_orders
-├── id                      uuid PK
-├── company_id              uuid FK → companies
-├── project_id              uuid FK → projects
-├── co_number               text  — "CO#1", "CO#2" (auto-generated trigger)
-├── title                   text  — "PAA to address Schedule B"
-├── description             text  — full scope
-├── reason                  text  — why this change happened
-├── amount                  numeric — positive (add-on) or negative (credit)
-├── status                  enum: draft | pending_client | approved | rejected | voided
-├── requested_by            text  — "Client", "Internal", "GC"
-├── linked_service_names    text[]
-├── internal_signed_at      timestamptz
-├── internal_signed_by      uuid FK → profiles
-├── internal_signature_data text
-├── client_signed_at        timestamptz
-├── client_signer_name      text
-├── client_signature_data   text
-├── sent_at                 timestamptz
-├── approved_at             timestamptz
-├── notes                   text
-├── created_by              uuid FK → profiles
-├── created_at / updated_at
-```
+### PROJECTS
+| Event | Trigger point |
+|---|---|
+| `projects__create_started` | ProjectDialog opens (new) |
+| `projects__create_completed` | Project saved |
+| `projects__detail_viewed` | ProjectDetail page loaded |
+| `projects__tab_changed` | Tab switched (services/contacts/docs etc.), metadata: { tab } |
+| `projects__service_expanded` | Service row expanded |
+| `projects__service_status_changed` | Status dropdown changed |
+| `projects__co_create_started` | ChangeOrderDialog opens |
+| `projects__co_create_completed` | CO saved |
+| `projects__co_sign_started` | COSignatureDialog opens |
+| `projects__co_detail_opened` | ChangeOrderDetailSheet opens |
+| `projects__checklist_item_added` | Checklist item created |
+| `projects__checklist_item_completed` | Checkbox ticked |
+| `projects__checklist_followup_approved` | AI draft approved |
+| `projects__checklist_followup_dismissed` | AI draft dismissed |
+| `projects__pis_form_opened` | EditPISDialog opens (PIS/RFI form) |
+| `projects__pis_form_submitted` | PIS submitted |
+| `projects__dob_prep_sheet_opened` | DobNowFilingPrepSheet opens |
+| `projects__litigation_export_started` | LitigationExportDialog opens |
+| `projects__document_uploaded` | Doc uploaded in project |
+| `projects__esign_dialog_opened` | ESignInstructionDialog opens |
 
-Auto-number trigger assigns `CO#1`, `CO#2`... per `project_id` using same pattern as `generate_project_number()`.
+### PROPERTIES
+| Event | Trigger point |
+|---|---|
+| `properties__create_started` | PropertyDialog opens |
+| `properties__create_completed` | Property saved |
+| `properties__detail_viewed` | PropertyDetail page loaded |
+| `properties__signal_enroll_started` | SignalEnrollDialog opens |
+| `properties__signal_enrolled` | Signal enrollment saved |
+| `properties__violation_viewed` | Violations tab expanded |
+| `properties__application_linked` | Application linked to property |
 
-RLS: company-isolated — users can only see/write COs for their company.
+### EMAILS
+| Event | Trigger point |
+|---|---|
+| `emails__compose_started` | ComposeEmailDialog opens |
+| `emails__compose_sent` | Email sent |
+| `emails__compose_abandoned` | Dialog closed without send |
+| `emails__draft_saved` | Draft saved |
+| `emails__email_opened` | Email detail sheet opened |
+| `emails__reminder_set` | ReminderButton used |
+| `emails__snoozed` | SnoozeMenu used |
+| `emails__tagged` | Tag applied in EmailTagDialog |
+| `emails__schedule_send_used` | ScheduleSendDropdown used |
+| `emails__gmail_connect_clicked` | GmailConnectButton clicked |
+| `emails__gmail_sync_triggered` | Manual sync triggered |
+| `emails__search_used` | Gmail search query submitted |
+| `emails__filter_tab_changed` | Tab changed (inbox/sent/snoozed etc.) |
+| `emails__attachment_previewed` | AttachmentPreviewModal opens |
+| `emails__keyboard_shortcut_used` | Shortcut triggered, metadata: { key } |
 
-### Status Flow
+### TIME TRACKING
+| Event | Trigger point |
+|---|---|
+| `time__log_started` | TimeEntryDialog opens |
+| `time__log_completed` | Entry saved |
+| `time__timer_started` | ActiveTimerBar — start clicked |
+| `time__timer_stopped` | ClockOutModal opens |
+| `time__clock_out_completed` | ClockOut saved |
+| `time__timesheet_week_navigated` | Week arrows clicked |
+| `time__attendance_tab_viewed` | Attendance tab opened |
 
-```text
-Draft
-  → [Sign Internally]     → Pending Client
-  → [Client Signs]        → Approved
-  → [Manually Approve]    → Approved (no client sig needed for internal COs)
-  → [Reject]              → Rejected
-  → [Void]                → Voided  (auto-created negative COs land here)
-```
+### RFPs
+| Event | Trigger point |
+|---|---|
+| `rfps__create_started` | New RFP dialog opens |
+| `rfps__create_completed` | RFP saved |
+| `rfps__upload_pdf_started` | AI extract triggered (file selected) |
+| `rfps__upload_pdf_completed` | AI extraction returned data |
+| `rfps__builder_started` | RfpBuilderDialog opens |
+| `rfps__builder_step_advanced` | Next step clicked, metadata: { from_step, to_step } |
+| `rfps__builder_cover_letter_generated` | AI cover letter generated |
+| `rfps__builder_preview_opened` | Preview modal opened |
+| `rfps__builder_submitted` | RFP submitted/sent |
+| `rfps__builder_abandoned` | Dialog closed before submit |
+| `rfps__partner_email_sent` | Partner outreach sent |
+| `rfps__discovery_viewed` | RfpDiscovery page visited |
+| `rfps__monitoring_settings_opened` | MonitoringSettingsDialog opens |
+| `rfps__kanban_vs_table_toggled` | View mode switched |
 
-### New Files
+### CLIENTS / COMPANIES
+| Event | Trigger point |
+|---|---|
+| `clients__create_started` | ClientDialog opens |
+| `clients__create_completed` | Client saved |
+| `clients__detail_opened` | ClientDetailSheet opens |
+| `clients__contact_added` | AddContactDialog submitted |
+| `clients__contact_edited` | EditContactDialog submitted |
+| `clients__review_added` | ReviewsSection — review saved |
+| `clients__proposals_modal_opened` | ClientProposalsModal opens |
 
-**`src/hooks/useChangeOrders.ts`**
-- `useChangeOrders(projectId)` — live query all COs for a project
-- `useCreateChangeOrder()` — insert, triggers CO number
-- `useUpdateChangeOrder()` — status changes, field edits
-- `useDeleteChangeOrder()` — draft-only deletion
-- `useSignCOInternal(id, signatureData)` — sets `internal_signed_at`, `internal_signature_data`, status → `pending_client`
-- `useMarkCOApproved(id)` — sets `approved_at`, status → `approved`
-- Types: `ChangeOrder`, `ChangeOrderFormInput`
+### CALENDAR
+| Event | Trigger point |
+|---|---|
+| `calendar__event_create_started` | CalendarEventDialog opens (new) |
+| `calendar__event_create_completed` | Event saved |
+| `calendar__view_changed` | Day vs week view switched |
+| `calendar__google_sync_triggered` | Google Calendar sync triggered |
 
-**`src/components/projects/ChangeOrderDialog.tsx`**
+### REPORTS
+| Event | Trigger point |
+|---|---|
+| `reports__tab_viewed` | Tab changed, metadata: { tab } |
+| `reports__export_triggered` | Export button clicked, metadata: { report_type } |
 
-A focused dialog (not a multi-step form like ProposalDialog — COs are simpler):
-- Title — e.g. "PAA to address Schedule B"
-- Description (scope)
-- Reason (why this CO exists)
-- Amount (positive or negative — shows impact on contract total)
-- Requested by (text: Client / Internal / GC / Architect)
-- Linked services (multi-select from the project's existing services)
-- Status defaults to `draft`
-- "Save as Draft" and "Create CO" actions
+### DASHBOARD
+| Event | Trigger point |
+|---|---|
+| `dashboard__widget_reordered` | DashboardLayoutConfig drag complete |
+| `dashboard__quick_time_log_used` | QuickTimeLog submitted |
+| `dashboard__role_preview_switched` | RolePreviewSelector changed |
+| `dashboard__billing_goal_viewed` | BillingGoalTracker visible |
 
-**`src/components/projects/ChangeOrderDetailSheet.tsx`**
-
-A slide-out `Sheet` panel showing a single CO in full detail:
-- CO number + title header
-- All fields (description, reason, amount, requested by, linked services)
-- Dual-signature status tracker:
-  ```text
-  [ Internal Signature ]     [ Client Signature ]
-  [ Sheri L. — 02/11/2026 ]  [ Pending — Send to Client ]
-  ```
-- "Sign Internally" button → opens the existing `SignatureDialog` (reused exactly as proposals do)
-- "Send to Client" button → marks `sent_at`, changes status to `pending_client`
-- "Mark Approved" button (for admin override, no client sig required)
-- "Void CO" button
-- Timeline of status changes
-- Notes field
-- Edit button (opens `ChangeOrderDialog` in edit mode for drafts only)
-
-**Reuse of `SignatureDialog`**
-The existing `SignatureDialog` in `src/components/proposals/SignatureDialog.tsx` is proposal-specific (shows proposal number, client, total, PM picker). For COs, a lighter variant is used — same canvas pad logic, same saved-signature feature — but scoped to a CO. This will be a new `COSignatureDialog` that strips out the PM assignment (already done at project creation) and shows CO number + title + amount instead.
-
-### Wiring Into ProjectDetail / ProjectExpandedTabs
-
-- The `ChangeOrdersTab` in `ProjectExpandedTabs.tsx` currently renders from `MockChangeOrder[]` passed as a prop
-- Replace with real data from `useChangeOrders(projectId)` 
-- "Create CO" button in the tab opens `ChangeOrderDialog`
-- Clicking a CO row opens `ChangeOrderDetailSheet`
-- The adjusted total in the cost summary bar (`contractTotal + approvedCOs`) updates live from real data
-- The CO count badge on the tab updates live
-- Auto-negative CO logic: when a PM drops a service in `ProjectDetail`, instead of just showing a toast, it calls `useCreateChangeOrder()` with a negative amount and `status: "voided"` (pre-approved credit)
+### SETTINGS
+| Event | Trigger point |
+|---|---|
+| `settings__tab_viewed` | Tab changed, metadata: { tab } |
+| `settings__automation_rule_created` | New rule saved |
+| `settings__service_catalog_edited` | Service saved |
+| `settings__team_member_invited` | Invite sent |
+| `settings__notification_preference_changed` | Preference toggled |
 
 ---
 
-## Part 3: Microsoft Clarity Heatmap Tracking
+## Part 3 — `useTelemetry` Hook
 
-The simplest possible change — one script block added to `index.html`. No new dependencies, no database changes.
+A single lightweight hook:
 
-**What you get:**
-- Click heatmaps per page (where on `/proposals`, `/projects`, `/invoices` are people actually clicking)
-- Scroll depth maps (do users see the bottom tabs on Project Detail?)
-- Session recordings (watch real sessions of how your team navigates)
-- Rage click detection (automatically flags frustrating UX moments)
-- "Dead click" detection (clicking things that don't respond)
-- All free, all private (only you see the data in your Clarity dashboard)
+```typescript
+// src/hooks/useTelemetry.ts
+export function useTelemetry() {
+  const { session } = useAuth();
+  const sessionId = useSessionId(); // from sessionStorage
 
-**What you need to do first (5 minutes):**
-1. Go to **clarity.microsoft.com**
-2. Sign in with a Microsoft account
-3. Click "New Project" → name it "Ordino" → set URL to your app domain
-4. Copy the **Project ID** (looks like `abc123xyz`)
+  const track = useCallback((page: string, action: string, metadata?: Record<string, any>) => {
+    if (!session?.user?.id) return;
+    // Fire and forget — no await, never blocks UI
+    supabase.from("telemetry_events").insert({
+      user_id: session.user.id,
+      company_id: profile?.company_id,
+      session_id: sessionId,
+      page,
+      action,
+      metadata: metadata ?? {},
+    }).then(() => {}); // silently ignore errors
+  }, [session?.user?.id]);
 
-Once you share that ID, I add this to `index.html`:
-
-```html
-<head>
-  ...existing tags...
-
-  <!-- Microsoft Clarity -->
-  <script type="text/javascript">
-    (function(c,l,a,r,i,t,y){
-      c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-      t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-      y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-    })(window, document, "clarity", "script", "YOUR_CLARITY_ID");
-  </script>
-</head>
+  return { track };
+}
 ```
 
-**Privacy mask for sensitive data (optional but recommended)**
-After adding Clarity, sensitive fields (client names, invoice amounts, email addresses) can be hidden from recordings by adding `data-clarity-mask="true"` to those DOM elements — Clarity renders them as blurred blocks in recordings. We can add this in a follow-up pass to specific components like `InvoiceTable`, `ClientTable`, and `EmailList`.
-
-**File to modify:** `index.html` only
+Session ID is a UUID stored in `sessionStorage` — regenerated on every browser tab/session, enabling drop-off detection within a session.
 
 ---
 
-## Implementation Sequence
+## Part 4 — AI Edge Function: `analyze-telemetry`
 
-**Step 1 — Database migration**
-- Add `change_orders` table with all fields + enum
-- Add `generate_co_number()` trigger
-- Add RLS policies (company-isolated)
-- Add `onboarding_completed` boolean to `profiles` (default `false`)
+### Inputs sent to Gemini:
+1. Last 30 days of telemetry events aggregated by `(page, action, session_id)` — NOT raw rows, pre-aggregated counts
+2. Current roadmap item titles (for duplicate detection)
+3. Current ai_roadmap_suggestions titles (to avoid re-suggesting)
 
-**Step 2 — Data hooks**
-- Create `src/hooks/useChangeOrders.ts`
+### System prompt (the full intelligence layer):
 
-**Step 3 — CO UI components**
-- Create `src/components/projects/ChangeOrderDialog.tsx`
-- Create `src/components/projects/COSignatureDialog.tsx` (lighter SignatureDialog variant)
-- Create `src/components/projects/ChangeOrderDetailSheet.tsx`
+```
+You are a senior product analyst for Ordino — a construction permit 
+expediting CRM used daily by project managers, accountants, and admins 
+in NYC. The app has these modules: Invoices, Proposals, Projects, 
+Properties, Emails, Time, RFPs, Clients, Calendar, Reports, Dashboard, Settings.
 
-**Step 4 — Wire into ProjectExpandedTabs / ProjectDetail**
-- Replace `MockChangeOrder[]` props with `useChangeOrders(projectId)` real data
-- Connect "Create CO" button → `ChangeOrderDialog`
-- Connect row click → `ChangeOrderDetailSheet`
-- Connect service-drop action → real `useCreateChangeOrder()` negative CO insert
+You will receive telemetry data showing what users actually do and where 
+they stop. Analyze patterns and surface ONLY concrete, evidence-backed gaps.
 
-**Step 5 — Onboarding**
-- Add first-login welcome banner to `Dashboard.tsx`
-- Add "Change Orders" walkthrough to `walkthroughs.ts`
+SIGNAL TYPES TO DETECT:
+1. DROP-OFF: A "_started" event exists with no matching "_completed" event 
+   in the same session → user abandoned the flow. 
+   Formula: (started_count - completed_count) / started_count > 0.3 = significant
+   
+2. REPETITION LOOPS: Same action >3x in one session → user confused or retrying 
+   something that isn't working as expected
+   
+3. DEAD ZONES: Page visited but no sub-actions logged in 60%+ of sessions 
+   → users land here but find no value or no clear next step
+   
+4. FEATURE BLINDNESS: Core features (e.g., retainer_applied, ai_priority_mode) 
+   with very low adoption relative to parent page views → discoverability issue
+   
+5. ERROR CLUSTERS: _failed events appearing consistently → broken experience
 
-**Step 6 — Heatmap**
-- Add Clarity script to `index.html` (requires your Project ID first)
+6. ROLE MISMATCH: action logged by user with unexpected role (e.g., accounting 
+   user repeatedly trying a production-only action) → permissions confusion
 
-All three parts can be built and approved in one go — Steps 1–5 can start immediately. Step 6 is ready to go the moment you share your Clarity Project ID.
+PRIORITY SCORING RULES (be strict — do not inflate):
+- high: affects >3 distinct users OR involves invoices/billing/send flows
+- medium: affects 2–3 users OR involves core workflow (proposals, projects, time)
+- low: single user, non-revenue-impacting
+
+DUPLICATE DETECTION: Compare title and description against provided 
+existing_roadmap_items and existing_suggestions. If overlap >70%, 
+set duplicate_warning to the matching item title. Do not create the item.
+
+OUTPUT FORMAT: JSON array. Only include items with clear evidence. 
+Max 5 suggestions per analysis run to avoid noise.
+
+Each item:
+{
+  "title": string,
+  "description": string (1-2 sentences, problem-first),
+  "category": "billing"|"projects"|"integrations"|"operations"|"general",
+  "priority": "high"|"medium"|"low",
+  "evidence": string (specific: "8 users opened CreateInvoice, 6 closed without saving"),
+  "duplicate_warning": string | null,
+  "challenges": string[] (2-4 realistic implementation challenges)
+}
+```
+
+### Manual Idea Mode (same function, different prompt path):
+When triggered by a typed idea instead of telemetry, the function receives:
+- The raw idea text
+- Current roadmap items
+- A different system prompt instruction: "Stress-test this idea. Challenge assumptions, surface edge cases, detect duplicates, score priority based on the domain context above."
+
+---
+
+## Part 5 — UI: AI Roadmap Intake Button + Modal
+
+### Where it lives:
+Inside `ProductRoadmap.tsx`, a new **"AI Intake"** button is added to the existing actions bar alongside the existing "Add Item" and "From Requests" buttons.
+
+### The modal has two tabs:
+
+**Tab 1 — Analyze Behavior (telemetry)**
+- Subtitle: "Scans the last 30 days of user behavior to find friction patterns"
+- "Run Analysis" button → calls edge function
+- Loading state: "Analyzing 847 events across 12 modules..."
+- Results: cards with evidence quote, priority badge, duplicate warning, challenges
+- Each card: "Add to Roadmap" | "Dismiss"
+
+**Tab 2 — Stress-Test an Idea (manual)**
+- Large textarea: "Describe a product idea in plain English..."
+- "Analyze Idea" button
+- Loading state: spinner
+- Result: single structured preview card
+- Card has: refined title, category, priority, risks/challenges, duplicate warning (if any)
+- Buttons: "Add to Roadmap" | "Edit & Add" | "Dismiss"
+
+### After "Add to Roadmap":
+- Creates a row in `roadmap_items` directly (with status = "gap" by default, priority from AI)
+- Shows success toast
+- The roadmap kanban/table refreshes
+
+---
+
+## Part 6 — Files to Create / Modify
+
+### New migrations:
+- `supabase/migrations/XXXXXX_telemetry_and_ai_suggestions.sql`
+  - Creates `telemetry_events` with RLS
+  - Creates `ai_roadmap_suggestions` with RLS
+
+### New edge function:
+- `supabase/functions/analyze-telemetry/index.ts`
+  - Handles two modes: `mode: "telemetry"` and `mode: "idea"`
+  - Aggregates telemetry server-side before sending to AI (never raw rows)
+  - Uses `LOVABLE_API_KEY` with `google/gemini-3-flash-preview`
+
+### New hook:
+- `src/hooks/useTelemetry.ts`
+
+### New component:
+- `src/components/helpdesk/AIRoadmapIntake.tsx` — the modal with two tabs
+
+### Modified components (adding `track()` calls — ~2-3 lines each):
+- `src/components/invoices/CreateInvoiceDialog.tsx` — 3 events
+- `src/components/invoices/SendInvoiceModal.tsx` — 2 events
+- `src/components/invoices/PaymentPlanDialog.tsx` — 3 events
+- `src/components/invoices/ClaimFlowDialog.tsx` — 2 events
+- `src/components/invoices/CollectionsView.tsx` — 3 events
+- `src/components/proposals/ProposalDialog.tsx` — 2 events
+- `src/components/proposals/SendProposalDialog.tsx` — 2 events
+- `src/components/proposals/SignatureDialog.tsx` — 1 event
+- `src/components/proposals/ProposalApprovalDialog.tsx` — 1 event
+- `src/components/projects/ChangeOrderDialog.tsx` — 2 events
+- `src/components/projects/ProjectExpandedTabs.tsx` — 2 events (tab change, service expand)
+- `src/pages/ProjectDetail.tsx` — 2 events (detail viewed, tab changed)
+- `src/pages/Invoices.tsx` — 2 events (filter tab, sub-view tab)
+- `src/pages/Emails.tsx` — 3 events (compose, gmail connect, filter)
+- `src/pages/Rfps.tsx` — 3 events (create, upload, builder)
+- `src/components/rfps/RfpBuilderDialog.tsx` — 3 events (step advance, preview, submit)
+- `src/pages/Time.tsx` — 1 event (timer start)
+- `src/pages/Calendar.tsx` — 1 event (event create)
+- `src/components/helpdesk/ProductRoadmap.tsx` — add AI Intake button + import modal
+
+### Total files modified: 20
+### New files created: 4 (migration, edge function, hook, component)
+
+---
+
+## Technical Notes
+
+- All `track()` calls are fire-and-forget with no `await` — zero performance impact
+- The edge function aggregates telemetry into counts BEFORE sending to AI — not raw user data
+- Session ID in `sessionStorage` means closing and reopening the tab starts a new session (correct behavior for drop-off detection)
+- The `analyze-telemetry` function already has access to `LOVABLE_API_KEY` (confirmed in secrets)
+- `supabase/config.toml` will need a new entry for `analyze-telemetry`
