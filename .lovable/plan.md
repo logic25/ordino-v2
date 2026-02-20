@@ -1,99 +1,129 @@
 
-## Three Issues to Address
+## AI Usage Dashboard — Fix Data + Reusable Prompt
 
-### Issue 1 — "No Telemetry Data" (Analyze Behavior)
+### Why There's No Data
 
-**Root cause confirmed:** The `telemetry_events` table has 0 rows. The `useTelemetry` hook is wired into ~24 files and pages but these events are only recorded as users interact with the live app going forward. The "Analyze Behavior" tab is working correctly — it honestly tells you there's no data yet.
+The database has 30+ real usage records, but they are invisible because:
 
-**Fix — Clarify the message in the UI:**
-Instead of a cold "No telemetry data found", show a more informative state that explains:
-- Telemetry starts collecting from today onwards
-- It needs ~a week of real usage before patterns emerge
-- Optionally show which pages are being tracked so users know it's working
+- The `ai_usage_logs` table has no foreign key from `user_id` to `profiles.id`, so the Supabase client cannot auto-join them. The query `.select("*, profiles(display_name, first_name, last_name)")` returns empty profile data silently.
+- There is also a React `ref` warning from the `InfoTip` component (wrapping `HelpCircle` in `TooltipTrigger` without `asChild`), which does not block rendering but flags a bug.
 
-No edge function changes needed.
+### Fix Plan
+
+**1. Add the missing foreign key (database migration)**
+
+Add a foreign key constraint on `ai_usage_logs.user_id` pointing to `profiles.id`. This is safe — existing data already matches (profile id `e3beb106` exists in both tables).
+
+```sql
+ALTER TABLE public.ai_usage_logs
+  ADD CONSTRAINT ai_usage_logs_user_id_fkey
+  FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE SET NULL;
+```
+
+**2. Fix the InfoTip ref warning (AIUsageDashboard.tsx)**
+
+Wrap `HelpCircle` in a `<span>` instead of using `asChild`, or pass `asChild` correctly. Simplest fix:
+
+```tsx
+// Before
+<TooltipTrigger asChild>
+  <HelpCircle className="..." />
+</TooltipTrigger>
+
+// After — wrap in a span so TooltipTrigger can forward its ref
+<TooltipTrigger>
+  <span className="inline-flex cursor-help">
+    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
+  </span>
+</TooltipTrigger>
+```
+
+**3. Fix the profile name join in the query**
+
+Because Supabase foreign key joins now work, `profiles(display_name, first_name, last_name)` will return real data. The "Usage by Team Member" section will show actual names.
 
 ---
 
-### Issue 2 — Merge "Add Item" with AI Stress-Test
+### Reusable Lovable Prompt
 
-**Current state:** Two separate flows:
-- "Add Item" button → plain form, saved manually
-- "AI Intake" button → separate modal with tabs (Analyze Behavior + Stress-Test Idea)
-
-**Proposed change — Replace "Add Item" with "Add Idea":**
-
-The new "Add Item" dialog will have two modes toggled inline:
-
-```
-[ Quick Add ]  [ AI Stress-Test ]
-```
-
-**Quick Add tab (existing behavior):** Fill in title/description manually, save directly.
-
-**AI Stress-Test tab (new behavior):**
-1. User types the idea in plain English (textarea)
-2. Clicks "Stress-Test & Add" button
-3. AI runs the analysis (same `analyze-telemetry` edge function, `mode: "idea"`)
-4. Results shown inline (evidence, challenges, duplicate warning, suggested priority/category)
-5. User can adjust priority/category/status, then click "Add to Roadmap" — saves with `stress_test_result` and `stress_tested_at` pre-populated
-6. The card will immediately show the ✨ AI tested badge on the Kanban board
-
-This collapses the "AI Intake → Stress-Test an Idea" tab entirely into the main Add flow, making it feel natural. The "AI Intake" button can be renamed to "Analyze Behavior" and made to open only the telemetry analysis tab (no more two-tab modal needed).
+Here is the exact prompt you can paste into any other Lovable project to add all four features (Clarity analytics, AI stress-test, AI idea intake, AI Usage tab):
 
 ---
 
-### Issue 3 — AI Actor / Avatar for Demo Videos
+**PROMPT TO COPY:**
 
-**Direct answer:** Yes, one tool does this well:
-
-**HeyGen** (heygen.com) — You can:
-1. Create a custom AI avatar that looks and sounds like a real person (or use a stock avatar)
-2. Type a script or paste text, the avatar reads it on screen
-3. Record your screen and have the avatar explain it in a floating window
-
-This is the only tool in the list with a full AI avatar + screen recording combo. The others:
-- **Loom** — Real camera only, no AI actor
-- **Arcade / Supademo** — Interactive walkthroughs, no avatar
-- **Guidde** — AI voiceover but no on-screen avatar
-
-The `videoUrl` field in "What's New" already supports any URL including HeyGen-exported links or Loom embeds, so no code changes are needed there.
+```
+Add the following four features to this app's Help Center section. All AI calls should use the Lovable AI gateway (no external API keys needed).
 
 ---
 
-## Technical Changes
+1. MICROSOFT CLARITY TRACKING
+In index.html, add this script inside <head> to enable session recording and heatmaps:
+<script type="text/javascript">
+  (function(c,l,a,r,i,t,y){
+    c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+  })(window,document,"clarity","script","YOUR_CLARITY_TAG_ID");
+</script>
+Replace YOUR_CLARITY_TAG_ID with your actual Clarity project tag.
 
-### Files to change:
+---
 
-**1. `src/components/helpdesk/ProductRoadmap.tsx`**
-- Replace the current "Add Item" button behavior with a two-tab dialog ("Quick Add" / "Stress-Test & Add")
-- The stress-test tab: textarea → run analysis inline → show result → confirm save with pre-populated AI data
-- Rename the "AI Intake" button to "Analyze Behavior" and wire it to open a simplified modal (telemetry tab only)
-- The ✨ AI badge already exists in `SortableRoadmapCard` — it will show automatically for items stress-tested through the new flow
+2. AI STRESS-TEST (for Product Roadmap items)
+In the Product Roadmap admin view, add a "Run AI Test" button on each roadmap item card and in the add-item form. When clicked, it should call a Supabase edge function called analyze-telemetry with mode: "idea" and the item's title + description as raw_idea. The edge function should use Lovable AI (google/gemini-3-flash-preview) with this system prompt:
 
-**2. `src/components/helpdesk/AIRoadmapIntake.tsx`**
-- Remove the "Stress-Test an Idea" tab (now lives in the Add Item dialog)
-- Rename/simplify to `AnalyzeBehaviorModal` with only the telemetry analysis tab
-- Improve the "no data" empty state to explain the collection timeline with a checklist of tracked pages
+"You are a senior product analyst. Stress-test this product idea: surface risks, flag duplicates against existing roadmap items, score priority (high/medium/low), and return a JSON array with 1 item: { title, description, category, priority, evidence, duplicate_warning, challenges: [{problem, solution}] }. category must be one of: billing, projects, integrations, operations, general."
 
-**3. `supabase/functions/analyze-telemetry/index.ts`**
-- No changes needed — already handles `mode: "idea"` correctly
+Display the result inline: show evidence text, a list of challenges each with a problem and an arrow → solution, and auto-fill the priority and category dropdowns. Add a "⚡ AI tested" badge to items that have been stress-tested.
 
-### UI Flow Diagram
+---
 
-```text
-Roadmap Page
-├── [Analyze Behavior] button → Opens modal (telemetry only)
-│   └── "No data yet" → Better empty state with tracked pages list
-│       and "check back in ~1 week" messaging
-│
-└── [+ Add Item] button → Opens dialog with two tabs
-    ├── Quick Add tab (title/desc/category/status/priority → Save)
-    └── Stress-Test tab
-        ├── Textarea: describe your idea
-        ├── [Stress-Test & Add] → calls analyze-telemetry (mode=idea)
-        ├── Shows: evidence, priority, category, challenges, duplicate warning
-        ├── Editable: status, priority, category dropdowns
-        └── [Add to Roadmap] → saves with stress_test_result + stress_tested_at
-            → Card shows ✨ AI tested badge immediately
+3. AI IDEA INTAKE (Feature Requests tab)
+In the Feature Requests tab, add an "AI Roadmap Intake" panel. Users can type a raw idea and click "Analyze with AI". This calls the same analyze-telemetry edge function with mode: "idea". Display results in a card showing: refined title, why it matters (evidence), priority badge, and challenges with solutions. Add an "Add to Roadmap" button that saves the vetted item to the roadmap_items table.
+
+Also add a "Telemetry Scan" mode: a button that calls analyze-telemetry with mode: "telemetry" to scan the telemetry_events table for drop-offs and friction patterns, returning up to 5 gap suggestions.
+
+---
+
+4. AI USAGE DASHBOARD (Admin-only tab in Help Center)
+Create a new "AI Usage" tab visible only to admins. It reads from an ai_usage_logs table (create it if it doesn't exist) with columns: id, company_id, user_id (FK to profiles.id), feature (text), model (text), prompt_tokens (int), completion_tokens (int), total_tokens (int), estimated_cost_usd (numeric), metadata (jsonb), created_at.
+
+Each edge function that calls AI should log usage to this table using the service role after a successful AI response.
+
+The dashboard should show:
+- KPI cards: Total Requests, Words Processed (tokens × 0.75), Estimated Cost, Features Using AI
+- Bar chart: Requests by Feature (with friendly names like "Roadmap Stress Test", "Collection Email", "Plan Analysis")
+- Bar chart: Daily AI Activity (requests per day over selected period)
+- Progress bars: AI Models Used (with friendly names like "Gemini Flash (fast, efficient)")
+- Progress bars: Usage by Team Member (joining profiles for names)
+- Table: Cost Breakdown by Feature (requests, words processed, estimated cost per row)
+- Date range selector: Last 7 / 30 / 90 days
+- All tooltips should explain metrics in plain English (no "tokens" jargon — say "words processed")
+- Add a link to "Lovable Billing" for actual billing details
+
+Feature name → friendly label mapping:
+- stress_test → "Roadmap Stress Test"
+- collection_message → "Collection Email"
+- plan_analysis → "Plan Analysis"
+- rfp_extract → "RFP Extraction"
+- telemetry_analysis → "Behavior Analysis"
+- payment_risk → "Payment Risk Score"
+- checklist_followup → "Checklist Follow-up"
+- extract_tasks → "Task Extraction"
+- claimflow → "ClaimFlow Package"
+
+Model name → friendly label mapping:
+- google/gemini-3-flash-preview → "Gemini Flash (fast, efficient)"
+- google/gemini-2.5-flash → "Gemini Flash 2.5 (multimodal)"
+- google/gemini-2.5-pro → "Gemini Pro (most powerful)"
 ```
+
+---
+
+### Technical Steps (this project)
+
+1. **Migration**: Add FK constraint `ai_usage_logs.user_id → profiles.id`
+2. **`AIUsageDashboard.tsx`**: Fix the `InfoTip` ref warning (wrap `HelpCircle` in a `<span>`)
+3. **`AIUsageDashboard.tsx`**: Remove the `as any` cast on the table name (now that FK is set, the join will work automatically)
+4. **Result**: Charts and tables will populate with the existing 30+ real records already in the database
