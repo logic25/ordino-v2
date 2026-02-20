@@ -250,6 +250,63 @@ export type Database = {
           },
         ]
       }
+      ai_usage_logs: {
+        Row: {
+          company_id: string | null
+          completion_tokens: number | null
+          created_at: string
+          estimated_cost_usd: number | null
+          feature: string
+          id: string
+          metadata: Json | null
+          model: string
+          prompt_tokens: number | null
+          total_tokens: number | null
+          user_id: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          completion_tokens?: number | null
+          created_at?: string
+          estimated_cost_usd?: number | null
+          feature: string
+          id?: string
+          metadata?: Json | null
+          model?: string
+          prompt_tokens?: number | null
+          total_tokens?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          completion_tokens?: number | null
+          created_at?: string
+          estimated_cost_usd?: number | null
+          feature?: string
+          id?: string
+          metadata?: Json | null
+          model?: string
+          prompt_tokens?: number | null
+          total_tokens?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_logs: {
         Row: {
           auto_closed: boolean

@@ -135,6 +135,7 @@ Stress-test this idea and return a JSON array with 1 structured suggestion.`;
       return new Response(JSON.stringify({ error: "Invalid mode" }), { status: 400, headers: corsHeaders });
     }
 
+    const MODEL = "google/gemini-3-flash-preview";
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -142,7 +143,7 @@ Stress-test this idea and return a JSON array with 1 structured suggestion.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: MODEL,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userMessage },
@@ -162,6 +163,31 @@ Stress-test this idea and return a JSON array with 1 structured suggestion.`;
 
     const aiData = await aiResponse.json();
     const rawContent = aiData.choices?.[0]?.message?.content || "[]";
+
+    // Log usage
+    try {
+      const sbAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const usage = aiData.usage || {};
+      const promptTokens = usage.prompt_tokens || 0;
+      const completionTokens = usage.completion_tokens || 0;
+      const totalTokens = usage.total_tokens || (promptTokens + completionTokens);
+      // Gemini Flash pricing: $0.075/1M input, $0.30/1M output
+      const estimatedCost = (promptTokens * 0.075 + completionTokens * 0.30) / 1_000_000;
+      const userId = claimsData?.claims?.sub;
+      const { data: prof } = await sbAdmin.from("profiles").select("id").eq("user_id", userId).maybeSingle();
+      await sbAdmin.from("ai_usage_logs").insert({
+        company_id,
+        user_id: prof?.id || null,
+        feature: mode === "telemetry" ? "telemetry_analysis" : "stress_test",
+        model: MODEL,
+        prompt_tokens: promptTokens,
+        completion_tokens: completionTokens,
+        total_tokens: totalTokens,
+        estimated_cost_usd: estimatedCost,
+      });
+    } catch (logErr) {
+      console.error("Failed to log AI usage:", logErr);
+    }
 
     // Extract JSON from response (handle markdown code blocks)
     let jsonStr = rawContent.trim();

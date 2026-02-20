@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -88,6 +89,7 @@ Examples:
       );
     }
 
+    const AI_MODEL = "google/gemini-2.5-flash";
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -95,7 +97,7 @@ Examples:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: AI_MODEL,
         messages: [
           {
             role: "user",
@@ -125,6 +127,28 @@ Examples:
 
     const data = await response.json();
     const jobDescription = data.choices?.[0]?.message?.content?.trim() || "";
+
+    // Log usage
+    try {
+      const sbAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const usage = data.usage || {};
+      const promptTokens = usage.prompt_tokens || 0;
+      const completionTokens = usage.completion_tokens || 0;
+      // Gemini 2.5 Flash pricing
+      const estimatedCost = (promptTokens * 0.075 + completionTokens * 0.30) / 1_000_000;
+      await sbAdmin.from("ai_usage_logs").insert({
+        company_id: null,
+        user_id: null,
+        feature: "plan_analysis",
+        model: AI_MODEL,
+        prompt_tokens: promptTokens,
+        completion_tokens: completionTokens,
+        total_tokens: usage.total_tokens || promptTokens + completionTokens,
+        estimated_cost_usd: estimatedCost,
+      });
+    } catch (logErr) {
+      console.error("Failed to log AI usage:", logErr);
+    }
 
     return new Response(
       JSON.stringify({ job_description: jobDescription }),
