@@ -52,8 +52,10 @@ function InfoTip({ children }: { children: React.ReactNode }) {
   return (
     <TooltipProvider>
       <Tooltip>
-        <TooltipTrigger asChild>
-          <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help inline-block ml-1" />
+        <TooltipTrigger>
+          <span className="inline-flex cursor-help ml-1">
+            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
+          </span>
         </TooltipTrigger>
         <TooltipContent className="max-w-[220px] text-xs leading-relaxed">{children}</TooltipContent>
       </Tooltip>
@@ -91,7 +93,7 @@ export function AIUsageDashboard() {
       const since = new Date(Date.now() - parseInt(days) * 24 * 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase
         .from("ai_usage_logs" as any)
-        .select("*, profiles(display_name, first_name, last_name)")
+        .select("*, profiles!ai_usage_logs_user_id_fkey(display_name, first_name, last_name)")
         .eq("company_id", companyId)
         .gte("created_at", since)
         .order("created_at", { ascending: false })
