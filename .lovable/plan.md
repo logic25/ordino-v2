@@ -1,129 +1,132 @@
 
-## AI Usage Dashboard — Fix Data + Reusable Prompt
+# Clarity Data Masking Audit — Financial & PII Fields
 
-### Why There's No Data
+## What This Protects
 
-The database has 30+ real usage records, but they are invisible because:
+Microsoft Clarity's Terms of Use (Section 1(b)(ii)) prohibit use in connection with financial services content. By applying `data-clarity-mask="true"` to sensitive elements, those fields are redacted as black rectangles in all session recordings and heatmaps — Clarity never captures the actual text.
 
-- The `ai_usage_logs` table has no foreign key from `user_id` to `profiles.id`, so the Supabase client cannot auto-join them. The query `.select("*, profiles(display_name, first_name, last_name)")` returns empty profile data silently.
-- There is also a React `ref` warning from the `InfoTip` component (wrapping `HelpCircle` in `TooltipTrigger` without `asChild`), which does not block rendering but flags a bug.
+## Audit Findings
 
-### Fix Plan
+The following components render financial figures, client names, contact details, and invoice data in plain, unmasked DOM text:
 
-**1. Add the missing foreign key (database migration)**
+### 1. InvoiceTable.tsx
+- Client name in client group header rows
+- Dollar totals at client and project group level (e.g. `$clientGroup.totalDue`)
+- Per-invoice amount cells (`$Number(inv.total_due)`)
+- Contact name shown beneath invoice number (`inv.billed_to_contact.name`)
 
-Add a foreign key constraint on `ai_usage_logs.user_id` pointing to `profiles.id`. This is safe — existing data already matches (profile id `e3beb106` exists in both tables).
+### 2. InvoiceDetailSheet.tsx (1,182 lines)
+- Client name, email, phone, address (editable fields)
+- Invoice total due, payment amount, retainer applied
+- Line items (description, quantity, rate, amount per line)
+- Follow-up notes (free-text, often contains payment amounts and contact details)
+- Demand letter text area (contains full client name, amount, days overdue)
+- AI-generated collection message output
 
-```sql
-ALTER TABLE public.ai_usage_logs
-  ADD CONSTRAINT ai_usage_logs_user_id_fkey
-  FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE SET NULL;
-```
+### 3. InvoiceSummaryCards.tsx
+- Dollar totals for Draft, Sent, Overdue, Paid, Needs Review, Retainers
+- These are aggregate company financials — lower risk but still sensitive
 
-**2. Fix the InfoTip ref warning (AIUsageDashboard.tsx)**
+### 4. CollectionsView.tsx
+- Client name and invoice number per overdue card
+- Dollar amount overdue per invoice
+- Risk score badges (derived from financial analysis)
+- AI-generated collection message output
 
-Wrap `HelpCircle` in a `<span>` instead of using `asChild`, or pass `asChild` correctly. Simplest fix:
+### 5. PromisesView.tsx
+- Client name per promise row
+- Promised dollar amount (`promise.promised_amount`)
+- Payment method per promise
 
-```tsx
-// Before
-<TooltipTrigger asChild>
-  <HelpCircle className="..." />
-</TooltipTrigger>
+### 6. RetainersView.tsx
+- Client name per retainer
+- Original amount and current balance per retainer
+- Individual transaction amounts in the transaction history sheet
 
-// After — wrap in a span so TooltipTrigger can forward its ref
-<TooltipTrigger>
-  <span className="inline-flex cursor-help">
-    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
-  </span>
-</TooltipTrigger>
-```
+### 7. PaymentPlanDialog.tsx
+- Total due, interest rate, installment amounts per row
+- ACH authorization step (contains bank account context)
+- Client name shown in dialog header
 
-**3. Fix the profile name join in the query**
+### 8. BillingReports.tsx (Reports page)
+- "Top 10 Clients by Outstanding" chart — Y-axis shows client names
+- Dollar figures in tooltip and bar labels
+- Revenue trend chart (collected/outstanding per month)
 
-Because Supabase foreign key joins now work, `profiles(display_name, first_name, last_name)` will return real data. The "Usage by Team Member" section will show actual names.
+### 9. AccountingView.tsx (Dashboard)
+- KPI cards: Submissions to Bill ($), Outstanding ($), Collection Rate, Avg Days to Pay
+- PM Billing Submissions list — client/project name + dollar amount per row
 
----
+### 10. ReportsKPISummary.tsx
+- Pending Proposal value, Open Invoice value, YTD Collected
+- These are aggregate totals — moderate sensitivity
 
-### Reusable Lovable Prompt
+### 11. ProposalTable.tsx
+- `total` column — proposal dollar value
+- Client name column
 
-Here is the exact prompt you can paste into any other Lovable project to add all four features (Clarity analytics, AI stress-test, AI idea intake, AI Usage tab):
+### 12. ProjectExpandedTabs.tsx
+- Estimated costs per discipline
+- Change order amounts
 
----
+## Implementation Plan
 
-**PROMPT TO COPY:**
+The strategy is to wrap **specific text nodes** (not whole cards/rows, which would break layout) with `<span data-clarity-mask="true">`. In table cells and inline text, the span wraps just the rendered value.
 
-```
-Add the following four features to this app's Help Center section. All AI calls should use the Lovable AI gateway (no external API keys needed).
+### Files to edit (12 total):
 
----
+**`src/components/invoices/InvoiceTable.tsx`**
+- Wrap client name in client header row
+- Wrap all `$.toLocaleString()` amount cells
+- Wrap billed_to_contact name
 
-1. MICROSOFT CLARITY TRACKING
-In index.html, add this script inside <head> to enable session recording and heatmaps:
-<script type="text/javascript">
-  (function(c,l,a,r,i,t,y){
-    c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-  })(window,document,"clarity","script","YOUR_CLARITY_TAG_ID");
-</script>
-Replace YOUR_CLARITY_TAG_ID with your actual Clarity project tag.
+**`src/components/invoices/InvoiceDetailSheet.tsx`**
+- Wrap client name, email, phone, address display text and input values
+- Wrap total_due, payment_amount, retainer_applied figures
+- Wrap line items table (description, rate, amount columns)
+- Wrap demand letter textarea content
+- Wrap follow-up notes textarea
+- Wrap AI message output textarea
 
----
+**`src/components/invoices/InvoiceSummaryCards.tsx`**
+- Wrap the `$card.amount.toLocaleString()` text in each summary card
 
-2. AI STRESS-TEST (for Product Roadmap items)
-In the Product Roadmap admin view, add a "Run AI Test" button on each roadmap item card and in the add-item form. When clicked, it should call a Supabase edge function called analyze-telemetry with mode: "idea" and the item's title + description as raw_idea. The edge function should use Lovable AI (google/gemini-3-flash-preview) with this system prompt:
+**`src/components/invoices/CollectionsView.tsx`**
+- Wrap client name and overdue amount per card
+- Wrap AI-generated message output
 
-"You are a senior product analyst. Stress-test this product idea: surface risks, flag duplicates against existing roadmap items, score priority (high/medium/low), and return a JSON array with 1 item: { title, description, category, priority, evidence, duplicate_warning, challenges: [{problem, solution}] }. category must be one of: billing, projects, integrations, operations, general."
+**`src/components/invoices/PromisesView.tsx`**
+- Wrap client name, promised_amount, payment_method per table row
 
-Display the result inline: show evidence text, a list of challenges each with a problem and an arrow → solution, and auto-fill the priority and category dropdowns. Add a "⚡ AI tested" badge to items that have been stress-tested.
+**`src/components/invoices/RetainersView.tsx`**
+- Wrap client name, original_amount, current_balance
+- Wrap transaction amounts in the sheet
 
----
+**`src/components/invoices/PaymentPlanDialog.tsx`**
+- Wrap totalDue, installment amounts in the preview table
+- Wrap client name shown in header
 
-3. AI IDEA INTAKE (Feature Requests tab)
-In the Feature Requests tab, add an "AI Roadmap Intake" panel. Users can type a raw idea and click "Analyze with AI". This calls the same analyze-telemetry edge function with mode: "idea". Display results in a card showing: refined title, why it matters (evidence), priority badge, and challenges with solutions. Add an "Add to Roadmap" button that saves the vetted item to the roadmap_items table.
+**`src/components/invoices/LineItemsEditor.tsx`**
+- Wrap rate and amount input values (add data-clarity-mask to the Input elements)
 
-Also add a "Telemetry Scan" mode: a button that calls analyze-telemetry with mode: "telemetry" to scan the telemetry_events table for drop-offs and friction patterns, returning up to 5 gap suggestions.
+**`src/components/reports/BillingReports.tsx`**
+- Wrap "Total Collected" dollar figure in the Collections card
+- Add `data-clarity-mask="true"` to the Top Clients by Outstanding chart container (chart SVG text cannot be individually masked so the whole chart area must be masked)
 
----
+**`src/components/dashboard/AccountingView.tsx`**
+- Wrap KPI values: Submissions to Bill dollar amount, Outstanding dollar amount
+- Wrap each billing submission row: project name, submitter name, dollar amount
 
-4. AI USAGE DASHBOARD (Admin-only tab in Help Center)
-Create a new "AI Usage" tab visible only to admins. It reads from an ai_usage_logs table (create it if it doesn't exist) with columns: id, company_id, user_id (FK to profiles.id), feature (text), model (text), prompt_tokens (int), completion_tokens (int), total_tokens (int), estimated_cost_usd (numeric), metadata (jsonb), created_at.
+**`src/components/reports/ReportsKPISummary.tsx`**
+- Wrap dollar values for Pending Proposals, Open Invoices, YTD Collected
 
-Each edge function that calls AI should log usage to this table using the service role after a successful AI response.
+**`src/components/proposals/ProposalTable.tsx`**
+- Wrap total amount cell per proposal row
+- Wrap client name cell
 
-The dashboard should show:
-- KPI cards: Total Requests, Words Processed (tokens × 0.75), Estimated Cost, Features Using AI
-- Bar chart: Requests by Feature (with friendly names like "Roadmap Stress Test", "Collection Email", "Plan Analysis")
-- Bar chart: Daily AI Activity (requests per day over selected period)
-- Progress bars: AI Models Used (with friendly names like "Gemini Flash (fast, efficient)")
-- Progress bars: Usage by Team Member (joining profiles for names)
-- Table: Cost Breakdown by Feature (requests, words processed, estimated cost per row)
-- Date range selector: Last 7 / 30 / 90 days
-- All tooltips should explain metrics in plain English (no "tokens" jargon — say "words processed")
-- Add a link to "Lovable Billing" for actual billing details
+## Technical Notes
 
-Feature name → friendly label mapping:
-- stress_test → "Roadmap Stress Test"
-- collection_message → "Collection Email"
-- plan_analysis → "Plan Analysis"
-- rfp_extract → "RFP Extraction"
-- telemetry_analysis → "Behavior Analysis"
-- payment_risk → "Payment Risk Score"
-- checklist_followup → "Checklist Follow-up"
-- extract_tasks → "Task Extraction"
-- claimflow → "ClaimFlow Package"
-
-Model name → friendly label mapping:
-- google/gemini-3-flash-preview → "Gemini Flash (fast, efficient)"
-- google/gemini-2.5-flash → "Gemini Flash 2.5 (multimodal)"
-- google/gemini-2.5-pro → "Gemini Pro (most powerful)"
-```
-
----
-
-### Technical Steps (this project)
-
-1. **Migration**: Add FK constraint `ai_usage_logs.user_id → profiles.id`
-2. **`AIUsageDashboard.tsx`**: Fix the `InfoTip` ref warning (wrap `HelpCircle` in a `<span>`)
-3. **`AIUsageDashboard.tsx`**: Remove the `as any` cast on the table name (now that FK is set, the join will work automatically)
-4. **Result**: Charts and tables will populate with the existing 30+ real records already in the database
+- `data-clarity-mask="true"` can be applied to any HTML element — Clarity replaces its text content with `*` characters in recordings
+- For Recharts SVG-based charts (like the Top Clients bar chart), individual `<text>` SVG nodes cannot be targeted with `data-clarity-mask`. The correct approach is to wrap the entire `ResponsiveContainer` with a `<div data-clarity-mask="true">` — this masks the whole chart area in recordings while preserving full functionality in the live UI
+- Input fields need `data-clarity-mask="true"` on the `<input>` element itself; the shadcn `<Input>` component accepts and passes through arbitrary HTML attributes, so this works without component modification
+- No visual changes to users — masking is invisible in the live app and only affects Clarity recordings
