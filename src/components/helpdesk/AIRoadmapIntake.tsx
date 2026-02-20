@@ -14,6 +14,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 
+interface Challenge {
+  problem: string;
+  solution: string;
+}
+
 interface AISuggestion {
   title: string;
   description: string;
@@ -21,7 +26,7 @@ interface AISuggestion {
   priority: "high" | "medium" | "low";
   evidence: string;
   duplicate_warning: string | null;
-  challenges: string[];
+  challenges: Challenge[];
 }
 
 interface AIRoadmapIntakeProps {
@@ -104,13 +109,21 @@ function SuggestionCard({
         )}
 
         {suggestion.challenges?.length > 0 && (
-          <div className="space-y-1">
+          <div className="space-y-2">
             <p className="text-[11px] text-muted-foreground font-medium">Implementation challenges</p>
-            <ul className="space-y-0.5">
+            <ul className="space-y-2">
               {suggestion.challenges.map((c, i) => (
-                <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
-                  <ChevronRight className="h-3 w-3 mt-0.5 shrink-0" />
-                  {c}
+                <li key={i} className="text-xs rounded-md border bg-muted/30 p-2 space-y-1">
+                  <div className="flex items-start gap-1.5 text-muted-foreground">
+                    <ChevronRight className="h-3 w-3 mt-0.5 shrink-0" />
+                    <span>{typeof c === "string" ? c : c.problem}</span>
+                  </div>
+                  {typeof c !== "string" && c.solution && (
+                    <div className="flex items-start gap-1.5 text-primary pl-4">
+                      <span className="text-[10px] font-medium shrink-0 mt-0.5">→</span>
+                      <span className="text-[11px]">{c.solution}</span>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
