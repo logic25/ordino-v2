@@ -4,16 +4,13 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Card, CardContent } from "@/components/ui/card";
 import {
-  Brain, Sparkles, Loader2, AlertTriangle, CheckCircle2, ChevronRight,
-  BarChart2, Lightbulb, AlertCircle, X,
+  Brain, Sparkles, Loader2, CheckCircle2, ChevronRight, AlertCircle,
+  BarChart2, X, Radio, Clock, FileText, Users, Building2, Package, Calendar,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 
@@ -47,11 +44,19 @@ const CATEGORY_LABELS: Record<string, string> = {
   general: "General",
 };
 
+const TRACKED_MODULES = [
+  { icon: Building2, label: "Clients & Contacts" },
+  { icon: FileText, label: "Projects & Applications" },
+  { icon: Package, label: "Proposals & Leads" },
+  { icon: BarChart2, label: "Invoices & Billing" },
+  { icon: Users, label: "Time & Attendance" },
+  { icon: Calendar, label: "Calendar & Emails" },
+  { icon: Radio, label: "Properties & Signals" },
+  { icon: Clock, label: "RFPs & Reports" },
+];
+
 function SuggestionCard({
-  suggestion,
-  onAdd,
-  onDismiss,
-  adding,
+  suggestion, onAdd, onDismiss, adding,
 }: {
   suggestion: AISuggestion;
   onAdd: () => void;
@@ -61,7 +66,6 @@ function SuggestionCard({
   return (
     <Card className="border">
       <CardContent className="p-4 space-y-3">
-        {/* Header */}
         <div className="flex items-start gap-2 justify-between">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -72,7 +76,7 @@ function SuggestionCard({
                 {suggestion.priority}
               </Badge>
               {suggestion.duplicate_warning && (
-                <Badge variant="outline" className="text-[10px] text-warning border-warning/30 bg-warning/10">
+                <Badge variant="outline" className="text-[10px] text-muted-foreground border-border bg-muted">
                   <AlertCircle className="h-2.5 w-2.5 mr-1" />
                   Similar exists
                 </Badge>
@@ -85,24 +89,20 @@ function SuggestionCard({
           </Button>
         </div>
 
-        {/* Description */}
         <p className="text-sm text-muted-foreground leading-relaxed">{suggestion.description}</p>
 
-        {/* Evidence */}
         <div className="rounded-md bg-muted/50 border px-3 py-2">
           <p className="text-[11px] text-muted-foreground font-medium mb-0.5">Evidence</p>
           <p className="text-xs leading-relaxed">{suggestion.evidence}</p>
         </div>
 
-        {/* Duplicate warning */}
         {suggestion.duplicate_warning && (
-          <div className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2">
-            <p className="text-[11px] text-warning font-medium mb-0.5">Similar roadmap item</p>
-            <p className="text-xs text-warning">"{suggestion.duplicate_warning}"</p>
+          <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
+            <p className="text-[11px] text-muted-foreground font-medium mb-0.5">Similar roadmap item</p>
+            <p className="text-xs text-muted-foreground">"{suggestion.duplicate_warning}"</p>
           </div>
         )}
 
-        {/* Challenges */}
         {suggestion.challenges?.length > 0 && (
           <div className="space-y-1">
             <p className="text-[11px] text-muted-foreground font-medium">Implementation challenges</p>
@@ -119,20 +119,12 @@ function SuggestionCard({
 
         <Separator />
 
-        {/* Actions */}
         <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            onClick={onAdd}
-            disabled={adding}
-            className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
-          >
+          <Button size="sm" onClick={onAdd} disabled={adding} className="flex-1">
             {adding ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />}
             Add to Roadmap
           </Button>
-          <Button size="sm" variant="outline" onClick={onDismiss}>
-            Dismiss
-          </Button>
+          <Button size="sm" variant="outline" onClick={onDismiss}>Dismiss</Button>
         </div>
       </CardContent>
     </Card>
@@ -140,62 +132,46 @@ function SuggestionCard({
 }
 
 export function AIRoadmapIntake({ open, onOpenChange, companyId }: AIRoadmapIntakeProps) {
-  const { session } = useAuth();
   const queryClient = useQueryClient();
 
-  // Telemetry tab state
   const [analyzing, setAnalyzing] = useState(false);
-  const [telemetrySuggestions, setTelemetrySuggestions] = useState<AISuggestion[]>([]);
-  const [telemetryMessage, setTelemetryMessage] = useState("");
-  const [telemetryRan, setTelemetryRan] = useState(false);
-
-  // Idea tab state
-  const [ideaText, setIdeaText] = useState("");
-  const [analyzingIdea, setAnalyzingIdea] = useState(false);
-  const [ideaSuggestions, setIdeaSuggestions] = useState<AISuggestion[]>([]);
-
-  // Adding state
+  const [suggestions, setSuggestions] = useState<AISuggestion[]>([]);
+  const [message, setMessage] = useState("");
+  const [ran, setRan] = useState(false);
   const [addingIdx, setAddingIdx] = useState<number | null>(null);
 
-  const callAnalyze = async (mode: "telemetry" | "idea") => {
-    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-    const ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-    const token = (await supabase.auth.getSession()).data.session?.access_token || "";
-
-    const body: Record<string, unknown> = { mode, company_id: companyId };
-    if (mode === "idea") body.raw_idea = ideaText.trim();
-
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/analyze-telemetry`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-        apikey: ANON_KEY,
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: "Unknown error" }));
-      if (res.status === 429) throw new Error("Rate limit exceeded. Try again in a moment.");
-      if (res.status === 402) throw new Error("AI credits exhausted — please add credits to your workspace.");
-      throw new Error(err.error || `Error ${res.status}`);
-    }
-
-    return res.json();
-  };
-
-  const handleAnalyzeTelemetry = async () => {
+  const handleAnalyze = async () => {
     setAnalyzing(true);
-    setTelemetrySuggestions([]);
-    setTelemetryMessage("");
+    setSuggestions([]);
+    setMessage("");
     try {
-      const result = await callAnalyze("telemetry");
-      setTelemetrySuggestions(result.suggestions || []);
-      setTelemetryRan(true);
-      if (result.message) setTelemetryMessage(result.message);
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+      const ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const token = (await supabase.auth.getSession()).data.session?.access_token || "";
+
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/analyze-telemetry`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          apikey: ANON_KEY,
+        },
+        body: JSON.stringify({ mode: "telemetry", company_id: companyId }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Unknown error" }));
+        if (res.status === 429) throw new Error("Rate limit exceeded. Try again in a moment.");
+        if (res.status === 402) throw new Error("AI credits exhausted.");
+        throw new Error(err.error || `Error ${res.status}`);
+      }
+
+      const result = await res.json();
+      setSuggestions(result.suggestions || []);
+      setRan(true);
+      if (result.message) setMessage(result.message);
       if (!result.suggestions?.length && !result.message) {
-        setTelemetryMessage("No significant patterns found. Keep using the app and try again later.");
+        setMessage("no_data");
       }
     } catch (err: any) {
       toast({ title: "Analysis failed", description: err.message, variant: "destructive" });
@@ -204,24 +180,9 @@ export function AIRoadmapIntake({ open, onOpenChange, companyId }: AIRoadmapInta
     }
   };
 
-  const handleAnalyzeIdea = async () => {
-    if (!ideaText.trim()) return;
-    setAnalyzingIdea(true);
-    setIdeaSuggestions([]);
-    try {
-      const result = await callAnalyze("idea");
-      setIdeaSuggestions(result.suggestions || []);
-    } catch (err: any) {
-      toast({ title: "Analysis failed", description: err.message, variant: "destructive" });
-    } finally {
-      setAnalyzingIdea(false);
-    }
-  };
-
-  const handleAddToRoadmap = async (suggestion: AISuggestion, idx: number, source: "telemetry" | "idea") => {
+  const handleAddToRoadmap = async (suggestion: AISuggestion, idx: number) => {
     setAddingIdx(idx);
     try {
-      // Get max sort_order for "gap" status
       const { data: existing } = await supabase
         .from("roadmap_items")
         .select("sort_order")
@@ -245,16 +206,9 @@ export function AIRoadmapIntake({ open, onOpenChange, companyId }: AIRoadmapInta
       } as any);
 
       if (error) throw error;
-
       toast({ title: "Added to roadmap", description: suggestion.title });
       queryClient.invalidateQueries({ queryKey: ["roadmap-items"] });
-
-      // Remove from list
-      if (source === "telemetry") {
-        setTelemetrySuggestions((prev) => prev.filter((_, i) => i !== idx));
-      } else {
-        setIdeaSuggestions((prev) => prev.filter((_, i) => i !== idx));
-      }
+      setSuggestions((prev) => prev.filter((_, i) => i !== idx));
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -262,155 +216,109 @@ export function AIRoadmapIntake({ open, onOpenChange, companyId }: AIRoadmapInta
     }
   };
 
-  const handleDismiss = (idx: number, source: "telemetry" | "idea") => {
-    if (source === "telemetry") {
-      setTelemetrySuggestions((prev) => prev.filter((_, i) => i !== idx));
-    } else {
-      setIdeaSuggestions((prev) => prev.filter((_, i) => i !== idx));
-    }
-  };
-
-  const handleClose = () => {
-    onOpenChange(false);
-    // Don't reset state so user can come back
-  };
-
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Brain className="h-5 w-5 text-primary" />
-            AI Roadmap Intake
+            <BarChart2 className="h-5 w-5 text-primary" />
+            Analyze User Behavior
           </DialogTitle>
           <DialogDescription>
-            Analyze real user behavior to find friction, or stress-test a product idea.
+            Scan recent app usage patterns to automatically surface friction points, dead zones, and feature gaps.
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="telemetry">
-          <TabsList className="w-full">
-            <TabsTrigger value="telemetry" className="flex-1">
-              <BarChart2 className="h-3.5 w-3.5 mr-1.5" />
-              Analyze Behavior
-            </TabsTrigger>
-            <TabsTrigger value="idea" className="flex-1">
-              <Lightbulb className="h-3.5 w-3.5 mr-1.5" />
-              Stress-Test an Idea
-            </TabsTrigger>
-          </TabsList>
-
-          {/* ── Telemetry Tab ── */}
-          <TabsContent value="telemetry" className="space-y-4 mt-4">
-            <div className="rounded-md border bg-muted/30 p-3 space-y-1">
-              <p className="text-sm font-medium">How this works</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Scans the last 30 days of user behavior across all 12 modules. Detects drop-offs, repetition loops, dead zones, feature blindness, and error clusters. AI surfaces only patterns with concrete evidence.
-              </p>
-            </div>
-
-            <Button
-              onClick={handleAnalyzeTelemetry}
-              disabled={analyzing}
-              className="w-full"
-            >
-              {analyzing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Analyzing events across all modules…
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  {telemetryRan ? "Re-run Analysis" : "Run Analysis"}
-                </>
-              )}
-            </Button>
-
-            {telemetryMessage && !analyzing && (
-              <div className="rounded-md border bg-muted/50 px-3 py-2.5 text-sm text-muted-foreground">
-                {telemetryMessage}
+        <div className="space-y-4">
+          <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+            <p className="text-sm font-medium">How this works</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Scans the last 30 days of user interactions across all modules. Detects drop-offs, repetition loops, dead zones, and error clusters — then surfaces only patterns with concrete evidence.
+            </p>
+            <div className="pt-1">
+              <p className="text-[11px] text-muted-foreground font-medium mb-1.5 uppercase tracking-wide">Modules being tracked</p>
+              <div className="grid grid-cols-2 gap-1">
+                {TRACKED_MODULES.map(({ icon: Icon, label }) => (
+                  <div key={label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Icon className="h-3 w-3 text-primary/60" />
+                    {label}
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
+          </div>
 
-            {telemetrySuggestions.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">{telemetrySuggestions.length} pattern{telemetrySuggestions.length !== 1 ? "s" : ""} found</p>
-                  <p className="text-xs text-muted-foreground">Review and add relevant items to the roadmap</p>
+          <Button onClick={handleAnalyze} disabled={analyzing} className="w-full">
+            {analyzing ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Scanning behavior across all modules…</>
+            ) : (
+              <><Sparkles className="h-4 w-4 mr-2" /> {ran ? "Re-run Analysis" : "Run Analysis"}</>
+            )}
+          </Button>
+
+          {/* No-data empty state */}
+          {ran && message === "no_data" && !analyzing && (
+            <div className="rounded-md border border-border bg-muted/20 p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <Clock className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">No patterns found yet</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Behavioral telemetry is collected as users interact with the live app. It typically takes <strong>5–7 days of real usage</strong> before meaningful patterns emerge.
+                  </p>
                 </div>
-                {telemetrySuggestions.map((s, i) => (
-                  <SuggestionCard
-                    key={i}
-                    suggestion={s}
-                    onAdd={() => handleAddToRoadmap(s, i, "telemetry")}
-                    onDismiss={() => handleDismiss(i, "telemetry")}
-                    adding={addingIdx === i}
-                  />
-                ))}
               </div>
-            )}
-
-            {telemetryRan && telemetrySuggestions.length === 0 && !analyzing && !telemetryMessage && (
-              <div className="text-center py-6 text-muted-foreground">
-                <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
-                <p className="text-sm">All patterns reviewed. No gaps queued.</p>
+              <Separator />
+              <div className="space-y-1">
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">What's being tracked (starting now)</p>
+                <ul className="space-y-0.5">
+                  {["Page visits and navigation paths", "Dialog opens, form submissions, button clicks", "Search queries and filter usage", "Tab switches and feature discovery", "Error encounters and retry patterns"].map((item) => (
+                    <li key={item} className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <CheckCircle2 className="h-3 w-3 text-primary/50 shrink-0" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
               </div>
-            )}
-          </TabsContent>
-
-          {/* ── Idea Tab ── */}
-          <TabsContent value="idea" className="space-y-4 mt-4">
-            <div className="rounded-md border bg-muted/30 p-3 space-y-1">
-              <p className="text-sm font-medium">How this works</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Describe a feature idea in plain English. AI refines it, scores priority against the app's domain context, surfaces implementation risks, and checks if it duplicates an existing roadmap item.
+              <p className="text-xs text-muted-foreground">
+                In the meantime, use <strong>Add Item → AI Stress-Test</strong> to analyze and add specific ideas to the roadmap.
               </p>
             </div>
+          )}
 
-            <div className="space-y-2">
-              <Textarea
-                placeholder="Describe your product idea… e.g. 'Allow users to set up recurring invoices for retainer clients'"
-                value={ideaText}
-                onChange={(e) => setIdeaText(e.target.value)}
-                rows={4}
-                className="resize-none"
-              />
-              <Button
-                onClick={handleAnalyzeIdea}
-                disabled={analyzingIdea || !ideaText.trim()}
-                className="w-full"
-              >
-                {analyzingIdea ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Analyzing idea…
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Stress-Test This Idea
-                  </>
-                )}
-              </Button>
+          {/* Generic message */}
+          {message && message !== "no_data" && !analyzing && (
+            <div className="rounded-md border bg-muted/50 px-3 py-2.5 text-sm text-muted-foreground">
+              {message}
             </div>
+          )}
 
-            {ideaSuggestions.length > 0 && (
-              <div className="space-y-3">
-                <p className="text-sm font-medium">Analysis result</p>
-                {ideaSuggestions.map((s, i) => (
-                  <SuggestionCard
-                    key={i}
-                    suggestion={s}
-                    onAdd={() => handleAddToRoadmap(s, i, "idea")}
-                    onDismiss={() => handleDismiss(i, "idea")}
-                    adding={addingIdx === i}
-                  />
-                ))}
+          {/* Results */}
+          {suggestions.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">{suggestions.length} pattern{suggestions.length !== 1 ? "s" : ""} found</p>
+                <p className="text-xs text-muted-foreground">Review and add relevant items to the roadmap</p>
               </div>
-            )}
-          </TabsContent>
-        </Tabs>
+              {suggestions.map((s, i) => (
+                <SuggestionCard
+                  key={i}
+                  suggestion={s}
+                  onAdd={() => handleAddToRoadmap(s, i)}
+                  onDismiss={() => setSuggestions((prev) => prev.filter((_, j) => j !== i))}
+                  adding={addingIdx === i}
+                />
+              ))}
+            </div>
+          )}
+
+          {ran && suggestions.length === 0 && !analyzing && message !== "no_data" && !message && (
+            <div className="text-center py-6 text-muted-foreground">
+              <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-40" />
+              <p className="text-sm">All patterns reviewed.</p>
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
