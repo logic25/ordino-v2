@@ -28,15 +28,16 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
     }
 
-    const { mode, raw_idea, company_id } = await req.json();
+    const { mode, raw_idea, company_id, exclude_item_id } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    // Fetch current roadmap items for duplicate detection
-    const { data: roadmapItems } = await supabase
+    // Fetch current roadmap items for duplicate detection, excluding the item being tested
+    const roadmapQuery = supabase
       .from("roadmap_items")
-      .select("title, description")
+      .select("id, title, description")
       .eq("company_id", company_id);
+    const { data: roadmapItems } = await roadmapQuery;
 
     const { data: existingSuggestions } = await supabase
       .from("ai_roadmap_suggestions")
@@ -44,7 +45,9 @@ serve(async (req) => {
       .eq("company_id", company_id)
       .eq("status", "pending_review");
 
-    const roadmapTitles = (roadmapItems || []).map((r: any) => r.title).join(", ");
+    // Filter out the item being stress-tested so it doesn't flag itself as a duplicate
+    const filteredRoadmapItems = (roadmapItems || []).filter((r: any) => r.id !== exclude_item_id);
+    const roadmapTitles = filteredRoadmapItems.map((r: any) => r.title).join(", ");
     const suggestionTitles = (existingSuggestions || []).map((s: any) => s.title).join(", ");
 
     let systemPrompt = "";

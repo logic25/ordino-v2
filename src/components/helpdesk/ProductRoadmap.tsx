@@ -270,7 +270,7 @@ export function ProductRoadmap() {
           Authorization: `Bearer ${token}`,
           apikey: ANON_KEY,
         },
-        body: JSON.stringify({ mode: "idea", company_id: companyId, raw_idea: `${form.title}: ${form.description}` }),
+        body: JSON.stringify({ mode: "idea", company_id: companyId, raw_idea: `${form.title}: ${form.description}`, exclude_item_id: editingItem.id }),
       });
 
       if (!res.ok) throw new Error(`Error ${res.status}`);
