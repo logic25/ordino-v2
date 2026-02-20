@@ -1,132 +1,128 @@
 
-# Clarity Data Masking Audit — Financial & PII Fields
+# Unified Google-Only Login + Auto Gmail Connection
 
-## What This Protects
+## Goal
 
-Microsoft Clarity's Terms of Use (Section 1(b)(ii)) prohibit use in connection with financial services content. By applying `data-clarity-mask="true"` to sensitive elements, those fields are redacted as black rectangles in all session recordings and heatmaps — Clarity never captures the actual text.
+Replace the current two-step process (sign in → separately connect Gmail) with a single flow: clicking "Continue with Google" logs the user in AND connects their Gmail inbox simultaneously, using your own Google Cloud credentials (`GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET`).
 
-## Audit Findings
+## Why This Works End-to-End
 
-The following components render financial figures, client names, contact details, and invoice data in plain, unmasked DOM text:
+Your Google Cloud project already has:
+- `GMAIL_CLIENT_ID` and `GMAIL_CLIENT_SECRET` stored as secrets
+- The `gmail-auth` edge function using those credentials to do the Gmail OAuth flow
 
-### 1. InvoiceTable.tsx
-- Client name in client group header rows
-- Dollar totals at client and project group level (e.g. `$clientGroup.totalDue`)
-- Per-invoice amount cells (`$Number(inv.total_due)`)
-- Contact name shown beneath invoice number (`inv.billed_to_contact.name`)
+The plan switches the login button to use those same credentials via Supabase's native Google OAuth, requesting Gmail scopes at login time. The `provider_token` (Gmail access token) is returned directly in the session, eliminating the need for a separate Gmail consent screen entirely.
 
-### 2. InvoiceDetailSheet.tsx (1,182 lines)
-- Client name, email, phone, address (editable fields)
-- Invoice total due, payment amount, retainer applied
-- Line items (description, quantity, rate, amount per line)
-- Follow-up notes (free-text, often contains payment amounts and contact details)
-- Demand letter text area (contains full client name, amount, days overdue)
-- AI-generated collection message output
+## Manual Step You Need to Do First (One-Time)
 
-### 3. InvoiceSummaryCards.tsx
-- Dollar totals for Draft, Sent, Overdue, Paid, Needs Review, Retainers
-- These are aggregate company financials — lower risk but still sensitive
+Before the code changes are applied, you need to configure the Google Cloud Console. In your **Google Cloud Console → OAuth Client → Authorized redirect URIs**, add this URI:
 
-### 4. CollectionsView.tsx
-- Client name and invoice number per overdue card
-- Dollar amount overdue per invoice
-- Risk score badges (derived from financial analysis)
-- AI-generated collection message output
+```
+https://mimlfjkisguktiqqkpkm.supabase.co/auth/v1/callback
+```
 
-### 5. PromisesView.tsx
-- Client name per promise row
-- Promised dollar amount (`promise.promised_amount`)
-- Payment method per promise
+Keep the existing `/emails` URI — it can stay there, it won't conflict. Do NOT remove any existing URIs.
 
-### 6. RetainersView.tsx
-- Client name per retainer
-- Original amount and current balance per retainer
-- Individual transaction amounts in the transaction history sheet
+Then in **Lovable Cloud → Authentication Settings → Sign In Methods → Google**, switch from "Managed" to "Custom credentials" and enter your `GMAIL_CLIENT_ID` and `GMAIL_CLIENT_SECRET`.
 
-### 7. PaymentPlanDialog.tsx
-- Total due, interest rate, installment amounts per row
-- ACH authorization step (contains bank account context)
-- Client name shown in dialog header
+## What Changes in Code
 
-### 8. BillingReports.tsx (Reports page)
-- "Top 10 Clients by Outstanding" chart — Y-axis shows client names
-- Dollar figures in tooltip and bar labels
-- Revenue trend chart (collected/outstanding per month)
+### 1. `src/pages/Auth.tsx` — Strip down to Google-only
 
-### 9. AccountingView.tsx (Dashboard)
-- KPI cards: Submissions to Bill ($), Outstanding ($), Collection Rate, Avg Days to Pay
-- PM Billing Submissions list — client/project name + dollar amount per row
+- Remove the Apple sign-in button entirely
+- Remove the email/password form, the divider, and the "Forgot password" link from the main login view
+- The password reset view (`isPasswordReset`) is kept intact and hidden — reachable only via a direct email reset link for any legacy users
+- Change the Google button to use `supabase.auth.signInWithOAuth` directly (instead of `lovable.auth.signInWithOAuth`) so we can pass Gmail scopes:
 
-### 10. ReportsKPISummary.tsx
-- Pending Proposal value, Open Invoice value, YTD Collected
-- These are aggregate totals — moderate sensitivity
+```typescript
+await supabase.auth.signInWithOAuth({
+  provider: "google",
+  options: {
+    redirectTo: `${window.location.origin}/auth/callback`,
+    scopes: [
+      "https://www.googleapis.com/auth/gmail.readonly",
+      "https://www.googleapis.com/auth/gmail.send",
+      "https://www.googleapis.com/auth/calendar",
+    ].join(" "),
+    queryParams: {
+      prompt: "select_account",
+      access_type: "offline",
+    },
+  },
+});
+```
 
-### 11. ProposalTable.tsx
-- `total` column — proposal dollar value
-- Client name column
+### 2. `src/pages/AuthCallback.tsx` — Auto-store Gmail tokens on first login
 
-### 12. ProjectExpandedTabs.tsx
-- Estimated costs per discipline
-- Change order amounts
+After the `SIGNED_IN` event fires, check the session for `provider_token` and `provider_refresh_token`. If present (meaning it's a Google login with Gmail scopes granted), call a new edge function action `store_provider_tokens` to save them into `gmail_connections`. This means by the time the user hits the dashboard, Gmail is already wired up.
 
-## Implementation Plan
+```typescript
+if (event === "SIGNED_IN" && session) {
+  if (session.provider_token && session.user.app_metadata.provider === "google") {
+    // Silently store Gmail tokens — no extra button needed
+    await supabase.functions.invoke("gmail-auth", {
+      body: {
+        action: "store_provider_tokens",
+        access_token: session.provider_token,
+        refresh_token: session.provider_refresh_token,
+      },
+    });
+  }
+  navigate("/dashboard", { replace: true });
+}
+```
 
-The strategy is to wrap **specific text nodes** (not whole cards/rows, which would break layout) with `<span data-clarity-mask="true">`. In table cells and inline text, the span wraps just the rendered value.
+### 3. `supabase/functions/gmail-auth/index.ts` — Add `store_provider_tokens` action
 
-### Files to edit (12 total):
+Add a new action handler that accepts an access token + refresh token directly (already exchanged by Supabase) and upserts them into `gmail_connections` — fetching the Gmail email address using the access token to confirm the correct account.
 
-**`src/components/invoices/InvoiceTable.tsx`**
-- Wrap client name in client header row
-- Wrap all `$.toLocaleString()` amount cells
-- Wrap billed_to_contact name
+### 4. `src/pages/Emails.tsx` — Simplify the gate
 
-**`src/components/invoices/InvoiceDetailSheet.tsx`**
-- Wrap client name, email, phone, address display text and input values
-- Wrap total_due, payment_amount, retainer_applied figures
-- Wrap line items table (description, rate, amount columns)
-- Wrap demand letter textarea content
-- Wrap follow-up notes textarea
-- Wrap AI message output textarea
+Since Google login users will always have Gmail connected after their first sign-in, the gate only needs to remain for edge cases. The existing gate UI can stay as-is — it will just be rarely seen.
 
-**`src/components/invoices/InvoiceSummaryCards.tsx`**
-- Wrap the `$card.amount.toLocaleString()` text in each summary card
+## What the Login Screen Looks Like After
 
-**`src/components/invoices/CollectionsView.tsx`**
-- Wrap client name and overdue amount per card
-- Wrap AI-generated message output
+```text
+┌────────────────────────────────────┐
+│           Welcome back             │
+│  Sign in to access your projects   │
+│                                    │
+│  ┌──────────────────────────────┐  │
+│  │  G   Continue with Google   │  │
+│  └──────────────────────────────┘  │
+└────────────────────────────────────┘
+```
 
-**`src/components/invoices/PromisesView.tsx`**
-- Wrap client name, promised_amount, payment_method per table row
+## Complete User Flow After Implementation
 
-**`src/components/invoices/RetainersView.tsx`**
-- Wrap client name, original_amount, current_balance
-- Wrap transaction amounts in the sheet
+```text
+User visits app → /auth
+        |
+        v
+Clicks "Continue with Google"
+        |
+        v
+Google consent screen (your credentials)
+Grants: identity + Gmail read/send + Calendar
+(Only shown ONCE — auto-approved on future logins)
+        |
+        v
+Redirects to /auth/callback
+        |
+        v
+AuthCallback stores Gmail tokens automatically
+        |
+        v
+User lands on /dashboard
+Gmail already connected — inbox ready
+```
 
-**`src/components/invoices/PaymentPlanDialog.tsx`**
-- Wrap totalDue, installment amounts in the preview table
-- Wrap client name shown in header
+## Files to Change
 
-**`src/components/invoices/LineItemsEditor.tsx`**
-- Wrap rate and amount input values (add data-clarity-mask to the Input elements)
+- `src/pages/Auth.tsx` — Google-only UI, switch to `supabase.auth.signInWithOAuth` with Gmail scopes
+- `src/pages/AuthCallback.tsx` — Auto-store `provider_token` into gmail_connections on login
+- `supabase/functions/gmail-auth/index.ts` — Add `store_provider_tokens` action
 
-**`src/components/reports/BillingReports.tsx`**
-- Wrap "Total Collected" dollar figure in the Collections card
-- Add `data-clarity-mask="true"` to the Top Clients by Outstanding chart container (chart SVG text cannot be individually masked so the whole chart area must be masked)
+## Important Note on Existing Users
 
-**`src/components/dashboard/AccountingView.tsx`**
-- Wrap KPI values: Submissions to Bill dollar amount, Outstanding dollar amount
-- Wrap each billing submission row: project name, submitter name, dollar amount
-
-**`src/components/reports/ReportsKPISummary.tsx`**
-- Wrap dollar values for Pending Proposals, Open Invoices, YTD Collected
-
-**`src/components/proposals/ProposalTable.tsx`**
-- Wrap total amount cell per proposal row
-- Wrap client name cell
-
-## Technical Notes
-
-- `data-clarity-mask="true"` can be applied to any HTML element — Clarity replaces its text content with `*` characters in recordings
-- For Recharts SVG-based charts (like the Top Clients bar chart), individual `<text>` SVG nodes cannot be targeted with `data-clarity-mask`. The correct approach is to wrap the entire `ResponsiveContainer` with a `<div data-clarity-mask="true">` — this masks the whole chart area in recordings while preserving full functionality in the live UI
-- Input fields need `data-clarity-mask="true"` on the `<input>` element itself; the shadcn `<Input>` component accepts and passes through arbitrary HTML attributes, so this works without component modification
-- No visual changes to users — masking is invisible in the live app and only affects Clarity recordings
+Any users currently signed in via email/password will not be affected by the UI change — they'll just see the Google-only screen and need to sign in with Google from that point forward. Since this is an internal tool for a Google Workspace team, this is the intended behavior.
