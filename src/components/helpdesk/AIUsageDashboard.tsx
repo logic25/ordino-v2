@@ -533,6 +533,45 @@ export function AIUsageDashboard() {
         </CardContent>
       </Card>
 
+      {/* Microsoft Clarity */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <span className="text-base">🎯</span> Session Recordings &amp; Heatmaps
+            <InfoTip>Microsoft Clarity records real user sessions and generates heatmaps so you can see exactly where people click, scroll, and get stuck.</InfoTip>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs text-muted-foreground mb-4">
+            Clarity tracks rage-clicks, dead-clicks, and session replays automatically. Open the dashboard to see recordings and heatmaps for any page.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+            {[
+              { icon: "🖱️", label: "Session Recordings", desc: "Watch real users navigate the app" },
+              { icon: "🔥", label: "Heatmaps", desc: "See where people click and scroll" },
+              { icon: "😤", label: "Rage Click Detection", desc: "Find frustrating UI moments" },
+            ].map((item) => (
+              <div key={item.label} className="rounded-lg border bg-muted/30 p-3 flex gap-3 items-start">
+                <span className="text-xl">{item.icon}</span>
+                <div>
+                  <p className="text-xs font-medium text-foreground">{item.label}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{item.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <Button asChild size="sm" className="h-8 gap-1.5 text-xs">
+            <a
+              href="https://clarity.microsoft.com/projects/view/vk5l5rkwge/dashboard"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="h-3 w-3" /> Open Clarity Dashboard
+            </a>
+          </Button>
+        </CardContent>
+      </Card>
+
       <p className="text-[11px] text-muted-foreground">
         * Costs are estimates. Actual billing is managed through your Lovable workspace.{" "}
         <a href="https://docs.lovable.dev/features/ai" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
