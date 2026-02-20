@@ -1,6 +1,7 @@
 import { Menu, Search, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useNavigate } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +29,7 @@ function getInitials(profile: any, email?: string | null): string {
 
 export function TopBar({ onMenuToggle }: TopBarProps) {
   const { user, profile, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const initials = getInitials(profile, user?.email);
   const displayName =
@@ -77,8 +79,8 @@ export function TopBar({ onMenuToggle }: TopBarProps) {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <Settings className="h-4 w-4 mr-2" /> Preferences
+            <DropdownMenuItem onClick={() => navigate("/settings")}>
+              <Settings className="h-4 w-4 mr-2" /> Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
