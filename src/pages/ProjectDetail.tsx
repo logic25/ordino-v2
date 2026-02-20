@@ -2136,8 +2136,8 @@ function JobCostingFull({ services, timeEntries }: { services: MockService[]; ti
   const margin = contractTotal > 0 ? ((contractTotal - costTotal) / contractTotal * 100) : 0;
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+    <div className="p-4 sm:p-6 space-y-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
         {[
           { label: "Contract Price", value: formatCurrency(contractTotal) },
           { label: "Total Cost", value: formatCurrency(costTotal) },
@@ -2146,42 +2146,46 @@ function JobCostingFull({ services, timeEntries }: { services: MockService[]; ti
           { label: "Total Hours", value: `${totalHours.toFixed(1)} hrs` },
         ].map((stat) => (
           <Card key={stat.label}>
-            <CardContent className="p-4">
+            <CardContent className="p-3 sm:p-4">
               <div className="text-xs text-muted-foreground">{stat.label}</div>
-              <div className="text-xl font-semibold mt-1">{stat.value}</div>
+              <div className="text-lg sm:text-xl font-semibold mt-1">{stat.value}</div>
             </CardContent>
           </Card>
         ))}
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow className="hover:bg-transparent">
-            <TableHead>Service</TableHead>
-            <TableHead className="text-right">Price</TableHead>
-            <TableHead className="text-right">Cost</TableHead>
-            <TableHead className="text-right">Profit</TableHead>
-            <TableHead className="text-right">Margin</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {services.map((svc) => {
-            const sMargin = svc.totalAmount > 0 ? ((svc.totalAmount - svc.costAmount) / svc.totalAmount * 100) : 0;
-            return (
-              <TableRow key={svc.id}>
-                <TableCell className="font-medium">{svc.name}</TableCell>
-                <TableCell className="text-right tabular-nums">{formatCurrency(svc.totalAmount)}</TableCell>
-                <TableCell className="text-right tabular-nums text-muted-foreground">{svc.costAmount > 0 ? formatCurrency(svc.costAmount) : "—"}</TableCell>
-                <TableCell className="text-right tabular-nums">{svc.costAmount > 0 ? formatCurrency(svc.totalAmount - svc.costAmount) : "—"}</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {svc.costAmount > 0 ? (
-                    <span className={sMargin > 50 ? "text-emerald-600 dark:text-emerald-400" : sMargin < 20 ? "text-red-600 dark:text-red-400" : ""}>{Math.round(sMargin)}%</span>
-                  ) : "—"}
-                </TableCell>
+      <div className="overflow-x-auto -mx-4 sm:mx-0">
+        <div className="min-w-[480px] px-4 sm:px-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Service</TableHead>
+                <TableHead className="text-right">Price</TableHead>
+                <TableHead className="text-right">Cost</TableHead>
+                <TableHead className="text-right">Profit</TableHead>
+                <TableHead className="text-right">Margin</TableHead>
               </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+            </TableHeader>
+            <TableBody>
+              {services.map((svc) => {
+                const sMargin = svc.totalAmount > 0 ? ((svc.totalAmount - svc.costAmount) / svc.totalAmount * 100) : 0;
+                return (
+                  <TableRow key={svc.id}>
+                    <TableCell className="font-medium">{svc.name}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatCurrency(svc.totalAmount)}</TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">{svc.costAmount > 0 ? formatCurrency(svc.costAmount) : "—"}</TableCell>
+                    <TableCell className="text-right tabular-nums">{svc.costAmount > 0 ? formatCurrency(svc.totalAmount - svc.costAmount) : "—"}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {svc.costAmount > 0 ? (
+                        <span className={sMargin > 50 ? "text-emerald-600 dark:text-emerald-400" : sMargin < 20 ? "text-red-600 dark:text-red-400" : ""}>{Math.round(sMargin)}%</span>
+                      ) : "—"}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
     </div>
   );
 }
