@@ -154,6 +154,60 @@ Deno.serve(async (req) => {
       );
     }
 
+    if (action === "store_provider_tokens") {
+      // Called from AuthCallback after Google OAuth — tokens already exchanged by Supabase
+      const { access_token, refresh_token } = body;
+
+      if (!access_token) {
+        return new Response(JSON.stringify({ error: "access_token required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Fetch the user's Gmail address using the provider access token
+      const profileResponse = await fetch(
+        "https://www.googleapis.com/gmail/v1/users/me/profile",
+        { headers: { Authorization: `Bearer ${access_token}` } }
+      );
+      const gmailProfile = await profileResponse.json();
+
+      if (!gmailProfile.emailAddress) {
+        return new Response(JSON.stringify({ error: "Could not retrieve Gmail profile" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { error: upsertError } = await supabaseAdmin
+        .from("gmail_connections")
+        .upsert(
+          {
+            user_id: profile.id,
+            company_id: profile.company_id,
+            email_address: gmailProfile.emailAddress,
+            access_token,
+            refresh_token: refresh_token || null,
+            token_expires_at: new Date(Date.now() + 3600 * 1000).toISOString(),
+            sync_enabled: true,
+            history_id: gmailProfile.historyId?.toString() || null,
+          },
+          { onConflict: "user_id" }
+        );
+
+      if (upsertError) {
+        return new Response(JSON.stringify({ error: upsertError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, email: gmailProfile.emailAddress }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     if (action === "disconnect") {
       const { error: deleteError } = await supabaseAdmin
         .from("gmail_connections")
