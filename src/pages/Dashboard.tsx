@@ -21,14 +21,7 @@ type DashboardRole = "admin" | "pm" | "accounting" | "manager";
 function NewHireWelcomeBanner({ name, onDismiss }: { name: string; onDismiss: () => void }) {
   const { startWalkthrough } = useWalkthrough();
   return (
-    <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-4 px-5 py-4 rounded-xl border bg-primary/5 border-primary/20">
-      <button
-        onClick={onDismiss}
-        className="absolute top-3 right-3 text-muted-foreground hover:text-foreground transition-colors"
-        aria-label="Dismiss"
-      >
-        <X className="h-4 w-4" />
-      </button>
+    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 px-5 py-4 rounded-xl border bg-primary/5 border-primary/20">
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-foreground">👋 Welcome to Ordino, {name}!</p>
         <p className="text-sm text-muted-foreground mt-0.5">Get oriented quickly — take a guided tour or explore the Help Desk.</p>
@@ -40,6 +33,13 @@ function NewHireWelcomeBanner({ name, onDismiss }: { name: string; onDismiss: ()
         <Button size="sm" variant="outline" className="gap-1.5" asChild>
           <a href="/help"><BookOpen className="h-3.5 w-3.5" /> Help Desk</a>
         </Button>
+        <button
+          onClick={onDismiss}
+          className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded"
+          aria-label="Dismiss"
+        >
+          <X className="h-4 w-4" />
+        </button>
       </div>
     </div>
   );
