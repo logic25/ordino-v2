@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useTelemetry } from "@/hooks/useTelemetry";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,11 @@ import { addDays, startOfWeek, format } from "date-fns";
 export default function Time() {
   const [logTimeOpen, setLogTimeOpen] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
+  const { track } = useTelemetry();
+
+  useEffect(() => {
+    track("time", "page_viewed");
+  }, []);
 
   const weekStart = useMemo(() => {
     const now = new Date();

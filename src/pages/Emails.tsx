@@ -20,6 +20,7 @@ import { useConnectGmail } from "@/hooks/useGmailConnection";
 import { useNewEmailNotifications } from "@/hooks/useNewEmailNotifications";
 import { useGmailSearch } from "@/hooks/useGmailSearch";
 import { useToast } from "@/hooks/use-toast";
+import { useTelemetry } from "@/hooks/useTelemetry";
 
 export default function Emails() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -33,6 +34,7 @@ export default function Emails() {
   const [editingDraft, setEditingDraft] = useState<EmailDraft | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { track } = useTelemetry();
   const connectGmail = useConnectGmail();
   const { data: scheduledEmails = [] } = useScheduledEmails();
   const cancelScheduled = useCancelScheduledEmail();
@@ -156,7 +158,10 @@ export default function Emails() {
           <div className="flex items-center gap-2">
             <Button
               size="sm"
-              onClick={() => setComposeOpen(true)}
+              onClick={() => {
+                track("emails", "compose_started");
+                setComposeOpen(true);
+              }}
             >
               <Plus className="h-4 w-4 mr-1.5" />
               Compose

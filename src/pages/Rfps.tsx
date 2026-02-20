@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useTelemetry } from "@/hooks/useTelemetry";
 import { supabase } from "@/integrations/supabase/client";
 import type { Rfp } from "@/hooks/useRfps";
 import { AgencyCombobox } from "@/components/rfps/AgencyCombobox";
@@ -28,6 +29,7 @@ export default function Rfps() {
   const { data: rfps = [], isLoading } = useRfps();
   const createRfp = useCreateRfp();
   const { toast } = useToast();
+  const { track } = useTelemetry();
   const [newOpen, setNewOpen] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -138,10 +140,10 @@ export default function Rfps() {
         notes: form.notes || null,
         ...extraFields,
       });
+      track("rfps", "create_completed", { used_ai_extract: !!aiExtracted });
       toast({ title: "RFP created — now build your response" });
       setNewOpen(false);
       resetForm();
-      // Open the builder dialog with the newly created RFP
       setBuildingRfp(result as Rfp);
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });

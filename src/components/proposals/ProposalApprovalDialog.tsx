@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, CheckCircle2, FileText, Mail, Handshake, FolderOpen } from "lucide-react";
 import { useAssignableProfiles } from "@/hooks/useProfiles";
+import { useTelemetry } from "@/hooks/useTelemetry";
 
 interface ProposalApprovalDialogProps {
   open: boolean;
@@ -63,8 +64,10 @@ export function ProposalApprovalDialog({
   const [notes, setNotes] = useState("");
   const [assignedPmId, setAssignedPmId] = useState(defaultPmId || "");
   const { data: assignableProfiles = [] } = useAssignableProfiles();
+  const { track } = useTelemetry();
 
   const handleSubmit = () => {
+    track("proposals", "client_approved", { method });
     onApprove(method, notes || undefined, undefined, assignedPmId || undefined);
     setMethod("physical_copy");
     setNotes("");

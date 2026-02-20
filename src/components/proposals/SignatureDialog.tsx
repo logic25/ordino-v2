@@ -21,6 +21,7 @@ import { Loader2, RotateCcw, PenLine, Send } from "lucide-react";
 import { useAssignableProfiles } from "@/hooks/useProfiles";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useTelemetry } from "@/hooks/useTelemetry";
 import type { ProposalWithRelations } from "@/hooks/useProposals";
 
 interface SignatureDialogProps {
@@ -47,6 +48,7 @@ export function SignatureDialog({
   const [savedSignatureData, setSavedSignatureData] = useState<string | null>(null);
   const { data: profiles = [] } = useAssignableProfiles();
   const { profile } = useAuth();
+  const { track } = useTelemetry();
 
   // Load saved signature from profile
   useEffect(() => {
@@ -156,6 +158,7 @@ export function SignatureDialog({
         .then(() => {});
     }
 
+    track("proposals", "internal_sign_completed");
     await onSign(signatureData, assignedPmId);
     setHasDrawn(false);
     setAssignedPmId("");

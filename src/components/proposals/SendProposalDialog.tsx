@@ -9,6 +9,7 @@ import type { ProposalWithRelations } from "@/hooks/useProposals";
 import { useProposalContacts } from "@/hooks/useProposalContacts";
 import { sendBillingEmail } from "@/hooks/useBillingEmail";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { useTelemetry } from "@/hooks/useTelemetry";
 
 interface SendProposalDialogProps {
   proposal: ProposalWithRelations | null;
@@ -135,6 +136,7 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
   const [sent, setSent] = useState(false);
   const { data: contacts = [] } = useProposalContacts(proposal?.id);
   const { data: company } = useCompanySettings();
+  const { track } = useTelemetry();
 
   const resolvedCompanyName = companyNameProp || (company as any)?.name || "Our Team";
   const companyEmail = (company as any)?.email || "";
@@ -185,6 +187,7 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
   const handleSend = async () => {
     if (!clientEmail || !clientLink) return;
     setIsSending(true);
+    track("proposals", "send_started", { proposal_id: proposal.id });
     try {
       const htmlBody = buildProposalEmailHtml({
         clientName,
@@ -203,17 +206,13 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
         })),
       });
 
-      await sendBillingEmail({
-        to: clientEmail,
-        subject,
-        htmlBody,
-      });
+      await sendBillingEmail({ to: clientEmail, subject, htmlBody });
 
+      track("proposals", "send_completed", { proposal_id: proposal.id });
       onConfirmSend(proposal.id);
       setSent(true);
     } catch (error: any) {
       console.error("Failed to send proposal email:", error);
-      // Fall back to just marking as sent
       onConfirmSend(proposal.id);
       setSent(true);
     } finally {

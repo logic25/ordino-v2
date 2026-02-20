@@ -34,6 +34,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { RfpPreviewModal } from "./RfpPreviewModal";
 import { SortableSectionItem } from "./builder/SortableSectionItem";
 import { useNavigate } from "react-router-dom";
+import { useTelemetry } from "@/hooks/useTelemetry";
 
 interface RfpBuilderDialogProps {
   rfp: Rfp | null;
@@ -76,6 +77,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   const updateStatus = useUpdateRfpStatus();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { track } = useTelemetry();
   const { data: draft } = useRfpDraft(rfp?.id);
   const upsertDraft = useUpsertRfpDraft();
   const deleteDraft = useDeleteRfpDraft();
@@ -155,6 +157,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setCoverLetter(data.letter);
+      track("rfps", "builder_cover_letter_generated", { rfp_id: rfp.id });
       toast({ title: "Cover letter generated" });
     } catch (e: any) {
       toast({ title: "Error generating cover letter", description: e.message, variant: "destructive" });
@@ -181,6 +184,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
         submitted_at: new Date().toISOString(),
       });
       deleteDraft.mutate(rfp.id);
+      track("rfps", "builder_submitted", { rfp_id: rfp.id, submit_email: submitEmail });
       toast({ title: "RFP response submitted!", description: `Sent to ${submitEmail}.` });
       onOpenChange(false);
     } catch (e: any) {

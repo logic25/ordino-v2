@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTelemetry } from "@/hooks/useTelemetry";
 import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -107,6 +108,7 @@ const settingsSections = [
 
 export default function Settings() {
   const [searchParams] = useSearchParams();
+  const { track } = useTelemetry();
   const [activeSection, setActiveSection] = useState<SettingsSection>(() => {
     const section = searchParams.get("section");
     if (section && settingsSections.some((s) => s.id === section)) {
@@ -154,7 +156,10 @@ export default function Settings() {
                 <Card
                   key={section.id}
                   className="card-hover cursor-pointer"
-                  onClick={() => setActiveSection(section.id)}
+                  onClick={() => {
+                    track("settings", "tab_viewed", { tab: section.id });
+                    setActiveSection(section.id);
+                  }}
                 >
                   <CardContent className="flex items-center gap-4 p-6">
                     <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">

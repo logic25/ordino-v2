@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, GitBranch } from "lucide-react";
 import type { ChangeOrder, ChangeOrderFormInput } from "@/hooks/useChangeOrders";
+import { useTelemetry } from "@/hooks/useTelemetry";
 
 const schema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -44,6 +45,7 @@ export function ChangeOrderDialog({
   existingCO,
   serviceNames = [],
 }: ChangeOrderDialogProps) {
+  const { track } = useTelemetry();
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -88,6 +90,8 @@ export function ChangeOrderDialog({
     const linkedServices = values.linked_service_names
       ? values.linked_service_names.split(",").map(s => s.trim()).filter(Boolean)
       : [];
+
+    track("projects", "co_create_completed", { as_draft: asDraft, is_edit: !!existingCO });
 
     await onSubmit({
       title: values.title,

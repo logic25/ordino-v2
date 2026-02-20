@@ -333,6 +333,15 @@ export function ProductRoadmap() {
               </DialogContent>
             </Dialog>
           )}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setAiIntakeOpen(true)}
+            className="gap-1.5"
+          >
+            <Brain className="h-3.5 w-3.5" />
+            AI Intake
+          </Button>
           <Button size="sm" onClick={() => {
             setEditingItem(null);
             setForm({ title: "", description: "", category: "general", status: "gap", priority: "medium" });
@@ -447,6 +456,15 @@ export function ProductRoadmap() {
           })}
         </div>
       </DndContext>
+      )}
+
+      {/* AI Intake Modal */}
+      {companyId && (
+        <AIRoadmapIntake
+          open={aiIntakeOpen}
+          onOpenChange={setAiIntakeOpen}
+          companyId={companyId}
+        />
       )}
 
       {/* Add/Edit Dialog */}

@@ -54,6 +54,7 @@ import { ProposalContactsSection } from "@/components/proposals/ProposalContacts
 import { PlansUploadSection } from "@/components/proposals/PlansUploadSection";
 import { useProposalContacts, type ProposalContactInput } from "@/hooks/useProposalContacts";
 import { ReferredByCombobox } from "@/components/proposals/ReferredByCombobox";
+import { useTelemetry } from "@/hooks/useTelemetry";
 
 const FEE_TYPES = [
   { value: "fixed", label: "Fixed" },

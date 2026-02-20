@@ -25,6 +25,7 @@ import { Loader2, Search } from "lucide-react";
 import type { Property, PropertyFormInput } from "@/hooks/useProperties";
 import { useNYCPropertyLookup } from "@/hooks/useNYCPropertyLookup";
 import { useToast } from "@/hooks/use-toast";
+import { useTelemetry } from "@/hooks/useTelemetry";
 
 const propertySchema = z.object({
   address: z.string().min(5, "Address must be at least 5 characters"),
@@ -66,6 +67,7 @@ export function PropertyDialog({
   const isEditing = !!property;
   const { lookupByAddress, isLoading: isLookingUp } = useNYCPropertyLookup();
   const { toast } = useToast();
+  const { track } = useTelemetry();
   const [addressToLookup, setAddressToLookup] = useState("");
 
   const form = useForm<PropertyFormData>({
@@ -147,6 +149,7 @@ export function PropertyDialog({
   };
 
   const handleSubmit = async (data: PropertyFormData) => {
+    track("properties", isEditing ? "create_completed" : "create_completed", { is_edit: isEditing });
     await onSubmit(data);
     form.reset();
   };
