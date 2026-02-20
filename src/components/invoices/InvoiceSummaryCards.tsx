@@ -94,7 +94,7 @@ export function InvoiceSummaryCards({ counts, totals, activeFilter, onFilterChan
               <Icon className={`h-4 w-4 ${card.colorClass}`} />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-2xl font-bold" data-clarity-mask="true">
                 ${card.amount.toLocaleString("en-US", { minimumFractionDigits: 0 })}
               </div>
               <p className="text-xs text-muted-foreground mt-1">{card.subtitle}</p>

@@ -61,8 +61,8 @@ export default function ReportsKPISummary() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">{kpi.label}</p>
-              <p className="text-xl font-bold text-foreground">{kpi.value}</p>
-              {kpi.sub && <p className="text-xs text-muted-foreground">{kpi.sub}</p>}
+              <p className="text-xl font-bold text-foreground" data-clarity-mask="true">{kpi.value}</p>
+              {kpi.sub && <p className="text-xs text-muted-foreground" data-clarity-mask="true">{kpi.sub}</p>}
             </div>
           </CardContent>
         </Card>

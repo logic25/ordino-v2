@@ -200,7 +200,7 @@ function InvoiceCard({
             {showAiInfo && <RiskBadge invoiceId={inv.id} />}
             <PromiseBadge invoiceId={inv.id} />
           </div>
-          <p className="text-sm text-muted-foreground truncate mt-0.5">
+          <p className="text-sm text-muted-foreground truncate mt-0.5" data-clarity-mask="true">
             {inv.clients?.name || "Unknown client"}
             {inv.projects?.name ? ` • ${inv.projects.name}` : ""}
           </p>
@@ -213,7 +213,7 @@ function InvoiceCard({
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <span className="tabular-nums font-medium text-sm">
+        <span className="tabular-nums font-medium text-sm" data-clarity-mask="true">
           ${Number(inv.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}
         </span>
         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -560,7 +560,7 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
           <p className="text-sm font-medium">
             {totalCount} invoice{totalCount !== 1 ? "s" : ""} in collections
           </p>
-          <p className="text-2xl font-bold tabular-nums mt-0.5">
+          <p className="text-2xl font-bold tabular-nums mt-0.5" data-clarity-mask="true">
             ${totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </p>
         </div>
@@ -714,7 +714,7 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Amount Due</span>
-                <span className="font-mono font-medium">
+                <span className="font-mono font-medium" data-clarity-mask="true">
                   ${Number(actionInvoice?.total_due || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                 </span>
               </div>
@@ -777,11 +777,11 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
             <div className="rounded-lg border border-destructive/30 p-3 bg-destructive/5 space-y-1">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Client</span>
-                <span className="font-medium">{actionInvoice?.clients?.name}</span>
+                <span className="font-medium" data-clarity-mask="true">{actionInvoice?.clients?.name}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Amount Due</span>
-                <span className="font-mono font-bold text-destructive">
+                <span className="font-mono font-bold text-destructive" data-clarity-mask="true">
                   ${Number(actionInvoice?.total_due || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                 </span>
               </div>
@@ -826,11 +826,11 @@ export function CollectionsView({ invoices, onViewInvoice, onSendReminder }: Col
             <div className="rounded-lg border border-destructive/30 p-3 bg-destructive/5 space-y-1">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Client</span>
-                <span className="font-medium">{actionInvoice?.clients?.name}</span>
+                <span className="font-medium" data-clarity-mask="true">{actionInvoice?.clients?.name}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Amount Being Written Off</span>
-                <span className="font-mono font-bold text-destructive">
+                <span className="font-mono font-bold text-destructive" data-clarity-mask="true">
                   ${Number(actionInvoice?.total_due || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                 </span>
               </div>

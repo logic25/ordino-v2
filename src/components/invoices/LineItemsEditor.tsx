@@ -64,8 +64,9 @@ export function LineItemsEditor({ items, onChange, readOnly = false }: LineItems
             className="h-9 text-sm tabular-nums"
             min={0}
             step={0.01}
+            data-clarity-mask="true"
           />
-          <div className="h-9 flex items-center text-sm tabular-nums px-2 bg-muted rounded-md">
+          <div className="h-9 flex items-center text-sm tabular-nums px-2 bg-muted rounded-md" data-clarity-mask="true">
             ${item.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </div>
           {!readOnly && (

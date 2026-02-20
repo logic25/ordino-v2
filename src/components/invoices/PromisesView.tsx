@@ -119,7 +119,7 @@ export function PromisesView() {
           <div className="flex items-center gap-2">
             <DollarSign className="h-4 w-4 text-primary" />
             <div>
-              <div className="text-lg font-bold">
+              <div className="text-lg font-bold" data-clarity-mask="true">
                 ${summary.totalPending.toLocaleString("en-US", { minimumFractionDigits: 0 })}
               </div>
               <div className="text-xs text-muted-foreground">Expected</div>
@@ -198,16 +198,16 @@ export function PromisesView() {
                       <TableCell className="font-mono text-sm">
                         {(promise as any).invoices?.invoice_number || "—"}
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-clarity-mask="true">
                         {(promise as any).invoices?.clients?.name || "—"}
                       </TableCell>
-                      <TableCell className="text-right font-medium">
+                      <TableCell className="text-right font-medium" data-clarity-mask="true">
                         ${(promise.promised_amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                       </TableCell>
                       <TableCell>
                         {format(parseISO(promise.promised_date), "MMM d, yyyy")}
                       </TableCell>
-                      <TableCell className="capitalize text-sm text-muted-foreground">
+                      <TableCell className="capitalize text-sm text-muted-foreground" data-clarity-mask="true">
                         {promise.payment_method || "—"}
                       </TableCell>
                       <TableCell>
