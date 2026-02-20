@@ -57,7 +57,7 @@ import {
   checklistCategoryLabels, docCategoryLabels,
 } from "@/components/projects/projectMockData";
 import type {
-  MockService, MockContact, MockMilestone, MockChangeOrder,
+  MockService, MockContact, MockMilestone,
   MockEmail, MockDocument, MockTimeEntry, MockChecklistItem, MockPISStatus, MockProposalSignature,
 } from "@/components/projects/projectMockData";
 import {
@@ -405,7 +405,7 @@ export default function ProjectDetail() {
                 <ServicesFull services={liveServices} project={project} contacts={contacts} allServices={liveServices} onServicesChange={setLiveServices} onAddCOs={async (cos) => {
                   for (const co of cos) {
                     try {
-                      await createCO.mutateAsync({ ...co, project_id: project.id, company_id: project.company_id, status: "voided" });
+                      await createCO.mutateAsync(co);
                     } catch { /* non-critical */ }
                   }
                 }} />
@@ -476,8 +476,8 @@ export default function ProjectDetail() {
 
 // ======== PROPOSAL EXECUTION BANNER ========
 
-function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWithRelations; changeOrders: MockChangeOrder[] }) {
-  const unsignedCOs = changeOrders.filter(co => (!co.internalSigned || !co.clientSigned) && co.status !== "draft");
+function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWithRelations; changeOrders: ChangeOrder[] }) {
+  const unsignedCOs = changeOrders.filter(co => (!co.internal_signed_at || !co.client_signed_at) && co.status !== "draft");
   const proposal = project.proposals;
 
   if (!proposal) return null;
@@ -524,7 +524,7 @@ function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWi
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800 text-sm">
           <PenLine className="h-4 w-4 text-amber-600 dark:text-amber-400" />
           <span className="text-amber-700 dark:text-amber-300">
-            {unsignedCOs.length} CO{unsignedCOs.length > 1 ? "s" : ""} awaiting signature: {unsignedCOs.map(co => co.number).join(", ")}
+            {unsignedCOs.length} CO{unsignedCOs.length > 1 ? "s" : ""} awaiting signature: {unsignedCOs.map(co => co.co_number).join(", ")}
           </span>
         </div>
       )}
@@ -1241,7 +1241,7 @@ function SortableServiceRowWrapper({ id, disabled, children }: { id: string; dis
   return <>{children(attributes, disabled ? undefined : listeners, setNodeRef, style)}</>;
 }
 
-function ServicesFull({ services: initialServices, project, contacts, allServices, onServicesChange, onAddCOs }: { services: MockService[]; project: ProjectWithRelations; contacts: MockContact[]; allServices: MockService[]; onServicesChange?: (services: MockService[]) => void; onAddCOs?: (cos: MockChangeOrder[]) => void }) {
+function ServicesFull({ services: initialServices, project, contacts, allServices, onServicesChange, onAddCOs }: { services: MockService[]; project: ProjectWithRelations; contacts: MockContact[]; allServices: MockService[]; onServicesChange?: (services: MockService[]) => void; onAddCOs?: (cos: Array<{ title: string; description?: string; amount: number; status?: ChangeOrder["status"]; requested_by?: string; linked_service_names?: string[]; reason?: string; project_id: string; company_id: string }>) => void }) {
   const [orderedServices, setOrderedServicesLocal] = useState(initialServices);
   const initialKey = initialServices.map(s => `${s.id}:${s.needsDobFiling ? 1 : 0}:${s.status}`).join(",");
   const [lastKey, setLastKey] = useState(initialKey);
@@ -1308,31 +1308,24 @@ function ServicesFull({ services: initialServices, project, contacts, allService
   };
 
   const handleDropService = () => {
-    const today = format(new Date(), "MM/dd/yyyy");
-    const newCOs: MockChangeOrder[] = [];
+    const newCOInputs: Parameters<ReturnType<typeof useCreateChangeOrder>["mutateAsync"]>[0][] = [];
     setOrderedServices(prev => prev.map(s => {
       if (!selectedIds.has(s.id) || s.status === "dropped") return s;
-      const coNum = `CO-DROP-${s.id}`;
-      newCOs.push({
-        id: `co-drop-${s.id}`,
-        number: coNum,
-        description: `Dropped service: ${s.name}`,
+      newCOInputs.push({
+        title: `Dropped service: ${s.name}`,
+        description: `Service "${s.name}" was removed from project scope`,
         amount: -s.totalAmount,
-        status: "approved",
-        createdDate: today,
-        approvedDate: today,
-        linkedServices: [s.id],
+        status: "voided",
+        requested_by: "Internal",
+        linked_service_names: [s.name],
         reason: `Service "${s.name}" was dropped from scope`,
-        requestedBy: "Internal",
-        internalSigned: true,
-        internalSignedDate: today,
-        internalSigner: "System",
-        clientSigned: false,
+        project_id: project.id,
+        company_id: project.company_id,
       });
       return { ...s, status: "dropped" as const };
     }));
-    if (newCOs.length > 0) {
-      onAddCOs?.(newCOs);
+    if (newCOInputs.length > 0) {
+      onAddCOs?.(newCOInputs);
     }
     toast({
       title: "Service(s) Dropped",
@@ -2023,13 +2016,15 @@ function TimeLogsFull({ timeEntries, services }: { timeEntries: MockTimeEntry[];
 
 // ======== CHANGE ORDERS (collapsible table + create button) ========
 
-function ChangeOrdersFull({ changeOrders }: { changeOrders: MockChangeOrder[] }) {
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const { toast } = useToast();
-  const toggle = (id: string) => setExpandedIds(prev => {
-    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
-  });
-  const coTotal = changeOrders.filter(co => co.status === "approved").reduce((s, co) => s + co.amount, 0);
+function ChangeOrdersFull({ changeOrders, projectId, companyId, serviceNames, onOpenCreate, onSelectCO }: {
+  changeOrders: ChangeOrder[];
+  projectId: string;
+  companyId: string;
+  serviceNames: string[];
+  onOpenCreate: () => void;
+  onSelectCO: (co: ChangeOrder) => void;
+}) {
+  const coTotal = changeOrders.filter(co => co.status === "approved").reduce((s, co) => s + Number(co.amount), 0);
 
   return (
     <div>
@@ -2038,7 +2033,7 @@ function ChangeOrdersFull({ changeOrders }: { changeOrders: MockChangeOrder[] })
           {changeOrders.length} change order{changeOrders.length !== 1 ? "s" : ""}
           {coTotal > 0 && <> · Approved: <span className="font-semibold text-foreground">{formatCurrency(coTotal)}</span></>}
         </div>
-        <Button size="sm" className="gap-1.5" onClick={() => toast({ title: "Create Change Order", description: "CO creation dialog would open." })}>
+        <Button size="sm" className="gap-1.5" onClick={onOpenCreate}>
           <Plus className="h-4 w-4" /> Create Change Order
         </Button>
       </div>
@@ -2047,7 +2042,7 @@ function ChangeOrdersFull({ changeOrders }: { changeOrders: MockChangeOrder[] })
         <div className="flex flex-col items-center py-12 text-muted-foreground">
           <GitBranch className="h-8 w-8 mb-2 opacity-40" />
           <p className="text-sm">No change orders yet</p>
-          <Button variant="outline" size="sm" className="mt-3 gap-1.5" onClick={() => toast({ title: "Create Change Order" })}>
+          <Button variant="outline" size="sm" className="mt-3 gap-1.5" onClick={onOpenCreate}>
             <Plus className="h-3.5 w-3.5" /> Create Change Order
           </Button>
         </div>
@@ -2055,9 +2050,8 @@ function ChangeOrdersFull({ changeOrders }: { changeOrders: MockChangeOrder[] })
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30">
-              <TableHead className="w-[36px]" />
               <TableHead>CO #</TableHead>
-              <TableHead>Description</TableHead>
+              <TableHead>Title</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Signed</TableHead>
               <TableHead>Requested By</TableHead>
@@ -2068,70 +2062,37 @@ function ChangeOrdersFull({ changeOrders }: { changeOrders: MockChangeOrder[] })
           <TableBody>
             {changeOrders.map((co) => {
               const style = coStatusStyles[co.status] || coStatusStyles.draft;
-              const isExpanded = expandedIds.has(co.id);
+              const internalSigned = !!co.internal_signed_at;
+              const clientSigned = !!co.client_signed_at;
               return (
-                <>
-                  <TableRow key={co.id} className="cursor-pointer hover:bg-muted/20" onClick={() => toggle(co.id)}>
-                    <TableCell className="pr-0">
-                      {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                    </TableCell>
-                    <TableCell className="font-mono font-medium">{co.number}</TableCell>
-                    <TableCell>{co.description}</TableCell>
-                    <TableCell>
-                      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${style.className}`}>{style.label}</span>
-                    </TableCell>
-                    <TableCell>
-                      {co.internalSigned && co.clientSigned ? (
-                        <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                          <ShieldCheck className="h-3.5 w-3.5" /> Fully Executed
+                <TableRow key={co.id} className="cursor-pointer hover:bg-muted/20" onClick={() => onSelectCO(co)}>
+                  <TableCell className="font-mono font-medium">{co.co_number}</TableCell>
+                  <TableCell>{co.title}</TableCell>
+                  <TableCell>
+                    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${style.className}`}>{style.label}</span>
+                  </TableCell>
+                  <TableCell>
+                    {internalSigned && clientSigned ? (
+                      <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                        <ShieldCheck className="h-3.5 w-3.5" /> Fully Executed
+                      </span>
+                    ) : co.status !== "draft" ? (
+                      <div className="flex flex-col gap-0.5 text-xs">
+                        <span className={internalSigned ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
+                          {internalSigned ? `✓ Internal ${co.internal_signed_at ? format(new Date(co.internal_signed_at), "MM/dd/yy") : ""}` : "⏳ Internal"}
                         </span>
-                      ) : co.status !== "draft" ? (
-                        <div className="flex flex-col gap-0.5 text-xs">
-                          <span className={co.internalSigned ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
-                            {co.internalSigned ? `✓ Internal ${co.internalSignedDate || ""}` : "⏳ Internal"}
-                          </span>
-                          <span className={co.clientSigned ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
-                            {co.clientSigned ? `✓ Client ${co.clientSignedDate || ""}` : "⏳ Client"}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{co.requestedBy}</TableCell>
-                    <TableCell className="text-muted-foreground">{co.createdDate}</TableCell>
-                    <TableCell className="text-right tabular-nums font-semibold">{formatCurrency(co.amount)}</TableCell>
-                  </TableRow>
-                  {isExpanded && (
-                    <TableRow key={`${co.id}-detail`} className="hover:bg-transparent">
-                      <TableCell colSpan={8} className="p-0">
-                        <div className="px-8 py-4 bg-muted/10 space-y-2 text-sm">
-                          <div><span className="text-muted-foreground">Reason:</span> {co.reason}</div>
-                          {co.linkedServices.length > 0 && (
-                            <div><span className="text-muted-foreground">Linked Services:</span> {co.linkedServices.join(", ")}</div>
-                          )}
-                          {co.approvedDate && (
-                            <div><span className="text-muted-foreground">Approved:</span> {co.approvedDate}</div>
-                          )}
-                          <div>
-                            <span className="text-muted-foreground">Internal Signature:</span>{" "}
-                            {co.internalSigned ? (
-                              <span className="text-emerald-600 dark:text-emerald-400">{co.internalSigner} — {co.internalSignedDate}</span>
-                            ) : "Not yet signed"}
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Client Signature:</span>{" "}
-                            {co.clientSigned ? (
-                              <span className="text-emerald-600 dark:text-emerald-400">{co.clientSigner} — {co.clientSignedDate}</span>
-                            ) : co.status !== "draft" ? (
-                              <span className="text-amber-600 dark:text-amber-400">Awaiting client signature</span>
-                            ) : "Not yet sent"}
-                          </div>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </>
+                        <span className={clientSigned ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
+                          {clientSigned ? `✓ Client ${co.client_signed_at ? format(new Date(co.client_signed_at), "MM/dd/yy") : ""}` : "⏳ Client"}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{co.requested_by || "—"}</TableCell>
+                  <TableCell className="text-muted-foreground">{format(new Date(co.created_at), "MM/dd/yyyy")}</TableCell>
+                  <TableCell className="text-right tabular-nums font-semibold">{formatCurrency(Number(co.amount))}</TableCell>
+                </TableRow>
               );
             })}
           </TableBody>

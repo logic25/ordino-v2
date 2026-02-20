@@ -16,9 +16,10 @@ import { pdf } from "@react-pdf/renderer";
 import { LitigationPDF } from "./LitigationPDF";
 import type { ProjectWithRelations } from "@/hooks/useProjects";
 import type {
-  MockService, MockContact, MockMilestone, MockChangeOrder,
+  MockService, MockContact, MockMilestone,
   MockEmail, MockDocument, MockTimeEntry,
 } from "./projectMockData";
+import type { ChangeOrder } from "@/hooks/useChangeOrders";
 
 interface LitigationExportDialogProps {
   open: boolean;
@@ -28,7 +29,7 @@ interface LitigationExportDialogProps {
   emails: MockEmail[];
   documents: MockDocument[];
   timeEntries: MockTimeEntry[];
-  changeOrders: MockChangeOrder[];
+  changeOrders: ChangeOrder[];
   contacts: MockContact[];
   services: MockService[];
 }

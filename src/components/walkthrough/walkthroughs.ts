@@ -163,4 +163,41 @@ export const WALKTHROUGHS: Walkthrough[] = [
       },
     ],
   },
+  {
+    id: "change-orders-workflow",
+    name: "Change Orders",
+    startPath: "/projects",
+    steps: [
+      {
+        target: '[data-tour="projects-header"]',
+        title: "Starting with a Project",
+        content: "Change orders live inside a project. Open any project and go to the COs tab to manage scope changes.",
+        placement: "bottom",
+      },
+      {
+        target: '[data-tour="sidebar"]',
+        title: "Create a Change Order",
+        content: "Inside a project, click 'Create Change Order' on the COs tab. Give it a title like 'PAA to address Schedule B', set the amount, and choose a status. CO numbers are assigned automatically — CO#1, CO#2, etc.",
+        placement: "right",
+      },
+      {
+        target: '[data-tour="sidebar"]',
+        title: "Internal Signature",
+        content: "Once created, open the CO detail and click 'Sign Internally'. Use the signature pad or your saved signature. This moves the CO to Pending Client status.",
+        placement: "right",
+      },
+      {
+        target: '[data-tour="sidebar"]',
+        title: "Client Signature & Approval",
+        content: "After internal sign-off, click 'Send to Client'. When the client signs or you receive verbal approval, mark the CO as Approved. Approved COs add to the project's adjusted contract total.",
+        placement: "right",
+      },
+      {
+        target: '[data-tour="sidebar"]',
+        title: "Negative COs (Dropped Services)",
+        content: "When a PM drops a service from the Services tab, a negative change order is automatically created and voided — keeping your financial history clean and auditable.",
+        placement: "right",
+      },
+    ],
+  },
 ] satisfies Walkthrough[];
