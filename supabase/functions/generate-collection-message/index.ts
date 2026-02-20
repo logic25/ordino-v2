@@ -102,6 +102,7 @@ Respond in JSON only:
   "body": "<email body text>"
 }`;
 
+    const AI_MODEL = "google/gemini-3-flash-preview";
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -109,7 +110,7 @@ Respond in JSON only:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: AI_MODEL,
         messages: [{ role: "user", content: prompt }],
         temperature: 0.7,
       }),
@@ -123,6 +124,26 @@ Respond in JSON only:
 
     const aiData = await aiResponse.json();
     const content = aiData.choices?.[0]?.message?.content || "";
+
+    // Log usage
+    try {
+      const usage = aiData.usage || {};
+      const promptTokens = usage.prompt_tokens || 0;
+      const completionTokens = usage.completion_tokens || 0;
+      const estimatedCost = (promptTokens * 0.075 + completionTokens * 0.30) / 1_000_000;
+      await supabase.from("ai_usage_logs").insert({
+        company_id,
+        user_id: null,
+        feature: "collection_message",
+        model: AI_MODEL,
+        prompt_tokens: promptTokens,
+        completion_tokens: completionTokens,
+        total_tokens: usage.total_tokens || promptTokens + completionTokens,
+        estimated_cost_usd: estimatedCost,
+      });
+    } catch (logErr) {
+      console.error("Failed to log AI usage:", logErr);
+    }
 
     let parsed;
     try {

@@ -6,6 +6,7 @@ import { WhatsNew } from "@/components/helpdesk/WhatsNew";
 import { FeatureRequests } from "@/components/helpdesk/FeatureRequests";
 import { InteractiveTraining } from "@/components/helpdesk/InteractiveTraining";
 import { ProductRoadmap } from "@/components/helpdesk/ProductRoadmap";
+import { AIUsageDashboard } from "@/components/helpdesk/AIUsageDashboard";
 import { usePermissions } from "@/hooks/usePermissions";
 
 export default function HelpDesk() {
@@ -29,6 +30,7 @@ export default function HelpDesk() {
             {isAdmin && <TabsTrigger value="whats-new">What's New</TabsTrigger>}
             <TabsTrigger value="requests">Feature Requests</TabsTrigger>
             {isAdmin && <TabsTrigger value="roadmap">Product Roadmap</TabsTrigger>}
+            {isAdmin && <TabsTrigger value="ai-usage">AI Usage</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="training"><InteractiveTraining /></TabsContent>
@@ -37,6 +39,9 @@ export default function HelpDesk() {
           <TabsContent value="requests"><FeatureRequests /></TabsContent>
           {isAdmin && (
             <TabsContent value="roadmap"><ProductRoadmap /></TabsContent>
+          )}
+          {isAdmin && (
+            <TabsContent value="ai-usage"><AIUsageDashboard /></TabsContent>
           )}
         </Tabs>
       </div>
