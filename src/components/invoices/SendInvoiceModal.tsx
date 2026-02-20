@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { toast } from "@/hooks/use-toast";
+import { useTelemetry } from "@/hooks/useTelemetry";
 
 interface SendInvoiceModalProps {
   invoice: InvoiceWithRelations | null;
@@ -24,6 +25,7 @@ interface SendInvoiceModalProps {
 type SendStep = "confirm" | "generating" | "sending" | "syncing" | "done";
 
 export function SendInvoiceModal({ invoice, open, onOpenChange, onSent }: SendInvoiceModalProps) {
+  const { track } = useTelemetry();
   const [step, setStep] = useState<SendStep>("confirm");
   const [ccEmail, setCcEmail] = useState("");
   const queryClient = useQueryClient();
@@ -37,6 +39,7 @@ export function SendInvoiceModal({ invoice, open, onOpenChange, onSent }: SendIn
     "";
 
   const handleSend = async () => {
+    track("invoices", "send_started");
     if (!recipientEmail) {
       toast({ title: "No email address", description: "Client or billing contact has no email on file.", variant: "destructive" });
       return;

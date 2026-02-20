@@ -16,6 +16,7 @@ import { useProjects } from "@/hooks/useProjects";
 import { useClients } from "@/hooks/useClients";
 import { useClientRetainer, useApplyRetainer } from "@/hooks/useRetainers";
 import { toast } from "@/hooks/use-toast";
+import { useTelemetry } from "@/hooks/useTelemetry";
 import { Loader2, Wallet } from "lucide-react";
 
 interface CreateInvoiceDialogProps {
@@ -24,6 +25,7 @@ interface CreateInvoiceDialogProps {
 }
 
 export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogProps) {
+  const { track } = useTelemetry();
   const [projectId, setProjectId] = useState<string>("");
   const [clientId, setClientId] = useState<string>("");
   const [paymentTerms, setPaymentTerms] = useState("Net 30");
@@ -62,6 +64,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
   }, [clientId]);
 
   const handleSubmit = async (status: "draft" | "ready_to_send") => {
+    track("invoices", "create_started");
     if (lineItems.every((i) => !i.description && i.amount === 0)) {
       toast({ title: "Add at least one line item", variant: "destructive" });
       return;

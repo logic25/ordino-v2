@@ -26,8 +26,9 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   Plus, GripVertical, MoreHorizontal, Pencil, Trash2,
   AlertTriangle, Clock, Lightbulb, CheckCircle2, Rocket,
-  ArrowRight, Inbox, LayoutGrid, List,
+  ArrowRight, Inbox, LayoutGrid, List, Brain,
 } from "lucide-react";
+import { AIRoadmapIntake } from "./AIRoadmapIntake";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -171,6 +172,7 @@ export function ProductRoadmap() {
   const queryClient = useQueryClient();
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [aiIntakeOpen, setAiIntakeOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RoadmapItem | null>(null);
   const [promoteOpen, setPromoteOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");

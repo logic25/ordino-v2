@@ -188,6 +188,68 @@ export type Database = {
           },
         ]
       }
+      ai_roadmap_suggestions: {
+        Row: {
+          category: string | null
+          challenges: string[] | null
+          company_id: string | null
+          created_at: string | null
+          description: string | null
+          duplicate_warning: string | null
+          evidence: string | null
+          id: string
+          priority: string | null
+          raw_idea: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source: string | null
+          status: string | null
+          title: string
+        }
+        Insert: {
+          category?: string | null
+          challenges?: string[] | null
+          company_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          duplicate_warning?: string | null
+          evidence?: string | null
+          id?: string
+          priority?: string | null
+          raw_idea?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source?: string | null
+          status?: string | null
+          title: string
+        }
+        Update: {
+          category?: string | null
+          challenges?: string[] | null
+          company_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          duplicate_warning?: string | null
+          evidence?: string | null
+          id?: string
+          priority?: string | null
+          raw_idea?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source?: string | null
+          status?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_roadmap_suggestions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_logs: {
         Row: {
           auto_closed: boolean
@@ -5605,6 +5667,47 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      telemetry_events: {
+        Row: {
+          action: string
+          company_id: string | null
+          created_at: string | null
+          id: string
+          metadata: Json | null
+          page: string
+          session_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          page: string
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          page?: string
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telemetry_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
