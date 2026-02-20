@@ -27,6 +27,7 @@ import type { Client, ClientFormInput } from "@/hooks/useClients";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useToast } from "@/hooks/use-toast";
+import { useTelemetry } from "@/hooks/useTelemetry";
 
 const DEFAULT_TYPES = [
   "Architect", "General Contractor", "Plumber", "Electrician", "Engineer",
@@ -68,6 +69,7 @@ export function ClientDialog({
 }: ClientDialogProps) {
   const isEditing = !!client;
   const { toast } = useToast();
+  const { track } = useTelemetry();
   const { data: profiles = [] } = useCompanyProfiles();
   const { data: settingsData } = useCompanySettings();
   const companyTypes = settingsData?.settings?.company_types ?? DEFAULT_TYPES;
@@ -105,6 +107,7 @@ export function ClientDialog({
   }, [client, form, defaultName]);
 
   const handleSubmit = async (data: FormData) => {
+    track("clients", isEditing ? "create_completed" : "create_completed", { is_edit: isEditing });
     try {
       await onSubmit({
         name: data.name,

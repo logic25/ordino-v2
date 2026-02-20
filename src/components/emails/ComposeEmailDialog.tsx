@@ -19,6 +19,7 @@ import { RecipientInput } from "./RecipientInput";
 import { RichTextEditor } from "./RichTextEditor";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useTelemetry } from "@/hooks/useTelemetry";
 
 interface AttachmentFile {
   file: File;
@@ -57,6 +58,7 @@ export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defau
   const removeDraft = useDeleteDraft();
   const scheduleEmail = useCreateScheduledEmail();
   const { toast } = useToast();
+  const { track } = useTelemetry();
 
   // Load draft data when opening with a draft
   useEffect(() => {

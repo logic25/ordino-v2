@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useTelemetry } from "@/hooks/useTelemetry";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +58,7 @@ import { cn } from "@/lib/utils";
 
 export default function Calendar() {
   const { toast } = useToast();
+  const { track } = useTelemetry();
   const canAccessBilling = useCanAccessBilling();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -128,6 +130,7 @@ export default function Calendar() {
   }, [allEvents]);
 
   const handleSync = async () => {
+    track("calendar", "google_sync_triggered");
     try {
       const result = await syncCalendar.mutateAsync({ time_min: calStart.toISOString(), time_max: calEnd.toISOString() });
       toast({ title: `Synced ${result.synced} events from Google Calendar` });
@@ -141,6 +144,7 @@ export default function Calendar() {
   };
 
   const handleDayClick = (day: Date) => {
+    track("calendar", "event_create_started");
     setSelectedDate(day);
     setEditingEvent(null);
     setDialogOpen(true);

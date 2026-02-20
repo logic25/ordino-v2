@@ -35,6 +35,7 @@ import { useClientPaymentAnalytics } from "@/hooks/useClientAnalytics";
 import { useExtractTasks } from "@/hooks/useExtractTasks";
 import { PaymentPlanDialog } from "./PaymentPlanDialog";
 import { ClaimFlowDialog } from "./ClaimFlowDialog";
+import { useTelemetry } from "@/hooks/useTelemetry";
 
 interface CollectionsViewProps {
   invoices: InvoiceWithRelations[];

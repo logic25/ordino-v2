@@ -23,6 +23,7 @@ import {
 } from "@/hooks/useInvoices";
 import { useRetainers } from "@/hooks/useRetainers";
 import { toast } from "@/hooks/use-toast";
+import { useTelemetry } from "@/hooks/useTelemetry";
 
 // ── Mock invoice data ────────────────────────────────────────────
 const mkInv = (
@@ -94,6 +95,7 @@ export default function Invoices() {
   const [detailInvoice, setDetailInvoice] = useState<InvoiceWithRelations | null>(null);
   const [sendInvoice, setSendInvoice] = useState<InvoiceWithRelations | null>(null);
   const [billingOpen, setBillingOpen] = useState(false);
+  const { track } = useTelemetry();
 
   const isSpecialTab = ["collections", "promises", "retainers", "analytics"].includes(activeFilter);
   const queryFilter = activeFilter === "collections" ? "overdue" : isSpecialTab ? "all" : activeFilter;
@@ -174,6 +176,7 @@ export default function Invoices() {
   };
 
   const handleSendInvoice = (inv: InvoiceWithRelations) => {
+    track("invoices", "send_started", { invoice_id: inv.id });
     setDetailInvoice(null);
     setSendInvoice(inv);
   };

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTelemetry } from "@/hooks/useTelemetry";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
@@ -46,6 +47,7 @@ function NewHireWelcomeBanner({ name, onDismiss }: { name: string; onDismiss: ()
 
 export default function Dashboard() {
   const { profile } = useAuth();
+  const { track } = useTelemetry();
   const actualRole = profile?.role || "pm";
   const [previewRole, setPreviewRole] = useState<DashboardRole>(actualRole as DashboardRole);
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
@@ -129,7 +131,10 @@ export default function Dashboard() {
             <RolePreviewSelector
               currentRole={actualRole}
               previewRole={previewRole}
-              onPreviewChange={setPreviewRole}
+              onPreviewChange={(role) => {
+                track("dashboard", "role_preview_switched", { role });
+                setPreviewRole(role);
+              }}
             />
           </div>
         </div>

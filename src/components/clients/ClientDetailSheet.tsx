@@ -33,6 +33,8 @@ import {
 import { format } from "date-fns";
 import type { Client } from "@/hooks/useClients";
 import { useClientContacts } from "@/hooks/useClients";
+import { useTelemetry } from "@/hooks/useTelemetry";
+import { useEffect } from "react";
 
 interface ClientDetailSheetProps {
   client: Client | null;
@@ -141,6 +143,13 @@ export function ClientDetailSheet({
   const navigate = useNavigate();
   const { data, isLoading: relLoading } = useClientRelations(client?.id);
   const { data: contacts = [], isLoading: contactsLoading } = useClientContacts(client?.id);
+  const { track } = useTelemetry();
+
+  useEffect(() => {
+    if (open && client?.id) {
+      track("clients", "detail_opened", { client_id: client.id });
+    }
+  }, [open, client?.id]);
 
   if (!client) return null;
 
