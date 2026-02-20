@@ -470,6 +470,29 @@ export default function ProjectDetail() {
         contacts={contacts}
         services={liveServices}
       />
+
+      <ChangeOrderDialog
+        open={coDialogOpen}
+        onOpenChange={setCoDialogOpen}
+        serviceNames={liveServices.map(s => s.name)}
+        onSubmit={async (data, asDraft) => {
+          await createCO.mutateAsync({
+            ...data,
+            project_id: project.id,
+            company_id: project.company_id,
+            status: asDraft ? "draft" : "draft",
+          });
+          setCoDialogOpen(false);
+        }}
+        isLoading={createCO.isPending}
+      />
+
+      <ChangeOrderDetailSheet
+        open={coSheetOpen}
+        onOpenChange={setCoSheetOpen}
+        co={selectedCO}
+        serviceNames={liveServices.map(s => s.name)}
+      />
     </AppLayout>
   );
 }
