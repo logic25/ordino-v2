@@ -109,21 +109,32 @@ export function AIUsageDashboard() {
 
   // By feature
   const byFeature = Object.entries(
-    logs.reduce((acc: Record<string, { count: number; tokens: number; cost: number }>, l: any) => {
+    logs.reduce((acc: Record<string, { count: number; tokens: number; cost: number; models: Record<string, number> }>, l: any) => {
       const key = l.feature || "unknown";
-      if (!acc[key]) acc[key] = { count: 0, tokens: 0, cost: 0 };
+      if (!acc[key]) acc[key] = { count: 0, tokens: 0, cost: 0, models: {} };
       acc[key].count++;
       acc[key].tokens += l.total_tokens || 0;
       acc[key].cost += parseFloat(l.estimated_cost_usd) || 0;
+      const m = l.model || "unknown";
+      acc[key].models[m] = (acc[key].models[m] || 0) + 1;
       return acc;
     }, {})
   )
-    .map(([feature, d]) => ({
-      feature,
-      label: FEATURE_LABELS[feature]?.label || feature,
-      desc: FEATURE_LABELS[feature]?.description || "",
-      ...d,
-    }))
+    .map(([feature, d]) => {
+      // Pick the most-used model for this feature
+      const dominantModel = Object.entries(d.models).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+      return {
+        feature,
+        label: FEATURE_LABELS[feature]?.label || feature,
+        desc: FEATURE_LABELS[feature]?.description || "",
+        dominantModel,
+        dominantModelFriendly: MODEL_FRIENDLY[dominantModel] || dominantModel,
+        models: d.models,
+        count: d.count,
+        tokens: d.tokens,
+        cost: d.cost,
+      };
+    })
     .sort((a, b) => b.count - a.count);
 
   // By model
@@ -448,27 +459,61 @@ export function AIUsageDashboard() {
             <p className="text-xs text-muted-foreground py-4 text-center">No AI usage recorded yet</p>
           ) : (
             <div className="space-y-0">
-              <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 text-[10px] font-medium text-muted-foreground uppercase tracking-wide pb-2 border-b">
+              <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-4 text-[10px] font-medium text-muted-foreground uppercase tracking-wide pb-2 border-b">
                 <span>Feature</span>
+                <span className="text-right">Model</span>
                 <span className="text-right">Requests</span>
                 <span className="text-right">Words Processed</span>
                 <span className="text-right">Est. Cost</span>
               </div>
               <div className="divide-y">
-                {byFeature.map((f) => (
-                  <div key={f.feature} className="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 py-2 text-xs items-center">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="truncate">{f.label}</span>
-                      {f.desc && <InfoTip>{f.desc}</InfoTip>}
+                {byFeature.map((f) => {
+                  const isPro = f.dominantModel.includes("pro");
+                  const isFlash25 = f.dominantModel.includes("2.5-flash");
+                  return (
+                    <div key={f.feature} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-4 py-2 text-xs items-center">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="truncate">{f.label}</span>
+                        {f.desc && <InfoTip>{f.desc}</InfoTip>}
+                      </div>
+                      <div className="text-right">
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Badge
+                              variant="outline"
+                              className={`text-[9px] px-1.5 py-0 cursor-default ${
+                                isPro
+                                  ? "border-violet-400 text-violet-600 bg-violet-50 dark:bg-violet-950/30"
+                                  : isFlash25
+                                  ? "border-blue-400 text-blue-600 bg-blue-50 dark:bg-blue-950/30"
+                                  : "border-green-400 text-green-600 bg-green-50 dark:bg-green-950/30"
+                              }`}
+                            >
+                              {isPro ? "⚡ Pro" : isFlash25 ? "Flash 2.5" : "Flash"}
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent className="text-xs max-w-[200px]">
+                            <p className="font-medium">{f.dominantModelFriendly}</p>
+                            <p className="text-muted-foreground mt-0.5">
+                              {isPro
+                                ? "Most powerful — best for complex reasoning and nuanced tasks"
+                                : isFlash25
+                                ? "Multimodal — handles text + images efficiently"
+                                : "Fast & efficient — ideal for structured generation"}
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <span className="text-right text-muted-foreground">{f.count}</span>
+                      <span className="text-right text-muted-foreground">{formatWords(f.tokens)}</span>
+                      <span className="text-right font-medium">{formatCostFull(f.cost)}</span>
                     </div>
-                    <span className="text-right text-muted-foreground">{f.count}</span>
-                    <span className="text-right text-muted-foreground">{formatWords(f.tokens)}</span>
-                    <span className="text-right font-medium">{formatCostFull(f.cost)}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-              <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 pt-2 border-t text-xs font-semibold">
+              <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-4 pt-2 border-t text-xs font-semibold">
                 <span>Total</span>
+                <span />
                 <span className="text-right">{totalRequests}</span>
                 <span className="text-right">{formatWords(totalTokens)}</span>
                 <span className="text-right">{formatCostFull(totalCost)}</span>
