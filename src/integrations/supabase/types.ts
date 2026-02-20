@@ -5231,6 +5231,8 @@ export type Database = {
           priority: string
           sort_order: number
           status: string
+          stress_test_result: Json | null
+          stress_tested_at: string | null
           title: string
           updated_at: string
         }
@@ -5245,6 +5247,8 @@ export type Database = {
           priority?: string
           sort_order?: number
           status?: string
+          stress_test_result?: Json | null
+          stress_tested_at?: string | null
           title: string
           updated_at?: string
         }
@@ -5259,6 +5263,8 @@ export type Database = {
           priority?: string
           sort_order?: number
           status?: string
+          stress_test_result?: Json | null
+          stress_tested_at?: string | null
           title?: string
           updated_at?: string
         }

@@ -235,11 +235,13 @@ export function AIRoadmapIntake({ open, onOpenChange, companyId }: AIRoadmapInta
       const { error } = await supabase.from("roadmap_items").insert({
         company_id: companyId,
         title: suggestion.title,
-        description: `${suggestion.description}${suggestion.evidence ? `\n\nEvidence: ${suggestion.evidence}` : ""}`,
+        description: suggestion.description,
         category: suggestion.category,
         status: "gap",
         priority: suggestion.priority,
         sort_order: maxOrder + 1,
+        stress_test_result: suggestion as any,
+        stress_tested_at: new Date().toISOString(),
       } as any);
 
       if (error) throw error;
