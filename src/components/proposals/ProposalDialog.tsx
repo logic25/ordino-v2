@@ -239,7 +239,7 @@ function ServiceLineItem({
                     onMouseDown={(e) => { e.preventDefault(); handleSelectService(service); }}>
                     <div className="min-w-0">
                       <div className="font-medium truncate">{service.name}</div>
-                      {service.description && <div className="text-xs text-muted-foreground truncate">{service.description}</div>}
+                      {service.description && <div className="text-xs text-muted-foreground truncate">{service.description.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()}</div>}
                     </div>
                     {service.default_price ? <span className="text-xs text-muted-foreground shrink-0 ml-2">{formatCurrency(service.default_price)}</span> : null}
                   </button>
