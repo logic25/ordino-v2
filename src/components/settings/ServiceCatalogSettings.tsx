@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,6 +38,8 @@ export function ServiceCatalogSettings() {
   const [services, setServices] = useState<ServiceCatalogItem[]>([]);
   const [defaultTerms, setDefaultTerms] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const newServiceRef = useRef<HTMLInputElement>(null);
+  const [newServiceId, setNewServiceId] = useState<string | null>(null);
 
   // Price change audit state
   const [priceChangeDialog, setPriceChangeDialog] = useState<{
@@ -56,18 +58,29 @@ export function ServiceCatalogSettings() {
   }, [companyData]);
 
   const addService = () => {
+    const id = crypto.randomUUID();
     setSearchQuery(""); // Clear search so new row is visible
+    setNewServiceId(id);
     setServices([
-      ...services,
       {
-        id: crypto.randomUUID(),
+        id,
         name: "",
         description: "",
         default_price: 0,
         default_hours: 0,
       },
+      ...services,
     ]);
   };
+
+  // Auto-focus the new service name input after it renders
+  useEffect(() => {
+    if (newServiceId && newServiceRef.current) {
+      newServiceRef.current.focus();
+      newServiceRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      setNewServiceId(null);
+    }
+  }, [newServiceId, services]);
 
   const removeService = (id: string) => {
     setServices(services.filter((s) => s.id !== id));
@@ -223,6 +236,7 @@ export function ServiceCatalogSettings() {
                       <TableRow>
                         <TableCell>
                           <Input
+                            ref={service.id === newServiceId ? newServiceRef : undefined}
                             value={service.name}
                             onChange={(e) => updateService(service.id, "name", e.target.value)}
                             placeholder="Service name"
