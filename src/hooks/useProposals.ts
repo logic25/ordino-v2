@@ -57,6 +57,7 @@ export interface ProposalFormInput {
   tpp_name?: string | null;
   tpp_email?: string | null;
   job_description?: string | null;
+  drawings_storage_paths?: string[] | null;
   unit_number?: string | null;
   items?: ProposalItemInput[];
   milestones?: ProposalMilestoneInput[];
@@ -225,6 +226,7 @@ export function useCreateProposal() {
           tpp_name: proposalData.tpp_name || null,
           tpp_email: proposalData.tpp_email || null,
           job_description: proposalData.job_description || null,
+          drawings_storage_paths: proposalData.drawings_storage_paths || null,
           unit_number: (proposalData as any).unit_number || null,
         } as any)
         .select()
@@ -257,7 +259,16 @@ export function useCreateProposal() {
         if (itemsError) throw itemsError;
       }
 
-      // Insert milestones
+      // Link uploaded plan documents to this new proposal
+      if (proposalData.drawings_storage_paths && proposalData.drawings_storage_paths.length > 0) {
+        for (const storagePath of proposalData.drawings_storage_paths) {
+          await (supabase.from("universal_documents") as any)
+            .update({ proposal_id: proposal.id })
+            .eq("storage_path", storagePath)
+            .eq("company_id", profile.company_id);
+        }
+      }
+
       if (milestones && milestones.length > 0) {
         const milestonesToInsert = milestones.map((m, idx) => ({
           proposal_id: proposal.id,
@@ -341,6 +352,7 @@ export function useUpdateProposal() {
           tpp_name: proposalData.tpp_name || null,
           tpp_email: proposalData.tpp_email || null,
           job_description: proposalData.job_description || null,
+          drawings_storage_paths: proposalData.drawings_storage_paths || null,
           unit_number: (proposalData as any).unit_number || null,
         } as any)
         .eq("id", id)
@@ -560,6 +572,16 @@ export function useSignProposalInternal() {
             console.error("Error creating services:", servicesError);
           }
         }
+      }
+
+      // Link plan documents from proposal to the new project
+      try {
+        await (supabase.from("universal_documents") as any)
+          .update({ project_id: (project as any).id })
+          .eq("proposal_id", id)
+          .eq("category", "Plans");
+      } catch (docLinkErr) {
+        console.error("Error linking plan documents to project:", docLinkErr);
       }
 
       // Update proposal with signature and link to project

@@ -803,6 +803,7 @@ export function ProposalDialog({
   };
 
   const pendingActionRef = useRef<ProposalSaveAction>("save");
+  const planFilesRef = useRef<{ storage_path: string }[]>([]);
 
   const handleSubmit = async (data: ProposalFormData) => {
       const action = pendingActionRef.current;
@@ -846,6 +847,7 @@ export function ProposalDialog({
         tpp_name: data.tpp_name || null,
         tpp_email: data.tpp_email || null,
         job_description: data.job_description || null,
+        drawings_storage_paths: planFilesRef.current.map(f => f.storage_path),
         unit_number: (data as any).unit_number || null,
         items: validItems.map((item, idx) => ({
           id: item.id, name: item.name, description: item.description || null,
@@ -1072,6 +1074,7 @@ export function ProposalDialog({
                   proposalId={proposal?.id}
                   jobDescription={form.watch("job_description") || ""}
                   onJobDescriptionChange={(v) => form.setValue("job_description", v)}
+                  onFilesChange={(f) => planFilesRef.current = f}
                 />
               </div>
             )}
