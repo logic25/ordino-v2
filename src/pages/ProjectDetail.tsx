@@ -16,6 +16,7 @@ import { useProjectChecklist, useAddChecklistItem, useUpdateChecklistItem, useDe
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useChecklistFollowupDrafts, useApproveDraft, useDismissDraft } from "@/hooks/useChecklistFollowupDrafts";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -42,6 +43,7 @@ import { useSendProposal } from "@/hooks/useProposals";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { useAssignableProfiles, useCompanyProfiles } from "@/hooks/useProfiles";
 import { ProjectEmailsTab } from "@/components/emails/ProjectEmailsTab";
+import { AddContactDialog } from "@/components/clients/AddContactDialog";
 import { ProjectDialog } from "@/components/projects/ProjectDialog";
 import { LitigationExportDialog } from "@/components/projects/LitigationExportDialog";
 import { DobNowFilingPrepSheet } from "@/components/projects/DobNowFilingPrepSheet";
@@ -455,7 +457,7 @@ export default function ProjectDetail() {
                 <EmailsFullLive projectId={project.id} mockEmails={emails} />
               </TabsContent>
               <TabsContent value="contacts" className="mt-0">
-                <ContactsFull contacts={contacts} pisStatus={pisStatus} />
+                <ContactsFull contacts={contacts} pisStatus={pisStatus} projectId={project.id} clientId={project.client_id} />
               </TabsContent>
               <TabsContent value="timeline" className="mt-0">
                 <TimelineFull milestones={milestones} />
@@ -464,7 +466,7 @@ export default function ProjectDetail() {
                 <DocumentsFull documents={documents} projectId={project.id} companyId={project.company_id} />
               </TabsContent>
               <TabsContent value="time-logs" className="mt-0">
-                <TimeLogsFull timeEntries={timeEntries} services={liveServices} />
+                <TimeLogsFull timeEntries={timeEntries} services={liveServices} projectId={project.id} companyId={project.company_id} />
               </TabsContent>
               <TabsContent value="change-orders" className="mt-0">
                 <ChangeOrdersFull
@@ -544,6 +546,7 @@ function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWi
   const unsignedCOs = changeOrders.filter(co => (!co.internal_signed_at || !co.client_signed_at) && co.status !== "draft");
   const proposal = project.proposals;
   const resendProposal = useSendProposal();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const [resending, setResending] = useState(false);
 
@@ -565,6 +568,8 @@ function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWi
     setResending(true);
     try {
       await resendProposal.mutateAsync(proposal.id);
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      queryClient.invalidateQueries({ queryKey: ["projects", project.id] });
       toast({ title: "Proposal resent", description: `Signature request resent for Proposal #${proposalNumber}. Sent date updated.` });
     } catch (e: any) {
       toast({ title: "Error resending", description: e.message, variant: "destructive" });
@@ -1709,12 +1714,43 @@ const dobRegStyles: Record<string, { label: string; className: string; icon: str
   unknown: { label: "Unknown", className: "text-muted-foreground", icon: "?" },
 };
 
-function ContactsFull({ contacts, pisStatus }: { contacts: MockContact[]; pisStatus: MockPISStatus }) {
+function ContactsFull({ contacts, pisStatus, projectId, clientId }: { contacts: MockContact[]; pisStatus: MockPISStatus; projectId?: string; clientId?: string | null }) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [showAddContact, setShowAddContact] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [addingNew, setAddingNew] = useState(false);
   const toggle = (id: string) => setExpandedIds(prev => {
     const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
   });
+
+  // Fetch all clients for lookup
+  const { data: allClients = [] } = useQuery({
+    queryKey: ["all-clients-lookup"],
+    queryFn: async () => {
+      const { data } = await supabase.from("clients").select("id, name, email, phone").order("name");
+      return data || [];
+    },
+    enabled: showAddContact,
+  });
+
+  // Fetch contacts for selected client
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const { data: clientContacts = [] } = useQuery({
+    queryKey: ["client-contacts-lookup", selectedClientId],
+    queryFn: async () => {
+      if (!selectedClientId) return [];
+      const { data } = await supabase.from("client_contacts").select("id, name, email, phone, title, company_name").eq("client_id", selectedClientId).order("name");
+      return data || [];
+    },
+    enabled: !!selectedClientId,
+  });
+
+  const filteredClients = allClients.filter(c =>
+    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (c.email || "").toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div>
@@ -1728,6 +1764,96 @@ function ContactsFull({ contacts, pisStatus }: { contacts: MockContact[]; pisSta
           </Button>
         </div>
       )}
+
+      {/* Add Contact bar */}
+      <div className="flex items-center justify-between px-6 py-3 border-b">
+        <span className="text-sm text-muted-foreground">{contacts.length} contact{contacts.length !== 1 ? "s" : ""}</span>
+        <Button size="sm" className="gap-1.5" onClick={() => { setShowAddContact(true); setSelectedClientId(null); setSearchTerm(""); setAddingNew(false); }}>
+          <Plus className="h-3.5 w-3.5" /> Add Contact
+        </Button>
+      </div>
+
+      {/* Add Contact Dialog */}
+      <Dialog open={showAddContact} onOpenChange={setShowAddContact}>
+        <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Contact to Project</DialogTitle>
+          </DialogHeader>
+
+          {!selectedClientId && !addingNew ? (
+            <div className="space-y-3">
+              <Input placeholder="Search companies..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} autoFocus />
+              <div className="max-h-60 overflow-y-auto border rounded-lg divide-y">
+                {filteredClients.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-muted-foreground">No companies found</div>
+                ) : filteredClients.slice(0, 20).map(client => (
+                  <button key={client.id} className="w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors" onClick={() => setSelectedClientId(client.id)}>
+                    <div className="font-medium text-sm">{client.name}</div>
+                    {client.email && <div className="text-xs text-muted-foreground">{client.email}</div>}
+                  </button>
+                ))}
+              </div>
+              <Button variant="outline" className="w-full gap-1.5" onClick={() => setAddingNew(true)}>
+                <Plus className="h-3.5 w-3.5" /> Create New Client & Contact
+              </Button>
+            </div>
+          ) : selectedClientId && !addingNew ? (
+            <div className="space-y-3">
+              <Button variant="ghost" size="sm" className="gap-1" onClick={() => setSelectedClientId(null)}>
+                ← Back to companies
+              </Button>
+              <div className="text-sm font-medium">Select a contact:</div>
+              <div className="max-h-60 overflow-y-auto border rounded-lg divide-y">
+                {clientContacts.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-muted-foreground">No contacts for this company</div>
+                ) : clientContacts.map(contact => {
+                  const alreadyAdded = contacts.some(c => c.email === contact.email && c.name === contact.name);
+                  return (
+                    <button
+                      key={contact.id}
+                      className={`w-full text-left px-4 py-3 transition-colors ${alreadyAdded ? "opacity-50 cursor-not-allowed" : "hover:bg-muted/50"}`}
+                      disabled={alreadyAdded}
+                      onClick={() => {
+                        // Contact is already in project contacts via client_contacts, just show toast
+                        toast({ title: "Contact linked", description: `${contact.name} is now associated with this project.` });
+                        queryClient.invalidateQueries({ queryKey: ["project-contacts"] });
+                        setShowAddContact(false);
+                      }}
+                    >
+                      <div className="font-medium text-sm">{contact.name} {alreadyAdded && <Badge variant="outline" className="ml-2 text-[10px]">Already added</Badge>}</div>
+                      <div className="text-xs text-muted-foreground">{contact.title || ""} {contact.email && `· ${contact.email}`}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <Button variant="outline" className="w-full gap-1.5" onClick={() => setAddingNew(true)}>
+                <Plus className="h-3.5 w-3.5" /> Add New Contact
+              </Button>
+            </div>
+          ) : null}
+
+          {addingNew && selectedClientId && (
+            <AddContactDialog
+              open={true}
+              onOpenChange={(open) => { if (!open) setAddingNew(false); }}
+              clientId={selectedClientId}
+              onContactCreated={() => {
+                queryClient.invalidateQueries({ queryKey: ["project-contacts"] });
+                setShowAddContact(false);
+                setAddingNew(false);
+              }}
+            />
+          )}
+          {addingNew && !selectedClientId && (
+            <div className="space-y-3">
+              <Button variant="ghost" size="sm" className="gap-1" onClick={() => setAddingNew(false)}>
+                ← Back to search
+              </Button>
+              <p className="text-sm text-muted-foreground">Please select a company first, then add a contact to it.</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Table>
         <TableHeader>
@@ -1898,7 +2024,7 @@ function DocumentsFull({ documents, projectId, companyId }: { documents: MockDoc
         mime_type: file.type || null,
         size_bytes: file.size,
         tags: [],
-        metadata: { project_id: projectId },
+        project_id: projectId,
       } as any);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["project-documents"] });
@@ -2065,8 +2191,17 @@ function DocumentsFull({ documents, projectId, companyId }: { documents: MockDoc
 
 // ======== TIME LOGS (with service utilization summary) ========
 
-function TimeLogsFull({ timeEntries, services }: { timeEntries: MockTimeEntry[]; services: MockService[] }) {
+function TimeLogsFull({ timeEntries, services, projectId, companyId }: { timeEntries: MockTimeEntry[]; services: MockService[]; projectId: string; companyId: string }) {
   const totalHours = timeEntries.reduce((s, t) => s + t.hours, 0);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [showLogForm, setShowLogForm] = useState(false);
+  const [logDate, setLogDate] = useState(new Date().toISOString().split("T")[0]);
+  const [logHours, setLogHours] = useState("");
+  const [logMinutes, setLogMinutes] = useState("");
+  const [logDesc, setLogDesc] = useState("");
+  const [logService, setLogService] = useState("");
+  const [logging, setLogging] = useState(false);
 
   // Aggregate hours by service
   const hoursByService: Record<string, number> = {};
@@ -2083,8 +2218,104 @@ function TimeLogsFull({ timeEntries, services }: { timeEntries: MockTimeEntry[];
       return { name: svc.name, allotted: svc.allottedHours, logged, remaining: Math.max(svc.allottedHours - logged, 0), pct };
     });
 
+  const handleLogTime = async () => {
+    const hours = parseInt(logHours || "0");
+    const minutes = parseInt(logMinutes || "0");
+    const totalMinutes = hours * 60 + minutes;
+    if (totalMinutes <= 0) {
+      toast({ title: "Invalid time", description: "Enter hours or minutes.", variant: "destructive" });
+      return;
+    }
+    setLogging(true);
+    try {
+      const { data: profile } = await supabase.from("profiles").select("id, company_id").single();
+      if (!profile) throw new Error("Not authenticated");
+
+      // Find an application for this project to link to
+      const { data: apps } = await supabase.from("dob_applications").select("id").eq("project_id", projectId).limit(1);
+      const appId = apps?.[0]?.id || null;
+
+      // Find the service ID if selected
+      let serviceId: string | null = null;
+      if (logService) {
+        const { data: svc } = await supabase.from("services").select("id").eq("project_id", projectId).eq("name", logService).limit(1).maybeSingle();
+        serviceId = svc?.id || null;
+      }
+
+      const { error } = await supabase.from("activities").insert({
+        user_id: profile.id,
+        company_id: companyId,
+        activity_type: "time_log" as any,
+        activity_date: logDate,
+        duration_minutes: totalMinutes,
+        description: logDesc || null,
+        application_id: appId,
+        service_id: serviceId,
+      } as any);
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ["project-time-entries"] });
+      toast({ title: "Time logged", description: `${hours}h ${minutes}m logged successfully.` });
+      setShowLogForm(false);
+      setLogHours(""); setLogMinutes(""); setLogDesc(""); setLogService("");
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setLogging(false);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
+      {/* Header with Log Time button */}
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-muted-foreground">{timeEntries.length} entr{timeEntries.length !== 1 ? "ies" : "y"} · {totalHours.toFixed(1)} hrs total</span>
+        <Button size="sm" className="gap-1.5" onClick={() => setShowLogForm(true)}>
+          <Plus className="h-3.5 w-3.5" /> Log Time
+        </Button>
+      </div>
+
+      {/* Quick log form */}
+      {showLogForm && (
+        <div className="border rounded-lg p-4 space-y-3 bg-muted/20">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Date</Label>
+              <Input type="date" value={logDate} onChange={e => setLogDate(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Hours</Label>
+              <Input type="number" min="0" placeholder="0" value={logHours} onChange={e => setLogHours(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Minutes</Label>
+              <Input type="number" min="0" max="59" placeholder="0" value={logMinutes} onChange={e => setLogMinutes(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Service</Label>
+              <Select value={logService} onValueChange={setLogService}>
+                <SelectTrigger><SelectValue placeholder="General" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="general">General</SelectItem>
+                  {services.map(s => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Description</Label>
+            <Input placeholder="What did you work on?" value={logDesc} onChange={e => setLogDesc(e.target.value)} />
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" size="sm" onClick={() => setShowLogForm(false)}>Cancel</Button>
+            <Button size="sm" disabled={logging} onClick={handleLogTime}>
+              {logging ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+              {logging ? "Saving..." : "Save"}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Utilization Summary */}
       {serviceUtilization.length > 0 && (
         <div>
@@ -2108,37 +2339,32 @@ function TimeLogsFull({ timeEntries, services }: { timeEntries: MockTimeEntry[];
       )}
 
       {/* Time entries table */}
-      {timeEntries.length === 0 ? (
+      {timeEntries.length === 0 && !showLogForm ? (
         <p className="text-sm text-muted-foreground italic">No time logged.</p>
-      ) : (
-        <>
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Date</TableHead>
-                <TableHead>Team Member</TableHead>
-                <TableHead>Service</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Hours</TableHead>
+      ) : timeEntries.length > 0 ? (
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead>Date</TableHead>
+              <TableHead>Team Member</TableHead>
+              <TableHead>Service</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead className="text-right">Hours</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {timeEntries.map((te) => (
+              <TableRow key={te.id}>
+                <TableCell className="font-mono">{te.date}</TableCell>
+                <TableCell>{te.user}</TableCell>
+                <TableCell className="text-muted-foreground">{te.service}</TableCell>
+                <TableCell className="text-muted-foreground">{te.description}</TableCell>
+                <TableCell className="text-right tabular-nums font-medium">{te.hours.toFixed(2)}</TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {timeEntries.map((te) => (
-                <TableRow key={te.id}>
-                  <TableCell className="font-mono">{te.date}</TableCell>
-                  <TableCell>{te.user}</TableCell>
-                  <TableCell className="text-muted-foreground">{te.service}</TableCell>
-                  <TableCell className="text-muted-foreground">{te.description}</TableCell>
-                  <TableCell className="text-right tabular-nums font-medium">{te.hours.toFixed(2)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <div className="text-sm text-muted-foreground text-right">
-            Total: <span className="font-semibold text-foreground">{totalHours.toFixed(2)} hrs</span>
-          </div>
-        </>
-      )}
+            ))}
+          </TableBody>
+        </Table>
+      ) : null}
     </div>
   );
 }
