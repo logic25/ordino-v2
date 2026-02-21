@@ -228,14 +228,15 @@ export function ServiceCatalogSettings() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[22%]">Name</TableHead>
+                    <TableHead className="w-[20%]">Name</TableHead>
                      <TableHead className="w-[8%]">Fee Type</TableHead>
                      <TableHead className="w-[8%]">Base Price</TableHead>
                      <TableHead className="w-[6%]">Hours</TableHead>
-                     <TableHead className="w-[7%]">Multiplier</TableHead>
-                     <TableHead className="w-[6%]">Weight</TableHead>
-                     <TableHead className="w-[13%]">Per Work Type</TableHead>
-                     <TableHead className="w-[10%]" />
+                     <TableHead className="w-[6%]">Multiplier</TableHead>
+                     <TableHead className="w-[5%]">Weight</TableHead>
+                     <TableHead className="w-[6%]">Work Types</TableHead>
+                     <TableHead className="w-[12%]">Per Work Type</TableHead>
+                     <TableHead className="w-[8%]" />
                    </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -376,6 +377,15 @@ export function ServiceCatalogSettings() {
                           </TooltipProvider>
                         </TableCell>
                         <TableCell>
+                          <Checkbox
+                            checked={service.show_work_types !== false}
+                            onCheckedChange={(checked) => {
+                              setServices(services.map(s => s.id === service.id ? { ...s, show_work_types: !!checked } : s));
+                            }}
+                            className="h-3.5 w-3.5"
+                          />
+                        </TableCell>
+                        <TableCell>
                           <div className="flex items-center gap-2">
                             <Checkbox
                               checked={!!service.has_discipline_pricing}
@@ -415,7 +425,7 @@ export function ServiceCatalogSettings() {
                       {/* Expanded Description Row */}
                       {expandedServiceId === service.id && (
                         <TableRow>
-                          <TableCell colSpan={8} className="bg-muted/30 border-t-0 pt-0 pb-3">
+                          <TableCell colSpan={9} className="bg-muted/30 border-t-0 pt-0 pb-3">
                             <div className="space-y-1.5 pl-5">
                               <Label className="text-xs text-muted-foreground">Description</Label>
                               <RichTextEditor
@@ -429,7 +439,7 @@ export function ServiceCatalogSettings() {
                       )}
                       {/* Default Requirements Row */}
                       <TableRow>
-                        <TableCell colSpan={8} className="p-0">
+                        <TableCell colSpan={9} className="p-0">
                           <ServiceRequirementsEditor
                             requirements={service.default_requirements || []}
                             onChange={(reqs) => {
@@ -684,6 +694,15 @@ export function ServiceCatalogSettings() {
                 />
               </div>
             </div>
+            </div>
+            <div className="flex items-center gap-2 pt-2">
+              <Checkbox
+                checked={newService.show_work_types !== false}
+                onCheckedChange={(checked) => setNewService({ ...newService, show_work_types: !!checked })}
+                className="h-3.5 w-3.5"
+                id="new-show-wt"
+              />
+              <Label htmlFor="new-show-wt" className="text-sm cursor-pointer">Show Work Type picker on proposals</Label>
             </div>
             <div className="border-t pt-3">
               <ServiceRequirementsEditor

@@ -295,6 +295,9 @@ function ServiceLineItem({
             const selectedDisciplines: string[] = form.watch(`items.${index}.disciplines`) || [];
             const catalogMatch = serviceCatalog.find(s => s.name === currentName);
             const hasDisciplinePricing = disciplineFee > 0 || catalogMatch?.has_discipline_pricing;
+            const showWorkTypes = catalogMatch?.show_work_types ?? true; // default to showing
+
+            if (!showWorkTypes && !hasDisciplinePricing) return null;
 
             const toggleDiscipline = (d: string) => {
               const current = [...selectedDisciplines];
@@ -734,10 +737,11 @@ export function ProposalDialog({
 
   useEffect(() => {
     if (appendingRef.current) return;
-    if (itemCount > 0 && lastItemName && lastItemName.trim() !== "") {
+    // Add empty row if there are no items, or if the last item has a name
+    const needsEmpty = itemCount === 0 || (itemCount > 0 && lastItemName && lastItemName.trim() !== "");
+    if (needsEmpty) {
       appendingRef.current = true;
       appendItem({ name: "", description: "", quantity: 1, unit_price: 0, estimated_hours: 0, discount_percent: 0, fee_type: "fixed", is_optional: false }, { shouldFocus: false });
-      // Reset flag after React processes the update
       setTimeout(() => { appendingRef.current = false; }, 0);
     }
   }, [lastItemName, itemCount]);
