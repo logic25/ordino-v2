@@ -392,7 +392,10 @@ export function ProposalContactsSection({
             try {
               const newClient = await onAddClient(data);
               handleSelectCompany(addCompanyState.index, newClient);
+              const savedIndex = addCompanyState.index;
               setAddCompanyState({ open: false, index: -1, prefillName: "" });
+              // Auto-open Add Contact dialog for the newly created company
+              setAddContactState({ open: true, index: savedIndex, clientId: newClient.id, prefillName: "" });
             } catch (err: any) {
               console.error("Failed to create company:", err);
             }
