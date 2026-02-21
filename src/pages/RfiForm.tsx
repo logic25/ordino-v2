@@ -494,10 +494,14 @@ export default function RfiForm() {
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">$</span>
               <Input
-                type="number"
-                placeholder="0.00"
-                value={getValue(key)}
-                onChange={(e) => setValue(key, e.target.value)}
+                type="text"
+                inputMode="numeric"
+                placeholder="0"
+                value={getValue(key) ? Number(getValue(key)).toLocaleString() : ""}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/[^0-9.]/g, "");
+                  setValue(key, raw);
+                }}
                 className="pl-7 h-11 bg-white border-stone-200 text-stone-800 focus:border-amber-500 focus:ring-amber-500/20 transition-all"
               />
             </div>
@@ -644,10 +648,14 @@ export default function RfiForm() {
                           <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">$</span>
                             <Input
-                              type="number"
-                              placeholder="0.00"
-                              value={getValue(costKey)}
-                              onChange={(e) => setValue(costKey, e.target.value)}
+                              type="text"
+                              inputMode="numeric"
+                              placeholder="0"
+                              value={getValue(costKey) ? Number(getValue(costKey)).toLocaleString() : ""}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/[^0-9.]/g, "");
+                                setValue(costKey, raw);
+                              }}
                               className="pl-7 h-10 bg-white border-stone-200 text-stone-800 focus:border-amber-500 focus:ring-amber-500/20 transition-all"
                             />
                           </div>
