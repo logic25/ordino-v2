@@ -581,7 +581,14 @@ export function ServiceCatalogSettings() {
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-2">
-                <Label>Fee Type</Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Label className="cursor-help inline-flex items-center gap-1">Fee Type <span className="text-muted-foreground text-xs">ⓘ</span></Label>
+                    </TooltipTrigger>
+                    <TooltipContent><p className="text-xs max-w-[220px]"><strong>Fixed:</strong> One-time flat fee for the service.<br/><strong>Hourly:</strong> Billed per hour worked, uses Base Price as the hourly rate.<br/><strong>Monthly:</strong> Recurring charge per month (e.g., retainers, monitoring).</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <Select
                   value={newService.default_fee_type || "fixed"}
                   onValueChange={(v) => setNewService({ ...newService, default_fee_type: v as any })}
@@ -624,7 +631,7 @@ export function ServiceCatalogSettings() {
                     <TooltipTrigger asChild>
                       <Label className="cursor-help inline-flex items-center gap-1">Multiplier <span className="text-muted-foreground text-xs">ⓘ</span></Label>
                     </TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[200px]">Price multiplier applied per additional unit (e.g., per floor, per discipline). Leave at 1.0 for no scaling.</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[220px]">Scales the base price when a service applies to multiple items. E.g., if base price is $500 and multiplier is 1.5 with 3 disciplines, the total adjusts accordingly. Set to 0 or leave blank if not applicable.</p></TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
                 <Input
@@ -642,7 +649,7 @@ export function ServiceCatalogSettings() {
                     <TooltipTrigger asChild>
                       <Label className="cursor-help inline-flex items-center gap-1">Complexity Weight <span className="text-muted-foreground text-xs">ⓘ</span></Label>
                     </TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[200px]">Weight from 1–10 used for PM capacity tracking. Higher values indicate more complex services that consume more bandwidth.</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[220px]">How much PM bandwidth this service requires (1 = simple, 10 = very complex). Used on the dashboard to calculate each PM's workload so managers can balance assignments.</p></TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
                 <Input
