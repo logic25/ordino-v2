@@ -38,6 +38,7 @@ import {
   GripVertical, ArrowUp, ArrowDown,
 } from "lucide-react";
 import { useProjects, useUpdateProject, ProjectWithRelations } from "@/hooks/useProjects";
+import { useSendProposal } from "@/hooks/useProposals";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { useAssignableProfiles, useCompanyProfiles } from "@/hooks/useProfiles";
 import { ProjectEmailsTab } from "@/components/emails/ProjectEmailsTab";
@@ -542,6 +543,9 @@ export default function ProjectDetail() {
 function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWithRelations; changeOrders: ChangeOrder[] }) {
   const unsignedCOs = changeOrders.filter(co => (!co.internal_signed_at || !co.client_signed_at) && co.status !== "draft");
   const proposal = project.proposals;
+  const resendProposal = useSendProposal();
+  const { toast } = useToast();
+  const [resending, setResending] = useState(false);
 
   if (!proposal) return null;
 
@@ -552,7 +556,22 @@ function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWi
   const clientDate = (proposal as any).client_signed_at
     ? format(new Date((proposal as any).client_signed_at), "MM/dd/yyyy")
     : null;
+  const sentAt = (proposal as any).sent_at
+    ? format(new Date((proposal as any).sent_at), "MM/dd/yyyy 'at' h:mm a")
+    : null;
   const fullyExecuted = !!internalDate && !!clientDate;
+
+  const handleResend = async () => {
+    setResending(true);
+    try {
+      await resendProposal.mutateAsync(proposal.id);
+      toast({ title: "Proposal resent", description: `Signature request resent for Proposal #${proposalNumber}. Sent date updated.` });
+    } catch (e: any) {
+      toast({ title: "Error resending", description: e.message, variant: "destructive" });
+    } finally {
+      setResending(false);
+    }
+  };
 
   return (
     <div className="flex items-center gap-3 flex-wrap">
@@ -576,8 +595,18 @@ function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWi
             {internalDate && (
               <span className="text-xs text-muted-foreground">Internal signed: {internalDate}</span>
             )}
-            <Button variant="outline" size="sm" className="h-7 text-xs gap-1 ml-auto">
-              <Send className="h-3 w-3" /> Resend for Signature
+            {sentAt && (
+              <span className="text-xs text-muted-foreground">Last sent: {sentAt}</span>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs gap-1 ml-auto"
+              onClick={handleResend}
+              disabled={resending}
+            >
+              {resending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+              {resending ? "Sending..." : "Resend for Signature"}
             </Button>
           </>
         )}
