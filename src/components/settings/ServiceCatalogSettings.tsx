@@ -133,7 +133,7 @@ export function ServiceCatalogSettings() {
     if (!priceChangeDialog) return;
     const { serviceId, oldPrice, newPrice } = priceChangeDialog;
 
-    const fieldLabel = priceChangeDialog.field === "discipline_fee" ? "Discipline Fee" : "Base Price";
+    const fieldLabel = priceChangeDialog.field === "discipline_fee" ? "Work Type Fee" : "Base Price";
     const entry: PriceChangeEntry = {
       old_price: oldPrice,
       new_price: newPrice,
@@ -234,7 +234,7 @@ export function ServiceCatalogSettings() {
                      <TableHead className="w-[6%]">Hours</TableHead>
                      <TableHead className="w-[7%]">Multiplier</TableHead>
                      <TableHead className="w-[6%]">Weight</TableHead>
-                     <TableHead className="w-[13%]">Per Discipline</TableHead>
+                     <TableHead className="w-[13%]">Per Work Type</TableHead>
                      <TableHead className="w-[10%]" />
                    </TableRow>
                 </TableHeader>
@@ -394,7 +394,7 @@ export function ServiceCatalogSettings() {
                                   setServices(services.map(s => s.id === service.id ? { ...s, discipline_fee: parseFloat(e.target.value) || 0 } : s));
                                 }}
                                 onBlur={(e) => handlePriceBlur(service.id, e.target.value, "discipline_fee")}
-                                placeholder="$/disc"
+                                placeholder="$/wt"
                                 className="h-8 text-sm w-20"
                               />
                             )}
@@ -652,7 +652,7 @@ export function ServiceCatalogSettings() {
                     <TooltipTrigger asChild>
                       <Label className="cursor-help inline-flex items-center gap-1">Multiplier <span className="text-muted-foreground text-xs">ⓘ</span></Label>
                     </TooltipTrigger>
-                    <TooltipContent><p className="text-xs max-w-[220px]">Scales the base price when a service applies to multiple items. E.g., if base price is $500 and multiplier is 1.5 with 3 disciplines, the total adjusts accordingly. Set to 0 or leave blank if not applicable.</p></TooltipContent>
+                    <TooltipContent><p className="text-xs max-w-[220px]">Scales the base price when a service applies to multiple items. E.g., if base price is $500 and multiplier is 1.5 with 3 work types, the total adjusts accordingly. Set to 0 or leave blank if not applicable.</p></TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
                 <Input
