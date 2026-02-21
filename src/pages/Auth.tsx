@@ -423,23 +423,19 @@ export default function Auth() {
                   {isLoading ? "Signing in..." : "Continue with Google"}
                 </Button>
 
-                {/* Dev bypass — only visible in preview/localhost */}
-                {(window.location.hostname.includes("preview") || window.location.hostname === "localhost") && (
-                  <>
-                    <div className="relative my-4">
-                      <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
-                      <div className="relative flex justify-center text-xs"><span className="bg-background px-2 text-muted-foreground">dev only</span></div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="w-full h-10"
-                      onClick={() => navigate("/dashboard")}
-                    >
-                      ⚡ Skip to Dashboard (Preview)
-                    </Button>
-                  </>
-                )}
+                {/* Dev bypass — skip auth for preview testing */}
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+                  <div className="relative flex justify-center text-xs"><span className="bg-background px-2 text-muted-foreground">dev only</span></div>
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full h-10"
+                  onClick={() => navigate("/dashboard")}
+                >
+                  ⚡ Skip to Dashboard (Preview)
+                </Button>
 
                 <div className="mt-6 text-center">
                   <p className="text-xs text-muted-foreground">
