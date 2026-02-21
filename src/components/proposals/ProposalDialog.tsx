@@ -101,6 +101,7 @@ const proposalSchema = z.object({
   terms_conditions: z.string().optional(),
   lead_source: z.string().optional(),
   referred_by: z.string().optional(),
+  referred_by_person: z.string().optional(),
   project_type: z.string().optional(),
   sales_person_id: z.string().optional(),
   billed_to_name: z.string().optional(),
@@ -623,7 +624,7 @@ export function ProposalDialog({
       deposit_required: undefined, deposit_percentage: undefined,
       valid_until: "", client_id: "", client_name: "", client_email: "",
       assigned_pm_id: "",
-       notes: "", terms_conditions: defaultTerms, lead_source: "", referred_by: "",
+       notes: "", terms_conditions: defaultTerms, lead_source: "", referred_by: "", referred_by_person: "",
       project_type: "", sales_person_id: "", billed_to_name: "",
       billed_to_email: "", reminder_date: "", notable: false,
       architect_company: "", architect_name: "", architect_phone: "", architect_email: "",
@@ -672,7 +673,7 @@ export function ProposalDialog({
         assigned_pm_id: p.assigned_pm_id || "",
         notes: proposalWithItems.notes || "",
         terms_conditions: p.terms_conditions || defaultTerms,
-        lead_source: p.lead_source || "", referred_by: (p as any).referred_by || "", project_type: p.project_type || "",
+        lead_source: p.lead_source || "", referred_by: (p as any).referred_by || "", referred_by_person: (p as any).referred_by_person || "", project_type: p.project_type || "",
         sales_person_id: p.sales_person_id || "", billed_to_name: p.billed_to_name || "",
         billed_to_email: p.billed_to_email || "", reminder_date: p.reminder_date || "",
         notable: p.notable || false,
@@ -702,7 +703,7 @@ export function ProposalDialog({
         deposit_required: undefined, deposit_percentage: undefined,
         valid_until: "", client_id: "", client_name: "", client_email: "",
         assigned_pm_id: "",
-       notes: "", terms_conditions: defaultTerms, lead_source: "", referred_by: "",
+       notes: "", terms_conditions: defaultTerms, lead_source: "", referred_by: "", referred_by_person: "",
         project_type: "", sales_person_id: "", billed_to_name: "",
         billed_to_email: "", reminder_date: "", notable: false,
         architect_company: "", architect_name: "", architect_phone: "", architect_email: "",
@@ -825,6 +826,7 @@ export function ProposalDialog({
         terms_conditions: data.terms_conditions || null,
         lead_source: data.lead_source || null,
         referred_by: data.referred_by || null,
+        referred_by_person: data.referred_by_person || null,
         project_type: data.project_type || null,
         sales_person_id: data.sales_person_id || null,
         billed_to_name: data.billed_to_name || null,
@@ -1134,13 +1136,23 @@ export function ProposalDialog({
                     </Select>
                   </div>
                   {form.watch("lead_source")?.toLowerCase().includes("referral") && (
-                    <div className="space-y-1 col-span-2">
-                      <Label className="text-xs text-muted-foreground">Referred By</Label>
-                      <ReferredByCombobox
-                        value={form.watch("referred_by") || ""}
-                        onChange={(v) => form.setValue("referred_by", v)}
-                      />
-                    </div>
+                    <>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Referred By (Company)</Label>
+                        <ReferredByCombobox
+                          value={form.watch("referred_by") || ""}
+                          onChange={(v) => form.setValue("referred_by", v)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Referred By (Person)</Label>
+                        <Input
+                          className="h-9 text-sm"
+                          placeholder="Contact name (optional)"
+                          {...form.register("referred_by_person")}
+                        />
+                      </div>
+                    </>
                   )}
                 </div>
 
