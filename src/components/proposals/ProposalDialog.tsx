@@ -289,14 +289,12 @@ function ServiceLineItem({
             <div><Label className="text-xs text-muted-foreground mb-1 block">Line Total</Label><div className="h-8 flex items-center text-sm font-semibold">{formatCurrency(lineTotal)}</div></div>
           </div>
 
-          {/* Discipline / Work Type Pricing */}
+          {/* Work Types / Disciplines */}
           {(() => {
             const disciplineFee = Number(form.watch(`items.${index}.discipline_fee`)) || 0;
             const selectedDisciplines: string[] = form.watch(`items.${index}.disciplines`) || [];
             const catalogMatch = serviceCatalog.find(s => s.name === currentName);
             const hasDisciplinePricing = disciplineFee > 0 || catalogMatch?.has_discipline_pricing;
-
-            if (!hasDisciplinePricing) return null;
 
             const toggleDiscipline = (d: string) => {
               const current = [...selectedDisciplines];
@@ -310,18 +308,25 @@ function ServiceLineItem({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-muted-foreground">Work Types / Disciplines</Label>
-                  <span className="text-xs text-muted-foreground">
-                    {selectedDisciplines.length} selected · {formatCurrency(disciplineFee)}/discipline
-                  </span>
+                  {hasDisciplinePricing && (
+                    <span className="text-xs text-muted-foreground">
+                      {selectedDisciplines.length} selected · {formatCurrency(disciplineFee)}/discipline
+                    </span>
+                  )}
+                  {!hasDisciplinePricing && selectedDisciplines.length > 0 && (
+                    <span className="text-xs text-muted-foreground">{selectedDisciplines.length} selected</span>
+                  )}
                 </div>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <Label className="text-xs text-muted-foreground shrink-0">Fee per discipline</Label>
-                  <Input
-                    type="number" min="0" step="0.01" className="h-7 text-sm w-24"
-                    value={disciplineFee || ""}
-                    onChange={(e) => form.setValue(`items.${index}.discipline_fee`, parseFloat(e.target.value) || 0)}
-                  />
-                </div>
+                {hasDisciplinePricing && (
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Label className="text-xs text-muted-foreground shrink-0">Fee per discipline</Label>
+                    <Input
+                      type="number" min="0" step="0.01" className="h-7 text-sm w-24"
+                      value={disciplineFee || ""}
+                      onChange={(e) => form.setValue(`items.${index}.discipline_fee`, parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                )}
                 <div className="grid grid-cols-3 gap-1.5">
                   {WORK_TYPE_DISCIPLINES.map((d) => (
                     <label key={d} className="flex items-center gap-1.5 cursor-pointer text-xs py-1 px-2 rounded hover:bg-muted/50 transition-colors">
@@ -334,7 +339,7 @@ function ServiceLineItem({
                     </label>
                   ))}
                 </div>
-                {selectedDisciplines.length > 0 && (
+                {hasDisciplinePricing && selectedDisciplines.length > 0 && (
                   <p className="text-xs text-muted-foreground">
                     Base {formatCurrency(Number(form.watch(`items.${index}.unit_price`)) || 0)} + {selectedDisciplines.length} × {formatCurrency(disciplineFee)} = {formatCurrency((Number(form.watch(`items.${index}.unit_price`)) || 0) + selectedDisciplines.length * disciplineFee)}
                   </p>
