@@ -18,9 +18,15 @@ export function LoadingScreen() {
 // Protected route wrapper - requires auth AND profile
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading, hasProfile } = useAuth();
+  const isPreview = typeof window !== "undefined" && (window.location.hostname.includes("preview") || window.location.hostname === "localhost");
 
   if (loading) {
     return <LoadingScreen />;
+  }
+
+  // In preview/dev, allow bypass without auth
+  if (!user && isPreview) {
+    return <>{children}</>;
   }
 
   if (!user) {

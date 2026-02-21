@@ -423,37 +423,21 @@ export default function Auth() {
                   {isLoading ? "Signing in..." : "Continue with Google"}
                 </Button>
 
-                {/* Dev login bypass — only visible in preview/localhost */}
+                {/* Dev bypass — only visible in preview/localhost */}
                 {(window.location.hostname.includes("preview") || window.location.hostname === "localhost") && (
                   <>
                     <div className="relative my-4">
                       <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
-                      <div className="relative flex justify-center text-xs"><span className="bg-background px-2 text-muted-foreground">or dev login</span></div>
+                      <div className="relative flex justify-center text-xs"><span className="bg-background px-2 text-muted-foreground">dev only</span></div>
                     </div>
-                    <form
-                      className="space-y-3"
-                      onSubmit={async (e) => {
-                        e.preventDefault();
-                        const fd = new FormData(e.currentTarget);
-                        setIsLoading(true);
-                        try {
-                          const { error } = await signIn(fd.get("email") as string, fd.get("password") as string);
-                          if (error) {
-                            toast({ title: "Login failed", description: error.message, variant: "destructive" });
-                          } else {
-                            navigate("/dashboard");
-                          }
-                        } finally {
-                          setIsLoading(false);
-                        }
-                      }}
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="w-full h-10"
+                      onClick={() => navigate("/dashboard")}
                     >
-                      <Input name="email" type="email" placeholder="Email" className="h-10" required />
-                      <Input name="password" type="password" placeholder="Password" className="h-10" required />
-                      <Button type="submit" className="w-full h-10" disabled={isLoading}>
-                        {isLoading ? "Signing in..." : "Dev Sign In"}
-                      </Button>
-                    </form>
+                      ⚡ Skip to Dashboard (Preview)
+                    </Button>
                   </>
                 )}
 
