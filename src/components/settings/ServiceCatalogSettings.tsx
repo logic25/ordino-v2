@@ -472,7 +472,31 @@ export function ServiceCatalogSettings() {
         </CardContent>
       </Card>
 
-      {/* Save Button */}
+      {/* Sticky Save Bar */}
+      {(() => {
+        const savedCatalog = companyData?.settings?.service_catalog || [];
+        const isDirty = JSON.stringify(services.filter(s => s.name.trim())) !== JSON.stringify(savedCatalog) ||
+          defaultTerms !== (companyData?.settings?.default_terms || "");
+        if (!isDirty) return null;
+        return (
+          <div className="sticky bottom-0 z-10 bg-background border-t py-3 px-4 flex items-center justify-between rounded-lg shadow-lg -mx-2">
+            <p className="text-sm text-muted-foreground">You have unsaved changes</p>
+            <Button
+              onClick={handleSave}
+              disabled={updateSettings.isPending}
+              className="bg-accent text-accent-foreground hover:bg-accent/90"
+            >
+              {updateSettings.isPending ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</>
+              ) : (
+                <><Save className="mr-2 h-4 w-4" />Save Settings</>
+              )}
+            </Button>
+          </div>
+        );
+      })()}
+
+      {/* Save Button (always visible) */}
       <div className="flex justify-end">
         <Button
           onClick={handleSave}

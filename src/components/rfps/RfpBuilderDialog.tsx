@@ -457,7 +457,7 @@ function StepEditContent({
                   <div className="border-t px-4 py-3 space-y-3 bg-muted/10">
                     {items.length === 0 ? (
                       <p className="text-xs text-muted-foreground italic">
-                        No content yet. Add items in the Content Library.
+                        No content yet. Use the button below to add items.
                       </p>
                     ) : (
                       <ScrollArea className="max-h-[200px]">
@@ -469,15 +469,17 @@ function StepEditContent({
                       </ScrollArea>
                     )}
                     {def.libraryTab && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full text-xs"
-                        onClick={() => onGoToLibrary(def.libraryTab)}
-                      >
-                        <ExternalLink className="h-3 w-3 mr-1.5" />
-                        Edit in Content Library
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 text-xs"
+                          onClick={() => onGoToLibrary(def.libraryTab)}
+                        >
+                          <ExternalLink className="h-3 w-3 mr-1.5" />
+                          Open Content Library
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </CollapsibleContent>

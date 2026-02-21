@@ -172,6 +172,44 @@ export default function ProjectDetail() {
   // Real change orders
   const { data: realChangeOrders = [] } = useChangeOrders(project?.id);
 
+  // Real time entries from activities table
+  const { data: realTimeEntries = [] } = useQuery({
+    queryKey: ["project-time-entries", project?.id],
+    enabled: !!project?.id,
+    queryFn: async () => {
+      // Get application IDs for this project
+      const { data: apps } = await supabase
+        .from("dob_applications")
+        .select("id")
+        .eq("project_id", project!.id);
+      const appIds = (apps || []).map(a => a.id);
+
+      let query = supabase
+        .from("activities")
+        .select("id, activity_date, description, duration_minutes, user:profiles!activities_user_id_fkey(first_name, last_name, display_name), service:services!activities_service_id_fkey(name)")
+        .eq("company_id", project!.company_id)
+        .order("activity_date", { ascending: false });
+
+      if (appIds.length > 0) {
+        query = query.in("application_id", appIds);
+      } else {
+        // No apps = no time entries for this project
+        return [] as MockTimeEntry[];
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data || []).map((a: any) => ({
+        id: a.id,
+        date: a.activity_date ? format(new Date(a.activity_date), "MM/dd/yyyy") : "—",
+        user: a.user?.display_name || [a.user?.first_name, a.user?.last_name].filter(Boolean).join(" ") || "Unknown",
+        service: a.service?.name || "General",
+        description: a.description || "",
+        hours: (a.duration_minutes || 0) / 60,
+      })) as MockTimeEntry[];
+    },
+  });
+
   // Must be before any early returns (Rules of Hooks)
   const createCO = useCreateChangeOrder();
 
@@ -205,7 +243,7 @@ export default function ProjectDetail() {
   const changeOrders = realChangeOrders;
   const emails: MockEmail[] = [];
   const documents: MockDocument[] = realDocuments;
-  const timeEntries: MockTimeEntry[] = [];
+  const timeEntries: MockTimeEntry[] = realTimeEntries;
   const pisStatus: MockPISStatus = realPISStatus || { sentDate: null, totalFields: 0, completedFields: 0, missingFields: [] };
 
   const approvedCOs = changeOrders.filter(co => co.status === "approved").reduce((s, co) => s + Number(co.amount), 0);
@@ -422,7 +460,7 @@ export default function ProjectDetail() {
                 <TimelineFull milestones={milestones} />
               </TabsContent>
               <TabsContent value="documents" className="mt-0">
-                <DocumentsFull documents={documents} />
+                <DocumentsFull documents={documents} projectId={project.id} companyId={project.company_id} />
               </TabsContent>
               <TabsContent value="time-logs" className="mt-0">
                 <TimeLogsFull timeEntries={timeEntries} services={liveServices} />
@@ -482,7 +520,7 @@ export default function ProjectDetail() {
             ...data,
             project_id: project.id,
             company_id: project.company_id,
-            status: asDraft ? "draft" : "draft",
+            status: asDraft ? "draft" : "pending_client",
           });
           setCoDialogOpen(false);
         }}
@@ -1804,11 +1842,45 @@ function TimelineFull({ milestones }: { milestones: MockMilestone[] }) {
 
 // ======== DOCUMENTS (Universal Documents style) ========
 
-function DocumentsFull({ documents }: { documents: MockDocument[] }) {
+function DocumentsFull({ documents, projectId, companyId }: { documents: MockDocument[]; projectId?: string; companyId?: string }) {
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
   const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useState<HTMLInputElement | null>(null);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !projectId || !companyId) return;
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `${companyId}/${crypto.randomUUID()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("universal-documents").upload(path, file);
+      if (uploadError) throw uploadError;
+      const { error } = await supabase.from("universal_documents").insert({
+        company_id: companyId,
+        title: file.name.replace(/\.[^/.]+$/, ""),
+        category: "general",
+        filename: file.name,
+        storage_path: path,
+        mime_type: file.type || null,
+        size_bytes: file.size,
+        tags: [],
+        metadata: { project_id: projectId },
+      } as any);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["project-documents"] });
+      toast({ title: "Uploaded", description: `${file.name} uploaded successfully.` });
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+      if (e.target) e.target.value = "";
+    }
+  };
 
   const loadDocBlob = async (doc: MockDocument): Promise<Blob | null> => {
     const storagePathKey = doc.storage_path;
@@ -1885,9 +1957,12 @@ function DocumentsFull({ documents }: { documents: MockDocument[] }) {
             ))}
           </SelectContent>
         </Select>
-        <Button size="sm" className="gap-1.5 ml-auto" onClick={() => toast({ title: "Upload", description: "Upload dialog would open." })}>
-          <Upload className="h-3.5 w-3.5" /> Upload
-        </Button>
+        <div className="ml-auto">
+          <input type="file" className="hidden" id="doc-upload-input" onChange={handleUpload} />
+          <Button size="sm" className="gap-1.5" disabled={uploading} onClick={() => document.getElementById("doc-upload-input")?.click()}>
+            {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} {uploading ? "Uploading…" : "Upload"}
+          </Button>
+        </div>
       </div>
 
       {filtered.length === 0 ? (

@@ -231,6 +231,11 @@ export default function Auth() {
               <span>⚡ Works offline</span>
             </div>
           </div>
+          <div className="pt-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sidebar-primary/15 text-sidebar-primary text-xs font-medium tracking-wide">
+              ✦ Powered by AI
+            </span>
+          </div>
         </div>
 
         <p className="text-sidebar-foreground/40 text-sm">
