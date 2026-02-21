@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/emails/RichTextEditor";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Trash2, Loader2, Save, Package, History, Search } from "lucide-react";
 import {
@@ -414,13 +415,11 @@ export function ServiceCatalogSettings() {
                         <TableRow>
                           <TableCell colSpan={8} className="bg-muted/30 border-t-0 pt-0 pb-3">
                             <div className="space-y-1.5 pl-5">
-                              <Label className="text-xs text-muted-foreground">Scope Description</Label>
-                              <Textarea
-                                value={service.description || ""}
-                                onChange={(e) => updateService(service.id, "description", e.target.value)}
-                                placeholder="Enter a detailed scope description for this service..."
-                                className="min-h-[120px] text-sm resize-y leading-relaxed"
-                                rows={5}
+                              <Label className="text-xs text-muted-foreground">Description</Label>
+                              <RichTextEditor
+                                content={service.description || ""}
+                                onChange={(html) => updateService(service.id, "description", html)}
+                                placeholder="Enter a detailed description for this service..."
                               />
                             </div>
                           </TableCell>
@@ -592,14 +591,12 @@ export function ServiceCatalogSettings() {
             </div>
             <div className="space-y-2">
               <Label>Description</Label>
-              <Textarea
-                value={newService.description || ""}
-                onChange={(e) => setNewService({ ...newService, description: e.target.value })}
-                placeholder="Service description / scope — supports multiple lines"
-                className="min-h-[80px] resize-y leading-relaxed whitespace-pre-wrap"
-                rows={3}
+              <RichTextEditor
+                content={newService.description || ""}
+                onChange={(html) => setNewService({ ...newService, description: html })}
+                placeholder="Service description / scope..."
               />
-              <p className="text-xs text-muted-foreground">Use line breaks to format scope items. This text appears on proposals.</p>
+              <p className="text-xs text-muted-foreground">Use the toolbar to format scope items. This text appears on proposals.</p>
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-2">
