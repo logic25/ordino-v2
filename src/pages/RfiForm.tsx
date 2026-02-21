@@ -170,7 +170,7 @@ export default function RfiForm() {
 
   const sections = useMemo(() => {
     const baseSections = rfi?.sections || [];
-    return baseSections;
+    return baseSections.length > 0 ? baseSections : DEFAULT_PIS_SECTIONS;
   }, [rfi]);
   const totalSteps = sections.length;
   const isReviewStep = currentStep === totalSteps; // review is one past the last section
