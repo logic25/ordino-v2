@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -12,17 +12,23 @@ import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Loader2, GitBranch } from "lucide-react";
+import { Loader2, GitBranch, Search, X, Plus } from "lucide-react";
 import type { ChangeOrder, ChangeOrderFormInput } from "@/hooks/useChangeOrders";
 import { useTelemetry } from "@/hooks/useTelemetry";
+import { useCompanySettings, type ServiceCatalogItem } from "@/hooks/useCompanySettings";
+import { formatCurrency } from "@/lib/utils";
+
+interface COServiceLine {
+  id: string;
+  name: string;
+  amount: number;
+  description?: string;
+}
 
 const schema = z.object({
   title: z.string().min(1, "Title is required"),
-  description: z.string().optional(),
   reason: z.string().optional(),
-  amount: z.string().min(1, "Amount is required"),
   requested_by: z.string().optional(),
-  linked_service_names: z.string().optional(), // comma-separated
   notes: z.string().optional(),
 });
 
@@ -43,20 +49,18 @@ export function ChangeOrderDialog({
   onSubmit,
   isLoading,
   existingCO,
-  serviceNames = [],
 }: ChangeOrderDialogProps) {
   const { track } = useTelemetry();
+  const { data: companySettings } = useCompanySettings();
+  const catalog: ServiceCatalogItem[] = companySettings?.settings?.service_catalog || [];
+
+  const [serviceLines, setServiceLines] = useState<COServiceLine[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      title: "",
-      description: "",
-      reason: "",
-      amount: "",
-      requested_by: "",
-      linked_service_names: "",
-      notes: "",
-    },
+    defaultValues: { title: "", reason: "", requested_by: "", notes: "" },
   });
 
   useEffect(() => {
@@ -64,49 +68,84 @@ export function ChangeOrderDialog({
       if (existingCO) {
         form.reset({
           title: existingCO.title,
-          description: existingCO.description ?? "",
           reason: existingCO.reason ?? "",
-          amount: String(existingCO.amount),
           requested_by: existingCO.requested_by ?? "",
-          linked_service_names: (existingCO.linked_service_names ?? []).join(", "),
           notes: existingCO.notes ?? "",
         });
+        // Restore service lines from linked_service_names + amount
+        const names = existingCO.linked_service_names || [];
+        if (names.length > 0) {
+          const perService = existingCO.amount / names.length;
+          setServiceLines(names.map((n, i) => ({ id: `existing-${i}`, name: n, amount: perService, description: existingCO.description || "" })));
+        } else {
+          setServiceLines(existingCO.amount !== 0
+            ? [{ id: "existing-0", name: existingCO.description || "Service", amount: existingCO.amount }]
+            : []);
+        }
       } else {
-        form.reset({
-          title: "",
-          description: "",
-          reason: "",
-          amount: "",
-          requested_by: "",
-          linked_service_names: "",
-          notes: "",
-        });
+        form.reset({ title: "", reason: "", requested_by: "", notes: "" });
+        setServiceLines([]);
       }
+      setSearchTerm("");
+      setShowSearch(false);
     }
   }, [open, existingCO]);
 
-  const handleSubmit = async (values: FormValues, asDraft: boolean) => {
-    const amountNum = parseFloat(values.amount.replace(/[^0-9.-]/g, ""));
-    const linkedServices = values.linked_service_names
-      ? values.linked_service_names.split(",").map(s => s.trim()).filter(Boolean)
-      : [];
+  const totalAmount = serviceLines.reduce((s, l) => s + l.amount, 0);
 
+  const filteredCatalog = useMemo(() => {
+    if (!searchTerm.trim()) return catalog.slice(0, 20);
+    const term = searchTerm.toLowerCase();
+    return catalog.filter(s => s.name.toLowerCase().includes(term) || (s.description || "").toLowerCase().includes(term)).slice(0, 20);
+  }, [catalog, searchTerm]);
+
+  const addServiceFromCatalog = (svc: ServiceCatalogItem) => {
+    setServiceLines(prev => [...prev, {
+      id: svc.id,
+      name: svc.name,
+      amount: svc.default_price || 0,
+      description: svc.description,
+    }]);
+    setSearchTerm("");
+    setShowSearch(false);
+  };
+
+  const addCustomService = () => {
+    setServiceLines(prev => [...prev, {
+      id: `custom-${Date.now()}`,
+      name: searchTerm.trim() || "Custom Service",
+      amount: 0,
+    }]);
+    setSearchTerm("");
+    setShowSearch(false);
+  };
+
+  const removeService = (id: string) => {
+    setServiceLines(prev => prev.filter(l => l.id !== id));
+  };
+
+  const updateServiceAmount = (id: string, val: string) => {
+    const num = parseFloat(val.replace(/[^0-9.-]/g, "")) || 0;
+    setServiceLines(prev => prev.map(l => l.id === id ? { ...l, amount: num } : l));
+  };
+
+  const handleSubmit = async (values: FormValues, asDraft: boolean) => {
     track("projects", "co_create_completed", { as_draft: asDraft, is_edit: !!existingCO });
 
     await onSubmit({
       title: values.title,
-      description: values.description || undefined,
+      description: serviceLines.map(s => s.name).join(", "),
       reason: values.reason || undefined,
-      amount: isNaN(amountNum) ? 0 : amountNum,
+      amount: totalAmount,
       requested_by: values.requested_by || undefined,
-      linked_service_names: linkedServices,
+      linked_service_names: serviceLines.map(s => s.name),
       notes: values.notes || undefined,
     }, asDraft);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[560px]">
+      <DialogContent className="sm:max-w-[620px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <GitBranch className="h-5 w-5" />
@@ -133,15 +172,100 @@ export function ChangeOrderDialog({
             )}
           </div>
 
-          {/* Description */}
-          <div className="space-y-1.5">
-            <Label htmlFor="co-description">Scope / Description</Label>
-            <Textarea
-              id="co-description"
-              placeholder="What work is being added or changed?"
-              className="min-h-[80px] text-sm"
-              {...form.register("description")}
-            />
+          {/* Services Section */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Services *</Label>
+              <span className="text-sm font-semibold tabular-nums">
+                Total: {formatCurrency(totalAmount)}
+              </span>
+            </div>
+
+            {/* Added services */}
+            {serviceLines.length > 0 && (
+              <div className="space-y-2">
+                {serviceLines.map((line) => (
+                  <div key={line.id} className="flex items-center gap-2 p-2.5 rounded-lg border bg-muted/20">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{line.name}</div>
+                      {line.description && (
+                        <div className="text-xs text-muted-foreground truncate">{line.description}</div>
+                      )}
+                    </div>
+                    <div className="w-28 shrink-0">
+                      <Input
+                        className="text-right text-sm h-8"
+                        placeholder="$0"
+                        value={line.amount !== 0 ? line.amount.toLocaleString("en-US") : ""}
+                        onChange={(e) => updateServiceAmount(line.id, e.target.value)}
+                      />
+                    </div>
+                    <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" onClick={() => removeService(line.id)}>
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Search / Add service */}
+            {showSearch ? (
+              <div className="border rounded-lg overflow-hidden">
+                <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/20">
+                  <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <input
+                    className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                    placeholder="Search service catalog..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    autoFocus
+                  />
+                  <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => { setShowSearch(false); setSearchTerm(""); }}>
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+                <div className="max-h-48 overflow-y-auto divide-y">
+                  {filteredCatalog.map((svc) => (
+                    <button
+                      key={svc.id}
+                      type="button"
+                      className="w-full text-left px-3 py-2 hover:bg-muted/50 transition-colors"
+                      onClick={() => addServiceFromCatalog(svc)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">{svc.name}</span>
+                        {svc.default_price != null && (
+                          <span className="text-xs text-muted-foreground">{formatCurrency(svc.default_price)}</span>
+                        )}
+                      </div>
+                      {svc.description && (
+                        <div className="text-xs text-muted-foreground truncate">{svc.description}</div>
+                      )}
+                    </button>
+                  ))}
+                  {filteredCatalog.length === 0 && (
+                    <div className="px-3 py-3 text-center text-sm text-muted-foreground">No matching services</div>
+                  )}
+                  {searchTerm.trim() && (
+                    <button
+                      type="button"
+                      className="w-full text-left px-3 py-2 hover:bg-muted/50 transition-colors text-sm text-primary flex items-center gap-1.5"
+                      onClick={addCustomService}
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Add "{searchTerm.trim()}" as custom service
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <Button type="button" variant="outline" size="sm" className="gap-1.5 w-full" onClick={() => setShowSearch(true)}>
+                <Plus className="h-3.5 w-3.5" /> Add Service
+              </Button>
+            )}
+
+            {serviceLines.length === 0 && !showSearch && (
+              <p className="text-xs text-muted-foreground">Add at least one service to define the CO scope and amount.</p>
+            )}
           </div>
 
           {/* Reason */}
@@ -155,81 +279,25 @@ export function ChangeOrderDialog({
             />
           </div>
 
-          {/* Amount + Requested By (side by side) */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="co-amount">Amount * (use negative for credits)</Label>
-              <Input
-                id="co-amount"
-                placeholder="e.g. 1,500 or -500"
-                value={(() => {
-                  const raw = form.watch("amount") || "";
-                  const num = parseFloat(raw.replace(/[^0-9.-]/g, ""));
-                  if (isNaN(num) || raw === "" || raw === "-") return raw;
-                  return num.toLocaleString("en-US");
-                })()}
-                onChange={(e) => {
-                  const cleaned = e.target.value.replace(/[^0-9.,-]/g, "");
-                  form.setValue("amount", cleaned.replace(/,/g, ""));
-                }}
-              />
-              {form.formState.errors.amount && (
-                <p className="text-xs text-destructive">{form.formState.errors.amount.message}</p>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="co-requested-by">Requested By</Label>
-              <Select
-                value={form.watch("requested_by") || ""}
-                onValueChange={(v) => form.setValue("requested_by", v)}
-              >
-                <SelectTrigger id="co-requested-by">
-                  <SelectValue placeholder="Select..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Client">Client</SelectItem>
-                  <SelectItem value="Internal">Internal</SelectItem>
-                  <SelectItem value="GC">General Contractor</SelectItem>
-                  <SelectItem value="Architect">Architect</SelectItem>
-                  <SelectItem value="Engineer">Engineer</SelectItem>
-                  <SelectItem value="DOB">DOB / Agency</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Linked Services */}
+          {/* Requested By */}
           <div className="space-y-1.5">
-            <Label htmlFor="co-services">Linked Services</Label>
-            {serviceNames.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {serviceNames.map((sn) => {
-                  const current = (form.watch("linked_service_names") || "").split(",").map(s => s.trim()).filter(Boolean);
-                  const isSelected = current.includes(sn);
-                  return (
-                    <button
-                      key={sn}
-                      type="button"
-                      onClick={() => {
-                        const next = isSelected
-                          ? current.filter(s => s !== sn)
-                          : [...current, sn];
-                        form.setValue("linked_service_names", next.join(", "));
-                      }}
-                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                        isSelected
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-muted hover:bg-muted/80 border-border text-muted-foreground"
-                      }`}
-                    >
-                      {sn}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground italic">No services on this project yet. Add services first to link them.</p>
-            )}
+            <Label htmlFor="co-requested-by">Requested By</Label>
+            <Select
+              value={form.watch("requested_by") || ""}
+              onValueChange={(v) => form.setValue("requested_by", v)}
+            >
+              <SelectTrigger id="co-requested-by">
+                <SelectValue placeholder="Select..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Client">Client</SelectItem>
+                <SelectItem value="Internal">Internal</SelectItem>
+                <SelectItem value="GC">General Contractor</SelectItem>
+                <SelectItem value="Architect">Architect</SelectItem>
+                <SelectItem value="Engineer">Engineer</SelectItem>
+                <SelectItem value="DOB">DOB / Agency</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Notes */}
@@ -245,11 +313,7 @@ export function ChangeOrderDialog({
         </form>
 
         <DialogFooter className="gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-          >
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
@@ -262,7 +326,7 @@ export function ChangeOrderDialog({
           </Button>
           <Button
             type="button"
-            disabled={isLoading}
+            disabled={isLoading || serviceLines.length === 0}
             onClick={form.handleSubmit((v) => handleSubmit(v, false))}
           >
             {isLoading ? (
