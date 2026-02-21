@@ -222,11 +222,7 @@ export function ClientTable({
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => onView(client)}>
                           <Eye className="h-4 w-4 mr-2" />
-                          View
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onEdit(client)}>
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit
+                          View / Edit
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
