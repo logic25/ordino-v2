@@ -1,128 +1,89 @@
 
-# Unified Google-Only Login + Auto Gmail Connection
 
-## Goal
+# Chris's Feedback: Implementation + Status Email
 
-Replace the current two-step process (sign in → separately connect Gmail) with a single flow: clicking "Continue with Google" logs the user in AND connects their Gmail inbox simultaneously, using your own Google Cloud credentials (`GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET`).
+## Summary
 
-## Why This Works End-to-End
+We will fix all bugs and UX issues from Chris's feedback, then compose a professional email to Chris documenting every item and its resolution. The work is broken into 3 phases.
 
-Your Google Cloud project already has:
-- `GMAIL_CLIENT_ID` and `GMAIL_CLIENT_SECRET` stored as secrets
-- The `gmail-auth` edge function using those credentials to do the Gmail OAuth flow
+---
 
-The plan switches the login button to use those same credentials via Supabase's native Google OAuth, requesting Gmail scopes at login time. The `provider_token` (Gmail access token) is returned directly in the session, eliminating the need for a separate Gmail consent screen entirely.
+## Phase 1: Bug Fixes (Critical)
 
-## Manual Step You Need to Do First (One-Time)
+### 1. Contact name not pre-populated in Add Contact dialog
+- **File**: `src/components/proposals/ProposalContactsSection.tsx` -- update `ContactPicker.onAddNew` to pass the current `search` text
+- **File**: `src/components/clients/AddContactDialog.tsx` -- add a `defaultName` prop that pre-fills `first_name` on open
 
-Before the code changes are applied, you need to configure the Google Cloud Console. In your **Google Cloud Console → OAuth Client → Authorized redirect URIs**, add this URI:
+### 2. Newly created contact doesn't appear in the Contact dropdown
+- **File**: `src/components/proposals/ProposalContactsSection.tsx` -- after `onContactCreated` fires, manually append the new contact to the `ContactPicker`'s local `contacts` state (add a refresh key or callback)
 
-```
-https://mimlfjkisguktiqqkpkm.supabase.co/auth/v1/callback
-```
+### 3. Change Order creation always saves as "draft"
+- **File**: `src/pages/ProjectDetail.tsx` line 485 -- change `status: asDraft ? "draft" : "draft"` to `status: asDraft ? "draft" : "pending"`
 
-Keep the existing `/emails` URI — it can stay there, it won't conflict. Do NOT remove any existing URIs.
+### 4. Upload button in project Docs tab is a placeholder
+- **File**: `src/pages/ProjectDetail.tsx` line 1888 -- replace the toast with a hidden file input that uploads to the `universal-documents` storage bucket and inserts a row into `universal_documents`
 
-Then in **Lovable Cloud → Authentication Settings → Sign In Methods → Google**, switch from "Managed" to "Custom credentials" and enter your `GMAIL_CLIENT_ID` and `GMAIL_CLIENT_SECRET`.
+### 5. Time logged in Time page doesn't show in project detail
+- **File**: `src/pages/ProjectDetail.tsx` line 208 -- replace hardcoded `timeEntries: MockTimeEntry[] = []` with a real query to the `activities` table filtered by the project's application IDs
 
-## What Changes in Code
+---
 
-### 1. `src/pages/Auth.tsx` — Strip down to Google-only
+## Phase 2: UX Improvements
 
-- Remove the Apple sign-in button entirely
-- Remove the email/password form, the divider, and the "Forgot password" link from the main login view
-- The password reset view (`isPasswordReset`) is kept intact and hidden — reachable only via a direct email reset link for any legacy users
-- Change the Google button to use `supabase.auth.signInWithOAuth` directly (instead of `lovable.auth.signInWithOAuth`) so we can pass Gmail scopes:
+### 6. Service catalog Save button hard to find
+- **File**: `src/components/settings/ServiceCatalogSettings.tsx` -- add a sticky footer save bar that shows when the form is dirty (services differ from saved state), with a "You have unsaved changes" indicator
 
-```typescript
-await supabase.auth.signInWithOAuth({
-  provider: "google",
-  options: {
-    redirectTo: `${window.location.origin}/auth/callback`,
-    scopes: [
-      "https://www.googleapis.com/auth/gmail.readonly",
-      "https://www.googleapis.com/auth/gmail.send",
-      "https://www.googleapis.com/auth/calendar",
-    ].join(" "),
-    queryParams: {
-      prompt: "select_account",
-      access_type: "offline",
-    },
-  },
-});
-```
+### 7. Service descriptions not obvious
+- Add helper text to proposal line items: "Click the row to expand and add a description/scope"
+- Auto-expand the first service line item so the description field is visible
 
-### 2. `src/pages/AuthCallback.tsx` — Auto-store Gmail tokens on first login
+### 8. RFP Builder can't add content from library inline
+- **File**: `src/components/rfps/RfpBuilderDialog.tsx` -- replace the "Edit in Content Library" external link with an inline dialog/sheet that lets users add new content entries directly within the builder
 
-After the `SIGNED_IN` event fires, check the session for `provider_token` and `provider_refresh_token`. If present (meaning it's a Google login with Gmail scopes granted), call a new edge function action `store_provider_tokens` to save them into `gmail_connections`. This means by the time the user hits the dashboard, Gmail is already wired up.
+### 9. Add "Log Time" button within a project
+- **File**: `src/pages/ProjectDetail.tsx` -- add a "Log Time" button in the Time Logs tab that opens `TimeEntryDialog` pre-filled with the project
 
-```typescript
-if (event === "SIGNED_IN" && session) {
-  if (session.provider_token && session.user.app_metadata.provider === "google") {
-    // Silently store Gmail tokens — no extra button needed
-    await supabase.functions.invoke("gmail-auth", {
-      body: {
-        action: "store_provider_tokens",
-        access_token: session.provider_token,
-        refresh_token: session.provider_refresh_token,
-      },
-    });
-  }
-  navigate("/dashboard", { replace: true });
-}
-```
+### 10. Add "Add Contact" button to project Contacts tab
+- **File**: `src/pages/ProjectDetail.tsx` -- add an "Add Contact" button that opens `AddContactDialog` for the project's client
 
-### 3. `supabase/functions/gmail-auth/index.ts` — Add `store_provider_tokens` action
+---
 
-Add a new action handler that accepts an access token + refresh token directly (already exchanged by Supabase) and upserts them into `gmail_connections` — fetching the Gmail email address using the access token to confirm the correct account.
+## Phase 3: Auth Branding
 
-### 4. `src/pages/Emails.tsx` — Simplify the gate
+### 11. Add "Powered by AI" accent to login page
+- **File**: `src/pages/Auth.tsx` -- add a subtle "Powered by AI" pill/badge beneath the tagline, keeping the mobile/offline messaging
 
-Since Google login users will always have Gmail connected after their first sign-in, the gate only needs to remain for edge cases. The existing gate UI can stay as-is — it will just be rarely seen.
+---
 
-## What the Login Screen Looks Like After
+## Phase 4: Status Email to Chris
 
-```text
-┌────────────────────────────────────┐
-│           Welcome back             │
-│  Sign in to access your projects   │
-│                                    │
-│  ┌──────────────────────────────┐  │
-│  │  G   Continue with Google   │  │
-│  └──────────────────────────────┘  │
-└────────────────────────────────────┘
-```
+After all fixes are implemented and verified, compose a professional email to Chris that lists each of his 16 feedback items with:
+- His original question/issue (quoted or paraphrased)
+- The status: **Fixed**, **Improved**, or **By Design** with explanation
+- Brief instructions on how to use the feature if it was unclear
 
-## Complete User Flow After Implementation
+The email will be drafted in the chat for your review before sending.
 
-```text
-User visits app → /auth
-        |
-        v
-Clicks "Continue with Google"
-        |
-        v
-Google consent screen (your credentials)
-Grants: identity + Gmail read/send + Calendar
-(Only shown ONCE — auto-approved on future logins)
-        |
-        v
-Redirects to /auth/callback
-        |
-        v
-AuthCallback stores Gmail tokens automatically
-        |
-        v
-User lands on /dashboard
-Gmail already connected — inbox ready
-```
+---
 
-## Files to Change
+## Items Addressed as "By Design" (explained in email, no code change)
 
-- `src/pages/Auth.tsx` — Google-only UI, switch to `supabase.auth.signInWithOAuth` with Gmail scopes
-- `src/pages/AuthCallback.tsx` — Auto-store `provider_token` into gmail_connections on login
-- `supabase/functions/gmail-auth/index.ts` — Add `store_provider_tokens` action
+| Chris's Question | Response |
+|---|---|
+| "Are none of the services added yet?" | Services come from the catalog in Settings. Type custom names directly, or add to catalog first. |
+| "Where do you enter service descriptions?" | Click the chevron on any line item to expand -- description is inside. |
+| "Is Sign and Send the only way to convert?" | No -- "Mark Approved" also converts to a project for manual approvals. |
+| "Is there going to be an Activities task?" | Yes -- task/activity system within services is in progress. |
+| "Is Billing going to link with QB?" | QBO integration widget exists; once credentials are connected, invoices sync. Without QB, use invoice status workflow. |
+| "I billed a service but don't see it in billing" | "Send to Billing" creates a billing request. Accounting converts it to an invoice, which then appears in Reports. |
+| "Services in my proposal are not searchable in Settings" | By design: catalog = templates, proposal items = instances. We will add a "Save to Catalog" action in a future update. |
 
-## Important Note on Existing Users
+---
 
-Any users currently signed in via email/password will not be affected by the UI change — they'll just see the Google-only screen and need to sign in with Google from that point forward. Since this is an internal tool for a Google Workspace team, this is the intended behavior.
+## Technical Notes
+
+- No database migrations required -- all changes are frontend/UI
+- The document upload uses the existing `universal-documents` storage bucket and `universal_documents` table
+- Time entries query will use the existing `activities` table with project/application filtering
+- The sticky save bar pattern follows standard React dirty-state detection (compare current services array to saved snapshot)
+
