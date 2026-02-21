@@ -317,15 +317,19 @@ export function useRfiByToken(token: string | null) {
         }
       }
 
-      // Fetch existing plan filenames linked to this proposal/project
+      // Fetch existing plan filenames linked to this proposal, project, or property
       let existingPlanNames: string[] = [];
-      const docLookupId = rfi.proposal_id || rfi.project_id;
-      if (docLookupId) {
-        const col = rfi.proposal_id ? "proposal_id" : "project_id";
+      const lookupIds: { col: string; val: string }[] = [];
+      if (rfi.proposal_id) lookupIds.push({ col: "proposal_id", val: rfi.proposal_id });
+      if (rfi.project_id) lookupIds.push({ col: "project_id", val: rfi.project_id });
+      if (rfi.property_id) lookupIds.push({ col: "property_id", val: rfi.property_id });
+
+      for (const { col, val } of lookupIds) {
+        if (existingPlanNames.length > 0) break;
         const { data: planDocs } = await (supabase
           .from("universal_documents") as any)
           .select("filename")
-          .eq(col, docLookupId)
+          .eq(col, val)
           .eq("category", "Plans");
         if (planDocs && planDocs.length > 0) {
           existingPlanNames = planDocs.map((d: any) => d.filename).filter(Boolean);
