@@ -38,6 +38,7 @@ export function ServiceCatalogSettings() {
   const [services, setServices] = useState<ServiceCatalogItem[]>([]);
   const [defaultTerms, setDefaultTerms] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [expandedServiceId, setExpandedServiceId] = useState<string | null>(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newService, setNewService] = useState<Partial<ServiceCatalogItem>>({
     name: "",
@@ -224,8 +225,7 @@ export function ServiceCatalogSettings() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                     <TableHead className="w-[16%]">Name</TableHead>
-                     <TableHead className="w-[16%]">Description</TableHead>
+                    <TableHead className="w-[22%]">Name</TableHead>
                      <TableHead className="w-[8%]">Fee Type</TableHead>
                      <TableHead className="w-[8%]">Base Price</TableHead>
                      <TableHead className="w-[6%]">Hours</TableHead>
@@ -247,23 +247,28 @@ export function ServiceCatalogSettings() {
                     })
                     .map((service) => (
                       <React.Fragment key={service.id}>
-                      <TableRow>
+                      <TableRow
+                        className="cursor-pointer"
+                        onClick={(e) => {
+                          // Don't toggle if clicking an input/select/button
+                          const tag = (e.target as HTMLElement).closest("input, textarea, select, button, [role='combobox'], [data-radix-collection-item]");
+                          if (tag) return;
+                          setExpandedServiceId(prev => prev === service.id ? null : service.id);
+                        }}
+                      >
                         <TableCell>
-                          <Input
-                            value={service.name}
-                            onChange={(e) => updateService(service.id, "name", e.target.value)}
-                            placeholder="Service name"
-                            className="h-8 text-sm"
-                          />
-                        </TableCell>
-                        <TableCell className="align-top">
-                          <Textarea
-                            value={service.description || ""}
-                            onChange={(e) => updateService(service.id, "description", e.target.value)}
-                            placeholder="Service description / scope — supports multiple lines"
-                            className="min-h-[80px] text-sm resize-y leading-relaxed"
-                            rows={3}
-                          />
+                          <div className="flex items-center gap-1.5">
+                            {expandedServiceId === service.id ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                            <Input
+                              value={service.name}
+                              onChange={(e) => updateService(service.id, "name", e.target.value)}
+                              placeholder="Service name"
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                          {service.description && expandedServiceId !== service.id && (
+                            <p className="text-xs text-muted-foreground truncate mt-1 ml-5 max-w-[200px]">{service.description}</p>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Select
@@ -404,9 +409,26 @@ export function ServiceCatalogSettings() {
                           </Button>
                         </TableCell>
                       </TableRow>
+                      {/* Expanded Description Row */}
+                      {expandedServiceId === service.id && (
+                        <TableRow>
+                          <TableCell colSpan={8} className="bg-muted/30 border-t-0 pt-0 pb-3">
+                            <div className="space-y-1.5 pl-5">
+                              <Label className="text-xs text-muted-foreground">Scope Description</Label>
+                              <Textarea
+                                value={service.description || ""}
+                                onChange={(e) => updateService(service.id, "description", e.target.value)}
+                                placeholder="Enter a detailed scope description for this service..."
+                                className="min-h-[120px] text-sm resize-y leading-relaxed"
+                                rows={5}
+                              />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
                       {/* Default Requirements Row */}
                       <TableRow>
-                        <TableCell colSpan={9} className="p-0">
+                        <TableCell colSpan={8} className="p-0">
                           <ServiceRequirementsEditor
                             requirements={service.default_requirements || []}
                             onChange={(reqs) => {
