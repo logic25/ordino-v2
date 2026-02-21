@@ -44,6 +44,7 @@ import { useIsAdmin } from "@/hooks/useUserRoles";
 import { useAssignableProfiles, useCompanyProfiles } from "@/hooks/useProfiles";
 import { ProjectEmailsTab } from "@/components/emails/ProjectEmailsTab";
 import { AddContactDialog } from "@/components/clients/AddContactDialog";
+import { ClientDialog } from "@/components/clients/ClientDialog";
 import { ProjectDialog } from "@/components/projects/ProjectDialog";
 import { LitigationExportDialog } from "@/components/projects/LitigationExportDialog";
 import { DobNowFilingPrepSheet } from "@/components/projects/DobNowFilingPrepSheet";
@@ -1718,39 +1719,54 @@ function ContactsFull({ contacts, pisStatus, projectId, clientId }: { contacts: 
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const [showAddContact, setShowAddContact] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [addingNew, setAddingNew] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [showNewClientDialog, setShowNewClientDialog] = useState(false);
+  const [showNewContactDialog, setShowNewContactDialog] = useState(false);
   const toggle = (id: string) => setExpandedIds(prev => {
     const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
   });
 
-  // Fetch all clients for lookup
+  // Fetch all clients with their contacts for the dropdown
   const { data: allClients = [] } = useQuery({
-    queryKey: ["all-clients-lookup"],
+    queryKey: ["all-clients-with-contacts"],
     queryFn: async () => {
-      const { data } = await supabase.from("clients").select("id, name, email, phone").order("name");
+      const { data } = await supabase
+        .from("clients")
+        .select("id, name, email, phone, client_contacts(id, name, email, phone, title)")
+        .order("name");
       return data || [];
     },
-    enabled: showAddContact,
   });
 
-  // Fetch contacts for selected client
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-  const { data: clientContacts = [] } = useQuery({
-    queryKey: ["client-contacts-lookup", selectedClientId],
-    queryFn: async () => {
-      if (!selectedClientId) return [];
-      const { data } = await supabase.from("client_contacts").select("id, name, email, phone, title, company_name").eq("client_id", selectedClientId).order("name");
-      return data || [];
-    },
-    enabled: !!selectedClientId,
-  });
-
+  // Filter clients by search
   const filteredClients = allClients.filter(c =>
+    !searchTerm ||
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (c.email || "").toLowerCase().includes(searchTerm.toLowerCase())
+    (c.email || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (c.client_contacts || []).some((cc: any) => cc.name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  const handleLinkContact = async (contact: { id: string; name: string }) => {
+    // Already linked?
+    if (contacts.some(c => c.name === contact.name)) {
+      toast({ title: "Already linked", description: `${contact.name} is already on this project.` });
+      return;
+    }
+    toast({ title: "Contact linked", description: `${contact.name} is now associated with this project.` });
+    queryClient.invalidateQueries({ queryKey: ["project-contacts"] });
+    setSearchOpen(false);
+    setSearchTerm("");
+  };
+
+  const handleNewClientCreated = (clientId: string) => {
+    setSelectedClientId(clientId);
+    setShowNewClientDialog(false);
+    // After creating the client, open the Add Contact dialog for that client
+    setShowNewContactDialog(true);
+    queryClient.invalidateQueries({ queryKey: ["all-clients-with-contacts"] });
+  };
 
   return (
     <div>
@@ -1768,92 +1784,108 @@ function ContactsFull({ contacts, pisStatus, projectId, clientId }: { contacts: 
       {/* Add Contact bar */}
       <div className="flex items-center justify-between px-6 py-3 border-b">
         <span className="text-sm text-muted-foreground">{contacts.length} contact{contacts.length !== 1 ? "s" : ""}</span>
-        <Button size="sm" className="gap-1.5" onClick={() => { setShowAddContact(true); setSelectedClientId(null); setSearchTerm(""); setAddingNew(false); }}>
-          <Plus className="h-3.5 w-3.5" /> Add Contact
-        </Button>
+        <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+          <PopoverTrigger asChild>
+            <Button size="sm" className="gap-1.5">
+              <Plus className="h-3.5 w-3.5" /> Add Contact
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[360px] p-0" align="end">
+            <div className="p-2 border-b">
+              <Input
+                placeholder="Search companies or contacts..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="h-8 text-sm"
+                autoFocus
+              />
+            </div>
+            <div className="max-h-[300px] overflow-y-auto">
+              {filteredClients.length === 0 ? (
+                <div className="p-4 text-center text-sm text-muted-foreground">No results</div>
+              ) : filteredClients.slice(0, 15).map(client => (
+                <div key={client.id}>
+                  <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/30">
+                    {client.name}
+                  </div>
+                  {(client.client_contacts || []).length > 0 ? (
+                    (client.client_contacts || []).map((cc: any) => {
+                      const alreadyAdded = contacts.some(c => c.name === cc.name);
+                      return (
+                        <button
+                          key={cc.id}
+                          className={`w-full text-left px-4 py-2 text-sm transition-colors ${alreadyAdded ? "opacity-40 cursor-not-allowed" : "hover:bg-muted/50"}`}
+                          disabled={alreadyAdded}
+                          onClick={() => handleLinkContact(cc)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span>{cc.name}</span>
+                            {alreadyAdded && <span className="text-[10px] text-muted-foreground">linked</span>}
+                          </div>
+                          {(cc.title || cc.email) && (
+                            <div className="text-xs text-muted-foreground">{[cc.title, cc.email].filter(Boolean).join(" · ")}</div>
+                          )}
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <div className="px-4 py-2 text-xs text-muted-foreground italic">No contacts</div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="border-t p-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full gap-1.5 text-sm"
+                onClick={() => {
+                  setSearchOpen(false);
+                  setShowNewClientDialog(true);
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" /> Add New Company & Contact
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
-      {/* Add Contact Dialog */}
-      <Dialog open={showAddContact} onOpenChange={setShowAddContact}>
-        <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add Contact to Project</DialogTitle>
-          </DialogHeader>
+      {/* New Client Dialog (same as Companies page) */}
+      <ClientDialog
+        open={showNewClientDialog}
+        onOpenChange={setShowNewClientDialog}
+        onSubmit={async (data) => {
+          try {
+            const { data: profile } = await supabase.from("profiles").select("company_id").single();
+            if (!profile?.company_id) throw new Error("No company");
+            const { data: newClient, error } = await supabase.from("clients").insert({
+              ...data,
+              company_id: profile.company_id,
+            }).select("id").single();
+            if (error) throw error;
+            toast({ title: "Company created", description: `${data.name} created. Now add a contact.` });
+            handleNewClientCreated(newClient.id);
+          } catch (err: any) {
+            toast({ title: "Error", description: err.message, variant: "destructive" });
+          }
+        }}
+      />
 
-          {!selectedClientId && !addingNew ? (
-            <div className="space-y-3">
-              <Input placeholder="Search companies..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} autoFocus />
-              <div className="max-h-60 overflow-y-auto border rounded-lg divide-y">
-                {filteredClients.length === 0 ? (
-                  <div className="p-4 text-center text-sm text-muted-foreground">No companies found</div>
-                ) : filteredClients.slice(0, 20).map(client => (
-                  <button key={client.id} className="w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors" onClick={() => setSelectedClientId(client.id)}>
-                    <div className="font-medium text-sm">{client.name}</div>
-                    {client.email && <div className="text-xs text-muted-foreground">{client.email}</div>}
-                  </button>
-                ))}
-              </div>
-              <Button variant="outline" className="w-full gap-1.5" onClick={() => setAddingNew(true)}>
-                <Plus className="h-3.5 w-3.5" /> Create New Client & Contact
-              </Button>
-            </div>
-          ) : selectedClientId && !addingNew ? (
-            <div className="space-y-3">
-              <Button variant="ghost" size="sm" className="gap-1" onClick={() => setSelectedClientId(null)}>
-                ← Back to companies
-              </Button>
-              <div className="text-sm font-medium">Select a contact:</div>
-              <div className="max-h-60 overflow-y-auto border rounded-lg divide-y">
-                {clientContacts.length === 0 ? (
-                  <div className="p-4 text-center text-sm text-muted-foreground">No contacts for this company</div>
-                ) : clientContacts.map(contact => {
-                  const alreadyAdded = contacts.some(c => c.email === contact.email && c.name === contact.name);
-                  return (
-                    <button
-                      key={contact.id}
-                      className={`w-full text-left px-4 py-3 transition-colors ${alreadyAdded ? "opacity-50 cursor-not-allowed" : "hover:bg-muted/50"}`}
-                      disabled={alreadyAdded}
-                      onClick={() => {
-                        // Contact is already in project contacts via client_contacts, just show toast
-                        toast({ title: "Contact linked", description: `${contact.name} is now associated with this project.` });
-                        queryClient.invalidateQueries({ queryKey: ["project-contacts"] });
-                        setShowAddContact(false);
-                      }}
-                    >
-                      <div className="font-medium text-sm">{contact.name} {alreadyAdded && <Badge variant="outline" className="ml-2 text-[10px]">Already added</Badge>}</div>
-                      <div className="text-xs text-muted-foreground">{contact.title || ""} {contact.email && `· ${contact.email}`}</div>
-                    </button>
-                  );
-                })}
-              </div>
-              <Button variant="outline" className="w-full gap-1.5" onClick={() => setAddingNew(true)}>
-                <Plus className="h-3.5 w-3.5" /> Add New Contact
-              </Button>
-            </div>
-          ) : null}
-
-          {addingNew && selectedClientId && (
-            <AddContactDialog
-              open={true}
-              onOpenChange={(open) => { if (!open) setAddingNew(false); }}
-              clientId={selectedClientId}
-              onContactCreated={() => {
-                queryClient.invalidateQueries({ queryKey: ["project-contacts"] });
-                setShowAddContact(false);
-                setAddingNew(false);
-              }}
-            />
-          )}
-          {addingNew && !selectedClientId && (
-            <div className="space-y-3">
-              <Button variant="ghost" size="sm" className="gap-1" onClick={() => setAddingNew(false)}>
-                ← Back to search
-              </Button>
-              <p className="text-sm text-muted-foreground">Please select a company first, then add a contact to it.</p>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Add Contact Dialog for selected client */}
+      {selectedClientId && (
+        <AddContactDialog
+          open={showNewContactDialog}
+          onOpenChange={setShowNewContactDialog}
+          clientId={selectedClientId}
+          onContactCreated={() => {
+            queryClient.invalidateQueries({ queryKey: ["project-contacts"] });
+            queryClient.invalidateQueries({ queryKey: ["all-clients-with-contacts"] });
+            setShowNewContactDialog(false);
+            setSelectedClientId(null);
+          }}
+        />
+      )}
 
       <Table>
         <TableHeader>
@@ -2015,6 +2047,8 @@ function DocumentsFull({ documents, projectId, companyId }: { documents: MockDoc
       const path = `${companyId}/${crypto.randomUUID()}.${ext}`;
       const { error: uploadError } = await supabase.storage.from("universal-documents").upload(path, file);
       if (uploadError) throw uploadError;
+      // Get current user profile for uploaded_by
+      const { data: uploaderProfile } = await supabase.from("profiles").select("id").single();
       const { error } = await supabase.from("universal_documents").insert({
         company_id: companyId,
         title: file.name.replace(/\.[^/.]+$/, ""),
@@ -2025,7 +2059,8 @@ function DocumentsFull({ documents, projectId, companyId }: { documents: MockDoc
         size_bytes: file.size,
         tags: [],
         project_id: projectId,
-      } as any);
+        uploaded_by: uploaderProfile?.id || null,
+      });
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["project-documents"] });
       toast({ title: "Uploaded", description: `${file.name} uploaded successfully.` });
