@@ -77,6 +77,7 @@ export default function RfiForm() {
   const rfi = isDemo ? demoRfi : rfiData?.rfi;
   const property = isDemo ? demoProperty : rfiData?.property;
   const projectData = isDemo ? { building_owner_name: "ABC Realty Corp", gc_company_name: null, gc_contact_name: null, gc_phone: null, gc_email: null, architect_company_name: null, architect_contact_name: null, architect_phone: null, architect_email: null } : rfiData?.project;
+  const existingPlanNames: string[] = isDemo ? ["Floor_Plan_12A.pdf", "MEP_Layout.dwg"] : (rfiData?.existingPlanNames || []);
 
   const [currentStep, setCurrentStep] = useState(-1); // -1 = welcome screen
   const [responses, setResponses] = useState<Record<string, any>>({});
@@ -669,6 +670,21 @@ export default function RfiForm() {
           </div>
         ) : field.type === "file_upload" ? (
           <div className="space-y-3">
+            {/* Show existing plans already on file */}
+            {field.id === "plans_upload" && existingPlanNames.length > 0 && (
+              <div className="p-3 rounded-lg bg-amber-50 border border-amber-200">
+                <p className="text-xs font-semibold text-amber-800 mb-1.5">Plans already on file:</p>
+                <ul className="space-y-1">
+                  {existingPlanNames.map((name, i) => (
+                    <li key={i} className="flex items-center gap-2 text-sm text-amber-700">
+                      <FileText className="h-3.5 w-3.5 shrink-0" />
+                      {name}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-amber-600 mt-2">Upload additional or revised drawings below if needed.</p>
+              </div>
+            )}
             {/* Uploaded files list */}
             {((responses[key] as { name: string; path: string }[]) || []).map((file, idx) => {
               const publicUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/rfi-attachments/${file.path}`;

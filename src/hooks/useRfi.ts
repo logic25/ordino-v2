@@ -317,12 +317,28 @@ export function useRfiByToken(token: string | null) {
         }
       }
 
+      // Fetch existing plan filenames linked to this proposal/project
+      let existingPlanNames: string[] = [];
+      const docLookupId = rfi.proposal_id || rfi.project_id;
+      if (docLookupId) {
+        const col = rfi.proposal_id ? "proposal_id" : "project_id";
+        const { data: planDocs } = await (supabase
+          .from("universal_documents") as any)
+          .select("filename")
+          .eq(col, docLookupId)
+          .eq("category", "Plans");
+        if (planDocs && planDocs.length > 0) {
+          existingPlanNames = planDocs.map((d: any) => d.filename).filter(Boolean);
+        }
+      }
+
       // CRM contact takes top priority for applicant fields
       const crmName = crmPrimary ? `${crmPrimary.first_name || ""} ${crmPrimary.last_name || ""}`.trim() : null;
 
       return {
         rfi: rfi as RfiRequest,
         property: properties as { address: string; borough: string | null; block: string | null; lot: string | null } | null,
+        existingPlanNames,
         project: {
           building_owner_name: ownerName,
           job_description: prop.job_description || null,
