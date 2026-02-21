@@ -573,9 +573,11 @@ export function ServiceCatalogSettings() {
               <Textarea
                 value={newService.description || ""}
                 onChange={(e) => setNewService({ ...newService, description: e.target.value })}
-                placeholder="Service description / scope"
+                placeholder="Service description / scope — supports multiple lines"
+                className="min-h-[80px] resize-y leading-relaxed whitespace-pre-wrap"
                 rows={3}
               />
+              <p className="text-xs text-muted-foreground">Use line breaks to format scope items. This text appears on proposals.</p>
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-2">
@@ -617,7 +619,14 @@ export function ServiceCatalogSettings() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>Multiplier</Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Label className="cursor-help inline-flex items-center gap-1">Multiplier <span className="text-muted-foreground text-xs">ⓘ</span></Label>
+                    </TooltipTrigger>
+                    <TooltipContent><p className="text-xs max-w-[200px]">Price multiplier applied per additional unit (e.g., per floor, per discipline). Leave at 1.0 for no scaling.</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <Input
                   type="number"
                   min="0"
@@ -628,7 +637,14 @@ export function ServiceCatalogSettings() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Complexity Weight</Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Label className="cursor-help inline-flex items-center gap-1">Complexity Weight <span className="text-muted-foreground text-xs">ⓘ</span></Label>
+                    </TooltipTrigger>
+                    <TooltipContent><p className="text-xs max-w-[200px]">Weight from 1–10 used for PM capacity tracking. Higher values indicate more complex services that consume more bandwidth.</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <Input
                   type="number"
                   min="1"
