@@ -261,7 +261,14 @@ export default function Rfps() {
               </div>
               <div className="space-y-1.5">
                 <Label>Contract Value ($)</Label>
-                <Input type="number" value={form.contract_value} onChange={(e) => setForm({ ...form, contract_value: e.target.value })} />
+                <Input
+                  value={form.contract_value ? Number(form.contract_value).toLocaleString("en-US") : ""}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/[^0-9.]/g, "");
+                    setForm({ ...form, contract_value: raw });
+                  }}
+                  placeholder="150,000"
+                />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
