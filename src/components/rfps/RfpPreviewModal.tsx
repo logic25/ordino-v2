@@ -51,7 +51,7 @@ export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] p-0 overflow-hidden flex flex-col [&>button]:hidden">
+      <DialogContent className="max-w-3xl h-[90vh] p-0 overflow-hidden flex flex-col [&>button]:hidden">
         {/* Header */}
         <div className="bg-muted border-b px-6 pt-6 pb-4 flex-shrink-0">
           <DialogHeader>
@@ -79,7 +79,7 @@ export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalPro
         </div>
 
         {/* Content */}
-        <ScrollArea className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="space-y-6 px-6 py-5">
             {sections.map((sectionId) => (
               <div key={sectionId}>
@@ -94,7 +94,7 @@ export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalPro
               </div>
             ))}
           </div>
-        </ScrollArea>
+        </div>
 
         {/* Sticky footer with actions */}
         <div className="flex-shrink-0 border-t bg-muted/50 px-6 py-3 flex items-center justify-between">
@@ -202,7 +202,7 @@ function StaffBiosSection({ data }: { data: any[] }) {
                   )}
                   {c.hourly_rate && (
                     <Badge variant="outline" className="text-xs text-success border-success/30 tabular-nums">
-                      ${c.hourly_rate}/hr
+                      ${Number(c.hourly_rate).toLocaleString()}/hr
                     </Badge>
                   )}
                 </div>
@@ -444,9 +444,9 @@ function PricingSection({ data }: { data: any }) {
             {content.labor_classifications.map((lc: any, idx: number) => (
               <tr key={idx} className="border-t hover:bg-muted/30 transition-colors">
                 <td className="py-2 px-3 font-medium">{lc.title}</td>
-                <td className="text-right py-2 px-3 tabular-nums text-success">${lc.regular}</td>
-                <td className="text-right py-2 px-3 tabular-nums text-accent">${lc.overtime}</td>
-                <td className="text-right py-2 px-3 tabular-nums text-warning">${lc.doubletime}</td>
+                <td className="text-right py-2 px-3 tabular-nums text-success">${Number(lc.regular).toLocaleString()}</td>
+                <td className="text-right py-2 px-3 tabular-nums text-accent">${Number(lc.overtime).toLocaleString()}</td>
+                <td className="text-right py-2 px-3 tabular-nums text-warning">${Number(lc.doubletime).toLocaleString()}</td>
               </tr>
             ))}
           </tbody>

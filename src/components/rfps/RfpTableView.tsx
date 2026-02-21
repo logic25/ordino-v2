@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { formatCurrency } from "@/lib/utils";
 import { useUpdateRfpStatus, useUpdateRfpNotes, useDeleteRfp, type Rfp, type RfpStatus } from "@/hooks/useRfps";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -295,7 +296,7 @@ export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps)
                     <TableCell><RfpStatusBadge status={rfp.status} /></TableCell>
                     <TableCell><DueDateCell dueDate={rfp.due_date} /></TableCell>
                     <TableCell className="tabular-nums text-sm">
-                      {rfp.contract_value ? `$${rfp.contract_value.toLocaleString()}` : "—"}
+                      {rfp.contract_value ? formatCurrency(rfp.contract_value) : "—"}
                     </TableCell>
                   </TableRow>
                   {isExpanded && <ExpandedRow key={`${rfp.id}-detail`} rfp={rfp} onEdit={setEditingRfp} onBuild={setBuildingRfp} onDelete={setDeletingRfp} />}

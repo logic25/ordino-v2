@@ -529,7 +529,7 @@ function SectionContentPreview({ item, type }: { item: any; type: string }) {
       <div className="text-xs bg-card rounded-lg p-2.5 border">
         <p className="font-medium">{props?.address || item.description || "Project"}</p>
         <p className="text-muted-foreground mt-0.5">
-          {item.application_type}{item.estimated_value ? ` · $${item.estimated_value.toLocaleString()}` : ""}
+          {item.application_type}{item.estimated_value ? ` · $${item.estimated_value.toLocaleString("en-US")}` : ""}
         </p>
       </div>
     );

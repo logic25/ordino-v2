@@ -76,7 +76,7 @@ function RfpCard({ rfp, onDragStart }: { rfp: Rfp; onDragStart: (e: React.DragEv
         {rfp.contract_value && rfp.status === "won" && (
           <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
             <DollarSign className="h-3 w-3" />
-            {rfp.contract_value.toLocaleString()}
+            {rfp.contract_value.toLocaleString("en-US")}
           </div>
         )}
         {scopeItems > 0 && (
