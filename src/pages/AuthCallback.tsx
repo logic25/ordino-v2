@@ -12,15 +12,18 @@ export default function AuthCallback() {
         // Auto-store Gmail tokens if this is a Google login with provider_token
         if (session.provider_token && session.user.app_metadata?.provider === "google") {
           try {
-            await supabase.functions.invoke("gmail-auth", {
+            const { data, error } = await supabase.functions.invoke("gmail-auth", {
               body: {
                 action: "store_provider_tokens",
                 access_token: session.provider_token,
                 refresh_token: session.provider_refresh_token ?? null,
               },
             });
-          } catch {
-            // Non-fatal: Gmail connection can be established manually if this fails
+            if (error || data?.error) {
+              console.warn("Gmail auto-connect failed:", error?.message || data?.error);
+            }
+          } catch (e) {
+            console.warn("Gmail auto-connect failed:", e);
           }
         }
         navigate("/dashboard", { replace: true });
