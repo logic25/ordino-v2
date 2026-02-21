@@ -25,13 +25,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Edit, Trash2, Loader2, Eye, ChevronRight, ChevronDown, User } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, Loader2, Eye, ChevronRight, ChevronDown, User, Pencil } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Client } from "@/hooks/useClients";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { EditContactDialog } from "./EditContactDialog";
 
 function formatPhone(value: string | null | undefined): string {
   if (!value) return "";
@@ -50,6 +51,7 @@ interface ClientTableProps {
 }
 
 function ContactRows({ clientId }: { clientId: string }) {
+  const [editingContact, setEditingContact] = useState<any | null>(null);
   const { data: contacts = [], isLoading } = useQuery({
     queryKey: ["client-contacts", clientId],
     queryFn: async () => {
@@ -87,7 +89,7 @@ function ContactRows({ clientId }: { clientId: string }) {
   return (
     <>
       {contacts.map((contact) => (
-        <TableRow key={contact.id} className="bg-muted/20 hover:bg-muted/30">
+        <TableRow key={contact.id} className="bg-muted/20 hover:bg-muted/30 cursor-pointer" onClick={() => setEditingContact(contact)}>
           <TableCell className="pl-10">
             <div className="flex items-center gap-2">
               <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -104,9 +106,20 @@ function ContactRows({ clientId }: { clientId: string }) {
           <TableCell className="text-xs text-muted-foreground">{formatPhone(contact.phone) || formatPhone(contact.mobile) || "—"}</TableCell>
           <TableCell className="text-xs text-muted-foreground">{contact.company_name || "—"}</TableCell>
           <TableCell />
-          <TableCell />
+          <TableCell className="text-right">
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setEditingContact(contact); }}>
+              <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+            </Button>
+          </TableCell>
         </TableRow>
       ))}
+      {editingContact && (
+        <EditContactDialog
+          open={!!editingContact}
+          onOpenChange={(open) => { if (!open) setEditingContact(null); }}
+          contact={editingContact}
+        />
+      )}
     </>
   );
 }
