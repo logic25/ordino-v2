@@ -423,19 +423,76 @@ export default function Auth() {
                   {isLoading ? "Signing in..." : "Continue with Google"}
                 </Button>
 
-                {/* Dev bypass — skip auth for preview testing */}
+                {/* Dev bypass — email/password test login */}
                 <div className="relative my-4">
                   <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
-                  <div className="relative flex justify-center text-xs"><span className="bg-background px-2 text-muted-foreground">dev only</span></div>
+                  <div className="relative flex justify-center text-xs"><span className="bg-background px-2 text-muted-foreground">or sign in with email (dev)</span></div>
                 </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="w-full h-10"
-                  onClick={() => navigate("/dashboard")}
-                >
-                  ⚡ Skip to Dashboard (Preview)
-                </Button>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+                  <div className="space-y-2">
+                    <Input
+                      type="email"
+                      placeholder="test@example.com"
+                      {...form.register("email")}
+                      className="h-10"
+                    />
+                    {form.formState.errors.email && (
+                      <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Password (min 8 chars)"
+                        {...form.register("password")}
+                        className="h-10 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {form.formState.errors.password && (
+                      <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="submit" variant="secondary" className="flex-1 h-10" disabled={isLoading}>
+                      {isLoading ? "..." : "Sign In"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1 h-10"
+                      disabled={isLoading}
+                      onClick={async () => {
+                        const email = form.getValues("email");
+                        const password = form.getValues("password");
+                        if (!email || password.length < 8) {
+                          toast({ title: "Fill in email & password (8+ chars)", variant: "destructive" });
+                          return;
+                        }
+                        setIsLoading(true);
+                        try {
+                          const { error } = await supabase.auth.signUp({ email, password });
+                          if (error) {
+                            toast({ title: "Signup failed", description: error.message, variant: "destructive" });
+                          } else {
+                            toast({ title: "Account created — signing in..." });
+                            const { error: signInErr } = await signIn(email, password);
+                            if (!signInErr) navigate("/dashboard");
+                          }
+                        } finally { setIsLoading(false); }
+                      }}
+                    >
+                      Sign Up
+                    </Button>
+                  </div>
+                </form>
 
                 <div className="mt-6 text-center">
                   <p className="text-xs text-muted-foreground">
