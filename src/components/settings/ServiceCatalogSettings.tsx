@@ -682,7 +682,13 @@ export function ServiceCatalogSettings() {
                 />
               </div>
             </div>
-          </div>
+            </div>
+            <div className="border-t pt-3">
+              <ServiceRequirementsEditor
+                requirements={(newService as any).default_requirements || []}
+                onChange={(reqs) => setNewService({ ...newService, default_requirements: reqs } as any)}
+              />
+            </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddDialogOpen(false)}>Cancel</Button>
             <Button onClick={addService} disabled={!newService.name?.trim()}>Add Service</Button>
