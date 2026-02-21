@@ -742,7 +742,7 @@ function ContactRow({
                 <Label className="text-xs text-muted-foreground">Phone (Office)</Label>
                 <Input
                   className="h-8 text-sm"
-                  value={form.phone}
+                  value={formatPhone(form.phone) || form.phone}
                   onChange={(e) => {
                     const raw = e.target.value.replace(/\D/g, "").slice(0, 10);
                     update("phone", raw);
@@ -750,15 +750,12 @@ function ContactRow({
                   placeholder="(555) 555-5555"
                   inputMode="tel"
                 />
-                {form.phone && (
-                  <p className="text-[10px] text-muted-foreground">{formatPhone(form.phone)}</p>
-                )}
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Mobile</Label>
                 <Input
                   className="h-8 text-sm"
-                  value={form.mobile}
+                  value={formatPhone(form.mobile) || form.mobile}
                   onChange={(e) => {
                     const raw = e.target.value.replace(/\D/g, "").slice(0, 10);
                     update("mobile", raw);
@@ -766,15 +763,12 @@ function ContactRow({
                   placeholder="(555) 555-5555"
                   inputMode="tel"
                 />
-                {form.mobile && (
-                  <p className="text-[10px] text-muted-foreground">{formatPhone(form.mobile)}</p>
-                )}
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Fax</Label>
                 <Input
                   className="h-8 text-sm"
-                  value={form.fax}
+                  value={formatPhone(form.fax) || form.fax}
                   onChange={(e) => {
                     const raw = e.target.value.replace(/\D/g, "").slice(0, 10);
                     update("fax", raw);
@@ -782,9 +776,6 @@ function ContactRow({
                   placeholder="(555) 555-5555"
                   inputMode="tel"
                 />
-                {form.fax && (
-                  <p className="text-[10px] text-muted-foreground">{formatPhone(form.fax)}</p>
-                )}
               </div>
             </div>
 
