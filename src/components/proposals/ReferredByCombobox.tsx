@@ -11,6 +11,7 @@ interface ReferredByComboboxProps {
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
+  searchMode?: "all" | "contacts";
 }
 
 interface SearchResult {
@@ -25,6 +26,7 @@ export function ReferredByCombobox({
   onChange,
   placeholder = "Search companies or contacts...",
   className,
+  searchMode = "all",
 }: ReferredByComboboxProps) {
   const { profile } = useAuth();
   const [search, setSearch] = useState("");
@@ -70,7 +72,7 @@ export function ReferredByCombobox({
     const q = search.toLowerCase().trim();
     if (!q) return [];
 
-    const companyResults: SearchResult[] = companies
+    const companyResults: SearchResult[] = searchMode === "contacts" ? [] : companies
       .filter((c) => c.name.toLowerCase().includes(q))
       .slice(0, 5)
       .map((c) => ({ id: c.id, label: c.name, type: "company" as const }));
@@ -81,7 +83,7 @@ export function ReferredByCombobox({
           c.name.toLowerCase().includes(q) ||
           (c.email && c.email.toLowerCase().includes(q))
       )
-      .slice(0, 5)
+      .slice(0, searchMode === "contacts" ? 10 : 5)
       .map((c) => ({
         id: c.id,
         label: c.name,
@@ -90,7 +92,7 @@ export function ReferredByCombobox({
       }));
 
     return [...companyResults, ...contactResults];
-  }, [search, companies, contacts]);
+  }, [search, companies, contacts, searchMode]);
 
   const handleSelect = (result: SearchResult) => {
     onChange(result.label);

@@ -1149,10 +1149,11 @@ export function ProposalDialog({
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs text-muted-foreground">Referred By (Person)</Label>
-                        <Input
-                          className="h-9 text-sm"
-                          placeholder="Contact name (optional)"
-                          {...form.register("referred_by_person")}
+                        <ReferredByCombobox
+                          value={form.watch("referred_by_person") || ""}
+                          onChange={(v) => form.setValue("referred_by_person", v)}
+                          placeholder="Search contacts or type name..."
+                          searchMode="contacts"
                         />
                       </div>
                     </>
