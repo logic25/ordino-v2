@@ -82,6 +82,8 @@ export function ServiceCatalogSettings() {
         multiplier: newService.multiplier || 0,
         has_discipline_pricing: newService.has_discipline_pricing || false,
         discipline_fee: newService.discipline_fee || 0,
+        default_requirements: (newService as any).default_requirements || [],
+        complexity_weight: (newService as any).complexity_weight || 1,
       },
       ...services,
     ]);
@@ -268,7 +270,7 @@ export function ServiceCatalogSettings() {
                             />
                           </div>
                           {service.description && expandedServiceId !== service.id && (
-                            <p className="text-xs text-muted-foreground truncate mt-1 ml-5 max-w-[200px]">{service.description}</p>
+                            <p className="text-xs text-muted-foreground truncate mt-1 ml-5 max-w-[200px]">{service.description.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()}</p>
                           )}
                         </TableCell>
                         <TableCell>
