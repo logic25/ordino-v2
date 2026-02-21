@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-interface UploadedPlan {
+export interface UploadedPlan {
   id: string;
   filename: string;
   storage_path: string;
@@ -19,18 +19,50 @@ interface PlansUploadSectionProps {
   proposalId?: string;
   jobDescription: string;
   onJobDescriptionChange: (value: string) => void;
+  onFilesChange?: (files: UploadedPlan[]) => void;
 }
 
 const ACCEPTED_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/jpg"];
 const MAX_SIZE = 20 * 1024 * 1024; // 20MB
 
-export function PlansUploadSection({ proposalId, jobDescription, onJobDescriptionChange }: PlansUploadSectionProps) {
+export function PlansUploadSection({ proposalId, jobDescription, onJobDescriptionChange, onFilesChange }: PlansUploadSectionProps) {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [files, setFiles] = useState<UploadedPlan[]>([]);
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  // Load existing plans linked to this proposal
+  useEffect(() => {
+    if (!proposalId || !profile?.company_id || loaded) return;
+    (async () => {
+      const { data } = await (supabase
+        .from("universal_documents")
+        .select("id, filename, storage_path, size_bytes") as any)
+        .eq("company_id", profile.company_id)
+        .eq("proposal_id", proposalId)
+        .eq("category", "Plans");
+      if (data && data.length > 0) {
+        const plans = data.map((d: any) => ({
+          id: d.id,
+          filename: d.filename,
+          storage_path: d.storage_path,
+          size_bytes: d.size_bytes || 0,
+        }));
+        setFiles(plans);
+        onFilesChange?.(plans);
+      }
+      setLoaded(true);
+    })();
+  }, [proposalId, profile?.company_id, loaded]);
+
+  // Notify parent when files change
+  const updateFiles = (newFiles: UploadedPlan[]) => {
+    setFiles(newFiles);
+    onFilesChange?.(newFiles);
+  };
 
   const uploadFile = async (file: File) => {
     if (!profile?.company_id) throw new Error("No company");
@@ -77,7 +109,8 @@ export function PlansUploadSection({ proposalId, jobDescription, onJobDescriptio
         const result = await uploadFile(file);
         if (result) results.push(result);
       }
-      setFiles(prev => [...prev, ...results]);
+      const newFiles = [...files, ...results];
+      updateFiles(newFiles);
       if (results.length > 0) {
         toast({ title: `${results.length} plan(s) uploaded` });
       }
@@ -92,13 +125,14 @@ export function PlansUploadSection({ proposalId, jobDescription, onJobDescriptio
     e.preventDefault();
     setDragOver(false);
     if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
-  }, []);
+  }, [files]);
 
   const handleRemove = async (plan: UploadedPlan) => {
     try {
       await supabase.storage.from("universal-documents").remove([plan.storage_path]);
       await supabase.from("universal_documents").delete().eq("id", plan.id);
-      setFiles(prev => prev.filter(f => f.id !== plan.id));
+      const newFiles = files.filter(f => f.id !== plan.id);
+      updateFiles(newFiles);
     } catch (err: any) {
       toast({ title: "Remove failed", description: err.message, variant: "destructive" });
     }
@@ -111,7 +145,6 @@ export function PlansUploadSection({ proposalId, jobDescription, onJobDescriptio
     }
     setAnalyzing(true);
     try {
-      // Get signed URLs for the uploaded files
       const fileUrls: string[] = [];
       for (const file of files) {
         const { data } = await supabase.storage
