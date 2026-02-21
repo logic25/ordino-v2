@@ -311,25 +311,21 @@ function ServiceLineItem({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-muted-foreground">Work Types / Disciplines</Label>
-                  {hasDisciplinePricing && (
+                  {selectedDisciplines.length > 0 && (
                     <span className="text-xs text-muted-foreground">
-                      {selectedDisciplines.length} selected · {formatCurrency(disciplineFee)}/discipline
+                      {selectedDisciplines.length} selected{disciplineFee > 0 ? ` · ${formatCurrency(disciplineFee)}/discipline` : ""}
                     </span>
                   )}
-                  {!hasDisciplinePricing && selectedDisciplines.length > 0 && (
-                    <span className="text-xs text-muted-foreground">{selectedDisciplines.length} selected</span>
-                  )}
                 </div>
-                {hasDisciplinePricing && (
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <Label className="text-xs text-muted-foreground shrink-0">Fee per discipline</Label>
-                    <Input
-                      type="number" min="0" step="0.01" className="h-7 text-sm w-24"
-                      value={disciplineFee || ""}
-                      onChange={(e) => form.setValue(`items.${index}.discipline_fee`, parseFloat(e.target.value) || 0)}
-                    />
-                  </div>
-                )}
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Label className="text-xs text-muted-foreground shrink-0">Fee per work type</Label>
+                  <Input
+                    type="number" min="0" step="0.01" className="h-7 text-sm w-24"
+                    value={disciplineFee || ""}
+                    onChange={(e) => form.setValue(`items.${index}.discipline_fee`, parseFloat(e.target.value) || 0)}
+                    placeholder="0.00"
+                  />
+                </div>
                 <div className="grid grid-cols-3 gap-1.5">
                   {WORK_TYPE_DISCIPLINES.map((d) => (
                     <label key={d} className="flex items-center gap-1.5 cursor-pointer text-xs py-1 px-2 rounded hover:bg-muted/50 transition-colors">
@@ -342,7 +338,7 @@ function ServiceLineItem({
                     </label>
                   ))}
                 </div>
-                {hasDisciplinePricing && selectedDisciplines.length > 0 && (
+                {selectedDisciplines.length > 0 && disciplineFee > 0 && (
                   <p className="text-xs text-muted-foreground">
                     Base {formatCurrency(Number(form.watch(`items.${index}.unit_price`)) || 0)} + {selectedDisciplines.length} × {formatCurrency(disciplineFee)} = {formatCurrency((Number(form.watch(`items.${index}.unit_price`)) || 0) + selectedDisciplines.length * disciplineFee)}
                   </p>
@@ -411,46 +407,53 @@ function PartyCompanyCombobox({ value, onChange, onSelect, clients, placeholder 
   placeholder: string;
 }) {
   const [open, setOpen] = useState(false);
+  const wrapperRef = React.useRef<HTMLDivElement>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
   const filtered = clients.filter(c =>
     c.name.toLowerCase().includes((value || "").toLowerCase())
   ).slice(0, 10);
 
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <div className="relative">
-          <Input
-            className="h-8 text-sm pr-7"
-            placeholder={placeholder}
-            value={value}
-            onChange={(e) => { onChange(e.target.value); if (!open) setOpen(true); }}
-            onFocus={() => setOpen(true)}
-          />
-          <ChevronsUpDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+    <div ref={wrapperRef} className="relative">
+      <div className="relative">
+        <Input
+          ref={inputRef}
+          className="h-8 text-sm pr-7"
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => { onChange(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+        />
+        <ChevronsUpDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+      </div>
+      {open && filtered.length > 0 && (
+        <div className="absolute left-0 right-0 top-full mt-1 z-[9999] w-[280px] bg-popover border rounded-md shadow-xl max-h-[200px] overflow-y-auto">
+          {filtered.map(c => (
+            <button
+              key={c.id}
+              type="button"
+              className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex justify-between items-center border-b last:border-0"
+              onMouseDown={(e) => { e.preventDefault(); onSelect(c); setOpen(false); }}
+            >
+              <span className="truncate">{c.name}</span>
+              {c.client_type && <span className="text-xs text-muted-foreground ml-2">{c.client_type}</span>}
+            </button>
+          ))}
         </div>
-      </PopoverTrigger>
-      <PopoverContent className="w-[280px] p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
-        <Command>
-          <CommandInput placeholder="Search companies…" value={value} onValueChange={onChange} />
-          <CommandList>
-            <CommandEmpty className="py-2 px-3 text-xs text-muted-foreground">No match — type to add new</CommandEmpty>
-            <CommandGroup>
-              {filtered.map(c => (
-                <CommandItem
-                  key={c.id}
-                  value={c.name}
-                  onSelect={() => { onSelect(c); setOpen(false); }}
-                  className="text-sm"
-                >
-                  <span className="truncate">{c.name}</span>
-                  {c.client_type && <span className="ml-auto text-xs text-muted-foreground">{c.client_type}</span>}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+      )}
+    </div>
   );
 }
 
