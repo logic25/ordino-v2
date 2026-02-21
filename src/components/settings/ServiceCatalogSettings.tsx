@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,8 +38,17 @@ export function ServiceCatalogSettings() {
   const [services, setServices] = useState<ServiceCatalogItem[]>([]);
   const [defaultTerms, setDefaultTerms] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const newServiceRef = useRef<HTMLInputElement>(null);
-  const [newServiceId, setNewServiceId] = useState<string | null>(null);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [newService, setNewService] = useState<Partial<ServiceCatalogItem>>({
+    name: "",
+    description: "",
+    default_price: 0,
+    default_hours: 0,
+    default_fee_type: "fixed",
+    multiplier: 0,
+    has_discipline_pricing: false,
+    discipline_fee: 0,
+  });
 
   // Price change audit state
   const [priceChangeDialog, setPriceChangeDialog] = useState<{
@@ -58,29 +67,34 @@ export function ServiceCatalogSettings() {
   }, [companyData]);
 
   const addService = () => {
+    if (!newService.name?.trim()) return;
     const id = crypto.randomUUID();
-    setSearchQuery(""); // Clear search so new row is visible
-    setNewServiceId(id);
     setServices([
       {
         id,
-        name: "",
-        description: "",
-        default_price: 0,
-        default_hours: 0,
+        name: newService.name || "",
+        description: newService.description || "",
+        default_price: newService.default_price || 0,
+        default_hours: newService.default_hours || 0,
+        default_fee_type: newService.default_fee_type as any,
+        multiplier: newService.multiplier || 0,
+        has_discipline_pricing: newService.has_discipline_pricing || false,
+        discipline_fee: newService.discipline_fee || 0,
       },
       ...services,
     ]);
+    setNewService({
+      name: "",
+      description: "",
+      default_price: 0,
+      default_hours: 0,
+      default_fee_type: "fixed",
+      multiplier: 0,
+      has_discipline_pricing: false,
+      discipline_fee: 0,
+    });
+    setAddDialogOpen(false);
   };
-
-  // Auto-focus the new service name input after it renders
-  useEffect(() => {
-    if (newServiceId && newServiceRef.current) {
-      newServiceRef.current.focus();
-      newServiceRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
-      setNewServiceId(null);
-    }
-  }, [newServiceId, services]);
 
   const removeService = (id: string) => {
     setServices(services.filter((s) => s.id !== id));
@@ -182,7 +196,7 @@ export function ServiceCatalogSettings() {
               Define your standard services for quick addition to proposals. Price changes are audited.
             </CardDescription>
           </div>
-          <Button type="button" size="sm" onClick={addService}>
+          <Button type="button" size="sm" onClick={() => setAddDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Add Service
           </Button>
@@ -236,7 +250,6 @@ export function ServiceCatalogSettings() {
                       <TableRow>
                         <TableCell>
                           <Input
-                            ref={service.id === newServiceId ? newServiceRef : undefined}
                             value={service.name}
                             onChange={(e) => updateService(service.id, "name", e.target.value)}
                             placeholder="Service name"
@@ -537,6 +550,103 @@ export function ServiceCatalogSettings() {
           )}
         </Button>
       </div>
+
+      {/* Add Service Dialog */}
+      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add New Service</DialogTitle>
+            <DialogDescription>Define a new service for your catalog.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Service Name *</Label>
+              <Input
+                value={newService.name || ""}
+                onChange={(e) => setNewService({ ...newService, name: e.target.value })}
+                placeholder="e.g., DOB Filing"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                value={newService.description || ""}
+                onChange={(e) => setNewService({ ...newService, description: e.target.value })}
+                placeholder="Service description / scope"
+                rows={3}
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <Label>Fee Type</Label>
+                <Select
+                  value={newService.default_fee_type || "fixed"}
+                  onValueChange={(v) => setNewService({ ...newService, default_fee_type: v as any })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixed">Fixed</SelectItem>
+                    <SelectItem value="hourly">Hourly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Base Price</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={newService.default_price || ""}
+                  onChange={(e) => setNewService({ ...newService, default_price: parseFloat(e.target.value) || 0 })}
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Est. Hours</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={newService.default_hours || ""}
+                  onChange={(e) => setNewService({ ...newService, default_hours: parseFloat(e.target.value) || 0 })}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Multiplier</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={newService.multiplier || ""}
+                  onChange={(e) => setNewService({ ...newService, multiplier: parseFloat(e.target.value) || 0 })}
+                  placeholder="1.0"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Complexity Weight</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="10"
+                  step="1"
+                  value={(newService as any).complexity_weight || ""}
+                  onChange={(e) => setNewService({ ...newService, complexity_weight: parseInt(e.target.value) || 1 } as any)}
+                  placeholder="1"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>Cancel</Button>
+            <Button onClick={addService} disabled={!newService.name?.trim()}>Add Service</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Price Change Reason Dialog */}
       <Dialog open={!!priceChangeDialog} onOpenChange={(open) => !open && setPriceChangeDialog(null)}>
