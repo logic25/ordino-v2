@@ -175,8 +175,17 @@ export function useCreateProposal() {
 
       const { items, milestones, ...proposalData } = input;
       
-      // Calculate totals
-      const subtotal = items?.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0) || 0;
+      // Calculate totals (including discipline fees and discounts, excluding optional items)
+      const calculateItemTotal = (item: any) => {
+        const qty = Number(item.quantity) || 0;
+        const price = Number(item.unit_price) || 0;
+        const discountPct = Number(item.discount_percent) || 0;
+        const disciplineFee = Number(item.discipline_fee) || 0;
+        const disciplineCount = (item.disciplines || []).length;
+        const raw = (qty * price) + (disciplineFee * disciplineCount);
+        return raw - raw * (discountPct / 100);
+      };
+      const subtotal = items?.reduce((sum, item) => item.is_optional ? sum : sum + calculateItemTotal(item), 0) || 0;
       const taxRate = input.tax_rate || 0;
       const taxAmount = subtotal * (taxRate / 100);
       const totalAmount = subtotal + taxAmount;
@@ -244,7 +253,7 @@ export function useCreateProposal() {
           description: item.description || null,
           quantity: item.quantity,
           unit_price: item.unit_price,
-          total_price: item.quantity * item.unit_price,
+          total_price: calculateItemTotal(item),
           sort_order: item.sort_order ?? idx,
           fee_type: item.fee_type || "fixed",
           estimated_hours: item.estimated_hours || null,
@@ -304,8 +313,17 @@ export function useUpdateProposal() {
     mutationFn: async ({ id, ...input }: ProposalFormInput & { id: string }) => {
       const { items, milestones, ...proposalData } = input;
       
-      // Calculate totals
-      const subtotal = items?.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0) || 0;
+      // Calculate totals (including discipline fees and discounts, excluding optional items)
+      const calculateItemTotal = (item: any) => {
+        const qty = Number(item.quantity) || 0;
+        const price = Number(item.unit_price) || 0;
+        const discountPct = Number(item.discount_percent) || 0;
+        const disciplineFee = Number(item.discipline_fee) || 0;
+        const disciplineCount = (item.disciplines || []).length;
+        const raw = (qty * price) + (disciplineFee * disciplineCount);
+        return raw - raw * (discountPct / 100);
+      };
+      const subtotal = items?.reduce((sum, item) => item.is_optional ? sum : sum + calculateItemTotal(item), 0) || 0;
       const taxRate = input.tax_rate || 0;
       const taxAmount = subtotal * (taxRate / 100);
       const totalAmount = subtotal + taxAmount;
@@ -375,7 +393,7 @@ export function useUpdateProposal() {
           description: item.description || null,
           quantity: item.quantity,
           unit_price: item.unit_price,
-          total_price: item.quantity * item.unit_price,
+          total_price: calculateItemTotal(item),
           sort_order: item.sort_order ?? idx,
           fee_type: item.fee_type || "fixed",
           estimated_hours: item.estimated_hours || null,
