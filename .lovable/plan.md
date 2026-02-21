@@ -1,41 +1,88 @@
-## Add Rich Text Toolbar to Service Description + Explain Default Requirements
 
-### What's Changing
 
-**1. Rich text formatting toolbar for the Description field**
+## Smart Proposal Follow-Up System
 
-When you expand a service row, the description editor will get a formatting toolbar (similar to the reference image you shared) with:
+### Overview
 
-- **Bold**, **Italic**, **Underline** buttons
-- **Bullet list** and **Numbered list** buttons
-- **Link** insertion
+This plan adds **read receipts** when a client opens a proposal link, instant **PM notifications**, and lays the groundwork for **AI-drafted follow-up emails** that get smarter over time as data accumulates.
 
-This will use the same Tiptap rich text editor (`RichTextEditor` component) that's already used in the email composer. The description will be stored as HTML, which means it can render formatted text on proposals.
+Follow-up emails will live in two places:
+1. **Dashboard "Proposals to Follow Up" card** -- enhanced with a "Draft Follow-up Email" action that uses AI to generate a contextual nudge based on proposal details and timing
+2. **Proposal table action menu** -- same "Draft Follow-up Email" option, which opens the Compose Email dialog pre-filled with the AI-generated draft
 
-The label will be changed from "Scope Description" to just **"Description"**.
+---
 
-The same rich text editor will also be added to the **Add New Service** dialog's description field.
+### What Gets Built
 
-**2. What are "Default Requirements"? - provide tool top explaining what this is**
+**Phase 1: Read Receipts + Notifications (immediate value)**
 
-Default Requirements is a feature that lets you pre-define a checklist of items needed before work on a service can begin. Each requirement has:
+- When a client opens the proposal link (`/proposal/:token`), automatically set `viewed_at` timestamp and update status to `"viewed"` (only on first view)
+- Send an in-app notification to the assigned PM: "Client viewed proposal #MMDDYY-1 for 123 Main St"
+- Show a "Viewed" indicator in the proposal table (already has the status style defined)
+- Log the view event in `proposal_follow_ups` table for history
 
-- **Label** -- what's needed (e.g., "Sealed plans from architect", "Owner authorization letter")
-- **Category** -- the type: Missing Document, Missing Info, Pending Signature, or Pending Response
-- **From Whom** -- who provides it (e.g., "Client", "Architect", "DOB")
+**Phase 2: AI-Drafted Follow-Up Emails**
 
-When a service with default requirements is added to a project, the system can automatically populate a requirements checklist so the PM knows exactly what to collect. This prevents projects from stalling because someone forgot to request a critical document.
+- New backend function `draft-proposal-followup` that takes proposal context (title, amount, days since sent, days since viewed, follow-up count, client name) and generates a professional nudge email
+- "Draft Follow-up Email" action in both the dashboard card and the proposal table menu
+- Opens the existing Compose Email dialog pre-populated with: To (client email), Subject, and AI-generated body
+- The PM can review, edit, and send -- nothing goes out automatically
+- Each sent follow-up gets logged, building the data foundation for smart timing later
+
+---
+
+### Where Follow-Up Emails Live
+
+```text
+Dashboard                          Proposals Page
++--------------------------+       +---------------------------+
+| Proposals to Follow Up   |       |  ... | Actions menu       |
+|                          |       |      |  Edit               |
+|  "ABC Renovation"        |       |      |  Client Preview     |
+|  Viewed 2d ago - $15,000 |       |      |  Draft Follow-up    |
+|  [Draft Follow-up Email] |       |      |  Log Follow-up      |
+|  [Snooze] [Dismiss]      |       |      |  Snooze             |
++--------------------------+       +---------------------------+
+         |                                    |
+         +----------> Opens Compose Email <---+
+                      pre-filled with AI draft
+```
+
+The AI draft is context-aware:
+- First follow-up: friendly check-in ("wanted to make sure you received...")
+- After client viewed: acknowledges they looked at it ("I noticed you had a chance to review...")
+- Multiple follow-ups: more direct ("following up again on...")
+- High-value proposals: emphasizes timeline/availability
 
 ---
 
 ### Technical Details
 
-**Files to modify:**
+**1. Client Proposal Page (`src/pages/ClientProposal.tsx`)**
+- Add a `useEffect` that fires once when proposal data loads
+- Calls `supabase.from("proposals").update({ viewed_at, status: "viewed" })` if `viewed_at` is null and status is `"sent"`
+- Creates a notification for the assigned PM
+- Logs a "viewed" entry in `proposal_follow_ups`
 
-1. `**src/components/settings/ServiceCatalogSettings.tsx**`
-  - Import `RichTextEditor` from `@/components/emails/RichTextEditor`
-  - In the expanded description row (lines 413-428): replace the `Textarea` with `RichTextEditor`, passing `service.description` as content and updating via `updateService(service.id, "description", html)`
-  - Change label from "Scope Description" to "Description"
-  - In the Add Service dialog (lines 593-602): replace the `Textarea` with `RichTextEditor` for the new service description field
-2. `**src/hooks/useCompanySettings.ts**` -- No changes needed; `description` is already a `string` field that can hold HTML.
-3. `**src/components/emails/RichTextEditor.tsx**` -- No changes needed; the existing component already supports bold, italic, underline, links, bullet lists, and numbered lists.
+**2. New Edge Function: `supabase/functions/draft-proposal-followup/index.ts`**
+- Accepts `proposal_id`, fetches proposal details from DB
+- Calls Lovable AI (Gemini 3 Flash) with proposal context to generate email subject + body
+- Returns `{ subject, html_body }` to the frontend
+- Handles 429/402 rate limit errors
+
+**3. Dashboard Follow-Ups Card (`src/components/dashboard/ProposalFollowUps.tsx`)**
+- Add "Draft Follow-up Email" menu item
+- When clicked, calls the edge function, then opens Compose Email dialog with pre-filled data
+
+**4. Proposal Table Menu (`src/components/proposals/ProposalTable.tsx`)**
+- Add "Draft Follow-up Email" menu item for sent/viewed proposals
+- Same behavior: calls edge function, opens compose dialog
+
+**5. Proposals Page (`src/pages/Proposals.tsx`)**
+- Wire up the new "Draft Follow-up" action
+- Manage compose dialog state with pre-filled AI content
+
+**6. Update `supabase/config.toml`**
+- Add `[functions.draft-proposal-followup]` with `verify_jwt = false`
+
+**Database**: No schema changes needed -- `proposals.viewed_at` column and `proposal_follow_ups` table already exist.
