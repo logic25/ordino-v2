@@ -1208,10 +1208,6 @@ export function ProposalDialog({
 
                 <SectionLabel>Terms & Notes</SectionLabel>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Payment Schedule</Label>
-                  <Textarea placeholder="e.g., 50% deposit upon signing, balance due upon permit approval" rows={2} className="text-sm" {...form.register("payment_terms")} />
-                </div>
-                <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Terms & Conditions</Label>
                   <Textarea placeholder="Enter terms and conditions..." rows={4} className="text-sm" {...form.register("terms_conditions")} />
                   <p className="text-xs text-muted-foreground">Default terms can be set in Settings → Company</p>

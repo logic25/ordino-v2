@@ -431,11 +431,15 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                       )}
                     </div>
                     <div style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>
-                      <div><strong>By:</strong> {proposal.internal_signer
-                        ? `${proposal.internal_signer.first_name} ${proposal.internal_signer.last_name}`
-                        : (proposal as any).creator
-                        ? `${(proposal as any).creator.first_name} ${(proposal as any).creator.last_name}`
-                        : ""}</div>
+                      <div><strong>By:</strong> {(() => {
+                        const s = proposal.internal_signer;
+                        if (s && !Array.isArray(s)) return `${s.first_name || ""} ${s.last_name || ""}`.trim();
+                        if (Array.isArray(s) && s[0]) return `${s[0].first_name || ""} ${s[0].last_name || ""}`.trim();
+                        const c = (proposal as any).creator;
+                        if (c && !Array.isArray(c)) return `${c.first_name || ""} ${c.last_name || ""}`.trim();
+                        if (Array.isArray(c) && c[0]) return `${c[0].first_name || ""} ${c[0].last_name || ""}`.trim();
+                        return "";
+                      })()}</div>
                       <div><strong>Date:</strong> {proposal.internal_signed_at ? fmtDate(proposal.internal_signed_at) : ""}</div>
                     </div>
                   </div>
