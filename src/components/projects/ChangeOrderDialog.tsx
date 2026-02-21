@@ -161,8 +161,17 @@ export function ChangeOrderDialog({
               <Label htmlFor="co-amount">Amount * (use negative for credits)</Label>
               <Input
                 id="co-amount"
-                placeholder="e.g. 1500 or -500"
-                {...form.register("amount")}
+                placeholder="e.g. 1,500 or -500"
+                value={(() => {
+                  const raw = form.watch("amount") || "";
+                  const num = parseFloat(raw.replace(/[^0-9.-]/g, ""));
+                  if (isNaN(num) || raw === "" || raw === "-") return raw;
+                  return num.toLocaleString("en-US");
+                })()}
+                onChange={(e) => {
+                  const cleaned = e.target.value.replace(/[^0-9.,-]/g, "");
+                  form.setValue("amount", cleaned.replace(/,/g, ""));
+                }}
               />
               {form.formState.errors.amount && (
                 <p className="text-xs text-destructive">{form.formState.errors.amount.message}</p>
@@ -219,11 +228,7 @@ export function ChangeOrderDialog({
                 })}
               </div>
             ) : (
-              <Input
-                id="co-services"
-                placeholder="e.g. ALT2 GC, Work Permit (comma-separated)"
-                {...form.register("linked_service_names")}
-              />
+              <p className="text-xs text-muted-foreground italic">No services on this project yet. Add services first to link them.</p>
             )}
           </div>
 
