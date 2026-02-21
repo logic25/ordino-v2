@@ -32,6 +32,7 @@ export interface ProposalFormInput {
   notes?: string | null;
   lead_source?: string | null;
   referred_by?: string | null;
+  referred_by_person?: string | null;
   project_type?: string | null;
   sales_person_id?: string | null;
   billed_to_name?: string | null;
