@@ -754,9 +754,21 @@ function ServiceRequirementsEditor({
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <CollapsibleTrigger asChild>
-        <button className="flex items-center gap-1.5 px-4 py-1.5 text-xs text-muted-foreground hover:text-foreground w-full text-left">
+        <button className="flex items-center gap-1.5 px-4 py-1.5 text-xs text-muted-foreground hover:text-foreground w-full text-left group">
           {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-          Default Requirements ({requirements.length})
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex items-center gap-1 cursor-help">
+                  Default Requirements ({requirements.length})
+                  <span className="text-muted-foreground text-[10px]">ⓘ</span>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-xs text-xs">
+                Pre-define a checklist of items needed before work can begin (e.g., sealed plans, owner authorization). When this service is added to a project, these requirements auto-populate so the PM knows exactly what to collect.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </button>
       </CollapsibleTrigger>
       <CollapsibleContent className="px-4 pb-3">
