@@ -72,7 +72,21 @@ const GUIDES: Guide[] = [
     title: "Settings",
     icon: Settings,
     items: [
-      { title: "Configure service catalog", steps: ["Go to Settings > Proposals & Services", "Add/edit service types with pricing", "Set complexity weights for capacity tracking", "Save changes"] },
+      { title: "Configure service catalog", steps: ["Go to Settings > Proposals & Services", "Click '+ Add Service' to open the modal", "Fill in name, description, fee type, and price", "Set multiplier and complexity weight (see guides below)", "Save changes"] },
+      { title: "How to set the Multiplier", steps: [
+        "The multiplier scales the base price when a service covers multiple units (floors, disciplines, etc.)",
+        "Example: A 'DOB Filing' costs $500 base. If the project has 3 disciplines and the multiplier is 1.5, the price adjusts to $500 × 1.5 × 3 = $2,250",
+        "Set to 0 or leave blank if the service is always a flat fee regardless of scope",
+        "Common values: 1.0 (no scaling), 1.25–1.5 (moderate scaling per unit), 2.0+ (heavy per-unit scaling)",
+      ]},
+      { title: "How to set Complexity Weight", steps: [
+        "Complexity weight (1–10) tells the dashboard how much PM bandwidth a service consumes",
+        "1–2: Simple tasks like document pickups, basic filings, or letter-of-completion requests",
+        "3–5: Standard services like DOB filings, plan reviews, or objection responses",
+        "6–8: Complex services like full building alt-1 filings, multiple inspections, or coordinated multi-agency submissions",
+        "9–10: Major projects like full building new-build filings or litigation support packages",
+        "The PM capacity tracker multiplies this weight by the number of active projects using the service to calculate workload",
+      ]},
       { title: "Set up notification preferences", steps: ["Go to Settings > Notifications", "Toggle categories on/off", "Choose frequency (Realtime/Daily/Weekly)", "Save preferences"] },
     ],
   },
