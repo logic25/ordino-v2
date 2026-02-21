@@ -29,9 +29,9 @@ export default function Setup() {
   const form = useForm<SetupFormData>({
     resolver: zodResolver(setupSchema),
     defaultValues: {
-      companyName: "",
-      firstName: "",
-      lastName: "",
+      companyName: "Green Light Expediting",
+      firstName: "Test",
+      lastName: "User",
     },
   });
 
