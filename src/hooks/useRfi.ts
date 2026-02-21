@@ -332,7 +332,9 @@ export function useRfiByToken(token: string | null) {
           .eq(col, val)
           .eq("category", "Plans");
         if (planDocs && planDocs.length > 0) {
-          existingPlanNames = planDocs.map((d: any) => d.filename).filter(Boolean);
+          const names = planDocs.map((d: any) => d.filename).filter(Boolean);
+          // Deduplicate filenames
+          existingPlanNames = [...new Set(names)] as string[];
         }
       }
 
