@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatPhoneNumber } from "@/lib/formatters";
 import {
   Dialog,
   DialogContent,
@@ -196,18 +197,18 @@ export function AddContactDialog({ open, onOpenChange, clientId, defaultName, on
             </div>
             <div className="space-y-1.5">
               <Label>Telephone</Label>
-              <Input value={form.phone} onChange={(e) => update("phone", e.target.value)} />
+              <Input value={form.phone} onChange={(e) => update("phone", formatPhoneNumber(e.target.value))} />
             </div>
             <div className="space-y-1.5">
               <Label>Mobile</Label>
-              <Input value={form.mobile} onChange={(e) => update("mobile", e.target.value)} />
+              <Input value={form.mobile} onChange={(e) => update("mobile", formatPhoneNumber(e.target.value))} />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Fax</Label>
-              <Input value={form.fax} onChange={(e) => update("fax", e.target.value)} />
+              <Input value={form.fax} onChange={(e) => update("fax", formatPhoneNumber(e.target.value))} />
             </div>
             <div className="space-y-1.5">
               <Label className="flex items-center gap-1.5">

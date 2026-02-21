@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
+import { formatPhoneNumber, formatTaxId } from "@/lib/formatters";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -184,18 +185,33 @@ export function ClientDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Phone</Label>
-              <Input id="phone" placeholder="(555) 123-4567" {...form.register("phone")} />
+              <Input
+                id="phone"
+                placeholder="(555) 123-4567"
+                value={form.watch("phone") || ""}
+                onChange={(e) => form.setValue("phone", formatPhoneNumber(e.target.value))}
+              />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="fax">Fax</Label>
-              <Input id="fax" placeholder="(555) 123-4568" {...form.register("fax")} />
+              <Input
+                id="fax"
+                placeholder="(555) 123-4568"
+                value={form.watch("fax") || ""}
+                onChange={(e) => form.setValue("fax", formatPhoneNumber(e.target.value))}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="tax_id">Tax ID</Label>
-              <Input id="tax_id" placeholder="XX-XXXXXXX" {...form.register("tax_id")} />
+              <Input
+                id="tax_id"
+                placeholder="XX-XXXXXXX"
+                value={form.watch("tax_id") || ""}
+                onChange={(e) => form.setValue("tax_id", formatTaxId(e.target.value))}
+              />
             </div>
           </div>
 
