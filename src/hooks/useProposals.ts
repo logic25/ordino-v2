@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import { DEFAULT_PIS_SECTIONS } from "@/hooks/useRfi";
 
 export type Proposal = Tables<"proposals">;
 export type ProposalItem = Tables<"proposal_items">;
@@ -626,7 +627,7 @@ export function useSignProposalInternal() {
           .limit(1)
           .maybeSingle();
 
-        const rfiSections = template?.sections || [];
+        const rfiSections = (template?.sections && Array.isArray(template.sections) && template.sections.length > 0) ? template.sections : DEFAULT_PIS_SECTIONS;
 
         await (supabase.from("rfi_requests") as any).insert({
           company_id: profile.company_id,

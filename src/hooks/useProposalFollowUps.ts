@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { DEFAULT_PIS_SECTIONS } from "@/hooks/useRfi";
 
 export interface ProposalFollowUp {
   id: string;
@@ -202,7 +203,7 @@ export function useMarkProposalApproved() {
             title: `Project Information Sheet – ${(proposal as any).properties?.address || proposal.title}`,
             recipient_name: (proposal as any).client_name || null,
             recipient_email: null,
-            sections: template?.sections || [],
+            sections: (template?.sections && Array.isArray(template.sections) && (template.sections as any[]).length > 0) ? template.sections : DEFAULT_PIS_SECTIONS,
             created_by: profile.id,
             status: "sent",
           });
