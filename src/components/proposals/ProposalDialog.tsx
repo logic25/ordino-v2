@@ -313,18 +313,9 @@ function ServiceLineItem({
                   <Label className="text-xs text-muted-foreground">Work Types / Disciplines</Label>
                   {selectedDisciplines.length > 0 && (
                     <span className="text-xs text-muted-foreground">
-                      {selectedDisciplines.length} selected{disciplineFee > 0 ? ` · ${formatCurrency(disciplineFee)}/discipline` : ""}
+                      {selectedDisciplines.length} selected{disciplineFee > 0 ? ` · ${formatCurrency(disciplineFee)}/work type` : ""}
                     </span>
                   )}
-                </div>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <Label className="text-xs text-muted-foreground shrink-0">Fee per work type</Label>
-                  <Input
-                    type="number" min="0" step="0.01" className="h-7 text-sm w-24"
-                    value={disciplineFee || ""}
-                    onChange={(e) => form.setValue(`items.${index}.discipline_fee`, parseFloat(e.target.value) || 0)}
-                    placeholder="0.00"
-                  />
                 </div>
                 <div className="grid grid-cols-3 gap-1.5">
                   {WORK_TYPE_DISCIPLINES.map((d) => (
