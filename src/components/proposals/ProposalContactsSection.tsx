@@ -173,7 +173,7 @@ function ContactPicker({
   clientId: string;
   value: string;
   onSelect: (contact: ClientContact) => void;
-  onAddNew: () => void;
+  onAddNew: (typedName: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [contacts, setContacts] = useState<ClientContact[]>([]);
@@ -268,7 +268,7 @@ function ContactPicker({
             className="w-full text-left px-3 py-2 text-sm hover:bg-muted text-accent font-medium flex items-center gap-1.5 border-t"
             onMouseDown={(e) => {
               e.preventDefault();
-              onAddNew();
+              onAddNew(search);
               setOpen(false);
             }}
           >
@@ -291,7 +291,8 @@ export function ProposalContactsSection({
 
   // State for slide-out dialogs
   const [addCompanyState, setAddCompanyState] = useState<{ open: boolean; index: number; prefillName: string }>({ open: false, index: -1, prefillName: "" });
-  const [addContactState, setAddContactState] = useState<{ open: boolean; index: number; clientId: string }>({ open: false, index: -1, clientId: "" });
+  const [addContactState, setAddContactState] = useState<{ open: boolean; index: number; clientId: string; prefillName: string }>({ open: false, index: -1, clientId: "", prefillName: "" });
+  const [contactRefreshKey, setContactRefreshKey] = useState(0);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -345,8 +346,8 @@ export function ProposalContactsSection({
     setAddCompanyState({ open: true, index, prefillName: name });
   };
 
-  const handleAddNewContact = (index: number, clientId: string) => {
-    setAddContactState({ open: true, index, clientId });
+  const handleAddNewContact = (index: number, clientId: string, typedName: string) => {
+    setAddContactState({ open: true, index, clientId, prefillName: typedName });
   };
 
   if (grouped.length === 0) {
@@ -404,12 +405,14 @@ export function ProposalContactsSection({
           <AddContactDialog
             open={addContactState.open}
             onOpenChange={(open) => {
-              if (!open) setAddContactState({ open: false, index: -1, clientId: "" });
+              if (!open) setAddContactState({ open: false, index: -1, clientId: "", prefillName: "" });
             }}
             clientId={addContactState.clientId}
+            defaultName={addContactState.prefillName}
             onContactCreated={(contact) => {
               handleSelectContact(addContactState.index, contact);
-              setAddContactState({ open: false, index: -1, clientId: "" });
+              setContactRefreshKey(k => k + 1);
+              setAddContactState({ open: false, index: -1, clientId: "", prefillName: "" });
             }}
           />
         )}
@@ -435,7 +438,7 @@ export function ProposalContactsSection({
               onSelectCompany={(client) => handleSelectCompany(index, client)}
               onSelectContact={(c) => handleSelectContact(index, c)}
               onAddNewCompany={(name) => handleAddNewCompany(index, name)}
-              onAddNewContact={() => handleAddNewContact(index, contact.client_id || "")}
+              onAddNewContact={(typedName) => handleAddNewContact(index, contact.client_id || "", typedName)}
             />
           ))}
         </SortableContext>
@@ -465,7 +468,7 @@ function SortableContactCard({
   onSelectCompany: (client: Client) => void;
   onSelectContact: (contact: ClientContact) => void;
   onAddNewCompany: (name: string) => void;
-  onAddNewContact: () => void;
+  onAddNewContact: (typedName: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };

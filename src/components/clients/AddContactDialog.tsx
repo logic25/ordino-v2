@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -28,10 +28,11 @@ interface AddContactDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   clientId: string;
+  defaultName?: string;
   onContactCreated?: (contact: { id: string; name: string; email: string | null; phone: string | null }) => void;
 }
 
-export function AddContactDialog({ open, onOpenChange, clientId, onContactCreated }: AddContactDialogProps) {
+export function AddContactDialog({ open, onOpenChange, clientId, defaultName, onContactCreated }: AddContactDialogProps) {
   const queryClient = useQueryClient();
   const { data: profiles = [] } = useCompanyProfiles();
   const [form, setForm] = useState({
@@ -51,6 +52,26 @@ export function AddContactDialog({ open, onOpenChange, clientId, onContactCreate
     zip: "",
     is_primary: false,
   });
+
+  // Pre-fill first_name from defaultName when dialog opens
+  useEffect(() => {
+    if (open && defaultName) {
+      const parts = defaultName.trim().split(/\s+/);
+      setForm((prev) => ({
+        ...prev,
+        first_name: parts[0] || "",
+        last_name: parts.slice(1).join(" ") || "",
+      }));
+    }
+    if (!open) {
+      setForm({
+        first_name: "", last_name: "", title: "", email: "", phone: "",
+        mobile: "", fax: "", linkedin_url: "",
+        lead_owner_id: "", address_1: "", address_2: "", city: "",
+        state: "", zip: "", is_primary: false,
+      });
+    }
+  }, [open, defaultName]);
 
   const update = (field: string, value: any) =>
     setForm((prev) => ({ ...prev, [field]: value }));
