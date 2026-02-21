@@ -210,25 +210,25 @@ export default function Auth() {
 
         <div className="space-y-6">
           <h1 className="text-4xl font-bold text-sidebar-foreground leading-tight">
-            NYC Permit Expediting,<br />
-            <span className="text-sidebar-primary">Powered by AI</span>
+            Your projects,<br />
+            <span className="text-sidebar-primary">anywhere you go.</span>
           </h1>
           <p className="text-sidebar-foreground/70 text-lg max-w-md">
-            Transform permit management from manual chaos into AI-powered excellence. 
-            Track time, manage projects, and close permits faster.
+            Track time, manage permits, and stay on top of your projects — from the office or the field. 
+            Works on your phone and even offline.
           </p>
           <div className="flex items-center gap-4 pt-4">
             <div className="flex items-center gap-2 text-sidebar-foreground/60">
               <Building2 className="h-5 w-5" />
-              <span>Multi-tenant ready</span>
+              <span>Full desktop experience</span>
             </div>
             <div className="w-px h-4 bg-sidebar-border" />
             <div className="flex items-center gap-2 text-sidebar-foreground/60">
-              <span>Mobile-first</span>
+              <span>📱 Mobile ready</span>
             </div>
             <div className="w-px h-4 bg-sidebar-border" />
             <div className="flex items-center gap-2 text-sidebar-foreground/60">
-              <span>Offline capable</span>
+              <span>⚡ Works offline</span>
             </div>
           </div>
         </div>
@@ -255,14 +255,14 @@ export default function Auth() {
                 ? "Set new password"
                 : isForgotPassword 
                   ? "Reset password" 
-                  : "Welcome back"}
+                  : "Sign in to Ordino"}
             </CardTitle>
             <CardDescription>
               {isPasswordReset
                 ? "Enter your new password below"
                 : isForgotPassword
                   ? "Enter your email and we'll send you a reset link"
-                  : "Sign in to access your projects and time tracking"}
+                  : "Use your Green Light Google account to continue"}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -420,7 +420,7 @@ export default function Auth() {
 
                 <div className="mt-6 text-center">
                   <p className="text-xs text-muted-foreground">
-                    Access is by invitation only. Contact your administrator to request access.
+                    Sign in with your @greenlightexpediting.com account. Need access? Ask your team lead.
                   </p>
                 </div>
               </>

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef, useMemo } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -24,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [signingOut, setSigningOut] = useState(false);
   const clockedInRef = useRef(false);
 
   // Auto clock-in helper
@@ -134,9 +135,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    setSigningOut(true);
     setProfile(null);
     await supabase.auth.signOut();
+    setSigningOut(false);
   };
+
+  // During sign-out, treat hasProfile as true to prevent Setup flash
+  const effectiveHasProfile = useMemo(
+    () => signingOut ? true : !!profile,
+    [signingOut, profile]
+  );
 
   return (
     <AuthContext.Provider 
@@ -145,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session, 
         profile, 
         loading, 
-        hasProfile: !!profile,
+        hasProfile: effectiveHasProfile,
         signIn, 
         signUp, 
         signOut,
