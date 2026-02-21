@@ -158,14 +158,20 @@ export function ServiceCatalogSettings() {
     <div className="space-y-6">
       {/* Service Catalog */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Service Catalog
-          </CardTitle>
-          <CardDescription>
-            Define your standard services for quick addition to proposals. Price changes are audited.
-          </CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between space-y-0">
+          <div className="space-y-1.5">
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Service Catalog
+            </CardTitle>
+            <CardDescription>
+              Define your standard services for quick addition to proposals. Price changes are audited.
+            </CardDescription>
+          </div>
+          <Button type="button" size="sm" onClick={addService}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Service
+          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Search */}
@@ -223,11 +229,12 @@ export function ServiceCatalogSettings() {
                           />
                         </TableCell>
                         <TableCell>
-                          <Input
+                          <Textarea
                             value={service.description || ""}
                             onChange={(e) => updateService(service.id, "description", e.target.value)}
-                            placeholder="Description"
-                            className="h-8 text-sm"
+                            placeholder="Service description / scope"
+                            className="min-h-[60px] text-sm resize-y"
+                            rows={2}
                           />
                         </TableCell>
                         <TableCell>
@@ -387,12 +394,11 @@ export function ServiceCatalogSettings() {
             </div>
           )}
 
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={addService}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Service
-            </Button>
-          </div>
+          {services.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-2">
+              Click <strong>"Add Service"</strong> above to get started.
+            </p>
+          )}
         </CardContent>
       </Card>
 
