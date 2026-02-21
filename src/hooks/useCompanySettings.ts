@@ -51,6 +51,7 @@ export interface ServiceCatalogItem {
   multiplier?: number;
   has_discipline_pricing?: boolean;
   discipline_fee?: number;
+  show_work_types?: boolean;
   price_history?: PriceChangeEntry[];
   default_requirements?: ServiceRequirement[];
   complexity_weight?: number;
