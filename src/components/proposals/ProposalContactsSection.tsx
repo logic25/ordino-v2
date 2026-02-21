@@ -8,6 +8,14 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { supabase } from "@/integrations/supabase/client";
+
+function formatPhoneDisplay(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 0) return "";
+  if (digits.length <= 3) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+}
 import type { ContactRole, ProposalContactInput } from "@/hooks/useProposalContacts";
 import type { Client } from "@/hooks/useClients";
 import { ClientDialog } from "@/components/clients/ClientDialog";
@@ -507,7 +515,7 @@ function SortableContactCard({
       {/* Row 3: Email + Phone */}
       <div className="px-3 pb-2 pl-9 grid grid-cols-2 gap-2">
         <Input placeholder="Email" type="email" value={contact.email || ""} onChange={(e) => onUpdate({ email: e.target.value })} className="h-8 text-sm" />
-        <Input placeholder="Phone" value={contact.phone || ""} onChange={(e) => onUpdate({ phone: e.target.value })} className="h-8 text-sm" />
+        <Input placeholder="Phone" value={formatPhoneDisplay(contact.phone || "")} onChange={(e) => { const raw = e.target.value.replace(/\D/g, "").slice(0, 10); onUpdate({ phone: raw }); }} className="h-8 text-sm" />
       </div>
 
       {/* Row 4: Roles */}
