@@ -56,6 +56,7 @@ export function ServiceCatalogSettings() {
   }, [companyData]);
 
   const addService = () => {
+    setSearchQuery(""); // Clear search so new row is visible
     setServices([
       ...services,
       {
@@ -228,13 +229,13 @@ export function ServiceCatalogSettings() {
                             className="h-8 text-sm"
                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="align-top">
                           <Textarea
                             value={service.description || ""}
                             onChange={(e) => updateService(service.id, "description", e.target.value)}
-                            placeholder="Service description / scope"
-                            className="min-h-[60px] text-sm resize-y"
-                            rows={2}
+                            placeholder="Service description / scope — supports multiple lines"
+                            className="min-h-[80px] text-sm resize-y leading-relaxed"
+                            rows={3}
                           />
                         </TableCell>
                         <TableCell>
