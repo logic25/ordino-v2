@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { formatCurrency } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Trophy, TrendingUp, DollarSign, Target } from "lucide-react";
@@ -31,14 +32,14 @@ export function RfpSummaryCards({ rfps, activeFilter, onFilterChange }: RfpSumma
       key: "all",
       label: "Total RFPs",
       value: stats.total,
-      detail: `$${stats.totalValue.toLocaleString()} total value`,
+      detail: `${formatCurrency(stats.totalValue)} total value`,
       icon: Target,
       tooltip: "All RFPs. Click to filter.",
     },
     {
       key: "active",
       label: "Pipeline Value",
-      value: `$${stats.pipelineValue.toLocaleString()}`,
+      value: formatCurrency(stats.pipelineValue),
       detail: `${stats.activeCount} active opportunities`,
       icon: TrendingUp,
       tooltip: "Value of RFPs still in play.",
@@ -46,7 +47,7 @@ export function RfpSummaryCards({ rfps, activeFilter, onFilterChange }: RfpSumma
     {
       key: "won",
       label: "Secured",
-      value: `$${stats.wonValue.toLocaleString()}`,
+      value: formatCurrency(stats.wonValue),
       detail: `${stats.wonCount} won · ${stats.winRate}% win rate`,
       icon: DollarSign,
       tooltip: "Value of RFPs you won.",
