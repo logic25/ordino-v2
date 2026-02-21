@@ -185,7 +185,7 @@ function ServiceLineItem({
   const handleSelectService = (service: ServiceCatalogItem) => {
     const opts = { shouldDirty: true, shouldValidate: false };
     form.setValue(`items.${index}.name`, service.name, opts);
-    form.setValue(`items.${index}.description`, service.description || "", opts);
+    form.setValue(`items.${index}.description`, (service.description || "").replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(), opts);
     form.setValue(`items.${index}.unit_price`, service.default_price || 0, opts);
     form.setValue(`items.${index}.estimated_hours`, service.default_hours || 0, opts);
     form.setValue(`items.${index}.fee_type`, service.default_fee_type || "fixed", opts);
