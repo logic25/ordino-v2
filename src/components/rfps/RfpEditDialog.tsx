@@ -112,18 +112,29 @@ export function RfpEditDialog({ rfp, open, onOpenChange }: RfpEditDialogProps) {
               <Input type="date" value={form.due_date} onChange={(e) => update("due_date", e.target.value)} />
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Contract Value ($)</Label>
-              <Input type="number" value={form.contract_value} onChange={(e) => update("contract_value", e.target.value)} />
+              <Input
+                value={form.contract_value ? Number(form.contract_value).toLocaleString("en-US") : ""}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/[^0-9.]/g, "");
+                  update("contract_value", raw);
+                }}
+                placeholder="150,000"
+              />
             </div>
             <div className="space-y-1.5">
-              <Label>M/WBE Min %</Label>
-              <Input type="number" value={form.mwbe_goal_min} onChange={(e) => update("mwbe_goal_min", e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>M/WBE Max %</Label>
-              <Input type="number" value={form.mwbe_goal_max} onChange={(e) => update("mwbe_goal_max", e.target.value)} />
+              <Label>M/WBE Goal %</Label>
+              <Input
+                type="number"
+                value={form.mwbe_goal_min}
+                onChange={(e) => {
+                  update("mwbe_goal_min", e.target.value);
+                  update("mwbe_goal_max", e.target.value);
+                }}
+                placeholder="30"
+              />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
