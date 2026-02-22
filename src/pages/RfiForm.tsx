@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { formatPhoneNumber } from "@/lib/formatters";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -417,6 +418,36 @@ export default function RfiForm() {
             project_id: rfi.project_id,
           } as any);
         }
+
+        // If owner was updated via "Update Below", add as a proposal contact
+        const ownerUpdated = responses["applicant_and_owner_owner_verified"] === "false";
+        const ownerName = responses["applicant_and_owner_owner_name"];
+        if (ownerUpdated && ownerName && rfi.proposal_id) {
+          const ownerContact = {
+            proposal_id: rfi.proposal_id,
+            company_id: rfi.company_id,
+            name: ownerName,
+            company_name: responses["applicant_and_owner_owner_company"] || null,
+            role: "owner",
+            email: responses["applicant_and_owner_owner_email"] || null,
+            phone: responses["applicant_and_owner_owner_phone"] || null,
+          };
+          // Check if an owner contact already exists for this proposal
+          const { data: existingContact } = await (supabase.from("proposal_contacts" as any) as any)
+            .select("id")
+            .eq("proposal_id", rfi.proposal_id)
+            .eq("role", "owner")
+            .maybeSingle();
+          
+          if (existingContact) {
+            await (supabase.from("proposal_contacts" as any) as any)
+              .update(ownerContact)
+              .eq("id", existingContact.id);
+          } else {
+            await (supabase.from("proposal_contacts" as any) as any)
+              .insert(ownerContact);
+          }
+        }
       }
 
       setSubmitted(true);
@@ -510,8 +541,15 @@ export default function RfiForm() {
             <Input
               type={field.type === "phone" ? "tel" : field.type}
               placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
-              value={getValue(key)}
-              onChange={(e) => setValue(key, e.target.value)}
+              value={field.type === "phone" ? formatPhoneNumber(getValue(key)) : getValue(key)}
+              onChange={(e) => {
+                if (field.type === "phone") {
+                  const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                  setValue(key, digits);
+                } else {
+                  setValue(key, e.target.value);
+                }
+              }}
               className="h-11 bg-white border-stone-200 text-stone-800 focus:border-amber-500 focus:ring-amber-500/20 transition-all"
             />
           )
