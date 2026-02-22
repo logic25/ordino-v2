@@ -33,8 +33,10 @@ export default function AuthCallback() {
     });
 
     // Also check immediately in case session is already set
+    // BUT only navigate if we DON'T have a provider_token to store
+    // (the onAuthStateChange handler will handle Google logins with token storage)
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
+      if (session && !(session.provider_token && session.user.app_metadata?.provider === "google")) {
         navigate("/dashboard", { replace: true });
       }
     });
