@@ -16,6 +16,7 @@ import {
   Send, XCircle, CheckCheck, StickyNote, Sparkles, ClipboardList,
 } from "lucide-react";
 import { ActionItemsTab } from "./ActionItemsTab";
+import { useTimelineEvents } from "@/hooks/useTimelineEvents";
 import { useToast } from "@/hooks/use-toast";
 import type {
   MockService, MockContact, MockMilestone, MockChangeOrder,
@@ -329,25 +330,35 @@ function ContactsTab({ contacts }: { contacts: MockContact[] }) {
 
 // --- Timeline Tab ---
 
-function TimelineTab({ milestones }: { milestones: MockMilestone[] }) {
-  const sourceIcons: Record<string, typeof Circle> = { system: Circle, email: Mail, user: Pencil, dob: FileText };
+function TimelineTab({ projectId }: { projectId?: string }) {
+  const { data: events = [], isLoading } = useTimelineEvents(projectId);
+  const eventIcons: Record<string, typeof Circle> = {
+    action_item_created: ClipboardList,
+    action_item_completed: CheckCircle2,
+  };
+
+  if (isLoading) return <p className="text-sm text-muted-foreground italic p-4">Loading timeline...</p>;
+  if (events.length === 0) return <p className="text-sm text-muted-foreground italic p-4">No timeline events yet.</p>;
+
   return (
     <div className="p-4 space-y-0">
-      {milestones.map((m, i) => {
-        const Icon = sourceIcons[m.source] || Circle;
+      {events.map((ev, i) => {
+        const Icon = eventIcons[ev.event_type] || Circle;
+        const actorName = ev.actor?.display_name || ev.actor?.first_name || "System";
+        const date = new Date(ev.created_at).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
+        const time = new Date(ev.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
         return (
-          <div key={m.id} className="flex gap-3 relative">
-            {i < milestones.length - 1 && <div className="absolute left-[11px] top-7 bottom-0 w-px bg-border" />}
+          <div key={ev.id} className="flex gap-3 relative">
+            {i < events.length - 1 && <div className="absolute left-[11px] top-7 bottom-0 w-px bg-border" />}
             <div className="shrink-0 mt-1 z-10 bg-background rounded-full">
               <Icon className="h-[22px] w-[22px] p-1 rounded-full bg-muted text-muted-foreground" />
             </div>
             <div className="pb-4 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground font-mono">{m.date}</span>
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize">{m.source}</Badge>
+                <span className="text-xs text-muted-foreground font-mono">{date} {time}</span>
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize">{ev.event_type.replace(/_/g, " ")}</Badge>
               </div>
-              <p className="text-sm mt-0.5">{m.event}</p>
-              {m.details && <p className="text-xs text-muted-foreground mt-0.5">{m.details}</p>}
+              <p className="text-sm mt-0.5">{ev.description}</p>
             </div>
           </div>
         );
@@ -658,7 +669,7 @@ export function ProjectExpandedTabs({
             <Users className="h-3 w-3" /> Contacts ({contacts.length})
           </TabsTrigger>
           <TabsTrigger value="timeline" className="text-xs gap-1 data-[state=active]:bg-background">
-            <Clock className="h-3 w-3" /> Timeline ({milestones.length})
+            <Clock className="h-3 w-3" /> Timeline
           </TabsTrigger>
           <TabsTrigger value="documents" className="text-xs gap-1 data-[state=active]:bg-background">
             <File className="h-3 w-3" /> Docs ({documents.length})
@@ -684,7 +695,7 @@ export function ProjectExpandedTabs({
         <TabsContent value="notes" className="mt-0"><NotesTab services={services} /></TabsContent>
         <TabsContent value="emails" className="mt-0"><EmailsTab emails={emails} /></TabsContent>
         <TabsContent value="contacts" className="mt-0"><ContactsTab contacts={contacts} /></TabsContent>
-        <TabsContent value="timeline" className="mt-0"><TimelineTab milestones={milestones} /></TabsContent>
+        <TabsContent value="timeline" className="mt-0"><TimelineTab projectId={projectId} /></TabsContent>
         <TabsContent value="documents" className="mt-0"><DocumentsTab documents={documents} /></TabsContent>
         <TabsContent value="time-logs" className="mt-0"><TimeLogsTab timeEntries={timeEntries} /></TabsContent>
         <TabsContent value="change-orders" className="mt-0"><ChangeOrdersTab changeOrders={changeOrders} /></TabsContent>
