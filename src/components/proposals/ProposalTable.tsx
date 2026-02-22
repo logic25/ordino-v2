@@ -319,6 +319,12 @@ export function ProposalTable({
                           Preview PDF
                         </DropdownMenuItem>
                       )}
+                      {(proposal as any).public_token && (
+                        <DropdownMenuItem onClick={() => window.open(`/proposal/${(proposal as any).public_token}`, '_blank')}>
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          Client Preview
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuSeparator />
                       {(proposal.status === "draft" || proposal.status === "viewed") && (
                         <DropdownMenuItem onClick={() => onSign(proposal)}>
