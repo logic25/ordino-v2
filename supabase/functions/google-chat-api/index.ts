@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// deno-lint-ignore-file
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -52,7 +52,7 @@ async function getAccessToken(serviceAccountKey: any): Promise<string> {
   return tokenData.access_token;
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -68,8 +68,8 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } },
     );
-    const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(authHeader.replace("Bearer ", ""));
-    if (claimsErr || !claimsData?.claims) {
+    const { data: { user }, error: userErr } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
+    if (userErr || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
     }
 
@@ -81,9 +81,19 @@ serve(async (req) => {
         headers: corsHeaders,
       });
     }
-    const saKey = JSON.parse(saKeyRaw);
+    // Clean the SA key - may have tabs/whitespace from copy-paste
+    const cleanedKey = saKeyRaw.replace(/[\t\r\n]+/g, " ").replace(/\s+/g, " ");
+    let saKey: any;
+    try {
+      saKey = JSON.parse(cleanedKey);
+    } catch (parseErr) {
+      console.error("Failed to parse SA key, first 100 chars:", saKeyRaw.substring(0, 100));
+      return new Response(JSON.stringify({ error: "Invalid service account key format" }), {
+        status: 500,
+        headers: corsHeaders,
+      });
+    }
     const accessToken = await getAccessToken(saKey);
-
     const { action, ...params } = await req.json();
     const chatApi = "https://chat.googleapis.com/v1";
     const headers = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
