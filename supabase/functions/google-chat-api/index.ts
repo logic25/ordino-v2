@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
           if (data.error.code === 403 || data.error.code === 401) {
             return new Response(JSON.stringify({
               error: "chat_scope_missing",
-              message: "Chat permissions not granted. Please sign out and sign back in to grant Google Chat access.",
+              message: "Google Chat scopes not granted. Please add chat.spaces.readonly, chat.messages, and chat.memberships.readonly to your Google Cloud OAuth consent screen, then sign out and sign back in.",
             }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
           }
           throw new Error(data.error.message || JSON.stringify(data.error));
