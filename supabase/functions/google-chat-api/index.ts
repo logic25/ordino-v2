@@ -104,10 +104,14 @@ Deno.serve(async (req) => {
     // Get a fresh access token
     let accessToken: string;
     const tokenExpiry = connection.token_expires_at ? new Date(connection.token_expires_at) : new Date(0);
+    console.log("Token expiry:", tokenExpiry.toISOString(), "Now:", new Date().toISOString(), "Valid:", tokenExpiry > new Date(Date.now() + 60_000));
     if (connection.access_token && tokenExpiry > new Date(Date.now() + 60_000)) {
       accessToken = connection.access_token;
+      console.log("Using cached access token");
     } else {
+      console.log("Refreshing access token...");
       accessToken = await getUserAccessToken(connection.refresh_token, clientId, clientSecret, supabaseAdmin, profile.id);
+      console.log("Access token refreshed successfully");
     }
 
     const { action, ...params } = await req.json();
@@ -119,9 +123,12 @@ Deno.serve(async (req) => {
     switch (action) {
       case "list_spaces": {
         // List all spaces including DMs
+        console.log("list_spaces: fetching from Google Chat API...");
         const res = await fetch(`${chatApi}/spaces?pageSize=200`, { headers });
         const data = await res.json();
+        console.log("list_spaces: response status", res.status, "has error:", !!data.error);
         if (data.error) {
+          console.error("list_spaces: Google API error:", JSON.stringify(data.error));
           // If 403/401, the user likely hasn't granted chat scopes
           if (data.error.code === 403 || data.error.code === 401) {
             return new Response(JSON.stringify({
