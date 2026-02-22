@@ -71,6 +71,9 @@ Deno.serve(async (req) => {
         "https://www.googleapis.com/auth/gmail.readonly",
         "https://www.googleapis.com/auth/gmail.send",
         "https://www.googleapis.com/auth/calendar",
+        "https://www.googleapis.com/auth/chat.spaces.readonly",
+        "https://www.googleapis.com/auth/chat.messages",
+        "https://www.googleapis.com/auth/chat.memberships.readonly",
       ].join(" ");
 
       // Get the user's email to use as login_hint so Google pre-selects the right account

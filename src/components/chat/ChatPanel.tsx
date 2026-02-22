@@ -4,9 +4,10 @@ import { SpacesList } from "./SpacesList";
 import { ChatMessageList } from "./ChatMessageList";
 import { ChatCompose } from "./ChatCompose";
 import { cn } from "@/lib/utils";
-import { Hash, ChevronLeft, MessageSquare, AlertCircle } from "lucide-react";
+import { Hash, ChevronLeft, MessageSquare, AlertCircle, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   /** If provided, locks to a specific space and hides the sidebar */
@@ -21,7 +22,6 @@ interface Props {
 export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className }: Props) {
   const { data: company } = useCompanySettings();
   const gchatEnabled = company?.settings?.gchat_enabled;
-  const configuredSpaceId = company?.settings?.gchat_space_id;
 
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(fixedSpaceId || null);
   const [showSidebar, setShowSidebar] = useState(!fixedSpaceId && !compact);
@@ -31,6 +31,9 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
   const sendMutation = useSendGChatMessage();
 
   const activeSpace = spaces.find((s) => s.name === selectedSpaceId);
+
+  // Determine the icon for the active space
+  const isActiveSpaceDM = activeSpace?.type === "DIRECT_MESSAGE" || activeSpace?.singleUserBotDm;
 
   if (!gchatEnabled) {
     return (
@@ -46,6 +49,35 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
     );
   }
 
+  // Handle chat-specific errors (missing scopes, not connected)
+  const errorMessage = (spacesError as any)?.message || "";
+  const isScopeMissing = errorMessage.includes("chat_scope_missing") || errorMessage.includes("chat_not_connected");
+
+  if (isScopeMissing) {
+    return (
+      <div className={cn("flex items-center justify-center h-full", className)}>
+        <div className="text-center px-6 py-8 max-w-sm">
+          <LogOut className="h-10 w-10 mx-auto text-amber-500/70 mb-3" />
+          <p className="text-sm font-medium mb-1">Chat permissions needed</p>
+          <p className="text-xs text-muted-foreground mb-4">
+            Sign out and sign back in to grant Google Chat access. Your conversations will then appear here.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              await supabase.auth.signOut();
+              window.location.href = "/auth";
+            }}
+          >
+            <LogOut className="h-3.5 w-3.5 mr-1.5" />
+            Sign out & re-authenticate
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (spacesError) {
     return (
       <div className={cn("flex items-center justify-center h-full", className)}>
@@ -53,7 +85,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
           <AlertCircle className="h-10 w-10 mx-auto text-destructive/60 mb-3" />
           <p className="text-sm font-medium mb-1">Connection Error</p>
           <p className="text-xs text-muted-foreground max-w-xs">
-            Could not connect to Google Chat. Make sure the service account key is configured.
+            Could not connect to Google Chat. Please try again.
           </p>
         </div>
       </div>
@@ -71,7 +103,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
       {!fixedSpaceId && showSidebar && (
         <div className={cn("border-r flex flex-col shrink-0", compact ? "w-52" : "w-64")}>
           <div className="px-4 py-3 border-b">
-            <h3 className="text-sm font-semibold">Spaces</h3>
+            <h3 className="text-sm font-semibold">Chats</h3>
           </div>
           <div className="flex-1 overflow-y-auto">
             <SpacesList
@@ -96,9 +128,13 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
               <ChevronLeft className="h-4 w-4" />
             </Button>
           )}
-          <Hash className="h-4 w-4 text-muted-foreground" />
+          {isActiveSpaceDM ? (
+            <User className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <Hash className="h-4 w-4 text-muted-foreground" />
+          )}
           <span className="text-sm font-medium truncate">
-            {activeSpace?.displayName || selectedSpaceId || "Select a space"}
+            {activeSpace?.displayName || selectedSpaceId || "Select a conversation"}
           </span>
         </div>
 
@@ -109,7 +145,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
-            Select a space to start chatting
+            Select a conversation to start chatting
           </div>
         )}
       </div>
