@@ -16,6 +16,9 @@ import {
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem,
   DropdownMenuLabel,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
@@ -316,16 +319,7 @@ export function ProposalTable({
                           Preview PDF
                         </DropdownMenuItem>
                       )}
-                      {(proposal as any).public_token && (
-                        <DropdownMenuItem onClick={() => window.open(`/proposal/${(proposal as any).public_token}`, '_blank')}>
-                          <ExternalLink className="h-4 w-4 mr-2" />
-                          Client Preview
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem onClick={() => onEdit(proposal)}>
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit
-                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
                       {(proposal.status === "draft" || proposal.status === "viewed") && (
                         <DropdownMenuItem onClick={() => onSign(proposal)}>
                           <PenLine className="h-4 w-4 mr-2" />
@@ -356,40 +350,40 @@ export function ProposalTable({
                           Mark as Lost
                         </DropdownMenuItem>
                       )}
-                      {(proposal as any).next_follow_up_date && !(proposal as any).follow_up_dismissed_at && (
-                        <>
-                          {onDraftFollowUp && ["sent", "viewed"].includes(proposal.status || "") && (
-                            <DropdownMenuItem onClick={() => onDraftFollowUp(proposal)}>
-                              <Mail className="h-4 w-4 mr-2" />
-                              Draft Follow-up Email
-                            </DropdownMenuItem>
-                          )}
-                          {onLogFollowUp && (
-                            <DropdownMenuItem onClick={() => onLogFollowUp(proposal.id)}>
-                              <Phone className="h-4 w-4 mr-2" />
-                              Log Follow-up
-                            </DropdownMenuItem>
-                          )}
-                          {onSnoozeFollowUp && (
-                            <DropdownMenuItem onClick={() => onSnoozeFollowUp(proposal.id, 7)}>
-                              <Clock className="h-4 w-4 mr-2" />
-                              Snooze 1 Week
-                            </DropdownMenuItem>
-                          )}
-                          {onDismissFollowUp && (
-                            <DropdownMenuItem onClick={() => onDismissFollowUp(proposal.id)}>
-                              <X className="h-4 w-4 mr-2" />
-                              Dismiss Follow-up
-                            </DropdownMenuItem>
-                          )}
-                        </>
-                      )}
-                      {/* Show Draft Follow-up even without active follow-up schedule, for sent/viewed */}
-                      {onDraftFollowUp && !((proposal as any).next_follow_up_date && !(proposal as any).follow_up_dismissed_at) && ["sent", "viewed"].includes(proposal.status || "") && (
-                        <DropdownMenuItem onClick={() => onDraftFollowUp(proposal)}>
-                          <Mail className="h-4 w-4 mr-2" />
-                          Draft Follow-up Email
-                        </DropdownMenuItem>
+                      {/* Follow-up submenu for sent/viewed proposals */}
+                      {["sent", "viewed"].includes(proposal.status || "") && (onDraftFollowUp || onLogFollowUp || onSnoozeFollowUp || onDismissFollowUp) && (
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger>
+                            <Bell className="h-4 w-4 mr-2" />
+                            Follow-up
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent>
+                            {onDraftFollowUp && (
+                              <DropdownMenuItem onClick={() => onDraftFollowUp(proposal)}>
+                                <Mail className="h-4 w-4 mr-2" />
+                                Draft Email (AI)
+                              </DropdownMenuItem>
+                            )}
+                            {onLogFollowUp && (
+                              <DropdownMenuItem onClick={() => onLogFollowUp(proposal.id)}>
+                                <Phone className="h-4 w-4 mr-2" />
+                                Log Call
+                              </DropdownMenuItem>
+                            )}
+                            {onSnoozeFollowUp && (
+                              <DropdownMenuItem onClick={() => onSnoozeFollowUp(proposal.id, 7)}>
+                                <Clock className="h-4 w-4 mr-2" />
+                                Snooze 1 Week
+                              </DropdownMenuItem>
+                            )}
+                            {onDismissFollowUp && (proposal as any).next_follow_up_date && !(proposal as any).follow_up_dismissed_at && (
+                              <DropdownMenuItem onClick={() => onDismissFollowUp(proposal.id)}>
+                                <X className="h-4 w-4 mr-2" />
+                                Dismiss
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
                       )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
