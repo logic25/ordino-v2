@@ -12,6 +12,7 @@ import { Paperclip } from "lucide-react";
 import { useCreateActionItem } from "@/hooks/useActionItems";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useUniversalDocuments } from "@/hooks/useUniversalDocuments";
+import { useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Props {
@@ -29,7 +30,8 @@ export function NewActionItemDialog({ projectId, open, onOpenChange }: Props) {
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
   const [showDocPicker, setShowDocPicker] = useState(false);
   const { data: profiles = [] } = useCompanyProfiles();
-  const { data: documents = [] } = useUniversalDocuments();
+  const { data: allDocuments = [] } = useUniversalDocuments();
+  const documents = useMemo(() => allDocuments.filter(d => d.project_id === projectId), [allDocuments, projectId]);
   const createMutation = useCreateActionItem();
   const { toast } = useToast();
 

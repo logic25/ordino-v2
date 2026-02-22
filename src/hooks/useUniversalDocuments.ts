@@ -16,6 +16,9 @@ export interface UniversalDocument {
   tags: string[];
   created_at: string;
   updated_at: string;
+  project_id: string | null;
+  property_id: string | null;
+  proposal_id: string | null;
   uploader?: { display_name: string | null; first_name: string | null; last_name: string | null };
 }
 
