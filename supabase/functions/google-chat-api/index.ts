@@ -8,13 +8,14 @@ const corsHeaders = {
 };
 
 /** Refresh the user's Google access token using their refresh_token from gmail_connections */
-async function getUserAccessToken(
+async function refreshAccessToken(
   refreshToken: string,
   clientId: string,
   clientSecret: string,
   supabaseAdmin: any,
   profileId: string
 ): Promise<string> {
+  console.log("Refreshing access token with client_id:", clientId.substring(0, 20) + "...");
   const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -26,6 +27,8 @@ async function getUserAccessToken(
     }),
   });
   const tokenData = await tokenRes.json();
+  console.log("Token refresh response - has access_token:", !!tokenData.access_token, "scope:", tokenData.scope || "none returned");
+  
   if (!tokenData.access_token) {
     throw new Error("token_refresh_failed:" + JSON.stringify(tokenData));
   }
@@ -40,6 +43,51 @@ async function getUserAccessToken(
     .eq("user_id", profileId);
 
   return tokenData.access_token;
+}
+
+/** Make a Google Chat API call, retrying once with a fresh token on 403 */
+async function callChatApi(
+  url: string, 
+  options: RequestInit, 
+  accessToken: string,
+  connection: any,
+  clientId: string,
+  clientSecret: string,
+  supabaseAdmin: any,
+  profileId: string
+): Promise<{ response: Response; retried: boolean }> {
+  const headers = { 
+    Authorization: `Bearer ${accessToken}`, 
+    "Content-Type": "application/json",
+    ...(options.headers || {}),
+  };
+  
+  const res = await fetch(url, { ...options, headers });
+  
+  if (res.status === 403 || res.status === 401) {
+    // Check if it's a scope issue - force refresh and retry
+    const body = await res.json();
+    console.log("Got", res.status, "- forcing token refresh and retry. Error:", JSON.stringify(body.error || body));
+    
+    try {
+      const newToken = await refreshAccessToken(
+        connection.refresh_token, clientId, clientSecret, supabaseAdmin, profileId
+      );
+      const retryHeaders = { 
+        Authorization: `Bearer ${newToken}`, 
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+      };
+      const retryRes = await fetch(url, { ...options, headers: retryHeaders });
+      return { response: retryRes, retried: true };
+    } catch (refreshErr: any) {
+      console.error("Token refresh failed during retry:", refreshErr.message);
+      // Return original error response
+      return { response: new Response(JSON.stringify(body), { status: res.status }), retried: true };
+    }
+  }
+  
+  return { response: res, retried: false };
 }
 
 Deno.serve(async (req) => {
@@ -80,7 +128,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Profile not found" }), { status: 404, headers: corsHeaders });
     }
 
-    // Get user's gmail connection (which has their Google OAuth tokens)
+    // Get user's gmail connection
     const { data: connection } = await supabaseAdmin
       .from("gmail_connections")
       .select("refresh_token, access_token, token_expires_at")
@@ -88,7 +136,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (!connection?.refresh_token) {
-      return new Response(JSON.stringify({ error: "chat_not_connected", message: "Google Chat not connected. Please sign out and sign back in to grant Chat permissions." }), {
+      return new Response(JSON.stringify({ error: "chat_not_connected", message: "Google Chat not connected. Please connect your Google account." }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -101,39 +149,38 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get a fresh access token
+    // Get access token - use cached if valid, otherwise refresh
     let accessToken: string;
     const tokenExpiry = connection.token_expires_at ? new Date(connection.token_expires_at) : new Date(0);
-    console.log("Token expiry:", tokenExpiry.toISOString(), "Now:", new Date().toISOString(), "Valid:", tokenExpiry > new Date(Date.now() + 60_000));
     if (connection.access_token && tokenExpiry > new Date(Date.now() + 60_000)) {
       accessToken = connection.access_token;
-      console.log("Using cached access token");
     } else {
-      console.log("Refreshing access token...");
-      accessToken = await getUserAccessToken(connection.refresh_token, clientId, clientSecret, supabaseAdmin, profile.id);
-      console.log("Access token refreshed successfully");
+      accessToken = await refreshAccessToken(connection.refresh_token, clientId, clientSecret, supabaseAdmin, profile.id);
     }
 
     const { action, ...params } = await req.json();
     const chatApi = "https://chat.googleapis.com/v1";
-    const headers = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
 
     let result: any;
 
     switch (action) {
       case "list_spaces": {
-        // List all spaces including DMs
-        console.log("list_spaces: fetching from Google Chat API...");
-        const res = await fetch(`${chatApi}/spaces?pageSize=200`, { headers });
-        const data = await res.json();
-        console.log("list_spaces: response status", res.status, "has error:", !!data.error);
+        console.log("list_spaces: calling Google Chat API...");
+        const { response, retried } = await callChatApi(
+          `${chatApi}/spaces?pageSize=200`, 
+          { method: "GET" }, 
+          accessToken, connection, clientId, clientSecret, supabaseAdmin, profile.id
+        );
+        const data = await response.json();
+        console.log("list_spaces: status", response.status, "retried:", retried, "has error:", !!data.error);
+        
         if (data.error) {
-          console.error("list_spaces: Google API error:", JSON.stringify(data.error));
-          // If 403/401, the user likely hasn't granted chat scopes
+          console.error("list_spaces error:", JSON.stringify(data.error));
           if (data.error.code === 403 || data.error.code === 401) {
+            // Even after retry, still 403 - the refresh_token doesn't have chat scopes
             return new Response(JSON.stringify({
               error: "chat_scope_missing",
-              message: "Google Chat scopes not granted. Please add chat.spaces.readonly, chat.messages, and chat.memberships.readonly to your Google Cloud OAuth consent screen, then sign out and sign back in.",
+              message: "Your Google account needs to be reconnected with Chat permissions. Please go to Settings > Gmail and reconnect your account.",
             }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
           }
           throw new Error(data.error.message || JSON.stringify(data.error));
@@ -146,35 +193,35 @@ Deno.serve(async (req) => {
         if (!spaceId) throw new Error("spaceId required");
         let url = `${chatApi}/${spaceId}/messages?pageSize=${pageSize}&orderBy=createTime desc`;
         if (pageToken) url += `&pageToken=${pageToken}`;
-        const res = await fetch(url, { headers });
-        result = await res.json();
+        const { response } = await callChatApi(url, { method: "GET" }, accessToken, connection, clientId, clientSecret, supabaseAdmin, profile.id);
+        result = await response.json();
         break;
       }
       case "get_message": {
         const { messageName } = params;
         if (!messageName) throw new Error("messageName required");
-        const res = await fetch(`${chatApi}/${messageName}`, { headers });
-        result = await res.json();
+        const { response } = await callChatApi(`${chatApi}/${messageName}`, { method: "GET" }, accessToken, connection, clientId, clientSecret, supabaseAdmin, profile.id);
+        result = await response.json();
         break;
       }
       case "send_message": {
         const { spaceId, text, threadKey } = params;
         if (!spaceId || !text) throw new Error("spaceId and text required");
         let url = `${chatApi}/${spaceId}/messages`;
-        const body: any = { text };
         if (threadKey) {
-          body.thread = { threadKey };
           url += `?messageReplyOption=REPLY_MESSAGE_FALLBACK_TO_NEW_THREAD`;
         }
-        const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
-        result = await res.json();
+        const body: any = { text };
+        if (threadKey) body.thread = { threadKey };
+        const { response } = await callChatApi(url, { method: "POST", body: JSON.stringify(body) }, accessToken, connection, clientId, clientSecret, supabaseAdmin, profile.id);
+        result = await response.json();
         break;
       }
       case "list_members": {
         const { spaceId } = params;
         if (!spaceId) throw new Error("spaceId required");
-        const res = await fetch(`${chatApi}/${spaceId}/members?pageSize=100`, { headers });
-        result = await res.json();
+        const { response } = await callChatApi(`${chatApi}/${spaceId}/members?pageSize=100`, { method: "GET" }, accessToken, connection, clientId, clientSecret, supabaseAdmin, profile.id);
+        result = await response.json();
         break;
       }
       default:
