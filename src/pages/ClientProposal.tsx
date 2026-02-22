@@ -162,6 +162,55 @@ export default function ClientProposalPage() {
     },
   });
 
+  // Track proposal view (read receipt)
+  const [viewTracked, setViewTracked] = useState(false);
+  useEffect(() => {
+    if (!proposal || viewTracked) return;
+    // Only track first view for sent proposals
+    if (proposal.status !== "sent" || proposal.viewed_at) {
+      setViewTracked(true);
+      return;
+    }
+    setViewTracked(true);
+    const trackView = async () => {
+      try {
+        // Set viewed_at and status
+        await supabase
+          .from("proposals")
+          .update({
+            viewed_at: new Date().toISOString(),
+            status: "viewed",
+          } as any)
+          .eq("id", proposal.id);
+
+        // Log to proposal_follow_ups
+        await supabase.from("proposal_follow_ups").insert({
+          proposal_id: proposal.id,
+          company_id: proposal.company_id,
+          action: "viewed",
+          notes: "Client opened the proposal link",
+        } as any);
+
+        // Send in-app notification to assigned PM
+        const pmId = (proposal as any).assigned_pm_id;
+        if (pmId) {
+          const propertyAddress = proposal.properties?.address || "the property";
+          await supabase.from("notifications").insert({
+            company_id: proposal.company_id,
+            user_id: pmId,
+            type: "readiness_update",
+            title: `Client viewed proposal #${proposal.proposal_number}`,
+            body: `${proposal.client_name || "The client"} opened proposal #${proposal.proposal_number} for ${propertyAddress}.`,
+            link: "/proposals",
+          } as any);
+        }
+      } catch (err) {
+        console.error("Failed to track proposal view:", err);
+      }
+    };
+    trackView();
+  }, [proposal, viewTracked]);
+
   // Canvas setup
   useEffect(() => {
     if (canvasRef.current) {
