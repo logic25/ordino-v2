@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
         `&response_type=code` +
         `&scope=${encodeURIComponent(scopes)}` +
         `&access_type=offline` +
-        `&prompt=select_account`;
+        `&prompt=consent`;
 
       if (userEmail) {
         authUrl += `&login_hint=${encodeURIComponent(userEmail)}`;
