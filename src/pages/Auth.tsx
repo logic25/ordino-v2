@@ -400,7 +400,7 @@ export default function Auth() {
                             "https://www.googleapis.com/auth/chat.memberships.readonly",
                           ].join(" "),
                           queryParams: {
-                            prompt: "select_account",
+                            prompt: "consent",
                             access_type: "offline",
                           },
                         },
