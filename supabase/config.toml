@@ -74,3 +74,6 @@ verify_jwt = false
 
 [functions.gchat-interaction]
 verify_jwt = false
+
+[functions.google-chat-api]
+verify_jwt = false

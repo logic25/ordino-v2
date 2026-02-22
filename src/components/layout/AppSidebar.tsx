@@ -21,6 +21,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   HelpCircle,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ const mainNav = [
   { title: "Email", icon: Mail, href: "/emails", resource: "emails" as ResourceKey },
   { title: "Calendar", icon: CalendarDays, href: "/calendar", resource: "calendar" as ResourceKey },
   { title: "RFPs", icon: ScrollText, href: "/rfps", resource: "rfps" as ResourceKey },
+  { title: "Chat", icon: MessageSquare, href: "/chat", resource: "dashboard" as ResourceKey },
   { title: "Reports", icon: BarChart3, href: "/reports", resource: "reports" as ResourceKey },
 ];
 

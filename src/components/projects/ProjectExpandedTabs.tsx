@@ -16,6 +16,7 @@ import {
   Send, XCircle, CheckCheck, StickyNote, Sparkles, ClipboardList,
 } from "lucide-react";
 import { ActionItemsTab } from "./ActionItemsTab";
+import { ChatPanel } from "@/components/chat/ChatPanel";
 import { useTimelineEvents } from "@/hooks/useTimelineEvents";
 import { useToast } from "@/hooks/use-toast";
 import type {
@@ -688,6 +689,11 @@ export function ProjectExpandedTabs({
           <TabsTrigger value="job-costing" className="text-xs gap-1 data-[state=active]:bg-background">
             <DollarSign className="h-3 w-3" /> Job Costing
           </TabsTrigger>
+          {projectId && (
+            <TabsTrigger value="chat" className="text-xs gap-1 data-[state=active]:bg-background">
+              <MessageSquare className="h-3 w-3" /> Chat
+            </TabsTrigger>
+          )}
         </TabsList>
         </div>
 
@@ -703,6 +709,13 @@ export function ProjectExpandedTabs({
           <TabsContent value="action-items" className="mt-0"><ActionItemsTab projectId={projectId} /></TabsContent>
         )}
         <TabsContent value="job-costing" className="mt-0"><JobCostingTab services={services} timeEntries={timeEntries} /></TabsContent>
+        {projectId && (
+          <TabsContent value="chat" className="mt-0">
+            <div className="h-[400px]">
+              <ChatPanel compact className="h-full" />
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

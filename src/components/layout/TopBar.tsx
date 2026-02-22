@@ -1,4 +1,5 @@
 import { Menu, Search, LogOut, Settings } from "lucide-react";
+import { ChatSlideOut } from "@/components/chat/ChatSlideOut";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
@@ -59,6 +60,9 @@ export function TopBar({ onMenuToggle }: TopBarProps) {
 
       {/* Actions */}
       <div className="flex items-center gap-2">
+        {/* Google Chat slide-out */}
+        <ChatSlideOut />
+
         {/* Notifications */}
         <div data-tour="topbar-notifications">
           <NotificationDropdown />

@@ -31,6 +31,7 @@ import RfpDiscovery from "./pages/RfpDiscovery";
 import ClientProposal from "./pages/ClientProposal";
 import Reports from "./pages/Reports";
 import HelpDesk from "./pages/HelpDesk";
+import Chat from "./pages/Chat";
 import NotFound from "./pages/NotFound";
 import AuthCallback from "./pages/AuthCallback";
 
@@ -215,6 +216,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <HelpDesk />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/chat"
+        element={
+          <ProtectedRoute>
+            <Chat />
           </ProtectedRoute>
         }
       />
