@@ -68,3 +68,9 @@ verify_jwt = false
 
 [functions.draft-proposal-followup]
 verify_jwt = false
+
+[functions.send-gchat-action-item]
+verify_jwt = false
+
+[functions.gchat-interaction]
+verify_jwt = false

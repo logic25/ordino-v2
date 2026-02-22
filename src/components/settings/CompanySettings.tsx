@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Trash2, AlertTriangle, CheckCircle2, Shield, Palette, Upload } from "lucide-react";
+import { Loader2, Plus, Trash2, AlertTriangle, CheckCircle2, Shield, Palette, Upload, MessageSquare } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -95,6 +96,8 @@ export function CompanySettings() {
   const [primaryColor, setPrimaryColor] = useState("#d97706");
   const [accentColor, setAccentColor] = useState("#0284c7");
   const [logoUrl, setLogoUrl] = useState("");
+  const [gchatEnabled, setGchatEnabled] = useState(false);
+  const [gchatSpaceId, setGchatSpaceId] = useState("");
   useEffect(() => {
     if (company) {
       setName(company.name || "");
@@ -109,6 +112,8 @@ export function CompanySettings() {
       setPrimaryColor(theme?.primary_color || "#d97706");
       setAccentColor(theme?.accent_color || "#0284c7");
       setLogoUrl(theme?.logo_url || company.logo_url || "");
+      setGchatEnabled(!!settings?.gchat_enabled);
+      setGchatSpaceId(settings?.gchat_space_id || "");
     }
   }, [company]);
 
@@ -126,7 +131,7 @@ export function CompanySettings() {
           address: address.trim() || null,
           website: website.trim() || null,
           ein: ein.trim() || null,
-          settings: { ...currentSettings, insurances } as any,
+          settings: { ...currentSettings, insurances, gchat_enabled: gchatEnabled, gchat_space_id: gchatSpaceId.trim() || null } as any,
           theme: { primary_color: primaryColor, accent_color: accentColor, logo_url: logoUrl } as any,
           logo_url: logoUrl || null,
         } as any)
@@ -372,6 +377,38 @@ export function CompanySettings() {
           <p className="text-xs text-muted-foreground">
             These colors will be used in RFP response previews and exported documents.
           </p>
+        </CardContent>
+      </Card>
+
+      {/* Google Chat Integration */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5" /> Google Chat Integration
+          </CardTitle>
+          <CardDescription>Post action items to a Google Chat Space and allow team members to complete them directly in chat.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>Enable Google Chat notifications</Label>
+              <p className="text-xs text-muted-foreground">New action items will be posted as cards to the configured space.</p>
+            </div>
+            <Switch checked={gchatEnabled} onCheckedChange={setGchatEnabled} />
+          </div>
+          {gchatEnabled && (
+            <div className="space-y-2">
+              <Label>GChat Space ID</Label>
+              <Input
+                value={gchatSpaceId}
+                onChange={(e) => setGchatSpaceId(e.target.value)}
+                placeholder="spaces/AAAA..."
+              />
+              <p className="text-xs text-muted-foreground">
+                Find this in Google Chat: open the Space, click the space name → "Space details". The space ID is the last part of the URL.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

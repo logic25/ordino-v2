@@ -108,7 +108,7 @@ export function useCreateActionItem() {
       attachment_ids?: any[];
     }) => {
       if (!profile?.company_id) throw new Error("No company");
-      const { error } = await supabase.from("project_action_items").insert({
+      const { data, error } = await supabase.from("project_action_items").insert({
         company_id: profile.company_id,
         project_id: input.project_id,
         title: input.title,
@@ -118,8 +118,15 @@ export function useCreateActionItem() {
         priority: input.priority || "normal",
         due_date: input.due_date || null,
         attachment_ids: input.attachment_ids || [],
-      } as any);
+      } as any).select("id").single();
       if (error) throw error;
+
+      // Fire-and-forget GChat notification
+      if (data?.id) {
+        supabase.functions.invoke("send-gchat-action-item", {
+          body: { action_item_id: data.id },
+        }).catch((err) => console.warn("GChat notification failed:", err));
+      }
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["action-items", vars.project_id] });
