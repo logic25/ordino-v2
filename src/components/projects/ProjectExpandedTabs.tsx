@@ -13,8 +13,9 @@ import {
   ChevronRight, ChevronDown, ExternalLink, MessageSquare,
   Pencil, Circle, ArrowUpRight, ArrowDownLeft,
   File, Upload, CheckCircle2, CircleDot, DollarSign,
-  Send, XCircle, CheckCheck, StickyNote, Sparkles,
+  Send, XCircle, CheckCheck, StickyNote, Sparkles, ClipboardList,
 } from "lucide-react";
+import { ActionItemsTab } from "./ActionItemsTab";
 import { useToast } from "@/hooks/use-toast";
 import type {
   MockService, MockContact, MockMilestone, MockChangeOrder,
@@ -35,6 +36,7 @@ interface ProjectExpandedTabsProps {
   emails: MockEmail[];
   documents: MockDocument[];
   timeEntries: MockTimeEntry[];
+  projectId?: string;
 }
 
 // --- Service Detail ---
@@ -614,7 +616,7 @@ function NotesTab({ services }: { services: MockService[] }) {
 // --- Main Exported Component ---
 
 export function ProjectExpandedTabs({
-  services, contacts, milestones, changeOrders, emails, documents, timeEntries,
+  services, contacts, milestones, changeOrders, emails, documents, timeEntries, projectId,
 }: ProjectExpandedTabsProps) {
   const approvedCOs = changeOrders.filter(co => co.status === "approved").reduce((s, co) => s + co.amount, 0);
   const contractTotal = services.reduce((s, svc) => s + svc.totalAmount, 0);
@@ -667,6 +669,11 @@ export function ProjectExpandedTabs({
           <TabsTrigger value="change-orders" className="text-xs gap-1 data-[state=active]:bg-background">
             <GitBranch className="h-3 w-3" /> COs ({changeOrders.length})
           </TabsTrigger>
+          {projectId && (
+            <TabsTrigger value="action-items" className="text-xs gap-1 data-[state=active]:bg-background">
+              <ClipboardList className="h-3 w-3" /> Action Items
+            </TabsTrigger>
+          )}
           <TabsTrigger value="job-costing" className="text-xs gap-1 data-[state=active]:bg-background">
             <DollarSign className="h-3 w-3" /> Job Costing
           </TabsTrigger>
@@ -681,6 +688,9 @@ export function ProjectExpandedTabs({
         <TabsContent value="documents" className="mt-0"><DocumentsTab documents={documents} /></TabsContent>
         <TabsContent value="time-logs" className="mt-0"><TimeLogsTab timeEntries={timeEntries} /></TabsContent>
         <TabsContent value="change-orders" className="mt-0"><ChangeOrdersTab changeOrders={changeOrders} /></TabsContent>
+        {projectId && (
+          <TabsContent value="action-items" className="mt-0"><ActionItemsTab projectId={projectId} /></TabsContent>
+        )}
         <TabsContent value="job-costing" className="mt-0"><JobCostingTab services={services} timeEntries={timeEntries} /></TabsContent>
       </Tabs>
     </div>
