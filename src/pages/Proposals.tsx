@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { ComposeEmailDialog } from "@/components/emails/ComposeEmailDialog";
 import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -219,6 +220,11 @@ export default function Proposals() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("proposals");
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [composeTo, setComposeTo] = useState("");
+  const [composeSubject, setComposeSubject] = useState("");
+  const [composeBody, setComposeBody] = useState("");
+  const [isDraftingFollowUp, setIsDraftingFollowUp] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -610,6 +616,28 @@ export default function Proposals() {
     }
   };
 
+  const handleDraftFollowUp = async (proposal: ProposalWithRelations) => {
+    setIsDraftingFollowUp(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("draft-proposal-followup", {
+        body: { proposal_id: proposal.id },
+      });
+      if (error) throw error;
+      if (data?.error) {
+        toast({ title: "AI Error", description: data.error, variant: "destructive" });
+        return;
+      }
+      setComposeTo(data.client_email || proposal.client_email || "");
+      setComposeSubject(data.subject || "");
+      setComposeBody(data.html_body || "");
+      setComposeOpen(true);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to draft follow-up", variant: "destructive" });
+    } finally {
+      setIsDraftingFollowUp(false);
+    }
+  };
+
   const handleLeadSubmit = async (data: LeadCaptureData) => {
     try {
       // Always persist the lead (including party info)
@@ -944,8 +972,9 @@ export default function Proposals() {
                     onDismissFollowUp={handleDismissFollowUp}
                     onLogFollowUp={handleLogFollowUp}
                     onSnoozeFollowUp={handleSnoozeFollowUp}
+                    onDraftFollowUp={handleDraftFollowUp}
                     isDeleting={deleteProposal.isPending}
-                    isSending={sendProposal.isPending}
+                    isSending={sendProposal.isPending || isDraftingFollowUp}
                   />
                 )}
               </CardContent>
@@ -1049,6 +1078,14 @@ export default function Proposals() {
           setSendingProposal(null); // close send dialog first
           setTimeout(() => setPreviewProposal(p), 150); // then open preview
         }}
+      />
+
+      <ComposeEmailDialog
+        open={composeOpen}
+        onOpenChange={setComposeOpen}
+        defaultTo={composeTo}
+        defaultSubject={composeSubject}
+        defaultBody={composeBody}
       />
     </AppLayout>
   );

@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.analyze-telemetry]
 verify_jwt = false
+
+[functions.draft-proposal-followup]
+verify_jwt = false

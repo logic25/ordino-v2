@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,10 +10,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Bell, CheckCircle2, Clock, MoreHorizontal, Phone, Send, X, AlertTriangle } from "lucide-react";
+import { Bell, CheckCircle2, Clock, MoreHorizontal, Phone, Send, X, AlertTriangle, Mail, Loader2 } from "lucide-react";
 import { useProposalsNeedingFollowUp, useLogFollowUp, useDismissFollowUp, useSnoozeFollowUp } from "@/hooks/useProposalFollowUps";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { ComposeEmailDialog } from "@/components/emails/ComposeEmailDialog";
 
 export function ProposalFollowUps() {
   const navigate = useNavigate();
@@ -21,6 +24,33 @@ export function ProposalFollowUps() {
   const dismissFollowUp = useDismissFollowUp();
   const snoozeFollowUp = useSnoozeFollowUp();
   const { toast } = useToast();
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [composeTo, setComposeTo] = useState("");
+  const [composeSubject, setComposeSubject] = useState("");
+  const [composeBody, setComposeBody] = useState("");
+  const [draftingId, setDraftingId] = useState<string | null>(null);
+
+  const handleDraftFollowUp = async (proposal: any) => {
+    setDraftingId(proposal.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("draft-proposal-followup", {
+        body: { proposal_id: proposal.id },
+      });
+      if (error) throw error;
+      if (data?.error) {
+        toast({ title: "AI Error", description: data.error, variant: "destructive" });
+        return;
+      }
+      setComposeTo(data.client_email || proposal.client_email || "");
+      setComposeSubject(data.subject || "");
+      setComposeBody(data.html_body || "");
+      setComposeOpen(true);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to draft follow-up", variant: "destructive" });
+    } finally {
+      setDraftingId(null);
+    }
+  };
 
   const handleLogCall = async (id: string) => {
     await logFollowUp.mutateAsync({ proposalId: id, action: "called", notes: "Called client to follow up" });
@@ -120,6 +150,14 @@ export function ProposalFollowUps() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleDraftFollowUp(proposal)}>
+                        {draftingId === proposal.id ? (
+                          <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                        ) : (
+                          <Mail className="h-3.5 w-3.5 mr-2" />
+                        )}
+                        Draft Follow-up Email
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleLogCall(proposal.id)}>
                         <Phone className="h-3.5 w-3.5 mr-2" />
                         Log Call / Follow-up
@@ -153,6 +191,14 @@ export function ProposalFollowUps() {
           </>
         )}
       </CardContent>
+
+      <ComposeEmailDialog
+        open={composeOpen}
+        onOpenChange={setComposeOpen}
+        defaultTo={composeTo}
+        defaultSubject={composeSubject}
+        defaultBody={composeBody}
+      />
     </Card>
   );
 }

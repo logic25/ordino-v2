@@ -27,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Edit, Trash2, Send, PenLine, Eye, Loader2, CheckCircle2, Clock, X, Phone, Bell, FileText, Settings2, XCircle, FolderOpen, ExternalLink, AlertTriangle } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, Send, PenLine, Eye, Loader2, CheckCircle2, Clock, X, Phone, Bell, FileText, Settings2, XCircle, FolderOpen, ExternalLink, AlertTriangle, Mail } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState } from "react";
 import type { ProposalWithRelations } from "@/hooks/useProposals";
@@ -46,6 +46,7 @@ interface ProposalTableProps {
   onDismissFollowUp?: (id: string) => void;
   onLogFollowUp?: (id: string) => void;
   onSnoozeFollowUp?: (id: string, days: number) => void;
+  onDraftFollowUp?: (proposal: ProposalWithRelations) => void;
   isDeleting?: boolean;
   isSending?: boolean;
 }
@@ -99,6 +100,7 @@ export function ProposalTable({
   onDismissFollowUp,
   onLogFollowUp,
   onSnoozeFollowUp,
+  onDraftFollowUp,
   isDeleting,
   isSending,
 }: ProposalTableProps) {
@@ -356,6 +358,12 @@ export function ProposalTable({
                       )}
                       {(proposal as any).next_follow_up_date && !(proposal as any).follow_up_dismissed_at && (
                         <>
+                          {onDraftFollowUp && ["sent", "viewed"].includes(proposal.status || "") && (
+                            <DropdownMenuItem onClick={() => onDraftFollowUp(proposal)}>
+                              <Mail className="h-4 w-4 mr-2" />
+                              Draft Follow-up Email
+                            </DropdownMenuItem>
+                          )}
                           {onLogFollowUp && (
                             <DropdownMenuItem onClick={() => onLogFollowUp(proposal.id)}>
                               <Phone className="h-4 w-4 mr-2" />
@@ -375,6 +383,13 @@ export function ProposalTable({
                             </DropdownMenuItem>
                           )}
                         </>
+                      )}
+                      {/* Show Draft Follow-up even without active follow-up schedule, for sent/viewed */}
+                      {onDraftFollowUp && !((proposal as any).next_follow_up_date && !(proposal as any).follow_up_dismissed_at) && ["sent", "viewed"].includes(proposal.status || "") && (
+                        <DropdownMenuItem onClick={() => onDraftFollowUp(proposal)}>
+                          <Mail className="h-4 w-4 mr-2" />
+                          Draft Follow-up Email
+                        </DropdownMenuItem>
                       )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
