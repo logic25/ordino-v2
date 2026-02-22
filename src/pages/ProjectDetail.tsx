@@ -71,6 +71,7 @@ import { QuickReferenceBar } from "@/components/projects/QuickReferenceBar";
 import { useChangeOrders, useCreateChangeOrder } from "@/hooks/useChangeOrders";
 import { ChangeOrderDialog } from "@/components/projects/ChangeOrderDialog";
 import { ChangeOrderDetailSheet } from "@/components/projects/ChangeOrderDetailSheet";
+import { ActionItemsTab } from "@/components/projects/ActionItemsTab";
 import type { ChangeOrder } from "@/hooks/useChangeOrders";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -439,6 +440,9 @@ export default function ProjectDetail() {
               <TabsTrigger value="change-orders" className="gap-1.5 data-[state=active]:bg-background">
                 <GitBranch className="h-3.5 w-3.5" /> COs ({changeOrders.length})
               </TabsTrigger>
+              <TabsTrigger value="action-items" className="gap-1.5 data-[state=active]:bg-background">
+                <ClipboardList className="h-3.5 w-3.5" /> Action Items
+              </TabsTrigger>
               <TabsTrigger value="job-costing" className="gap-1.5 data-[state=active]:bg-background">
                 <DollarSign className="h-3.5 w-3.5" /> Job Costing
               </TabsTrigger>
@@ -478,6 +482,9 @@ export default function ProjectDetail() {
                   onOpenCreate={() => setCoDialogOpen(true)}
                   onSelectCO={(co) => { setSelectedCO(co); setCoSheetOpen(true); }}
                 />
+              </TabsContent>
+              <TabsContent value="action-items" className="mt-0">
+                <ActionItemsTab projectId={project.id} />
               </TabsContent>
               <TabsContent value="job-costing" className="mt-0">
                 <JobCostingFull services={liveServices} timeEntries={timeEntries} />

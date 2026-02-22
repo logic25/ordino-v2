@@ -3708,6 +3708,98 @@ export type Database = {
           },
         ]
       }
+      project_action_items: {
+        Row: {
+          assigned_by: string | null
+          assigned_to: string | null
+          attachment_ids: Json | null
+          company_id: string
+          completed_at: string | null
+          completion_attachments: Json | null
+          completion_note: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          gchat_space_id: string | null
+          gchat_thread_id: string | null
+          id: string
+          priority: string
+          project_id: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          assigned_to?: string | null
+          attachment_ids?: Json | null
+          company_id: string
+          completed_at?: string | null
+          completion_attachments?: Json | null
+          completion_note?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          gchat_space_id?: string | null
+          gchat_thread_id?: string | null
+          id?: string
+          priority?: string
+          project_id: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_by?: string | null
+          assigned_to?: string | null
+          attachment_ids?: Json | null
+          company_id?: string
+          completed_at?: string | null
+          completion_attachments?: Json | null
+          completion_note?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          gchat_space_id?: string | null
+          gchat_thread_id?: string | null
+          id?: string
+          priority?: string
+          project_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_action_items_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_action_items_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_action_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_action_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_checklist_items: {
         Row: {
           category: string
@@ -3777,6 +3869,61 @@ export type Database = {
             columns: ["source_service_id"]
             isOneToOne: false
             referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_timeline_events: {
+        Row: {
+          actor_id: string | null
+          company_id: string
+          created_at: string
+          description: string | null
+          event_type: string
+          id: string
+          metadata: Json | null
+          project_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          company_id: string
+          created_at?: string
+          description?: string | null
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          project_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_timeline_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_timeline_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_timeline_events_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
