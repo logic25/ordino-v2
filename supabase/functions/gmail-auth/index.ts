@@ -182,21 +182,24 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Build upsert data — only include refresh_token if we got a new one
+      const upsertData: Record<string, any> = {
+        user_id: profile.id,
+        company_id: profile.company_id,
+        email_address: gmailProfile.emailAddress,
+        access_token,
+        token_expires_at: new Date(Date.now() + 3600 * 1000).toISOString(),
+        sync_enabled: true,
+        history_id: gmailProfile.historyId?.toString() || null,
+      };
+      // Only update refresh_token if a new one was provided (avoid overwriting with null)
+      if (refresh_token) {
+        upsertData.refresh_token = refresh_token;
+      }
+
       const { error: upsertError } = await supabaseAdmin
         .from("gmail_connections")
-        .upsert(
-          {
-            user_id: profile.id,
-            company_id: profile.company_id,
-            email_address: gmailProfile.emailAddress,
-            access_token,
-            refresh_token: refresh_token || null,
-            token_expires_at: new Date(Date.now() + 3600 * 1000).toISOString(),
-            sync_enabled: true,
-            history_id: gmailProfile.historyId?.toString() || null,
-          },
-          { onConflict: "user_id" }
-        );
+        .upsert(upsertData, { onConflict: "user_id" });
 
       if (upsertError) {
         return new Response(JSON.stringify({ error: upsertError.message }), {
