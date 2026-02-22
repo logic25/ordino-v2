@@ -24,7 +24,19 @@ async function chatApi(action: string, params: Record<string, any> = {}) {
   const { data, error } = await supabase.functions.invoke("google-chat-api", {
     body: { action, ...params },
   });
-  if (error) throw error;
+  if (error) {
+    // Try to extract the actual error body from FunctionsHttpError
+    let errorMessage = error.message;
+    try {
+      if (typeof (error as any).context?.json === "function") {
+        const body = await (error as any).context.json();
+        if (body?.error) errorMessage = body.error;
+      }
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(errorMessage);
+  }
   if (data?.error) throw new Error(data.error);
   return data;
 }
