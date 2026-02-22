@@ -63,11 +63,11 @@ export function NewActionItemDialog({ projectId, open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>New Action Item</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-y-auto flex-1 pr-1">
           <div className="space-y-1.5">
             <Label htmlFor="ai-title">Title *</Label>
             <Input id="ai-title" placeholder="What needs to be done?" value={title} onChange={(e) => setTitle(e.target.value)} />
