@@ -395,9 +395,6 @@ export default function Auth() {
                             "https://www.googleapis.com/auth/gmail.readonly",
                             "https://www.googleapis.com/auth/gmail.send",
                             "https://www.googleapis.com/auth/calendar",
-                            "https://www.googleapis.com/auth/chat.spaces.readonly",
-                            "https://www.googleapis.com/auth/chat.messages",
-                            "https://www.googleapis.com/auth/chat.memberships.readonly",
                           ].join(" "),
                           queryParams: {
                             prompt: "select_account",
