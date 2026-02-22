@@ -7,48 +7,38 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-/** Build a JWT from a Google Service Account key and exchange for an access token */
-async function getAccessToken(serviceAccountKey: any): Promise<string> {
-  const now = Math.floor(Date.now() / 1000);
-  const header = { alg: "RS256", typ: "JWT" };
-  const payload = {
-    iss: serviceAccountKey.client_email,
-    scope: "https://www.googleapis.com/auth/chat.bot https://www.googleapis.com/auth/chat.spaces.readonly https://www.googleapis.com/auth/chat.messages https://www.googleapis.com/auth/chat.memberships.readonly",
-    aud: "https://oauth2.googleapis.com/token",
-    iat: now,
-    exp: now + 3600,
-  };
-
-  const enc = (obj: any) => btoa(JSON.stringify(obj)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
-  const unsignedToken = `${enc(header)}.${enc(payload)}`;
-
-  // Import RSA key
-  const pemBody = serviceAccountKey.private_key
-    .replace(/-----BEGIN PRIVATE KEY-----/, "")
-    .replace(/-----END PRIVATE KEY-----/, "")
-    .replace(/\n/g, "");
-  const binaryKey = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
-  const cryptoKey = await crypto.subtle.importKey(
-    "pkcs8",
-    binaryKey,
-    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", cryptoKey, new TextEncoder().encode(unsignedToken));
-  const sig64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
-    .replace(/=/g, "")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_");
-  const jwt = `${unsignedToken}.${sig64}`;
-
+/** Refresh the user's Google access token using their refresh_token from gmail_connections */
+async function getUserAccessToken(
+  refreshToken: string,
+  clientId: string,
+  clientSecret: string,
+  supabaseAdmin: any,
+  profileId: string
+): Promise<string> {
   const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+      client_id: clientId,
+      client_secret: clientSecret,
+    }),
   });
   const tokenData = await tokenRes.json();
-  if (!tokenData.access_token) throw new Error("Failed to get access token: " + JSON.stringify(tokenData));
+  if (!tokenData.access_token) {
+    throw new Error("token_refresh_failed:" + JSON.stringify(tokenData));
+  }
+
+  // Update stored access token
+  await supabaseAdmin
+    .from("gmail_connections")
+    .update({
+      access_token: tokenData.access_token,
+      token_expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+    })
+    .eq("user_id", profileId);
+
   return tokenData.access_token;
 }
 
@@ -63,37 +53,63 @@ Deno.serve(async (req) => {
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
     }
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
-    const { data: { user }, error: userErr } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnon = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const clientId = Deno.env.get("GMAIL_CLIENT_ID");
+    const clientSecret = Deno.env.get("GMAIL_CLIENT_SECRET");
+
+    const supabaseUser = createClient(supabaseUrl, supabaseAnon, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user }, error: userErr } = await supabaseUser.auth.getUser();
     if (userErr || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
     }
 
-    // Get service account key
-    const saKeyRaw = Deno.env.get("GOOGLE_CHAT_SERVICE_ACCOUNT_KEY");
-    if (!saKeyRaw) {
-      return new Response(JSON.stringify({ error: "Google Chat service account not configured" }), {
+    const supabaseAdmin = createClient(supabaseUrl, serviceKey);
+
+    // Get user's profile
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("id, company_id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!profile) {
+      return new Response(JSON.stringify({ error: "Profile not found" }), { status: 404, headers: corsHeaders });
+    }
+
+    // Get user's gmail connection (which has their Google OAuth tokens)
+    const { data: connection } = await supabaseAdmin
+      .from("gmail_connections")
+      .select("refresh_token, access_token, token_expires_at")
+      .eq("user_id", profile.id)
+      .single();
+
+    if (!connection?.refresh_token) {
+      return new Response(JSON.stringify({ error: "chat_not_connected", message: "Google Chat not connected. Please sign out and sign back in to grant Chat permissions." }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!clientId || !clientSecret) {
+      return new Response(JSON.stringify({ error: "Google OAuth credentials not configured" }), {
         status: 500,
         headers: corsHeaders,
       });
     }
-    // Clean the SA key - may have tabs/whitespace from copy-paste
-    const cleanedKey = saKeyRaw.replace(/[\t\r\n]+/g, " ").replace(/\s+/g, " ");
-    let saKey: any;
-    try {
-      saKey = JSON.parse(cleanedKey);
-    } catch (parseErr) {
-      console.error("Failed to parse SA key, first 100 chars:", saKeyRaw.substring(0, 100));
-      return new Response(JSON.stringify({ error: "Invalid service account key format" }), {
-        status: 500,
-        headers: corsHeaders,
-      });
+
+    // Get a fresh access token
+    let accessToken: string;
+    const tokenExpiry = connection.token_expires_at ? new Date(connection.token_expires_at) : new Date(0);
+    if (connection.access_token && tokenExpiry > new Date(Date.now() + 60_000)) {
+      accessToken = connection.access_token;
+    } else {
+      accessToken = await getUserAccessToken(connection.refresh_token, clientId, clientSecret, supabaseAdmin, profile.id);
     }
-    const accessToken = await getAccessToken(saKey);
+
     const { action, ...params } = await req.json();
     const chatApi = "https://chat.googleapis.com/v1";
     const headers = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
@@ -102,8 +118,20 @@ Deno.serve(async (req) => {
 
     switch (action) {
       case "list_spaces": {
-        const res = await fetch(`${chatApi}/spaces?pageSize=100`, { headers });
-        result = await res.json();
+        // List all spaces including DMs
+        const res = await fetch(`${chatApi}/spaces?pageSize=200`, { headers });
+        const data = await res.json();
+        if (data.error) {
+          // If 403/401, the user likely hasn't granted chat scopes
+          if (data.error.code === 403 || data.error.code === 401) {
+            return new Response(JSON.stringify({
+              error: "chat_scope_missing",
+              message: "Chat permissions not granted. Please sign out and sign back in to grant Google Chat access.",
+            }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
+          throw new Error(data.error.message || JSON.stringify(data.error));
+        }
+        result = data;
         break;
       }
       case "list_messages": {
