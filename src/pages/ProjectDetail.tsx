@@ -418,7 +418,8 @@ export default function ProjectDetail() {
         {/* Main Tabbed Content */}
         <Card>
           <Tabs defaultValue="services" className="w-full">
-            <TabsList className="w-full justify-start rounded-none rounded-t-lg border-b bg-muted/20 h-11 px-4 flex-wrap gap-1">
+            <div className="overflow-x-auto border-b bg-muted/20 rounded-t-lg">
+            <TabsList className="w-max justify-start rounded-none bg-transparent h-11 px-4 gap-1">
               <TabsTrigger value="services" className="gap-1.5 data-[state=active]:bg-background">
                 <FileText className="h-3.5 w-3.5" /> Services ({liveServices.length})
               </TabsTrigger>
@@ -447,6 +448,7 @@ export default function ProjectDetail() {
                 <DollarSign className="h-3.5 w-3.5" /> Job Costing
               </TabsTrigger>
             </TabsList>
+            </div>
 
             <CardContent className="p-0">
               <TabsContent value="services" className="mt-0">
