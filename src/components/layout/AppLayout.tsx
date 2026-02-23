@@ -1,10 +1,7 @@
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode, useState } from "react";
 import { AppSidebar } from "./AppSidebar";
 import { TopBar } from "./TopBar";
 import { ClockOutModal } from "@/components/time/ClockOutModal";
-import { AskOrdinoButton } from "@/components/assistant/AskOrdinoButton";
-import { AskOrdinoPanel } from "@/components/assistant/AskOrdinoPanel";
-import { useAskOrdino } from "@/hooks/useAskOrdino";
 import { BeaconChatWidget } from "@/components/beacon/BeaconChatWidget";
 
 interface AppLayoutProps {
@@ -13,19 +10,6 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const ordino = useAskOrdino();
-
-  // Cmd+K / Ctrl+K shortcut
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        ordino.setIsOpen((prev) => !prev);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
 
   return (
     <div className="flex min-h-screen w-full bg-background">
@@ -54,17 +38,6 @@ export function AppLayout({ children }: AppLayoutProps) {
       </div>
 
       <ClockOutModal />
-
-      {/* Ask Ordino */}
-      {!ordino.isOpen && <AskOrdinoButton onClick={() => ordino.setIsOpen(true)} />}
-      <AskOrdinoPanel
-        isOpen={ordino.isOpen}
-        onClose={() => ordino.setIsOpen(false)}
-        messages={ordino.messages}
-        isLoading={ordino.isLoading}
-        onAsk={ordino.ask}
-        onClear={ordino.clear}
-      />
 
       {/* Beacon floating chat widget */}
       <BeaconChatWidget />
