@@ -39,8 +39,6 @@ import BeaconKnowledgeBase from "./pages/BeaconKnowledgeBase";
 import BeaconBulletins from "./pages/BeaconBulletins";
 import BeaconContentEngine from "./pages/BeaconContentEngine";
 import BeaconConversations from "./pages/BeaconConversations";
-import BeaconChat from "./pages/BeaconChat";
-import BeaconChatManagement from "./pages/BeaconChatManagement";
 import BeaconFeedback from "./pages/BeaconFeedback";
 
 const queryClient = new QueryClient();
@@ -71,170 +69,26 @@ function AppRoutes() {
       />
 
       {/* Protected routes - requires auth AND profile */}
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/projects"
-        element={
-          <ProtectedRoute>
-            <Projects />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/projects/:id"
-        element={
-          <ProtectedRoute>
-            <ProjectDetail />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/properties"
-        element={
-          <ProtectedRoute>
-            <Properties />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/properties/:id"
-        element={
-          <ProtectedRoute>
-            <PropertyDetail />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/time"
-        element={
-          <ProtectedRoute>
-            <Time />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/proposals"
-        element={
-          <ProtectedRoute>
-            <Proposals />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/invoices"
-        element={
-          <ProtectedRoute>
-            <Invoices />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/clients"
-        element={
-          <ProtectedRoute>
-            <Clients />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/clients/:id"
-        element={
-          <ProtectedRoute>
-            <ClientDetail />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/settings"
-        element={
-          <ProtectedRoute>
-            <Settings />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/emails"
-        element={
-          <ProtectedRoute>
-            <Emails />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/calendar"
-        element={
-          <ProtectedRoute>
-            <Calendar />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/documents"
-        element={
-          <ProtectedRoute>
-            <Documents />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* RFP routes */}
-      <Route
-        path="/rfps"
-        element={
-          <ProtectedRoute>
-            <Rfps />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/rfps/library"
-        element={
-          <ProtectedRoute>
-            <RfpLibrary />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/rfps/discover"
-        element={
-          <ProtectedRoute>
-            <RfpDiscovery />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/reports"
-        element={
-          <ProtectedRoute>
-            <Reports />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/help"
-        element={
-          <ProtectedRoute>
-            <HelpDesk />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/chat"
-        element={
-          <ProtectedRoute>
-            <Chat />
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
+      <Route path="/projects/:id" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
+      <Route path="/properties" element={<ProtectedRoute><Properties /></ProtectedRoute>} />
+      <Route path="/properties/:id" element={<ProtectedRoute><PropertyDetail /></ProtectedRoute>} />
+      <Route path="/time" element={<ProtectedRoute><Time /></ProtectedRoute>} />
+      <Route path="/proposals" element={<ProtectedRoute><Proposals /></ProtectedRoute>} />
+      <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
+      <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
+      <Route path="/clients/:id" element={<ProtectedRoute><ClientDetail /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/emails" element={<ProtectedRoute><Emails /></ProtectedRoute>} />
+      <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
+      <Route path="/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
+      <Route path="/rfps" element={<ProtectedRoute><Rfps /></ProtectedRoute>} />
+      <Route path="/rfps/library" element={<ProtectedRoute><RfpLibrary /></ProtectedRoute>} />
+      <Route path="/rfps/discover" element={<ProtectedRoute><RfpDiscovery /></ProtectedRoute>} />
+      <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+      <Route path="/help" element={<ProtectedRoute><HelpDesk /></ProtectedRoute>} />
+      <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
 
       {/* Public RFI form - no auth required */}
       <Route path="/rfi" element={<RfiForm />} />
@@ -251,8 +105,6 @@ function AppRoutes() {
       <Route path="/beacon/bulletins" element={<ProtectedRoute><BeaconBulletins /></ProtectedRoute>} />
       <Route path="/beacon/content-engine" element={<ProtectedRoute><BeaconContentEngine /></ProtectedRoute>} />
       <Route path="/beacon/conversations" element={<ProtectedRoute><BeaconConversations /></ProtectedRoute>} />
-      <Route path="/beacon/chat" element={<ProtectedRoute><BeaconChat /></ProtectedRoute>} />
-      <Route path="/beacon/chat-management" element={<ProtectedRoute><BeaconChatManagement /></ProtectedRoute>} />
       <Route path="/beacon/feedback" element={<ProtectedRoute><BeaconFeedback /></ProtectedRoute>} />
 
       {/* Catch-all */}

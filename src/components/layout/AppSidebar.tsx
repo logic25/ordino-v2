@@ -12,8 +12,6 @@ import {
   Receipt,
   Mail,
   CalendarDays,
-  ChevronLeft,
-  ChevronRight,
   LogOut,
   FileArchive,
   ScrollText,
@@ -25,7 +23,6 @@ import {
   Brain,
   Database,
   MessageCircle,
-  Bot,
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -58,13 +55,11 @@ const secondaryNav = [
 ];
 
 const beaconNav = [
-  { title: "Beacon Dashboard", icon: Brain, href: "/beacon" },
-  { title: "Beacon Chat", icon: Bot, href: "/beacon/chat" },
+  { title: "Dashboard", icon: Brain, href: "/beacon" },
   { title: "Conversations", icon: MessageCircle, href: "/beacon/conversations" },
   { title: "Knowledge Base", icon: Database, href: "/beacon/knowledge-base" },
   { title: "Bulletins", icon: ScrollText, href: "/beacon/bulletins" },
   { title: "Content Engine", icon: Sparkles, href: "/beacon/content-engine" },
-  { title: "Chat Mgmt", icon: Settings, href: "/beacon/chat-management" },
   { title: "Feedback", icon: MessageSquare, href: "/beacon/feedback" },
 ];
 
