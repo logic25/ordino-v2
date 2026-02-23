@@ -80,3 +80,6 @@ verify_jwt = false
 
 [functions.ask-ordino]
 verify_jwt = false
+
+[functions.beacon-analytics]
+verify_jwt = false
