@@ -5,6 +5,7 @@ import { ClockOutModal } from "@/components/time/ClockOutModal";
 import { AskOrdinoButton } from "@/components/assistant/AskOrdinoButton";
 import { AskOrdinoPanel } from "@/components/assistant/AskOrdinoPanel";
 import { useAskOrdino } from "@/hooks/useAskOrdino";
+import { BeaconChatWidget } from "@/components/beacon/BeaconChatWidget";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -64,6 +65,9 @@ export function AppLayout({ children }: AppLayoutProps) {
         onAsk={ordino.ask}
         onClear={ordino.clear}
       />
+
+      {/* Beacon floating chat widget */}
+      <BeaconChatWidget />
     </div>
   );
 }
