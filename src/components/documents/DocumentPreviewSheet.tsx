@@ -130,7 +130,7 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
       <SheetContent className="w-full sm:max-w-[60vw] overflow-y-auto p-0">
         {doc && (
           <>
-            <SheetHeader className="p-4 pb-3 border-b space-y-2">
+            <SheetHeader className="p-4 pb-3 pr-12 border-b space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <SheetTitle className="text-lg">{doc.title}</SheetTitle>
                 <div className="flex items-center gap-1.5 shrink-0">
