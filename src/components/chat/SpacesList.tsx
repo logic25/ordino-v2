@@ -171,6 +171,12 @@ function SpaceButton({
   badge?: boolean;
   overrideName?: string;
 }) {
+  // Mock unread count and last message based on space name hash
+  const hash = space.name.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  const mockUnread = hash % 7 === 0 ? 0 : hash % 5;
+  const mockLastMsg = ["Sounds good, thanks!", "Can you check the filing?", "Updated the plans", "Meeting at 2pm", "Got it 👍"][hash % 5];
+  const mockTime = ["9:15 AM", "Yesterday", "11:30 AM", "Mon", "2:45 PM"][hash % 5];
+
   return (
     <div className="group relative">
       <button
@@ -184,8 +190,19 @@ function SpaceButton({
         )}
       >
         {icon}
-        <span className="truncate flex-1">{overrideName || space.displayName || space.name}</span>
-        {badge && (
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-1">
+            <span className="truncate">{overrideName || space.displayName || space.name}</span>
+            <span className="text-[10px] text-muted-foreground shrink-0">{mockTime}</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground truncate">{mockLastMsg}</p>
+        </div>
+        {mockUnread > 0 && (
+          <span className="ml-1 min-w-[18px] h-[18px] rounded-full bg-[#22c55e] text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+            {mockUnread}
+          </span>
+        )}
+        {badge && !mockUnread && (
           <Badge variant="secondary" className="text-[9px] px-1 py-0 shrink-0">Space</Badge>
         )}
       </button>

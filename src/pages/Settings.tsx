@@ -20,9 +20,63 @@ import { InstructionTemplateSettings } from "@/components/settings/InstructionTe
 import { RolesSettings } from "@/components/settings/RolesSettings";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import { useIsAdmin } from "@/hooks/useUserRoles";
-import { Mail } from "lucide-react";
+import { Mail, Brain } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
-type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists" | "roles" | "partner_templates" | "signal" | "instruction_templates" | "notifications";
+function BeaconSettingsSection() {
+  const apis = [
+    { name: "Railway", status: "Connected", url: "https://beacon-*****.up.railway.app" },
+    { name: "Pinecone", status: "Connected", detail: "beacon-docs" },
+    { name: "Voyage AI", status: "Connected", detail: "voyage-2" },
+    { name: "Anthropic", status: "Connected", detail: "Claude 3 Haiku" },
+  ];
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader><CardTitle className="text-base flex items-center gap-2"><Brain className="h-4 w-4 text-[#22c55e]" /> API Connections</CardTitle></CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {apis.map(a => (
+            <div key={a.name} className="flex items-center justify-between p-3 border rounded-lg">
+              <div>
+                <p className="text-sm font-medium">{a.name}</p>
+                <p className="text-xs text-muted-foreground">{a.detail || a.url}</p>
+              </div>
+              <Badge className="bg-[#22c55e] text-white text-[10px]">{a.status}</Badge>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader><CardTitle className="text-base">Knowledge Base Settings</CardTitle></CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-1"><Label className="text-xs">Index Name</Label><Input value="beacon-docs" disabled /></div>
+          <div className="space-y-1"><Label className="text-xs">Embedding Model</Label><Input value="voyage-2" disabled /></div>
+          <div className="space-y-1"><Label className="text-xs">Chunk Size</Label><Input value="512 tokens" disabled /></div>
+          <div className="space-y-1"><Label className="text-xs">Min Relevance Score</Label><Input value="0.55" disabled /></div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader><CardTitle className="text-base">Team Usage</CardTitle></CardHeader>
+        <CardContent>
+          <div className="border rounded-lg overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50"><tr><th className="text-left p-3 font-medium">User</th><th className="text-left p-3 font-medium">Questions</th><th className="text-left p-3 font-medium">Corrections</th><th className="text-left p-3 font-medium">Suggestions</th></tr></thead>
+              <tbody>
+                {[{ name: "Chris Henry", q: 245, c: 5, s: 2 }, { name: "Justin", q: 189, c: 3, s: 3 }, { name: "Manny", q: 156, c: 4, s: 3 }].map(u => (
+                  <tr key={u.name} className="border-t"><td className="p-3">{u.name}</td><td className="p-3">{u.q}</td><td className="p-3">{u.c}</td><td className="p-3">{u.s}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists" | "roles" | "partner_templates" | "signal" | "instruction_templates" | "notifications" | "beacon";
 
 const settingsSections = [
   {
@@ -104,6 +158,13 @@ const settingsSections = [
     icon: ShieldCheck,
     adminOnly: true,
   },
+  {
+    id: "beacon" as const,
+    title: "Beacon AI",
+    description: "API connections, knowledge base settings, and content engine configuration",
+    icon: Settings as any,
+    adminOnly: true,
+  },
 ];
 
 export default function Settings() {
@@ -146,6 +207,8 @@ export default function Settings() {
         return <RolesSettings />;
       case "notifications":
         return <NotificationSettings />;
+      case "beacon":
+        return <BeaconSettingsSection />;
       default:
         return (
           <>
