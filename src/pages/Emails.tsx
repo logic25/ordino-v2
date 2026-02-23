@@ -145,7 +145,10 @@ export default function Emails() {
     setHighlightedIndex(-1);
   }, [activeTab, search]);
 
-  if (!gmailLoading && !gmailConnection) {
+  // Check for OAuth code callback - must run before the gate
+  const hasCode = searchParams.has("code");
+
+  if (!gmailLoading && !hasCode && (!gmailConnection || !(gmailConnection as any).refresh_token)) {
     return (
       <AppLayout>
         <div className="flex flex-col items-center justify-center h-[calc(100vh-theme(spacing.16))] gap-6 text-center">
