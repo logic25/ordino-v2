@@ -45,34 +45,49 @@ async function refreshAccessToken(
   return tokenData.access_token;
 }
 
-/** Resolve a user's display name via People API, with caching */
+/** Resolve a user's display name via People API directory lookup, with caching */
 async function resolveUserName(
   userResourceName: string,
   accessToken: string,
   cache: Map<string, { displayName: string; avatarUrl?: string }>
 ): Promise<{ displayName: string; avatarUrl?: string } | null> {
   if (cache.has(userResourceName)) return cache.get(userResourceName)!;
-  try {
-    const peopleId = userResourceName.replace("users/", "");
-    const res = await fetch(
-      `https://people.googleapis.com/v1/people/${peopleId}?personFields=names,emailAddresses,photos`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    if (res.ok) {
-      const person = await res.json();
-      const name = person.names?.[0]?.displayName;
-      const email = person.emailAddresses?.[0]?.value;
-      const photo = person.photos?.[0]?.url;
-      const displayName = name || (email ? email.split("@")[0] : null);
-      if (displayName) {
-        const entry = { displayName, avatarUrl: photo };
-        cache.set(userResourceName, entry);
-        return entry;
+  const peopleId = userResourceName.replace("users/", "");
+  
+  // Try multiple People API approaches
+  const attempts = [
+    // 1. Directory source (Workspace domain profiles)
+    `https://people.googleapis.com/v1/people/${peopleId}?personFields=names,emailAddresses,photos&sources=DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE`,
+    // 2. Regular people.get 
+    `https://people.googleapis.com/v1/people/${peopleId}?personFields=names,emailAddresses,photos`,
+  ];
+
+  for (const url of attempts) {
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (res.ok) {
+        const person = await res.json();
+        const name = person.names?.[0]?.displayName;
+        const email = person.emailAddresses?.[0]?.value;
+        const photo = person.photos?.[0]?.url;
+        const displayName = name || (email ? email.split("@")[0] : null);
+        if (displayName) {
+          const entry = { displayName, avatarUrl: photo };
+          cache.set(userResourceName, entry);
+          return entry;
+        }
+      } else {
+        const errText = await res.text();
+        console.log("resolveUserName attempt failed:", url.substring(0, 80), res.status, errText.substring(0, 150));
       }
+    } catch (e: any) {
+      console.log("resolveUserName error:", e.message);
     }
-  } catch (e: any) {
-    console.log("resolveUserName failed:", userResourceName, e.message);
   }
+  
+  cache.set(userResourceName, { displayName: "" }); // negative cache
   return null;
 }
 
