@@ -1,58 +1,40 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  FileText,
-  Upload,
-  Search,
-  Download,
-  Trash2,
-  Loader2,
-  File,
-  FileImage,
-  FileSpreadsheet,
+  FileText, Upload, Search, Download, Trash2, Loader2, File, FileImage,
+  FileSpreadsheet, FolderPlus, Eye, Brain, RefreshCw, ChevronRight,
 } from "lucide-react";
 import { useUniversalDocuments, useUploadDocument, useDeleteDocument, type UniversalDocument } from "@/hooks/useUniversalDocuments";
+import { useDocumentFolders, useSeedFolders, useCreateFolder, useDeleteFolder, type DocumentFolder } from "@/hooks/useDocumentFolders";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useIsAdmin } from "@/hooks/useUserRoles";
 import { format } from "date-fns";
+import { FolderTree } from "@/components/documents/FolderTree";
+import { DocumentPreviewSheet } from "@/components/documents/DocumentPreviewSheet";
+import { NewFolderDialog } from "@/components/documents/NewFolderDialog";
+import { syncDocumentToBeacon } from "@/services/beaconApi";
+import { useQueryClient } from "@tanstack/react-query";
 
 const CATEGORIES = [
   { value: "general", label: "General" },
@@ -80,16 +62,35 @@ function formatFileSize(bytes: number | null) {
   return `${(bytes / 1048576).toFixed(1)} MB`;
 }
 
+function BeaconStatusBadge({ doc }: { doc: any }) {
+  const status = doc.beacon_status;
+  if (!status) return <Badge variant="outline" className="text-[10px]"><span className="w-1.5 h-1.5 rounded-full bg-muted-foreground inline-block mr-1" />Not synced</Badge>;
+  if (status === "pending") return <Badge className="bg-[#f59e0b] text-white text-[10px]"><span className="w-1.5 h-1.5 rounded-full bg-white inline-block mr-1 animate-pulse" />Pending</Badge>;
+  if (status === "synced") return <Badge className="bg-[hsl(var(--chart-2))] text-white text-[10px]"><span className="w-1.5 h-1.5 rounded-full bg-white inline-block mr-1" />Synced ({doc.beacon_chunks || 0})</Badge>;
+  return <Badge variant="destructive" className="text-[10px]"><span className="w-1.5 h-1.5 rounded-full bg-white inline-block mr-1" />Error</Badge>;
+}
+
 export default function Documents() {
   const { toast } = useToast();
+  const qc = useQueryClient();
+  const isAdmin = useIsAdmin();
+  const [searchParams] = useSearchParams();
   const { data: documents = [], isLoading } = useUniversalDocuments();
+  const { data: folders = [], isLoading: foldersLoading } = useDocumentFolders();
+  const seedFolders = useSeedFolders();
   const uploadDoc = useUploadDocument();
   const deleteDoc = useDeleteDocument();
+  const createFolder = useCreateFolder();
+  const delFolder = useDeleteFolder();
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<UniversalDocument | null>(null);
+  const [deleteFolderTarget, setDeleteFolderTarget] = useState<DocumentFolder | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<UniversalDocument | null>(null);
 
   // Upload form state
   const [title, setTitle] = useState("");
@@ -98,14 +99,46 @@ export default function Documents() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const filteredDocs = documents.filter((doc) => {
-    const matchSearch = !searchQuery ||
-      doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchCategory = categoryFilter === "all" || doc.category === categoryFilter;
-    return matchSearch && matchCategory;
-  });
+  // Seed folders on first load
+  useEffect(() => {
+    if (!foldersLoading && folders.length === 0) {
+      seedFolders.mutate();
+    }
+  }, [foldersLoading, folders.length]);
+
+  // Get all descendant folder IDs for filtering
+  const getDescendantIds = (folderId: string): string[] => {
+    const children = folders.filter((f) => f.parent_id === folderId);
+    return [folderId, ...children.flatMap((c) => getDescendantIds(c.id))];
+  };
+
+  const selectedFolder = folders.find((f) => f.id === selectedFolderId);
+  const isBeaconFolder = selectedFolder?.is_beacon_synced || false;
+
+  const filteredDocs = useMemo(() => {
+    const folderIds = selectedFolderId ? getDescendantIds(selectedFolderId) : null;
+    return documents.filter((doc) => {
+      const matchSearch = !searchQuery ||
+        doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        doc.filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        doc.description?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchCategory = categoryFilter === "all" || doc.category === categoryFilter;
+      const matchFolder = folderIds === null || folderIds.includes((doc as any).folder_id);
+      return matchSearch && matchCategory && matchFolder;
+    });
+  }, [documents, searchQuery, categoryFilter, selectedFolderId, folders]);
+
+  // Breadcrumbs
+  const breadcrumbs = useMemo(() => {
+    if (!selectedFolderId) return [];
+    const trail: DocumentFolder[] = [];
+    let current = folders.find((f) => f.id === selectedFolderId);
+    while (current) {
+      trail.unshift(current);
+      current = current.parent_id ? folders.find((f) => f.id === current!.parent_id) : undefined;
+    }
+    return trail;
+  }, [selectedFolderId, folders]);
 
   const handleUpload = async () => {
     if (!selectedFile || !title.trim()) return;
@@ -115,29 +148,41 @@ export default function Documents() {
         title: title.trim(),
         description: description.trim() || undefined,
         category,
-      });
-      toast({ title: "Document uploaded" });
+        folder_id: selectedFolderId || undefined,
+      } as any);
+
+      // If uploading to a beacon folder, sync to Beacon
+      if (isBeaconFolder && selectedFile) {
+        try {
+          const result = await syncDocumentToBeacon(selectedFile, selectedFile.name, selectedFolder?.name || "Beacon Knowledge Base");
+          // Update doc beacon status - find the latest doc
+          const { data: latestDocs } = await supabase
+            .from("universal_documents")
+            .select("id")
+            .eq("filename", selectedFile.name)
+            .order("created_at", { ascending: false })
+            .limit(1);
+          if (latestDocs?.[0]) {
+            await supabase.from("universal_documents").update({
+              beacon_status: "synced",
+              beacon_synced_at: new Date().toISOString(),
+              beacon_chunks: result.chunks_created,
+            } as any).eq("id", latestDocs[0].id);
+          }
+          toast({ title: "Uploaded and synced to Beacon" });
+        } catch {
+          toast({ title: "Uploaded, but Beacon sync failed", variant: "destructive" });
+        }
+      } else {
+        toast({ title: "Document uploaded" });
+      }
+
       resetForm();
       setUploadOpen(false);
+      qc.invalidateQueries({ queryKey: ["universal-documents"] });
     } catch (err: any) {
       toast({ title: "Upload failed", description: err.message, variant: "destructive" });
     }
-  };
-
-  const handleDownload = async (doc: UniversalDocument) => {
-    const { data, error } = await supabase.storage
-      .from("universal-documents")
-      .download(doc.storage_path);
-    if (error || !data) {
-      toast({ title: "Download failed", variant: "destructive" });
-      return;
-    }
-    const url = URL.createObjectURL(data);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = doc.filename;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   const handleDelete = async () => {
@@ -151,164 +196,216 @@ export default function Documents() {
     }
   };
 
+  const handleDeleteFolder = async () => {
+    if (!deleteFolderTarget) return;
+    try {
+      await delFolder.mutateAsync(deleteFolderTarget.id);
+      toast({ title: "Folder deleted" });
+      if (selectedFolderId === deleteFolderTarget.id) setSelectedFolderId(null);
+      setDeleteFolderTarget(null);
+    } catch (err: any) {
+      toast({ title: "Delete failed", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleResync = async (doc: UniversalDocument) => {
+    try {
+      await supabase.from("universal_documents").update({ beacon_status: "pending" } as any).eq("id", doc.id);
+      qc.invalidateQueries({ queryKey: ["universal-documents"] });
+
+      const { data, error } = await supabase.storage.from("universal-documents").download(doc.storage_path);
+      if (error || !data) throw new Error("Download failed");
+
+      const result = await syncDocumentToBeacon(data, doc.filename, selectedFolder?.name || "Beacon Knowledge Base");
+      await supabase.from("universal_documents").update({
+        beacon_status: "synced",
+        beacon_synced_at: new Date().toISOString(),
+        beacon_chunks: result.chunks_created,
+      } as any).eq("id", doc.id);
+      toast({ title: "Re-synced to Beacon" });
+      qc.invalidateQueries({ queryKey: ["universal-documents"] });
+    } catch {
+      await supabase.from("universal_documents").update({ beacon_status: "error" } as any).eq("id", doc.id);
+      toast({ title: "Beacon sync failed", variant: "destructive" });
+      qc.invalidateQueries({ queryKey: ["universal-documents"] });
+    }
+  };
+
   const resetForm = () => {
-    setTitle("");
-    setDescription("");
-    setCategory("general");
+    setTitle(""); setDescription(""); setCategory("general");
     setSelectedFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   return (
     <AppLayout>
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-4 animate-fade-in">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Universal Documents</h1>
-            <p className="text-muted-foreground mt-1">
-              Company-wide documents accessible from anywhere
-            </p>
+            <p className="text-muted-foreground mt-1">Company-wide reference documents, guides, and SOPs</p>
           </div>
-          <Button size="sm" onClick={() => setUploadOpen(true)}>
-            <Upload className="h-4 w-4 mr-2" />
-            Upload Document
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setNewFolderOpen(true)}>
+              <FolderPlus className="h-4 w-4 mr-2" /> New Folder
+            </Button>
+            <Button size="sm" onClick={() => setUploadOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" /> Upload Document
+            </Button>
+          </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex items-center gap-3">
-          <div className="relative max-w-md flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search documents..."
-              className="pl-9"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+        <div className="flex gap-4">
+          {/* Folder sidebar */}
+          <div className="w-64 shrink-0">
+            <Card>
+              <CardContent className="p-3">
+                {foldersLoading ? (
+                  <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+                ) : (
+                  <FolderTree
+                    folders={folders}
+                    selectedFolderId={selectedFolderId}
+                    onSelectFolder={setSelectedFolderId}
+                    onDeleteFolder={(f) => setDeleteFolderTarget(f)}
+                  />
+                )}
+              </CardContent>
+            </Card>
           </div>
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="All categories" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {CATEGORIES.map((c) => (
-                <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Documents
-              <span className="text-muted-foreground font-normal text-sm">({filteredDocs.length})</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          {/* Document list */}
+          <div className="flex-1 min-w-0 space-y-3">
+            {/* Breadcrumbs */}
+            {breadcrumbs.length > 0 && (
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                <button onClick={() => setSelectedFolderId(null)} className="hover:text-foreground transition-colors">Documents</button>
+                {breadcrumbs.map((b) => (
+                  <span key={b.id} className="flex items-center gap-1">
+                    <ChevronRight className="h-3 w-3" />
+                    <button
+                      onClick={() => setSelectedFolderId(b.id)}
+                      className={b.id === selectedFolderId ? "text-foreground font-medium" : "hover:text-foreground transition-colors"}
+                    >
+                      {b.name}
+                    </button>
+                  </span>
+                ))}
               </div>
-            ) : filteredDocs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                <h3 className="text-lg font-medium">No documents yet</h3>
-                <p className="text-muted-foreground mt-1 mb-4">
-                  Upload leases, agreements, licenses, and other company documents
-                </p>
-                <Button onClick={() => setUploadOpen(true)}>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Document
-                </Button>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Document</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Size</TableHead>
-                    <TableHead>Uploaded By</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="w-[100px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredDocs.map((doc) => {
-                    const Icon = getFileIcon(doc.mime_type);
-                    const uploaderName = doc.uploader?.display_name ||
-                      [doc.uploader?.first_name, doc.uploader?.last_name].filter(Boolean).join(" ") || "—";
-                    return (
-                      <TableRow key={doc.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Icon className="h-5 w-5 text-muted-foreground shrink-0" />
-                            <div className="min-w-0">
-                              <p className="font-medium truncate">{doc.title}</p>
-                              <p className="text-xs text-muted-foreground truncate">{doc.filename}</p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs">
-                            {CATEGORIES.find((c) => c.value === doc.category)?.label || doc.category}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-sm tabular-nums">
-                          {formatFileSize(doc.size_bytes)}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-sm">{uploaderName}</TableCell>
-                        <TableCell className="text-muted-foreground text-sm">
-                          {format(new Date(doc.created_at), "MMM d, yyyy")}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(doc)}>
-                              <Download className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive"
-                              onClick={() => setDeleteTarget(doc)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
             )}
-          </CardContent>
-        </Card>
+
+            {/* Filters */}
+            <div className="flex items-center gap-3">
+              <div className="relative max-w-md flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input type="search" placeholder="Search documents..." className="pl-9" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+              </div>
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-[180px]"><SelectValue placeholder="All categories" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  {isBeaconFolder && <Brain className="h-4 w-4 text-[#f59e0b]" />}
+                  <FileText className="h-4 w-4" />
+                  {selectedFolder?.name || "All Documents"}
+                  <span className="text-muted-foreground font-normal text-sm">({filteredDocs.length})</span>
+                </CardTitle>
+                {selectedFolder?.description && (
+                  <p className="text-xs text-muted-foreground">{selectedFolder.description}</p>
+                )}
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+                ) : filteredDocs.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                    <h3 className="text-lg font-medium">No documents yet</h3>
+                    <p className="text-muted-foreground mt-1 mb-4">Upload reference documents, guides, and SOPs</p>
+                    <Button onClick={() => setUploadOpen(true)}><Upload className="h-4 w-4 mr-2" /> Upload Document</Button>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Document</TableHead>
+                        <TableHead>Category</TableHead>
+                        {isBeaconFolder && <TableHead>Beacon</TableHead>}
+                        <TableHead>Size</TableHead>
+                        <TableHead>Uploaded By</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead className="w-[120px]"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredDocs.map((doc) => {
+                        const Icon = getFileIcon(doc.mime_type);
+                        const uploaderName = doc.uploader?.display_name ||
+                          [doc.uploader?.first_name, doc.uploader?.last_name].filter(Boolean).join(" ") || "—";
+                        return (
+                          <TableRow key={doc.id} className="cursor-pointer" onClick={() => setPreviewDoc(doc)}>
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <Icon className="h-5 w-5 text-muted-foreground shrink-0" />
+                                <div className="min-w-0">
+                                  <p className="font-medium truncate">{doc.title}</p>
+                                  <p className="text-xs text-muted-foreground truncate">{doc.filename}</p>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">{CATEGORIES.find((c) => c.value === doc.category)?.label || doc.category}</Badge>
+                            </TableCell>
+                            {isBeaconFolder && <TableCell><BeaconStatusBadge doc={doc} /></TableCell>}
+                            <TableCell className="text-muted-foreground text-sm tabular-nums">{formatFileSize(doc.size_bytes)}</TableCell>
+                            <TableCell className="text-muted-foreground text-sm">{uploaderName}</TableCell>
+                            <TableCell className="text-muted-foreground text-sm">{format(new Date(doc.created_at), "MMM d, yyyy")}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPreviewDoc(doc)} title="Preview">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                {isBeaconFolder && (
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleResync(doc)} title="Re-sync to Beacon">
+                                    <RefreshCw className="h-4 w-4 text-[#f59e0b]" />
+                                  </Button>
+                                )}
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(doc)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
 
       {/* Upload Dialog */}
       <Dialog open={uploadOpen} onOpenChange={(open) => { setUploadOpen(open); if (!open) resetForm(); }}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Upload Document</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Upload Document{selectedFolder ? ` to "${selectedFolder.name}"` : ""}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
               <Label>File</Label>
-              <Input
-                ref={fileInputRef}
-                type="file"
-                className="mt-1"
-                onChange={(e) => {
-                  const file = e.target.files?.[0] || null;
-                  setSelectedFile(file);
-                  if (file && !title) setTitle(file.name.replace(/\.[^/.]+$/, ""));
-                }}
-              />
+              <Input ref={fileInputRef} type="file" className="mt-1" onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                setSelectedFile(file);
+                if (file && !title) setTitle(file.name.replace(/\.[^/.]+$/, ""));
+              }} />
             </div>
             <div>
               <Label>Title</Label>
@@ -317,14 +414,8 @@ export default function Documents() {
             <div>
               <Label>Category</Label>
               <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                  ))}
-                </SelectContent>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>{CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
@@ -342,27 +433,56 @@ export default function Documents() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirm */}
+      {/* New Folder Dialog */}
+      <NewFolderDialog
+        open={newFolderOpen}
+        onOpenChange={setNewFolderOpen}
+        parentFolderName={selectedFolder?.name}
+        onSubmit={async (data) => {
+          await createFolder.mutateAsync({ ...data, parent_id: selectedFolderId });
+          toast({ title: "Folder created" });
+        }}
+      />
+
+      {/* Delete Document Confirm */}
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Document?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete "{deleteTarget?.title}" and its file. This action cannot be undone.
-            </AlertDialogDescription>
+            <AlertDialogDescription>This will permanently delete "{deleteTarget?.title}" and its file.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={deleteDoc.isPending}
-            >
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={deleteDoc.isPending}>
               {deleteDoc.isPending ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Delete Folder Confirm */}
+      <AlertDialog open={!!deleteFolderTarget} onOpenChange={() => setDeleteFolderTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Folder?</AlertDialogTitle>
+            <AlertDialogDescription>This will delete "{deleteFolderTarget?.name}" and all subfolders. Documents will be moved to root.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteFolder} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Preview Sheet */}
+      <DocumentPreviewSheet
+        document={previewDoc}
+        open={!!previewDoc}
+        onClose={() => setPreviewDoc(null)}
+        isBeaconFolder={isBeaconFolder}
+        folderName={selectedFolder?.name}
+        isAdmin={isAdmin}
+      />
     </AppLayout>
   );
 }
