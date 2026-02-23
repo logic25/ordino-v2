@@ -296,43 +296,28 @@ Deno.serve(async (req) => {
         if (pageToken) url += `&pageToken=${pageToken}`;
         const { response } = await callChatApi(url, { method: "GET" }, accessToken, connection, clientId, clientSecret, supabaseAdmin, profile.id);
         result = await response.json();
-        // Enrich senders missing displayName using People API
+        // Enrich senders using the resolveUserName helper (which includes directory source)
+        const msgNameCache = new Map<string, { displayName: string; avatarUrl?: string }>();
         if (result.messages?.length) {
-          const needEnrichment = new Map<string, any>();
+          const uniqueSenders = new Set<string>();
           for (const msg of result.messages) {
             if (msg.sender && !msg.sender.displayName && msg.sender.name && msg.sender.type !== "BOT") {
-              needEnrichment.set(msg.sender.name, msg.sender);
+              uniqueSenders.add(msg.sender.name);
             }
           }
-
-          let enrichCount = 0;
-          for (const [senderName, _] of needEnrichment) {
-            if (enrichCount >= 10) break;
-            try {
-              const peopleId = senderName.replace("users/", "");
-              const peopleUrl = `https://people.googleapis.com/v1/people/${peopleId}?personFields=names,emailAddresses,photos`;
-              const peopleRes = await fetch(peopleUrl, {
-                headers: { Authorization: `Bearer ${accessToken}` }
-              });
-              if (peopleRes.ok) {
-                const person = await peopleRes.json();
-                const name = person.names?.[0]?.displayName;
-                const email = person.emailAddresses?.[0]?.value;
-                const photo = person.photos?.[0]?.url;
-                const resolvedName = name || (email ? email.split("@")[0] : null);
-                if (resolvedName) {
-                  for (const msg of result.messages) {
-                    if (msg.sender?.name === senderName) {
-                      msg.sender.displayName = resolvedName;
-                      if (photo) msg.sender.avatarUrl = photo;
-                    }
-                  }
-                  console.log("Enriched sender:", senderName, "->", resolvedName);
-                }
+          let count = 0;
+          for (const senderName of uniqueSenders) {
+            if (count >= 10) break;
+            await resolveUserName(senderName, accessToken, msgNameCache);
+            count++;
+          }
+          for (const msg of result.messages) {
+            if (msg.sender && !msg.sender.displayName && msg.sender.name) {
+              const resolved = msgNameCache.get(msg.sender.name);
+              if (resolved && resolved.displayName) {
+                msg.sender.displayName = resolved.displayName;
+                if (resolved.avatarUrl) msg.sender.avatarUrl = resolved.avatarUrl;
               }
-              enrichCount++;
-            } catch (e: any) {
-              console.log("Sender enrichment failed:", senderName, e.message);
             }
           }
         }
