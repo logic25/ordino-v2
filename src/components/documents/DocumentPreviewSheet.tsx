@@ -33,6 +33,12 @@ function getPreviewType(mime: string | null, filename: string): "pdf" | "image" 
   return "unsupported";
 }
 
+function getBucketForPath(storagePath: string): string {
+  // Proposals and some docs are stored in the "documents" bucket
+  if (storagePath.startsWith("proposals/")) return "documents";
+  return "universal-documents";
+}
+
 export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFolder, folderName, isAdmin }: Props) {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -45,6 +51,7 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
 
   const previewType = doc ? getPreviewType(doc.mime_type, doc.filename) : "unsupported";
   const isEditable = previewType === "text" || previewType === "markdown";
+  const bucket = doc ? getBucketForPath(doc.storage_path) : "universal-documents";
 
   useEffect(() => {
     if (!doc || !open) return;
@@ -54,13 +61,13 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
     setSignedUrl(null);
 
     if (previewType === "pdf" || previewType === "image") {
-      supabase.storage.from("universal-documents").createSignedUrl(doc.storage_path, 3600)
+      supabase.storage.from(bucket).createSignedUrl(doc.storage_path, 3600)
         .then(({ data }) => { if (data) setSignedUrl(data.signedUrl); });
     }
 
     if (isEditable) {
       setLoading(true);
-      supabase.storage.from("universal-documents").download(doc.storage_path)
+      supabase.storage.from(bucket).download(doc.storage_path)
         .then(async ({ data, error }) => {
           if (error || !data) return;
           const text = await data.text();
@@ -73,7 +80,7 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
 
   const handleDownload = async () => {
     if (!doc) return;
-    const { data, error } = await supabase.storage.from("universal-documents").download(doc.storage_path);
+    const { data, error } = await supabase.storage.from(bucket).download(doc.storage_path);
     if (error || !data) { toast({ title: "Download failed", variant: "destructive" }); return; }
     const url = URL.createObjectURL(data);
     const a = window.document.createElement("a");
@@ -86,7 +93,7 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
     setSaving(true);
     try {
       const blob = new Blob([content], { type: doc.mime_type || "text/plain" });
-      const { error } = await supabase.storage.from("universal-documents")
+      const { error } = await supabase.storage.from(bucket)
         .update(doc.storage_path, blob, { upsert: true });
       if (error) throw error;
 
@@ -130,7 +137,7 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
       <SheetContent className="w-full sm:max-w-[60vw] overflow-y-auto p-0">
         {doc && (
           <>
-            <SheetHeader className="p-4 pb-3 pr-12 border-b space-y-2">
+            <SheetHeader className="p-4 pb-3 pr-14 border-b space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <SheetTitle className="text-lg">{doc.title}</SheetTitle>
                 <div className="flex items-center gap-1.5 shrink-0">
