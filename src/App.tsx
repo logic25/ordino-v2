@@ -34,6 +34,14 @@ import HelpDesk from "./pages/HelpDesk";
 import Chat from "./pages/Chat";
 import NotFound from "./pages/NotFound";
 import AuthCallback from "./pages/AuthCallback";
+import BeaconDashboard from "./pages/BeaconDashboard";
+import BeaconKnowledgeBase from "./pages/BeaconKnowledgeBase";
+import BeaconBulletins from "./pages/BeaconBulletins";
+import BeaconContentEngine from "./pages/BeaconContentEngine";
+import BeaconConversations from "./pages/BeaconConversations";
+import BeaconChat from "./pages/BeaconChat";
+import BeaconChatManagement from "./pages/BeaconChatManagement";
+import BeaconFeedback from "./pages/BeaconFeedback";
 
 const queryClient = new QueryClient();
 
@@ -236,6 +244,16 @@ function AppRoutes() {
 
       {/* Legacy redirects */}
       <Route path="/team" element={<Navigate to="/settings" replace />} />
+
+      {/* Beacon routes */}
+      <Route path="/beacon" element={<ProtectedRoute><BeaconDashboard /></ProtectedRoute>} />
+      <Route path="/beacon/knowledge-base" element={<ProtectedRoute><BeaconKnowledgeBase /></ProtectedRoute>} />
+      <Route path="/beacon/bulletins" element={<ProtectedRoute><BeaconBulletins /></ProtectedRoute>} />
+      <Route path="/beacon/content-engine" element={<ProtectedRoute><BeaconContentEngine /></ProtectedRoute>} />
+      <Route path="/beacon/conversations" element={<ProtectedRoute><BeaconConversations /></ProtectedRoute>} />
+      <Route path="/beacon/chat" element={<ProtectedRoute><BeaconChat /></ProtectedRoute>} />
+      <Route path="/beacon/chat-management" element={<ProtectedRoute><BeaconChatManagement /></ProtectedRoute>} />
+      <Route path="/beacon/feedback" element={<ProtectedRoute><BeaconFeedback /></ProtectedRoute>} />
 
       {/* Catch-all */}
       <Route path="*" element={<NotFound />} />
