@@ -233,23 +233,37 @@ Deno.serve(async (req) => {
               );
               if (membersRes.ok) {
                 const membersData = await membersRes.json();
+                // Debug: log raw membership structure for first DM
+                if (i === 0) {
+                  console.log("DM members raw sample:", JSON.stringify(membersData.memberships?.slice(0, 2)));
+                }
                 if (membersData.memberships?.length) {
                   for (const membership of membersData.memberships) {
+                    // Chat API uses membership.member for the member object
                     const member = membership.member;
                     if (member && member.type !== "BOT") {
                       if (member.displayName) {
                         space.displayName = member.displayName;
+                        console.log("DM enriched via member.displayName:", space.name, "->", member.displayName);
                         break;
                       } else if (member.name) {
                         const resolved = await resolveUserName(member.name, accessToken, nameCache);
                         if (resolved?.displayName) {
                           space.displayName = resolved.displayName;
+                          console.log("DM enriched via People API:", space.name, "->", resolved.displayName);
                           break;
+                        } else {
+                          console.log("DM People API returned no name for:", member.name);
                         }
+                      } else {
+                        console.log("DM member has no name or displayName:", JSON.stringify(member));
                       }
                     }
                   }
                 }
+              } else {
+                const errBody = await membersRes.text();
+                console.log("DM members fetch failed:", membersRes.status, errBody.substring(0, 200));
               }
             } catch (e: any) {
               console.log("DM space enrichment failed:", space.name, e.message);
