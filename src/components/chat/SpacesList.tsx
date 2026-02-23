@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { Hash, User, Users, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import type { GChatSpace } from "@/hooks/useGoogleChat";
+import { type GChatSpace, isSpaceDM, isSpaceGroup, isSpaceRoom } from "@/hooks/useGoogleChat";
 
 interface Props {
   spaces: GChatSpace[];
@@ -32,10 +32,10 @@ export function SpacesList({ spaces, isLoading, selectedSpaceId, onSelect, dmDis
 
   // Split into DMs and Spaces/Groups
   const dms = spaces.filter(
-    (s) => s.type === "DIRECT_MESSAGE" || s.singleUserBotDm || s.type === "GROUP_CHAT"
+    (s) => isSpaceDM(s) || isSpaceGroup(s)
   );
   const groups = spaces.filter(
-    (s) => s.type === "ROOM" || s.type === "SPACE"
+    (s) => isSpaceRoom(s)
   );
 
   return (
@@ -52,7 +52,7 @@ export function SpacesList({ spaces, isLoading, selectedSpaceId, onSelect, dmDis
                 space={space}
                 isActive={selectedSpaceId === space.name}
                 onSelect={onSelect}
-                icon={space.type === "GROUP_CHAT" ? <Users className="h-4 w-4 shrink-0" /> : <User className="h-4 w-4 shrink-0" />}
+                icon={isSpaceGroup(space) ? <Users className="h-4 w-4 shrink-0" /> : <User className="h-4 w-4 shrink-0" />}
                 overrideName={dmDisplayNames[space.name]}
               />
             ))}

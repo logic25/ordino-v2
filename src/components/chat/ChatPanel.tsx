@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useGChatSpaces, useGChatMessages, useSendGChatMessage, useGChatMembers } from "@/hooks/useGoogleChat";
+import { useGChatSpaces, useGChatMessages, useSendGChatMessage, isSpaceDM, isSpaceRoom } from "@/hooks/useGoogleChat";
 import { useQueries } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { SpacesList } from "./SpacesList";
@@ -39,7 +39,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
 
   // Identify DM spaces that need member resolution
   const dmSpaces = useMemo(
-    () => spaces.filter((s) => s.type === "DIRECT_MESSAGE" || s.singleUserBotDm),
+    () => spaces.filter((s) => isSpaceDM(s)),
     [spaces]
   );
 
@@ -52,7 +52,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
         return { spaceId: space.name, memberships: res.memberships || [] };
       },
       staleTime: 5 * 60 * 1000,
-      enabled: !space.displayName, // only fetch if displayName is empty
+      enabled: true, // always fetch for DMs since displayName is usually empty
     })),
   });
 
@@ -77,7 +77,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
   }, [memberQueries]);
 
   const activeSpace = spaces.find((s) => s.name === selectedSpaceId);
-  const isActiveSpaceDM = activeSpace?.type === "DIRECT_MESSAGE" || activeSpace?.singleUserBotDm;
+  const isActiveSpaceDM = activeSpace ? isSpaceDM(activeSpace) : false;
   const activeDisplayName = (selectedSpaceId && dmDisplayNames[selectedSpaceId]) || activeSpace?.displayName || selectedSpaceId;
 
   if (!gchatEnabled) {
