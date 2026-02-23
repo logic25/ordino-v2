@@ -539,6 +539,210 @@ export type Database = {
           },
         ]
       }
+      beacon_api_usage: {
+        Row: {
+          api_name: string
+          cost_usd: number | null
+          id: number
+          operation: string
+          timestamp: string
+          tokens_used: number | null
+        }
+        Insert: {
+          api_name: string
+          cost_usd?: number | null
+          id?: never
+          operation: string
+          timestamp: string
+          tokens_used?: number | null
+        }
+        Update: {
+          api_name?: string
+          cost_usd?: number | null
+          id?: never
+          operation?: string
+          timestamp?: string
+          tokens_used?: number | null
+        }
+        Relationships: []
+      }
+      beacon_corrections: {
+        Row: {
+          applied: boolean | null
+          correct_answer: string
+          id: number
+          timestamp: string
+          topics: string | null
+          user_id: string
+          user_name: string | null
+          wrong_answer: string
+        }
+        Insert: {
+          applied?: boolean | null
+          correct_answer: string
+          id?: never
+          timestamp: string
+          topics?: string | null
+          user_id: string
+          user_name?: string | null
+          wrong_answer: string
+        }
+        Update: {
+          applied?: boolean | null
+          correct_answer?: string
+          id?: never
+          timestamp?: string
+          topics?: string | null
+          user_id?: string
+          user_name?: string | null
+          wrong_answer?: string
+        }
+        Relationships: []
+      }
+      beacon_feedback: {
+        Row: {
+          feedback_text: string
+          id: number
+          notes: string | null
+          priority: string | null
+          responded_at: string | null
+          responded_by: string | null
+          roadmap_status: string | null
+          status: string | null
+          target_quarter: string | null
+          timestamp: string
+          user_id: string
+          user_name: string | null
+        }
+        Insert: {
+          feedback_text: string
+          id?: never
+          notes?: string | null
+          priority?: string | null
+          responded_at?: string | null
+          responded_by?: string | null
+          roadmap_status?: string | null
+          status?: string | null
+          target_quarter?: string | null
+          timestamp: string
+          user_id: string
+          user_name?: string | null
+        }
+        Update: {
+          feedback_text?: string
+          id?: never
+          notes?: string | null
+          priority?: string | null
+          responded_at?: string | null
+          responded_by?: string | null
+          roadmap_status?: string | null
+          status?: string | null
+          target_quarter?: string | null
+          timestamp?: string
+          user_id?: string
+          user_name?: string | null
+        }
+        Relationships: []
+      }
+      beacon_interactions: {
+        Row: {
+          answered: boolean
+          command: string | null
+          confidence: number | null
+          cost_usd: number | null
+          had_sources: boolean | null
+          id: number
+          question: string
+          response: string | null
+          response_length: number | null
+          response_time_ms: number | null
+          sources_used: string | null
+          space_name: string | null
+          timestamp: string
+          tokens_used: number | null
+          topic: string | null
+          user_id: string
+          user_name: string | null
+        }
+        Insert: {
+          answered?: boolean
+          command?: string | null
+          confidence?: number | null
+          cost_usd?: number | null
+          had_sources?: boolean | null
+          id?: never
+          question: string
+          response?: string | null
+          response_length?: number | null
+          response_time_ms?: number | null
+          sources_used?: string | null
+          space_name?: string | null
+          timestamp: string
+          tokens_used?: number | null
+          topic?: string | null
+          user_id: string
+          user_name?: string | null
+        }
+        Update: {
+          answered?: boolean
+          command?: string | null
+          confidence?: number | null
+          cost_usd?: number | null
+          had_sources?: boolean | null
+          id?: never
+          question?: string
+          response?: string | null
+          response_length?: number | null
+          response_time_ms?: number | null
+          sources_used?: string | null
+          space_name?: string | null
+          timestamp?: string
+          tokens_used?: number | null
+          topic?: string | null
+          user_id?: string
+          user_name?: string | null
+        }
+        Relationships: []
+      }
+      beacon_suggestions: {
+        Row: {
+          correct_answer: string
+          id: number
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string | null
+          timestamp: string
+          topics: string | null
+          user_id: string
+          user_name: string | null
+          wrong_answer: string
+        }
+        Insert: {
+          correct_answer: string
+          id?: never
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          timestamp: string
+          topics?: string | null
+          user_id: string
+          user_name?: string | null
+          wrong_answer: string
+        }
+        Update: {
+          correct_answer?: string
+          id?: never
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          timestamp?: string
+          topics?: string | null
+          user_id?: string
+          user_name?: string | null
+          wrong_answer?: string
+        }
+        Relationships: []
+      }
       billing_requests: {
         Row: {
           billed_to_contact_id: string | null
