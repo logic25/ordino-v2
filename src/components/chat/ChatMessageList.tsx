@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useMemo } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
@@ -31,16 +31,22 @@ function formatDate(iso: string) {
 interface Props {
   messages: GChatMessage[];
   isLoading: boolean;
-  /** Map of user resource name (e.g. "users/123") → display name */
-  senderNameMap?: Record<string, string>;
+  /** Memberships array from useGChatMembers for the active space */
+  members?: Array<{ member?: { name?: string; displayName?: string; type?: string } }>;
 }
 
-export function ChatMessageList({ messages, isLoading, senderNameMap = {} }: Props) {
+export function ChatMessageList({ messages, isLoading, members = [] }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
+
+  // Build lookup: user resource name → display name
+  const memberMap = useMemo(
+    () => new Map(members.map((m) => [m.member?.name, m.member?.displayName])),
+    [members]
+  );
 
   if (isLoading) {
     return (
@@ -68,10 +74,9 @@ export function ChatMessageList({ messages, isLoading, senderNameMap = {} }: Pro
         const showDate = msgDate !== lastDate;
         lastDate = msgDate;
         const isBot = msg.sender?.type === "BOT";
-        // Resolve display name: try sender.displayName first, then look up from members map
         const displayName =
           msg.sender?.displayName ||
-          (msg.sender?.name && senderNameMap[msg.sender.name]) ||
+          memberMap.get(msg.sender?.name) ||
           "Unknown";
         const hasCard = msg.cardsV2?.length || msg.cards?.length;
 
