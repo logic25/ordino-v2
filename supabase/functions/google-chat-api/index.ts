@@ -231,57 +231,89 @@ Deno.serve(async (req) => {
           throw new Error(data.error.message || JSON.stringify(data.error));
         }
 
-        // Enrich DM spaces that have no displayName
+        // Enrich ALL spaces that have no displayName (DMs, group chats, bot DMs)
         const nameCache = new Map<string, { displayName: string; avatarUrl?: string }>();
         if (data.spaces?.length) {
-          const dmSpaces = data.spaces.filter((s: any) =>
-            !s.displayName && (s.spaceType === "DIRECT_MESSAGE" || s.type === "DM")
-          );
-          console.log("list_spaces: enriching", dmSpaces.length, "DM spaces without names");
+          const unnamedSpaces = data.spaces.filter((s: any) => !s.displayName);
+          console.log("list_spaces: enriching", unnamedSpaces.length, "unnamed spaces");
 
-          for (let i = 0; i < Math.min(dmSpaces.length, 15); i++) {
-            const space = dmSpaces[i];
+          for (let i = 0; i < Math.min(unnamedSpaces.length, 20); i++) {
+            const space = unnamedSpaces[i];
+            const isDM = space.spaceType === "DIRECT_MESSAGE" || space.type === "DM";
+
             try {
               const membersRes = await fetch(
                 `${chatApi}/${space.name}/members?pageSize=10`,
                 { headers: { Authorization: `Bearer ${accessToken}` } }
               );
-              if (membersRes.ok) {
-                const membersData = await membersRes.json();
-                // Debug: log raw membership structure for first DM
-                if (i === 0) {
-                  console.log("DM members raw sample:", JSON.stringify(membersData.memberships?.slice(0, 2)));
-                }
-                if (membersData.memberships?.length) {
-                  for (const membership of membersData.memberships) {
-                    // Chat API uses membership.member for the member object
-                    const member = membership.member;
-                    if (member && member.type !== "BOT") {
-                      if (member.displayName) {
-                        space.displayName = member.displayName;
-                        console.log("DM enriched via member.displayName:", space.name, "->", member.displayName);
-                        break;
-                      } else if (member.name) {
-                        const resolved = await resolveUserName(member.name, accessToken, nameCache);
-                        if (resolved?.displayName) {
-                          space.displayName = resolved.displayName;
-                          console.log("DM enriched via People API:", space.name, "->", resolved.displayName);
-                          break;
-                        } else {
-                          console.log("DM People API returned no name for:", member.name);
-                        }
-                      } else {
-                        console.log("DM member has no name or displayName:", JSON.stringify(member));
-                      }
+              if (!membersRes.ok) {
+                console.log("Members fetch failed:", space.name, membersRes.status);
+                continue;
+              }
+              const membersData = await membersRes.json();
+              if (!membersData.memberships?.length) continue;
+
+              if (isDM) {
+                // For DMs: find the OTHER member (human or bot)
+                let resolved = false;
+
+                // Try non-bot members first
+                for (const membership of membersData.memberships) {
+                  const member = membership.member;
+                  if (!member || member.type === "BOT") continue;
+                  if (member.displayName) {
+                    space.displayName = member.displayName;
+                    resolved = true;
+                    break;
+                  } else if (member.name) {
+                    const person = await resolveUserName(member.name, accessToken, nameCache);
+                    if (person?.displayName) {
+                      space.displayName = person.displayName;
+                      resolved = true;
+                      break;
                     }
                   }
                 }
+
+                // If no human found, look for BOT members
+                if (!resolved) {
+                  for (const membership of membersData.memberships) {
+                    const member = membership.member;
+                    if (member && member.type === "BOT" && member.displayName) {
+                      space.displayName = member.displayName;
+                      console.log("DM enriched with bot name:", space.name, "->", member.displayName);
+                      resolved = true;
+                      break;
+                    }
+                  }
+                }
+
+                if (resolved) {
+                  console.log("DM enriched:", space.name, "->", space.displayName);
+                }
               } else {
-                const errBody = await membersRes.text();
-                console.log("DM members fetch failed:", membersRes.status, errBody.substring(0, 200));
+                // For GROUP spaces: build name from member names like "Natalia, Chris, Manny"
+                const memberNames: string[] = [];
+                for (const membership of membersData.memberships) {
+                  const member = membership.member;
+                  if (!member || member.type === "BOT") continue;
+                  if (member.displayName) {
+                    memberNames.push(member.displayName.split(" ")[0]);
+                  } else if (member.name) {
+                    const person = await resolveUserName(member.name, accessToken, nameCache);
+                    if (person?.displayName) {
+                      memberNames.push(person.displayName.split(" ")[0]);
+                    }
+                  }
+                  if (memberNames.length >= 4) break;
+                }
+                if (memberNames.length > 0) {
+                  space.displayName = memberNames.join(", ");
+                  console.log("Group enriched:", space.name, "->", space.displayName);
+                }
               }
             } catch (e: any) {
-              console.log("DM space enrichment failed:", space.name, e.message);
+              console.log("Space enrichment failed:", space.name, e.message);
             }
           }
         }
