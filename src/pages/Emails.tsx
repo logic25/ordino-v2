@@ -148,7 +148,7 @@ export default function Emails() {
   // Check for OAuth code callback - must run before the gate
   const hasCode = searchParams.has("code");
 
-  if (!gmailLoading && !hasCode && (!gmailConnection || !(gmailConnection as any).refresh_token)) {
+  if (!gmailLoading && !hasCode && !gmailConnection) {
     return (
       <AppLayout>
         <div className="flex flex-col items-center justify-center h-[calc(100vh-theme(spacing.16))] gap-6 text-center">
