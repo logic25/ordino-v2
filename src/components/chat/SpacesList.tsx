@@ -8,9 +8,11 @@ interface Props {
   isLoading: boolean;
   selectedSpaceId: string | null;
   onSelect: (spaceId: string) => void;
+  /** Map of space name → resolved display name (for DMs) */
+  dmDisplayNames?: Record<string, string>;
 }
 
-export function SpacesList({ spaces, isLoading, selectedSpaceId, onSelect }: Props) {
+export function SpacesList({ spaces, isLoading, selectedSpaceId, onSelect, dmDisplayNames = {} }: Props) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -51,6 +53,7 @@ export function SpacesList({ spaces, isLoading, selectedSpaceId, onSelect }: Pro
                 isActive={selectedSpaceId === space.name}
                 onSelect={onSelect}
                 icon={space.type === "GROUP_CHAT" ? <Users className="h-4 w-4 shrink-0" /> : <User className="h-4 w-4 shrink-0" />}
+                overrideName={dmDisplayNames[space.name]}
               />
             ))}
           </div>
@@ -86,12 +89,14 @@ function SpaceButton({
   onSelect,
   icon,
   badge,
+  overrideName,
 }: {
   space: GChatSpace;
   isActive: boolean;
   onSelect: (id: string) => void;
   icon: React.ReactNode;
   badge?: boolean;
+  overrideName?: string;
 }) {
   return (
     <button
@@ -104,7 +109,7 @@ function SpaceButton({
       )}
     >
       {icon}
-      <span className="truncate flex-1">{space.displayName || space.name}</span>
+      <span className="truncate flex-1">{overrideName || space.displayName || space.name}</span>
       {badge && (
         <Badge variant="secondary" className="text-[9px] px-1 py-0 shrink-0">Space</Badge>
       )}

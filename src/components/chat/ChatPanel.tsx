@@ -1,5 +1,7 @@
-import { useState } from "react";
-import { useGChatSpaces, useGChatMessages, useSendGChatMessage } from "@/hooks/useGoogleChat";
+import { useState, useMemo } from "react";
+import { useGChatSpaces, useGChatMessages, useSendGChatMessage, useGChatMembers } from "@/hooks/useGoogleChat";
+import { useQueries } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { SpacesList } from "./SpacesList";
 import { ChatMessageList } from "./ChatMessageList";
 import { ChatCompose } from "./ChatCompose";
@@ -7,16 +9,21 @@ import { cn } from "@/lib/utils";
 import { Hash, ChevronLeft, MessageSquare, AlertCircle, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
-import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
-  /** If provided, locks to a specific space and hides the sidebar */
   spaceId?: string;
-  /** Optional thread key to filter to */
   threadKey?: string;
-  /** Compact mode for project tab / slide-out */
   compact?: boolean;
   className?: string;
+}
+
+async function chatApi(action: string, params: Record<string, any> = {}) {
+  const { data, error } = await supabase.functions.invoke("google-chat-api", {
+    body: { action, ...params },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
 }
 
 export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className }: Props) {
@@ -30,10 +37,48 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
   const { data: messages = [], isLoading: msgsLoading } = useGChatMessages(selectedSpaceId);
   const sendMutation = useSendGChatMessage();
 
-  const activeSpace = spaces.find((s) => s.name === selectedSpaceId);
+  // Identify DM spaces that need member resolution
+  const dmSpaces = useMemo(
+    () => spaces.filter((s) => s.type === "DIRECT_MESSAGE" || s.singleUserBotDm),
+    [spaces]
+  );
 
-  // Determine the icon for the active space
+  // Fetch members for each DM space in parallel
+  const memberQueries = useQueries({
+    queries: dmSpaces.map((space) => ({
+      queryKey: ["gchat-members", space.name],
+      queryFn: async () => {
+        const res = await chatApi("list_members", { spaceId: space.name });
+        return { spaceId: space.name, memberships: res.memberships || [] };
+      },
+      staleTime: 5 * 60 * 1000,
+      enabled: !space.displayName, // only fetch if displayName is empty
+    })),
+  });
+
+  // Build a map: spaceId → display name for DMs
+  const dmDisplayNames = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const q of memberQueries) {
+      if (!q.data) continue;
+      const { spaceId, memberships } = q.data;
+      // Find a HUMAN member (not BOT) to use as the display name
+      const humans = memberships.filter(
+        (m: any) => m.member?.type === "HUMAN" && m.member?.displayName
+      );
+      if (humans.length === 1) {
+        map[spaceId] = humans[0].member.displayName;
+      } else if (humans.length > 1) {
+        // Show all human names joined
+        map[spaceId] = humans.map((h: any) => h.member.displayName).join(", ");
+      }
+    }
+    return map;
+  }, [memberQueries]);
+
+  const activeSpace = spaces.find((s) => s.name === selectedSpaceId);
   const isActiveSpaceDM = activeSpace?.type === "DIRECT_MESSAGE" || activeSpace?.singleUserBotDm;
+  const activeDisplayName = (selectedSpaceId && dmDisplayNames[selectedSpaceId]) || activeSpace?.displayName || selectedSpaceId;
 
   if (!gchatEnabled) {
     return (
@@ -49,7 +94,6 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
     );
   }
 
-  // Handle chat-specific errors (missing scopes, not connected)
   const errorMessage = (spacesError as any)?.message || "";
   const isScopeMissing = errorMessage.includes("chat_scope_missing") || errorMessage.includes("chat_not_connected");
 
@@ -99,7 +143,6 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
 
   return (
     <div className={cn("flex h-full bg-background", className)}>
-      {/* Space sidebar */}
       {!fixedSpaceId && showSidebar && (
         <div className={cn("border-r flex flex-col shrink-0", compact ? "w-52" : "w-64")}>
           <div className="px-4 py-3 border-b">
@@ -110,6 +153,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
               spaces={spaces}
               isLoading={spacesLoading}
               selectedSpaceId={selectedSpaceId}
+              dmDisplayNames={dmDisplayNames}
               onSelect={(id) => {
                 setSelectedSpaceId(id);
                 if (compact) setShowSidebar(false);
@@ -119,9 +163,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
         </div>
       )}
 
-      {/* Chat area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
         <div className="h-12 border-b flex items-center gap-2 px-4 shrink-0">
           {!fixedSpaceId && !showSidebar && (
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowSidebar(true)}>
@@ -134,7 +176,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
             <Hash className="h-4 w-4 text-muted-foreground" />
           )}
           <span className="text-sm font-medium truncate">
-            {activeSpace?.displayName || selectedSpaceId || "Select a conversation"}
+            {activeDisplayName || "Select a conversation"}
           </span>
         </div>
 
