@@ -7,11 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer,
 } from "recharts";
-import { Brain, Zap, DollarSign, TrendingUp, Users, ExternalLink, HelpCircle, Info } from "lucide-react";
+import { Brain, Zap, DollarSign, TrendingUp, Users, ExternalLink, HelpCircle, Info, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BeaconAnalyticsDashboard } from "./BeaconAnalyticsDashboard";
 
 // Human-readable labels for each AI feature
 const FEATURE_LABELS: Record<string, { label: string; description: string }> = {
@@ -210,6 +212,21 @@ export function AIUsageDashboard() {
 
   return (
     <TooltipProvider>
+    <Tabs defaultValue="beacon" className="space-y-4">
+      <TabsList className="h-auto gap-1">
+        <TabsTrigger value="beacon" className="gap-1.5">
+          <Bot className="h-3.5 w-3.5" /> Beacon Chatbot
+        </TabsTrigger>
+        <TabsTrigger value="ordino" className="gap-1.5">
+          <Brain className="h-3.5 w-3.5" /> Ordino AI
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="beacon">
+        <BeaconAnalyticsDashboard />
+      </TabsContent>
+
+      <TabsContent value="ordino">
     <div className="space-y-6">
 
       {/* Header */}
@@ -604,6 +621,8 @@ export function AIUsageDashboard() {
         </a>
       </p>
     </div>
+      </TabsContent>
+    </Tabs>
     </TooltipProvider>
   );
 }
