@@ -31,9 +31,11 @@ function formatDate(iso: string) {
 interface Props {
   messages: GChatMessage[];
   isLoading: boolean;
+  /** Map of user resource name (e.g. "users/123") → display name */
+  senderNameMap?: Record<string, string>;
 }
 
-export function ChatMessageList({ messages, isLoading }: Props) {
+export function ChatMessageList({ messages, isLoading, senderNameMap = {} }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -66,7 +68,11 @@ export function ChatMessageList({ messages, isLoading }: Props) {
         const showDate = msgDate !== lastDate;
         lastDate = msgDate;
         const isBot = msg.sender?.type === "BOT";
-        const displayName = msg.sender?.displayName || "Unknown";
+        // Resolve display name: try sender.displayName first, then look up from members map
+        const displayName =
+          msg.sender?.displayName ||
+          (msg.sender?.name && senderNameMap[msg.sender.name]) ||
+          "Unknown";
         const hasCard = msg.cardsV2?.length || msg.cards?.length;
 
         return (
