@@ -202,6 +202,11 @@ Deno.serve(async (req) => {
         if (pageToken) url += `&pageToken=${pageToken}`;
         const { response } = await callChatApi(url, { method: "GET" }, accessToken, connection, clientId, clientSecret, supabaseAdmin, profile.id);
         result = await response.json();
+        // Debug: log first message sender structure
+        if (result.messages?.length) {
+          const first = result.messages[0];
+          console.log("list_messages first msg sender:", JSON.stringify(first.sender), "keys:", Object.keys(first).join(","));
+        }
         break;
       }
       case "get_message": {
