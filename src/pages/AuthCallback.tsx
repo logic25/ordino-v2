@@ -3,57 +3,75 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingScreen } from "@/components/routing/RouteGuards";
 
+async function storeProviderTokens(accessToken: string, refreshToken: string | null) {
+  console.log("AuthCallback: storing provider tokens, has refresh:", !!refreshToken);
+  try {
+    const { data, error: fnError } = await supabase.functions.invoke("gmail-auth", {
+      body: {
+        action: "store_provider_tokens",
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      },
+    });
+    if (fnError) {
+      console.warn("AuthCallback: gmail-auth failed:", fnError.message);
+    } else {
+      console.log("AuthCallback: tokens stored successfully", data);
+    }
+  } catch (e) {
+    console.warn("AuthCallback: gmail-auth exception:", e);
+  }
+}
+
 export default function AuthCallback() {
   const navigate = useNavigate();
   const handledRef = useRef(false);
 
   useEffect(() => {
-    // Listen for the auth state change which reliably provides provider tokens
+    // Try to extract tokens from the URL hash directly (most reliable method)
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const providerTokenFromHash = hashParams.get("provider_token");
+    const providerRefreshFromHash = hashParams.get("provider_refresh_token");
+    
+    console.log(
+      "AuthCallback: URL hash has provider_token:", !!providerTokenFromHash,
+      "provider_refresh_token:", !!providerRefreshFromHash
+    );
+
+    // Listen for the auth state change
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (handledRef.current) return;
 
-        console.log("AuthCallback: onAuthStateChange event:", event, "has session:", !!session);
+        console.log(
+          "AuthCallback: onAuthStateChange event:", event,
+          "has session:", !!session,
+          "provider_token:", !!session?.provider_token,
+          "provider_refresh_token:", !!session?.provider_refresh_token,
+          "provider:", session?.user?.app_metadata?.provider
+        );
 
         if (event === "SIGNED_IN" && session) {
           handledRef.current = true;
 
-          console.log(
-            "AuthCallback: provider_token present:",
-            !!session.provider_token,
-            "provider_refresh_token present:",
-            !!session.provider_refresh_token,
-            "provider:",
-            session.user.app_metadata?.provider
-          );
+          // Try provider tokens from session first, then from URL hash
+          const accessToken = session.provider_token || providerTokenFromHash;
+          const refreshToken = session.provider_refresh_token || providerRefreshFromHash;
 
-          // Store Google provider tokens for Gmail/Chat access
-          if (session.provider_token && session.user.app_metadata?.provider === "google") {
-            console.log("AuthCallback: storing Google provider tokens...");
-            try {
-              const { data, error: fnError } = await supabase.functions.invoke("gmail-auth", {
-                body: {
-                  action: "store_provider_tokens",
-                  access_token: session.provider_token,
-                  refresh_token: session.provider_refresh_token ?? null,
-                },
-              });
-              if (fnError) {
-                console.warn("AuthCallback: gmail-auth failed:", fnError.message);
-              } else {
-                console.log("AuthCallback: tokens stored successfully", data);
-              }
-            } catch (e) {
-              console.warn("AuthCallback: gmail-auth exception:", e);
-            }
+          if (accessToken && session.user.app_metadata?.provider === "google") {
+            await storeProviderTokens(accessToken, refreshToken);
+          } else {
+            console.warn(
+              "AuthCallback: no provider tokens available.",
+              "session.provider_token:", !!session.provider_token,
+              "hashToken:", !!providerTokenFromHash,
+              "provider:", session.user.app_metadata?.provider
+            );
           }
 
           navigate("/dashboard", { replace: true });
         } else if (event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") {
-          // If we get INITIAL_SESSION with a valid session but no SIGNED_IN event,
-          // it means the user was already logged in. Just navigate.
           if (session && !handledRef.current) {
-            // Give a brief window for SIGNED_IN to fire first
             setTimeout(() => {
               if (!handledRef.current) {
                 handledRef.current = true;
@@ -66,7 +84,7 @@ export default function AuthCallback() {
       }
     );
 
-    // Safety timeout — if nothing happens in 10s, redirect to auth
+    // Safety timeout
     const safety = setTimeout(() => {
       if (!handledRef.current) {
         handledRef.current = true;
