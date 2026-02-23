@@ -1,7 +1,5 @@
 import { useState, useMemo } from "react";
-import { useGChatSpaces, useGChatMessages, useSendGChatMessage, useGChatMembers, isSpaceDM, isSpaceRoom } from "@/hooks/useGoogleChat";
-import { useQueries } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useGChatSpaces, useGChatMessages, useSendGChatMessage, useGChatMembers, useGChatDmNames, isSpaceDM, isSpaceRoom } from "@/hooks/useGoogleChat";
 import { SpacesList } from "./SpacesList";
 import { ChatMessageList } from "./ChatMessageList";
 import { ChatCompose } from "./ChatCompose";
@@ -9,21 +7,13 @@ import { cn } from "@/lib/utils";
 import { Hash, ChevronLeft, MessageSquare, AlertCircle, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   spaceId?: string;
   threadKey?: string;
   compact?: boolean;
   className?: string;
-}
-
-async function chatApi(action: string, params: Record<string, any> = {}) {
-  const { data, error } = await supabase.functions.invoke("google-chat-api", {
-    body: { action, ...params },
-  });
-  if (error) throw error;
-  if (data?.error) throw new Error(data.error);
-  return data;
 }
 
 export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className }: Props) {
@@ -37,72 +27,18 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
   const { data: messages = [], isLoading: msgsLoading } = useGChatMessages(selectedSpaceId);
   const sendMutation = useSendGChatMessage();
 
-  // Fetch members for the currently selected space (used for sender name resolution)
+  // Resolve DM display names via members API
+  const dmNames = useGChatDmNames(spaces);
+
+  // Fetch members for the currently selected space (for sender name resolution in messages)
   const { data: activeMembers = [] } = useGChatMembers(selectedSpaceId);
-
-  // Build a map: userId (e.g. "users/123") → displayName from active space members
-  const senderNameMap = useMemo(() => {
-    const map: Record<string, string> = {};
-    for (const m of activeMembers) {
-      if (m.member?.type === "HUMAN" && m.member?.name && m.member?.displayName) {
-        map[m.member.name] = m.member.displayName;
-      }
-    }
-    return map;
-  }, [activeMembers]);
-
-  // Identify DM spaces that need member resolution for sidebar names
-  const dmSpaces = useMemo(
-    () => spaces.filter((s) => isSpaceDM(s)),
-    [spaces]
-  );
-
-  // Fetch members for each DM space in parallel (for sidebar display names)
-  const memberQueries = useQueries({
-    queries: dmSpaces.map((space) => ({
-      queryKey: ["gchat-members", space.name],
-      queryFn: async () => {
-        const res = await chatApi("list_members", { spaceId: space.name });
-        return { spaceId: space.name, memberships: res.memberships || [] };
-      },
-      staleTime: 5 * 60 * 1000,
-      enabled: true,
-    })),
-  });
-
-  // Build a map: spaceId → display name for DMs
-  const dmDisplayNames = useMemo(() => {
-    const map: Record<string, string> = {};
-    for (const q of memberQueries) {
-      if (!q.data) continue;
-      const { spaceId, memberships } = q.data;
-      const humans = memberships.filter(
-        (m: any) => m.member?.type === "HUMAN" && m.member?.displayName
-      );
-      if (humans.length === 1) {
-        map[spaceId] = humans[0].member.displayName;
-      } else if (humans.length > 1) {
-        map[spaceId] = humans.map((h: any) => h.member.displayName).join(", ");
-      }
-    }
-    return map;
-  }, [memberQueries]);
-
-  // Also build display names for spaces with empty displayName
-  const spaceDisplayNames = useMemo(() => {
-    const map: Record<string, string> = { ...dmDisplayNames };
-    // For non-DM spaces, use displayName if available
-    for (const s of spaces) {
-      if (s.displayName && !map[s.name]) {
-        map[s.name] = s.displayName;
-      }
-    }
-    return map;
-  }, [spaces, dmDisplayNames]);
 
   const activeSpace = spaces.find((s) => s.name === selectedSpaceId);
   const isActiveSpaceDM = activeSpace ? isSpaceDM(activeSpace) : false;
-  const activeDisplayName = (selectedSpaceId && spaceDisplayNames[selectedSpaceId]) || activeSpace?.displayName || selectedSpaceId;
+  const activeDisplayName =
+    activeSpace?.displayName ||
+    (selectedSpaceId ? dmNames.get(selectedSpaceId) : null) ||
+    selectedSpaceId;
 
   if (!gchatEnabled) {
     return (
@@ -177,7 +113,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
               spaces={spaces}
               isLoading={spacesLoading}
               selectedSpaceId={selectedSpaceId}
-              dmDisplayNames={spaceDisplayNames}
+              dmNames={dmNames}
               onSelect={(id) => {
                 setSelectedSpaceId(id);
                 if (compact) setShowSidebar(false);
@@ -206,7 +142,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
 
         {selectedSpaceId ? (
           <>
-            <ChatMessageList messages={messages} isLoading={msgsLoading} senderNameMap={senderNameMap} />
+            <ChatMessageList messages={messages} isLoading={msgsLoading} members={activeMembers} />
             <ChatCompose onSend={handleSend} isSending={sendMutation.isPending} />
           </>
         ) : (

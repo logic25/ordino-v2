@@ -9,10 +9,10 @@ interface Props {
   selectedSpaceId: string | null;
   onSelect: (spaceId: string) => void;
   /** Map of space name → resolved display name (for DMs) */
-  dmDisplayNames?: Record<string, string>;
+  dmNames?: Map<string, string>;
 }
 
-export function SpacesList({ spaces, isLoading, selectedSpaceId, onSelect, dmDisplayNames = {} }: Props) {
+export function SpacesList({ spaces, isLoading, selectedSpaceId, onSelect, dmNames }: Props) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -31,12 +31,8 @@ export function SpacesList({ spaces, isLoading, selectedSpaceId, onSelect, dmDis
   }
 
   // Split into DMs and Spaces/Groups
-  const dms = spaces.filter(
-    (s) => isSpaceDM(s) || isSpaceGroup(s)
-  );
-  const groups = spaces.filter(
-    (s) => isSpaceRoom(s)
-  );
+  const dms = spaces.filter((s) => isSpaceDM(s) || isSpaceGroup(s));
+  const groups = spaces.filter((s) => isSpaceRoom(s));
 
   return (
     <div className="p-2 space-y-3">
@@ -53,7 +49,7 @@ export function SpacesList({ spaces, isLoading, selectedSpaceId, onSelect, dmDis
                 isActive={selectedSpaceId === space.name}
                 onSelect={onSelect}
                 icon={isSpaceGroup(space) ? <Users className="h-4 w-4 shrink-0" /> : <User className="h-4 w-4 shrink-0" />}
-                overrideName={dmDisplayNames[space.name]}
+                overrideName={space.displayName || dmNames?.get(space.name)}
               />
             ))}
           </div>
