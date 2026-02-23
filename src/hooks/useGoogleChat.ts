@@ -141,3 +141,23 @@ export function useSendGChatMessage() {
     },
   });
 }
+
+export function useSearchPeople() {
+  return useMutation({
+    mutationFn: async (query: string) => {
+      return chatApi("search_people", { query });
+    },
+  });
+}
+
+export function useCreateDm() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (userEmail: string) => {
+      return chatApi("create_dm", { userEmail });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["gchat-spaces"] });
+    },
+  });
+}
