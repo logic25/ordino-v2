@@ -3,7 +3,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { mockConversations, type ConfidenceLevel } from "@/lib/beaconMockData";
+type ConfidenceLevel = "high" | "medium" | "low";
+
+const mockResponses = [
+  { question: "alt", response: "**Alt-1** covers minor alterations (single work type, no change of use/egress). **Alt-2** covers multiple work types or changes to egress/use/occupancy. If your scope touches two or more systems, it's likely an Alt-2.", confidence: "high" as ConfidenceLevel, rag_sources: [{ file: "alt1_filing_guide.md", relevance: 0.92 }, { file: "alt2_filing_guide.md", relevance: 0.89 }] },
+  { question: "nb", response: "To file a New Building (NB) in DOB NOW:\n1. Log into DOB NOW Build\n2. Select 'New Building'\n3. Enter property info (BIN, Block, Lot)\n4. Upload plans and required documents\n5. Pay filing fees\n6. Submit for plan examination", confidence: "high" as ConfidenceLevel, rag_sources: [{ file: "nb_filing_guide.md", relevance: 0.95 }] },
+  { question: "energy", response: "Per **BB 2026-005**, the 2025 NYC Energy Conservation Code applies to all applications filed on or after its effective date. Jobs filed under the 2020 code remain under that code unless amended.", confidence: "high" as ConfidenceLevel, rag_sources: [{ file: "energy_code_compliance_guide.md", relevance: 0.88 }, { file: "bb_2026_005_energy_code_applicability.md", relevance: 0.85 }] },
+  { question: "look up", response: "**927 Broadway, Manhattan**\n- **BIN:** 1015477\n- **Block/Lot:** 00830/0030\n- **Zoning:** M1-5/R10\n- **Landmark:** No\n- **Active Permits:** 3\n- **Open Violations:** 1 (ECB)", confidence: "high" as ConfidenceLevel, rag_sources: [] },
+  { question: "sidewalk", response: "I don't have detailed documentation on the sidewalk shed renewal process. This may be a knowledge gap — consider adding content to the knowledge base.", confidence: "low" as ConfidenceLevel, rag_sources: [] },
+  { question: "paa", response: "Yes, you can file a PAA on a professionally certified job. The PAA follows the same professional certification pathway as the original filing. See BB 2025-005 for current requirements.", confidence: "high" as ConfidenceLevel, rag_sources: [{ file: "paa_post_approval_amendment_guide.md", relevance: 0.91 }, { file: "bb_2025_005_professional_certification.md", relevance: 0.86 }] },
+  { question: "1968", response: "Code applicability depends on the filing date. Per **BB 2022-007**, buildings constructed under the 1968 code may file under 1968, 2014, or 2022 code depending on when the application is submitted.", confidence: "high" as ConfidenceLevel, rag_sources: [{ file: "bb_2022_007_code_applicability.md", relevance: 0.93 }, { file: "bc_1968_subchapter6_egress.md", relevance: 0.78 }] },
+  { question: "fire escape", response: "Fire escapes may be acceptable for egress in existing MDL buildings under certain conditions. MDL §53 governs fire escape requirements. However, new construction must comply with current egress standards.", confidence: "medium" as ConfidenceLevel, rag_sources: [{ file: "mdl_53_fire_escapes.md", relevance: 0.90 }, { file: "rcny_1_15_fire_escapes.md", relevance: 0.82 }, { file: "egress_requirements_guide.md", relevance: 0.75 }] },
+];
 import { Send, Brain, User, FileText, Zap, X, Minus, ChevronDown, ChevronUp } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
@@ -45,7 +56,7 @@ export function BeaconChatWidget() {
 
   const findMockResponse = (q: string) => {
     const lq = q.toLowerCase();
-    return mockConversations.find((c) => c.question.toLowerCase().includes(lq.slice(0, 20))) || mockConversations[0];
+    return mockResponses.find((c) => lq.includes(c.question)) || mockResponses[0];
   };
 
   const handleSend = (text?: string) => {

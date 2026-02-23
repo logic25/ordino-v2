@@ -20,10 +20,6 @@ import {
   PanelLeftOpen,
   HelpCircle,
   MessageSquare,
-  Brain,
-  Database,
-  MessageCircle,
-  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -54,14 +50,6 @@ const secondaryNav = [
   { title: "Help", icon: HelpCircle, href: "/help", resource: "dashboard" as ResourceKey },
 ];
 
-const beaconNav = [
-  { title: "Dashboard", icon: Brain, href: "/beacon" },
-  { title: "Conversations", icon: MessageCircle, href: "/beacon/conversations" },
-  { title: "Knowledge Base", icon: Database, href: "/beacon/knowledge-base" },
-  { title: "Bulletins", icon: ScrollText, href: "/beacon/bulletins" },
-  { title: "Content Engine", icon: Sparkles, href: "/beacon/content-engine" },
-  { title: "Feedback", icon: MessageSquare, href: "/beacon/feedback" },
-];
 
 function getInitials(profile: any, email?: string | null): string {
   const first = profile?.first_name?.trim();
@@ -178,38 +166,6 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
           );
         })}
 
-        {/* Beacon Section (Admin only) */}
-        {isAdmin && (
-          <>
-            <Separator className="my-4 bg-sidebar-border" />
-            {!collapsed && (
-              <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
-                Beacon AI
-              </p>
-            )}
-            {beaconNav.map((item) => {
-              const isActive = location.pathname === item.href ||
-                (item.href !== "/beacon" && location.pathname.startsWith(item.href));
-
-              return (
-                <NavLink
-                  key={item.href}
-                  to={item.href}
-                  onClick={onNavigate}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150",
-                    "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
-                    isActive && "bg-sidebar-accent text-sidebar-foreground font-medium",
-                    collapsed && "justify-center px-2"
-                  )}
-                >
-                  <item.icon className={cn("h-5 w-5 flex-shrink-0", isActive && "text-[#22c55e]")} />
-                  {!collapsed && <span>{item.title}</span>}
-                </NavLink>
-              );
-            })}
-          </>
-        )}
       </nav>
 
       {/* Footer — user avatar */}
