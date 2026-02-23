@@ -234,10 +234,16 @@ Deno.serve(async (req) => {
         // Enrich ALL spaces that have no displayName (DMs, group chats, bot DMs)
         const nameCache = new Map<string, { displayName: string; avatarUrl?: string }>();
         if (data.spaces?.length) {
-          const unnamedSpaces = data.spaces.filter((s: any) => !s.displayName);
+          const unnamedSpaces = data.spaces
+            .filter((s: any) => !s.displayName)
+            .sort((a: any, b: any) => {
+              const aTime = a.lastActiveTime || a.createTime || '';
+              const bTime = b.lastActiveTime || b.createTime || '';
+              return bTime.localeCompare(aTime);
+            });
           console.log("list_spaces: enriching", unnamedSpaces.length, "unnamed spaces");
 
-          for (let i = 0; i < Math.min(unnamedSpaces.length, 20); i++) {
+          for (let i = 0; i < Math.min(unnamedSpaces.length, 30); i++) {
             const space = unnamedSpaces[i];
             const isDM = space.spaceType === "DIRECT_MESSAGE" || space.type === "DM";
 
@@ -254,36 +260,52 @@ Deno.serve(async (req) => {
               if (!membersData.memberships?.length) continue;
 
               if (isDM) {
-                // For DMs: find the OTHER member (human or bot)
-                let resolved = false;
-
-                // Try non-bot members first
+                const humanMembers: any[] = [];
+                const botMembers: any[] = [];
                 for (const membership of membersData.memberships) {
                   const member = membership.member;
-                  if (!member || member.type === "BOT") continue;
+                  if (!member) continue;
+                  if (member.type === "BOT") botMembers.push(member);
+                  else humanMembers.push(member);
+                }
+
+                let resolved = false;
+
+                if (humanMembers.length >= 2) {
+                  // Multi-human DM: pick first with a displayName
+                  for (const member of humanMembers) {
+                    if (member.displayName) {
+                      space.displayName = member.displayName;
+                      resolved = true;
+                      break;
+                    } else if (member.name) {
+                      const person = await resolveUserName(member.name, accessToken, nameCache);
+                      if (person?.displayName) {
+                        space.displayName = person.displayName;
+                        resolved = true;
+                        break;
+                      }
+                    }
+                  }
+                } else if (humanMembers.length === 1 && botMembers.length >= 1) {
+                  // Bot DM: show bot's name, not the user's name
+                  for (const bot of botMembers) {
+                    if (bot.displayName) {
+                      space.displayName = bot.displayName;
+                      resolved = true;
+                      break;
+                    }
+                  }
+                } else if (humanMembers.length === 1) {
+                  const member = humanMembers[0];
                   if (member.displayName) {
                     space.displayName = member.displayName;
                     resolved = true;
-                    break;
                   } else if (member.name) {
                     const person = await resolveUserName(member.name, accessToken, nameCache);
                     if (person?.displayName) {
                       space.displayName = person.displayName;
                       resolved = true;
-                      break;
-                    }
-                  }
-                }
-
-                // If no human found, look for BOT members
-                if (!resolved) {
-                  for (const membership of membersData.memberships) {
-                    const member = membership.member;
-                    if (member && member.type === "BOT" && member.displayName) {
-                      space.displayName = member.displayName;
-                      console.log("DM enriched with bot name:", space.name, "->", member.displayName);
-                      resolved = true;
-                      break;
                     }
                   }
                 }
@@ -316,6 +338,15 @@ Deno.serve(async (req) => {
               console.log("Space enrichment failed:", space.name, e.message);
             }
           }
+        }
+
+        // Sort ALL spaces by lastActiveTime so active chats appear first
+        if (data.spaces?.length) {
+          data.spaces.sort((a: any, b: any) => {
+            const aTime = a.lastActiveTime || a.createTime || '';
+            const bTime = b.lastActiveTime || b.createTime || '';
+            return bTime.localeCompare(aTime);
+          });
         }
 
         result = data;
@@ -379,6 +410,35 @@ Deno.serve(async (req) => {
         const { spaceId } = params;
         if (!spaceId) throw new Error("spaceId required");
         const { response } = await callChatApi(`${chatApi}/${spaceId}/members?pageSize=100`, { method: "GET" }, accessToken, connection, clientId, clientSecret, supabaseAdmin, profile.id);
+        result = await response.json();
+        break;
+      }
+      case "search_people": {
+        const { query } = params;
+        if (!query) throw new Error("query required");
+        const peopleUrl = `https://people.googleapis.com/v1/people:searchDirectoryPeople?query=${encodeURIComponent(query)}&readMask=names,emailAddresses,photos&sources=DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE&pageSize=10`;
+        const res = await fetch(peopleUrl, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        result = await res.json();
+        break;
+      }
+      case "create_dm": {
+        const { userEmail } = params;
+        if (!userEmail) throw new Error("userEmail required");
+        const { response } = await callChatApi(
+          `${chatApi}/spaces:setup`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              spaceType: "DIRECT_MESSAGE",
+              memberships: [
+                { member: { name: `users/${userEmail}`, type: "HUMAN" } },
+              ],
+            }),
+          },
+          accessToken, connection, clientId, clientSecret, supabaseAdmin, profile.id
+        );
         result = await response.json();
         break;
       }

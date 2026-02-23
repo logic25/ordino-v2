@@ -1,11 +1,13 @@
 import { useState, useMemo } from "react";
-import { useGChatSpaces, useGChatMessages, useSendGChatMessage, useGChatMembers, useGChatDmNames, isSpaceDM, isSpaceRoom } from "@/hooks/useGoogleChat";
+import { useGChatSpaces, useGChatMessages, useSendGChatMessage, useGChatMembers, useGChatDmNames, useSearchPeople, useCreateDm, isSpaceDM, isSpaceRoom } from "@/hooks/useGoogleChat";
+import { useHiddenSpaces } from "@/hooks/useHiddenSpaces";
 import { SpacesList } from "./SpacesList";
 import { ChatMessageList } from "./ChatMessageList";
 import { ChatCompose } from "./ChatCompose";
 import { cn } from "@/lib/utils";
-import { Hash, ChevronLeft, MessageSquare, AlertCircle, LogOut, User } from "lucide-react";
+import { Hash, ChevronLeft, MessageSquare, AlertCircle, LogOut, User, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -22,15 +24,17 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
 
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(fixedSpaceId || null);
   const [showSidebar, setShowSidebar] = useState(!fixedSpaceId && !compact);
+  const [newChatOpen, setNewChatOpen] = useState(false);
+  const [peopleQuery, setPeopleQuery] = useState("");
 
   const { data: spaces = [], isLoading: spacesLoading, error: spacesError } = useGChatSpaces();
   const { data: messages = [], isLoading: msgsLoading } = useGChatMessages(selectedSpaceId);
   const sendMutation = useSendGChatMessage();
+  const { hiddenIds, hide, unhide } = useHiddenSpaces();
+  const searchPeople = useSearchPeople();
+  const createDm = useCreateDm();
 
-  // Resolve DM display names via members API
   const dmNames = useGChatDmNames(spaces);
-
-  // Fetch members for the currently selected space (for sender name resolution in messages)
   const { data: activeMembers = [] } = useGChatMembers(selectedSpaceId);
 
   const activeSpace = spaces.find((s) => s.name === selectedSpaceId);
@@ -64,7 +68,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
           <LogOut className="h-10 w-10 mx-auto text-amber-500/70 mb-3" />
           <p className="text-sm font-medium mb-1">Chat permissions needed</p>
           <p className="text-xs text-muted-foreground mb-4">
-            Sign out and sign back in to grant Google Chat access. Your conversations will then appear here.
+            Sign out and sign back in to grant Google Chat access.
           </p>
           <Button
             variant="outline"
@@ -101,6 +105,21 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
     sendMutation.mutate({ spaceId: selectedSpaceId, text, threadKey });
   };
 
+  const handleNewChat = async (email: string) => {
+    try {
+      const result = await createDm.mutateAsync(email);
+      if (result?.space?.name) {
+        setSelectedSpaceId(result.space.name);
+      }
+      setNewChatOpen(false);
+      setPeopleQuery("");
+    } catch {
+      // error handled by mutation
+    }
+  };
+
+  const searchResults = searchPeople.data?.people || [];
+
   return (
     <div className={cn("flex h-full bg-background", className)}>
       {!fixedSpaceId && showSidebar && (
@@ -114,6 +133,10 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
               isLoading={spacesLoading}
               selectedSpaceId={selectedSpaceId}
               dmNames={dmNames}
+              hiddenIds={hiddenIds}
+              onHide={hide}
+              onUnhide={unhide}
+              onNewChat={() => setNewChatOpen(true)}
               onSelect={(id) => {
                 setSelectedSpaceId(id);
                 if (compact) setShowSidebar(false);
@@ -151,6 +174,69 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
           </div>
         )}
       </div>
+
+      {/* New Chat Dialog */}
+      <Dialog open={newChatOpen} onOpenChange={setNewChatOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>New Chat</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                value={peopleQuery}
+                onChange={(e) => {
+                  setPeopleQuery(e.target.value);
+                  if (e.target.value.length >= 2) {
+                    searchPeople.mutate(e.target.value);
+                  }
+                }}
+                placeholder="Search people in your organization..."
+                className="w-full pl-10 pr-3 py-2 text-sm bg-muted/50 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ring"
+                autoFocus
+              />
+            </div>
+            {searchPeople.isPending && (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+            )}
+            {searchResults.length > 0 && (
+              <div className="space-y-1 max-h-60 overflow-y-auto">
+                {searchResults.map((person: any, i: number) => {
+                  const name = person.names?.[0]?.displayName || "Unknown";
+                  const email = person.emailAddresses?.[0]?.value;
+                  const photo = person.photos?.[0]?.url;
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => email && handleNewChat(email)}
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted text-left text-sm transition-colors"
+                      disabled={createDm.isPending}
+                    >
+                      {photo ? (
+                        <img src={photo} alt="" className="h-8 w-8 rounded-full" />
+                      ) : (
+                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{name}</p>
+                        {email && <p className="text-xs text-muted-foreground truncate">{email}</p>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {peopleQuery.length >= 2 && !searchPeople.isPending && searchResults.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-4">No people found</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

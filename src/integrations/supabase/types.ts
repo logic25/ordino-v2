@@ -2536,6 +2536,27 @@ export type Database = {
           },
         ]
       }
+      hidden_chat_spaces: {
+        Row: {
+          hidden_at: string
+          id: string
+          space_id: string
+          user_id: string
+        }
+        Insert: {
+          hidden_at?: string
+          id?: string
+          space_id: string
+          user_id: string
+        }
+        Update: {
+          hidden_at?: string
+          id?: string
+          space_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       invoice_activity_log: {
         Row: {
           action: string
@@ -3223,6 +3244,47 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ordino_assistant_conversations: {
+        Row: {
+          company_id: string
+          content: string
+          context_id: string | null
+          context_type: string | null
+          created_at: string
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          content: string
+          context_id?: string | null
+          context_type?: string | null
+          created_at?: string
+          id?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          content?: string
+          context_id?: string | null
+          context_type?: string | null
+          created_at?: string
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ordino_assistant_conversations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
