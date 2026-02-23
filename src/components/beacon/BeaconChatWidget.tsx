@@ -56,7 +56,7 @@ function SourcesList({ sources }: { sources: BeaconSource[] }) {
             <div key={i} className="bg-muted/50 rounded p-1.5 text-[10px]">
               <div className="flex items-center justify-between gap-1">
                 <span className="font-medium truncate">{s.title}</span>
-                <span className="font-mono text-[#22c55e] shrink-0">{Math.round(s.score * 100)}%</span>
+                <span className="font-mono text-[#f59e0b] shrink-0">{Math.round(s.score * 100)}%</span>
               </div>
               {s.chunk_preview && (
                 <p className="text-muted-foreground mt-0.5 line-clamp-2">{s.chunk_preview}</p>
@@ -127,7 +127,7 @@ export function BeaconChatWidget() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-[#22c55e] hover:bg-[#16a34a] text-white shadow-lg flex items-center justify-center transition-all hover:scale-105"
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-[#f59e0b] hover:bg-[#d97706] text-white shadow-lg flex items-center justify-center transition-all hover:scale-105"
         title="Ask Beacon"
       >
         <Brain className="h-6 w-6" />
@@ -138,7 +138,7 @@ export function BeaconChatWidget() {
   return (
     <div className="fixed bottom-6 right-6 z-50 w-[400px] h-[560px] flex flex-col bg-background border rounded-xl shadow-2xl overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-[#22c55e] text-white">
+      <div className="flex items-center justify-between px-4 py-3 border-b bg-[#f59e0b] text-white">
         <div className="flex items-center gap-2">
           <Brain className="h-5 w-5" />
           <span className="font-semibold text-sm">Beacon</span>
@@ -170,7 +170,7 @@ export function BeaconChatWidget() {
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
         {messages.length === 0 && (
           <div className="text-center py-4">
-            <Brain className="h-8 w-8 mx-auto text-[#22c55e]/40 mb-2" />
+            <Brain className="h-8 w-8 mx-auto text-[#f59e0b]/40 mb-2" />
             <p className="text-xs text-muted-foreground mb-3">Ask Beacon anything about NYC construction & expediting</p>
             <div className="flex flex-wrap gap-1.5 justify-center">
               {quickQuestions.map((q, i) => (
@@ -190,7 +190,7 @@ export function BeaconChatWidget() {
         {messages.map((msg, i) => (
           <div key={i} className={cn("flex gap-2", msg.role === "user" ? "justify-end" : "")}>
             {msg.role === "beacon" && (
-              <div className="w-6 h-6 rounded-full bg-[#22c55e] flex items-center justify-center shrink-0 mt-1">
+              <div className="w-6 h-6 rounded-full bg-[#f59e0b] flex items-center justify-center shrink-0 mt-1">
                 <Brain className="h-3 w-3 text-white" />
               </div>
             )}
@@ -221,7 +221,7 @@ export function BeaconChatWidget() {
 
         {loading && (
           <div className="flex gap-2">
-            <div className="w-6 h-6 rounded-full bg-[#22c55e] flex items-center justify-center shrink-0">
+            <div className="w-6 h-6 rounded-full bg-[#f59e0b] flex items-center justify-center shrink-0">
               <Brain className="h-3 w-3 text-white animate-pulse" />
             </div>
             <span className="text-xs text-muted-foreground mt-1.5">Beacon is thinking<span className="animate-pulse">...</span></span>
@@ -248,7 +248,7 @@ export function BeaconChatWidget() {
             {lastBeaconMsg.sources?.map((s, i) => (
               <div key={i} className="flex items-center justify-between">
                 <span className="truncate flex items-center gap-1"><FileText className="h-2.5 w-2.5" />{s.title}</span>
-                <span className="font-mono text-[#22c55e] shrink-0">{Math.round(s.score * 100)}%</span>
+                <span className="font-mono text-[#f59e0b] shrink-0">{Math.round(s.score * 100)}%</span>
               </div>
             ))}
           </div>
@@ -269,7 +269,7 @@ export function BeaconChatWidget() {
             type="submit"
             disabled={!input.trim() || loading}
             size="icon"
-            className="h-9 w-9 bg-[#22c55e] hover:bg-[#16a34a] text-white shrink-0"
+            className="h-9 w-9 bg-[#f59e0b] hover:bg-[#d97706] text-white shrink-0"
           >
             <Send className="h-4 w-4" />
           </Button>
