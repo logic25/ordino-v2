@@ -173,6 +173,13 @@ Deno.serve(async (req) => {
         );
         const data = await response.json();
         console.log("list_spaces: status", response.status, "retried:", retried, "has error:", !!data.error);
+        // Log first 3 spaces to debug type/spaceType fields
+        if (data.spaces?.length) {
+          const sample = data.spaces.slice(0, 3).map((s: any) => ({
+            name: s.name, type: s.type, spaceType: s.spaceType, displayName: s.displayName, singleUserBotDm: s.singleUserBotDm
+          }));
+          console.log("list_spaces sample:", JSON.stringify(sample));
+        }
         
         if (data.error) {
           console.error("list_spaces error:", JSON.stringify(data.error));

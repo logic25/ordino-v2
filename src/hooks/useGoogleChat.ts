@@ -5,8 +5,24 @@ export interface GChatSpace {
   name: string;
   displayName: string;
   type: string;
+  spaceType?: string;
   spaceThreadingState?: string;
   singleUserBotDm?: boolean;
+}
+
+/** Determine if a space is a DM (direct message or bot DM) */
+export function isSpaceDM(s: GChatSpace): boolean {
+  return s.spaceType === "DIRECT_MESSAGE" || s.type === "DIRECT_MESSAGE" || !!s.singleUserBotDm;
+}
+
+/** Determine if a space is a group chat */
+export function isSpaceGroup(s: GChatSpace): boolean {
+  return s.spaceType === "GROUP_CHAT" || s.type === "GROUP_CHAT";
+}
+
+/** Determine if a space is a named space/room */
+export function isSpaceRoom(s: GChatSpace): boolean {
+  return s.spaceType === "SPACE" || s.type === "SPACE" || s.type === "ROOM";
 }
 
 export interface GChatMessage {
