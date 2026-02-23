@@ -234,6 +234,22 @@ Deno.serve(async (req) => {
         // Enrich ALL spaces that have no displayName (DMs, group chats, bot DMs)
         const nameCache = new Map<string, { displayName: string; avatarUrl?: string }>();
         if (data.spaces?.length) {
+          // Resolve the current user's resource name so we can exclude them from DM names
+          let currentUserResourceName: string | null = null;
+          try {
+            const meRes = await fetch(
+              "https://people.googleapis.com/v1/people/me?personFields=names,emailAddresses,metadata",
+              { headers: { Authorization: `Bearer ${accessToken}` } }
+            );
+            if (meRes.ok) {
+              const meData = await meRes.json();
+              currentUserResourceName = meData.resourceName || null; // e.g. "people/123456"
+              console.log("Current user resource:", currentUserResourceName);
+            }
+          } catch (e: any) {
+            console.log("Failed to resolve current user:", e.message);
+          }
+
           const unnamedSpaces = data.spaces
             .filter((s: any) => !s.displayName)
             .sort((a: any, b: any) => {
@@ -243,7 +259,16 @@ Deno.serve(async (req) => {
             });
           console.log("list_spaces: enriching", unnamedSpaces.length, "unnamed spaces");
 
-          for (let i = 0; i < Math.min(unnamedSpaces.length, 30); i++) {
+          // Helper to check if a member resource matches the current user
+          const isCurrentUser = (memberName: string): boolean => {
+            if (!currentUserResourceName) return false;
+            // memberName is like "users/123456", currentUserResourceName is like "people/123456"
+            const memberId = memberName.replace("users/", "");
+            const currentId = currentUserResourceName.replace("people/", "");
+            return memberId === currentId;
+          };
+
+          for (let i = 0; i < Math.min(unnamedSpaces.length, 100); i++) {
             const space = unnamedSpaces[i];
             const isDM = space.spaceType === "DIRECT_MESSAGE" || space.type === "DM";
 
@@ -272,8 +297,10 @@ Deno.serve(async (req) => {
                 let resolved = false;
 
                 if (humanMembers.length >= 2) {
-                  // Multi-human DM: pick first with a displayName
-                  for (const member of humanMembers) {
+                  // 1:1 DM: show the OTHER person's name, not the current user
+                  const otherMembers = humanMembers.filter(m => !isCurrentUser(m.name || ""));
+                  const candidates = otherMembers.length > 0 ? otherMembers : humanMembers;
+                  for (const member of candidates) {
                     if (member.displayName) {
                       space.displayName = member.displayName;
                       resolved = true;
@@ -314,11 +341,12 @@ Deno.serve(async (req) => {
                   console.log("DM enriched:", space.name, "->", space.displayName);
                 }
               } else {
-                // For GROUP spaces: build name from member names like "Natalia, Chris, Manny"
+                // For GROUP spaces: build name from OTHER member names (exclude current user)
                 const memberNames: string[] = [];
                 for (const membership of membersData.memberships) {
                   const member = membership.member;
                   if (!member || member.type === "BOT") continue;
+                  if (isCurrentUser(member.name || "")) continue; // skip self
                   if (member.displayName) {
                     memberNames.push(member.displayName.split(" ")[0]);
                   } else if (member.name) {
