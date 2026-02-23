@@ -45,6 +45,37 @@ async function refreshAccessToken(
   return tokenData.access_token;
 }
 
+/** Resolve a user's display name via People API, with caching */
+async function resolveUserName(
+  userResourceName: string,
+  accessToken: string,
+  cache: Map<string, { displayName: string; avatarUrl?: string }>
+): Promise<{ displayName: string; avatarUrl?: string } | null> {
+  if (cache.has(userResourceName)) return cache.get(userResourceName)!;
+  try {
+    const peopleId = userResourceName.replace("users/", "");
+    const res = await fetch(
+      `https://people.googleapis.com/v1/people/${peopleId}?personFields=names,emailAddresses,photos`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (res.ok) {
+      const person = await res.json();
+      const name = person.names?.[0]?.displayName;
+      const email = person.emailAddresses?.[0]?.value;
+      const photo = person.photos?.[0]?.url;
+      const displayName = name || (email ? email.split("@")[0] : null);
+      if (displayName) {
+        const entry = { displayName, avatarUrl: photo };
+        cache.set(userResourceName, entry);
+        return entry;
+      }
+    }
+  } catch (e: any) {
+    console.log("resolveUserName failed:", userResourceName, e.message);
+  }
+  return null;
+}
+
 /** Make a Google Chat API call, retrying once with a fresh token on 403 */
 async function callChatApi(
   url: string, 
@@ -173,18 +204,10 @@ Deno.serve(async (req) => {
         );
         const data = await response.json();
         console.log("list_spaces: status", response.status, "retried:", retried, "has error:", !!data.error);
-        // Log first 3 spaces to debug type/spaceType fields
-        if (data.spaces?.length) {
-          const sample = data.spaces.slice(0, 3).map((s: any) => ({
-            name: s.name, type: s.type, spaceType: s.spaceType, displayName: s.displayName, singleUserBotDm: s.singleUserBotDm
-          }));
-          console.log("list_spaces sample:", JSON.stringify(sample));
-        }
         
         if (data.error) {
           console.error("list_spaces error:", JSON.stringify(data.error));
           if (data.error.code === 403 || data.error.code === 401) {
-            // Even after retry, still 403 - the refresh_token doesn't have chat scopes
             return new Response(JSON.stringify({
               error: "chat_scope_missing",
               message: "Your Google account needs to be reconnected with Chat permissions. Please go to Settings > Gmail and reconnect your account.",
@@ -192,6 +215,48 @@ Deno.serve(async (req) => {
           }
           throw new Error(data.error.message || JSON.stringify(data.error));
         }
+
+        // Enrich DM spaces that have no displayName
+        const nameCache = new Map<string, { displayName: string; avatarUrl?: string }>();
+        if (data.spaces?.length) {
+          const dmSpaces = data.spaces.filter((s: any) =>
+            !s.displayName && (s.spaceType === "DIRECT_MESSAGE" || s.type === "DM")
+          );
+          console.log("list_spaces: enriching", dmSpaces.length, "DM spaces without names");
+
+          for (let i = 0; i < Math.min(dmSpaces.length, 15); i++) {
+            const space = dmSpaces[i];
+            try {
+              const membersRes = await fetch(
+                `${chatApi}/${space.name}/members?pageSize=10`,
+                { headers: { Authorization: `Bearer ${accessToken}` } }
+              );
+              if (membersRes.ok) {
+                const membersData = await membersRes.json();
+                if (membersData.memberships?.length) {
+                  for (const membership of membersData.memberships) {
+                    const member = membership.member;
+                    if (member && member.type !== "BOT") {
+                      if (member.displayName) {
+                        space.displayName = member.displayName;
+                        break;
+                      } else if (member.name) {
+                        const resolved = await resolveUserName(member.name, accessToken, nameCache);
+                        if (resolved?.displayName) {
+                          space.displayName = resolved.displayName;
+                          break;
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            } catch (e: any) {
+              console.log("DM space enrichment failed:", space.name, e.message);
+            }
+          }
+        }
+
         result = data;
         break;
       }
