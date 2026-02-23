@@ -1964,6 +1964,57 @@ export type Database = {
           },
         ]
       }
+      document_folders: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_beacon_synced: boolean | null
+          is_system: boolean | null
+          name: string
+          parent_id: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_beacon_synced?: boolean | null
+          is_system?: boolean | null
+          name: string
+          parent_id?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_beacon_synced?: boolean | null
+          is_system?: boolean | null
+          name?: string
+          parent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_folders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_folders_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "document_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_attachments: {
         Row: {
           company_id: string
@@ -5989,11 +6040,15 @@ export type Database = {
       }
       universal_documents: {
         Row: {
+          beacon_chunks: number | null
+          beacon_status: string | null
+          beacon_synced_at: string | null
           category: string | null
           company_id: string
           created_at: string
           description: string | null
           filename: string
+          folder_id: string | null
           id: string
           mime_type: string | null
           project_id: string | null
@@ -6007,11 +6062,15 @@ export type Database = {
           uploaded_by: string | null
         }
         Insert: {
+          beacon_chunks?: number | null
+          beacon_status?: string | null
+          beacon_synced_at?: string | null
           category?: string | null
           company_id: string
           created_at?: string
           description?: string | null
           filename: string
+          folder_id?: string | null
           id?: string
           mime_type?: string | null
           project_id?: string | null
@@ -6025,11 +6084,15 @@ export type Database = {
           uploaded_by?: string | null
         }
         Update: {
+          beacon_chunks?: number | null
+          beacon_status?: string | null
+          beacon_synced_at?: string | null
           category?: string | null
           company_id?: string
           created_at?: string
           description?: string | null
           filename?: string
+          folder_id?: string | null
           id?: string
           mime_type?: string | null
           project_id?: string | null
@@ -6048,6 +6111,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "universal_documents_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "document_folders"
             referencedColumns: ["id"]
           },
           {
@@ -6156,6 +6226,10 @@ export type Database = {
       is_company_member: {
         Args: { target_company_id: string }
         Returns: boolean
+      }
+      seed_document_folders: {
+        Args: { target_company_id: string }
+        Returns: undefined
       }
       seed_role_permissions: {
         Args: { target_company_id: string }

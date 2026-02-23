@@ -38,6 +38,27 @@ export async function askBeacon(
   return res.json();
 }
 
+export async function syncDocumentToBeacon(
+  file: File | Blob,
+  filename: string,
+  folderName: string
+): Promise<{ success: boolean; chunks_created: number }> {
+  const formData = new FormData();
+  formData.append("file", file, filename);
+  formData.append("folder", folderName);
+
+  const response = await fetch(`${BEACON_API_URL}/api/ingest`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Beacon ingest error: ${response.status}`);
+  }
+
+  return response.json();
+}
+
 export async function checkBeaconHealth(): Promise<boolean> {
   try {
     const res = await fetch(`${BEACON_API_URL}/`, { signal: AbortSignal.timeout(5000) });

@@ -1,13 +1,15 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Brain, FileText, Zap, X, ChevronDown, ChevronUp } from "lucide-react";
+import { Send, Brain, FileText, Zap, X, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { useAuth } from "@/hooks/useAuth";
 import { askBeacon, type BeaconSource } from "@/services/beaconApi";
+import { useRef, useEffect } from "react";
 
 const quickQuestions = [
   "Alt-1 vs Alt-2?",
@@ -27,7 +29,7 @@ interface ChatMessage {
 
 function ConfidenceBadge({ confidence }: { confidence: number }) {
   const pct = Math.round(confidence * 100);
-  const color = pct >= 85 ? "bg-[#22c55e]" : pct >= 60 ? "bg-yellow-500" : "bg-destructive";
+  const color = pct >= 85 ? "bg-[hsl(142,71%,45%)]" : pct >= 60 ? "bg-yellow-500" : "bg-destructive";
   const label = pct >= 85 ? "high" : pct >= 60 ? "medium" : "low";
   return (
     <Badge className={cn("text-[9px] text-white px-1.5 py-0", color)}>
@@ -36,9 +38,39 @@ function ConfidenceBadge({ confidence }: { confidence: number }) {
   );
 }
 
+function formatSourceTitle(raw: string): string {
+  return raw
+    .replace(/\.md$/i, "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function RelevanceBar({ score }: { score: number }) {
+  const pct = Math.round(score * 100);
+  const color = pct >= 80 ? "bg-[hsl(142,71%,45%)]" : pct >= 60 ? "bg-[#f59e0b]" : "bg-destructive";
+  return (
+    <div className="flex items-center gap-1.5 shrink-0">
+      <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
+        <div className={cn("h-full rounded-full", color)} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="font-mono text-[10px] text-muted-foreground">{pct}%</span>
+    </div>
+  );
+}
+
 function SourcesList({ sources }: { sources: BeaconSource[] }) {
   const [expanded, setExpanded] = useState(false);
+  const [expandedIdx, setExpandedIdx] = useState<Set<number>>(new Set());
+  const navigate = useNavigate();
   if (!sources.length) return null;
+
+  const toggleSource = (idx: number) => {
+    setExpandedIdx((prev) => {
+      const next = new Set(prev);
+      next.has(idx) ? next.delete(idx) : next.add(idx);
+      return next;
+    });
+  };
 
   return (
     <div className="mt-1">
@@ -52,17 +84,36 @@ function SourcesList({ sources }: { sources: BeaconSource[] }) {
       </button>
       {expanded && (
         <div className="mt-1 space-y-1">
-          {sources.map((s, i) => (
-            <div key={i} className="bg-muted/50 rounded p-1.5 text-[10px]">
-              <div className="flex items-center justify-between gap-1">
-                <span className="font-medium truncate">{s.title}</span>
-                <span className="font-mono text-[#f59e0b] shrink-0">{Math.round(s.score * 100)}%</span>
+          {sources.map((s, i) => {
+            const isOpen = expandedIdx.has(i);
+            const title = formatSourceTitle(s.title);
+            return (
+              <div key={i} className="bg-muted/50 rounded p-1.5 text-[10px]">
+                <button
+                  onClick={() => toggleSource(i)}
+                  className="w-full flex items-center justify-between gap-1"
+                >
+                  <span className="font-medium truncate text-left">{title}</span>
+                  <RelevanceBar score={s.score} />
+                </button>
+                {isOpen && (
+                  <div className="mt-1 space-y-1">
+                    {s.chunk_preview && (
+                      <div className="max-h-[120px] overflow-y-auto bg-background rounded p-1.5 text-muted-foreground">
+                        {s.chunk_preview}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => navigate(`/documents?search=${encodeURIComponent(title)}`)}
+                      className="flex items-center gap-0.5 text-[#f59e0b] hover:underline"
+                    >
+                      <ExternalLink className="h-2.5 w-2.5" /> View Document
+                    </button>
+                  </div>
+                )}
               </div>
-              {s.chunk_preview && (
-                <p className="text-muted-foreground mt-0.5 line-clamp-2">{s.chunk_preview}</p>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -247,8 +298,8 @@ export function BeaconChatWidget() {
             </div>
             {lastBeaconMsg.sources?.map((s, i) => (
               <div key={i} className="flex items-center justify-between">
-                <span className="truncate flex items-center gap-1"><FileText className="h-2.5 w-2.5" />{s.title}</span>
-                <span className="font-mono text-[#f59e0b] shrink-0">{Math.round(s.score * 100)}%</span>
+                <span className="truncate flex items-center gap-1"><FileText className="h-2.5 w-2.5" />{formatSourceTitle(s.title)}</span>
+                <RelevanceBar score={s.score} />
               </div>
             ))}
           </div>
