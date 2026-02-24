@@ -282,7 +282,7 @@ export function BeaconChatWidget() {
             <div className={cn("max-w-[85%]", msg.role === "user" ? "bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-3 py-2" : "")}>
               {msg.role === "beacon" ? (
                 <div className="space-y-1.5">
-                  <div className="prose prose-sm max-w-none text-[13px] leading-relaxed [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-[13px] [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1 [&_p]:mb-1.5 [&_p]:leading-relaxed [&_ul]:pl-4 [&_ul]:mb-1.5 [&_ol]:pl-4 [&_ol]:mb-1.5 [&_li]:mb-0.5 [&_li]:leading-relaxed [&_strong]:font-semibold">
+                  <div className="prose prose-sm max-w-none text-[13px] leading-relaxed [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-[13px] [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1 [&_p]:mb-2 [&_ul]:pl-4 [&_ul]:mb-2 [&_ol]:pl-4 [&_ol]:mb-2 [&_li]:mb-0.5 [&_strong]:font-semibold">
                     <ReactMarkdown>{msg.text}</ReactMarkdown>
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap">
