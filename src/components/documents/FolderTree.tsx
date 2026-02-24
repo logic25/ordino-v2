@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { ChevronRight, ChevronDown, Folder, FolderOpen, Brain, Trash2 } from "lucide-react";
+import { ChevronRight, ChevronDown, Folder, FolderOpen, Brain, MoreVertical, Pencil, FolderPlus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import type { DocumentFolder } from "@/hooks/useDocumentFolders";
 import { buildFolderTree, type FolderTreeNode } from "@/hooks/useDocumentFolders";
 
@@ -9,14 +11,17 @@ interface FolderNodeProps {
   folder: FolderTreeNode;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  onRename?: (folder: DocumentFolder) => void;
+  onCreateSubfolder?: (parentId: string) => void;
   onDelete?: (folder: DocumentFolder) => void;
   depth?: number;
 }
 
-function FolderNode({ folder, selectedId, onSelect, onDelete, depth = 0 }: FolderNodeProps) {
+function FolderNode({ folder, selectedId, onSelect, onRename, onCreateSubfolder, onDelete, depth = 0 }: FolderNodeProps) {
   const [expanded, setExpanded] = useState(depth === 0);
   const hasChildren = folder.children.length > 0;
   const isSelected = selectedId === folder.id;
+  const canDelete = !folder.is_system;
 
   return (
     <div>
@@ -44,16 +49,38 @@ function FolderNode({ folder, selectedId, onSelect, onDelete, depth = 0 }: Folde
           <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
         )}
         <span className="truncate text-left flex-1">{folder.name}</span>
-        {!folder.is_system && onDelete && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-5 w-5 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive shrink-0"
-            onClick={(e) => { e.stopPropagation(); onDelete(folder); }}
-          >
-            <Trash2 className="h-3 w-3" />
-          </Button>
-        )}
+
+        {/* Context menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+            <span
+              className="h-5 w-5 flex items-center justify-center opacity-0 group-hover:opacity-100 shrink-0 rounded hover:bg-accent cursor-pointer"
+              role="button"
+              tabIndex={-1}
+            >
+              <MoreVertical className="h-3.5 w-3.5 text-muted-foreground" />
+            </span>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRename?.(folder); }}>
+              <Pencil className="h-3.5 w-3.5 mr-2" /> Rename
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onCreateSubfolder?.(folder.id); }}>
+              <FolderPlus className="h-3.5 w-3.5 mr-2" /> Create Subfolder
+            </DropdownMenuItem>
+            {canDelete && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={(e) => { e.stopPropagation(); onDelete?.(folder); }}
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </button>
       {expanded && hasChildren && (
         <div>
@@ -63,6 +90,8 @@ function FolderNode({ folder, selectedId, onSelect, onDelete, depth = 0 }: Folde
               folder={child}
               selectedId={selectedId}
               onSelect={onSelect}
+              onRename={onRename}
+              onCreateSubfolder={onCreateSubfolder}
               onDelete={onDelete}
               depth={depth + 1}
             />
@@ -77,10 +106,12 @@ interface FolderTreeProps {
   folders: DocumentFolder[];
   selectedFolderId: string | null;
   onSelectFolder: (id: string | null) => void;
+  onRenameFolder?: (folder: DocumentFolder) => void;
+  onCreateSubfolder?: (parentId: string) => void;
   onDeleteFolder?: (folder: DocumentFolder) => void;
 }
 
-export function FolderTree({ folders, selectedFolderId, onSelectFolder, onDeleteFolder }: FolderTreeProps) {
+export function FolderTree({ folders, selectedFolderId, onSelectFolder, onRenameFolder, onCreateSubfolder, onDeleteFolder }: FolderTreeProps) {
   const tree = buildFolderTree(folders);
 
   return (
@@ -101,6 +132,8 @@ export function FolderTree({ folders, selectedFolderId, onSelectFolder, onDelete
           folder={folder}
           selectedId={selectedFolderId}
           onSelect={onSelectFolder}
+          onRename={onRenameFolder}
+          onCreateSubfolder={onCreateSubfolder}
           onDelete={onDeleteFolder}
         />
       ))}

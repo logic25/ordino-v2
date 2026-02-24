@@ -67,15 +67,51 @@ export function useCreateFolder() {
   });
 }
 
+export function useRenameFolder() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const { error } = await supabase
+        .from("document_folders")
+        .update({ name } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["document-folders"] }),
+  });
+}
+
 export function useDeleteFolder() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async (folderId: string) => {
-      const { error } = await supabase.from("document_folders").delete().eq("id", folderId);
-      if (error) throw error;
+    mutationFn: async ({ id, parent_id }: { id: string; parent_id: string | null }) => {
+      // 1. Re-parent child folders
+      const { error: e1 } = await supabase
+        .from("document_folders")
+        .update({ parent_id: parent_id } as any)
+        .eq("parent_id", id);
+      if (e1) throw e1;
+
+      // 2. Re-parent documents
+      const { error: e2 } = await supabase
+        .from("universal_documents")
+        .update({ folder_id: parent_id } as any)
+        .eq("folder_id", id);
+      if (e2) throw e2;
+
+      // 3. Delete the folder
+      const { error: e3 } = await supabase
+        .from("document_folders")
+        .delete()
+        .eq("id", id);
+      if (e3) throw e3;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["document-folders"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["document-folders"] });
+      qc.invalidateQueries({ queryKey: ["universal-documents"] });
+    },
   });
 }
 
@@ -95,4 +131,19 @@ export function buildFolderTree(folders: DocumentFolder[]): FolderTreeNode[] {
     }
   });
   return roots;
+}
+
+/** Flatten folders into an indented list for selector dropdowns */
+export function flattenFolders(folders: DocumentFolder[]): { id: string; name: string; depth: number }[] {
+  const tree = buildFolderTree(folders);
+  const result: { id: string; name: string; depth: number }[] = [];
+
+  function walk(nodes: FolderTreeNode[], depth: number) {
+    for (const node of nodes) {
+      result.push({ id: node.id, name: node.name, depth });
+      walk(node.children, depth + 1);
+    }
+  }
+  walk(tree, 0);
+  return result;
 }

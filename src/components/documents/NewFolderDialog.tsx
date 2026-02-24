@@ -1,30 +1,43 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, FolderPlus } from "lucide-react";
+import type { DocumentFolder } from "@/hooks/useDocumentFolders";
+import { flattenFolders } from "@/hooks/useDocumentFolders";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { name: string; description?: string }) => Promise<void>;
-  parentFolderName?: string;
+  onSubmit: (data: { name: string; parent_id?: string | null; description?: string }) => Promise<void>;
+  folders: DocumentFolder[];
+  defaultParentId?: string | null;
 }
 
-export function NewFolderDialog({ open, onOpenChange, onSubmit, parentFolderName }: Props) {
+export function NewFolderDialog({ open, onOpenChange, onSubmit, folders, defaultParentId }: Props) {
   const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+  const [parentId, setParentId] = useState<string>("__root__");
   const [saving, setSaving] = useState(false);
+
+  const flatList = flattenFolders(folders);
+
+  useEffect(() => {
+    if (open) {
+      setName("");
+      setParentId(defaultParentId || "__root__");
+    }
+  }, [open, defaultParentId]);
 
   const handleSubmit = async () => {
     if (!name.trim()) return;
     setSaving(true);
     try {
-      await onSubmit({ name: name.trim(), description: description.trim() || undefined });
-      setName("");
-      setDescription("");
+      await onSubmit({
+        name: name.trim(),
+        parent_id: parentId === "__root__" ? null : parentId,
+      });
       onOpenChange(false);
     } finally {
       setSaving(false);
@@ -35,16 +48,39 @@ export function NewFolderDialog({ open, onOpenChange, onSubmit, parentFolderName
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New Folder{parentFolderName ? ` in "${parentFolderName}"` : ""}</DialogTitle>
+          <DialogTitle>Create New Folder</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <Label>Name</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Folder name" className="mt-1" />
+            <Label>Folder Name</Label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Building Code References"
+              className="mt-1"
+              onKeyDown={(e) => { if (e.key === "Enter" && name.trim()) handleSubmit(); }}
+            />
           </div>
           <div>
-            <Label>Description (optional)</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Brief description..." className="mt-1" rows={2} />
+            <Label>Location</Label>
+            <Select value={parentId} onValueChange={setParentId}>
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Select location" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__root__">— Root (Top Level)</SelectItem>
+                {flatList.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    {"  ".repeat(f.depth)}{"└ ".repeat(Math.min(f.depth, 1))}{f.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {parentId !== "__root__" && (
+              <p className="text-xs text-muted-foreground mt-1">
+                ↳ Creates inside "{flatList.find((f) => f.id === parentId)?.name}"
+              </p>
+            )}
           </div>
         </div>
         <DialogFooter>
