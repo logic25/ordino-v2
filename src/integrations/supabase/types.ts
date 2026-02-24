@@ -602,6 +602,7 @@ export type Database = {
       beacon_feedback: {
         Row: {
           feedback_text: string
+          feedback_type: string | null
           id: number
           notes: string | null
           priority: string | null
@@ -616,6 +617,7 @@ export type Database = {
         }
         Insert: {
           feedback_text: string
+          feedback_type?: string | null
           id?: never
           notes?: string | null
           priority?: string | null
@@ -630,6 +632,7 @@ export type Database = {
         }
         Update: {
           feedback_text?: string
+          feedback_type?: string | null
           id?: never
           notes?: string | null
           priority?: string | null
