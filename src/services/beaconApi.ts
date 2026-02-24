@@ -1,4 +1,4 @@
-const BEACON_API_URL = import.meta.env.VITE_BEACON_API_URL || 'https://web-production-44b7c.up.railway.app';
+const BEACON_API_URL = import.meta.env.VITE_BEACON_API_URL || 'https://beaconrag.up.railway.app';
 
 export interface BeaconSource {
   title: string;
