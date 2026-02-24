@@ -290,6 +290,21 @@ async function getRecentConversations(sb: any, d: any) {
 
   if (d?.user_id) {
     query = query.eq("user_id", d.user_id);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return jsonResponse(data);
+}
+
+async function getPendingSuggestions(sb: any) {
+  const { data, error } = await sb
+    .from("beacon_suggestions")
+    .select("id, timestamp, user_name, wrong_answer, correct_answer, topics")
+    .eq("status", "pending")
+    .order("timestamp", { ascending: false });
+  if (error) throw error;
+  return jsonResponse(data);
 }
 
 // ─── New Actions ────────────────────────────────────────────────────
@@ -396,21 +411,6 @@ async function updateFeedbackRoadmap(sb: any, d: any) {
     .eq("id", d.feedback_id)
     .select()
     .single();
-  if (error) throw error;
-  return jsonResponse(data);
-}
-
-  const { data, error } = await query;
-  if (error) throw error;
-  return jsonResponse(data);
-}
-
-async function getPendingSuggestions(sb: any) {
-  const { data, error } = await sb
-    .from("beacon_suggestions")
-    .select("id, timestamp, user_name, wrong_answer, correct_answer, topics")
-    .eq("status", "pending")
-    .order("timestamp", { ascending: false });
   if (error) throw error;
   return jsonResponse(data);
 }
