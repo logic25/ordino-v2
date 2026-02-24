@@ -192,9 +192,10 @@ export function BeaconChatWidget() {
       <button
         onClick={() => setOpen(true)}
         className={cn(
-          "fixed bottom-6 right-6 z-[9999] w-14 h-14 rounded-full text-white shadow-lg flex items-center justify-center transition-all hover:scale-105",
+          "rounded-full text-white shadow-lg flex items-center justify-center transition-all hover:scale-105",
           beaconOnline ? "bg-[#f59e0b] hover:bg-[#d97706]" : "bg-gray-400 hover:bg-gray-500"
         )}
+        style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999, width: '56px', height: '56px' }}
         title={beaconOnline ? "Ask Beacon" : "Beacon is offline"}
       >
         <Brain className="h-6 w-6" />
@@ -207,7 +208,7 @@ export function BeaconChatWidget() {
   }
 
   return createPortal(
-    <div className="fixed bottom-6 right-6 z-[9999] w-[420px] h-[560px] flex flex-col bg-background border rounded-xl shadow-2xl overflow-hidden">
+    <div className="flex flex-col bg-background border rounded-xl shadow-2xl overflow-hidden" style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999, width: '420px', height: '560px' }}>
       {/* Header */}
       <div className={cn(
         "flex items-center justify-between px-4 py-3 border-b text-white",
