@@ -268,21 +268,22 @@ Deno.serve(async (req) => {
             return memberId === currentId;
           };
 
-          for (let i = 0; i < Math.min(unnamedSpaces.length, 100); i++) {
-            const space = unnamedSpaces[i];
-            const isDM = space.spaceType === "DIRECT_MESSAGE" || space.type === "DM";
-
-            try {
+          // Parallel enrichment: fetch members for all unnamed spaces concurrently
+          const enrichBatch = unnamedSpaces.slice(0, 100);
+          const enrichResults = await Promise.allSettled(
+            enrichBatch.map(async (space: any) => {
               const membersRes = await fetch(
                 `${chatApi}/${space.name}/members?pageSize=10`,
                 { headers: { Authorization: `Bearer ${accessToken}` } }
               );
               if (!membersRes.ok) {
-                console.log("Members fetch failed:", space.name, membersRes.status);
-                continue;
+                await membersRes.text(); // consume body
+                return;
               }
               const membersData = await membersRes.json();
-              if (!membersData.memberships?.length) continue;
+              if (!membersData.memberships?.length) return;
+
+              const isDM = space.spaceType === "DIRECT_MESSAGE" || space.type === "DM";
 
               if (isDM) {
                 const humanMembers: any[] = [];
@@ -294,32 +295,25 @@ Deno.serve(async (req) => {
                   else humanMembers.push(member);
                 }
 
-                let resolved = false;
-
                 if (humanMembers.length >= 2) {
-                  // 1:1 DM: show the OTHER person's name, not the current user
                   const otherMembers = humanMembers.filter(m => !isCurrentUser(m.name || ""));
                   const candidates = otherMembers.length > 0 ? otherMembers : humanMembers;
                   for (const member of candidates) {
                     if (member.displayName) {
                       space.displayName = member.displayName;
-                      resolved = true;
                       break;
                     } else if (member.name) {
                       const person = await resolveUserName(member.name, accessToken, nameCache);
                       if (person?.displayName) {
                         space.displayName = person.displayName;
-                        resolved = true;
                         break;
                       }
                     }
                   }
                 } else if (humanMembers.length === 1 && botMembers.length >= 1) {
-                  // Bot DM: show bot's name, not the user's name
                   for (const bot of botMembers) {
                     if (bot.displayName) {
                       space.displayName = bot.displayName;
-                      resolved = true;
                       break;
                     }
                   }
@@ -327,26 +321,20 @@ Deno.serve(async (req) => {
                   const member = humanMembers[0];
                   if (member.displayName) {
                     space.displayName = member.displayName;
-                    resolved = true;
                   } else if (member.name) {
                     const person = await resolveUserName(member.name, accessToken, nameCache);
                     if (person?.displayName) {
                       space.displayName = person.displayName;
-                      resolved = true;
                     }
                   }
                 }
-
-                if (resolved) {
-                  console.log("DM enriched:", space.name, "->", space.displayName);
-                }
               } else {
-                // For GROUP spaces: build name from OTHER member names (exclude current user)
+                // GROUP: build name from other member names
                 const memberNames: string[] = [];
                 for (const membership of membersData.memberships) {
                   const member = membership.member;
                   if (!member || member.type === "BOT") continue;
-                  if (isCurrentUser(member.name || "")) continue; // skip self
+                  if (isCurrentUser(member.name || "")) continue;
                   if (member.displayName) {
                     memberNames.push(member.displayName.split(" ")[0]);
                   } else if (member.name) {
@@ -359,13 +347,13 @@ Deno.serve(async (req) => {
                 }
                 if (memberNames.length > 0) {
                   space.displayName = memberNames.join(", ");
-                  console.log("Group enriched:", space.name, "->", space.displayName);
                 }
               }
-            } catch (e: any) {
-              console.log("Space enrichment failed:", space.name, e.message);
-            }
-          }
+            })
+          );
+          const resolved = enrichResults.filter(r => r.status === "fulfilled").length;
+          const failed = enrichResults.filter(r => r.status === "rejected").length;
+          console.log("Parallel enrichment done:", resolved, "resolved,", failed, "failed");
         }
 
         // Sort ALL spaces by lastActiveTime so active chats appear first
