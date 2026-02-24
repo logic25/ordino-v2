@@ -25,7 +25,7 @@ import {
   FileSpreadsheet, FolderPlus, Eye, Brain, RefreshCw, ChevronRight,
 } from "lucide-react";
 import { useUniversalDocuments, useUploadDocument, useDeleteDocument, type UniversalDocument } from "@/hooks/useUniversalDocuments";
-import { useDocumentFolders, useSeedFolders, useCreateFolder, useDeleteFolder, type DocumentFolder } from "@/hooks/useDocumentFolders";
+import { useDocumentFolders, useSeedFolders, useCreateFolder, useDeleteFolder, useRenameFolder, type DocumentFolder } from "@/hooks/useDocumentFolders";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useIsAdmin } from "@/hooks/useUserRoles";
@@ -82,14 +82,18 @@ export default function Documents() {
   const deleteDoc = useDeleteDocument();
   const createFolder = useCreateFolder();
   const delFolder = useDeleteFolder();
+  const renameFolder = useRenameFolder();
 
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const [newFolderDefaultParent, setNewFolderDefaultParent] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<UniversalDocument | null>(null);
   const [deleteFolderTarget, setDeleteFolderTarget] = useState<DocumentFolder | null>(null);
+  const [renameTarget, setRenameTarget] = useState<DocumentFolder | null>(null);
+  const [renameName, setRenameName] = useState("");
   const [previewDoc, setPreviewDoc] = useState<UniversalDocument | null>(null);
 
   // Upload form state
@@ -199,12 +203,23 @@ export default function Documents() {
   const handleDeleteFolder = async () => {
     if (!deleteFolderTarget) return;
     try {
-      await delFolder.mutateAsync(deleteFolderTarget.id);
+      await delFolder.mutateAsync({ id: deleteFolderTarget.id, parent_id: deleteFolderTarget.parent_id });
       toast({ title: "Folder deleted" });
       if (selectedFolderId === deleteFolderTarget.id) setSelectedFolderId(null);
       setDeleteFolderTarget(null);
     } catch (err: any) {
       toast({ title: "Delete failed", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleRenameFolder = async () => {
+    if (!renameTarget || !renameName.trim()) return;
+    try {
+      await renameFolder.mutateAsync({ id: renameTarget.id, name: renameName.trim() });
+      toast({ title: "Folder renamed" });
+      setRenameTarget(null);
+    } catch (err: any) {
+      toast({ title: "Rename failed", description: err.message, variant: "destructive" });
     }
   };
 
@@ -267,6 +282,8 @@ export default function Documents() {
                     folders={folders}
                     selectedFolderId={selectedFolderId}
                     onSelectFolder={setSelectedFolderId}
+                    onRenameFolder={(f) => { setRenameTarget(f); setRenameName(f.name); }}
+                    onCreateSubfolder={(parentId) => { setNewFolderDefaultParent(parentId); setNewFolderOpen(true); }}
                     onDeleteFolder={(f) => setDeleteFolderTarget(f)}
                   />
                 )}
@@ -436,13 +453,39 @@ export default function Documents() {
       {/* New Folder Dialog */}
       <NewFolderDialog
         open={newFolderOpen}
-        onOpenChange={setNewFolderOpen}
-        parentFolderName={selectedFolder?.name}
+        onOpenChange={(open) => { setNewFolderOpen(open); if (!open) setNewFolderDefaultParent(null); }}
+        folders={folders}
+        defaultParentId={newFolderDefaultParent ?? selectedFolderId}
         onSubmit={async (data) => {
-          await createFolder.mutateAsync({ ...data, parent_id: selectedFolderId });
+          await createFolder.mutateAsync(data);
           toast({ title: "Folder created" });
         }}
       />
+
+      {/* Rename Folder Dialog */}
+      <Dialog open={!!renameTarget} onOpenChange={() => setRenameTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Folder</DialogTitle>
+          </DialogHeader>
+          <div>
+            <Label>Name</Label>
+            <Input
+              value={renameName}
+              onChange={(e) => setRenameName(e.target.value)}
+              className="mt-1"
+              onKeyDown={(e) => { if (e.key === "Enter") handleRenameFolder(); if (e.key === "Escape") setRenameTarget(null); }}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameTarget(null)}>Cancel</Button>
+            <Button onClick={handleRenameFolder} disabled={!renameName.trim() || renameFolder.isPending}>
+              {renameFolder.isPending ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Document Confirm */}
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
@@ -464,8 +507,8 @@ export default function Documents() {
       <AlertDialog open={!!deleteFolderTarget} onOpenChange={() => setDeleteFolderTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Folder?</AlertDialogTitle>
-            <AlertDialogDescription>This will delete "{deleteFolderTarget?.name}" and all subfolders. Documents will be moved to root.</AlertDialogDescription>
+            <AlertDialogTitle>Delete "{deleteFolderTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>Documents and subfolders inside will be moved to the parent folder.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
