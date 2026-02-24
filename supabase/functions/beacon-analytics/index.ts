@@ -55,6 +55,22 @@ Deno.serve(async (req) => {
         return await getRecentConversations(supabase, data);
       case "get_pending_suggestions":
         return await getPendingSuggestions(supabase);
+      case "approve_suggestion":
+        return await approveSuggestion(supabase, data);
+      case "reject_suggestion":
+        return await rejectSuggestion(supabase, data);
+      case "get_approved_corrections":
+        return await getApprovedCorrections(supabase, data);
+      case "get_feedback":
+        return await getFeedback(supabase, data);
+      case "get_roadmap_summary":
+        return await getRoadmapSummary(supabase);
+      case "create_roadmap_item":
+        return await createRoadmapItem(supabase, data);
+      case "update_feedback_roadmap":
+        return await updateFeedbackRoadmap(supabase, data);
+      case "get_question_clusters":
+        return jsonResponse([]);
       default:
         return jsonResponse({ error: `Unknown action: ${action}` }, 400);
     }
@@ -274,7 +290,115 @@ async function getRecentConversations(sb: any, d: any) {
 
   if (d?.user_id) {
     query = query.eq("user_id", d.user_id);
+}
+
+// ─── New Actions ────────────────────────────────────────────────────
+
+async function approveSuggestion(sb: any, d: any) {
+  const { data, error } = await sb
+    .from("beacon_suggestions")
+    .update({ status: "approved", reviewed_by: d.reviewed_by, reviewed_at: new Date().toISOString() })
+    .eq("id", d.suggestion_id)
+    .select()
+    .single();
+  if (error) throw error;
+  return jsonResponse(data);
+}
+
+async function rejectSuggestion(sb: any, d: any) {
+  const { data, error } = await sb
+    .from("beacon_suggestions")
+    .update({ status: "rejected", reviewed_by: d.reviewed_by, reviewed_at: new Date().toISOString() })
+    .eq("id", d.suggestion_id)
+    .select()
+    .single();
+  if (error) throw error;
+  return jsonResponse(data);
+}
+
+async function getApprovedCorrections(sb: any, d: any) {
+  const limit = d?.limit ?? 50;
+  const { data, error } = await sb
+    .from("beacon_suggestions")
+    .select("id, timestamp, user_name, wrong_answer, correct_answer, reviewed_by, reviewed_at")
+    .eq("status", "approved")
+    .order("reviewed_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return jsonResponse({ corrections: data });
+}
+
+async function getFeedback(sb: any, d: any) {
+  const limit = d?.limit ?? 50;
+  let query = sb
+    .from("beacon_feedback")
+    .select("*")
+    .order("timestamp", { ascending: false })
+    .limit(limit);
+  if (d?.status) {
+    query = query.eq("status", d.status);
   }
+  const { data, error } = await query;
+  if (error) throw error;
+  return jsonResponse({ feedback: data });
+}
+
+async function getRoadmapSummary(sb: any) {
+  const { data, error } = await sb
+    .from("beacon_feedback")
+    .select("id, feedback_text, user_name, priority, target_quarter, roadmap_status, notes")
+    .not("roadmap_status", "is", null);
+  if (error) throw error;
+
+  const byStatus: Record<string, number> = {};
+  const itemsByStatus: Record<string, any[]> = {};
+  for (const item of data || []) {
+    const s = item.roadmap_status;
+    byStatus[s] = (byStatus[s] || 0) + 1;
+    if (!itemsByStatus[s]) itemsByStatus[s] = [];
+    itemsByStatus[s].push(item);
+  }
+
+  return jsonResponse({ by_status: byStatus, items_by_status: itemsByStatus, items: data });
+}
+
+async function createRoadmapItem(sb: any, d: any) {
+  const { data, error } = await sb
+    .from("beacon_feedback")
+    .insert({
+      feedback_text: d.title,
+      user_id: d.user_id || "system",
+      user_name: d.created_by ?? "admin",
+      feedback_type: "roadmap",
+      roadmap_status: d.roadmap_status ?? "backlog",
+      priority: d.priority ?? "medium",
+      target_quarter: d.target_quarter ?? null,
+      notes: d.notes ?? null,
+      status: "new",
+      timestamp: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+  return jsonResponse({ success: true, id: data.id });
+}
+
+async function updateFeedbackRoadmap(sb: any, d: any) {
+  const updates: Record<string, any> = {};
+  if (d.roadmap_status !== undefined) updates.roadmap_status = d.roadmap_status;
+  if (d.priority !== undefined) updates.priority = d.priority;
+  if (d.target_quarter !== undefined) updates.target_quarter = d.target_quarter;
+  if (d.notes !== undefined) updates.notes = d.notes;
+
+  const { data, error } = await sb
+    .from("beacon_feedback")
+    .update(updates)
+    .eq("id", d.feedback_id)
+    .select()
+    .single();
+  if (error) throw error;
+  return jsonResponse(data);
+}
 
   const { data, error } = await query;
   if (error) throw error;

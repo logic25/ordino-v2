@@ -1,0 +1,1 @@
+ALTER TABLE public.beacon_feedback ADD COLUMN IF NOT EXISTS feedback_type text;
