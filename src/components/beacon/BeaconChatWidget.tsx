@@ -346,7 +346,7 @@ export function BeaconChatWidget() {
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask Beacon..."
             className="flex-1 h-9 text-sm"
-            disabled={loading}
+            disabled={false}
           />
           <Button
             type="submit"
