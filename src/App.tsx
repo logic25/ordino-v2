@@ -34,6 +34,8 @@ import HelpDesk from "./pages/HelpDesk";
 import Chat from "./pages/Chat";
 import NotFound from "./pages/NotFound";
 import AuthCallback from "./pages/AuthCallback";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
 
 const queryClient = new QueryClient();
 
@@ -89,6 +91,10 @@ function AppRoutes() {
 
       {/* Public proposal page - client views & signs */}
       <Route path="/proposal/:token" element={<ClientProposal />} />
+
+      {/* Legal pages - public, no auth required */}
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
 
       {/* Legacy redirects */}
       <Route path="/team" element={<Navigate to="/settings" replace />} />

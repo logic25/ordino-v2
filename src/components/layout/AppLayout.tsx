@@ -1,4 +1,5 @@
 import { ReactNode, useState } from "react";
+import { Link } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { TopBar } from "./TopBar";
 import { ClockOutModal } from "@/components/time/ClockOutModal";
@@ -36,6 +37,11 @@ export function AppLayout({ children }: AppLayoutProps) {
           <main className="flex-1 overflow-auto p-4 md:p-6">
             {children}
           </main>
+          <footer className="border-t border-border px-4 py-3 flex items-center justify-center gap-4 text-xs text-muted-foreground">
+            <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
+            <span>·</span>
+            <Link to="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
+          </footer>
         </div>
 
         <ClockOutModal />
