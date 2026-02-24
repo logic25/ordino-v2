@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -187,11 +188,11 @@ export function BeaconChatWidget() {
   const lastBeaconMsg = messages.filter((m) => m.role === "beacon").at(-1);
 
   if (!open) {
-    return (
+    return createPortal(
       <button
         onClick={() => setOpen(true)}
         className={cn(
-          "fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full text-white shadow-lg flex items-center justify-center transition-all hover:scale-105 relative",
+          "fixed bottom-6 right-6 z-[9999] w-14 h-14 rounded-full text-white shadow-lg flex items-center justify-center transition-all hover:scale-105 relative",
           beaconOnline ? "bg-[#f59e0b] hover:bg-[#d97706]" : "bg-gray-400 hover:bg-gray-500"
         )}
         title={beaconOnline ? "Ask Beacon" : "Beacon is offline"}
@@ -200,12 +201,13 @@ export function BeaconChatWidget() {
         {!beaconOnline && (
           <span className="absolute top-0 right-0 w-3 h-3 bg-destructive rounded-full border-2 border-background" />
         )}
-      </button>
+      </button>,
+      document.body
     );
   }
 
-  return (
-    <div className="fixed bottom-6 right-6 z-50 w-[400px] h-[560px] flex flex-col bg-background border rounded-xl shadow-2xl overflow-hidden">
+  return createPortal(
+    <div className="fixed bottom-6 right-6 z-[9999] w-[400px] h-[560px] flex flex-col bg-background border rounded-xl shadow-2xl overflow-hidden">
       {/* Header */}
       <div className={cn(
         "flex items-center justify-between px-4 py-3 border-b text-white",
@@ -358,6 +360,7 @@ export function BeaconChatWidget() {
           </Button>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
