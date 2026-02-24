@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, useQueries } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -98,36 +98,12 @@ export function useGChatMembers(spaceId: string | null) {
  * Resolves display names for DM and GROUP_CHAT spaces by fetching members.
  * Returns a Map<spaceId, displayName>.
  */
-export function useGChatDmNames(spaces: GChatSpace[]) {
-  const dmSpaces = spaces.filter((s) => isSpaceDM(s) || isSpaceGroup(s));
-
-  const memberQueries = useQueries({
-    queries: dmSpaces.map((space) => ({
-      queryKey: ["gchat-dm-names", space.name],
-      queryFn: async () => {
-        const res = await chatApi("list_members", { spaceId: space.name });
-        return { spaceId: space.name, memberships: (res.memberships || []) as Array<{ member?: { name?: string; displayName?: string; type?: string } }> };
-      },
-      staleTime: 30 * 60 * 1000, // 30 minutes
-    })),
-  });
-
-  return useMemo(() => {
-    const map = new Map<string, string>();
-    for (const q of memberQueries) {
-      if (!q.data) continue;
-      const { spaceId, memberships } = q.data;
-      const humans = memberships.filter(
-        (m) => m.member?.type === "HUMAN" && m.member?.displayName
-      );
-      if (humans.length === 1) {
-        map.set(spaceId, humans[0].member!.displayName!);
-      } else if (humans.length > 1) {
-        map.set(spaceId, humans.map((h) => h.member!.displayName!).join(", "));
-      }
-    }
-    return map;
-  }, [memberQueries]);
+/**
+ * DM names are now resolved server-side in the list_spaces edge function.
+ * This hook is kept for backward compatibility but simply returns an empty map.
+ */
+export function useGChatDmNames(_spaces: GChatSpace[]) {
+  return useMemo(() => new Map<string, string>(), []);
 }
 
 export function useSendGChatMessage() {
