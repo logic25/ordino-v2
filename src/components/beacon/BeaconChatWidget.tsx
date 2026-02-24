@@ -8,8 +8,8 @@ import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { useAuth } from "@/hooks/useAuth";
-import { askBeacon, type BeaconSource } from "@/services/beaconApi";
-import { useRef, useEffect } from "react";
+import { askBeacon, checkBeaconHealth, type BeaconSource } from "@/services/beaconApi";
+import { useRef, useEffect, useCallback } from "react";
 
 const quickQuestions = [
   "Alt-1 vs Alt-2?",
@@ -129,6 +129,14 @@ export function BeaconChatWidget() {
   const isAdmin = useIsAdmin();
   const { user, profile } = useAuth();
   const [showDebug, setShowDebug] = useState(false);
+  const [beaconOnline, setBeaconOnline] = useState(true);
+
+  useEffect(() => {
+    const check = () => checkBeaconHealth().then(setBeaconOnline);
+    check();
+    const interval = setInterval(check, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -182,10 +190,16 @@ export function BeaconChatWidget() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-[#f59e0b] hover:bg-[#d97706] text-white shadow-lg flex items-center justify-center transition-all hover:scale-105"
-        title="Ask Beacon"
+        className={cn(
+          "fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full text-white shadow-lg flex items-center justify-center transition-all hover:scale-105 relative",
+          beaconOnline ? "bg-[#f59e0b] hover:bg-[#d97706]" : "bg-gray-400 hover:bg-gray-500"
+        )}
+        title={beaconOnline ? "Ask Beacon" : "Beacon is offline"}
       >
         <Brain className="h-6 w-6" />
+        {!beaconOnline && (
+          <span className="absolute top-0 right-0 w-3 h-3 bg-destructive rounded-full border-2 border-background" />
+        )}
       </button>
     );
   }
@@ -193,10 +207,13 @@ export function BeaconChatWidget() {
   return (
     <div className="fixed bottom-6 right-6 z-50 w-[400px] h-[560px] flex flex-col bg-background border rounded-xl shadow-2xl overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-[#f59e0b] text-white">
+      <div className={cn(
+        "flex items-center justify-between px-4 py-3 border-b text-white",
+        beaconOnline ? "bg-[#f59e0b]" : "bg-gray-400"
+      )}>
         <div className="flex items-center gap-2">
           <Brain className="h-5 w-5" />
-          <span className="font-semibold text-sm">Beacon</span>
+          <span className="font-semibold text-sm">Beacon{!beaconOnline && " · Offline"}</span>
         </div>
         <div className="flex items-center gap-1">
           {isAdmin && (
