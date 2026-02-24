@@ -1906,6 +1906,90 @@ export type Database = {
           },
         ]
       }
+      content_candidates: {
+        Row: {
+          affects_services: Json | null
+          content_angle: string | null
+          content_preview: string | null
+          content_type: string | null
+          created_at: string | null
+          demand_score: number | null
+          estimated_minutes: number | null
+          expertise_score: number | null
+          id: string
+          key_topics: Json | null
+          most_common_angle: string | null
+          priority: string | null
+          reasoning: string | null
+          recommended_format: string | null
+          relevance_score: number | null
+          review_question: string | null
+          search_interest: string | null
+          source_email_id: string | null
+          source_type: string | null
+          source_url: string | null
+          status: string | null
+          team_questions: Json | null
+          team_questions_count: number | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          affects_services?: Json | null
+          content_angle?: string | null
+          content_preview?: string | null
+          content_type?: string | null
+          created_at?: string | null
+          demand_score?: number | null
+          estimated_minutes?: number | null
+          expertise_score?: number | null
+          id: string
+          key_topics?: Json | null
+          most_common_angle?: string | null
+          priority?: string | null
+          reasoning?: string | null
+          recommended_format?: string | null
+          relevance_score?: number | null
+          review_question?: string | null
+          search_interest?: string | null
+          source_email_id?: string | null
+          source_type?: string | null
+          source_url?: string | null
+          status?: string | null
+          team_questions?: Json | null
+          team_questions_count?: number | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          affects_services?: Json | null
+          content_angle?: string | null
+          content_preview?: string | null
+          content_type?: string | null
+          created_at?: string | null
+          demand_score?: number | null
+          estimated_minutes?: number | null
+          expertise_score?: number | null
+          id?: string
+          key_topics?: Json | null
+          most_common_angle?: string | null
+          priority?: string | null
+          reasoning?: string | null
+          recommended_format?: string | null
+          relevance_score?: number | null
+          review_question?: string | null
+          search_interest?: string | null
+          source_email_id?: string | null
+          source_type?: string | null
+          source_url?: string | null
+          status?: string | null
+          team_questions?: Json | null
+          team_questions_count?: number | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       discovered_rfps: {
         Row: {
           assigned_to: string | null
@@ -2730,6 +2814,59 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      generated_content: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          candidate_id: string | null
+          content: string | null
+          content_type: string | null
+          generated_at: string | null
+          id: string
+          published_at: string | null
+          published_url: string | null
+          status: string | null
+          title: string | null
+          word_count: number | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          candidate_id?: string | null
+          content?: string | null
+          content_type?: string | null
+          generated_at?: string | null
+          id: string
+          published_at?: string | null
+          published_url?: string | null
+          status?: string | null
+          title?: string | null
+          word_count?: number | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          candidate_id?: string | null
+          content?: string | null
+          content_type?: string | null
+          generated_at?: string | null
+          id?: string
+          published_at?: string | null
+          published_url?: string | null
+          status?: string | null
+          title?: string | null
+          word_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generated_content_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "content_candidates"
             referencedColumns: ["id"]
           },
         ]

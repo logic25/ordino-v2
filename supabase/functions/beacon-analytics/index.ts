@@ -71,6 +71,20 @@ Deno.serve(async (req) => {
         return await updateFeedbackRoadmap(supabase, data);
       case "get_question_clusters":
         return jsonResponse([]);
+      case "save_content_candidate":
+        return await saveContentCandidate(supabase, data);
+      case "get_content_candidates":
+        return await getContentCandidates(supabase, data);
+      case "update_content_candidate":
+        return await updateContentCandidate(supabase, data);
+      case "save_generated_content":
+        return await saveGeneratedContent(supabase, data);
+      case "get_generated_content":
+        return await getGeneratedContent(supabase, data);
+      case "get_document_references":
+        return await getDocumentReferences(supabase, data);
+      case "get_content_stats":
+        return await getContentStats(supabase);
       default:
         return jsonResponse({ error: `Unknown action: ${action}` }, 400);
     }
@@ -441,4 +455,164 @@ async function updateFeedbackRoadmap(sb: any, d: any) {
     .single();
   if (error) throw error;
   return jsonResponse(data);
+}
+
+// ─── Content Pipeline Actions ───────────────────────────────────────
+
+async function saveContentCandidate(sb: any, d: any) {
+  const { data, error } = await sb
+    .from("content_candidates")
+    .upsert({
+      id: d.id,
+      title: d.title,
+      content_type: d.content_type ?? "blog_post",
+      priority: d.priority ?? "medium",
+      status: d.status ?? "pending",
+      relevance_score: d.relevance_score ?? 50,
+      demand_score: d.demand_score ?? null,
+      expertise_score: d.expertise_score ?? null,
+      search_interest: d.search_interest ?? "unknown",
+      affects_services: d.affects_services ?? [],
+      key_topics: d.key_topics ?? [],
+      reasoning: d.reasoning ?? "",
+      review_question: d.review_question ?? null,
+      content_angle: d.content_angle ?? null,
+      team_questions_count: d.team_questions_count ?? 0,
+      team_questions: d.team_questions ?? [],
+      most_common_angle: d.most_common_angle ?? null,
+      source_type: d.source_type ?? "question_cluster",
+      source_url: d.source_url ?? null,
+      source_email_id: d.source_email_id ?? null,
+      content_preview: d.content_preview ?? null,
+      recommended_format: d.recommended_format ?? null,
+      estimated_minutes: d.estimated_minutes ?? null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "id" })
+    .select()
+    .single();
+  if (error) throw error;
+  return jsonResponse(data);
+}
+
+async function getContentCandidates(sb: any, d: any) {
+  let query = sb
+    .from("content_candidates")
+    .select("*")
+    .order("relevance_score", { ascending: false });
+  if (d?.status) query = query.eq("status", d.status);
+  if (d?.content_type) query = query.eq("content_type", d.content_type);
+  if (d?.limit) query = query.limit(d.limit);
+  const { data, error } = await query;
+  if (error) throw error;
+  return jsonResponse(data);
+}
+
+async function updateContentCandidate(sb: any, d: any) {
+  const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+  for (const key of ["status", "priority", "title", "content_type", "relevance_score", "content_angle", "content_preview", "recommended_format", "estimated_minutes"]) {
+    if (d[key] !== undefined) updates[key] = d[key];
+  }
+  const { data, error } = await sb
+    .from("content_candidates")
+    .update(updates)
+    .eq("id", d.id)
+    .select()
+    .single();
+  if (error) throw error;
+  return jsonResponse(data);
+}
+
+async function saveGeneratedContent(sb: any, d: any) {
+  const { data, error } = await sb
+    .from("generated_content")
+    .insert({
+      id: d.id,
+      candidate_id: d.candidate_id,
+      content_type: d.content_type ?? "blog_post",
+      title: d.title,
+      content: d.content,
+      word_count: d.word_count ?? 0,
+      status: d.status ?? "draft",
+    })
+    .select()
+    .single();
+  if (error) throw error;
+
+  // Update candidate status to drafted
+  if (d.candidate_id) {
+    await sb
+      .from("content_candidates")
+      .update({ status: "drafted", updated_at: new Date().toISOString() })
+      .eq("id", d.candidate_id);
+  }
+
+  return jsonResponse(data);
+}
+
+async function getGeneratedContent(sb: any, d: any) {
+  let query = sb
+    .from("generated_content")
+    .select("*, content_candidates(*)")
+    .order("generated_at", { ascending: false });
+  if (d?.status) query = query.eq("status", d.status);
+  if (d?.candidate_id) query = query.eq("candidate_id", d.candidate_id);
+  if (d?.limit) query = query.limit(d.limit);
+  const { data, error } = await query;
+  if (error) throw error;
+  return jsonResponse(data);
+}
+
+async function getDocumentReferences(sb: any, d: any) {
+  const days = d?.days ?? 30;
+  const since = new Date(Date.now() - days * 86400000).toISOString();
+  const { data, error } = await sb
+    .from("beacon_interactions")
+    .select("sources_used, question")
+    .gte("timestamp", since)
+    .not("sources_used", "is", null);
+  if (error) throw error;
+
+  const docCounts: Record<string, { count: number; questions: string[] }> = {};
+  for (const row of data || []) {
+    let sources: string[] = [];
+    try { sources = JSON.parse(row.sources_used); } catch { continue; }
+    for (const src of sources) {
+      const name = typeof src === "string" ? src : (src as any).name || (src as any).title || String(src);
+      if (!docCounts[name]) docCounts[name] = { count: 0, questions: [] };
+      docCounts[name].count++;
+      if (docCounts[name].questions.length < 3 && row.question) {
+        docCounts[name].questions.push(row.question);
+      }
+    }
+  }
+
+  const references = Object.entries(docCounts)
+    .map(([document_name, d]) => ({ document_name, reference_count: d.count, sample_questions: d.questions }))
+    .sort((a, b) => b.reference_count - a.reference_count);
+
+  return jsonResponse(references);
+}
+
+async function getContentStats(sb: any) {
+  const { data: candidates, error: cErr } = await sb.from("content_candidates").select("status, content_type");
+  if (cErr) throw cErr;
+  const { data: generated, error: gErr } = await sb.from("generated_content").select("status, content_type");
+  if (gErr) throw gErr;
+
+  const candidatesByStatus: Record<string, number> = {};
+  const candidatesByType: Record<string, number> = {};
+  for (const c of candidates || []) {
+    candidatesByStatus[c.status] = (candidatesByStatus[c.status] || 0) + 1;
+    candidatesByType[c.content_type] = (candidatesByType[c.content_type] || 0) + 1;
+  }
+
+  const generatedByStatus: Record<string, number> = {};
+  for (const g of generated || []) {
+    generatedByStatus[g.status] = (generatedByStatus[g.status] || 0) + 1;
+  }
+
+  return jsonResponse({
+    candidates: { total: (candidates || []).length, by_status: candidatesByStatus, by_type: candidatesByType },
+    generated: { total: (generated || []).length, by_status: generatedByStatus },
+  });
 }
