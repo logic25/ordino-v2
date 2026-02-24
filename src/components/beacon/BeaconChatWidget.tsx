@@ -192,7 +192,7 @@ export function BeaconChatWidget() {
       <button
         onClick={() => setOpen(true)}
         className={cn(
-          "fixed bottom-6 right-6 z-[9999] w-14 h-14 rounded-full text-white shadow-lg flex items-center justify-center transition-all hover:scale-105 relative",
+          "fixed bottom-6 right-6 z-[9999] w-14 h-14 rounded-full text-white shadow-lg flex items-center justify-center transition-all hover:scale-105",
           beaconOnline ? "bg-[#f59e0b] hover:bg-[#d97706]" : "bg-gray-400 hover:bg-gray-500"
         )}
         title={beaconOnline ? "Ask Beacon" : "Beacon is offline"}
