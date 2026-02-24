@@ -195,7 +195,7 @@ export function BeaconChatWidget() {
         style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999 }}
         title={beaconOnline ? "Ask Beacon" : "Beacon is offline"}
       >
-        <Brain className="h-6 w-6" />
+        <Brain className="h-6 w-6" style={loading ? { animation: 'beacon-pulse 1.2s ease-in-out infinite' } : undefined} />
         {!beaconOnline && (
           <span className="absolute top-0 right-0 w-3 h-3 bg-destructive rounded-full border-2 border-background" />
         )}
@@ -281,7 +281,7 @@ export function BeaconChatWidget() {
               {msg.role === "beacon" ? (
                 <div className="space-y-1.5">
                   <div className="prose prose-sm max-w-none text-[13px] leading-relaxed [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-[13px] [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1 [&_p]:mb-2 [&_ul]:pl-4 [&_ul]:mb-2 [&_ol]:pl-4 [&_ol]:mb-2 [&_li]:mb-0.5 [&_strong]:font-semibold">
-                    <ReactMarkdown>{msg.text}</ReactMarkdown>
+                    <ReactMarkdown>{msg.text.replace(/\n\n📚[\s\S]*$/, '').replace(/\n\nSources:[\s\S]*$/, '')}</ReactMarkdown>
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     {msg.confidence != null && msg.confidence > 0 && (
@@ -305,7 +305,7 @@ export function BeaconChatWidget() {
         {loading && (
           <div className="flex gap-2">
             <div className="w-6 h-6 rounded-full bg-[#f59e0b] flex items-center justify-center shrink-0">
-              <Brain className="h-3 w-3 text-white animate-pulse" />
+              <Brain className="h-3 w-3 text-white" style={{ animation: 'beacon-pulse 1.2s ease-in-out infinite' }} />
             </div>
             <span className="text-xs text-muted-foreground mt-1.5">Beacon is thinking<span className="animate-pulse">...</span></span>
           </div>
