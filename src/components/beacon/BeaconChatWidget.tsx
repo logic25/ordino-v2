@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Brain, FileText, Zap, X, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import { Send, Brain, FileText, Zap, X, ChevronDown, ChevronUp, ExternalLink, MessageSquarePlus } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { useIsAdmin } from "@/hooks/useUserRoles";
@@ -125,13 +125,17 @@ export function BeaconChatWidget() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const endRef = useRef<HTMLDivElement>(null);
+  const lastMessageRef = useRef<HTMLDivElement>(null);
   const isAdmin = useIsAdmin();
   const { user, profile } = useAuth();
   const [showDebug, setShowDebug] = useState(false);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages.length > 0) {
+      setTimeout(() => {
+        lastMessageRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
+    }
   }, [messages]);
 
   const userId = user?.email || user?.id || "anonymous";
@@ -206,6 +210,17 @@ export function BeaconChatWidget() {
               <FileText className="h-3.5 w-3.5" />
             </Button>
           )}
+          {messages.length > 0 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20"
+              onClick={() => setMessages([])}
+              title="New conversation"
+            >
+              <MessageSquarePlus className="h-3.5 w-3.5" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -239,7 +254,7 @@ export function BeaconChatWidget() {
         )}
 
         {messages.map((msg, i) => (
-          <div key={i} className={cn("flex gap-2", msg.role === "user" ? "justify-end" : "")}>
+          <div key={i} ref={i === messages.length - 1 ? lastMessageRef : undefined} className={cn("flex gap-2", msg.role === "user" ? "justify-end" : "")}>
             {msg.role === "beacon" && (
               <div className="w-6 h-6 rounded-full bg-[#f59e0b] flex items-center justify-center shrink-0 mt-1">
                 <Brain className="h-3 w-3 text-white" />
@@ -278,7 +293,7 @@ export function BeaconChatWidget() {
             <span className="text-xs text-muted-foreground mt-1.5">Beacon is thinking<span className="animate-pulse">...</span></span>
           </div>
         )}
-        <div ref={endRef} />
+        
       </div>
 
       {/* Debug panel */}
