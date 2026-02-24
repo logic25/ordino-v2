@@ -253,6 +253,30 @@ async function getStats(sb: any, d: any) {
     .sort((a, b) => b.count - a.count)
     .slice(0, 20);
 
+  // Command usage
+  const commandCounts: Record<string, number> = {};
+  for (const i of interactions) {
+    if (i.command) {
+      const cmd = i.command.startsWith("/") ? i.command : `/${i.command}`;
+      commandCounts[cmd] = (commandCounts[cmd] || 0) + 1;
+    }
+  }
+  const commandUsage = Object.entries(commandCounts)
+    .map(([command, count]) => ({ command, count }))
+    .sort((a, b) => b.count - a.count);
+
+  // Daily usage
+  const dailyCounts: Record<string, number> = {};
+  for (const i of interactions) {
+    if (i.timestamp) {
+      const date = i.timestamp.includes("T") ? i.timestamp.split("T")[0] : i.timestamp.split(" ")[0];
+      dailyCounts[date] = (dailyCounts[date] || 0) + 1;
+    }
+  }
+  const dailyUsage = Object.entries(dailyCounts)
+    .map(([date, count]) => ({ date, count }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
   // Response time stats
   const times = interactions
     .map((i: any) => i.response_time_ms)
@@ -265,6 +289,8 @@ async function getStats(sb: any, d: any) {
       }
     : { avg_ms: 0, min_ms: 0, max_ms: 0 };
 
+  const filteredTopics = topics.filter(t => t.topic !== "COMMAND");
+
   return jsonResponse({
     total_questions: totalQuestions,
     answered,
@@ -272,8 +298,10 @@ async function getStats(sb: any, d: any) {
     active_users: activeUsers,
     total_cost_usd: totalCostUsd,
     top_users: topUsers,
-    topics,
+    topics: filteredTopics,
     top_questions: topQuestions,
+    command_usage: commandUsage,
+    daily_usage: dailyUsage,
     response_time: responseTime,
     pending_suggestions: pendingSuggestions ?? 0,
     new_feedback: newFeedback ?? 0,
@@ -284,7 +312,7 @@ async function getRecentConversations(sb: any, d: any) {
   const limit = d?.limit ?? 20;
   let query = sb
     .from("beacon_interactions")
-    .select("timestamp, user_name, question, response, sources_used, topic, confidence, response_time_ms, cost_usd")
+    .select("timestamp, user_name, question, response, command, answered, sources_used, topic, confidence, response_time_ms, cost_usd")
     .order("timestamp", { ascending: false })
     .limit(limit);
 
