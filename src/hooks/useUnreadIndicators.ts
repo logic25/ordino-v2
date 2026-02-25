@@ -1,22 +1,29 @@
-import { useMemo, useEffect } from "react";
-import { useLocation } from "react-router-dom";
-import { useEmails } from "@/hooks/useEmails";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Returns unread indicators for Chat and Email sidebar items.
- * Email: counts emails where is_read === false.
- * Chat: no reliable unread detection available.
+ * Uses a lightweight query to count unread emails without pulling full email data.
  */
 export function useUnreadIndicators() {
-  const location = useLocation();
+  // Lightweight query: only fetch id + is_read for unread count
+  const { data: unreadEmails = [] } = useQuery({
+    queryKey: ["email-unread-count"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("emails")
+        .select("id")
+        .eq("is_read", false)
+        .is("archived_at", null);
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
 
-  // Email: count truly unread emails via is_read field
-  const { data: emails = [] } = useEmails({});
-
-  const emailUnreadCount = useMemo(() => {
-    return emails.filter((e: any) => e.is_read === false).length;
-  }, [emails]);
-
+  const emailUnreadCount = unreadEmails.length;
   const chatHasUnread = false;
 
   return {
