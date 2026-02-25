@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Beacon RAG endpoint for non-task messages (redeployed 2026-02-25)
+// Beacon RAG endpoint for non-task messages (fix empty-response 2026-02-25)
 const BEACON_WEBHOOK_URL = "https://beaconrag.up.railway.app/webhook";
 
 Deno.serve(async (req) => {
@@ -64,7 +64,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    return jsonResponse({ text: "" });
+    return new Response("{}", {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (err) {
     console.error("gchat-interaction error:", err);
     return jsonResponse({ text: `❌ Error: ${err instanceof Error ? err.message : "Unknown"}` });
@@ -287,9 +290,13 @@ async function forwardToBeacon(event: any): Promise<Response> {
     const text = await beaconRes.text();
     console.log("Beacon response status:", beaconRes.status, "body length:", text.length, "preview:", text.substring(0, 200));
 
-    // Beacon may return 204 with empty body for async processing
+    // Beacon processes async and replies via Google Chat API directly.
+    // Return empty JSON object — Google Chat accepts {} as "no synchronous reply"
     if (beaconRes.status === 204 || !text) {
-      return jsonResponse({ text: "" });
+      return new Response("{}", {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     try {
