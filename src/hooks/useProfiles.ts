@@ -8,6 +8,7 @@ export type Profile = Tables<"profiles">;
 export function useCompanyProfiles() {
   return useQuery({
     queryKey: ["company-profiles"],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
