@@ -197,6 +197,17 @@ export function BeaconChatWidget() {
     setLoading(true);
 
     try {
+      // Save user message to widget_messages
+      const userEmail = user?.email;
+      if (userEmail) {
+        await supabase.from("widget_messages" as any).insert({
+          user_email: userEmail,
+          role: "user",
+          content: q,
+          metadata: {},
+        });
+      }
+
       const res = await askBeacon(q, userId, userName);
       setMessages((prev) => [
         ...prev,
@@ -209,6 +220,20 @@ export function BeaconChatWidget() {
           flowType: res.flow_type,
         },
       ]);
+
+      // Save bot response to widget_messages
+      if (userEmail && res.response) {
+        await supabase.from("widget_messages" as any).insert({
+          user_email: userEmail,
+          role: "assistant",
+          content: res.response,
+          metadata: {
+            confidence: res.confidence,
+            sources: res.sources,
+            flow_type: res.flow_type,
+          },
+        });
+      }
     } catch {
       setMessages((prev) => [
         ...prev,
