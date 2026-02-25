@@ -1,93 +1,43 @@
 
-# Chat Page: Instant Loading + Name Resolution Fix
 
-## Problem Summary
+# Fix Chat Sidebar: Vibrant Styling + Features Not Rendering
 
-**Two root causes identified from server logs:**
+## Problem
 
-1. **Name resolution is broken** -- The `resolveUserName` function uses `sources=DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE` on the People API `people.get` endpoint, but that source type is only valid for `searchDirectoryPeople`. Every single People API call returns a **400 error**, meaning no human names are resolved, the `isMe` check always fails (because `currentUserDisplayName` is null), and the first member (the current user) is shown as the DM title.
-
-2. **Slow loading** -- Every page load hits the Google Chat API + does 21+ People API calls (all failing). The server-side cache exists but only helps on repeat visits within 5 minutes. First load is always slow.
-
----
+The SpacesList.tsx code already contains all requested features (colorful initials avatars, pin/rename via context menu, amber active states), but the rendered UI still shows the old pale grey layout with small icons. This is a build/cache staleness issue -- the updated component code exists but isn't being picked up by the preview.
 
 ## Plan
 
-### 1. Fix Name Resolution (Edge Function)
+### 1. Force re-render of SpacesList.tsx with hardened styling
 
-**Root cause**: The `resolveUserName` function and the `people/me` call are both using invalid `sources` parameters for the People API `get` endpoint.
+Touch the component with minor structural tweaks to force a clean rebuild:
+- Replace `bg-card` on the root container with explicit `bg-white dark:bg-slate-900` to eliminate any pale grey from CSS variable resolution
+- Make avatar colors more saturated (e.g., `bg-blue-100 text-blue-700` instead of `bg-blue-500/15 text-blue-700`)
+- Add subtle left-border gradient to the sidebar panel itself for visual pop
 
-**Fix**:
-- Remove the broken People API `resolveUserName` calls entirely for DM name resolution
-- Instead, use the **Chat API membership data** which already includes `member.displayName` for both humans and bots
-- Get the current user's `display_name` from the `profiles` table (already queried) instead of the unreliable `people/me` call
-- Pass `profile.display_name` into `enrichSpaceNames` for reliable `isMe` matching
-- For bot DMs, use `member.displayName` directly (e.g., "Beacon", "Google Drive")
+### 2. Enhance ChatPanel.tsx sidebar wrapper
 
-Changes in `supabase/functions/google-chat-api/index.ts`:
-- Add `display_name` to the profile SELECT query
-- Rewrite `enrichSpaceNames` to accept `currentUserDisplayName` as a parameter (from the profile)
-- Remove the `people/me` call inside `enrichSpaceNames`
-- In `resolveMember`, use `member.displayName` from the Chat API membership response directly (skip People API)
-- Only fall back to People API with **corrected** source types (`READ_SOURCE_TYPE_PROFILE`, `READ_SOURCE_TYPE_CONTACT`) if `member.displayName` is missing
+The current wrapper around SpacesList has a very plain "Chats" header with basic border-r:
+- Style the "Chats" header with a slightly darker background and amber accent line
+- Remove the redundant `bg-card` from SpacesList since the panel already provides background
 
-### 2. Stale-While-Revalidate Caching (Client + DB)
+### 3. Ensure context menu (three-dot) is more discoverable
 
-**Strategy**: Show cached data instantly, refresh in background.
-
-**Database changes**:
-- Add RLS policy on `gchat_spaces_cache` allowing users to read their own cached data (currently only service role has access)
-
-**Client-side changes** in `src/hooks/useGoogleChat.ts`:
-- Add a new `useGChatCachedSpaces` query that reads directly from `gchat_spaces_cache` via Supabase client (instant, no edge function)
-- Modify `useGChatSpaces` to:
-  - Return cached data immediately on first render
-  - Fire the edge function in the background to refresh
-  - When the edge function returns, merge/update the React Query cache
-  - Only trigger background refresh if cache is older than 5 minutes
-
-### 3. Fix Bot Message Sender Names
-
-In the edge function's `list_messages` handler:
-- The member lookup for bot senders already works via the membership fetch
-- Ensure bot members with `type: "BOT"` have their `displayName` propagated to messages correctly (the current code skips bots when checking `msg.sender.type !== "BOT"` in the unknown sender resolution loop, but it should still apply the memberMap lookup)
-
-### 4. Clear Stale Cache
-
-After deploying the fix, clear the existing cached data so the corrected name resolution takes effect immediately.
-
----
+The current hover-only three-dot button (`hidden group-hover:flex`) may not be obvious:
+- Show a subtle opacity-0 to opacity-100 transition instead of display:none/flex
+- This ensures users discover the Rename / Pin / Hide actions
 
 ## Technical Details
 
-### Files Modified
+### Files to modify:
 
-| File | Changes |
-|------|---------|
-| `supabase/functions/google-chat-api/index.ts` | Fix `enrichSpaceNames` to use profile display name for `isMe`, use Chat API member names directly, fix People API source types as fallback |
-| `src/hooks/useGoogleChat.ts` | Add stale-while-revalidate pattern: read from cache table first, background refresh via edge function |
-| Migration SQL | Add RLS policy for authenticated users to SELECT their own rows from `gchat_spaces_cache` |
+**src/components/chat/SpacesList.tsx**
+- Root div: change `bg-card` to `bg-white dark:bg-[hsl(220,18%,12%)]`
+- Avatar colors array: bump saturation (e.g., `bg-blue-100 text-blue-600`)
+- Active state: use `bg-amber-50 dark:bg-amber-500/10` instead of `bg-accent/12`
+- Context menu trigger: change `hidden group-hover:flex` to `opacity-0 group-hover:opacity-100 transition-opacity`
+- Search input: use `bg-slate-100 dark:bg-slate-800` instead of `bg-secondary`
 
-### Architecture (Stale-While-Revalidate Flow)
-
-```text
-Page Load
-    |
-    v
-[1] Read gchat_spaces_cache from DB  -->  Instant UI render
-    |
-    v
-[2] Check cache age (cached_at)
-    |
-    +--> Fresh (< 5 min): Done, no background fetch
-    |
-    +--> Stale (>= 5 min): Fire edge function in background
-                              |
-                              v
-                        [3] Edge function fetches from Google,
-                            enriches names, updates cache
-                              |
-                              v
-                        [4] React Query cache updates,
-                            UI re-renders silently
-```
+**src/components/chat/ChatPanel.tsx**
+- Sidebar header: add `bg-slate-50 dark:bg-slate-900` and stronger typography
+- Sidebar container: use slightly tinted background
