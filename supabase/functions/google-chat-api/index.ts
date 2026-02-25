@@ -140,21 +140,19 @@ async function enrichSpaceNames(
 ) {
   const nameCache = new Map<string, { displayName: string; avatarUrl?: string }>();
 
-  // Resolve current user — collect both ID and email for matching
-  let currentUserResourceName: string | null = null;
+  // Resolve current user's email and display name for reliable matching
   let currentUserEmail: string | null = null;
   let currentUserDisplayName: string | null = null;
   try {
     const meRes = await fetch(
-      "https://people.googleapis.com/v1/people/me?personFields=names,emailAddresses,metadata",
+      "https://people.googleapis.com/v1/people/me?personFields=names,emailAddresses",
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
     if (meRes.ok) {
       const meData = await meRes.json();
-      currentUserResourceName = meData.resourceName || null;
       currentUserEmail = meData.emailAddresses?.[0]?.value?.toLowerCase() || null;
       currentUserDisplayName = meData.names?.[0]?.displayName || null;
-      console.log("Current user:", currentUserResourceName, currentUserEmail, currentUserDisplayName);
+      console.log("Current user email:", currentUserEmail, "name:", currentUserDisplayName);
     } else {
       await meRes.text();
     }
@@ -162,21 +160,45 @@ async function enrichSpaceNames(
     console.log("Failed to resolve current user:", e.message);
   }
 
-  /** Check if a Chat API member matches the current user by ID or resolved name */
-  const isCurrentUser = (memberName: string, memberDisplayName?: string): boolean => {
-    if (!currentUserResourceName && !currentUserDisplayName) return false;
-    // Compare numeric IDs (works when Google uses same ID space)
-    if (currentUserResourceName) {
-      const memberId = memberName.replace("users/", "");
-      const currentId = currentUserResourceName.replace("people/", "");
-      if (memberId === currentId) return true;
+  /** 
+   * Resolve a member to { displayName, isMe }.
+   * First checks member.displayName, then falls back to People API lookup.
+   * Uses email or display name to determine if the member is the current user.
+   */
+  async function resolveMember(member: any): Promise<{ displayName: string; isMe: boolean } | null> {
+    if (member.type === "BOT") {
+      return { displayName: member.displayName || "Bot", isMe: false };
     }
-    // Compare display names as fallback (handles cross-ID-space mismatch)
-    if (currentUserDisplayName && memberDisplayName) {
-      if (memberDisplayName.toLowerCase() === currentUserDisplayName.toLowerCase()) return true;
+
+    let displayName = member.displayName || "";
+    let email: string | null = null;
+
+    // If no displayName on the raw member, resolve via People API
+    if (!displayName && member.name) {
+      const person = await resolveUserName(member.name, accessToken, nameCache);
+      if (person?.displayName) {
+        displayName = person.displayName;
+      }
     }
-    return false;
-  };
+
+    // Try to get email from People API cache for matching
+    if (member.name) {
+      const cached = nameCache.get(member.name);
+      // We don't have email in cache, but we can match by name
+    }
+
+    // Determine if this is the current user
+    let isMe = false;
+    if (currentUserDisplayName && displayName) {
+      isMe = displayName.toLowerCase() === currentUserDisplayName.toLowerCase();
+    }
+    // Also check by email if we resolved it
+    if (!isMe && currentUserEmail && email) {
+      isMe = email.toLowerCase() === currentUserEmail;
+    }
+
+    return displayName ? { displayName, isMe } : null;
+  }
 
   const unnamedSpaces = spaces.filter((s: any) => !s.displayName);
   console.log("enrichSpaceNames: enriching", unnamedSpaces.length, "unnamed spaces");
@@ -197,67 +219,54 @@ async function enrichSpaceNames(
 
       const isDM = space.spaceType === "DIRECT_MESSAGE" || space.type === "DM" || space.type === "DIRECT_MESSAGE";
 
+      // Separate human and bot members
+      const humanRaw: any[] = [];
+      const botRaw: any[] = [];
+      for (const membership of membersData.memberships) {
+        const member = membership.member;
+        if (!member) continue;
+        if (member.type === "BOT") botRaw.push(member);
+        else humanRaw.push(member);
+      }
+
       if (isDM) {
-        const humanMembers: any[] = [];
-        const botMembers: any[] = [];
-        for (const membership of membersData.memberships) {
-          const member = membership.member;
-          if (!member) continue;
-          if (member.type === "BOT") botMembers.push(member);
-          else humanMembers.push(member);
+        if (humanRaw.length >= 2) {
+          // 1:1 DM — resolve all humans, then pick the one that is NOT the current user
+          const resolved = await Promise.all(humanRaw.map(m => resolveMember(m)));
+          const others = resolved.filter(r => r && !r.isMe);
+          if (others.length > 0) {
+            space.displayName = others[0]!.displayName;
+          } else {
+            // Couldn't determine who's "me" — pick the second member
+            const fallback = resolved.find(r => r?.displayName);
+            if (fallback) space.displayName = fallback.displayName;
+          }
+        } else if (botRaw.length >= 1) {
+          // Bot DM — use bot's display name
+          const botResolved = await resolveMember(botRaw[0]);
+          if (botResolved) space.displayName = botResolved.displayName;
         }
 
-        if (humanMembers.length >= 2) {
-          const otherMembers = humanMembers.filter(m => !isCurrentUser(m.name || "", m.displayName));
-          const candidates = otherMembers.length > 0 ? otherMembers : humanMembers;
-          for (const member of candidates) {
-            if (member.displayName) {
-              space.displayName = member.displayName;
-              break;
-            } else if (member.name) {
-              const person = await resolveUserName(member.name, accessToken, nameCache);
-              if (person?.displayName) {
-                space.displayName = person.displayName;
-                break;
-              }
-            }
-          }
-        } else if (humanMembers.length <= 1 && botMembers.length >= 1) {
-          // Bot DM - use bot name (e.g. "Beacon", "Google Drive")
-          for (const bot of botMembers) {
-            if (bot.displayName) {
-              space.displayName = bot.displayName;
-              break;
-            }
-          }
-        }
-        
-        if (!space.displayName && humanMembers.length === 1) {
-          const member = humanMembers[0];
-          if (member.displayName) {
-            space.displayName = member.displayName;
-          } else if (member.name) {
-            const person = await resolveUserName(member.name, accessToken, nameCache);
-            if (person?.displayName) {
-              space.displayName = person.displayName;
+        // If still unresolved and there's exactly 1 human, it might be a self-DM or broken
+        if (!space.displayName && humanRaw.length === 1) {
+          const resolved = await resolveMember(humanRaw[0]);
+          if (resolved && !resolved.isMe) {
+            space.displayName = resolved.displayName;
+          } else if (resolved) {
+            // It's us — check for bots
+            if (botRaw.length > 0) {
+              const botResolved = await resolveMember(botRaw[0]);
+              if (botResolved) space.displayName = botResolved.displayName;
             }
           }
         }
       } else {
-        // GROUP: build name from other member names
+        // GROUP: build name from OTHER members' first names
         const memberNames: string[] = [];
-        for (const membership of membersData.memberships) {
-          const member = membership.member;
-          if (!member || member.type === "BOT") continue;
-          if (isCurrentUser(member.name || "", member.displayName)) continue;
-          if (member.displayName) {
-            memberNames.push(member.displayName.split(" ")[0]);
-          } else if (member.name) {
-            const person = await resolveUserName(member.name, accessToken, nameCache);
-            if (person?.displayName) {
-              memberNames.push(person.displayName.split(" ")[0]);
-            }
-          }
+        for (const member of humanRaw) {
+          const resolved = await resolveMember(member);
+          if (!resolved || resolved.isMe) continue;
+          memberNames.push(resolved.displayName.split(" ")[0]);
           if (memberNames.length >= 4) break;
         }
         if (memberNames.length > 0) {
@@ -437,12 +446,34 @@ Deno.serve(async (req) => {
         if (pageToken) url += `&pageToken=${pageToken}`;
         const { response } = await callChatApi(url, { method: "GET" }, accessToken, connection, clientId, clientSecret, supabaseAdmin, profile.id);
         result = await response.json();
-        // Enrich senders
+        // Enrich senders — resolve both human and bot names
         const msgNameCache = new Map<string, { displayName: string; avatarUrl?: string }>();
         if (result.messages?.length) {
+          // First, fetch space members to build a name lookup (includes bots)
+          try {
+            const membersRes = await fetch(
+              `${chatApi}/${spaceId}/members?pageSize=100`,
+              { headers: { Authorization: `Bearer ${accessToken}` } }
+            );
+            if (membersRes.ok) {
+              const membersData = await membersRes.json();
+              for (const membership of (membersData.memberships || [])) {
+                const member = membership.member;
+                if (member?.name && member?.displayName) {
+                  msgNameCache.set(member.name, { displayName: member.displayName, avatarUrl: undefined });
+                }
+              }
+            } else {
+              await membersRes.text();
+            }
+          } catch {
+            // non-critical
+          }
+
+          // Then resolve any remaining unknown human senders via People API
           const uniqueSenders = new Set<string>();
           for (const msg of result.messages) {
-            if (msg.sender && !msg.sender.displayName && msg.sender.name && msg.sender.type !== "BOT") {
+            if (msg.sender && !msg.sender.displayName && msg.sender.name && !msgNameCache.has(msg.sender.name) && msg.sender.type !== "BOT") {
               uniqueSenders.add(msg.sender.name);
             }
           }
@@ -452,6 +483,8 @@ Deno.serve(async (req) => {
             await resolveUserName(senderName, accessToken, msgNameCache);
             count++;
           }
+
+          // Apply resolved names to all messages
           for (const msg of result.messages) {
             if (msg.sender && !msg.sender.displayName && msg.sender.name) {
               const resolved = msgNameCache.get(msg.sender.name);
