@@ -1,73 +1,78 @@
 
 
-# Fix @Beacon in Spaces, Improve Sources UI, and Add Thinking Indicator
+# Show Beacon's Actual Knowledge Files in the KB Folder
 
 ## Overview
-Three code changes plus one infrastructure task to fix the @beacon mention flow, improve source citations, and add a loading indicator for Beacon responses.
 
----
+When the "Beacon Knowledge Base" folder is selected in the sidebar, replace the empty document table with a live view of Beacon's 87 knowledge files fetched from the Railway API. Files are grouped by their 14 folders (processes, dob_notices, zoning, etc.) in collapsible sections. An upload button lets users add new files directly to Beacon's knowledge base.
 
-## Task 1: Redeploy gchat-interaction Edge Function
+## Files to Create
 
-The `gchat-interaction` edge function needs to be redeployed to ensure it's live and receiving Google Chat webhook events. The code is correct -- it forwards non-task messages to Beacon's `/webhook` endpoint on Railway, which then replies via the Google Chat API.
+### 1. `src/hooks/useBeaconKnowledge.ts`
+- `useBeaconKnowledge()` -- React Query hook calling `fetchBeaconKnowledgeList()`, returns `{ folders, total_files, folder_count }` plus loading/error states
+- `useUploadToBeaconKB()` -- mutation that POSTs multipart form data to `/api/ingest` with `file`, `source_type`, and `folder` fields, invalidates the knowledge list query on success
 
-**Action:** Force a redeploy of `supabase/functions/gchat-interaction/index.ts` (add a trivial comment to trigger deploy), then verify via edge function logs that it's running.
+### 2. `src/components/documents/KnowledgeBaseView.tsx`
+Replaces the standard document table when the KB folder is selected:
+- **Stats row**: 3 compact cards -- Total Documents, Total Folders, File Types
+- **Collapsible folder sections**: Accordion with humanized folder names (e.g., `building_code` becomes "Building Code") and file count badges. Each section expands to show filenames with file icons
+- **Upload button**: "Upload to Knowledge Base" dialog accepting PDF/MD/TXT, with a dropdown to pick the target folder (populated from API response). POSTs to `/api/ingest`
+- **Loading state**: Spinner while fetching
+- **Error state**: Message if Beacon API is unreachable
 
----
+## Files to Modify
 
-## Task 2: Remove Client-Side @Beacon Interception
+### 3. `src/services/beaconApi.ts`
+Add `fetchBeaconKnowledgeList()` that:
+- Calls `GET /api/knowledge/list`
+- Receives `{ files: ["folder/file.md", ...], count: 87 }`
+- Parses folder names from path strings (split on `/`)
+- Returns `{ folders: Record<string, string[]>, total_files, folder_count }`
 
-The `sendBeaconInSpace` function in `ChatPanel.tsx` (lines 172-209) and the `@beacon` detection in `handleSend` (lines 219-223) must be **removed entirely**. This client-side routing calls `/api/chat` which does NOT post replies back to Google Chat, so teammates never see the response. The correct flow goes through the Google Chat webhook to the edge function to Beacon's `/webhook`.
+Also add the `FOLDER_TO_SOURCE_TYPE` mapping for upload ingestion.
 
-**Changes in `ChatPanel.tsx`:**
-- Delete the `sendBeaconInSpace` function (lines 172-209)
-- Delete the `@beacon` detection block in `handleSend` (lines 219-223)
-- Regular `sendMutation.mutate()` will handle the message -- Google Chat receives it, triggers the bot webhook, which hits our edge function, which forwards to Beacon
+### 4. `src/pages/Documents.tsx`
+- Import `KnowledgeBaseView`
+- In the main content area (around line 295), check `isBeaconFolder`
+- When true, render `<KnowledgeBaseView />` instead of the search filters + document table
+- Keep breadcrumbs, sidebar, and all dialogs unchanged
 
----
+## Technical Details
 
-## Task 3: Make Sources Expandable with chunk_preview
+### API Response Shape
+```text
+GET /api/knowledge/list
+Response: { "files": ["building_code/bc_chapter5.md", ...], "count": 87 }
+```
 
-Update `WidgetSources` in `ChatMessageList.tsx` so each individual source item is expandable to show its `chunk_preview` text.
+### Path Parsing Logic
+```text
+"building_code/bc_chapter5.md" -> folder: "building_code", file: "bc_chapter5.md"
+"standalone.md" (no slash) -> folder: "_root", file: "standalone.md"
+```
 
-**Changes in `ChatMessageList.tsx`:**
-- Add per-source expand/collapse state (track which source indices are expanded)
-- Each source row gets a clickable toggle (ChevronRight/ChevronDown)
-- When expanded, show the `chunk_preview` text below the source title in a muted, smaller font block
-- Keep the existing relevance score bar beside the title
+### Folder-to-Source-Type Mapping (for uploads)
+| Folder | source_type |
+|--------|-------------|
+| processes | procedure |
+| dob_notices | service_notice |
+| zoning | zoning |
+| building_code | building_code |
+| building_code_1968 | building_code |
+| building_code_2022 | building_code |
+| mdl | multiple_dwelling_law |
+| rcny | rule |
+| hmc | housing_maintenance_code |
+| energy_code | building_code |
+| communication | communication |
+| historical | historical_determination |
+| case_studies | historical_determination |
+| objections | reference |
 
----
+### Upload Flow
+1. User clicks "Upload to Knowledge Base" in the KB view
+2. Selects file + target folder from dropdown
+3. POST multipart to `/api/ingest` with `file`, `source_type` (from mapping), `folder`
+4. On success, invalidate knowledge list query to refresh the view
 
-## Task 4: Add Thinking/Typing Indicator for Beacon DM
-
-Add a visual "thinking" animation while waiting for a Beacon response in the DM view.
-
-**Changes in `ChatPanel.tsx`:**
-- Add `isWaitingForBeacon` state, set `true` at start of `sendBeaconDirectMessage`, set `false` in the `finally` block
-- Pass `isWaitingForBeacon` as a prop to `ChatMessageList`
-
-**Changes in `ChatMessageList.tsx`:**
-- Accept optional `isWaitingForBeacon` prop
-- When true, render a typing indicator bubble at the bottom of the message list (before the scroll anchor)
-- Use an animated Brain icon with three bouncing dots styled with CSS keyframes
-- The indicator auto-hides when the response arrives (prop becomes false)
-
----
-
-## Task 5: Manual Verification (Not a Code Change)
-
-Verify in Google Cloud Console that the Ordino bot's App URL is set to:
-`https://mimlfjkisguktiqqkpkm.supabase.co/functions/v1/gchat-interaction`
-
-If it points elsewhere (e.g., directly to Railway), that explains why @mentions in spaces don't trigger the bot. This is a manual configuration check.
-
----
-
-## Technical Summary
-
-| File | Change |
-|------|--------|
-| `supabase/functions/gchat-interaction/index.ts` | Add comment to force redeploy (no logic change) |
-| `src/components/chat/ChatPanel.tsx` | Remove `sendBeaconInSpace` + @beacon detection; add `isWaitingForBeacon` state |
-| `src/components/chat/ChatMessageList.tsx` | Expandable sources with chunk_preview; thinking indicator bubble |
-
+No database migrations or sidebar changes needed -- the existing "Beacon Knowledge Base" folder with `is_beacon_synced: true` already exists.
