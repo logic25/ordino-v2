@@ -89,7 +89,7 @@ export default function Privacy() {
             <li><strong>Access controls:</strong> dashboards and admin features restricted to authorized users via Google OAuth</li>
             <li><strong>Secure storage:</strong> data stored in Supabase (SOC 2 Type II compliant) with row-level security</li>
             <li><strong>No third-party sharing:</strong> data is never sold or shared with third parties outside of AI processing</li>
-            <li><strong>AI processing providers:</strong> Anthropic (Claude API) for text generation, OpenAI for document embeddings, Pinecone for vector search. None of these providers use your data to train their models per their respective data usage policies.</li>
+            <li><strong>AI processing providers:</strong> Anthropic (Claude API) for text generation, Voyage AI for document embeddings, Pinecone for vector search. None of these providers use your data to train their models per their respective data usage policies.</li>
             <li><strong>Anonymization:</strong> published content never includes employee names, personal details, or individually identifiable information</li>
           </ul>
 
