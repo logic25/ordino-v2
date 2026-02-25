@@ -59,6 +59,57 @@ export async function syncDocumentToBeacon(
   return response.json();
 }
 
+export const FOLDER_TO_SOURCE_TYPE: Record<string, string> = {
+  processes: "procedure",
+  dob_notices: "service_notice",
+  zoning: "zoning",
+  building_code: "building_code",
+  building_code_1968: "building_code",
+  building_code_2022: "building_code",
+  mdl: "multiple_dwelling_law",
+  rcny: "rule",
+  hmc: "housing_maintenance_code",
+  energy_code: "building_code",
+  communication: "communication",
+  historical: "historical_determination",
+  case_studies: "historical_determination",
+  objections: "reference",
+};
+
+export interface BeaconKnowledgeData {
+  folders: Record<string, string[]>;
+  total_files: number;
+  folder_count: number;
+}
+
+export async function fetchBeaconKnowledgeList(): Promise<BeaconKnowledgeData> {
+  const res = await fetch(`${BEACON_API_URL}/api/knowledge/list`, {
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error(`Beacon API error: ${res.status}`);
+  const data = await res.json();
+
+  const folders: Record<string, string[]> = {};
+  for (const filePath of (data.files || [])) {
+    const slashIdx = filePath.indexOf('/');
+    if (slashIdx > 0) {
+      const folder = filePath.substring(0, slashIdx);
+      const filename = filePath.substring(slashIdx + 1);
+      if (!folders[folder]) folders[folder] = [];
+      folders[folder].push(filename);
+    } else {
+      if (!folders['_root']) folders['_root'] = [];
+      folders['_root'].push(filePath);
+    }
+  }
+
+  return {
+    folders,
+    total_files: data.count ?? Object.values(folders).reduce((s, f) => s + f.length, 0),
+    folder_count: Object.keys(folders).length,
+  };
+}
+
 export async function checkBeaconHealth(): Promise<boolean> {
   try {
     const res = await fetch(`${BEACON_API_URL}/`, { signal: AbortSignal.timeout(5000) });
