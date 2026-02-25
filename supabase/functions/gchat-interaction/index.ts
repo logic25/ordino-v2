@@ -6,6 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Beacon RAG endpoint for non-task messages
 const BEACON_WEBHOOK_URL = "https://beaconrag.up.railway.app/webhook";
 
 Deno.serve(async (req) => {
