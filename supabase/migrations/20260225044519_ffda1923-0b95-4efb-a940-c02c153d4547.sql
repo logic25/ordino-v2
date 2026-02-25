@@ -1,0 +1,1 @@
+CREATE POLICY "Users can insert own messages" ON public.widget_messages FOR INSERT WITH CHECK ((auth.jwt() ->> 'email'::text) = user_email);
