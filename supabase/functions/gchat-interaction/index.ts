@@ -15,12 +15,18 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Log raw request info for debugging webhook delivery
+    console.log("gchat-interaction: method=", req.method, "url=", req.url, "headers=", JSON.stringify(Object.fromEntries(req.headers.entries())));
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    const event = await req.json();
-    console.log("GChat interaction event:", JSON.stringify(event));
+    const rawBody = await req.text();
+    console.log("gchat-interaction raw body (first 1000):", rawBody.substring(0, 1000));
+    
+    const event = JSON.parse(rawBody);
+    console.log("gchat-interaction parsed: type=", event.type, "space.type=", event.space?.type, "space.name=", event.space?.name, "user=", event.user?.displayName);
 
     const eventType = event.type;
 
