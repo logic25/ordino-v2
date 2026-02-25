@@ -135,9 +135,9 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
   return (
     <div className={cn("flex h-full bg-background", className)}>
       {!fixedSpaceId && showSidebar && (
-        <div className={cn("border-r flex flex-col shrink-0", compact ? "w-52" : "w-64")}>
-          <div className="px-4 py-3 border-b">
-            <h3 className="text-sm font-semibold">Chats</h3>
+        <div className={cn("border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0 bg-white dark:bg-[hsl(220,18%,12%)]", compact ? "w-52" : "w-64")}>
+          <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+            <h3 className="text-sm font-bold tracking-tight text-foreground">Chats</h3>
           </div>
           <div className="flex-1 overflow-y-auto">
             <SpacesList
