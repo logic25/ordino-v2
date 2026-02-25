@@ -184,12 +184,25 @@ Deno.serve(async (req) => {
                     buttonList: {
                       buttons: [
                         {
-                          text: "✅ Mark Done",
+                          text: "✅ Done",
                           onClick: {
                             action: {
-                              function: "mark_done",
+                              function: "update_status",
                               parameters: [
                                 { key: "action_item_id", value: item.id },
+                                { key: "status", value: "done" },
+                              ],
+                            },
+                          },
+                        },
+                        {
+                          text: "🔄 In Progress",
+                          onClick: {
+                            action: {
+                              function: "update_status",
+                              parameters: [
+                                { key: "action_item_id", value: item.id },
+                                { key: "status", value: "in_progress" },
                               ],
                             },
                           },

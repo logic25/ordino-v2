@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -24,24 +24,45 @@ Deno.serve(async (req) => {
     // Handle CARD_CLICKED (button press)
     if (eventType === "CARD_CLICKED") {
       const action = event.action;
-      if (action?.actionMethodName === "mark_done" || action?.function === "mark_done") {
-        const params = action.parameters || [];
-        const actionItemId = params.find((p: any) => p.key === "action_item_id")?.value;
+      const actionName = action?.actionMethodName || action?.function;
+      const params = action?.parameters || [];
 
-        if (!actionItemId) {
-          return jsonResponse({ text: "❌ Could not identify action item." });
+      const actionItemId = params.find((p: any) => p.key === "action_item_id")?.value;
+      if (!actionItemId) {
+        return jsonResponse({ text: "❌ Could not identify action item." });
+      }
+
+      // Handle status updates
+      if (actionName === "mark_done" || actionName === "update_status") {
+        const newStatus = actionName === "mark_done"
+          ? "done"
+          : params.find((p: any) => p.key === "status")?.value || "done";
+
+        const updatePayload: any = { status: newStatus };
+        if (newStatus === "done") {
+          updatePayload.completion_note = `Completed via Google Chat by ${event.user?.displayName || "someone"}`;
         }
 
-        // Mark done
-        const { error } = await supabase
+        const { data: item, error } = await supabase
           .from("project_action_items")
-          .update({ status: "done", completion_note: "Completed via Google Chat" } as any)
-          .eq("id", actionItemId);
+          .update(updatePayload)
+          .eq("id", actionItemId)
+          .select("title")
+          .single();
 
         if (error) {
-          console.error("Error marking done:", error);
+          console.error("Error updating status:", error);
           return jsonResponse({ text: `❌ Error: ${error.message}` });
         }
+
+        const statusLabels: Record<string, string> = {
+          open: "⏳ Pending",
+          in_progress: "🔄 In Progress",
+          done: "✅ Completed",
+          blocked: "🚫 Blocked",
+        };
+
+        const statusLabel = statusLabels[newStatus] || newStatus;
 
         // Return updated card
         return jsonResponse({
@@ -51,9 +72,11 @@ Deno.serve(async (req) => {
               cardId: `action-item-${actionItemId}`,
               card: {
                 header: {
-                  title: "✅ Action Item Completed",
-                  subtitle: `Marked done by ${event.user?.displayName || "someone"} via Google Chat`,
-                  imageUrl: "https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/check_circle/default/48px.svg",
+                  title: `${statusLabel}`,
+                  subtitle: `${item?.title || "Action Item"} — updated by ${event.user?.displayName || "someone"}`,
+                  imageUrl: newStatus === "done"
+                    ? "https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/check_circle/default/48px.svg"
+                    : "https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/task_alt/default/48px.svg",
                   imageType: "CIRCLE",
                 },
                 sections: [
@@ -61,11 +84,31 @@ Deno.serve(async (req) => {
                     widgets: [
                       {
                         textParagraph: {
-                          text: `<b>Completed at:</b> ${new Date().toLocaleString()}`,
+                          text: `<b>Status:</b> ${statusLabel}<br><b>Updated:</b> ${new Date().toLocaleString()}`,
                         },
                       },
                     ],
                   },
+                  ...(newStatus !== "done" ? [{
+                    widgets: [{
+                      buttonList: {
+                        buttons: [
+                          {
+                            text: "✅ Done",
+                            onClick: {
+                              action: {
+                                function: "update_status",
+                                parameters: [
+                                  { key: "action_item_id", value: actionItemId },
+                                  { key: "status", value: "done" },
+                                ],
+                              },
+                            },
+                          },
+                        ],
+                      },
+                    }],
+                  }] : []),
                 ],
               },
             },
@@ -114,27 +157,48 @@ Deno.serve(async (req) => {
         for (const att of attachments) {
           if (att.contentType?.startsWith("image/") && att.downloadUri) {
             try {
-              const saKeyJson = Deno.env.get("GOOGLE_CHAT_SERVICE_ACCOUNT_KEY");
-              if (saKeyJson) {
-                // Download the image
-                const imgRes = await fetch(att.downloadUri, {
-                  headers: { Authorization: `Bearer ${await getAccessToken(saKeyJson)}` },
-                });
-                if (imgRes.ok) {
-                  const imgBytes = new Uint8Array(await imgRes.arrayBuffer());
-                  const fileName = `${item.id}/${Date.now()}_${att.contentName || "photo.jpg"}`;
+              // Try to download using OAuth token from the creator
+              const { data: aiItem } = await supabase
+                .from("project_action_items")
+                .select("assigned_by")
+                .eq("id", item.id)
+                .single();
 
-                  const { error: uploadErr } = await supabase.storage
-                    .from("action-item-attachments")
-                    .upload(fileName, imgBytes, {
-                      contentType: att.contentType,
-                    });
+              if (aiItem?.assigned_by) {
+                const { data: conn } = await supabase
+                  .from("gmail_connections")
+                  .select("access_token, refresh_token, token_expires_at")
+                  .eq("user_id", aiItem.assigned_by)
+                  .single();
 
-                  if (!uploadErr) {
-                    completionAttachments.push({
-                      name: att.contentName || "photo.jpg",
-                      storage_path: fileName,
-                    });
+                if (conn?.access_token) {
+                  let token = conn.access_token;
+                  const expiresAt = conn.token_expires_at ? new Date(conn.token_expires_at) : new Date(0);
+                  if (expiresAt <= new Date()) {
+                    const clientId = Deno.env.get("GMAIL_CLIENT_ID");
+                    const clientSecret = Deno.env.get("GMAIL_CLIENT_SECRET");
+                    if (clientId && clientSecret) {
+                      token = await refreshAccessToken(conn.refresh_token, clientId, clientSecret, supabase, aiItem.assigned_by);
+                    }
+                  }
+
+                  const imgRes = await fetch(att.downloadUri, {
+                    headers: { Authorization: `Bearer ${token}` },
+                  });
+                  if (imgRes.ok) {
+                    const imgBytes = new Uint8Array(await imgRes.arrayBuffer());
+                    const fileName = `${item.id}/${Date.now()}_${att.contentName || "photo.jpg"}`;
+
+                    const { error: uploadErr } = await supabase.storage
+                      .from("action-item-attachments")
+                      .upload(fileName, imgBytes, { contentType: att.contentType });
+
+                    if (!uploadErr) {
+                      completionAttachments.push({
+                        name: att.contentName || "photo.jpg",
+                        storage_path: fileName,
+                      });
+                    }
                   }
                 }
               }
@@ -194,61 +258,33 @@ function jsonResponse(body: any) {
   });
 }
 
-async function getAccessToken(saKeyJson: string): Promise<string> {
-  const saKey = JSON.parse(saKeyJson);
-  const now = Math.floor(Date.now() / 1000);
-  const header = { alg: "RS256", typ: "JWT" };
-  const payload = {
-    iss: saKey.client_email,
-    scope: "https://www.googleapis.com/auth/chat.bot",
-    aud: "https://oauth2.googleapis.com/token",
-    iat: now,
-    exp: now + 3600,
-  };
-
-  const encode = (obj: any) =>
-    btoa(JSON.stringify(obj))
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/, "");
-
-  const signingInput = `${encode(header)}.${encode(payload)}`;
-  const pemContents = saKey.private_key
-    .replace(/-----BEGIN PRIVATE KEY-----/, "")
-    .replace(/-----END PRIVATE KEY-----/, "")
-    .replace(/\n/g, "");
-  const binaryKey = Uint8Array.from(atob(pemContents), (c) => c.charCodeAt(0));
-
-  const cryptoKey = await crypto.subtle.importKey(
-    "pkcs8",
-    binaryKey,
-    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-
-  const signature = await crypto.subtle.sign(
-    "RSASSA-PKCS1-v1_5",
-    cryptoKey,
-    new TextEncoder().encode(signingInput)
-  );
-
-  const sig = btoa(String.fromCharCode(...new Uint8Array(signature)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-
-  const jwt = `${signingInput}.${sig}`;
-
+async function refreshAccessToken(
+  refreshToken: string,
+  clientId: string,
+  clientSecret: string,
+  supabaseAdmin: any,
+  profileId: string
+): Promise<string> {
   const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+      client_id: clientId,
+      client_secret: clientSecret,
+    }),
   });
-
   const tokenData = await tokenRes.json();
   if (!tokenData.access_token) {
-    throw new Error(`Token exchange failed: ${JSON.stringify(tokenData)}`);
+    throw new Error("token_refresh_failed:" + JSON.stringify(tokenData));
   }
+  await supabaseAdmin
+    .from("gmail_connections")
+    .update({
+      access_token: tokenData.access_token,
+      token_expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+    })
+    .eq("user_id", profileId);
   return tokenData.access_token;
 }
