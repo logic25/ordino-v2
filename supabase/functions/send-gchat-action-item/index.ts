@@ -10,36 +10,66 @@ interface ActionItemPayload {
   action_item_id: string;
 }
 
-async function refreshAccessToken(
-  refreshToken: string,
-  clientId: string,
-  clientSecret: string,
-  supabaseAdmin: any,
-  profileId: string
-): Promise<string> {
+// ── Service Account JWT auth for Google Chat API ─────────────────────
+
+async function importPrivateKey(pem: string): Promise<CryptoKey> {
+  const pemContents = pem
+    .replace(/-----BEGIN PRIVATE KEY-----/, "")
+    .replace(/-----END PRIVATE KEY-----/, "")
+    .replace(/\s/g, "");
+  const binaryDer = Uint8Array.from(atob(pemContents), (c) => c.charCodeAt(0));
+  return crypto.subtle.importKey(
+    "pkcs8",
+    binaryDer,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+}
+
+function base64url(input: string | Uint8Array): string {
+  const bytes = typeof input === "string" ? new TextEncoder().encode(input) : input;
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+async function getServiceAccountToken(serviceAccountKey: any): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const payload = base64url(
+    JSON.stringify({
+      iss: serviceAccountKey.client_email,
+      scope: "https://www.googleapis.com/auth/chat.bot",
+      aud: "https://oauth2.googleapis.com/token",
+      iat: now,
+      exp: now + 3600,
+    })
+  );
+
+  const key = await importPrivateKey(serviceAccountKey.private_key);
+  const signature = new Uint8Array(
+    await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(`${header}.${payload}`))
+  );
+  const jwt = `${header}.${payload}.${base64url(signature)}`;
+
   const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      grant_type: "refresh_token",
-      refresh_token: refreshToken,
-      client_id: clientId,
-      client_secret: clientSecret,
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt,
     }),
   });
   const tokenData = await tokenRes.json();
   if (!tokenData.access_token) {
-    throw new Error("token_refresh_failed:" + JSON.stringify(tokenData));
+    throw new Error("SA token failed: " + JSON.stringify(tokenData));
   }
-  await supabaseAdmin
-    .from("gmail_connections")
-    .update({
-      access_token: tokenData.access_token,
-      token_expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
-    })
-    .eq("user_id", profileId);
   return tokenData.access_token;
 }
+
+// ── Main handler ─────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -73,7 +103,7 @@ Deno.serve(async (req) => {
 
     if (itemErr || !item) {
       return new Response(
-        JSON.stringify({ error: "Action item not found", detail: itemErr?.message }),
+        JSON.stringify({ error: "Task not found", detail: itemErr?.message }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -93,36 +123,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get the creator's Gmail connection for OAuth
-    const creatorId = item.assigned_by;
-    const { data: connection, error: connErr } = await supabase
-      .from("gmail_connections")
-      .select("access_token, refresh_token, token_expires_at")
-      .eq("user_id", creatorId)
-      .single();
-
-    if (connErr || !connection) {
+    // Get service account token (cards MUST be sent as bot, not human credentials)
+    const saKeyRaw = Deno.env.get("GOOGLE_CHAT_SERVICE_ACCOUNT_KEY");
+    if (!saKeyRaw) {
       return new Response(
-        JSON.stringify({ skipped: true, reason: "Creator has no Gmail connection" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const clientId = Deno.env.get("GMAIL_CLIENT_ID");
-    const clientSecret = Deno.env.get("GMAIL_CLIENT_SECRET");
-    if (!clientId || !clientSecret) {
-      return new Response(
-        JSON.stringify({ error: "GMAIL_CLIENT_ID or GMAIL_CLIENT_SECRET not configured" }),
+        JSON.stringify({ error: "GOOGLE_CHAT_SERVICE_ACCOUNT_KEY not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    // Check if token is expired, refresh if needed
-    let accessToken = connection.access_token;
-    const expiresAt = connection.token_expires_at ? new Date(connection.token_expires_at) : new Date(0);
-    if (expiresAt <= new Date()) {
-      accessToken = await refreshAccessToken(connection.refresh_token, clientId, clientSecret, supabase, creatorId);
-    }
+    const saKey = JSON.parse(saKeyRaw);
+    const accessToken = await getServiceAccountToken(saKey);
 
     const project = (item as any).projects;
     const assigneeName = item.assignee?.display_name || item.assignee?.first_name || "Unassigned";
@@ -226,7 +236,7 @@ Deno.serve(async (req) => {
       ],
     };
 
-    // Post to Google Chat
+    // Post to Google Chat using service account
     const spaceId = settings.gchat_space_id;
     const chatUrl = `https://chat.googleapis.com/v1/spaces/${spaceId}/messages`;
 
