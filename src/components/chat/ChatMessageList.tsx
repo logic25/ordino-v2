@@ -1,7 +1,8 @@
 import { useRef, useEffect, useMemo } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Loader2, Brain } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { GChatMessage } from "@/hooks/useGoogleChat";
 
 function getInitials(name: string) {
@@ -28,10 +29,19 @@ function formatDate(iso: string) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function ConfidencePill({ confidence }: { confidence: number }) {
+  const pct = Math.round(confidence * 100);
+  const color = pct >= 85 ? "bg-[hsl(142,71%,45%)]/15 text-[hsl(142,71%,35%)]" : pct >= 60 ? "bg-amber-500/15 text-amber-700" : "bg-destructive/15 text-destructive";
+  return (
+    <span className={cn("text-[9px] font-medium px-1.5 py-0.5 rounded-full", color)}>
+      {pct}% confident
+    </span>
+  );
+}
+
 interface Props {
-  messages: GChatMessage[];
+  messages: (GChatMessage & { source?: string; widgetMetadata?: any })[];
   isLoading: boolean;
-  /** Memberships array from useGChatMembers for the active space */
   members?: Array<{ member?: { name?: string; displayName?: string; type?: string } }>;
 }
 
@@ -42,7 +52,6 @@ export function ChatMessageList({ messages, isLoading, members = [] }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
 
-  // Build lookup: user resource name → display name
   const memberMap = useMemo(
     () => new Map(members.map((m) => [m.member?.name, m.member?.displayName])),
     [members]
@@ -64,7 +73,6 @@ export function ChatMessageList({ messages, isLoading, members = [] }: Props) {
     );
   }
 
-  // Group messages by date
   let lastDate = "";
 
   return (
@@ -74,11 +82,14 @@ export function ChatMessageList({ messages, isLoading, members = [] }: Props) {
         const showDate = msgDate !== lastDate;
         lastDate = msgDate;
         const isBot = msg.sender?.type === "BOT";
+        const isWidget = (msg as any).source === "widget";
         const displayName =
           msg.sender?.displayName ||
           memberMap.get(msg.sender?.name) ||
           "Unknown";
         const hasCard = msg.cardsV2?.length || msg.cards?.length;
+        const widgetMeta = (msg as any).widgetMetadata;
+        const confidence = widgetMeta?.confidence;
 
         return (
           <div key={msg.name || idx}>
@@ -90,13 +101,23 @@ export function ChatMessageList({ messages, isLoading, members = [] }: Props) {
             <div className="flex items-start gap-2.5 py-1.5 group">
               <Avatar className="h-7 w-7 mt-0.5 shrink-0">
                 {msg.sender?.avatarUrl && <AvatarImage src={msg.sender.avatarUrl} />}
-                <AvatarFallback className="text-[10px]">{isBot ? "🤖" : getInitials(displayName)}</AvatarFallback>
+                <AvatarFallback className={cn("text-[10px]", isWidget && isBot && "bg-[#f59e0b]/15")}>
+                  {isWidget && isBot ? <Brain className="h-3.5 w-3.5 text-[#f59e0b]" /> : isBot ? "🤖" : getInitials(displayName)}
+                </AvatarFallback>
               </Avatar>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs font-semibold">{displayName}</span>
-                  {isBot && <Badge variant="outline" className="text-[9px] px-1 py-0">Bot</Badge>}
+                  {isBot && !isWidget && <Badge variant="outline" className="text-[9px] px-1 py-0">Bot</Badge>}
+                  {isWidget && (
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-[#f59e0b]/30 text-[#f59e0b] bg-[#f59e0b]/5">
+                      Widget
+                    </Badge>
+                  )}
                   <span className="text-[10px] text-muted-foreground">{formatTime(msg.createTime)}</span>
+                  {isWidget && isBot && confidence != null && confidence > 0 && (
+                    <ConfidencePill confidence={confidence} />
+                  )}
                 </div>
                 {msg.text && (
                   <p className="text-sm mt-0.5 whitespace-pre-wrap break-words">{msg.text}</p>
