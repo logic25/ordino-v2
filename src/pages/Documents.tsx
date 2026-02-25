@@ -118,7 +118,15 @@ export default function Documents() {
   };
 
   const selectedFolder = folders.find((f) => f.id === selectedFolderId);
-  const isBeaconFolder = selectedFolder?.is_beacon_synced || false;
+  const isBeaconFolder = useMemo(() => {
+    if (!selectedFolderId) return false;
+    let current = folders.find((f) => f.id === selectedFolderId);
+    while (current) {
+      if (current.is_beacon_synced) return true;
+      current = current.parent_id ? folders.find((f) => f.id === current!.parent_id) : undefined;
+    }
+    return false;
+  }, [selectedFolderId, folders]);
 
   const filteredDocs = useMemo(() => {
     const folderIds = selectedFolderId ? getDescendantIds(selectedFolderId) : null;
