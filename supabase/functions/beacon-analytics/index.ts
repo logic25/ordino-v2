@@ -85,6 +85,8 @@ Deno.serve(async (req) => {
         return await getDocumentReferences(supabase, data);
       case "get_content_stats":
         return await getContentStats(supabase);
+      case "persist_widget_messages":
+        return await persistWidgetMessages(supabase, data);
       default:
         return jsonResponse({ error: `Unknown action: ${action}` }, 400);
     }
@@ -615,4 +617,32 @@ async function getContentStats(sb: any) {
     candidates: { total: (candidates || []).length, by_status: candidatesByStatus, by_type: candidatesByType },
     generated: { total: (generated || []).length, by_status: generatedByStatus },
   });
+}
+
+// ─── Widget Message Persistence ─────────────────────────────────────
+
+async function persistWidgetMessages(sb: any, d: any) {
+  if (!d?.user_email || !d?.user_message || !d?.ai_response) {
+    throw new Error("user_email, user_message, and ai_response are required");
+  }
+
+  const now = new Date().toISOString();
+  const { error } = await sb.from("widget_messages").insert([
+    {
+      user_email: d.user_email,
+      role: "user",
+      content: d.user_message,
+      metadata: {},
+      created_at: now,
+    },
+    {
+      user_email: d.user_email,
+      role: "assistant",
+      content: d.ai_response,
+      metadata: d.metadata || {},
+      created_at: now,
+    },
+  ]);
+  if (error) throw error;
+  return jsonResponse({ success: true });
 }
