@@ -37,7 +37,14 @@ export function KnowledgeBaseView() {
   const [targetFolder, setTargetFolder] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const folderNames = useMemo(() => (data ? Object.keys(data.folders).sort() : []), [data]);
+  const folderNames = useMemo(() => {
+    const apiFolders = data ? Object.keys(data.folders) : [];
+    // Always include known folders so the upload dropdown works even if KB is empty
+    const knownFolders = Object.keys(FOLDER_TO_SOURCE_TYPE);
+    const merged = new Set([...apiFolders, ...knownFolders]);
+    merged.delete("_root");
+    return Array.from(merged).sort();
+  }, [data]);
 
   const fileTypeBreakdown = useMemo(() => {
     if (!data) return {};
