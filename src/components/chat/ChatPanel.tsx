@@ -57,8 +57,8 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
   const isBeaconBotDm = isActiveSpaceDM && 
     resolvedDisplayName.toLowerCase().includes("beacon");
 
-  // Merge widget messages when viewing Beacon bot DM
-  const { data: mergedMessages } = useMergedBeaconMessages(messages, isBeaconBotDm);
+  // When viewing Beacon DM, use only widget messages (not gchat) to avoid duplicates
+  const { data: mergedMessages } = useMergedBeaconMessages(isBeaconBotDm ? [] : messages, isBeaconBotDm);
   const activeDisplayName = resolvedDisplayName || selectedSpaceId;
 
   if (!gchatEnabled) {
