@@ -228,7 +228,14 @@ async function enrichSpaceNames(
       }
     }
 
-    if (isDM) {
+    // Reclassify: 2-person chats (no bots) that Google tagged as GROUP_CHAT are really DMs
+    const isActuallyDM = isDM || (humans.length === 2 && bots.length === 0 && (space.spaceType === "GROUP_CHAT" || space.type === "GROUP_CHAT"));
+    if (isActuallyDM && !isDM) {
+      console.log("enrichSpaceNames: reclassifying", space.name, "from GROUP_CHAT to DIRECT_MESSAGE (2 humans, 0 bots)");
+      space.spaceType = "DIRECT_MESSAGE";
+    }
+
+    if (isActuallyDM) {
       if (humans.length >= 2) {
         const other = humans.find(h => !h.isMe);
         space.displayName = other?.displayName || humans[1].displayName;
