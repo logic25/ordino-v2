@@ -93,6 +93,56 @@ async function callChatApi(
  * Uses Chat API membership displayName directly (no People API calls).
  * currentUserDisplayName comes from the profiles table for reliable isMe matching.
  */
+/**
+ * Resolve Google user IDs to display names using People API getBatchGet.
+ * Returns a Map<userId, displayName>.
+ */
+async function resolveUserNames(
+  userIds: string[],
+  accessToken: string
+): Promise<Map<string, string>> {
+  const nameMap = new Map<string, string>();
+  if (userIds.length === 0) return nameMap;
+
+  // People API getBatchGet supports up to 200 resource names
+  const batches: string[][] = [];
+  for (let i = 0; i < userIds.length; i += 50) {
+    batches.push(userIds.slice(i, i + 50));
+  }
+
+  for (const batch of batches) {
+    const params = batch.map(id => `resourceNames=people/${id}`).join("&");
+    const url = `https://people.googleapis.com/v1/people:batchGet?${params}&personFields=names,photos`;
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        console.log("resolveUserNames: People API failed, status:", res.status, "body:", errText.substring(0, 300));
+        continue;
+      }
+      const data = await res.json();
+      for (const personResponse of (data.responses || [])) {
+        const person = personResponse.person;
+        if (!person) continue;
+        // Extract user ID from resource name (e.g. "people/123" -> "123")
+        const resourceName = person.resourceName || "";
+        const userId = resourceName.replace("people/", "");
+        const displayName = person.names?.[0]?.displayName;
+        if (userId && displayName) {
+          nameMap.set(userId, displayName);
+        }
+      }
+    } catch (err: any) {
+      console.log("resolveUserNames: fetch error:", err.message);
+    }
+  }
+
+  console.log("resolveUserNames: resolved", nameMap.size, "of", userIds.length, "user IDs");
+  return nameMap;
+}
+
 async function enrichSpaceNames(
   spaces: any[],
   accessToken: string,
@@ -101,105 +151,112 @@ async function enrichSpaceNames(
 ) {
   console.log("enrichSpaceNames: currentUserDisplayName from profile:", currentUserDisplayName);
 
-  function isMe(memberDisplayName: string): boolean {
-    if (!currentUserDisplayName || !memberDisplayName) return false;
-    return memberDisplayName.toLowerCase().trim() === currentUserDisplayName.toLowerCase().trim();
-  }
-
   const unnamedSpaces = spaces.filter((s: any) => !s.displayName);
   console.log("enrichSpaceNames: enriching", unnamedSpaces.length, "unnamed spaces");
 
+  // Step 1: Fetch memberships for all unnamed spaces in parallel
   const enrichBatch = unnamedSpaces.slice(0, 100);
-  let debugLoggedFirst = false;
-  const enrichResults = await Promise.allSettled(
+  type SpaceMemberships = {
+    space: any;
+    memberships: any[];
+  };
+  const spaceMemberships: SpaceMemberships[] = [];
+
+  const fetchResults = await Promise.allSettled(
     enrichBatch.map(async (space: any) => {
       const membersRes = await fetch(
         `${chatApi}/${space.name}/members?pageSize=10`,
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
       if (!membersRes.ok) {
-        const errText = await membersRes.text();
-        console.log("enrichSpaceNames: members fetch FAILED for", space.name, "status:", membersRes.status, "body:", errText.substring(0, 200));
-        return;
+        await membersRes.text();
+        return null;
       }
       const membersData = await membersRes.json();
-      if (!debugLoggedFirst) {
-        debugLoggedFirst = true;
-        console.log("enrichSpaceNames: SAMPLE membership response for", space.name, ":", JSON.stringify(membersData).substring(0, 500));
-      }
-      if (!membersData.memberships?.length) {
-        console.log("enrichSpaceNames: no memberships for", space.name);
-        return;
-      }
-
-      const isDM = space.spaceType === "DIRECT_MESSAGE" || space.type === "DM" || space.type === "DIRECT_MESSAGE";
-
-      // Separate human and bot members, using displayName directly from Chat API
-      const humans: { displayName: string; isMe: boolean }[] = [];
-      const bots: { displayName: string }[] = [];
-
-      for (const membership of membersData.memberships) {
-        const member = membership.member;
-        if (!member) continue;
-        
-        // Chat API membership response includes member.displayName for all member types
-        const name = member.displayName || "";
-        
-        if (member.type === "BOT") {
-          bots.push({ displayName: name || "Bot" });
-        } else if (name) {
-          humans.push({ displayName: name, isMe: isMe(name) });
-        }
-      }
-
-      if (isDM) {
-        // For 1:1 DMs, show the OTHER person's name
-        if (humans.length >= 2) {
-          const other = humans.find(h => !h.isMe);
-          if (other) {
-            space.displayName = other.displayName;
-          } else {
-            // Couldn't determine who's "me" — pick the second member
-            space.displayName = humans[1].displayName;
-          }
-        } else if (humans.length === 1 && bots.length >= 1) {
-          // Human + bot DM — show bot name (e.g. Beacon, Google Drive)
-          space.displayName = bots[0].displayName;
-        } else if (humans.length === 1) {
-          const h = humans[0];
-          if (!h.isMe) {
-            space.displayName = h.displayName;
-          } else if (bots.length > 0) {
-            space.displayName = bots[0].displayName;
-          }
-        } else if (bots.length >= 1) {
-          // Bot-only DM
-          space.displayName = bots[0].displayName;
-        }
-      } else {
-        // GROUP: build name from OTHER members' first names
-        const memberNames: string[] = [];
-        for (const h of humans) {
-          if (h.isMe) continue;
-          memberNames.push(h.displayName.split(" ")[0]);
-          if (memberNames.length >= 4) break;
-        }
-        if (memberNames.length > 0) {
-          space.displayName = memberNames.join(", ");
-        }
-      }
+      return { space, memberships: membersData.memberships || [] };
     })
   );
-  const resolved = enrichResults.filter(r => r.status === "fulfilled").length;
-  const failed = enrichResults.filter(r => r.status === "rejected").length;
-  
-  // Log what names were actually set
-  const enrichedNames = unnamedSpaces.filter((s: any) => s.displayName).map((s: any) => `${s.name}=${s.displayName}`);
-  const stillUnnamed = unnamedSpaces.filter((s: any) => !s.displayName).length;
-  console.log("Parallel enrichment done:", resolved, "resolved,", failed, "failed.", enrichedNames.length, "names set,", stillUnnamed, "still unnamed");
-  if (enrichedNames.length > 0) {
-    console.log("enrichSpaceNames: sample names:", enrichedNames.slice(0, 5).join(", "));
+
+  for (const r of fetchResults) {
+    if (r.status === "fulfilled" && r.value) {
+      spaceMemberships.push(r.value);
+    }
   }
+
+  // Step 2: Collect all unique human user IDs across all spaces
+  const allUserIds = new Set<string>();
+  for (const { memberships } of spaceMemberships) {
+    for (const membership of memberships) {
+      const member = membership.member;
+      if (member?.type === "HUMAN" && member?.name) {
+        // member.name is "users/123456"
+        const userId = member.name.replace("users/", "");
+        allUserIds.add(userId);
+      }
+    }
+  }
+
+  // Step 3: Batch resolve all user IDs via People API
+  const userNameMap = await resolveUserNames([...allUserIds], accessToken);
+  console.log("enrichSpaceNames: People API resolved names:", [...userNameMap.entries()].slice(0, 5).map(([id, n]) => `${id.substring(0, 8)}...=${n}`).join(", "));
+
+  // Helper to check if a display name is the current user
+  function isMe(displayName: string): boolean {
+    if (!currentUserDisplayName || !displayName) return false;
+    return displayName.toLowerCase().trim() === currentUserDisplayName.toLowerCase().trim();
+  }
+
+  // Step 4: Apply resolved names to spaces
+  for (const { space, memberships } of spaceMemberships) {
+    const isDM = space.spaceType === "DIRECT_MESSAGE" || space.type === "DM" || space.type === "DIRECT_MESSAGE";
+
+    const humans: { displayName: string; isMe: boolean }[] = [];
+    const bots: { displayName: string }[] = [];
+
+    for (const membership of memberships) {
+      const member = membership.member;
+      if (!member) continue;
+
+      if (member.type === "BOT") {
+        bots.push({ displayName: member.displayName || "Bot" });
+      } else if (member.type === "HUMAN" && member.name) {
+        const userId = member.name.replace("users/", "");
+        const resolvedName = userNameMap.get(userId) || member.displayName || "";
+        if (resolvedName) {
+          humans.push({ displayName: resolvedName, isMe: isMe(resolvedName) });
+        }
+      }
+    }
+
+    if (isDM) {
+      if (humans.length >= 2) {
+        const other = humans.find(h => !h.isMe);
+        space.displayName = other?.displayName || humans[1].displayName;
+      } else if (humans.length === 1 && bots.length >= 1) {
+        space.displayName = bots[0].displayName;
+      } else if (humans.length === 1) {
+        const h = humans[0];
+        space.displayName = !h.isMe ? h.displayName : (bots[0]?.displayName || h.displayName);
+      } else if (bots.length >= 1) {
+        space.displayName = bots[0].displayName;
+      }
+    } else {
+      // GROUP: build name from OTHER members' first names
+      const memberNames: string[] = [];
+      for (const h of humans) {
+        if (h.isMe) continue;
+        memberNames.push(h.displayName.split(" ")[0]);
+        if (memberNames.length >= 4) break;
+      }
+      if (memberNames.length > 0) {
+        space.displayName = memberNames.join(", ");
+      }
+    }
+  }
+
+  const enrichedCount = unnamedSpaces.filter((s: any) => s.displayName).length;
+  const stillUnnamed = unnamedSpaces.filter((s: any) => !s.displayName).length;
+  console.log("enrichSpaceNames done:", enrichedCount, "names set,", stillUnnamed, "still unnamed");
 
   // FINAL FALLBACK: Never show raw space IDs to the user
   for (const space of spaces) {
@@ -381,11 +438,22 @@ Deno.serve(async (req) => {
             );
             if (membersRes.ok) {
               const membersData = await membersRes.json();
+              // Collect human user IDs for People API resolution
+              const humanUserIds: string[] = [];
               for (const membership of (membersData.memberships || [])) {
                 const member = membership.member;
-                if (member?.name && member?.displayName) {
-                  memberMap.set(member.name, { displayName: member.displayName, avatarUrl: undefined });
+                if (!member?.name) continue;
+                if (member.type === "BOT" && member.displayName) {
+                  memberMap.set(member.name, { displayName: member.displayName });
+                } else if (member.type === "HUMAN") {
+                  const userId = member.name.replace("users/", "");
+                  humanUserIds.push(userId);
                 }
+              }
+              // Resolve human names via People API
+              const peopleNames = await resolveUserNames(humanUserIds, accessToken);
+              for (const [userId, displayName] of peopleNames) {
+                memberMap.set(`users/${userId}`, { displayName });
               }
             } else {
               await membersRes.text();
@@ -399,12 +467,8 @@ Deno.serve(async (req) => {
             if (msg.sender?.name) {
               const known = memberMap.get(msg.sender.name);
               if (known?.displayName) {
-                // Always set displayName from membership if available
                 if (!msg.sender.displayName) {
                   msg.sender.displayName = known.displayName;
-                }
-                if (known.avatarUrl && !msg.sender.avatarUrl) {
-                  msg.sender.avatarUrl = known.avatarUrl;
                 }
               }
             }
