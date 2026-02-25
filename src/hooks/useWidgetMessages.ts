@@ -39,7 +39,20 @@ export function useWidgetMessages(enabled: boolean) {
 
   const messages: GChatMessage[] = useMemo(() => {
     if (!query.data) return [];
-    return query.data.map((row, i) => {
+
+    // Deduplicate messages with same role+content within 2 minutes
+    const deduped: WidgetMessageRow[] = [];
+    for (const row of query.data) {
+      const isDupe = deduped.some(
+        (prev) =>
+          prev.role === row.role &&
+          prev.content === row.content &&
+          Math.abs(new Date(prev.created_at).getTime() - new Date(row.created_at).getTime()) < 120_000
+      );
+      if (!isDupe) deduped.push(row);
+    }
+
+    return deduped.map((row, i) => {
       const isUser = row.role === "user";
       return {
         name: `widget-msg-${i}-${row.created_at}`,

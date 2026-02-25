@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Brain, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ReactMarkdown from "react-markdown";
 import type { GChatMessage } from "@/hooks/useGoogleChat";
 
 function getInitials(name: string) {
@@ -161,9 +162,13 @@ export function ChatMessageList({ messages, isLoading, members = [] }: Props) {
                     <ConfidencePill confidence={confidence} />
                   )}
                 </div>
-                {msg.text && (
+                {msg.text && isWidget && isBot ? (
+                  <div className="prose prose-sm max-w-none mt-0.5 text-sm leading-relaxed [&_h1]:text-base [&_h1]:font-bold [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mt-2.5 [&_h2]:mb-1 [&_h3]:text-[13px] [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1 [&_p]:mb-2 [&_p]:last:mb-0 [&_ul]:pl-4 [&_ul]:mb-2 [&_ol]:pl-4 [&_ol]:mb-2 [&_li]:mb-0.5 [&_strong]:font-semibold [&_hr]:my-2 [&_hr]:border-border">
+                    <ReactMarkdown>{msg.text.replace(/\n\n📚[\s\S]*$/, '').replace(/\n\nSources:[\s\S]*$/, '')}</ReactMarkdown>
+                  </div>
+                ) : msg.text ? (
                   <p className="text-sm mt-0.5 whitespace-pre-wrap break-words">{msg.text}</p>
-                )}
+                ) : null}
                 {isWidget && isBot && widgetMeta?.sources?.length > 0 && (
                   <WidgetSources sources={widgetMeta.sources} />
                 )}
