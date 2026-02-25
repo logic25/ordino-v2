@@ -47,6 +47,7 @@ Deno.serve(async (req) => {
       }
 
       // Not a task thread — forward to Beacon
+      console.log("Forwarding to Beacon:", JSON.stringify(event).substring(0, 500));
       return await forwardToBeacon(event);
     }
 
@@ -272,17 +273,16 @@ async function forwardToBeacon(event: any): Promise<Response> {
     });
 
     if (!beaconRes.ok) {
-      console.error("Beacon webhook error:", beaconRes.status);
+      const errBody = await beaconRes.text();
+      console.error("Beacon webhook error:", beaconRes.status, errBody.substring(0, 300));
       return jsonResponse({ text: "⚠️ I couldn't process that right now. Please try again." });
     }
 
-    // Beacon may return 204 with empty body for async processing
-    if (beaconRes.status === 204) {
-      return jsonResponse({ text: "" });
-    }
-
     const text = await beaconRes.text();
-    if (!text) {
+    console.log("Beacon response status:", beaconRes.status, "body length:", text.length, "preview:", text.substring(0, 200));
+
+    // Beacon may return 204 with empty body for async processing
+    if (beaconRes.status === 204 || !text) {
       return jsonResponse({ text: "" });
     }
 
