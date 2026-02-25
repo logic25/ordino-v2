@@ -1,5 +1,5 @@
 import { ReactNode, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { TopBar } from "./TopBar";
 import { ClockOutModal } from "@/components/time/ClockOutModal";
@@ -11,6 +11,8 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const location = useLocation();
+  const isOnChatPage = location.pathname === "/chat";
 
   return (
     <>
@@ -47,8 +49,8 @@ export function AppLayout({ children }: AppLayoutProps) {
         <ClockOutModal />
       </div>
 
-      {/* Beacon floating chat widget - outside flex container to preserve fixed positioning */}
-      <BeaconChatWidget />
+      {/* Beacon floating chat widget - hidden on /chat to avoid duplicate messages */}
+      {!isOnChatPage && <BeaconChatWidget />}
     </>
   );
 }
