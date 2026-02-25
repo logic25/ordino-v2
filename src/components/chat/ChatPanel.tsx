@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useGChatSpaces, useGChatMessages, useSendGChatMessage, useGChatMembers, useGChatDmNames, useSearchPeople, useCreateDm, isSpaceDM, isSpaceRoom } from "@/hooks/useGoogleChat";
 import { useHiddenSpaces } from "@/hooks/useHiddenSpaces";
+import { usePinnedSpaces } from "@/hooks/usePinnedSpaces";
 import { SpacesList } from "./SpacesList";
 import { ChatMessageList } from "./ChatMessageList";
 import { ChatCompose } from "./ChatCompose";
@@ -31,6 +32,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
   const { data: messages = [], isLoading: msgsLoading } = useGChatMessages(selectedSpaceId);
   const sendMutation = useSendGChatMessage();
   const { hiddenIds, hide, unhide } = useHiddenSpaces();
+  const { pinnedIds, pin, unpin } = usePinnedSpaces();
   const searchPeople = useSearchPeople();
   const createDm = useCreateDm();
 
@@ -108,8 +110,10 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
   const handleNewChat = async (email: string) => {
     try {
       const result = await createDm.mutateAsync(email);
-      if (result?.space?.name) {
-        setSelectedSpaceId(result.space.name);
+      // Google Chat spaces:setup returns the Space object directly (not nested under .space)
+      const spaceName = result?.space?.name || result?.name;
+      if (spaceName) {
+        setSelectedSpaceId(spaceName);
       }
       setNewChatOpen(false);
       setPeopleQuery("");
@@ -134,8 +138,11 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
               selectedSpaceId={selectedSpaceId}
               dmNames={dmNames}
               hiddenIds={hiddenIds}
+              pinnedIds={pinnedIds}
               onHide={hide}
               onUnhide={unhide}
+              onPin={pin}
+              onUnpin={unpin}
               onNewChat={() => setNewChatOpen(true)}
               hasNextPage={hasNextPage}
               isFetchingNextPage={isFetchingNextPage}
