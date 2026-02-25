@@ -86,7 +86,7 @@ export function SpacesList({
   }
 
   return (
-    <div className="flex flex-col h-full bg-card">
+    <div className="flex flex-col h-full bg-white dark:bg-[hsl(220,18%,12%)]">
       {/* Search + New Chat */}
       <div className="px-3 pt-3 pb-2">
         <div className="flex items-center gap-2">
@@ -96,7 +96,7 @@ export function SpacesList({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search chats..."
-              className="w-full pl-8 pr-3 py-2 text-xs bg-secondary border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/40 transition-all placeholder:text-muted-foreground/60"
+              className="w-full pl-8 pr-3 py-2 text-xs bg-slate-100 dark:bg-slate-800 border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400/40 transition-all placeholder:text-muted-foreground/60"
             />
           </div>
           {onNewChat && (
@@ -291,14 +291,14 @@ function getInitials(name: string) {
 }
 
 const AVATAR_COLORS = [
-  "bg-blue-500/15 text-blue-700",
-  "bg-emerald-500/15 text-emerald-700",
-  "bg-violet-500/15 text-violet-700",
-  "bg-rose-500/15 text-rose-700",
-  "bg-amber-500/15 text-amber-700",
-  "bg-cyan-500/15 text-cyan-700",
-  "bg-fuchsia-500/15 text-fuchsia-700",
-  "bg-orange-500/15 text-orange-700",
+  "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
+  "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300",
+  "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300",
+  "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/40 dark:text-fuchsia-300",
+  "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
 ];
 
 function avatarColor(name: string) {
@@ -339,8 +339,8 @@ function SpaceButton({
           "w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-left transition-all text-sm",
           isHidden && "opacity-40",
           isActive
-            ? "bg-accent/12 text-foreground font-semibold shadow-[inset_3px_0_0_0_hsl(var(--accent))]"
-            : "text-foreground/80 hover:bg-secondary hover:text-foreground"
+            ? "bg-amber-50 dark:bg-amber-500/10 text-foreground font-semibold shadow-[inset_3px_0_0_0_hsl(var(--accent))]"
+            : "text-foreground/80 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-foreground"
         )}
       >
         {/* Avatar with initials */}
@@ -365,7 +365,7 @@ function SpaceButton({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
-            className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center justify-center h-6 w-6 rounded-md hover:bg-secondary"
+            className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center h-6 w-6 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-slate-200 dark:hover:bg-slate-700"
             onClick={(e) => e.stopPropagation()}
           >
             <MoreVertical className="h-3.5 w-3.5 text-muted-foreground" />
