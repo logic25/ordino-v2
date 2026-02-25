@@ -169,11 +169,56 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
     }
   };
 
+  const sendBeaconInSpace = async (text: string) => {
+    // Post to Google Chat so other users see the question
+    sendMutation.mutate({ spaceId: selectedSpaceId!, text, threadKey });
+
+    // Strip @beacon mention to get the actual question
+    const question = text.replace(/@beacon\s*/gi, "").trim();
+    if (!question) return;
+
+    setBeaconSending(true);
+    try {
+      const displayName = profile?.display_name || profile?.first_name || user?.user_metadata?.full_name || "User";
+      const res = await fetch("https://beaconrag.up.railway.app/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: question,
+          user_id: user?.email || user?.id || "anonymous",
+          user_name: displayName,
+          space_id: selectedSpaceId,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.response) {
+        // Beacon responds asynchronously via Google Chat API — refresh after a delay
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ["gchat-messages", selectedSpaceId] });
+        }, 2000);
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ["gchat-messages", selectedSpaceId] });
+        }, 5000);
+      }
+    } catch (err) {
+      console.error("Beacon space mention error:", err);
+    } finally {
+      setBeaconSending(false);
+    }
+  };
+
   const handleSend = async (text: string) => {
     if (!selectedSpaceId) return;
 
     if (isBeaconBotDm) {
       await sendBeaconDirectMessage(text);
+      return;
+    }
+
+    // Detect @beacon mention in Spaces — route directly to Beacon
+    if (/@beacon/i.test(text)) {
+      await sendBeaconInSpace(text);
       return;
     }
 
