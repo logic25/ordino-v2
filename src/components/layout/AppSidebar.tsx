@@ -28,6 +28,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions, type ResourceKey } from "@/hooks/usePermissions";
 import { useIsAdmin } from "@/hooks/useUserRoles";
+import { useUnreadIndicators } from "@/hooks/useUnreadIndicators";
 
 const mainNav = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/dashboard", resource: "dashboard" as ResourceKey },
@@ -68,6 +69,12 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { canAccess, loading: permLoading } = usePermissions();
   const { user, profile, signOut } = useAuth();
   const isAdmin = useIsAdmin();
+  const { chatHasUnread, emailHasUnread } = useUnreadIndicators();
+
+  const unreadMap: Record<string, boolean> = {
+    "/chat": chatHasUnread,
+    "/emails": emailHasUnread,
+  };
 
   const filteredMainNav = useMemo(() =>
     mainNav.filter((item) => canAccess(item.resource)),
@@ -136,7 +143,12 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                 collapsed && "justify-center px-2"
               )}
             >
-              <item.icon className={cn("h-5 w-5 flex-shrink-0", isActive && "text-sidebar-primary")} />
+              <span className="relative flex-shrink-0">
+                <item.icon className={cn("h-5 w-5", isActive && "text-sidebar-primary")} />
+                {unreadMap[item.href] && (
+                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary ring-2 ring-sidebar" />
+                )}
+              </span>
               {!collapsed && <span>{item.title}</span>}
             </NavLink>
           );
