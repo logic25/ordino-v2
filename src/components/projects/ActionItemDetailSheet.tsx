@@ -93,7 +93,7 @@ export function ActionItemDetailSheet({ item, open, onOpenChange, onMarkDone }: 
   const handleCancel = async () => {
     try {
       await cancelMutation.mutateAsync({ id: item.id, project_id: item.project_id });
-      toast({ title: "Action item cancelled" });
+      toast({ title: "Task cancelled" });
       onOpenChange(false);
     } catch {
       toast({ title: "Error cancelling", variant: "destructive" });

@@ -683,7 +683,7 @@ export function ProjectExpandedTabs({
           </TabsTrigger>
           {projectId && (
             <TabsTrigger value="action-items" className="text-xs gap-1 data-[state=active]:bg-background">
-              <ClipboardList className="h-3 w-3" /> Action Items
+              <ClipboardList className="h-3 w-3" /> Tasks
             </TabsTrigger>
           )}
           <TabsTrigger value="job-costing" className="text-xs gap-1 data-[state=active]:bg-background">

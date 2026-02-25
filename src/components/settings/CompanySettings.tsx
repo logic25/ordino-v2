@@ -386,13 +386,13 @@ export function CompanySettings() {
           <CardTitle className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5" /> Google Chat Integration
           </CardTitle>
-          <CardDescription>Post action items to a Google Chat Space and allow team members to complete them directly in chat.</CardDescription>
+          <CardDescription>Post tasks to a Google Chat Space and allow team members to complete them directly in chat.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <Label>Enable Google Chat notifications</Label>
-              <p className="text-xs text-muted-foreground">New action items will be posted as cards to the configured space.</p>
+              <p className="text-xs text-muted-foreground">New tasks will be posted as cards to the configured space.</p>
             </div>
             <Switch checked={gchatEnabled} onCheckedChange={setGchatEnabled} />
           </div>
