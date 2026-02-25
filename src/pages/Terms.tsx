@@ -15,7 +15,7 @@ export default function Terms() {
             <span className="text-accent-foreground font-bold text-lg">O</span>
           </div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-2">Terms of Service</h1>
-          <p className="text-muted-foreground text-sm">Ordino CRM &amp; Beacon AI Assistant — Internal Use</p>
+          <p className="text-muted-foreground text-sm">Ordino CRM &amp; Beacon AI Assistant — Internal Use — Effective February 24, 2026</p>
         </div>
 
         {/* Content */}
