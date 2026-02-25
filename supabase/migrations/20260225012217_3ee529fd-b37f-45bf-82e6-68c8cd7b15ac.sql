@@ -1,0 +1,1 @@
+DELETE FROM public.gchat_spaces_cache;

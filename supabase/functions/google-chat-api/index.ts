@@ -110,6 +110,7 @@ async function enrichSpaceNames(
   console.log("enrichSpaceNames: enriching", unnamedSpaces.length, "unnamed spaces");
 
   const enrichBatch = unnamedSpaces.slice(0, 100);
+  let debugLoggedFirst = false;
   const enrichResults = await Promise.allSettled(
     enrichBatch.map(async (space: any) => {
       const membersRes = await fetch(
@@ -117,11 +118,19 @@ async function enrichSpaceNames(
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
       if (!membersRes.ok) {
-        await membersRes.text();
+        const errText = await membersRes.text();
+        console.log("enrichSpaceNames: members fetch FAILED for", space.name, "status:", membersRes.status, "body:", errText.substring(0, 200));
         return;
       }
       const membersData = await membersRes.json();
-      if (!membersData.memberships?.length) return;
+      if (!debugLoggedFirst) {
+        debugLoggedFirst = true;
+        console.log("enrichSpaceNames: SAMPLE membership response for", space.name, ":", JSON.stringify(membersData).substring(0, 500));
+      }
+      if (!membersData.memberships?.length) {
+        console.log("enrichSpaceNames: no memberships for", space.name);
+        return;
+      }
 
       const isDM = space.spaceType === "DIRECT_MESSAGE" || space.type === "DM" || space.type === "DIRECT_MESSAGE";
 
@@ -183,7 +192,14 @@ async function enrichSpaceNames(
   );
   const resolved = enrichResults.filter(r => r.status === "fulfilled").length;
   const failed = enrichResults.filter(r => r.status === "rejected").length;
-  console.log("Parallel enrichment done:", resolved, "resolved,", failed, "failed");
+  
+  // Log what names were actually set
+  const enrichedNames = unnamedSpaces.filter((s: any) => s.displayName).map((s: any) => `${s.name}=${s.displayName}`);
+  const stillUnnamed = unnamedSpaces.filter((s: any) => !s.displayName).length;
+  console.log("Parallel enrichment done:", resolved, "resolved,", failed, "failed.", enrichedNames.length, "names set,", stillUnnamed, "still unnamed");
+  if (enrichedNames.length > 0) {
+    console.log("enrichSpaceNames: sample names:", enrichedNames.slice(0, 5).join(", "));
+  }
 
   // FINAL FALLBACK: Never show raw space IDs to the user
   for (const space of spaces) {
