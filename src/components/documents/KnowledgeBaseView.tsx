@@ -145,7 +145,7 @@ export function KnowledgeBaseView() {
         <CardContent className="p-4">
           <Accordion type="multiple" className="w-full">
             {folderNames.map((folder) => {
-              const files = data.folders[folder];
+              const files = data?.folders[folder] || [];
               return (
                 <AccordionItem key={folder} value={folder}>
                   <AccordionTrigger className="py-3 hover:no-underline">
