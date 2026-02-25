@@ -361,15 +361,15 @@ export default function Documents() {
                         <Button onClick={() => setUploadOpen(true)}><Upload className="h-4 w-4 mr-2" /> Upload Document</Button>
                       </div>
                     ) : (
-                      <Table>
+                      <Table className="table-fixed">
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Document</TableHead>
-                            <TableHead>Category</TableHead>
-                            <TableHead>Size</TableHead>
-                            <TableHead>Uploaded By</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead className="w-[120px]"></TableHead>
+                            <TableHead className="w-[40%]">Document</TableHead>
+                            <TableHead className="w-[12%]">Category</TableHead>
+                            <TableHead className="w-[10%]">Size</TableHead>
+                            <TableHead className="w-[14%]">Uploaded By</TableHead>
+                            <TableHead className="w-[12%]">Date</TableHead>
+                            <TableHead className="w-[12%]"></TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
