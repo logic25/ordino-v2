@@ -80,27 +80,32 @@ export function SpacesList({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-5 w-5 animate-spin text-primary/60" />
+        <Loader2 className="h-5 w-5 animate-spin text-accent" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-card">
       {/* Search + New Chat */}
-      <div className="px-3 pt-2 pb-1 space-y-1.5">
-        <div className="flex items-center gap-1.5">
+      <div className="px-3 pt-3 pb-2">
+        <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search chats..."
-              className="w-full pl-8 pr-3 py-1.5 text-xs bg-muted/40 border border-border/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all"
+              className="w-full pl-8 pr-3 py-2 text-xs bg-secondary border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/40 transition-all placeholder:text-muted-foreground/60"
             />
           </div>
           {onNewChat && (
-            <Button variant="default" size="icon" className="h-7 w-7 shrink-0 rounded-lg" onClick={onNewChat} title="New chat">
+            <Button
+              size="icon"
+              className="h-8 w-8 shrink-0 rounded-lg bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm"
+              onClick={onNewChat}
+              title="New chat"
+            >
               <Plus className="h-4 w-4" />
             </Button>
           )}
@@ -108,14 +113,14 @@ export function SpacesList({
       </div>
 
       {/* Spaces list */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-4">
+      <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-4">
         {spaces.length === 0 ? (
-          <div className="text-center py-8 text-sm text-muted-foreground px-4">
-            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
-              <Users className="h-6 w-6 text-primary" />
+          <div className="text-center py-10 px-4">
+            <div className="w-14 h-14 rounded-2xl bg-accent/15 flex items-center justify-center mx-auto mb-3">
+              <Users className="h-7 w-7 text-accent" />
             </div>
-            <p className="font-medium mb-1">No conversations found</p>
-            <p className="text-xs">Your Google Chat conversations will appear here.</p>
+            <p className="font-semibold text-sm mb-1">No conversations found</p>
+            <p className="text-xs text-muted-foreground">Your Google Chat conversations will appear here.</p>
           </div>
         ) : filteredSpaces.length === 0 ? (
           <div className="text-center py-6 text-xs text-muted-foreground">
@@ -123,106 +128,88 @@ export function SpacesList({
           </div>
         ) : (
           <>
-            {/* Pinned section */}
             {pinned.length > 0 && (
-              <div>
-                <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-primary/70 flex items-center gap-1.5">
-                  <Pin className="h-2.5 w-2.5" /> Pinned
-                </p>
-                <div className="space-y-0.5">
-                  {pinned.map((space) => (
-                    <SpaceButton
-                      key={space.name}
-                      space={space}
-                      isActive={selectedSpaceId === space.name}
-                      isHidden={hiddenSet.has(space.name)}
-                      isPinned
-                      onSelect={onSelect}
-                      onHide={onHide}
-                      onUnhide={onUnhide}
-                      onPin={onPin}
-                      onUnpin={onUnpin}
-                      onRename={onRename ? (spaceId) => {
-                        setRenameValue(getDisplayName(space));
-                        setRenameDialog({ spaceId, currentName: getDisplayName(space) });
-                      } : undefined}
-                      icon={getSpaceIcon(space)}
-                      overrideName={getDisplayName(space)}
-                    />
-                  ))}
-                </div>
-              </div>
+              <Section label="Pinned" icon={<Pin className="h-2.5 w-2.5" />} accent>
+                {pinned.map((space) => (
+                  <SpaceButton
+                    key={space.name}
+                    space={space}
+                    isActive={selectedSpaceId === space.name}
+                    isHidden={hiddenSet.has(space.name)}
+                    isPinned
+                    onSelect={onSelect}
+                    onHide={onHide}
+                    onUnhide={onUnhide}
+                    onPin={onPin}
+                    onUnpin={onUnpin}
+                    onRename={onRename ? (spaceId) => {
+                      setRenameValue(getDisplayName(space));
+                      setRenameDialog({ spaceId, currentName: getDisplayName(space) });
+                    } : undefined}
+                    icon={getSpaceIcon(space)}
+                    overrideName={getDisplayName(space)}
+                  />
+                ))}
+              </Section>
             )}
 
-            {/* DMs section */}
             {unpinnedDms.length > 0 && (
-              <div>
-                <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-foreground/50">
-                  Direct Messages
-                </p>
-                <div className="space-y-0.5">
-                  {unpinnedDms.map((space) => (
-                    <SpaceButton
-                      key={space.name}
-                      space={space}
-                      isActive={selectedSpaceId === space.name}
-                      isHidden={hiddenSet.has(space.name)}
-                      isPinned={false}
-                      onSelect={onSelect}
-                      onHide={onHide}
-                      onUnhide={onUnhide}
-                      onPin={onPin}
-                      onUnpin={onUnpin}
-                      onRename={onRename ? (spaceId) => {
-                        setRenameValue(getDisplayName(space));
-                        setRenameDialog({ spaceId, currentName: getDisplayName(space) });
-                      } : undefined}
-                      icon={getSpaceIcon(space)}
-                      overrideName={getDisplayName(space)}
-                    />
-                  ))}
-                </div>
-              </div>
+              <Section label="Direct Messages">
+                {unpinnedDms.map((space) => (
+                  <SpaceButton
+                    key={space.name}
+                    space={space}
+                    isActive={selectedSpaceId === space.name}
+                    isHidden={hiddenSet.has(space.name)}
+                    isPinned={false}
+                    onSelect={onSelect}
+                    onHide={onHide}
+                    onUnhide={onUnhide}
+                    onPin={onPin}
+                    onUnpin={onUnpin}
+                    onRename={onRename ? (spaceId) => {
+                      setRenameValue(getDisplayName(space));
+                      setRenameDialog({ spaceId, currentName: getDisplayName(space) });
+                    } : undefined}
+                    icon={getSpaceIcon(space)}
+                    overrideName={getDisplayName(space)}
+                  />
+                ))}
+              </Section>
             )}
 
-            {/* Spaces section */}
             {unpinnedGroups.length > 0 && (
-              <div>
-                <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-foreground/50">
-                  Spaces
-                </p>
-                <div className="space-y-0.5">
-                  {unpinnedGroups.map((space) => (
-                    <SpaceButton
-                      key={space.name}
-                      space={space}
-                      isActive={selectedSpaceId === space.name}
-                      isHidden={hiddenSet.has(space.name)}
-                      isPinned={false}
-                      onSelect={onSelect}
-                      onHide={onHide}
-                      onUnhide={onUnhide}
-                      onPin={onPin}
-                      onUnpin={onUnpin}
-                      onRename={onRename ? (spaceId) => {
-                        setRenameValue(getDisplayName(space));
-                        setRenameDialog({ spaceId, currentName: getDisplayName(space) });
-                      } : undefined}
-                      icon={<Hash className="h-4 w-4 shrink-0" />}
-                      badge
-                    />
-                  ))}
-                </div>
-              </div>
+              <Section label="Spaces">
+                {unpinnedGroups.map((space) => (
+                  <SpaceButton
+                    key={space.name}
+                    space={space}
+                    isActive={selectedSpaceId === space.name}
+                    isHidden={hiddenSet.has(space.name)}
+                    isPinned={false}
+                    onSelect={onSelect}
+                    onHide={onHide}
+                    onUnhide={onUnhide}
+                    onPin={onPin}
+                    onUnpin={onUnpin}
+                    onRename={onRename ? (spaceId) => {
+                      setRenameValue(getDisplayName(space));
+                      setRenameDialog({ spaceId, currentName: getDisplayName(space) });
+                    } : undefined}
+                    icon={<Hash className="h-4 w-4 shrink-0" />}
+                    overrideName={getDisplayName(space)}
+                    badge
+                  />
+                ))}
+              </Section>
             )}
 
-            {/* Load More */}
             {hasNextPage && (
-              <div className="px-3 py-2">
+              <div className="px-1 py-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full text-xs"
+                  className="w-full text-xs border-dashed"
                   onClick={onLoadMore}
                   disabled={isFetchingNextPage}
                 >
@@ -238,12 +225,11 @@ export function SpacesList({
         )}
       </div>
 
-      {/* Show hidden toggle */}
       {hiddenIds.length > 0 && (
-        <div className="px-3 py-2 border-t">
+        <div className="px-3 py-2 border-t border-border">
           <button
             onClick={() => setShowHidden((v) => !v)}
-            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-accent transition-colors"
           >
             {showHidden ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
             {showHidden ? "Hide archived" : `Show ${hiddenIds.length} archived`}
@@ -262,13 +248,13 @@ export function SpacesList({
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
               placeholder="Enter a nickname..."
-              className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/40"
               autoFocus
               onKeyDown={(e) => e.key === "Enter" && handleRenameSubmit()}
             />
             <div className="flex justify-end gap-2">
               <Button variant="ghost" size="sm" onClick={() => setRenameDialog(null)}>Cancel</Button>
-              <Button size="sm" onClick={handleRenameSubmit} disabled={!renameValue.trim()}>Save</Button>
+              <Button size="sm" onClick={handleRenameSubmit} disabled={!renameValue.trim()} className="bg-accent text-accent-foreground hover:bg-accent/90">Save</Button>
             </div>
           </div>
         </DialogContent>
@@ -277,12 +263,51 @@ export function SpacesList({
   );
 }
 
-function getSpaceIcon(space: GChatSpace) {
-  if (isSpaceGroup(space)) return <Users className="h-4 w-4 shrink-0 text-primary/70" />;
-  if (isSpaceDM(space)) return <User className="h-4 w-4 shrink-0 text-primary/70" />;
-  return <Hash className="h-4 w-4 shrink-0 text-primary/70" />;
+/* ─── Section Header ─── */
+function Section({ label, icon, accent, children }: { label: string; icon?: React.ReactNode; accent?: boolean; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className={cn(
+        "px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5",
+        accent ? "text-accent" : "text-muted-foreground"
+      )}>
+        {icon} {label}
+      </p>
+      <div className="space-y-0.5">{children}</div>
+    </div>
+  );
 }
 
+/* ─── Space Icon ─── */
+function getSpaceIcon(space: GChatSpace) {
+  if (isSpaceGroup(space)) return <Users className="h-4 w-4 shrink-0" />;
+  if (isSpaceDM(space)) return <User className="h-4 w-4 shrink-0" />;
+  return <Hash className="h-4 w-4 shrink-0" />;
+}
+
+/* ─── Initials helper ─── */
+function getInitials(name: string) {
+  return name.split(/[\s,]+/).filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase();
+}
+
+const AVATAR_COLORS = [
+  "bg-blue-500/15 text-blue-700",
+  "bg-emerald-500/15 text-emerald-700",
+  "bg-violet-500/15 text-violet-700",
+  "bg-rose-500/15 text-rose-700",
+  "bg-amber-500/15 text-amber-700",
+  "bg-cyan-500/15 text-cyan-700",
+  "bg-fuchsia-500/15 text-fuchsia-700",
+  "bg-orange-500/15 text-orange-700",
+];
+
+function avatarColor(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+/* ─── Space Button ─── */
 function SpaceButton({
   space, isActive, isHidden, isPinned,
   onSelect, onHide, onUnhide, onPin, onUnpin, onRename,
@@ -302,30 +327,37 @@ function SpaceButton({
   badge?: boolean;
   overrideName?: string;
 }) {
+  const displayName = overrideName || space.displayName || space.name;
+  const initials = getInitials(displayName);
+  const colorClass = avatarColor(displayName);
+
   return (
     <div className="group relative">
       <button
         onClick={() => onSelect(space.name)}
         className={cn(
-          "w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all text-sm",
+          "w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-left transition-all text-sm",
           isHidden && "opacity-40",
           isActive
-            ? "bg-primary/15 text-primary font-semibold shadow-sm ring-1 ring-primary/20"
-            : "text-foreground hover:bg-accent hover:text-accent-foreground"
+            ? "bg-accent/12 text-foreground font-semibold shadow-[inset_3px_0_0_0_hsl(var(--accent))]"
+            : "text-foreground/80 hover:bg-secondary hover:text-foreground"
         )}
       >
+        {/* Avatar with initials */}
         <div className={cn(
-          "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
-          isActive ? "bg-primary/20" : "bg-muted"
+          "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold transition-colors",
+          isActive ? "bg-accent/20 text-accent-foreground" : colorClass
         )}>
-          {icon}
+          {badge ? <Hash className="h-4 w-4" /> : initials}
         </div>
         <div className="flex-1 min-w-0">
-          <span className="truncate block">{overrideName || space.displayName || space.name}</span>
+          <span className="truncate block leading-tight">{displayName}</span>
         </div>
-        {isPinned && <Pin className="h-3 w-3 text-primary/50 shrink-0" />}
+        {isPinned && <Pin className="h-3 w-3 text-accent/60 shrink-0" />}
         {badge && (
-          <Badge variant="secondary" className="text-[9px] px-1.5 py-0 shrink-0 bg-primary/10 text-primary border-0">Space</Badge>
+          <Badge variant="outline" className="text-[9px] px-1.5 py-0 shrink-0 border-accent/30 text-accent font-semibold bg-accent/5">
+            Space
+          </Badge>
         )}
       </button>
 
@@ -333,7 +365,7 @@ function SpaceButton({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
-            className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center justify-center h-6 w-6 rounded-md hover:bg-muted-foreground/10"
+            className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center justify-center h-6 w-6 rounded-md hover:bg-secondary"
             onClick={(e) => e.stopPropagation()}
           >
             <MoreVertical className="h-3.5 w-3.5 text-muted-foreground" />
