@@ -481,10 +481,16 @@ Deno.serve(async (req) => {
         const { query } = params;
         if (!query) throw new Error("query required");
         const peopleUrl = `https://people.googleapis.com/v1/people:searchDirectoryPeople?query=${encodeURIComponent(query)}&readMask=names,emailAddresses,photos&sources=DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE&pageSize=10`;
-        const res = await fetch(peopleUrl, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        result = await res.json();
+        console.log("search_people: querying for", query);
+        const { response: peopleRes } = await callChatApi(
+          peopleUrl, { method: "GET" }, accessToken, connection, clientId, clientSecret, supabaseAdmin, profile.id
+        );
+        const peopleData = await peopleRes.json();
+        console.log("search_people: status", peopleRes.status, "found", peopleData.people?.length || 0, "people");
+        if (peopleData.error) {
+          console.error("search_people error:", JSON.stringify(peopleData.error));
+        }
+        result = peopleData;
         break;
       }
       case "create_dm": {
