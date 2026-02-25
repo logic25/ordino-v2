@@ -125,7 +125,10 @@ export function useCreateActionItem() {
       if (data?.id) {
         supabase.functions.invoke("send-gchat-action-item", {
           body: { action_item_id: data.id },
-        }).catch((err) => console.warn("GChat notification failed:", err));
+        }).then((res) => {
+          if (res.error) console.error("GChat notification error:", res.error);
+          else console.log("GChat notification sent:", res.data);
+        }).catch((err) => console.error("GChat notification failed:", err));
       }
     },
     onSuccess: (_, vars) => {
