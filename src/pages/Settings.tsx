@@ -19,6 +19,7 @@ import { PartnerEmailTemplateSettings } from "@/components/settings/PartnerEmail
 import { InstructionTemplateSettings } from "@/components/settings/InstructionTemplateSettings";
 import { RolesSettings } from "@/components/settings/RolesSettings";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
+import { BillingNotificationSettings } from "@/components/settings/BillingNotificationSettings";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { Mail, Brain, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -82,7 +83,7 @@ function BeaconSettingsSection() {
   );
 }
 
-type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists" | "roles" | "partner_templates" | "signal" | "instruction_templates" | "notifications" | "beacon";
+type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists" | "roles" | "partner_templates" | "signal" | "instruction_templates" | "notifications" | "beacon" | "billing_notifications";
 
 const settingsSections = [
   { id: "profile" as const, title: "Profile", description: "Your personal information, hourly rate, and signature", icon: User },
@@ -95,6 +96,7 @@ const settingsSections = [
   { id: "instruction_templates" as const, title: "Instruction Templates", description: "Reusable email templates for DOB instructions", icon: Mail },
   { id: "invoices" as const, title: "Invoices & Billing", description: "Payment terms, collections timeline, and client billing rules", icon: Receipt },
   { id: "automation" as const, title: "Automation Rules", description: "Configure auto-reminders, escalations, and collection workflows", icon: Zap },
+  { id: "billing_notifications" as const, title: "Billing Notifications", description: "Control who gets notified when services are sent to billing", icon: Receipt },
   { id: "partner_templates" as const, title: "Partner Outreach Templates", description: "Email templates for RFP partner notifications", icon: Mail },
   { id: "signal" as const, title: "Signal Monitoring", description: "Configure property monitoring preferences and notification rules", icon: Radio },
   { id: "roles" as const, title: "Roles & Permissions", description: "Configure what each role can access across the system", icon: ShieldCheck, adminOnly: true },
@@ -129,6 +131,7 @@ export default function Settings() {
       case "roles": return <RolesSettings />;
       case "notifications": return <NotificationSettings />;
       case "beacon": return <BeaconSettingsSection />;
+      case "billing_notifications": return <BillingNotificationSettings />;
       default:
         return (
           <>

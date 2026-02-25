@@ -140,10 +140,75 @@ export function useCreateBillingRequest() {
 
       return { billingRequest: billingReq, invoice };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["billing-requests"] });
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["invoice-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["previously-billed"] });
+
+      // Trigger billing notifications asynchronously (don't block on this)
+      if (result?.billingRequest) {
+        triggerBillingNotifications(result.billingRequest as any).catch(console.error);
+      }
     },
   });
+}
+
+async function triggerBillingNotifications(billingRequest: any) {
+  try {
+    // Get notification preferences for this company
+    const { data: prefs } = await supabase
+      .from("billing_notification_preferences" as any)
+      .select("*")
+      .eq("company_id", billingRequest.company_id)
+      .eq("is_enabled", true);
+
+    if (!prefs || prefs.length === 0) return;
+
+    // Get project info
+    const { data: project } = await supabase
+      .from("projects")
+      .select("id, name, project_number")
+      .eq("id", billingRequest.project_id)
+      .single();
+
+    const services = (billingRequest.services as any[]) || [];
+
+    for (const pref of prefs) {
+      if ((pref as any).frequency === "immediate") {
+        // Get user email
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("first_name, last_name, display_name")
+          .eq("id", (pref as any).user_id)
+          .single();
+
+        await supabase.functions.invoke("send-billing-notification", {
+          body: {
+            billing_request_id: billingRequest.id,
+            recipient_name: profile?.display_name || profile?.first_name || "there",
+            project: project ? {
+              id: project.id,
+              number: project.project_number,
+              name: project.name,
+            } : null,
+            services: services.map((s: any) => ({
+              name: s.name,
+              description: s.description,
+              price: s.amount || s.billed_amount || 0,
+            })),
+            total_price: billingRequest.total_amount,
+          },
+        });
+      } else {
+        // Queue for digest
+        await supabase.from("billing_notification_queue" as any).insert({
+          company_id: billingRequest.company_id,
+          billing_request_id: billingRequest.id,
+        } as any);
+      }
+    }
+  } catch (err) {
+    console.error("Failed to trigger billing notifications:", err);
+  }
 }

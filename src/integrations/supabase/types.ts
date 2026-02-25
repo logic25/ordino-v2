@@ -798,6 +798,108 @@ export type Database = {
         }
         Relationships: []
       }
+      billing_notification_preferences: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          digest_day: string | null
+          digest_time: string | null
+          frequency: string
+          id: string
+          include_billed_to: boolean | null
+          include_project_link: boolean | null
+          include_service_details: boolean | null
+          is_enabled: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          digest_day?: string | null
+          digest_time?: string | null
+          frequency?: string
+          id?: string
+          include_billed_to?: boolean | null
+          include_project_link?: boolean | null
+          include_service_details?: boolean | null
+          is_enabled?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          digest_day?: string | null
+          digest_time?: string | null
+          frequency?: string
+          id?: string
+          include_billed_to?: boolean | null
+          include_project_link?: boolean | null
+          include_service_details?: boolean | null
+          is_enabled?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_notification_preferences_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_notification_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_notification_queue: {
+        Row: {
+          billing_request_id: string
+          company_id: string
+          created_at: string | null
+          id: string
+          processed: boolean | null
+          processed_at: string | null
+        }
+        Insert: {
+          billing_request_id: string
+          company_id: string
+          created_at?: string | null
+          id?: string
+          processed?: boolean | null
+          processed_at?: string | null
+        }
+        Update: {
+          billing_request_id?: string
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          processed?: boolean | null
+          processed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_notification_queue_billing_request_id_fkey"
+            columns: ["billing_request_id"]
+            isOneToOne: false
+            referencedRelation: "billing_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_notification_queue_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       billing_requests: {
         Row: {
           billed_to_contact_id: string | null
@@ -936,6 +1038,111 @@ export type Database = {
             columns: ["uploaded_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_schedules: {
+        Row: {
+          auto_approve: boolean | null
+          billed_to_contact_id: string | null
+          billing_method: string
+          billing_value: number
+          company_id: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          end_date: string | null
+          frequency: string
+          id: string
+          is_active: boolean | null
+          last_billed_at: string | null
+          max_occurrences: number | null
+          next_bill_date: string
+          occurrences_completed: number | null
+          project_id: string
+          service_id: string | null
+          service_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          auto_approve?: boolean | null
+          billed_to_contact_id?: string | null
+          billing_method?: string
+          billing_value: number
+          company_id: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          frequency?: string
+          id?: string
+          is_active?: boolean | null
+          last_billed_at?: string | null
+          max_occurrences?: number | null
+          next_bill_date: string
+          occurrences_completed?: number | null
+          project_id: string
+          service_id?: string | null
+          service_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          auto_approve?: boolean | null
+          billed_to_contact_id?: string | null
+          billing_method?: string
+          billing_value?: number
+          company_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          frequency?: string
+          id?: string
+          is_active?: boolean | null
+          last_billed_at?: string | null
+          max_occurrences?: number | null
+          next_bill_date?: string
+          occurrences_completed?: number | null
+          project_id?: string
+          service_id?: string | null
+          service_name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_schedules_billed_to_contact_id_fkey"
+            columns: ["billed_to_contact_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_schedules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_schedules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_schedules_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_schedules_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
             referencedColumns: ["id"]
           },
         ]

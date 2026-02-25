@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Search, Send, Trash2, Receipt } from "lucide-react";
+import { BillingSentTable } from "@/components/invoices/BillingSentTable";
+import { BillingSchedulesView } from "@/components/invoices/BillingSchedulesView";
 import { InvoiceSummaryCards } from "@/components/invoices/InvoiceSummaryCards";
 import { InvoiceFilterTabs, type BillingTab } from "@/components/invoices/InvoiceFilterTabs";
 import { InvoiceTable } from "@/components/invoices/InvoiceTable";
@@ -97,7 +99,7 @@ export default function Invoices() {
   const [billingOpen, setBillingOpen] = useState(false);
   const { track } = useTelemetry();
 
-  const isSpecialTab = ["collections", "promises", "retainers", "analytics"].includes(activeFilter);
+  const isSpecialTab = ["collections", "promises", "retainers", "analytics", "sent_to_billing", "schedules"].includes(activeFilter);
   const queryFilter = activeFilter === "collections" ? "overdue" : isSpecialTab ? "all" : activeFilter;
   const { data: dbInvoices = [], isLoading } = useInvoices(queryFilter as InvoiceStatus | "all");
   const { data: dbCounts } = useInvoiceCounts();
@@ -274,6 +276,10 @@ export default function Invoices() {
               <RetainersView />
             ) : activeFilter === "analytics" ? (
               <AnalyticsView />
+            ) : activeFilter === "sent_to_billing" ? (
+              <BillingSentTable />
+            ) : activeFilter === "schedules" ? (
+              <BillingSchedulesView />
             ) : (
               <InvoiceTable
                 invoices={filteredInvoices}
