@@ -140,8 +140,10 @@ async function enrichSpaceNames(
 ) {
   const nameCache = new Map<string, { displayName: string; avatarUrl?: string }>();
 
-  // Resolve current user
+  // Resolve current user — collect both ID and email for matching
   let currentUserResourceName: string | null = null;
+  let currentUserEmail: string | null = null;
+  let currentUserDisplayName: string | null = null;
   try {
     const meRes = await fetch(
       "https://people.googleapis.com/v1/people/me?personFields=names,emailAddresses,metadata",
@@ -150,6 +152,9 @@ async function enrichSpaceNames(
     if (meRes.ok) {
       const meData = await meRes.json();
       currentUserResourceName = meData.resourceName || null;
+      currentUserEmail = meData.emailAddresses?.[0]?.value?.toLowerCase() || null;
+      currentUserDisplayName = meData.names?.[0]?.displayName || null;
+      console.log("Current user:", currentUserResourceName, currentUserEmail, currentUserDisplayName);
     } else {
       await meRes.text();
     }
@@ -157,11 +162,20 @@ async function enrichSpaceNames(
     console.log("Failed to resolve current user:", e.message);
   }
 
-  const isCurrentUser = (memberName: string): boolean => {
-    if (!currentUserResourceName) return false;
-    const memberId = memberName.replace("users/", "");
-    const currentId = currentUserResourceName.replace("people/", "");
-    return memberId === currentId;
+  /** Check if a Chat API member matches the current user by ID or resolved name */
+  const isCurrentUser = (memberName: string, memberDisplayName?: string): boolean => {
+    if (!currentUserResourceName && !currentUserDisplayName) return false;
+    // Compare numeric IDs (works when Google uses same ID space)
+    if (currentUserResourceName) {
+      const memberId = memberName.replace("users/", "");
+      const currentId = currentUserResourceName.replace("people/", "");
+      if (memberId === currentId) return true;
+    }
+    // Compare display names as fallback (handles cross-ID-space mismatch)
+    if (currentUserDisplayName && memberDisplayName) {
+      if (memberDisplayName.toLowerCase() === currentUserDisplayName.toLowerCase()) return true;
+    }
+    return false;
   };
 
   const unnamedSpaces = spaces.filter((s: any) => !s.displayName);
@@ -194,7 +208,7 @@ async function enrichSpaceNames(
         }
 
         if (humanMembers.length >= 2) {
-          const otherMembers = humanMembers.filter(m => !isCurrentUser(m.name || ""));
+          const otherMembers = humanMembers.filter(m => !isCurrentUser(m.name || "", m.displayName));
           const candidates = otherMembers.length > 0 ? otherMembers : humanMembers;
           for (const member of candidates) {
             if (member.displayName) {
@@ -235,7 +249,7 @@ async function enrichSpaceNames(
         for (const membership of membersData.memberships) {
           const member = membership.member;
           if (!member || member.type === "BOT") continue;
-          if (isCurrentUser(member.name || "")) continue;
+          if (isCurrentUser(member.name || "", member.displayName)) continue;
           if (member.displayName) {
             memberNames.push(member.displayName.split(" ")[0]);
           } else if (member.name) {
