@@ -42,7 +42,18 @@ function ConfidencePill({ confidence }: { confidence: number }) {
 
 function WidgetSources({ sources }: { sources: Array<{ title: string; score: number; chunk_preview?: string }> }) {
   const [open, setOpen] = useState(false);
+  const [expandedIndices, setExpandedIndices] = useState<Set<number>>(new Set());
   if (!sources?.length) return null;
+
+  const toggleSource = (i: number) => {
+    setExpandedIndices(prev => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+  };
+
   return (
     <div className="mt-1.5">
       <button
@@ -53,19 +64,38 @@ function WidgetSources({ sources }: { sources: Array<{ title: string; score: num
         {sources.length} source{sources.length !== 1 ? "s" : ""}
       </button>
       {open && (
-        <div className="mt-1 space-y-1 pl-4">
+        <div className="mt-1 space-y-0.5 pl-4">
           {sources.map((s, i) => {
             const pct = Math.round(s.score * 100);
             const barColor = pct >= 85 ? "bg-[hsl(142,71%,45%)]" : pct >= 60 ? "bg-amber-500" : "bg-destructive";
+            const isExpanded = expandedIndices.has(i);
             return (
-              <div key={i} className="flex items-center gap-2 text-[10px]">
-                <span className="truncate max-w-[200px] text-foreground">{s.title}</span>
-                <div className="flex items-center gap-1">
-                  <div className="w-12 h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div className={cn("h-full rounded-full", barColor)} style={{ width: `${pct}%` }} />
+              <div key={i}>
+                <button
+                  onClick={() => s.chunk_preview && toggleSource(i)}
+                  className={cn(
+                    "flex items-center gap-2 text-[10px] w-full text-left",
+                    s.chunk_preview && "cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1 py-0.5"
+                  )}
+                >
+                  {s.chunk_preview ? (
+                    isExpanded ? <ChevronDown className="h-2.5 w-2.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
+                  ) : (
+                    <span className="w-2.5 shrink-0" />
+                  )}
+                  <span className="truncate max-w-[200px] text-foreground">{s.title}</span>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <div className="w-12 h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div className={cn("h-full rounded-full", barColor)} style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="text-muted-foreground">{pct}%</span>
                   </div>
-                  <span className="text-muted-foreground">{pct}%</span>
-                </div>
+                </button>
+                {isExpanded && s.chunk_preview && (
+                  <div className="ml-4 mt-0.5 mb-1.5 text-[10px] text-muted-foreground bg-muted/30 rounded px-2 py-1.5 leading-relaxed border border-border/50">
+                    {s.chunk_preview}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -79,9 +109,10 @@ interface Props {
   messages: (GChatMessage & { source?: string; widgetMetadata?: any })[];
   isLoading: boolean;
   members?: Array<{ member?: { name?: string; displayName?: string; type?: string } }>;
+  isWaitingForBeacon?: boolean;
 }
 
-export function ChatMessageList({ messages, isLoading, members = [] }: Props) {
+export function ChatMessageList({ messages, isLoading, members = [], isWaitingForBeacon }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const lastMsgKey = messages.length > 0
@@ -182,6 +213,18 @@ export function ChatMessageList({ messages, isLoading, members = [] }: Props) {
           </div>
         );
       })}
+      {isWaitingForBeacon && (
+        <div className="flex items-start gap-2.5 py-1.5">
+          <div className="h-7 w-7 mt-0.5 shrink-0 rounded-full bg-[#f59e0b]/15 flex items-center justify-center">
+            <Brain className="h-3.5 w-3.5 text-[#f59e0b] animate-pulse" />
+          </div>
+          <div className="flex items-center gap-1 pt-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:0ms]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:150ms]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:300ms]" />
+          </div>
+        </div>
+      )}
       <div ref={bottomRef} />
     </div>
   );

@@ -34,6 +34,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [peopleQuery, setPeopleQuery] = useState("");
   const [beaconSending, setBeaconSending] = useState(false);
+  const [isWaitingForBeacon, setIsWaitingForBeacon] = useState(false);
 
   const { data: spaces = [], isLoading: spacesLoading, error: spacesError, hasNextPage, isFetchingNextPage, fetchNextPage } = useGChatSpaces();
   const { data: messages = [], isLoading: msgsLoading } = useGChatMessages(selectedSpaceId);
@@ -122,6 +123,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
     if (!email) return;
 
     setBeaconSending(true);
+    setIsWaitingForBeacon(true);
     try {
       // Save user message to widget_messages
       await supabase.from("widget_messages" as any).insert({
@@ -166,45 +168,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
       console.error("Beacon direct message error:", err);
     } finally {
       setBeaconSending(false);
-    }
-  };
-
-  const sendBeaconInSpace = async (text: string) => {
-    // Post to Google Chat so other users see the question
-    sendMutation.mutate({ spaceId: selectedSpaceId!, text, threadKey });
-
-    // Strip @beacon mention to get the actual question
-    const question = text.replace(/@beacon\s*/gi, "").trim();
-    if (!question) return;
-
-    setBeaconSending(true);
-    try {
-      const displayName = profile?.display_name || profile?.first_name || user?.user_metadata?.full_name || "User";
-      const res = await fetch("https://beaconrag.up.railway.app/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: question,
-          user_id: user?.email || user?.id || "anonymous",
-          user_name: displayName,
-          space_id: selectedSpaceId,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.response) {
-        // Beacon responds asynchronously via Google Chat API — refresh after a delay
-        setTimeout(() => {
-          queryClient.invalidateQueries({ queryKey: ["gchat-messages", selectedSpaceId] });
-        }, 2000);
-        setTimeout(() => {
-          queryClient.invalidateQueries({ queryKey: ["gchat-messages", selectedSpaceId] });
-        }, 5000);
-      }
-    } catch (err) {
-      console.error("Beacon space mention error:", err);
-    } finally {
-      setBeaconSending(false);
+      setIsWaitingForBeacon(false);
     }
   };
 
@@ -213,12 +177,6 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
 
     if (isBeaconBotDm) {
       await sendBeaconDirectMessage(text);
-      return;
-    }
-
-    // Detect @beacon mention in Spaces — route directly to Beacon
-    if (/@beacon/i.test(text)) {
-      await sendBeaconInSpace(text);
       return;
     }
 
@@ -294,7 +252,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
 
         {selectedSpaceId ? (
           <>
-            <ChatMessageList messages={mergedMessages} isLoading={msgsLoading} members={activeMembers} />
+            <ChatMessageList messages={mergedMessages} isLoading={msgsLoading} members={activeMembers} isWaitingForBeacon={isWaitingForBeacon} />
             <ChatCompose onSend={handleSend} isSending={isBeaconBotDm ? beaconSending : sendMutation.isPending} />
           </>
         ) : (
