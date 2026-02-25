@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 export interface GChatSpace {
   name: string;
@@ -58,11 +59,79 @@ async function chatApi(action: string, params: Record<string, any> = {}) {
 }
 
 const SPACES_PAGE_SIZE = 25;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-/** Paginated spaces query with infinite scroll support */
+/**
+ * Read cached spaces directly from the database for instant loading.
+ * Returns { spaces, cachedAt } or null if no cache exists.
+ */
+async function readCachedSpaces(profileId: string): Promise<{ spaces: GChatSpace[]; cachedAt: Date } | null> {
+  const cacheKey = `spaces_${profileId}_ps${SPACES_PAGE_SIZE}_ptfirst`;
+  const { data, error } = await supabase
+    .from("gchat_spaces_cache" as any)
+    .select("payload, cached_at")
+    .eq("user_id", profileId)
+    .eq("cache_key", cacheKey)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  const row = data as any;
+  return {
+    spaces: row.payload?.spaces || [],
+    cachedAt: new Date(row.cached_at),
+  };
+}
+
+/**
+ * Stale-while-revalidate spaces hook.
+ * 1. Instantly loads cached spaces from the database
+ * 2. Background-refreshes via edge function if cache is stale (> 5 min)
+ */
 export function useGChatSpaces() {
-  const query = useInfiniteQuery({
-    queryKey: ["gchat-spaces"],
+  const { profile } = useAuth();
+  const profileId = (profile as any)?.id as string | undefined;
+  const qc = useQueryClient();
+  const refreshingRef = useRef(false);
+
+  // Primary query: read from DB cache (instant)
+  const cacheQuery = useQuery({
+    queryKey: ["gchat-spaces-cache", profileId],
+    enabled: !!profileId,
+    queryFn: async () => {
+      const cached = await readCachedSpaces(profileId!);
+      return cached;
+    },
+    staleTime: CACHE_TTL_MS,
+    retry: false,
+  });
+
+  // Background refresh: fire edge function if cache is stale or missing
+  useEffect(() => {
+    if (!profileId || refreshingRef.current) return;
+    if (cacheQuery.isLoading) return;
+
+    const cached = cacheQuery.data;
+    const isStale = !cached || (Date.now() - cached.cachedAt.getTime()) > CACHE_TTL_MS;
+
+    if (!isStale) return;
+
+    refreshingRef.current = true;
+    chatApi("list_spaces", { pageSize: SPACES_PAGE_SIZE })
+      .then((res) => {
+        // Edge function already updated the DB cache; refresh our local query
+        qc.invalidateQueries({ queryKey: ["gchat-spaces-cache", profileId] });
+      })
+      .catch((err) => {
+        console.error("Background spaces refresh failed:", err);
+      })
+      .finally(() => {
+        refreshingRef.current = false;
+      });
+  }, [profileId, cacheQuery.isLoading, cacheQuery.data, qc]);
+
+  // Fallback infinite query for "load more" pages (beyond the first page)
+  const infiniteQuery = useInfiniteQuery({
+    queryKey: ["gchat-spaces-more"],
     queryFn: async ({ pageParam }: { pageParam: string | null }) => {
       const res = await chatApi("list_spaces", {
         pageSize: SPACES_PAGE_SIZE,
@@ -75,23 +144,28 @@ export function useGChatSpaces() {
     },
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextPageToken,
+    enabled: false, // Only triggered manually via fetchNextPage
     retry: false,
-    staleTime: 5 * 60 * 1000,
+    staleTime: CACHE_TTL_MS,
   });
 
-  // Flatten all pages into a single spaces array for backward compatibility
-  const allSpaces = useMemo(
-    () => query.data?.pages.flatMap((p) => p.spaces) ?? [],
-    [query.data]
-  );
+  // Merge: first page from cache, additional pages from infinite query
+  const allSpaces = useMemo(() => {
+    const firstPage = cacheQuery.data?.spaces ?? [];
+    const morePages = infiniteQuery.data?.pages.flatMap((p) => p.spaces) ?? [];
+    // Deduplicate by space name
+    const seen = new Set(firstPage.map(s => s.name));
+    const extra = morePages.filter(s => !seen.has(s.name));
+    return [...firstPage, ...extra];
+  }, [cacheQuery.data, infiniteQuery.data]);
 
   return {
     data: allSpaces,
-    isLoading: query.isLoading,
-    error: query.error,
-    hasNextPage: query.hasNextPage,
-    isFetchingNextPage: query.isFetchingNextPage,
-    fetchNextPage: query.fetchNextPage,
+    isLoading: cacheQuery.isLoading,
+    error: cacheQuery.error,
+    hasNextPage: infiniteQuery.hasNextPage ?? (cacheQuery.data?.spaces?.length === SPACES_PAGE_SIZE),
+    isFetchingNextPage: infiniteQuery.isFetchingNextPage,
+    fetchNextPage: infiniteQuery.fetchNextPage,
   };
 }
 
@@ -120,7 +194,7 @@ export function useGChatMembers(spaceId: string | null) {
 }
 
 /**
- * DM names are now resolved server-side in the list_spaces edge function.
+ * DM names are now resolved server-side in the edge function.
  * This hook is kept for backward compatibility but simply returns an empty map.
  */
 export function useGChatDmNames(_spaces: GChatSpace[]) {
@@ -149,12 +223,15 @@ export function useSearchPeople() {
 
 export function useCreateDm() {
   const qc = useQueryClient();
+  const { profile } = useAuth();
+  const profileId = (profile as any)?.id as string | undefined;
   return useMutation({
     mutationFn: async (userEmail: string) => {
       return chatApi("create_dm", { userEmail });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["gchat-spaces"] });
+      qc.invalidateQueries({ queryKey: ["gchat-spaces-cache", profileId] });
+      qc.invalidateQueries({ queryKey: ["gchat-spaces-more"] });
     },
   });
 }
