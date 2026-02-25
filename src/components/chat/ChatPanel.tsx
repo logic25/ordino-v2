@@ -3,6 +3,7 @@ import { useGChatSpaces, useGChatMessages, useSendGChatMessage, useGChatMembers,
 import { useHiddenSpaces } from "@/hooks/useHiddenSpaces";
 import { usePinnedSpaces } from "@/hooks/usePinnedSpaces";
 import { useChatNicknames } from "@/hooks/useChatNicknames";
+import { useMergedBeaconMessages } from "@/hooks/useWidgetMessages";
 import { SpacesList } from "./SpacesList";
 import { ChatMessageList } from "./ChatMessageList";
 import { ChatCompose } from "./ChatCompose";
@@ -42,7 +43,11 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
   const { data: activeMembers = [] } = useGChatMembers(selectedSpaceId);
 
   const activeSpace = spaces.find((s) => s.name === selectedSpaceId);
+  const isBeaconBotDm = !!activeSpace?.singleUserBotDm;
   const isActiveSpaceDM = activeSpace ? isSpaceDM(activeSpace) : false;
+
+  // Merge widget messages when viewing Beacon bot DM
+  const { data: mergedMessages } = useMergedBeaconMessages(messages, isBeaconBotDm);
   const activeDisplayName =
     (selectedSpaceId ? nicknames.get(selectedSpaceId) : null) ||
     activeSpace?.displayName ||
@@ -180,7 +185,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
 
         {selectedSpaceId ? (
           <>
-            <ChatMessageList messages={messages} isLoading={msgsLoading} members={activeMembers} />
+            <ChatMessageList messages={mergedMessages} isLoading={msgsLoading} members={activeMembers} />
             <ChatCompose onSend={handleSend} isSending={sendMutation.isPending} />
           </>
         ) : (
