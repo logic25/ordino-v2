@@ -7,13 +7,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Plus, Trash2, AlertTriangle, Info } from "lucide-react";
+import { Loader2, Plus, Trash2, AlertTriangle, Info, DollarSign, Percent, Check } from "lucide-react";
 import { useProjects } from "@/hooks/useProjects";
 import { useClients, useClientContacts } from "@/hooks/useClients";
 import { useCreateBillingRequest, type BillingRequestService } from "@/hooks/useBillingRequests";
 import { useClientBillingRulesByClient } from "@/hooks/useClientBillingRules";
 import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface SendToBillingDialogProps {
   open: boolean;
@@ -21,32 +26,98 @@ interface SendToBillingDialogProps {
   preselectedProjectId?: string;
 }
 
+interface ProjectService {
+  id: string;
+  name: string;
+  description: string | null;
+  total_amount: number | null;
+  fixed_price: number | null;
+  billing_type: string | null;
+  status: string | null;
+}
+
+interface SelectedService {
+  serviceId: string;
+  name: string;
+  contractAmount: number;
+  previouslyBilled: number;
+  remaining: number;
+  billingMode: "amount" | "percent";
+  inputValue: number;
+  billedAmount: number;
+}
+
+/** Fetch services linked to a project */
+function useProjectServices(projectId: string | null) {
+  return useQuery({
+    queryKey: ["project-services", projectId],
+    enabled: !!projectId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("services")
+        .select("id, name, description, total_amount, fixed_price, billing_type, status")
+        .eq("project_id", projectId!);
+      if (error) throw error;
+      return (data || []) as ProjectService[];
+    },
+  });
+}
+
+/** Fetch previously billed amounts per service for a project */
+function usePreviouslyBilled(projectId: string | null) {
+  return useQuery({
+    queryKey: ["previously-billed", projectId],
+    enabled: !!projectId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("billing_requests")
+        .select("services")
+        .eq("project_id", projectId!)
+        .neq("status", "cancelled");
+      if (error) throw error;
+
+      // Sum billed amounts by service name
+      const billedMap: Record<string, number> = {};
+      for (const req of data || []) {
+        const items = (req.services as any[]) || [];
+        for (const item of items) {
+          const key = item.name || "";
+          billedMap[key] = (billedMap[key] || 0) + (item.amount || 0);
+        }
+      }
+      return billedMap;
+    },
+  });
+}
+
 export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId }: SendToBillingDialogProps) {
   const [projectId, setProjectId] = useState(preselectedProjectId || "");
   const [billedToContactId, setBilledToContactId] = useState("");
-  const [services, setServices] = useState<BillingRequestService[]>([
+  const [selectedServices, setSelectedServices] = useState<SelectedService[]>([]);
+  // Legacy manual lines for projects without services
+  const [manualServices, setManualServices] = useState<BillingRequestService[]>([
     { name: "", description: "", quantity: 1, rate: 0, amount: 0 },
   ]);
 
   const { data: projects } = useProjects();
   const { data: clients } = useClients();
   const createBillingRequest = useCreateBillingRequest();
+  const { data: projectServices = [] } = useProjectServices(projectId || null);
+  const { data: previouslyBilled = {} } = usePreviouslyBilled(projectId || null);
 
   const selectedProject = projects?.find((p) => p.id === projectId);
   const selectedClient = clients?.find((c) => c.id === selectedProject?.client_id);
 
-  // Fetch contacts for the selected client
   const { data: contacts } = useClientContacts(selectedProject?.client_id);
-
-  // Fetch billing rules for the selected client
   const { data: billingRules } = useClientBillingRulesByClient(selectedProject?.client_id);
-  const activeRule = billingRules?.[0]; // primary rule
+  const activeRule = billingRules?.[0];
+
+  const hasProjectServices = projectServices.length > 0;
 
   useEffect(() => {
     if (preselectedProjectId) setProjectId(preselectedProjectId);
   }, [preselectedProjectId]);
 
-  // Auto-select primary contact when contacts load
   useEffect(() => {
     if (contacts && contacts.length > 0 && !billedToContactId) {
       const primary = contacts.find((c) => c.is_primary);
@@ -54,15 +125,57 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId }
     }
   }, [contacts, billedToContactId]);
 
-  // Reset contact when project changes
   useEffect(() => {
     setBilledToContactId("");
+    setSelectedServices([]);
   }, [projectId]);
 
   const selectedContact = contacts?.find((c) => c.id === billedToContactId);
 
-  const updateService = (idx: number, field: keyof BillingRequestService, value: string | number) => {
-    setServices((prev) => {
+  // Toggle a project service selection
+  const toggleService = (svc: ProjectService) => {
+    setSelectedServices((prev) => {
+      const exists = prev.find((s) => s.serviceId === svc.id);
+      if (exists) return prev.filter((s) => s.serviceId !== svc.id);
+
+      const contractAmount = svc.total_amount || svc.fixed_price || 0;
+      const prevBilled = previouslyBilled[svc.name] || 0;
+      const remaining = Math.max(0, contractAmount - prevBilled);
+
+      return [...prev, {
+        serviceId: svc.id,
+        name: svc.name,
+        contractAmount,
+        previouslyBilled: prevBilled,
+        remaining,
+        billingMode: "amount",
+        inputValue: remaining,
+        billedAmount: remaining,
+      }];
+    });
+  };
+
+  const updateSelectedService = (serviceId: string, field: "billingMode" | "inputValue", value: any) => {
+    setSelectedServices((prev) =>
+      prev.map((s) => {
+        if (s.serviceId !== serviceId) return s;
+        const updated = { ...s, [field]: value };
+        if (field === "billingMode" || field === "inputValue") {
+          if (updated.billingMode === "percent") {
+            const pct = Math.min(100, Math.max(0, Number(updated.inputValue) || 0));
+            updated.billedAmount = +(s.contractAmount * (pct / 100)).toFixed(2);
+          } else {
+            updated.billedAmount = Math.min(s.remaining, Math.max(0, Number(updated.inputValue) || 0));
+          }
+        }
+        return updated;
+      })
+    );
+  };
+
+  // Manual service helpers (fallback when no project services exist)
+  const updateManualService = (idx: number, field: keyof BillingRequestService, value: string | number) => {
+    setManualServices((prev) => {
       const updated = [...prev];
       (updated[idx] as any)[field] = value;
       if (field === "quantity" || field === "rate") {
@@ -72,18 +185,19 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId }
     });
   };
 
-  const addService = () => {
-    setServices((prev) => [...prev, { name: "", description: "", quantity: 1, rate: 0, amount: 0 }]);
+  const addManualService = () => {
+    setManualServices((prev) => [...prev, { name: "", description: "", quantity: 1, rate: 0, amount: 0 }]);
   };
 
-  const removeService = (idx: number) => {
-    if (services.length <= 1) return;
-    setServices((prev) => prev.filter((_, i) => i !== idx));
+  const removeManualService = (idx: number) => {
+    if (manualServices.length <= 1) return;
+    setManualServices((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  const subtotal = services.reduce((sum, s) => sum + s.amount, 0);
+  const subtotal = hasProjectServices
+    ? selectedServices.reduce((sum, s) => sum + s.billedAmount, 0)
+    : manualServices.reduce((sum, s) => sum + s.amount, 0);
 
-  // Calculate fees from billing rules
   const fees = useMemo(() => {
     const f: Record<string, number> = {};
     if (activeRule?.wire_fee && activeRule.wire_fee > 0) {
@@ -103,8 +217,21 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId }
       toast({ title: "Select a project", variant: "destructive" });
       return;
     }
-    if (services.every((s) => !s.name && s.amount === 0)) {
-      toast({ title: "Add at least one service", variant: "destructive" });
+
+    const serviceLines: BillingRequestService[] = hasProjectServices
+      ? selectedServices.map((s) => ({
+          name: s.name,
+          description: s.billingMode === "percent"
+            ? `${s.inputValue}% of $${s.contractAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}`
+            : "",
+          quantity: 1,
+          rate: s.billedAmount,
+          amount: s.billedAmount,
+        }))
+      : manualServices.filter((s) => s.name || s.amount > 0);
+
+    if (serviceLines.length === 0) {
+      toast({ title: "Select at least one service to bill", variant: "destructive" });
       return;
     }
 
@@ -112,7 +239,7 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId }
       await createBillingRequest.mutateAsync({
         project_id: projectId,
         client_id: selectedProject?.client_id,
-        services: services.filter((s) => s.name || s.amount > 0),
+        services: serviceLines,
         total_amount: totalAmount,
         billed_to_contact_id: billedToContactId || null,
         fees: Object.keys(fees).length > 0 ? fees : undefined,
@@ -129,7 +256,8 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId }
   const resetForm = () => {
     if (!preselectedProjectId) setProjectId("");
     setBilledToContactId("");
-    setServices([{ name: "", description: "", quantity: 1, rate: 0, amount: 0 }]);
+    setSelectedServices([]);
+    setManualServices([{ name: "", description: "", quantity: 1, rate: 0, amount: 0 }]);
   };
 
   return (
@@ -229,68 +357,187 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId }
 
           <Separator />
 
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <Label>Completed Services</Label>
-              <Button variant="ghost" size="sm" onClick={addService}>
-                <Plus className="h-3.5 w-3.5 mr-1" /> Add Service
-              </Button>
-            </div>
-
+          {/* Service Selection — from project services */}
+          {hasProjectServices ? (
             <div className="space-y-3">
-              {services.map((service, idx) => (
-                <div key={idx} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 items-end">
-                  <div className="space-y-1">
-                    {idx === 0 && <Label className="text-xs text-muted-foreground">Service Name</Label>}
-                    <Input
-                      value={service.name}
-                      onChange={(e) => updateService(idx, "name", e.target.value)}
-                      placeholder="Service name"
-                      className="h-9"
-                    />
-                  </div>
-                  <div className="w-16 space-y-1">
-                    {idx === 0 && <Label className="text-xs text-muted-foreground">Qty</Label>}
-                    <Input
-                      type="number"
-                      min={1}
-                      value={service.quantity}
-                      onChange={(e) => updateService(idx, "quantity", Number(e.target.value))}
-                      className="h-9"
-                    />
-                  </div>
-                  <div className="w-24 space-y-1">
-                    {idx === 0 && <Label className="text-xs text-muted-foreground">Rate</Label>}
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={service.rate}
-                      onChange={(e) => updateService(idx, "rate", Number(e.target.value))}
-                      className="h-9"
-                    />
-                  </div>
-                  <div className="w-24 space-y-1">
-                    {idx === 0 && <Label className="text-xs text-muted-foreground">Amount</Label>}
-                    <Input
-                      readOnly
-                      value={`$${service.amount.toFixed(2)}`}
-                      className="h-9 bg-muted tabular-nums text-sm"
-                    />
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-9 w-9"
-                    disabled={services.length <= 1}
-                    onClick={() => removeService(idx)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              ))}
+              <Label>Select Services to Bill</Label>
+              <div className="space-y-2">
+                {projectServices.map((svc) => {
+                  const selected = selectedServices.find((s) => s.serviceId === svc.id);
+                  const contractAmt = svc.total_amount || svc.fixed_price || 0;
+                  const prevBilled = previouslyBilled[svc.name] || 0;
+                  const remaining = Math.max(0, contractAmt - prevBilled);
+                  const fullyBilled = contractAmt > 0 && remaining <= 0;
+
+                  return (
+                    <div
+                      key={svc.id}
+                      className={cn(
+                        "rounded-lg border p-3 transition-colors",
+                        selected ? "border-primary bg-primary/5" : "hover:border-muted-foreground/30",
+                        fullyBilled && "opacity-50"
+                      )}
+                    >
+                      {/* Top row: checkbox + name + contract info */}
+                      <div className="flex items-center gap-3">
+                        <Checkbox
+                          checked={!!selected}
+                          disabled={fullyBilled}
+                          onCheckedChange={() => toggleService(svc)}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium truncate">{svc.name}</span>
+                            {svc.status && (
+                              <Badge variant="outline" className="text-[10px] shrink-0">
+                                {svc.status.replace(/_/g, " ")}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground">
+                            <span>Contract: ${contractAmt.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                            {prevBilled > 0 && (
+                              <span>Billed: ${prevBilled.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                            )}
+                            <span className={cn(fullyBilled ? "text-destructive" : "text-foreground font-medium")}>
+                              {fullyBilled ? "Fully billed" : `Remaining: $${remaining.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Amount / % input — shown when selected */}
+                      {selected && (
+                        <div className="mt-3 ml-8 flex items-center gap-2">
+                          {/* Mode toggle */}
+                          <div className="flex rounded-md border overflow-hidden shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => updateSelectedService(svc.id, "billingMode", "amount")}
+                              className={cn(
+                                "px-2 py-1 text-xs transition-colors",
+                                selected.billingMode === "amount"
+                                  ? "bg-primary text-primary-foreground"
+                                  : "hover:bg-muted"
+                              )}
+                            >
+                              <DollarSign className="h-3 w-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                updateSelectedService(svc.id, "billingMode", "percent");
+                                // Default to 100% when switching
+                                if (selected.billingMode !== "percent") {
+                                  updateSelectedService(svc.id, "inputValue", 100);
+                                }
+                              }}
+                              className={cn(
+                                "px-2 py-1 text-xs transition-colors",
+                                selected.billingMode === "percent"
+                                  ? "bg-primary text-primary-foreground"
+                                  : "hover:bg-muted"
+                              )}
+                            >
+                              <Percent className="h-3 w-3" />
+                            </button>
+                          </div>
+
+                          {/* Value input */}
+                          <div className="relative w-32">
+                            {selected.billingMode === "amount" && (
+                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">$</span>
+                            )}
+                            <Input
+                              type="number"
+                              min={0}
+                              max={selected.billingMode === "percent" ? 100 : selected.remaining}
+                              step={selected.billingMode === "percent" ? 1 : 0.01}
+                              value={selected.inputValue}
+                              onChange={(e) => updateSelectedService(svc.id, "inputValue", Number(e.target.value))}
+                              className={cn("h-8 text-sm tabular-nums", selected.billingMode === "amount" ? "pl-6" : "")}
+                            />
+                            {selected.billingMode === "percent" && (
+                              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+                            )}
+                          </div>
+
+                          {/* Computed amount */}
+                          <span className="text-sm font-medium tabular-nums ml-auto">
+                            ${selected.billedAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          ) : (
+            /* Fallback: manual service entry for projects without services */
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label>Completed Services</Label>
+                <Button variant="ghost" size="sm" onClick={addManualService}>
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Service
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                {manualServices.map((service, idx) => (
+                  <div key={idx} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 items-end">
+                    <div className="space-y-1">
+                      {idx === 0 && <Label className="text-xs text-muted-foreground">Service Name</Label>}
+                      <Input
+                        value={service.name}
+                        onChange={(e) => updateManualService(idx, "name", e.target.value)}
+                        placeholder="Service name"
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="w-16 space-y-1">
+                      {idx === 0 && <Label className="text-xs text-muted-foreground">Qty</Label>}
+                      <Input
+                        type="number"
+                        min={1}
+                        value={service.quantity}
+                        onChange={(e) => updateManualService(idx, "quantity", Number(e.target.value))}
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="w-24 space-y-1">
+                      {idx === 0 && <Label className="text-xs text-muted-foreground">Rate</Label>}
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={service.rate}
+                        onChange={(e) => updateManualService(idx, "rate", Number(e.target.value))}
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="w-24 space-y-1">
+                      {idx === 0 && <Label className="text-xs text-muted-foreground">Amount</Label>}
+                      <Input
+                        readOnly
+                        value={`$${service.amount.toFixed(2)}`}
+                        className="h-9 bg-muted tabular-nums text-sm"
+                      />
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9"
+                      disabled={manualServices.length <= 1}
+                      onClick={() => removeManualService(idx)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <Separator />
 
