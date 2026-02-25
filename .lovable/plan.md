@@ -1,92 +1,93 @@
 
-# Fix Ordino: Remove Beacon Admin Pages, Fix Chat, Simplify Settings
+# Chat Page: Instant Loading + Name Resolution Fix
 
-This plan addresses all the issues identified: removing Beacon admin pages that belong on Railway, fixing the Google Chat sidebar, and simplifying the Beacon settings section.
+## Problem Summary
 
----
+**Two root causes identified from server logs:**
 
-## 1. Delete All Beacon Admin Pages
+1. **Name resolution is broken** -- The `resolveUserName` function uses `sources=DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE` on the People API `people.get` endpoint, but that source type is only valid for `searchDirectoryPeople`. Every single People API call returns a **400 error**, meaning no human names are resolved, the `isMe` check always fails (because `currentUserDisplayName` is null), and the first member (the current user) is shown as the DM title.
 
-These pages belong on the Railway backend dashboard, not in Ordino.
-
-**Files to DELETE:**
-- `src/pages/BeaconDashboard.tsx`
-- `src/pages/BeaconKnowledgeBase.tsx`
-- `src/pages/BeaconBulletins.tsx`
-- `src/pages/BeaconContentEngine.tsx`
-- `src/pages/BeaconConversations.tsx`
-- `src/pages/BeaconFeedback.tsx`
-- `src/lib/beaconMockData.ts`
-
-**Note:** `BeaconChatWidget.tsx` stays -- it's the floating Beacon chat button (Section 8).
+2. **Slow loading** -- Every page load hits the Google Chat API + does 21+ People API calls (all failing). The server-side cache exists but only helps on repeat visits within 5 minutes. First load is always slow.
 
 ---
 
-## 2. Remove Beacon Routes and Nav Items
+## Plan
 
-**File: `src/App.tsx`**
-- Remove all 6 `/beacon/*` routes
-- Remove all Beacon page imports
+### 1. Fix Name Resolution (Edge Function)
 
-**File: `src/components/layout/AppSidebar.tsx`**
-- Delete the entire `beaconNav` array (Dashboard, Conversations, KB, Bulletins, Content Engine, Feedback)
-- Delete the "Beacon AI" sidebar section (the separator, label, and nav links)
-- Remove unused imports (`Brain`, `Database`, `MessageCircle`, `Sparkles`, `ScrollText` if only used by beaconNav)
-- Keep the `useIsAdmin` import (used by Settings beacon section)
+**Root cause**: The `resolveUserName` function and the `people/me` call are both using invalid `sources` parameters for the People API `get` endpoint.
 
----
+**Fix**:
+- Remove the broken People API `resolveUserName` calls entirely for DM name resolution
+- Instead, use the **Chat API membership data** which already includes `member.displayName` for both humans and bots
+- Get the current user's `display_name` from the `profiles` table (already queried) instead of the unreliable `people/me` call
+- Pass `profile.display_name` into `enrichSpaceNames` for reliable `isMe` matching
+- For bot DMs, use `member.displayName` directly (e.g., "Beacon", "Google Drive")
 
-## 3. Simplify Beacon Settings Section
+Changes in `supabase/functions/google-chat-api/index.ts`:
+- Add `display_name` to the profile SELECT query
+- Rewrite `enrichSpaceNames` to accept `currentUserDisplayName` as a parameter (from the profile)
+- Remove the `people/me` call inside `enrichSpaceNames`
+- In `resolveMember`, use `member.displayName` from the Chat API membership response directly (skip People API)
+- Only fall back to People API with **corrected** source types (`READ_SOURCE_TYPE_PROFILE`, `READ_SOURCE_TYPE_CONTACT`) if `member.displayName` is missing
 
-**File: `src/pages/Settings.tsx`**
+### 2. Stale-While-Revalidate Caching (Client + DB)
 
-The current `BeaconSettingsSection` is far too complex -- it has bot identity, card templates, space management tables, and team usage tables. Replace with a simple connection status section:
+**Strategy**: Show cached data instantly, refresh in background.
 
-- **Railway Backend URL**: Display field (placeholder URL)
-- **Connection Status**: Green "Connected" indicator
-- **Bot Name**: "Beacon"
-- **Dashboard Link**: Button that opens the Beacon admin dashboard on Railway in a new tab
-- **Quick Stats**: Total questions, avg confidence, last activity (hardcoded for prototype)
-- Remove: card template toggles, space management table, team usage table, access/discovery instructions
-- Remove the `import { mockBeaconSpaces } from "@/lib/beaconMockData"` (file is being deleted)
+**Database changes**:
+- Add RLS policy on `gchat_spaces_cache` allowing users to read their own cached data (currently only service role has access)
 
----
+**Client-side changes** in `src/hooks/useGoogleChat.ts`:
+- Add a new `useGChatCachedSpaces` query that reads directly from `gchat_spaces_cache` via Supabase client (instant, no edge function)
+- Modify `useGChatSpaces` to:
+  - Return cached data immediately on first render
+  - Fire the edge function in the background to refresh
+  - When the edge function returns, merge/update the React Query cache
+  - Only trigger background refresh if cache is older than 5 minutes
 
-## 4. Fix BeaconChatWidget -- Remove beaconMockData Dependency
+### 3. Fix Bot Message Sender Names
 
-**File: `src/components/beacon/BeaconChatWidget.tsx`**
+In the edge function's `list_messages` handler:
+- The member lookup for bot senders already works via the membership fetch
+- Ensure bot members with `type: "BOT"` have their `displayName` propagated to messages correctly (the current code skips bots when checking `msg.sender.type !== "BOT"` in the unknown sender resolution loop, but it should still apply the memberMap lookup)
 
-Currently imports `mockConversations` from `beaconMockData.ts` (which is being deleted). Replace with self-contained mock response data inline in the widget file. The widget's behavior stays the same -- floating button, slide-up panel, quick questions, confidence badges, RAG debug toggle.
+### 4. Clear Stale Cache
 
----
-
-## 5. Google Chat SpacesList -- Already Clean
-
-After reviewing `SpacesList.tsx`, the previous fix already removed the hardcoded mock data (`mockUnreadCounts`, `mockLastMessages`). The current implementation:
-- Uses real API data via props (`spaces`, `dmNames`)
-- Has search bar (client-side filtering)
-- Has New Chat button (`onNewChat` prop)
-- Has hide/archive functionality
-- Sorts by `lastActiveTime` (done server-side in edge function)
-
-The existing implementation is already correct. The edge function enriches DM names via People API, sorts by `lastActiveTime`, and the `ChatPanel` passes real data through. No changes needed to `SpacesList.tsx`.
-
-**Note on `search_messages`:** The Google Chat API does NOT have a `search_messages` endpoint. The edge function does not support this action. Client-side search filtering of loaded spaces (which already exists) is the available approach. Full message search would require indexing messages in our own database, which is a separate feature.
+After deploying the fix, clear the existing cached data so the corrected name resolution takes effect immediately.
 
 ---
 
-## Summary of Changes
+## Technical Details
 
-| Action | File | What |
-|--------|------|------|
-| DELETE | `src/pages/BeaconDashboard.tsx` | Remove Beacon admin page |
-| DELETE | `src/pages/BeaconKnowledgeBase.tsx` | Remove Beacon admin page |
-| DELETE | `src/pages/BeaconBulletins.tsx` | Remove Beacon admin page |
-| DELETE | `src/pages/BeaconContentEngine.tsx` | Remove Beacon admin page |
-| DELETE | `src/pages/BeaconConversations.tsx` | Remove Beacon admin page |
-| DELETE | `src/pages/BeaconFeedback.tsx` | Remove Beacon admin page |
-| DELETE | `src/lib/beaconMockData.ts` | Remove mock data file |
-| MODIFY | `src/App.tsx` | Remove Beacon routes + imports |
-| MODIFY | `src/components/layout/AppSidebar.tsx` | Remove beaconNav section |
-| MODIFY | `src/pages/Settings.tsx` | Simplify Beacon section to connection status + Railway link |
-| MODIFY | `src/components/beacon/BeaconChatWidget.tsx` | Inline mock responses, remove beaconMockData import |
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `supabase/functions/google-chat-api/index.ts` | Fix `enrichSpaceNames` to use profile display name for `isMe`, use Chat API member names directly, fix People API source types as fallback |
+| `src/hooks/useGoogleChat.ts` | Add stale-while-revalidate pattern: read from cache table first, background refresh via edge function |
+| Migration SQL | Add RLS policy for authenticated users to SELECT their own rows from `gchat_spaces_cache` |
+
+### Architecture (Stale-While-Revalidate Flow)
+
+```text
+Page Load
+    |
+    v
+[1] Read gchat_spaces_cache from DB  -->  Instant UI render
+    |
+    v
+[2] Check cache age (cached_at)
+    |
+    +--> Fresh (< 5 min): Done, no background fetch
+    |
+    +--> Stale (>= 5 min): Fire edge function in background
+                              |
+                              v
+                        [3] Edge function fetches from Google,
+                            enriches names, updates cache
+                              |
+                              v
+                        [4] React Query cache updates,
+                            UI re-renders silently
+```
