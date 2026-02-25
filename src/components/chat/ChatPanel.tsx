@@ -25,7 +25,7 @@ interface Props {
 
 export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className }: Props) {
   const { data: company } = useCompanySettings();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const queryClient = useQueryClient();
   const gchatEnabled = company?.settings?.gchat_enabled;
 
@@ -123,7 +123,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
     setBeaconSending(true);
     try {
       // Save user message to widget_messages
-      await supabase.from("widget_messages").insert({
+      await supabase.from("widget_messages" as any).insert({
         user_email: email,
         role: "user",
         content: text,
@@ -131,24 +131,26 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
       });
 
       // Call Beacon's /api/chat endpoint
+      const displayName = profile?.display_name || profile?.first_name || user?.user_metadata?.full_name || "User";
       const res = await fetch("https://beaconrag.up.railway.app/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: text,
-          user_email: email,
-          company_id: company?.companyId,
+          user_id: email,
+          user_name: displayName,
+          space_id: "ordino-chat",
         }),
       });
 
       const data = await res.json();
 
       // Save bot response to widget_messages
-      if (data.reply) {
-        await supabase.from("widget_messages").insert({
+      if (data.response) {
+        await supabase.from("widget_messages" as any).insert({
           user_email: email,
           role: "assistant",
-          content: data.reply,
+          content: data.response,
           metadata: {
             confidence: data.confidence,
             sources: data.sources,
