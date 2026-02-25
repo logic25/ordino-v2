@@ -44,8 +44,8 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
 
   const activeSpace = spaces.find((s) => s.name === selectedSpaceId);
   const isActiveSpaceDM = activeSpace ? isSpaceDM(activeSpace) : false;
-  const isBeaconBotDm = !!activeSpace?.singleUserBotDm || 
-    (isActiveSpaceDM && activeSpace?.displayName === "Bot");
+  const isBeaconBotDm = isActiveSpaceDM && 
+    (activeSpace?.displayName?.toLowerCase().includes("beacon") || false);
 
   // Merge widget messages when viewing Beacon bot DM
   const { data: mergedMessages } = useMergedBeaconMessages(messages, isBeaconBotDm);

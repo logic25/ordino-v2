@@ -1,7 +1,7 @@
-import { useRef, useEffect, useMemo } from "react";
+import { useRef, useEffect, useMemo, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Brain } from "lucide-react";
+import { Loader2, Brain, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { GChatMessage } from "@/hooks/useGoogleChat";
 
@@ -36,6 +36,41 @@ function ConfidencePill({ confidence }: { confidence: number }) {
     <span className={cn("text-[9px] font-medium px-1.5 py-0.5 rounded-full", color)}>
       {pct}% confident
     </span>
+  );
+}
+
+function WidgetSources({ sources }: { sources: Array<{ title: string; score: number; chunk_preview?: string }> }) {
+  const [open, setOpen] = useState(false);
+  if (!sources?.length) return null;
+  return (
+    <div className="mt-1.5">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+      >
+        {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+        {sources.length} source{sources.length !== 1 ? "s" : ""}
+      </button>
+      {open && (
+        <div className="mt-1 space-y-1 pl-4">
+          {sources.map((s, i) => {
+            const pct = Math.round(s.score * 100);
+            const barColor = pct >= 85 ? "bg-[hsl(142,71%,45%)]" : pct >= 60 ? "bg-amber-500" : "bg-destructive";
+            return (
+              <div key={i} className="flex items-center gap-2 text-[10px]">
+                <span className="truncate max-w-[200px] text-foreground">{s.title}</span>
+                <div className="flex items-center gap-1">
+                  <div className="w-12 h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div className={cn("h-full rounded-full", barColor)} style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="text-muted-foreground">{pct}%</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -121,6 +156,9 @@ export function ChatMessageList({ messages, isLoading, members = [] }: Props) {
                 </div>
                 {msg.text && (
                   <p className="text-sm mt-0.5 whitespace-pre-wrap break-words">{msg.text}</p>
+                )}
+                {isWidget && isBot && widgetMeta?.sources?.length > 0 && (
+                  <WidgetSources sources={widgetMeta.sources} />
                 )}
                 {hasCard && (
                   <div className="mt-1 border rounded-lg p-2 bg-muted/30 text-xs text-muted-foreground">
