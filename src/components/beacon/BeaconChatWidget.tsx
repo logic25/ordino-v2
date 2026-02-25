@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { useAuth } from "@/hooks/useAuth";
 import { askBeacon, checkBeaconHealth, type BeaconSource } from "@/services/beaconApi";
+import { supabase } from "@/integrations/supabase/client";
 import { useRef, useEffect, useCallback } from "react";
 
 const quickQuestions = [
@@ -26,6 +27,7 @@ interface ChatMessage {
   sources?: BeaconSource[];
   responseTime?: number;
   flowType?: string;
+  isHistory?: boolean;
 }
 
 function ConfidenceBadge({ confidence }: { confidence: number }) {
@@ -126,7 +128,10 @@ export function BeaconChatWidget() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [historyCount, setHistoryCount] = useState(0);
   const lastMessageRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const isAdmin = useIsAdmin();
   const { user, profile } = useAuth();
   const [showDebug, setShowDebug] = useState(false);
@@ -139,10 +144,44 @@ export function BeaconChatWidget() {
     return () => clearInterval(interval);
   }, []);
 
+  // Load history when widget opens
+  useEffect(() => {
+    if (!open || historyLoaded || !user?.email) return;
+
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("widget_messages" as any)
+          .select("role, content, metadata, created_at")
+          .eq("user_email", user.email!)
+          .order("created_at", { ascending: true })
+          .limit(20);
+
+        if (data && data.length > 0) {
+          const history: ChatMessage[] = (data as any[]).map((row) => ({
+            role: row.role === "user" ? "user" : "beacon",
+            text: row.content,
+            confidence: row.metadata?.confidence,
+            sources: row.metadata?.sources || [],
+            flowType: row.metadata?.flow_type,
+            isHistory: true,
+          }));
+          setMessages(history);
+          setHistoryCount(history.length);
+        }
+      } catch (err) {
+        console.error("Failed to load Beacon history:", err);
+      } finally {
+        setHistoryLoaded(true);
+      }
+    })();
+  }, [open, historyLoaded, user?.email]);
+
+  // Scroll to bottom on history load or new messages
   useEffect(() => {
     if (messages.length > 0) {
       setTimeout(() => {
-        lastMessageRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
       }, 50);
     }
   }, [messages]);
@@ -183,6 +222,11 @@ export function BeaconChatWidget() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleNewChat = () => {
+    setMessages([]);
+    setHistoryCount(0);
   };
 
   const lastBeaconMsg = messages.filter((m) => m.role === "beacon").at(-1);
@@ -232,7 +276,7 @@ export function BeaconChatWidget() {
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20"
-              onClick={() => setMessages([])}
+              onClick={handleNewChat}
               title="New conversation"
             >
               <MessageSquarePlus className="h-3.5 w-3.5" />
@@ -251,7 +295,7 @@ export function BeaconChatWidget() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        {messages.length === 0 && (
+        {messages.length === 0 && historyLoaded && (
           <div className="text-center py-4">
             <Brain className="h-8 w-8 mx-auto text-[#f59e0b]/40 mb-2" />
             <p className="text-xs text-muted-foreground mb-3">Ask Beacon anything about NYC construction & expediting</p>
@@ -270,37 +314,51 @@ export function BeaconChatWidget() {
           </div>
         )}
 
-        {messages.map((msg, i) => (
-          <div key={i} ref={i === messages.length - 1 ? lastMessageRef : undefined} className={cn("flex gap-2", msg.role === "user" ? "justify-end" : "")}>
-            {msg.role === "beacon" && (
-              <div className="w-6 h-6 rounded-full bg-[#f59e0b] flex items-center justify-center shrink-0 mt-1">
-                <Brain className="h-3 w-3 text-white" />
-              </div>
-            )}
-            <div className={cn("max-w-[85%]", msg.role === "user" ? "bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-3 py-2" : "")}>
-              {msg.role === "beacon" ? (
-                <div className="space-y-1.5">
-                  <div className="prose prose-sm max-w-none text-[13px] leading-relaxed [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-[13px] [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1 [&_p]:mb-2 [&_ul]:pl-4 [&_ul]:mb-2 [&_ol]:pl-4 [&_ol]:mb-2 [&_li]:mb-0.5 [&_strong]:font-semibold">
-                    <ReactMarkdown>{msg.text.replace(/\n\n📚[\s\S]*$/, '').replace(/\n\nSources:[\s\S]*$/, '')}</ReactMarkdown>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {msg.confidence != null && msg.confidence > 0 && (
-                      <ConfidenceBadge confidence={msg.confidence} />
-                    )}
-                    {msg.responseTime != null && (
-                      <span className="text-[9px] text-muted-foreground">
-                        {(msg.responseTime / 1000).toFixed(1)}s
-                      </span>
-                    )}
-                  </div>
-                  {msg.sources && <SourcesList sources={msg.sources} />}
+        {messages.map((msg, i) => {
+          // Show divider between history and new messages
+          const showDivider = historyCount > 0 && i === historyCount;
+
+          return (
+            <div key={i}>
+              {showDivider && (
+                <div className="flex items-center gap-2 py-2">
+                  <div className="flex-1 h-px bg-border" />
+                  <span className="text-[10px] text-muted-foreground font-medium px-2">New messages</span>
+                  <div className="flex-1 h-px bg-border" />
                 </div>
-              ) : (
-                <p className="text-sm">{msg.text}</p>
               )}
+              <div className={cn("flex gap-2", msg.role === "user" ? "justify-end" : "")}>
+                {msg.role === "beacon" && (
+                  <div className="w-6 h-6 rounded-full bg-[#f59e0b] flex items-center justify-center shrink-0 mt-1">
+                    <Brain className="h-3 w-3 text-white" />
+                  </div>
+                )}
+                <div className={cn("max-w-[85%]", msg.role === "user" ? "bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-3 py-2" : "")}>
+                  {msg.role === "beacon" ? (
+                    <div className="space-y-1.5">
+                      <div className="prose prose-sm max-w-none text-[13px] leading-relaxed [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-[13px] [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1 [&_p]:mb-2 [&_ul]:pl-4 [&_ul]:mb-2 [&_ol]:pl-4 [&_ol]:mb-2 [&_li]:mb-0.5 [&_strong]:font-semibold">
+                        <ReactMarkdown>{msg.text.replace(/\n\n📚[\s\S]*$/, '').replace(/\n\nSources:[\s\S]*$/, '')}</ReactMarkdown>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {msg.confidence != null && msg.confidence > 0 && (
+                          <ConfidenceBadge confidence={msg.confidence} />
+                        )}
+                        {msg.responseTime != null && (
+                          <span className="text-[9px] text-muted-foreground">
+                            {(msg.responseTime / 1000).toFixed(1)}s
+                          </span>
+                        )}
+                      </div>
+                      {msg.sources && <SourcesList sources={msg.sources} />}
+                    </div>
+                  ) : (
+                    <p className="text-sm">{msg.text}</p>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {loading && (
           <div className="flex gap-2">
@@ -310,7 +368,8 @@ export function BeaconChatWidget() {
             <span className="text-xs text-muted-foreground mt-1.5">Beacon is thinking<span className="animate-pulse">...</span></span>
           </div>
         )}
-        
+
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Debug panel */}
