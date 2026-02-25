@@ -12,7 +12,9 @@ import { Hash, ChevronLeft, MessageSquare, AlertCircle, LogOut, User, Search, Lo
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Props {
   spaceId?: string;
@@ -23,12 +25,15 @@ interface Props {
 
 export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className }: Props) {
   const { data: company } = useCompanySettings();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const gchatEnabled = company?.settings?.gchat_enabled;
 
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(fixedSpaceId || null);
   const [showSidebar, setShowSidebar] = useState(!fixedSpaceId && !compact);
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [peopleQuery, setPeopleQuery] = useState("");
+  const [beaconSending, setBeaconSending] = useState(false);
 
   const { data: spaces = [], isLoading: spacesLoading, error: spacesError, hasNextPage, isFetchingNextPage, fetchNextPage } = useGChatSpaces();
   const { data: messages = [], isLoading: msgsLoading } = useGChatMessages(selectedSpaceId);
@@ -111,15 +116,70 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
     );
   }
 
-  const handleSend = (text: string) => {
+  const sendBeaconDirectMessage = async (text: string) => {
+    const email = user?.email;
+    if (!email) return;
+
+    setBeaconSending(true);
+    try {
+      // Save user message to widget_messages
+      await supabase.from("widget_messages").insert({
+        user_email: email,
+        role: "user",
+        content: text,
+        metadata: {},
+      });
+
+      // Call Beacon's /api/chat endpoint
+      const res = await fetch("https://beaconrag.up.railway.app/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: text,
+          user_email: email,
+          company_id: company?.companyId,
+        }),
+      });
+
+      const data = await res.json();
+
+      // Save bot response to widget_messages
+      if (data.reply) {
+        await supabase.from("widget_messages").insert({
+          user_email: email,
+          role: "assistant",
+          content: data.reply,
+          metadata: {
+            confidence: data.confidence,
+            sources: data.sources,
+            flow_type: data.flow_type,
+          },
+        });
+      }
+
+      // Invalidate widget messages query to refresh the chat
+      queryClient.invalidateQueries({ queryKey: ["widget-messages"] });
+    } catch (err) {
+      console.error("Beacon direct message error:", err);
+    } finally {
+      setBeaconSending(false);
+    }
+  };
+
+  const handleSend = async (text: string) => {
     if (!selectedSpaceId) return;
+
+    if (isBeaconBotDm) {
+      await sendBeaconDirectMessage(text);
+      return;
+    }
+
     sendMutation.mutate({ spaceId: selectedSpaceId, text, threadKey });
   };
 
   const handleNewChat = async (email: string) => {
     try {
       const result = await createDm.mutateAsync(email);
-      // Google Chat spaces:setup returns the Space object directly (not nested under .space)
       const spaceName = result?.space?.name || result?.name;
       if (spaceName) {
         setSelectedSpaceId(spaceName);
@@ -187,7 +247,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
         {selectedSpaceId ? (
           <>
             <ChatMessageList messages={mergedMessages} isLoading={msgsLoading} members={activeMembers} />
-            <ChatCompose onSend={handleSend} isSending={sendMutation.isPending} />
+            <ChatCompose onSend={handleSend} isSending={isBeaconBotDm ? beaconSending : sendMutation.isPending} />
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">

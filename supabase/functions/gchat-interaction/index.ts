@@ -275,8 +275,22 @@ async function forwardToBeacon(event: any): Promise<Response> {
       return jsonResponse({ text: "⚠️ I couldn't process that right now. Please try again." });
     }
 
-    const beaconData = await beaconRes.json();
-    return jsonResponse(beaconData);
+    // Beacon may return 204 with empty body for async processing
+    if (beaconRes.status === 204) {
+      return jsonResponse({ text: "" });
+    }
+
+    const text = await beaconRes.text();
+    if (!text) {
+      return jsonResponse({ text: "" });
+    }
+
+    try {
+      const beaconData = JSON.parse(text);
+      return jsonResponse(beaconData);
+    } catch {
+      return jsonResponse({ text: text });
+    }
   } catch (err) {
     console.error("Beacon forward error:", err);
     return jsonResponse({ text: "⚠️ Request timed out. Please try again." });

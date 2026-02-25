@@ -83,9 +83,16 @@ interface Props {
 export function ChatMessageList({ messages, isLoading, members = [] }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const lastMsgKey = messages.length > 0
+    ? `${messages[messages.length - 1]?.name}-${messages[messages.length - 1]?.createTime}`
+    : "";
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length]);
+    const timer = setTimeout(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [lastMsgKey]);
 
   const memberMap = useMemo(
     () => new Map(members.map((m) => [m.member?.name, m.member?.displayName])),
