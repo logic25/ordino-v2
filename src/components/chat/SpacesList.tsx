@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { Hash, User, Users, Loader2, Search, EyeOff, Eye, Plus, Pin, PinOff, MoreVertical } from "lucide-react";
+import { Hash, User, Users, Loader2, Search, EyeOff, Eye, Plus, Pin, PinOff, MoreVertical, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,6 +9,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { type GChatSpace, isSpaceDM, isSpaceGroup, isSpaceRoom } from "@/hooks/useGoogleChat";
 
 interface Props {
@@ -17,12 +23,14 @@ interface Props {
   selectedSpaceId: string | null;
   onSelect: (spaceId: string) => void;
   dmNames?: Map<string, string>;
+  nicknames?: Map<string, string>;
   hiddenIds?: string[];
   pinnedIds?: string[];
   onHide?: (spaceId: string) => void;
   onUnhide?: (spaceId: string) => void;
   onPin?: (spaceId: string) => void;
   onUnpin?: (spaceId: string) => void;
+  onRename?: (opts: { spaceId: string; nickname: string }) => void;
   onNewChat?: () => void;
   hasNextPage?: boolean;
   isFetchingNextPage?: boolean;
@@ -30,16 +38,21 @@ interface Props {
 }
 
 export function SpacesList({
-  spaces, isLoading, selectedSpaceId, onSelect, dmNames,
+  spaces, isLoading, selectedSpaceId, onSelect, dmNames, nicknames,
   hiddenIds = [], pinnedIds = [],
-  onHide, onUnhide, onPin, onUnpin,
+  onHide, onUnhide, onPin, onUnpin, onRename,
   onNewChat, hasNextPage, isFetchingNextPage, onLoadMore,
 }: Props) {
   const [search, setSearch] = useState("");
   const [showHidden, setShowHidden] = useState(false);
+  const [renameDialog, setRenameDialog] = useState<{ spaceId: string; currentName: string } | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   const hiddenSet = useMemo(() => new Set(hiddenIds), [hiddenIds]);
   const pinnedSet = useMemo(() => new Set(pinnedIds), [pinnedIds]);
+
+  const getDisplayName = (s: GChatSpace) =>
+    nicknames?.get(s.name) || s.displayName || dmNames?.get(s.name) || s.name;
 
   const filteredSpaces = useMemo(() => {
     let list = spaces;
@@ -48,23 +61,26 @@ export function SpacesList({
     }
     if (search.trim()) {
       const q = search.toLowerCase();
-      list = list.filter((s) => {
-        const name = s.displayName || dmNames?.get(s.name) || s.name;
-        return name.toLowerCase().includes(q);
-      });
+      list = list.filter((s) => getDisplayName(s).toLowerCase().includes(q));
     }
     return list;
-  }, [spaces, search, showHidden, hiddenSet, dmNames]);
+  }, [spaces, search, showHidden, hiddenSet, dmNames, nicknames]);
 
-  // Split into pinned, DMs, and Spaces
   const pinned = filteredSpaces.filter((s) => pinnedSet.has(s.name));
   const unpinnedDms = filteredSpaces.filter((s) => !pinnedSet.has(s.name) && (isSpaceDM(s) || isSpaceGroup(s)));
   const unpinnedGroups = filteredSpaces.filter((s) => !pinnedSet.has(s.name) && isSpaceRoom(s));
 
+  const handleRenameSubmit = () => {
+    if (renameDialog && renameValue.trim() && onRename) {
+      onRename({ spaceId: renameDialog.spaceId, nickname: renameValue.trim() });
+    }
+    setRenameDialog(null);
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <Loader2 className="h-5 w-5 animate-spin text-primary/60" />
       </div>
     );
   }
@@ -80,11 +96,11 @@ export function SpacesList({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search chats..."
-              className="w-full pl-8 pr-3 py-1.5 text-xs bg-muted/50 border rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
+              className="w-full pl-8 pr-3 py-1.5 text-xs bg-muted/40 border border-border/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all"
             />
           </div>
           {onNewChat && (
-            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={onNewChat} title="New chat">
+            <Button variant="default" size="icon" className="h-7 w-7 shrink-0 rounded-lg" onClick={onNewChat} title="New chat">
               <Plus className="h-4 w-4" />
             </Button>
           )}
@@ -92,9 +108,12 @@ export function SpacesList({
       </div>
 
       {/* Spaces list */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-3">
+      <div className="flex-1 overflow-y-auto p-2 space-y-4">
         {spaces.length === 0 ? (
           <div className="text-center py-8 text-sm text-muted-foreground px-4">
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+              <Users className="h-6 w-6 text-primary" />
+            </div>
             <p className="font-medium mb-1">No conversations found</p>
             <p className="text-xs">Your Google Chat conversations will appear here.</p>
           </div>
@@ -107,7 +126,7 @@ export function SpacesList({
             {/* Pinned section */}
             {pinned.length > 0 && (
               <div>
-                <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-primary/70 flex items-center gap-1.5">
                   <Pin className="h-2.5 w-2.5" /> Pinned
                 </p>
                 <div className="space-y-0.5">
@@ -123,8 +142,12 @@ export function SpacesList({
                       onUnhide={onUnhide}
                       onPin={onPin}
                       onUnpin={onUnpin}
+                      onRename={onRename ? (spaceId) => {
+                        setRenameValue(getDisplayName(space));
+                        setRenameDialog({ spaceId, currentName: getDisplayName(space) });
+                      } : undefined}
                       icon={getSpaceIcon(space)}
-                      overrideName={space.displayName || dmNames?.get(space.name)}
+                      overrideName={getDisplayName(space)}
                     />
                   ))}
                 </div>
@@ -134,7 +157,7 @@ export function SpacesList({
             {/* DMs section */}
             {unpinnedDms.length > 0 && (
               <div>
-                <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-foreground/50">
                   Direct Messages
                 </p>
                 <div className="space-y-0.5">
@@ -150,8 +173,12 @@ export function SpacesList({
                       onUnhide={onUnhide}
                       onPin={onPin}
                       onUnpin={onUnpin}
+                      onRename={onRename ? (spaceId) => {
+                        setRenameValue(getDisplayName(space));
+                        setRenameDialog({ spaceId, currentName: getDisplayName(space) });
+                      } : undefined}
                       icon={getSpaceIcon(space)}
-                      overrideName={space.displayName || dmNames?.get(space.name)}
+                      overrideName={getDisplayName(space)}
                     />
                   ))}
                 </div>
@@ -161,7 +188,7 @@ export function SpacesList({
             {/* Spaces section */}
             {unpinnedGroups.length > 0 && (
               <div>
-                <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-foreground/50">
                   Spaces
                 </p>
                 <div className="space-y-0.5">
@@ -177,6 +204,10 @@ export function SpacesList({
                       onUnhide={onUnhide}
                       onPin={onPin}
                       onUnpin={onUnpin}
+                      onRename={onRename ? (spaceId) => {
+                        setRenameValue(getDisplayName(space));
+                        setRenameDialog({ spaceId, currentName: getDisplayName(space) });
+                      } : undefined}
                       icon={<Hash className="h-4 w-4 shrink-0" />}
                       badge
                     />
@@ -189,7 +220,7 @@ export function SpacesList({
             {hasNextPage && (
               <div className="px-3 py-2">
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   className="w-full text-xs"
                   onClick={onLoadMore}
@@ -219,29 +250,43 @@ export function SpacesList({
           </button>
         </div>
       )}
+
+      {/* Rename dialog */}
+      <Dialog open={!!renameDialog} onOpenChange={(open) => !open && setRenameDialog(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Rename Chat</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <input
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              placeholder="Enter a nickname..."
+              className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+              autoFocus
+              onKeyDown={(e) => e.key === "Enter" && handleRenameSubmit()}
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setRenameDialog(null)}>Cancel</Button>
+              <Button size="sm" onClick={handleRenameSubmit} disabled={!renameValue.trim()}>Save</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 function getSpaceIcon(space: GChatSpace) {
-  if (isSpaceGroup(space)) return <Users className="h-4 w-4 shrink-0" />;
-  if (isSpaceDM(space)) return <User className="h-4 w-4 shrink-0" />;
-  return <Hash className="h-4 w-4 shrink-0" />;
+  if (isSpaceGroup(space)) return <Users className="h-4 w-4 shrink-0 text-primary/70" />;
+  if (isSpaceDM(space)) return <User className="h-4 w-4 shrink-0 text-primary/70" />;
+  return <Hash className="h-4 w-4 shrink-0 text-primary/70" />;
 }
 
 function SpaceButton({
-  space,
-  isActive,
-  isHidden,
-  isPinned,
-  onSelect,
-  onHide,
-  onUnhide,
-  onPin,
-  onUnpin,
-  icon,
-  badge,
-  overrideName,
+  space, isActive, isHidden, isPinned,
+  onSelect, onHide, onUnhide, onPin, onUnpin, onRename,
+  icon, badge, overrideName,
 }: {
   space: GChatSpace;
   isActive: boolean;
@@ -252,6 +297,7 @@ function SpaceButton({
   onUnhide?: (id: string) => void;
   onPin?: (id: string) => void;
   onUnpin?: (id: string) => void;
+  onRename?: (id: string) => void;
   icon: React.ReactNode;
   badge?: boolean;
   overrideName?: string;
@@ -261,20 +307,25 @@ function SpaceButton({
       <button
         onClick={() => onSelect(space.name)}
         className={cn(
-          "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-colors text-sm",
-          isHidden && "opacity-50",
+          "w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all text-sm",
+          isHidden && "opacity-40",
           isActive
-            ? "bg-primary/10 text-primary font-medium"
-            : "text-foreground/70 hover:bg-muted hover:text-foreground"
+            ? "bg-primary/15 text-primary font-semibold shadow-sm ring-1 ring-primary/20"
+            : "text-foreground hover:bg-accent hover:text-accent-foreground"
         )}
       >
-        {icon}
+        <div className={cn(
+          "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+          isActive ? "bg-primary/20" : "bg-muted"
+        )}>
+          {icon}
+        </div>
         <div className="flex-1 min-w-0">
           <span className="truncate block">{overrideName || space.displayName || space.name}</span>
         </div>
-        {isPinned && <Pin className="h-3 w-3 text-muted-foreground shrink-0" />}
+        {isPinned && <Pin className="h-3 w-3 text-primary/50 shrink-0" />}
         {badge && (
-          <Badge variant="secondary" className="text-[9px] px-1 py-0 shrink-0">Space</Badge>
+          <Badge variant="secondary" className="text-[9px] px-1.5 py-0 shrink-0 bg-primary/10 text-primary border-0">Space</Badge>
         )}
       </button>
 
@@ -289,6 +340,12 @@ function SpaceButton({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-40">
+          {onRename && (
+            <DropdownMenuItem onClick={() => onRename(space.name)}>
+              <Pencil className="h-3.5 w-3.5 mr-2" />
+              Rename
+            </DropdownMenuItem>
+          )}
           {isPinned ? (
             <DropdownMenuItem onClick={() => onUnpin?.(space.name)}>
               <PinOff className="h-3.5 w-3.5 mr-2" />

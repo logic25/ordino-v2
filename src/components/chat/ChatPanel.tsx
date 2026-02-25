@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useGChatSpaces, useGChatMessages, useSendGChatMessage, useGChatMembers, useGChatDmNames, useSearchPeople, useCreateDm, isSpaceDM, isSpaceRoom } from "@/hooks/useGoogleChat";
 import { useHiddenSpaces } from "@/hooks/useHiddenSpaces";
 import { usePinnedSpaces } from "@/hooks/usePinnedSpaces";
+import { useChatNicknames } from "@/hooks/useChatNicknames";
 import { SpacesList } from "./SpacesList";
 import { ChatMessageList } from "./ChatMessageList";
 import { ChatCompose } from "./ChatCompose";
@@ -33,6 +34,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
   const sendMutation = useSendGChatMessage();
   const { hiddenIds, hide, unhide } = useHiddenSpaces();
   const { pinnedIds, pin, unpin } = usePinnedSpaces();
+  const { nicknames, setNickname } = useChatNicknames();
   const searchPeople = useSearchPeople();
   const createDm = useCreateDm();
 
@@ -42,6 +44,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
   const activeSpace = spaces.find((s) => s.name === selectedSpaceId);
   const isActiveSpaceDM = activeSpace ? isSpaceDM(activeSpace) : false;
   const activeDisplayName =
+    (selectedSpaceId ? nicknames.get(selectedSpaceId) : null) ||
     activeSpace?.displayName ||
     (selectedSpaceId ? dmNames.get(selectedSpaceId) : null) ||
     selectedSpaceId;
@@ -137,12 +140,14 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
               isLoading={spacesLoading}
               selectedSpaceId={selectedSpaceId}
               dmNames={dmNames}
+              nicknames={nicknames}
               hiddenIds={hiddenIds}
               pinnedIds={pinnedIds}
               onHide={hide}
               onUnhide={unhide}
               onPin={pin}
               onUnpin={unpin}
+              onRename={setNickname}
               onNewChat={() => setNewChatOpen(true)}
               hasNextPage={hasNextPage}
               isFetchingNextPage={isFetchingNextPage}

@@ -1176,6 +1176,33 @@ export type Database = {
           },
         ]
       }
+      chat_space_nicknames: {
+        Row: {
+          created_at: string
+          id: string
+          nickname: string
+          space_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nickname: string
+          space_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nickname?: string
+          space_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       checklist_followup_drafts: {
         Row: {
           approved_at: string | null
