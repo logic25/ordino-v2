@@ -45,50 +45,6 @@ async function refreshAccessToken(
   return tokenData.access_token;
 }
 
-/** Resolve a user's display name via People API directory lookup, with caching */
-async function resolveUserName(
-  userResourceName: string,
-  accessToken: string,
-  cache: Map<string, { displayName: string; avatarUrl?: string }>
-): Promise<{ displayName: string; avatarUrl?: string } | null> {
-  if (cache.has(userResourceName)) return cache.get(userResourceName)!;
-  const peopleId = userResourceName.replace("users/", "");
-  
-  // Try multiple People API approaches
-  const attempts = [
-    `https://people.googleapis.com/v1/people/${peopleId}?personFields=names,emailAddresses,photos&sources=DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE`,
-    `https://people.googleapis.com/v1/people/${peopleId}?personFields=names,emailAddresses,photos`,
-  ];
-
-  for (const url of attempts) {
-    try {
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      if (res.ok) {
-        const person = await res.json();
-        const name = person.names?.[0]?.displayName;
-        const email = person.emailAddresses?.[0]?.value;
-        const photo = person.photos?.[0]?.url;
-        const displayName = name || (email ? email.split("@")[0] : null);
-        if (displayName) {
-          const entry = { displayName, avatarUrl: photo };
-          cache.set(userResourceName, entry);
-          return entry;
-        }
-      } else {
-        const errText = await res.text();
-        console.log("resolveUserName attempt failed:", url.substring(0, 80), res.status, errText.substring(0, 150));
-      }
-    } catch (e: any) {
-      console.log("resolveUserName error:", e.message);
-    }
-  }
-  
-  cache.set(userResourceName, { displayName: "" }); // negative cache
-  return null;
-}
-
 /** Make a Google Chat API call, retrying once with a fresh token on 403 */
 async function callChatApi(
   url: string, 
@@ -132,72 +88,22 @@ async function callChatApi(
   return { response: res, retried: false };
 }
 
-/** Enrich unnamed spaces with member-derived display names */
+/**
+ * Enrich unnamed spaces with member-derived display names.
+ * Uses Chat API membership displayName directly (no People API calls).
+ * currentUserDisplayName comes from the profiles table for reliable isMe matching.
+ */
 async function enrichSpaceNames(
   spaces: any[],
   accessToken: string,
-  chatApi: string
+  chatApi: string,
+  currentUserDisplayName: string | null
 ) {
-  const nameCache = new Map<string, { displayName: string; avatarUrl?: string }>();
+  console.log("enrichSpaceNames: currentUserDisplayName from profile:", currentUserDisplayName);
 
-  // Resolve current user's email and display name for reliable matching
-  let currentUserEmail: string | null = null;
-  let currentUserDisplayName: string | null = null;
-  try {
-    const meRes = await fetch(
-      "https://people.googleapis.com/v1/people/me?personFields=names,emailAddresses",
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    if (meRes.ok) {
-      const meData = await meRes.json();
-      currentUserEmail = meData.emailAddresses?.[0]?.value?.toLowerCase() || null;
-      currentUserDisplayName = meData.names?.[0]?.displayName || null;
-      console.log("Current user email:", currentUserEmail, "name:", currentUserDisplayName);
-    } else {
-      await meRes.text();
-    }
-  } catch (e: any) {
-    console.log("Failed to resolve current user:", e.message);
-  }
-
-  /** 
-   * Resolve a member to { displayName, isMe }.
-   * First checks member.displayName, then falls back to People API lookup.
-   * Uses email or display name to determine if the member is the current user.
-   */
-  async function resolveMember(member: any): Promise<{ displayName: string; isMe: boolean } | null> {
-    if (member.type === "BOT") {
-      return { displayName: member.displayName || "Bot", isMe: false };
-    }
-
-    let displayName = member.displayName || "";
-    let email: string | null = null;
-
-    // If no displayName on the raw member, resolve via People API
-    if (!displayName && member.name) {
-      const person = await resolveUserName(member.name, accessToken, nameCache);
-      if (person?.displayName) {
-        displayName = person.displayName;
-      }
-    }
-
-    // Try to get email from People API cache for matching
-    if (member.name) {
-      const cached = nameCache.get(member.name);
-      // We don't have email in cache, but we can match by name
-    }
-
-    // Determine if this is the current user
-    let isMe = false;
-    if (currentUserDisplayName && displayName) {
-      isMe = displayName.toLowerCase() === currentUserDisplayName.toLowerCase();
-    }
-    // Also check by email if we resolved it
-    if (!isMe && currentUserEmail && email) {
-      isMe = email.toLowerCase() === currentUserEmail;
-    }
-
-    return displayName ? { displayName, isMe } : null;
+  function isMe(memberDisplayName: string): boolean {
+    if (!currentUserDisplayName || !memberDisplayName) return false;
+    return memberDisplayName.toLowerCase().trim() === currentUserDisplayName.toLowerCase().trim();
   }
 
   const unnamedSpaces = spaces.filter((s: any) => !s.displayName);
@@ -219,54 +125,54 @@ async function enrichSpaceNames(
 
       const isDM = space.spaceType === "DIRECT_MESSAGE" || space.type === "DM" || space.type === "DIRECT_MESSAGE";
 
-      // Separate human and bot members
-      const humanRaw: any[] = [];
-      const botRaw: any[] = [];
+      // Separate human and bot members, using displayName directly from Chat API
+      const humans: { displayName: string; isMe: boolean }[] = [];
+      const bots: { displayName: string }[] = [];
+
       for (const membership of membersData.memberships) {
         const member = membership.member;
         if (!member) continue;
-        if (member.type === "BOT") botRaw.push(member);
-        else humanRaw.push(member);
+        
+        // Chat API membership response includes member.displayName for all member types
+        const name = member.displayName || "";
+        
+        if (member.type === "BOT") {
+          bots.push({ displayName: name || "Bot" });
+        } else if (name) {
+          humans.push({ displayName: name, isMe: isMe(name) });
+        }
       }
 
       if (isDM) {
-        if (humanRaw.length >= 2) {
-          // 1:1 DM — resolve all humans, then pick the one that is NOT the current user
-          const resolved = await Promise.all(humanRaw.map(m => resolveMember(m)));
-          const others = resolved.filter(r => r && !r.isMe);
-          if (others.length > 0) {
-            space.displayName = others[0]!.displayName;
+        // For 1:1 DMs, show the OTHER person's name
+        if (humans.length >= 2) {
+          const other = humans.find(h => !h.isMe);
+          if (other) {
+            space.displayName = other.displayName;
           } else {
             // Couldn't determine who's "me" — pick the second member
-            const fallback = resolved.find(r => r?.displayName);
-            if (fallback) space.displayName = fallback.displayName;
+            space.displayName = humans[1].displayName;
           }
-        } else if (botRaw.length >= 1) {
-          // Bot DM — use bot's display name
-          const botResolved = await resolveMember(botRaw[0]);
-          if (botResolved) space.displayName = botResolved.displayName;
-        }
-
-        // If still unresolved and there's exactly 1 human, it might be a self-DM or broken
-        if (!space.displayName && humanRaw.length === 1) {
-          const resolved = await resolveMember(humanRaw[0]);
-          if (resolved && !resolved.isMe) {
-            space.displayName = resolved.displayName;
-          } else if (resolved) {
-            // It's us — check for bots
-            if (botRaw.length > 0) {
-              const botResolved = await resolveMember(botRaw[0]);
-              if (botResolved) space.displayName = botResolved.displayName;
-            }
+        } else if (humans.length === 1 && bots.length >= 1) {
+          // Human + bot DM — show bot name (e.g. Beacon, Google Drive)
+          space.displayName = bots[0].displayName;
+        } else if (humans.length === 1) {
+          const h = humans[0];
+          if (!h.isMe) {
+            space.displayName = h.displayName;
+          } else if (bots.length > 0) {
+            space.displayName = bots[0].displayName;
           }
+        } else if (bots.length >= 1) {
+          // Bot-only DM
+          space.displayName = bots[0].displayName;
         }
       } else {
         // GROUP: build name from OTHER members' first names
         const memberNames: string[] = [];
-        for (const member of humanRaw) {
-          const resolved = await resolveMember(member);
-          if (!resolved || resolved.isMe) continue;
-          memberNames.push(resolved.displayName.split(" ")[0]);
+        for (const h of humans) {
+          if (h.isMe) continue;
+          memberNames.push(h.displayName.split(" ")[0]);
           if (memberNames.length >= 4) break;
         }
         if (memberNames.length > 0) {
@@ -322,10 +228,10 @@ Deno.serve(async (req) => {
 
     const supabaseAdmin = createClient(supabaseUrl, serviceKey);
 
-    // Get user's profile
+    // Get user's profile — include display_name for identity matching
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("id, company_id")
+      .select("id, company_id, display_name")
       .eq("user_id", user.id)
       .single();
 
@@ -412,9 +318,9 @@ Deno.serve(async (req) => {
           throw new Error(data.error.message || JSON.stringify(data.error));
         }
 
-        // Enrich space names
+        // Enrich space names — pass profile display_name for isMe matching
         if (data.spaces?.length) {
-          await enrichSpaceNames(data.spaces, accessToken, chatApi);
+          await enrichSpaceNames(data.spaces, accessToken, chatApi, profile.display_name || null);
 
           // Sort by lastActiveTime
           data.spaces.sort((a: any, b: any) => {
@@ -446,10 +352,12 @@ Deno.serve(async (req) => {
         if (pageToken) url += `&pageToken=${pageToken}`;
         const { response } = await callChatApi(url, { method: "GET" }, accessToken, connection, clientId, clientSecret, supabaseAdmin, profile.id);
         result = await response.json();
-        // Enrich senders — resolve both human and bot names
-        const msgNameCache = new Map<string, { displayName: string; avatarUrl?: string }>();
+        
+        // Enrich senders — resolve both human and bot names from membership data
         if (result.messages?.length) {
-          // First, fetch space members to build a name lookup (includes bots)
+          const memberMap = new Map<string, { displayName: string; avatarUrl?: string }>();
+          
+          // Fetch space members to build a name lookup (includes bots)
           try {
             const membersRes = await fetch(
               `${chatApi}/${spaceId}/members?pageSize=100`,
@@ -460,7 +368,7 @@ Deno.serve(async (req) => {
               for (const membership of (membersData.memberships || [])) {
                 const member = membership.member;
                 if (member?.name && member?.displayName) {
-                  msgNameCache.set(member.name, { displayName: member.displayName, avatarUrl: undefined });
+                  memberMap.set(member.name, { displayName: member.displayName, avatarUrl: undefined });
                 }
               }
             } else {
@@ -470,27 +378,18 @@ Deno.serve(async (req) => {
             // non-critical
           }
 
-          // Then resolve any remaining unknown human senders via People API
-          const uniqueSenders = new Set<string>();
+          // Apply member names to ALL messages (both human and bot senders)
           for (const msg of result.messages) {
-            if (msg.sender && !msg.sender.displayName && msg.sender.name && !msgNameCache.has(msg.sender.name) && msg.sender.type !== "BOT") {
-              uniqueSenders.add(msg.sender.name);
-            }
-          }
-          let count = 0;
-          for (const senderName of uniqueSenders) {
-            if (count >= 10) break;
-            await resolveUserName(senderName, accessToken, msgNameCache);
-            count++;
-          }
-
-          // Apply resolved names to all messages
-          for (const msg of result.messages) {
-            if (msg.sender && !msg.sender.displayName && msg.sender.name) {
-              const resolved = msgNameCache.get(msg.sender.name);
-              if (resolved && resolved.displayName) {
-                msg.sender.displayName = resolved.displayName;
-                if (resolved.avatarUrl) msg.sender.avatarUrl = resolved.avatarUrl;
+            if (msg.sender?.name) {
+              const known = memberMap.get(msg.sender.name);
+              if (known?.displayName) {
+                // Always set displayName from membership if available
+                if (!msg.sender.displayName) {
+                  msg.sender.displayName = known.displayName;
+                }
+                if (known.avatarUrl && !msg.sender.avatarUrl) {
+                  msg.sender.avatarUrl = known.avatarUrl;
+                }
               }
             }
           }
