@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Plus, Trash2, AlertTriangle, Info, DollarSign, Percent, Check } from "lucide-react";
+import { Loader2, Plus, Trash2, AlertTriangle, Info, DollarSign, Percent, Check, RotateCcw, ChevronDown, ChevronUp } from "lucide-react";
 import { useProjects } from "@/hooks/useProjects";
 import { useClients, useClientContacts } from "@/hooks/useClients";
 import { useCreateBillingRequest, type BillingRequestService } from "@/hooks/useBillingRequests";
@@ -71,23 +71,43 @@ function usePreviouslyBilled(projectId: string | null) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("billing_requests")
-        .select("services")
+        .select("services, created_at, created_by, billed_to_contact_id")
         .eq("project_id", projectId!)
         .neq("status", "cancelled");
       if (error) throw error;
 
-      // Sum billed amounts by service name
+      // Sum billed amounts by service name + build detailed history
       const billedMap: Record<string, number> = {};
+      const historyMap: Record<string, BillingHistoryEntry[]> = {};
+
       for (const req of data || []) {
         const items = (req.services as any[]) || [];
         for (const item of items) {
           const key = item.name || "";
-          billedMap[key] = (billedMap[key] || 0) + (item.amount || 0);
+          billedMap[key] = (billedMap[key] || 0) + (item.amount || item.billed_amount || 0);
+          if (!historyMap[key]) historyMap[key] = [];
+          historyMap[key].push({
+            amount: item.amount || item.billed_amount || 0,
+            billingMethod: item.billing_method || "full",
+            billingValue: item.billing_value,
+            date: req.created_at,
+            createdBy: req.created_by,
+            billedToContactId: req.billed_to_contact_id,
+          });
         }
       }
-      return billedMap;
+      return { billedMap, historyMap };
     },
   });
+}
+
+interface BillingHistoryEntry {
+  amount: number;
+  billingMethod: string;
+  billingValue?: number;
+  date: string;
+  createdBy: string | null;
+  billedToContactId: string | null;
 }
 
 export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId }: SendToBillingDialogProps) {
@@ -103,7 +123,9 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId }
   const { data: clients } = useClients();
   const createBillingRequest = useCreateBillingRequest();
   const { data: projectServices = [] } = useProjectServices(projectId || null);
-  const { data: previouslyBilled = {} } = usePreviouslyBilled(projectId || null);
+  const { data: prevBilledData } = usePreviouslyBilled(projectId || null);
+  const previouslyBilled = prevBilledData?.billedMap || {};
+  const billingHistory = prevBilledData?.historyMap || {};
 
   const selectedProject = projects?.find((p) => p.id === projectId);
   const selectedClient = clients?.find((c) => c.id === selectedProject?.client_id);
@@ -227,7 +249,12 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId }
           quantity: 1,
           rate: s.billedAmount,
           amount: s.billedAmount,
-        }))
+          billing_method: s.billingMode === "percent" ? "percentage" : "amount",
+          billing_value: s.inputValue,
+          billed_amount: s.billedAmount,
+          previously_billed: s.previouslyBilled,
+          remaining_after: Math.max(0, s.remaining - s.billedAmount),
+        } as any))
       : manualServices.filter((s) => s.name || s.amount > 0);
 
     if (serviceLines.length === 0) {
@@ -403,9 +430,39 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId }
                               {fullyBilled ? "Fully billed" : `Remaining: $${remaining.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
                             </span>
                           </div>
+                          </div>
                         </div>
-                      </div>
 
+                        {/* Billing history */}
+                        {(billingHistory[svc.name] || []).length > 0 && !selected && (
+                          <BillingHistorySection
+                            history={billingHistory[svc.name]}
+                            onBillAgain={(entry) => {
+                              // Pre-fill with last billing details
+                              const contractAmount = contractAmt;
+                              const mode = entry.billingMethod === "percentage" ? "percent" : "amount";
+                              const val = entry.billingValue || entry.amount;
+                              const billedAmt = mode === "percent"
+                                ? +(contractAmount * ((entry.billingValue || 100) / 100)).toFixed(2)
+                                : Math.min(remaining, entry.amount);
+                              setSelectedServices((prev) => [
+                                ...prev.filter((s) => s.serviceId !== svc.id),
+                                {
+                                  serviceId: svc.id,
+                                  name: svc.name,
+                                  contractAmount,
+                                  previouslyBilled: prevBilled,
+                                  remaining,
+                                  billingMode: mode as "amount" | "percent",
+                                  inputValue: mode === "percent" ? (entry.billingValue || 100) : Math.min(remaining, entry.amount),
+                                  billedAmount: Math.min(remaining, billedAmt),
+                                },
+                              ]);
+                              if (entry.billedToContactId) setBilledToContactId(entry.billedToContactId);
+                            }}
+                            fullyBilled={fullyBilled}
+                          />
+                        )}
                       {/* Amount / % input — shown when selected */}
                       {selected && (
                         <div className="mt-3 ml-8 flex items-center gap-2">
@@ -579,5 +636,58 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId }
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function BillingHistorySection({
+  history,
+  onBillAgain,
+  fullyBilled,
+}: {
+  history: BillingHistoryEntry[];
+  onBillAgain: (entry: BillingHistoryEntry) => void;
+  fullyBilled: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (history.length === 0) return null;
+
+  return (
+    <div className="mt-2 ml-8">
+      <button
+        type="button"
+        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        onClick={() => setExpanded(!expanded)}
+      >
+        {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        {history.length} previous billing{history.length > 1 ? "s" : ""}
+      </button>
+      {expanded && (
+        <div className="mt-1.5 space-y-1 text-xs text-muted-foreground border-l-2 border-muted pl-3">
+          {history.map((entry, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <span className="tabular-nums font-medium text-foreground">
+                ${entry.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              </span>
+              {entry.billingMethod === "percentage" && entry.billingValue && (
+                <span>({entry.billingValue}%)</span>
+              )}
+              <span>on {new Date(entry.date).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })}</span>
+              {!fullyBilled && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 px-1.5 text-[10px] gap-0.5"
+                  onClick={() => onBillAgain(entry)}
+                >
+                  <RotateCcw className="h-2.5 w-2.5" /> Bill Again
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
