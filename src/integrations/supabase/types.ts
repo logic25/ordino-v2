@@ -99,6 +99,58 @@ export type Database = {
           },
         ]
       }
+      action_item_comments: {
+        Row: {
+          action_item_id: string
+          attachments: Json | null
+          company_id: string
+          content: string | null
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          action_item_id: string
+          attachments?: Json | null
+          company_id: string
+          content?: string | null
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          action_item_id?: string
+          attachments?: Json | null
+          company_id?: string
+          content?: string | null
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "action_item_comments_action_item_id_fkey"
+            columns: ["action_item_id"]
+            isOneToOne: false
+            referencedRelation: "project_action_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "action_item_comments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "action_item_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       activities: {
         Row: {
           activity_date: string | null

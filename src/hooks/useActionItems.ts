@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useEffect } from "react";
 
+export type ActionItemStatus = "open" | "in_progress" | "done" | "blocked" | "cancelled";
+
 export interface ActionItem {
   id: string;
   company_id: string;
@@ -11,7 +13,7 @@ export interface ActionItem {
   description: string | null;
   assigned_to: string | null;
   assigned_by: string | null;
-  status: string;
+  status: ActionItemStatus;
   priority: string;
   due_date: string | null;
   attachment_ids: any;
@@ -24,6 +26,17 @@ export interface ActionItem {
   updated_at: string;
   assignee?: { id: string; display_name: string | null; first_name: string | null; last_name: string | null } | null;
   assigner?: { id: string; display_name: string | null; first_name: string | null; last_name: string | null } | null;
+}
+
+export interface ActionItemComment {
+  id: string;
+  action_item_id: string;
+  user_id: string;
+  company_id: string;
+  content: string | null;
+  attachments: any;
+  created_at: string;
+  profile?: { id: string; display_name: string | null; first_name: string | null; last_name: string | null } | null;
 }
 
 export function useActionItems(projectId: string | undefined) {
@@ -84,7 +97,7 @@ export function useMyActionItems() {
           projects!project_action_items_project_id_fkey(id, name, project_number)
         `)
         .eq("assigned_to", profile!.id)
-        .eq("status", "open")
+        .in("status", ["open", "in_progress", "blocked"])
         .order("due_date", { ascending: true, nullsFirst: false })
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -138,6 +151,33 @@ export function useCreateActionItem() {
   });
 }
 
+export function useUpdateActionItemStatus() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: {
+      id: string;
+      project_id: string;
+      status: ActionItemStatus;
+    }) => {
+      const updatePayload: any = { status: input.status };
+      // Clear completion fields if moving back from done
+      if (input.status !== "done") {
+        updatePayload.completed_at = null;
+      }
+      const { error } = await supabase
+        .from("project_action_items")
+        .update(updatePayload)
+        .eq("id", input.id);
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["action-items", vars.project_id] });
+      qc.invalidateQueries({ queryKey: ["my-action-items"] });
+    },
+  });
+}
+
 export function useCompleteActionItem() {
   const qc = useQueryClient();
 
@@ -179,6 +219,73 @@ export function useCancelActionItem() {
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["action-items", vars.project_id] });
       qc.invalidateQueries({ queryKey: ["my-action-items"] });
+    },
+  });
+}
+
+// ---- Comments hooks ----
+
+export function useActionItemComments(actionItemId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ["action-item-comments", actionItemId],
+    enabled: !!actionItemId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("action_item_comments" as any)
+        .select(`*, profile:profiles!action_item_comments_user_id_fkey(id, display_name, first_name, last_name)`)
+        .eq("action_item_id", actionItemId!)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data || []) as unknown as ActionItemComment[];
+    },
+  });
+
+  // Realtime
+  useEffect(() => {
+    if (!actionItemId) return;
+    const channel = supabase
+      .channel(`comments-${actionItemId}`)
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "action_item_comments",
+        filter: `action_item_id=eq.${actionItemId}`,
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ["action-item-comments", actionItemId] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [actionItemId, queryClient]);
+
+  return query;
+}
+
+export function useAddActionItemComment() {
+  const { profile } = useAuth();
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: {
+      action_item_id: string;
+      content: string;
+      attachments?: any[];
+    }) => {
+      if (!profile?.company_id || !profile?.id) throw new Error("Not authenticated");
+      const { error } = await supabase
+        .from("action_item_comments" as any)
+        .insert({
+          action_item_id: input.action_item_id,
+          user_id: profile.id,
+          company_id: profile.company_id,
+          content: input.content,
+          attachments: input.attachments || [],
+        });
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["action-item-comments", vars.action_item_id] });
     },
   });
 }
