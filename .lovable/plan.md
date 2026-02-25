@@ -1,104 +1,73 @@
 
 
-# Plan: Rename "Action Items" to "Tasks" + Route @mentions to Beacon
+# Fix @Beacon in Spaces, Improve Sources UI, and Add Thinking Indicator
 
-## Part A: Rename "Action Items" to "Tasks" across the UI
-
-All user-facing text that says "Action Item(s)" will be changed to "Task(s)". Internal code identifiers (table names, query keys, hook names, file names) will remain unchanged to avoid breaking changes.
-
-### Files to update (UI text only):
-
-1. **`src/components/projects/ActionItemsTab.tsx`**
-   - Button label: "New Action Item" → "New Task"
-   - Empty state: "No action items yet" → "No tasks yet"
-   - Loading text: "Loading action items..." → "Loading tasks..."
-
-2. **`src/components/projects/NewActionItemDialog.tsx`**
-   - Dialog title: "New Action Item" → "New Task"
-   - Toast messages: "Action item created" → "Task created", "Error creating action item" → "Error creating task"
-
-3. **`src/components/projects/ActionItemDetailSheet.tsx`**
-   - Toast: "Action item cancelled" → "Task cancelled"
-
-4. **`src/components/projects/CompleteActionItemDialog.tsx`**
-   - Toast: "Action item completed" → "Task completed", "Error completing action item" → "Error completing task"
-
-5. **`src/components/dashboard/MyActionItemsCard.tsx`**
-   - Card title: "My Action Items" → "My Tasks"
-   - Empty state: "No open action items" → "No open tasks"
-   - Overflow text: "+X more items" → "+X more tasks"
-
-6. **`src/pages/ProjectDetail.tsx`** (line 445)
-   - Tab label: "Action Items" → "Tasks"
-
-7. **`src/components/projects/ProjectExpandedTabs.tsx`** (line 686)
-   - Tab label: "Action Items" → "Tasks"
-
-8. **`src/components/chat/ChatMessageList.tsx`** (line 165)
-   - Card label: "Action Item Card" → "Task Card"
-
-9. **`src/components/settings/CompanySettings.tsx`** (lines 389, 395)
-   - Description: "Post action items to..." → "Post tasks to..."
-   - Sub-text: "New action items will be posted..." → "New tasks will be posted..."
-
-10. **`src/components/assistant/AskOrdinoPanel.tsx`**
-    - Suggestion: "Show me open action items" → "Show me open tasks"
-
-11. **GChat edge functions** (user-facing strings only):
-    - `gchat-interaction/index.ts`: Bot greeting text, error messages referencing "action item" → "task"
-    - `send-gchat-action-item/index.ts`: Card subtitle "Action Item" fallback text
+## Overview
+Three code changes plus one infrastructure task to fix the @beacon mention flow, improve source citations, and add a loading indicator for Beacon responses.
 
 ---
 
-## Part B: Route @mention messages from gchat-interaction to Beacon
+## Task 1: Redeploy gchat-interaction Edge Function
 
-### Current behavior
-The `gchat-interaction` edge function handles:
-- `CARD_CLICKED` → updates action item status
-- `MESSAGE` → only handles thread replies on known action item threads
-- `ADDED_TO_SPACE` → sends greeting
+The `gchat-interaction` edge function needs to be redeployed to ensure it's live and receiving Google Chat webhook events. The code is correct -- it forwards non-task messages to Beacon's `/webhook` endpoint on Railway, which then replies via the Google Chat API.
 
-If a message arrives that isn't in an action item thread, it returns a generic "This thread isn't linked to an action item" response.
+**Action:** Force a redeploy of `supabase/functions/gchat-interaction/index.ts` (add a trivial comment to trigger deploy), then verify via edge function logs that it's running.
 
-### New behavior
-Change the `MESSAGE` handler routing logic:
+---
 
-```text
-MESSAGE received
-  |
-  +-- Has thread.name AND matches gchat_thread_id in project_action_items?
-  |     YES → handle locally (done/status updates, same as today)
-  |
-  +-- NO match (or no thread / new conversation / @mention)
-        → Forward full request body to Beacon webhook
-        → Return Beacon's response to Google Chat
-```
+## Task 2: Remove Client-Side @Beacon Interception
 
-### Changes to `supabase/functions/gchat-interaction/index.ts`:
+The `sendBeaconInSpace` function in `ChatPanel.tsx` (lines 172-209) and the `@beacon` detection in `handleSend` (lines 219-223) must be **removed entirely**. This client-side routing calls `/api/chat` which does NOT post replies back to Google Chat, so teammates never see the response. The correct flow goes through the Google Chat webhook to the edge function to Beacon's `/webhook`.
 
-1. **Reorder the MESSAGE handler logic:**
-   - First, check if `threadName` exists and matches a known action item thread
-   - If it does, handle locally (existing code)
-   - If it doesn't (or no thread), forward to Beacon
+**Changes in `ChatPanel.tsx`:**
+- Delete the `sendBeaconInSpace` function (lines 172-209)
+- Delete the `@beacon` detection block in `handleSend` (lines 219-223)
+- Regular `sendMutation.mutate()` will handle the message -- Google Chat receives it, triggers the bot webhook, which hits our edge function, which forwards to Beacon
 
-2. **Add Beacon forwarding function:**
-   ```text
-   async function forwardToBeacon(body: object): Promise<object>
-     - POST to https://beaconrag.up.railway.app/webhook
-     - Send the full original GChat event body
-     - 30-second timeout via AbortSignal.timeout(30000)
-     - On success: return Beacon's JSON response
-     - On failure/timeout: return fallback text message
-   ```
+---
 
-3. **Update the no-thread case** (current line 126-128):
-   - Instead of returning "I can only process replies in action item threads"
-   - Forward to Beacon and return the response
+## Task 3: Make Sources Expandable with chunk_preview
 
-4. **Update the no-match case** (current lines 137-139):
-   - Instead of returning "This thread isn't linked to an action item"
-   - Forward to Beacon and return the response
+Update `WidgetSources` in `ChatMessageList.tsx` so each individual source item is expandable to show its `chunk_preview` text.
 
-5. **Update `ADDED_TO_SPACE` greeting** to reflect the dual role:
-   - "Ordino bot is ready! I'll post tasks here as cards and answer questions about DOB filings, codes, and procedures. Reply in a task thread with 'done' to complete items, or @mention me with any question."
+**Changes in `ChatMessageList.tsx`:**
+- Add per-source expand/collapse state (track which source indices are expanded)
+- Each source row gets a clickable toggle (ChevronRight/ChevronDown)
+- When expanded, show the `chunk_preview` text below the source title in a muted, smaller font block
+- Keep the existing relevance score bar beside the title
+
+---
+
+## Task 4: Add Thinking/Typing Indicator for Beacon DM
+
+Add a visual "thinking" animation while waiting for a Beacon response in the DM view.
+
+**Changes in `ChatPanel.tsx`:**
+- Add `isWaitingForBeacon` state, set `true` at start of `sendBeaconDirectMessage`, set `false` in the `finally` block
+- Pass `isWaitingForBeacon` as a prop to `ChatMessageList`
+
+**Changes in `ChatMessageList.tsx`:**
+- Accept optional `isWaitingForBeacon` prop
+- When true, render a typing indicator bubble at the bottom of the message list (before the scroll anchor)
+- Use an animated Brain icon with three bouncing dots styled with CSS keyframes
+- The indicator auto-hides when the response arrives (prop becomes false)
+
+---
+
+## Task 5: Manual Verification (Not a Code Change)
+
+Verify in Google Cloud Console that the Ordino bot's App URL is set to:
+`https://mimlfjkisguktiqqkpkm.supabase.co/functions/v1/gchat-interaction`
+
+If it points elsewhere (e.g., directly to Railway), that explains why @mentions in spaces don't trigger the bot. This is a manual configuration check.
+
+---
+
+## Technical Summary
+
+| File | Change |
+|------|--------|
+| `supabase/functions/gchat-interaction/index.ts` | Add comment to force redeploy (no logic change) |
+| `src/components/chat/ChatPanel.tsx` | Remove `sendBeaconInSpace` + @beacon detection; add `isWaitingForBeacon` state |
+| `src/components/chat/ChatMessageList.tsx` | Expandable sources with chunk_preview; thinking indicator bubble |
 
