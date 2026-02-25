@@ -46,12 +46,12 @@ export function CompleteActionItemDialog({ item, open, onOpenChange }: Props) {
         completion_attachments: attachments.length > 0 ? attachments : undefined,
       });
 
-      toast({ title: "Action item completed" });
+      toast({ title: "Task completed" });
       onOpenChange(false);
       setNote("");
       setFiles([]);
     } catch {
-      toast({ title: "Error completing action item", variant: "destructive" });
+      toast({ title: "Error completing task", variant: "destructive" });
     } finally {
       setUploading(false);
     }

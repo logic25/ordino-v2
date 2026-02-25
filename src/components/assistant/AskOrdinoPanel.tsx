@@ -22,7 +22,7 @@ interface Props {
 const quickPrompts = [
   "Any proposals to follow up on?",
   "What's overdue this week?",
-  "Show me open action items",
+  "Show me open tasks",
   "What invoices are outstanding?",
   "What meetings do I have this week?",
 ];

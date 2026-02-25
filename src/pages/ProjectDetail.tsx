@@ -442,7 +442,7 @@ export default function ProjectDetail() {
                 <GitBranch className="h-3.5 w-3.5" /> COs ({changeOrders.length})
               </TabsTrigger>
               <TabsTrigger value="action-items" className="gap-1.5 data-[state=active]:bg-background">
-                <ClipboardList className="h-3.5 w-3.5" /> Action Items
+                <ClipboardList className="h-3.5 w-3.5" /> Tasks
               </TabsTrigger>
               <TabsTrigger value="job-costing" className="gap-1.5 data-[state=active]:bg-background">
                 <DollarSign className="h-3.5 w-3.5" /> Job Costing

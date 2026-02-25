@@ -47,7 +47,7 @@ export function NewActionItemDialog({ projectId, open, onOpenChange }: Props) {
         due_date: dueDate || undefined,
         attachment_ids: selectedDocIds.length > 0 ? selectedDocIds : undefined,
       });
-      toast({ title: "Action item created" });
+      toast({ title: "Task created" });
       onOpenChange(false);
       setTitle("");
       setDescription("");
@@ -57,7 +57,7 @@ export function NewActionItemDialog({ projectId, open, onOpenChange }: Props) {
       setSelectedDocIds([]);
       setShowDocPicker(false);
     } catch {
-      toast({ title: "Error creating action item", variant: "destructive" });
+      toast({ title: "Error creating task", variant: "destructive" });
     }
   };
 
@@ -65,7 +65,7 @@ export function NewActionItemDialog({ projectId, open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>New Action Item</DialogTitle>
+          <DialogTitle>New Task</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 overflow-y-auto flex-1 pr-1">
           <div className="space-y-1.5">

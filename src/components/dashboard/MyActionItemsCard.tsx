@@ -15,7 +15,7 @@ export function MyActionItemsCard() {
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2">
           <ClipboardList className="h-4 w-4" />
-          My Action Items
+          My Tasks
           {items.length > 0 && (
             <Badge variant="secondary" className="text-xs">{items.length}</Badge>
           )}
@@ -32,7 +32,7 @@ export function MyActionItemsCard() {
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center py-6 text-center">
             <CheckCircle2 className="h-8 w-8 text-primary/30 mb-2" />
-            <p className="text-sm text-muted-foreground">No open action items</p>
+            <p className="text-sm text-muted-foreground">No open tasks</p>
           </div>
         ) : (
           <>
@@ -77,7 +77,7 @@ export function MyActionItemsCard() {
             })}
             {items.length > 5 && (
               <p className="text-xs text-muted-foreground text-center pt-1">
-                +{items.length - 5} more items
+                +{items.length - 5} more tasks
               </p>
             )}
           </>

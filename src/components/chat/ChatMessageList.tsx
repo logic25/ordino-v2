@@ -162,7 +162,7 @@ export function ChatMessageList({ messages, isLoading, members = [] }: Props) {
                 )}
                 {hasCard && (
                   <div className="mt-1 border rounded-lg p-2 bg-muted/30 text-xs text-muted-foreground">
-                    📋 Action Item Card
+                    📋 Task Card
                   </div>
                 )}
               </div>

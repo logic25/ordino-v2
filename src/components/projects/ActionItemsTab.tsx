@@ -110,7 +110,7 @@ export function ActionItemsTab({ projectId }: ActionItemsTabProps) {
   const activeCount = items.filter((i) => ["open", "in_progress", "blocked"].includes(i.status)).length;
 
   if (isLoading) {
-    return <div className="p-4 text-sm text-muted-foreground">Loading action items...</div>;
+    return <div className="p-4 text-sm text-muted-foreground">Loading tasks...</div>;
   }
 
   return (
@@ -133,7 +133,7 @@ export function ActionItemsTab({ projectId }: ActionItemsTabProps) {
           </div>
         </div>
         <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
-          <Plus className="h-3.5 w-3.5" /> New Action Item
+          <Plus className="h-3.5 w-3.5" /> New Task
         </Button>
       </div>
 
@@ -142,7 +142,7 @@ export function ActionItemsTab({ projectId }: ActionItemsTabProps) {
         <div className="flex flex-col items-center py-8 text-center">
           <CheckCircle2 className="h-10 w-10 text-primary/30 mb-2" />
           <p className="text-sm text-muted-foreground">
-            {filter === "all" ? "No action items yet" : `No ${filter} items`}
+            {filter === "all" ? "No tasks yet" : `No ${filter} tasks`}
           </p>
         </div>
       ) : (
