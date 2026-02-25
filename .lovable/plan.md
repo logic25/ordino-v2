@@ -1,43 +1,104 @@
 
 
-# Fix Chat Sidebar: Vibrant Styling + Features Not Rendering
+# Plan: Rename "Action Items" to "Tasks" + Route @mentions to Beacon
 
-## Problem
+## Part A: Rename "Action Items" to "Tasks" across the UI
 
-The SpacesList.tsx code already contains all requested features (colorful initials avatars, pin/rename via context menu, amber active states), but the rendered UI still shows the old pale grey layout with small icons. This is a build/cache staleness issue -- the updated component code exists but isn't being picked up by the preview.
+All user-facing text that says "Action Item(s)" will be changed to "Task(s)". Internal code identifiers (table names, query keys, hook names, file names) will remain unchanged to avoid breaking changes.
 
-## Plan
+### Files to update (UI text only):
 
-### 1. Force re-render of SpacesList.tsx with hardened styling
+1. **`src/components/projects/ActionItemsTab.tsx`**
+   - Button label: "New Action Item" → "New Task"
+   - Empty state: "No action items yet" → "No tasks yet"
+   - Loading text: "Loading action items..." → "Loading tasks..."
 
-Touch the component with minor structural tweaks to force a clean rebuild:
-- Replace `bg-card` on the root container with explicit `bg-white dark:bg-slate-900` to eliminate any pale grey from CSS variable resolution
-- Make avatar colors more saturated (e.g., `bg-blue-100 text-blue-700` instead of `bg-blue-500/15 text-blue-700`)
-- Add subtle left-border gradient to the sidebar panel itself for visual pop
+2. **`src/components/projects/NewActionItemDialog.tsx`**
+   - Dialog title: "New Action Item" → "New Task"
+   - Toast messages: "Action item created" → "Task created", "Error creating action item" → "Error creating task"
 
-### 2. Enhance ChatPanel.tsx sidebar wrapper
+3. **`src/components/projects/ActionItemDetailSheet.tsx`**
+   - Toast: "Action item cancelled" → "Task cancelled"
 
-The current wrapper around SpacesList has a very plain "Chats" header with basic border-r:
-- Style the "Chats" header with a slightly darker background and amber accent line
-- Remove the redundant `bg-card` from SpacesList since the panel already provides background
+4. **`src/components/projects/CompleteActionItemDialog.tsx`**
+   - Toast: "Action item completed" → "Task completed", "Error completing action item" → "Error completing task"
 
-### 3. Ensure context menu (three-dot) is more discoverable
+5. **`src/components/dashboard/MyActionItemsCard.tsx`**
+   - Card title: "My Action Items" → "My Tasks"
+   - Empty state: "No open action items" → "No open tasks"
+   - Overflow text: "+X more items" → "+X more tasks"
 
-The current hover-only three-dot button (`hidden group-hover:flex`) may not be obvious:
-- Show a subtle opacity-0 to opacity-100 transition instead of display:none/flex
-- This ensures users discover the Rename / Pin / Hide actions
+6. **`src/pages/ProjectDetail.tsx`** (line 445)
+   - Tab label: "Action Items" → "Tasks"
 
-## Technical Details
+7. **`src/components/projects/ProjectExpandedTabs.tsx`** (line 686)
+   - Tab label: "Action Items" → "Tasks"
 
-### Files to modify:
+8. **`src/components/chat/ChatMessageList.tsx`** (line 165)
+   - Card label: "Action Item Card" → "Task Card"
 
-**src/components/chat/SpacesList.tsx**
-- Root div: change `bg-card` to `bg-white dark:bg-[hsl(220,18%,12%)]`
-- Avatar colors array: bump saturation (e.g., `bg-blue-100 text-blue-600`)
-- Active state: use `bg-amber-50 dark:bg-amber-500/10` instead of `bg-accent/12`
-- Context menu trigger: change `hidden group-hover:flex` to `opacity-0 group-hover:opacity-100 transition-opacity`
-- Search input: use `bg-slate-100 dark:bg-slate-800` instead of `bg-secondary`
+9. **`src/components/settings/CompanySettings.tsx`** (lines 389, 395)
+   - Description: "Post action items to..." → "Post tasks to..."
+   - Sub-text: "New action items will be posted..." → "New tasks will be posted..."
 
-**src/components/chat/ChatPanel.tsx**
-- Sidebar header: add `bg-slate-50 dark:bg-slate-900` and stronger typography
-- Sidebar container: use slightly tinted background
+10. **`src/components/assistant/AskOrdinoPanel.tsx`**
+    - Suggestion: "Show me open action items" → "Show me open tasks"
+
+11. **GChat edge functions** (user-facing strings only):
+    - `gchat-interaction/index.ts`: Bot greeting text, error messages referencing "action item" → "task"
+    - `send-gchat-action-item/index.ts`: Card subtitle "Action Item" fallback text
+
+---
+
+## Part B: Route @mention messages from gchat-interaction to Beacon
+
+### Current behavior
+The `gchat-interaction` edge function handles:
+- `CARD_CLICKED` → updates action item status
+- `MESSAGE` → only handles thread replies on known action item threads
+- `ADDED_TO_SPACE` → sends greeting
+
+If a message arrives that isn't in an action item thread, it returns a generic "This thread isn't linked to an action item" response.
+
+### New behavior
+Change the `MESSAGE` handler routing logic:
+
+```text
+MESSAGE received
+  |
+  +-- Has thread.name AND matches gchat_thread_id in project_action_items?
+  |     YES → handle locally (done/status updates, same as today)
+  |
+  +-- NO match (or no thread / new conversation / @mention)
+        → Forward full request body to Beacon webhook
+        → Return Beacon's response to Google Chat
+```
+
+### Changes to `supabase/functions/gchat-interaction/index.ts`:
+
+1. **Reorder the MESSAGE handler logic:**
+   - First, check if `threadName` exists and matches a known action item thread
+   - If it does, handle locally (existing code)
+   - If it doesn't (or no thread), forward to Beacon
+
+2. **Add Beacon forwarding function:**
+   ```text
+   async function forwardToBeacon(body: object): Promise<object>
+     - POST to https://beaconrag.up.railway.app/webhook
+     - Send the full original GChat event body
+     - 30-second timeout via AbortSignal.timeout(30000)
+     - On success: return Beacon's JSON response
+     - On failure/timeout: return fallback text message
+   ```
+
+3. **Update the no-thread case** (current line 126-128):
+   - Instead of returning "I can only process replies in action item threads"
+   - Forward to Beacon and return the response
+
+4. **Update the no-match case** (current lines 137-139):
+   - Instead of returning "This thread isn't linked to an action item"
+   - Forward to Beacon and return the response
+
+5. **Update `ADDED_TO_SPACE` greeting** to reflect the dual role:
+   - "Ordino bot is ready! I'll post tasks here as cards and answer questions about DOB filings, codes, and procedures. Reply in a task thread with 'done' to complete items, or @mention me with any question."
+
