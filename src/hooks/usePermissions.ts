@@ -46,6 +46,7 @@ export function useRolePermissions() {
   return useQuery({
     queryKey: ["role-permissions", session?.user?.id],
     enabled: !!session?.user?.id,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("role_permissions")

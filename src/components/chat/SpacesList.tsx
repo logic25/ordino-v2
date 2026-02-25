@@ -15,9 +15,12 @@ interface Props {
   onHide?: (spaceId: string) => void;
   onUnhide?: (spaceId: string) => void;
   onNewChat?: () => void;
+  hasNextPage?: boolean;
+  isFetchingNextPage?: boolean;
+  onLoadMore?: () => void;
 }
 
-export function SpacesList({ spaces, isLoading, selectedSpaceId, onSelect, dmNames, hiddenIds = [], onHide, onUnhide, onNewChat }: Props) {
+export function SpacesList({ spaces, isLoading, selectedSpaceId, onSelect, dmNames, hiddenIds = [], onHide, onUnhide, onNewChat, hasNextPage, isFetchingNextPage, onLoadMore }: Props) {
   const [search, setSearch] = useState("");
   const [showHidden, setShowHidden] = useState(false);
 
@@ -128,6 +131,24 @@ export function SpacesList({ spaces, isLoading, selectedSpaceId, onSelect, dmNam
                     />
                   ))}
                 </div>
+              </div>
+            )}
+            {/* Load More button */}
+            {hasNextPage && (
+              <div className="px-3 py-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-xs"
+                  onClick={onLoadMore}
+                  disabled={isFetchingNextPage}
+                >
+                  {isFetchingNextPage ? (
+                    <><Loader2 className="h-3 w-3 animate-spin mr-1.5" /> Loading...</>
+                  ) : (
+                    "Load more"
+                  )}
+                </Button>
               </div>
             )}
           </>

@@ -56,9 +56,7 @@ async function resolveUserName(
   
   // Try multiple People API approaches
   const attempts = [
-    // 1. Directory source (Workspace domain profiles)
     `https://people.googleapis.com/v1/people/${peopleId}?personFields=names,emailAddresses,photos&sources=DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE`,
-    // 2. Regular people.get 
     `https://people.googleapis.com/v1/people/${peopleId}?personFields=names,emailAddresses,photos`,
   ];
 
@@ -111,7 +109,6 @@ async function callChatApi(
   const res = await fetch(url, { ...options, headers });
   
   if (res.status === 403 || res.status === 401) {
-    // Check if it's a scope issue - force refresh and retry
     const body = await res.json();
     console.log("Got", res.status, "- forcing token refresh and retry. Error:", JSON.stringify(body.error || body));
     
@@ -128,12 +125,151 @@ async function callChatApi(
       return { response: retryRes, retried: true };
     } catch (refreshErr: any) {
       console.error("Token refresh failed during retry:", refreshErr.message);
-      // Return original error response
       return { response: new Response(JSON.stringify(body), { status: res.status }), retried: true };
     }
   }
   
   return { response: res, retried: false };
+}
+
+/** Enrich unnamed spaces with member-derived display names */
+async function enrichSpaceNames(
+  spaces: any[],
+  accessToken: string,
+  chatApi: string
+) {
+  const nameCache = new Map<string, { displayName: string; avatarUrl?: string }>();
+
+  // Resolve current user
+  let currentUserResourceName: string | null = null;
+  try {
+    const meRes = await fetch(
+      "https://people.googleapis.com/v1/people/me?personFields=names,emailAddresses,metadata",
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (meRes.ok) {
+      const meData = await meRes.json();
+      currentUserResourceName = meData.resourceName || null;
+    } else {
+      await meRes.text();
+    }
+  } catch (e: any) {
+    console.log("Failed to resolve current user:", e.message);
+  }
+
+  const isCurrentUser = (memberName: string): boolean => {
+    if (!currentUserResourceName) return false;
+    const memberId = memberName.replace("users/", "");
+    const currentId = currentUserResourceName.replace("people/", "");
+    return memberId === currentId;
+  };
+
+  const unnamedSpaces = spaces.filter((s: any) => !s.displayName);
+  console.log("enrichSpaceNames: enriching", unnamedSpaces.length, "unnamed spaces");
+
+  const enrichBatch = unnamedSpaces.slice(0, 100);
+  const enrichResults = await Promise.allSettled(
+    enrichBatch.map(async (space: any) => {
+      const membersRes = await fetch(
+        `${chatApi}/${space.name}/members?pageSize=10`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      if (!membersRes.ok) {
+        await membersRes.text();
+        return;
+      }
+      const membersData = await membersRes.json();
+      if (!membersData.memberships?.length) return;
+
+      const isDM = space.spaceType === "DIRECT_MESSAGE" || space.type === "DM" || space.type === "DIRECT_MESSAGE";
+
+      if (isDM) {
+        const humanMembers: any[] = [];
+        const botMembers: any[] = [];
+        for (const membership of membersData.memberships) {
+          const member = membership.member;
+          if (!member) continue;
+          if (member.type === "BOT") botMembers.push(member);
+          else humanMembers.push(member);
+        }
+
+        if (humanMembers.length >= 2) {
+          const otherMembers = humanMembers.filter(m => !isCurrentUser(m.name || ""));
+          const candidates = otherMembers.length > 0 ? otherMembers : humanMembers;
+          for (const member of candidates) {
+            if (member.displayName) {
+              space.displayName = member.displayName;
+              break;
+            } else if (member.name) {
+              const person = await resolveUserName(member.name, accessToken, nameCache);
+              if (person?.displayName) {
+                space.displayName = person.displayName;
+                break;
+              }
+            }
+          }
+        } else if (humanMembers.length <= 1 && botMembers.length >= 1) {
+          // Bot DM - use bot name (e.g. "Beacon", "Google Drive")
+          for (const bot of botMembers) {
+            if (bot.displayName) {
+              space.displayName = bot.displayName;
+              break;
+            }
+          }
+        }
+        
+        if (!space.displayName && humanMembers.length === 1) {
+          const member = humanMembers[0];
+          if (member.displayName) {
+            space.displayName = member.displayName;
+          } else if (member.name) {
+            const person = await resolveUserName(member.name, accessToken, nameCache);
+            if (person?.displayName) {
+              space.displayName = person.displayName;
+            }
+          }
+        }
+      } else {
+        // GROUP: build name from other member names
+        const memberNames: string[] = [];
+        for (const membership of membersData.memberships) {
+          const member = membership.member;
+          if (!member || member.type === "BOT") continue;
+          if (isCurrentUser(member.name || "")) continue;
+          if (member.displayName) {
+            memberNames.push(member.displayName.split(" ")[0]);
+          } else if (member.name) {
+            const person = await resolveUserName(member.name, accessToken, nameCache);
+            if (person?.displayName) {
+              memberNames.push(person.displayName.split(" ")[0]);
+            }
+          }
+          if (memberNames.length >= 4) break;
+        }
+        if (memberNames.length > 0) {
+          space.displayName = memberNames.join(", ");
+        }
+      }
+    })
+  );
+  const resolved = enrichResults.filter(r => r.status === "fulfilled").length;
+  const failed = enrichResults.filter(r => r.status === "rejected").length;
+  console.log("Parallel enrichment done:", resolved, "resolved,", failed, "failed");
+
+  // FINAL FALLBACK: Never show raw space IDs to the user
+  for (const space of spaces) {
+    if (!space.displayName) {
+      if (space.singleUserBotDm) {
+        space.displayName = "Bot";
+      } else if (space.spaceType === "DIRECT_MESSAGE" || space.type === "DM" || space.type === "DIRECT_MESSAGE") {
+        space.displayName = "Direct Message";
+      } else if (space.spaceType === "GROUP_CHAT" || space.type === "GROUP_CHAT") {
+        space.displayName = "Group Chat";
+      } else {
+        space.displayName = "Unknown Space";
+      }
+    }
+  }
 }
 
 Deno.serve(async (req) => {
@@ -211,9 +347,31 @@ Deno.serve(async (req) => {
 
     switch (action) {
       case "list_spaces": {
-        console.log("list_spaces: calling Google Chat API...");
+        const requestedPageSize = params.pageSize || 25;
+        const requestedPageToken = params.pageToken || null;
+
+        // --- Server-side cache: check for fresh cached data ---
+        const cacheKey = `spaces_${profile.id}_ps${requestedPageSize}_pt${requestedPageToken || "first"}`;
+        const { data: cached } = await supabaseAdmin
+          .from("gchat_spaces_cache")
+          .select("payload, cached_at")
+          .eq("user_id", profile.id)
+          .eq("cache_key", cacheKey)
+          .maybeSingle();
+
+        if (cached?.cached_at) {
+          const age = Date.now() - new Date(cached.cached_at).getTime();
+          if (age < 5 * 60 * 1000) {
+            console.log("list_spaces: serving from cache (age:", Math.round(age / 1000), "s)");
+            result = cached.payload;
+            break;
+          }
+        }
+
+        console.log("list_spaces: calling Google Chat API, pageSize:", requestedPageSize);
+        const url = `${chatApi}/spaces?pageSize=${requestedPageSize}${requestedPageToken ? `&pageToken=${requestedPageToken}` : ""}`;
         const { response, retried } = await callChatApi(
-          `${chatApi}/spaces?pageSize=200`, 
+          url,
           { method: "GET" }, 
           accessToken, connection, clientId, clientSecret, supabaseAdmin, profile.id
         );
@@ -225,139 +383,17 @@ Deno.serve(async (req) => {
           if (data.error.code === 403 || data.error.code === 401) {
             return new Response(JSON.stringify({
               error: "chat_scope_missing",
-              message: "Your Google account needs to be reconnected with Chat permissions. Please go to Settings > Gmail and reconnect your account.",
+              message: "Your Google account needs to be reconnected with Chat permissions.",
             }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
           }
           throw new Error(data.error.message || JSON.stringify(data.error));
         }
 
-        // Enrich ALL spaces that have no displayName (DMs, group chats, bot DMs)
-        const nameCache = new Map<string, { displayName: string; avatarUrl?: string }>();
+        // Enrich space names
         if (data.spaces?.length) {
-          // Resolve the current user's resource name so we can exclude them from DM names
-          let currentUserResourceName: string | null = null;
-          try {
-            const meRes = await fetch(
-              "https://people.googleapis.com/v1/people/me?personFields=names,emailAddresses,metadata",
-              { headers: { Authorization: `Bearer ${accessToken}` } }
-            );
-            if (meRes.ok) {
-              const meData = await meRes.json();
-              currentUserResourceName = meData.resourceName || null; // e.g. "people/123456"
-              console.log("Current user resource:", currentUserResourceName);
-            }
-          } catch (e: any) {
-            console.log("Failed to resolve current user:", e.message);
-          }
+          await enrichSpaceNames(data.spaces, accessToken, chatApi);
 
-          const unnamedSpaces = data.spaces
-            .filter((s: any) => !s.displayName)
-            .sort((a: any, b: any) => {
-              const aTime = a.lastActiveTime || a.createTime || '';
-              const bTime = b.lastActiveTime || b.createTime || '';
-              return bTime.localeCompare(aTime);
-            });
-          console.log("list_spaces: enriching", unnamedSpaces.length, "unnamed spaces");
-
-          // Helper to check if a member resource matches the current user
-          const isCurrentUser = (memberName: string): boolean => {
-            if (!currentUserResourceName) return false;
-            // memberName is like "users/123456", currentUserResourceName is like "people/123456"
-            const memberId = memberName.replace("users/", "");
-            const currentId = currentUserResourceName.replace("people/", "");
-            return memberId === currentId;
-          };
-
-          // Parallel enrichment: fetch members for all unnamed spaces concurrently
-          const enrichBatch = unnamedSpaces.slice(0, 100);
-          const enrichResults = await Promise.allSettled(
-            enrichBatch.map(async (space: any) => {
-              const membersRes = await fetch(
-                `${chatApi}/${space.name}/members?pageSize=10`,
-                { headers: { Authorization: `Bearer ${accessToken}` } }
-              );
-              if (!membersRes.ok) {
-                await membersRes.text(); // consume body
-                return;
-              }
-              const membersData = await membersRes.json();
-              if (!membersData.memberships?.length) return;
-
-              const isDM = space.spaceType === "DIRECT_MESSAGE" || space.type === "DM";
-
-              if (isDM) {
-                const humanMembers: any[] = [];
-                const botMembers: any[] = [];
-                for (const membership of membersData.memberships) {
-                  const member = membership.member;
-                  if (!member) continue;
-                  if (member.type === "BOT") botMembers.push(member);
-                  else humanMembers.push(member);
-                }
-
-                if (humanMembers.length >= 2) {
-                  const otherMembers = humanMembers.filter(m => !isCurrentUser(m.name || ""));
-                  const candidates = otherMembers.length > 0 ? otherMembers : humanMembers;
-                  for (const member of candidates) {
-                    if (member.displayName) {
-                      space.displayName = member.displayName;
-                      break;
-                    } else if (member.name) {
-                      const person = await resolveUserName(member.name, accessToken, nameCache);
-                      if (person?.displayName) {
-                        space.displayName = person.displayName;
-                        break;
-                      }
-                    }
-                  }
-                } else if (humanMembers.length === 1 && botMembers.length >= 1) {
-                  for (const bot of botMembers) {
-                    if (bot.displayName) {
-                      space.displayName = bot.displayName;
-                      break;
-                    }
-                  }
-                } else if (humanMembers.length === 1) {
-                  const member = humanMembers[0];
-                  if (member.displayName) {
-                    space.displayName = member.displayName;
-                  } else if (member.name) {
-                    const person = await resolveUserName(member.name, accessToken, nameCache);
-                    if (person?.displayName) {
-                      space.displayName = person.displayName;
-                    }
-                  }
-                }
-              } else {
-                // GROUP: build name from other member names
-                const memberNames: string[] = [];
-                for (const membership of membersData.memberships) {
-                  const member = membership.member;
-                  if (!member || member.type === "BOT") continue;
-                  if (isCurrentUser(member.name || "")) continue;
-                  if (member.displayName) {
-                    memberNames.push(member.displayName.split(" ")[0]);
-                  } else if (member.name) {
-                    const person = await resolveUserName(member.name, accessToken, nameCache);
-                    if (person?.displayName) {
-                      memberNames.push(person.displayName.split(" ")[0]);
-                    }
-                  }
-                  if (memberNames.length >= 4) break;
-                }
-                if (memberNames.length > 0) {
-                  space.displayName = memberNames.join(", ");
-                }
-              }
-            })
-          );
-          const resolved = enrichResults.filter(r => r.status === "fulfilled").length;
-          const failed = enrichResults.filter(r => r.status === "rejected").length;
-          console.log("Parallel enrichment done:", resolved, "resolved,", failed, "failed");
-        }
-
-        // Sort ALL spaces by lastActiveTime so active chats appear first
-        if (data.spaces?.length) {
+          // Sort by lastActiveTime
           data.spaces.sort((a: any, b: any) => {
             const aTime = a.lastActiveTime || a.createTime || '';
             const bTime = b.lastActiveTime || b.createTime || '';
@@ -365,7 +401,19 @@ Deno.serve(async (req) => {
           });
         }
 
-        result = data;
+        result = { spaces: data.spaces || [], nextPageToken: data.nextPageToken || null };
+
+        // Cache the result
+        await supabaseAdmin
+          .from("gchat_spaces_cache")
+          .upsert({
+            user_id: profile.id,
+            cache_key: cacheKey,
+            payload: result,
+            cached_at: new Date().toISOString(),
+          }, { onConflict: "user_id,cache_key" })
+          .then(() => {});
+
         break;
       }
       case "list_messages": {
@@ -375,7 +423,7 @@ Deno.serve(async (req) => {
         if (pageToken) url += `&pageToken=${pageToken}`;
         const { response } = await callChatApi(url, { method: "GET" }, accessToken, connection, clientId, clientSecret, supabaseAdmin, profile.id);
         result = await response.json();
-        // Enrich senders using the resolveUserName helper (which includes directory source)
+        // Enrich senders
         const msgNameCache = new Map<string, { displayName: string; avatarUrl?: string }>();
         if (result.messages?.length) {
           const uniqueSenders = new Set<string>();

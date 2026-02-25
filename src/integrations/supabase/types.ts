@@ -2818,6 +2818,30 @@ export type Database = {
           },
         ]
       }
+      gchat_spaces_cache: {
+        Row: {
+          cache_key: string
+          cached_at: string
+          id: string
+          payload: Json
+          user_id: string
+        }
+        Insert: {
+          cache_key: string
+          cached_at?: string
+          id?: string
+          payload?: Json
+          user_id: string
+        }
+        Update: {
+          cache_key?: string
+          cached_at?: string
+          id?: string
+          payload?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
       generated_content: {
         Row: {
           approved_at: string | null

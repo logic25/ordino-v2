@@ -27,7 +27,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [peopleQuery, setPeopleQuery] = useState("");
 
-  const { data: spaces = [], isLoading: spacesLoading, error: spacesError } = useGChatSpaces();
+  const { data: spaces = [], isLoading: spacesLoading, error: spacesError, hasNextPage, isFetchingNextPage, fetchNextPage } = useGChatSpaces();
   const { data: messages = [], isLoading: msgsLoading } = useGChatMessages(selectedSpaceId);
   const sendMutation = useSendGChatMessage();
   const { hiddenIds, hide, unhide } = useHiddenSpaces();
@@ -137,6 +137,9 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
               onHide={hide}
               onUnhide={unhide}
               onNewChat={() => setNewChatOpen(true)}
+              hasNextPage={hasNextPage}
+              isFetchingNextPage={isFetchingNextPage}
+              onLoadMore={() => fetchNextPage()}
               onSelect={(id) => {
                 setSelectedSpaceId(id);
                 if (compact) setShowSidebar(false);

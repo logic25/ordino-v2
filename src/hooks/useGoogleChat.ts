@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -42,7 +42,6 @@ async function chatApi(action: string, params: Record<string, any> = {}) {
     body: { action, ...params },
   });
   if (error) {
-    // Try to extract the actual error body from FunctionsHttpError
     let errorMessage = error.message;
     try {
       if (typeof (error as any).context?.json === "function") {
@@ -58,16 +57,42 @@ async function chatApi(action: string, params: Record<string, any> = {}) {
   return data;
 }
 
+const SPACES_PAGE_SIZE = 25;
+
+/** Paginated spaces query with infinite scroll support */
 export function useGChatSpaces() {
-  return useQuery({
+  const query = useInfiniteQuery({
     queryKey: ["gchat-spaces"],
-    queryFn: async () => {
-      const res = await chatApi("list_spaces");
-      return (res.spaces || []) as GChatSpace[];
+    queryFn: async ({ pageParam }: { pageParam: string | null }) => {
+      const res = await chatApi("list_spaces", {
+        pageSize: SPACES_PAGE_SIZE,
+        pageToken: pageParam || undefined,
+      });
+      return {
+        spaces: (res.spaces || []) as GChatSpace[],
+        nextPageToken: res.nextPageToken as string | null,
+      };
     },
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextPageToken,
     retry: false,
     staleTime: 5 * 60 * 1000,
   });
+
+  // Flatten all pages into a single spaces array for backward compatibility
+  const allSpaces = useMemo(
+    () => query.data?.pages.flatMap((p) => p.spaces) ?? [],
+    [query.data]
+  );
+
+  return {
+    data: allSpaces,
+    isLoading: query.isLoading,
+    error: query.error,
+    hasNextPage: query.hasNextPage,
+    isFetchingNextPage: query.isFetchingNextPage,
+    fetchNextPage: query.fetchNextPage,
+  };
 }
 
 export function useGChatMessages(spaceId: string | null) {
@@ -94,10 +119,6 @@ export function useGChatMembers(spaceId: string | null) {
   });
 }
 
-/**
- * Resolves display names for DM and GROUP_CHAT spaces by fetching members.
- * Returns a Map<spaceId, displayName>.
- */
 /**
  * DM names are now resolved server-side in the list_spaces edge function.
  * This hook is kept for backward compatibility but simply returns an empty map.
