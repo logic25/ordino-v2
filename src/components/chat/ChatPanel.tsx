@@ -49,16 +49,17 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
 
   const activeSpace = spaces.find((s) => s.name === selectedSpaceId);
   const isActiveSpaceDM = activeSpace ? isSpaceDM(activeSpace) : false;
-  const isBeaconBotDm = isActiveSpaceDM && 
-    (activeSpace?.displayName?.toLowerCase().includes("beacon") || false);
-
-  // Merge widget messages when viewing Beacon bot DM
-  const { data: mergedMessages } = useMergedBeaconMessages(messages, isBeaconBotDm);
-  const activeDisplayName =
+  const resolvedDisplayName = 
     (selectedSpaceId ? nicknames.get(selectedSpaceId) : null) ||
     activeSpace?.displayName ||
     (selectedSpaceId ? dmNames.get(selectedSpaceId) : null) ||
-    selectedSpaceId;
+    "";
+  const isBeaconBotDm = isActiveSpaceDM && 
+    resolvedDisplayName.toLowerCase().includes("beacon");
+
+  // Merge widget messages when viewing Beacon bot DM
+  const { data: mergedMessages } = useMergedBeaconMessages(messages, isBeaconBotDm);
+  const activeDisplayName = resolvedDisplayName || selectedSpaceId;
 
   if (!gchatEnabled) {
     return (
