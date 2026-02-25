@@ -1,6 +1,5 @@
-import { useMemo, useEffect, useCallback } from "react";
+import { useMemo, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { useGChatSpaces } from "@/hooks/useGoogleChat";
 import { useEmails } from "@/hooks/useEmails";
 
 const CHAT_LAST_VISITED_KEY = "chat_last_visited";
@@ -35,35 +34,26 @@ export function useUnreadIndicators() {
     }
   }, [location.pathname]);
 
-  // Chat: check if any spaces have recent activity
-  const { data: spaces = [] } = useGChatSpaces();
-
-  const chatHasUnread = useMemo(() => {
-    if (location.pathname === "/chat") return false;
-    const lastVisited = getStoredTimestamp(CHAT_LAST_VISITED_KEY);
-    if (!lastVisited || spaces.length === 0) return false;
-    // If spaces exist but user has never visited chat, show dot
-    if (lastVisited === 0 && spaces.length > 0) return true;
-    // We don't have per-space lastActiveTime from the API cache,
-    // so show dot if spaces were refreshed after last visit
-    // (conservative: only show if user hasn't visited recently)
-    const fiveMinAgo = Date.now() - 5 * 60 * 1000;
-    return lastVisited < fiveMinAgo;
-  }, [spaces, location.pathname]);
-
-  // Email: check for unread emails
+  // Email: count emails newer than last visit
   const { data: emails = [] } = useEmails({});
 
-  const emailHasUnread = useMemo(() => {
-    if (location.pathname === "/emails") return false;
+  const emailUnreadCount = useMemo(() => {
+    if (location.pathname === "/emails") return 0;
     const lastVisited = getStoredTimestamp(EMAIL_LAST_VISITED_KEY);
-    if (emails.length === 0) return false;
-    // Check if any email arrived after last visit
-    return emails.some((e: any) => {
+    if (emails.length === 0) return 0;
+    return emails.filter((e: any) => {
       const emailTime = new Date(e.received_at || e.created_at).getTime();
       return emailTime > lastVisited;
-    });
+    }).length;
   }, [emails, location.pathname]);
 
-  return { chatHasUnread, emailHasUnread };
+  // Chat: we don't have per-message read state so just show a dot
+  // Show dot = emailUnreadCount > 0 pattern but boolean for chat
+  const chatHasUnread = false; // No reliable unread detection for Google Chat
+
+  return {
+    chatHasUnread,
+    emailHasUnread: emailUnreadCount > 0,
+    emailUnreadCount,
+  };
 }
