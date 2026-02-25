@@ -87,6 +87,8 @@ export default function Documents() {
 
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 15;
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
@@ -140,6 +142,12 @@ export default function Documents() {
       return matchSearch && matchCategory && matchFolder;
     });
   }, [documents, searchQuery, categoryFilter, selectedFolderId, folders]);
+
+  // Reset page when filters change
+  useEffect(() => { setCurrentPage(1); }, [searchQuery, categoryFilter, selectedFolderId]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredDocs.length / PAGE_SIZE));
+  const paginatedDocs = filteredDocs.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   // Breadcrumbs
   const breadcrumbs = useMemo(() => {
@@ -361,54 +369,78 @@ export default function Documents() {
                         <Button onClick={() => setUploadOpen(true)}><Upload className="h-4 w-4 mr-2" /> Upload Document</Button>
                       </div>
                     ) : (
-                      <Table className="table-fixed">
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-[40%]">Document</TableHead>
-                            <TableHead className="w-[12%]">Category</TableHead>
-                            <TableHead className="w-[10%]">Size</TableHead>
-                            <TableHead className="w-[14%]">Uploaded By</TableHead>
-                            <TableHead className="w-[12%]">Date</TableHead>
-                            <TableHead className="w-[12%]"></TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredDocs.map((doc) => {
-                            const Icon = getFileIcon(doc.mime_type);
-                            const uploaderName = doc.uploader?.display_name ||
-                              [doc.uploader?.first_name, doc.uploader?.last_name].filter(Boolean).join(" ") || "—";
-                            return (
-                              <TableRow key={doc.id} className="cursor-pointer" onClick={() => setPreviewDoc(doc)}>
-                                <TableCell>
-                                  <div className="flex items-center gap-3">
-                                    <Icon className="h-5 w-5 text-muted-foreground shrink-0" />
-                                    <div className="min-w-0">
-                                      <p className="font-medium truncate">{doc.title}</p>
-                                      <p className="text-xs text-muted-foreground truncate">{doc.filename}</p>
+                      <>
+                        <Table className="table-fixed">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[40%]">Document</TableHead>
+                              <TableHead className="w-[12%]">Category</TableHead>
+                              <TableHead className="w-[10%]">Size</TableHead>
+                              <TableHead className="w-[14%]">Uploaded By</TableHead>
+                              <TableHead className="w-[12%]">Date</TableHead>
+                              <TableHead className="w-[12%]"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {paginatedDocs.map((doc) => {
+                              const Icon = getFileIcon(doc.mime_type);
+                              const uploaderName = doc.uploader?.display_name ||
+                                [doc.uploader?.first_name, doc.uploader?.last_name].filter(Boolean).join(" ") || "—";
+                              return (
+                                <TableRow key={doc.id} className="cursor-pointer" onClick={() => setPreviewDoc(doc)}>
+                                  <TableCell>
+                                    <div className="flex items-center gap-3">
+                                      <Icon className="h-5 w-5 text-muted-foreground shrink-0" />
+                                      <div className="min-w-0">
+                                        <p className="font-medium truncate">{doc.title}</p>
+                                        <p className="text-xs text-muted-foreground truncate">{doc.filename}</p>
+                                      </div>
                                     </div>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <Badge variant="outline" className="text-xs">{CATEGORIES.find((c) => c.value === doc.category)?.label || doc.category}</Badge>
-                                </TableCell>
-                                <TableCell className="text-muted-foreground text-sm tabular-nums">{formatFileSize(doc.size_bytes)}</TableCell>
-                                <TableCell className="text-muted-foreground text-sm">{uploaderName}</TableCell>
-                                <TableCell className="text-muted-foreground text-sm">{format(new Date(doc.created_at), "MMM d, yyyy")}</TableCell>
-                                <TableCell>
-                                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPreviewDoc(doc)} title="Preview">
-                                      <Eye className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(doc)}>
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline" className="text-xs">{CATEGORIES.find((c) => c.value === doc.category)?.label || doc.category}</Badge>
+                                  </TableCell>
+                                  <TableCell className="text-muted-foreground text-sm tabular-nums">{formatFileSize(doc.size_bytes)}</TableCell>
+                                  <TableCell className="text-muted-foreground text-sm">{uploaderName}</TableCell>
+                                  <TableCell className="text-muted-foreground text-sm">{format(new Date(doc.created_at), "MMM d, yyyy")}</TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPreviewDoc(doc)} title="Preview">
+                                        <Eye className="h-4 w-4" />
+                                      </Button>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(doc)}>
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                        {totalPages > 1 && (
+                          <div className="flex items-center justify-between pt-4 border-t mt-4">
+                            <p className="text-sm text-muted-foreground">
+                              Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredDocs.length)} of {filteredDocs.length}
+                            </p>
+                            <div className="flex items-center gap-1">
+                              <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)}>Previous</Button>
+                              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                                .map((p, idx, arr) => {
+                                  const showEllipsis = idx > 0 && p - arr[idx - 1] > 1;
+                                  return (
+                                    <span key={p} className="flex items-center">
+                                      {showEllipsis && <span className="px-1 text-muted-foreground">…</span>}
+                                      <Button variant={p === currentPage ? "default" : "outline"} size="sm" className="h-8 w-8 p-0" onClick={() => setCurrentPage(p)}>{p}</Button>
+                                    </span>
+                                  );
+                                })}
+                              <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)}>Next</Button>
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
                   </CardContent>
                 </Card>
