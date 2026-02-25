@@ -35,6 +35,7 @@ import { DocumentPreviewSheet } from "@/components/documents/DocumentPreviewShee
 import { NewFolderDialog } from "@/components/documents/NewFolderDialog";
 import { syncDocumentToBeacon } from "@/services/beaconApi";
 import { useQueryClient } from "@tanstack/react-query";
+import { KnowledgeBaseView } from "@/components/documents/KnowledgeBaseView";
 
 const CATEGORIES = [
   { value: "general", label: "General" },
@@ -311,102 +312,100 @@ export default function Documents() {
               </div>
             )}
 
-            {/* Filters */}
-            <div className="flex items-center gap-3">
-              <div className="relative max-w-md flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input type="search" placeholder="Search documents..." className="pl-9" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-              </div>
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-[180px]"><SelectValue placeholder="All categories" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  {isBeaconFolder && <Brain className="h-4 w-4 text-[#f59e0b]" />}
-                  <FileText className="h-4 w-4" />
-                  {selectedFolder?.name || "All Documents"}
-                  <span className="text-muted-foreground font-normal text-sm">({filteredDocs.length})</span>
-                </CardTitle>
-                {selectedFolder?.description && (
-                  <p className="text-xs text-muted-foreground">{selectedFolder.description}</p>
-                )}
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
-                ) : filteredDocs.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                    <h3 className="text-lg font-medium">No documents yet</h3>
-                    <p className="text-muted-foreground mt-1 mb-4">Upload reference documents, guides, and SOPs</p>
-                    <Button onClick={() => setUploadOpen(true)}><Upload className="h-4 w-4 mr-2" /> Upload Document</Button>
+            {isBeaconFolder ? (
+              <KnowledgeBaseView />
+            ) : (
+              <>
+                {/* Filters */}
+                <div className="flex items-center gap-3">
+                  <div className="relative max-w-md flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input type="search" placeholder="Search documents..." className="pl-9" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                   </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Document</TableHead>
-                        <TableHead>Category</TableHead>
-                        {isBeaconFolder && <TableHead>Beacon</TableHead>}
-                        <TableHead>Size</TableHead>
-                        <TableHead>Uploaded By</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead className="w-[120px]"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredDocs.map((doc) => {
-                        const Icon = getFileIcon(doc.mime_type);
-                        const uploaderName = doc.uploader?.display_name ||
-                          [doc.uploader?.first_name, doc.uploader?.last_name].filter(Boolean).join(" ") || "—";
-                        return (
-                          <TableRow key={doc.id} className="cursor-pointer" onClick={() => setPreviewDoc(doc)}>
-                            <TableCell>
-                              <div className="flex items-center gap-3">
-                                <Icon className="h-5 w-5 text-muted-foreground shrink-0" />
-                                <div className="min-w-0">
-                                  <p className="font-medium truncate">{doc.title}</p>
-                                  <p className="text-xs text-muted-foreground truncate">{doc.filename}</p>
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="text-xs">{CATEGORIES.find((c) => c.value === doc.category)?.label || doc.category}</Badge>
-                            </TableCell>
-                            {isBeaconFolder && <TableCell><BeaconStatusBadge doc={doc} /></TableCell>}
-                            <TableCell className="text-muted-foreground text-sm tabular-nums">{formatFileSize(doc.size_bytes)}</TableCell>
-                            <TableCell className="text-muted-foreground text-sm">{uploaderName}</TableCell>
-                            <TableCell className="text-muted-foreground text-sm">{format(new Date(doc.created_at), "MMM d, yyyy")}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPreviewDoc(doc)} title="Preview">
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                {isBeaconFolder && (
-                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleResync(doc)} title="Re-sync to Beacon">
-                                    <RefreshCw className="h-4 w-4 text-[#f59e0b]" />
-                                  </Button>
-                                )}
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(doc)}>
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className="w-[180px]"><SelectValue placeholder="All categories" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <FileText className="h-4 w-4" />
+                      {selectedFolder?.name || "All Documents"}
+                      <span className="text-muted-foreground font-normal text-sm">({filteredDocs.length})</span>
+                    </CardTitle>
+                    {selectedFolder?.description && (
+                      <p className="text-xs text-muted-foreground">{selectedFolder.description}</p>
+                    )}
+                  </CardHeader>
+                  <CardContent>
+                    {isLoading ? (
+                      <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+                    ) : filteredDocs.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                        <h3 className="text-lg font-medium">No documents yet</h3>
+                        <p className="text-muted-foreground mt-1 mb-4">Upload reference documents, guides, and SOPs</p>
+                        <Button onClick={() => setUploadOpen(true)}><Upload className="h-4 w-4 mr-2" /> Upload Document</Button>
+                      </div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Document</TableHead>
+                            <TableHead>Category</TableHead>
+                            <TableHead>Size</TableHead>
+                            <TableHead>Uploaded By</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead className="w-[120px]"></TableHead>
                           </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredDocs.map((doc) => {
+                            const Icon = getFileIcon(doc.mime_type);
+                            const uploaderName = doc.uploader?.display_name ||
+                              [doc.uploader?.first_name, doc.uploader?.last_name].filter(Boolean).join(" ") || "—";
+                            return (
+                              <TableRow key={doc.id} className="cursor-pointer" onClick={() => setPreviewDoc(doc)}>
+                                <TableCell>
+                                  <div className="flex items-center gap-3">
+                                    <Icon className="h-5 w-5 text-muted-foreground shrink-0" />
+                                    <div className="min-w-0">
+                                      <p className="font-medium truncate">{doc.title}</p>
+                                      <p className="text-xs text-muted-foreground truncate">{doc.filename}</p>
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className="text-xs">{CATEGORIES.find((c) => c.value === doc.category)?.label || doc.category}</Badge>
+                                </TableCell>
+                                <TableCell className="text-muted-foreground text-sm tabular-nums">{formatFileSize(doc.size_bytes)}</TableCell>
+                                <TableCell className="text-muted-foreground text-sm">{uploaderName}</TableCell>
+                                <TableCell className="text-muted-foreground text-sm">{format(new Date(doc.created_at), "MMM d, yyyy")}</TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPreviewDoc(doc)} title="Preview">
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(doc)}>
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            )}
           </div>
         </div>
       </div>
