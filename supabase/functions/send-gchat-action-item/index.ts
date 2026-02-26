@@ -252,9 +252,10 @@ Deno.serve(async (req) => {
     if (!chatRes.ok) {
       const errBody = await chatRes.text();
       console.error("GChat API error:", chatRes.status, errBody);
+      // Return 200 with error detail so task creation isn't treated as failed
       return new Response(
-        JSON.stringify({ error: "GChat API error", status: chatRes.status, detail: errBody }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, reason: "GChat API error", status: chatRes.status, detail: errBody }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
