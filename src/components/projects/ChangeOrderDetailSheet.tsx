@@ -352,6 +352,7 @@ export function ChangeOrderDetailSheet({
         linked_service_names: data.linked_service_names ?? [],
         line_items: data.line_items ?? [],
         notes: data.notes ?? null,
+        deposit_percentage: data.deposit_percentage ?? 0,
         status: asDraft ? "draft" : co.status,
       } as any);
       toast({ title: "Change order updated" });
@@ -617,6 +618,23 @@ export function ChangeOrderDetailSheet({
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Reason</p>
                   <p className="text-sm whitespace-pre-line">{co.reason}</p>
+                </div>
+              )}
+
+              {/* Deposit Info */}
+              {(co as any).deposit_percentage > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Deposit</p>
+                  <p className="text-sm font-medium">
+                    {(co as any).deposit_percentage}% — {fmt(Math.abs(co.amount) * (co as any).deposit_percentage / 100)}
+                  </p>
+                  {(co as any).deposit_paid_at ? (
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+                      Paid {fmtDate((co as any).deposit_paid_at)}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-1">Not yet paid</p>
+                  )}
                 </div>
               )}
             </div>
