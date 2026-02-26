@@ -119,6 +119,7 @@ export function useCreateActionItem() {
       priority?: string;
       due_date?: string;
       attachment_ids?: any[];
+      service_id?: string;
     }) => {
       if (!profile?.company_id) throw new Error("No company");
       const { data, error } = await supabase.from("project_action_items").insert({
@@ -131,6 +132,7 @@ export function useCreateActionItem() {
         priority: input.priority || "normal",
         due_date: input.due_date || null,
         attachment_ids: input.attachment_ids || [],
+        service_id: input.service_id || null,
       } as any).select("id").single();
       if (error) throw error;
 
