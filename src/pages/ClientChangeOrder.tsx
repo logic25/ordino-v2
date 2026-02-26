@@ -25,14 +25,14 @@ export default function ClientChangeOrderPage() {
   const [clientTitle, setClientTitle] = useState("");
   const [signed, setSigned] = useState(false);
 
-  // Fetch CO by public token — join company, project, property, client in one query
-  const { data: coData, isLoading, error } = useQuery({
+  // Fetch CO by public token (no joins — anon can only read change_orders)
+  const { data: co, isLoading, error } = useQuery({
     queryKey: ["public-co", token],
     queryFn: async () => {
       if (!token) throw new Error("No token");
       const { data, error } = await (supabase as any)
         .from("change_orders")
-        .select("*, companies(name, address, phone, email, website, logo_url, settings), projects(project_number, property_id, properties(address, borough), client_id, clients!projects_client_id_fkey(name))")
+        .select("*")
         .eq("public_token", token)
         .maybeSingle();
       if (error) throw error;
@@ -42,24 +42,46 @@ export default function ClientChangeOrderPage() {
     enabled: !!token,
   });
 
-  const co = coData;
+  // Fetch company info (graceful — returns null if RLS blocks)
+  const { data: company } = useQuery({
+    queryKey: ["public-co-company", co?.company_id],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("companies")
+        .select("name, address, phone, email, website, logo_url, settings")
+        .eq("id", co.company_id)
+        .maybeSingle();
+      if (!data) return null;
+      const s = (data.settings || {}) as any;
+      return {
+        name: data.name,
+        address: s.company_address?.trim() || data.address || "",
+        phone: s.company_phone?.trim() || data.phone || "",
+        email: s.company_email?.trim() || data.email || "",
+        logo_url: s.company_logo_url?.trim() || data.logo_url || "",
+      };
+    },
+    enabled: !!co?.company_id,
+    retry: false,
+  });
 
-  // Derive company, project, client from the joined data
-  const company = (() => {
-    if (!coData?.companies) return null;
-    const c = coData.companies;
-    const s = (c.settings || {}) as any;
-    return {
-      name: c.name,
-      address: s.company_address?.trim() || c.address || "",
-      phone: s.company_phone?.trim() || c.phone || "",
-      email: s.company_email?.trim() || c.email || "",
-      logo_url: s.company_logo_url?.trim() || c.logo_url || "",
-    };
-  })();
+  // Fetch project + client info (graceful)
+  const { data: projectData } = useQuery({
+    queryKey: ["public-co-project", co?.project_id],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("projects")
+        .select("project_number, property_id, properties(address, borough), client_id, clients!projects_client_id_fkey(name)")
+        .eq("id", co.project_id)
+        .maybeSingle();
+      return data as any;
+    },
+    enabled: !!co?.project_id,
+    retry: false,
+  });
 
-  const project = coData?.projects || null;
-  const clientInfo = project?.clients || null;
+  const project = projectData || null;
+  const clientInfo = projectData?.clients || null;
 
   // Sign mutation
   const signMutation = useMutation({
