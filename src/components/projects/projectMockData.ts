@@ -553,9 +553,11 @@ export const docCategoryLabels: Record<string, string> = {
   dob: "DOB",
   insurance: "Insurance",
   contract: "Contract",
+  change_order: "Change Order",
   reports: "Reports",
   permits: "Permits",
   correspondence: "Correspondence",
+  general: "General",
   other: "Other",
 };
 

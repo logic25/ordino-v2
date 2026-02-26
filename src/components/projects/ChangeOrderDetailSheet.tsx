@@ -73,6 +73,7 @@ export function ChangeOrderDetailSheet({
   const [notes, setNotes] = useState(co?.notes ?? "");
   const [sendAfterSign, setSendAfterSign] = useState(false);
   const autoSignTriggered = useRef(false);
+  const autoArchiveTriggered = useRef<string | null>(null);
 
   // Auto-open signature dialog when autoSign prop is set
   useEffect(() => {
@@ -86,6 +87,15 @@ export function ChangeOrderDetailSheet({
       setSendAfterSign(false);
     }
   }, [open, autoSign, co]);
+
+  // Auto-archive: deferred flag, checked after savePdfToDocuments is defined
+  const shouldAutoArchive = useRef(false);
+  useEffect(() => {
+    if (co && co.internal_signed_at && co.client_signed_at && autoArchiveTriggered.current !== co.id) {
+      autoArchiveTriggered.current = co.id;
+      shouldAutoArchive.current = true;
+    }
+  }, [co?.id, co?.internal_signed_at, co?.client_signed_at]);
 
   const signCO = useSignCOInternal();
   const approveCO = useMarkCOApproved();
@@ -437,6 +447,23 @@ export function ChangeOrderDetailSheet({
       toast({ title: "Error saving PDF", description: e.message, variant: "destructive" });
     }
   };
+
+  // Execute deferred auto-archive if flagged
+  if (shouldAutoArchive.current) {
+    shouldAutoArchive.current = false;
+    supabase
+      .from("universal_documents" as any)
+      .select("id")
+      .eq("project_id", co.project_id)
+      .eq("category", "change_order")
+      .ilike("filename" as any, `%${co.co_number.replace("#", "")}%`)
+      .limit(1)
+      .then(({ data }) => {
+        if (!data || data.length === 0) {
+          savePdfToDocuments().catch(() => {});
+        }
+      });
+  }
 
   return (
     <>
