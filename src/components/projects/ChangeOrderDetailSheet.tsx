@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -51,6 +51,8 @@ interface ChangeOrderDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   serviceNames?: string[];
+  autoSign?: boolean;
+  onAutoSignComplete?: () => void;
 }
 
 export function ChangeOrderDetailSheet({
@@ -58,6 +60,8 @@ export function ChangeOrderDetailSheet({
   open,
   onOpenChange,
   serviceNames = [],
+  autoSign = false,
+  onAutoSignComplete,
 }: ChangeOrderDetailSheetProps) {
   const { toast } = useToast();
   const { profile } = useAuth();
@@ -67,6 +71,21 @@ export function ChangeOrderDetailSheet({
   const [voidConfirmOpen, setVoidConfirmOpen] = useState(false);
   const [rejectConfirmOpen, setRejectConfirmOpen] = useState(false);
   const [notes, setNotes] = useState(co?.notes ?? "");
+  const [sendAfterSign, setSendAfterSign] = useState(false);
+  const autoSignTriggered = useRef(false);
+
+  // Auto-open signature dialog when autoSign prop is set
+  useEffect(() => {
+    if (open && autoSign && co && !autoSignTriggered.current) {
+      autoSignTriggered.current = true;
+      setSendAfterSign(true);
+      setSignOpen(true);
+    }
+    if (!open) {
+      autoSignTriggered.current = false;
+      setSendAfterSign(false);
+    }
+  }, [open, autoSign, co]);
 
   const signCO = useSignCOInternal();
   const approveCO = useMarkCOApproved();
@@ -145,6 +164,13 @@ export function ChangeOrderDetailSheet({
       await signCO.mutateAsync({ id: co.id, project_id: co.project_id, signatureData });
       setSignOpen(false);
       toast({ title: `${co.co_number} signed`, description: "Status → Pending Client." });
+      onAutoSignComplete?.();
+      // Auto-send to client after signing if triggered from create flow
+      if (sendAfterSign) {
+        setSendAfterSign(false);
+        // Small delay to let queries refresh with the new signed state
+        setTimeout(() => handleSend(), 500);
+      }
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     }
