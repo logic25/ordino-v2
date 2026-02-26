@@ -6889,6 +6889,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      auto_join_existing_company: {
+        Args: { first_name: string; last_name: string }
+        Returns: string
+      }
       bootstrap_company: {
         Args: {
           company_name: string
