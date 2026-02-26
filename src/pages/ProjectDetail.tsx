@@ -1868,19 +1868,15 @@ function ContactsFull({ contacts, pisStatus, projectId, clientId }: { contacts: 
         open={showNewClientDialog}
         onOpenChange={setShowNewClientDialog}
         onSubmit={async (data) => {
-          try {
-            const { data: profile } = await supabase.from("profiles").select("company_id").single();
-            if (!profile?.company_id) throw new Error("No company");
-            const { data: newClient, error } = await supabase.from("clients").insert({
-              ...data,
-              company_id: profile.company_id,
-            }).select("id").single();
-            if (error) throw error;
-            toast({ title: "Company created", description: `${data.name} created. Now add a contact.` });
-            handleNewClientCreated(newClient.id);
-          } catch (err: any) {
-            toast({ title: "Error", description: err.message, variant: "destructive" });
-          }
+          const { data: profile } = await supabase.from("profiles").select("company_id").single();
+          if (!profile?.company_id) throw new Error("No company");
+          const { data: newClient, error } = await supabase.from("clients").insert({
+            ...data,
+            company_id: profile.company_id,
+          }).select("id").single();
+          if (error) throw error;
+          toast({ title: "Company created", description: `${data.name} created. Now add a contact.` });
+          handleNewClientCreated(newClient.id);
         }}
       />
 
