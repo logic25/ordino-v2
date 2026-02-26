@@ -23,10 +23,11 @@ interface Props {
 
 type ViewMode = "preview" | "edit";
 
-function getPreviewType(mime: string | null, filename: string): "pdf" | "image" | "text" | "markdown" | "unsupported" {
+function getPreviewType(mime: string | null, filename: string): "pdf" | "image" | "text" | "markdown" | "html" | "unsupported" {
   if (mime?.startsWith("image/")) return "image";
   if (mime === "application/pdf") return "pdf";
   const ext = filename.split(".").pop()?.toLowerCase();
+  if (ext === "html" || ext === "htm" || mime === "text/html") return "html";
   if (ext === "md") return "markdown";
   if (ext === "txt" || ext === "csv" || ext === "json" || ext === "xml" || ext === "yaml" || ext === "yml" || ext === "log") return "text";
   if (mime?.startsWith("text/")) return "text";
@@ -60,7 +61,7 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
     setOriginalContent("");
     setSignedUrl(null);
 
-    if (previewType === "pdf" || previewType === "image") {
+    if (previewType === "pdf" || previewType === "image" || previewType === "html") {
       supabase.storage.from(bucket).createSignedUrl(doc.storage_path, 3600)
         .then(({ data }) => { if (data) setSignedUrl(data.signedUrl); });
     }
@@ -193,6 +194,8 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
                 </div>
               ) : previewType === "pdf" && signedUrl ? (
                 <iframe src={signedUrl} className="w-full h-[70vh] rounded border" />
+              ) : previewType === "html" && signedUrl ? (
+                <iframe src={signedUrl} className="w-full h-[70vh] rounded border bg-white" sandbox="allow-same-origin" />
               ) : previewType === "image" && signedUrl ? (
                 <img src={signedUrl} alt={doc.title} className="max-w-full rounded border" />
               ) : previewType === "markdown" ? (
