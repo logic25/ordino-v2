@@ -112,7 +112,7 @@ export default function ProjectDetail() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [litigationDialogOpen, setLitigationDialogOpen] = useState(false);
   const [coDialogOpen, setCoDialogOpen] = useState(false);
-  const [selectedCO, setSelectedCO] = useState<ChangeOrder | null>(null);
+  const [selectedCOId, setSelectedCOId] = useState<string | null>(null);
   const [coSheetOpen, setCoSheetOpen] = useState(false);
   const [coAutoSign, setCoAutoSign] = useState(false);
 
@@ -182,6 +182,7 @@ export default function ProjectDetail() {
 
   // Real change orders
   const { data: realChangeOrders = [] } = useChangeOrders(project?.id);
+  const selectedCO = realChangeOrders.find(co => co.id === selectedCOId) || null;
 
   // Real time entries from activities table
   const { data: realTimeEntries = [] } = useQuery({
@@ -488,7 +489,7 @@ export default function ProjectDetail() {
                   companyId={project.company_id}
                   serviceNames={liveServices.map(s => s.name)}
                   onOpenCreate={() => setCoDialogOpen(true)}
-                  onSelectCO={(co) => { setSelectedCO(co); setCoSheetOpen(true); }}
+                  onSelectCO={(co) => { setSelectedCOId(co.id); setCoSheetOpen(true); }}
                 />
               </TabsContent>
               <TabsContent value="action-items" className="mt-0">
@@ -544,7 +545,7 @@ export default function ProjectDetail() {
           setCoDialogOpen(false);
           if (!asDraft && newCO) {
             // Open the detail sheet with auto-sign flow
-            setSelectedCO(newCO);
+            setSelectedCOId(newCO.id);
             setCoAutoSign(true);
             setCoSheetOpen(true);
           }
