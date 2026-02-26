@@ -4,6 +4,7 @@ import { useDashboardStats } from "@/hooks/useDashboard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePendingDraftsCount } from "@/hooks/useChecklistFollowupDrafts";
 import { Sparkles } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface StatCardProps {
   title: string;
@@ -11,11 +12,13 @@ interface StatCardProps {
   subtitle?: string;
   icon: React.ReactNode;
   loading?: boolean;
+  href?: string;
 }
 
-function StatCard({ title, value, subtitle, icon, loading }: StatCardProps) {
+function StatCard({ title, value, subtitle, icon, loading, href }: StatCardProps) {
+  const navigate = useNavigate();
   return (
-    <Card className="card-hover">
+    <Card className="card-hover cursor-pointer hover:shadow-md transition-shadow" onClick={() => href && navigate(href)}>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">
           {title}
@@ -56,24 +59,28 @@ export function DashboardStats({ role }: DashboardStatsProps) {
       value: stats?.todayHours ?? 0,
       subtitle: "Keep logging!",
       icon: <Clock className="h-4 w-4 text-muted-foreground" />,
+      href: "/time",
     },
     {
       title: "My Projects",
       value: stats?.activeProjects ?? 0,
       subtitle: "Currently assigned",
       icon: <Building2 className="h-4 w-4 text-muted-foreground" />,
+      href: "/projects",
     },
     {
       title: "Pending Proposals",
       value: stats?.pendingProposals ?? 0,
       subtitle: "Awaiting client response",
       icon: <FileText className="h-4 w-4 text-muted-foreground" />,
+      href: "/proposals",
     },
     {
       title: "Team Members",
       value: stats?.teamMembers ?? 0,
       subtitle: "Active staff",
       icon: <Users className="h-4 w-4 text-muted-foreground" />,
+      href: "/settings?section=team",
     },
   ];
 
@@ -97,6 +104,7 @@ export function DashboardStats({ role }: DashboardStatsProps) {
             subtitle={stat.subtitle}
             icon={stat.icon}
             loading={isLoading}
+            href={stat.href}
           />
         ))}
       </div>
