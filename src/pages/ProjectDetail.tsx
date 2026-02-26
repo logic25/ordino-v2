@@ -72,6 +72,7 @@ import type {
 import {
   useProjectServices, useProjectContacts, useProjectTimeline, useProjectPISStatus, useProjectDocuments,
 } from "@/hooks/useProjectDetail";
+import { useTimelineEvents } from "@/hooks/useTimelineEvents";
 import { QuickReferenceBar } from "@/components/projects/QuickReferenceBar";
 import { useChangeOrders, useCreateChangeOrder, useDeleteChangeOrder } from "@/hooks/useChangeOrders";
 import { ChangeOrderDialog } from "@/components/projects/ChangeOrderDialog";
@@ -123,7 +124,7 @@ export default function ProjectDetail() {
   const { data: realContacts = [] } = useProjectContacts(project?.id, project?.client_id, (project as any)?.proposal_id);
   const { data: realTimeline = [] } = useProjectTimeline(project?.id, (project as any)?.proposal_id);
   const { data: realPISStatus } = useProjectPISStatus(project?.id);
-  const { data: realDocuments = [] } = useProjectDocuments(project?.id);
+  const { data: realDocuments = [] } = useProjectDocuments(project?.id, (project as any)?.proposal_id);
 
   // DOB applications for QuickReferenceBar
   const { data: dobApplications = [] } = useQuery({
@@ -277,7 +278,7 @@ export default function ProjectDetail() {
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-bold tracking-tight">
-                  {project.name || project.proposals?.title || "Untitled Project"}
+                  {[project.project_number, project.properties?.address, project.name || project.proposals?.title].filter(Boolean).join(" — ") || "Untitled Project"}
                 </h1>
                 <Badge variant={status.variant} className="shrink-0">{status.label}</Badge>
               </div>
@@ -315,17 +316,6 @@ export default function ProjectDetail() {
                 })}
               </div>
               <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
-                {project.project_number && <span className="font-mono">{project.project_number}</span>}
-               {project.properties?.address && (
-                  <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {project.properties.address}</span>
-                )}
-                {((project as any).floor_number || (project as any).unit_number) && (
-                  <span className="flex items-center gap-1 text-xs">
-                    {(project as any).floor_number && <>Floor {(project as any).floor_number}</>}
-                    {(project as any).floor_number && (project as any).unit_number && <> · </>}
-                    {(project as any).unit_number && <>Unit {(project as any).unit_number}</>}
-                  </span>
-                )}
                 {(project as any).tenant_name && (
                   <span className="flex items-center gap-1 text-xs">Tenant: {(project as any).tenant_name}</span>
                 )}
@@ -474,7 +464,7 @@ export default function ProjectDetail() {
                 <ContactsFull contacts={contacts} pisStatus={pisStatus} projectId={project.id} clientId={project.client_id} />
               </TabsContent>
               <TabsContent value="timeline" className="mt-0">
-                <TimelineFull milestones={milestones} />
+                <TimelineFull milestones={milestones} projectId={project.id} />
               </TabsContent>
               <TabsContent value="documents" className="mt-0">
                 <DocumentsFull documents={documents} projectId={project.id} companyId={project.company_id} />
@@ -2160,25 +2150,68 @@ function ContactsFull({ contacts, pisStatus, projectId, clientId }: { contacts: 
 }
 // ======== TIMELINE ========
 
-function TimelineFull({ milestones }: { milestones: MockMilestone[] }) {
+function TimelineFull({ milestones, projectId }: { milestones: MockMilestone[]; projectId?: string }) {
+  const { data: dbEvents = [] } = useTimelineEvents(projectId);
   const sourceIcons: Record<string, typeof Circle> = { system: Circle, email: Mail, user: Pencil, dob: FileText };
+  const eventIcons: Record<string, typeof Circle> = {
+    action_item_created: ClipboardList,
+    action_item_completed: CheckCircle2,
+    co_created: GitBranch,
+    co_signed_internally: PenLine,
+    co_sent_to_client: Send,
+    co_client_signed: CheckCheck,
+    co_approved: ShieldCheck,
+    co_voided: XCircle,
+    co_rejected: XCircle,
+  };
+
+  // Merge manual milestones with DB events
+  type TimelineItem = { id: string; date: string; event: string; source: string; details?: string; _sortTime: number; _eventType?: string };
+
+  const dbAsMilestones: TimelineItem[] = dbEvents.map(ev => ({
+    id: ev.id,
+    date: format(new Date(ev.created_at), "MM/dd/yyyy"),
+    event: ev.description || ev.event_type.replace(/_/g, " "),
+    source: "system",
+    _sortTime: new Date(ev.created_at).getTime(),
+    _eventType: ev.event_type,
+  }));
+
+  const manualWithTime: TimelineItem[] = milestones.map(m => ({
+    id: m.id,
+    date: m.date,
+    event: m.event,
+    source: m.source,
+    details: m.details,
+    _sortTime: new Date(m.date.replace(/(\d{2})\/(\d{2})\/(\d{4})/, "$3-$1-$2")).getTime(),
+    _eventType: undefined,
+  }));
+
+  const combined = [...manualWithTime, ...dbAsMilestones].sort((a, b) => a._sortTime - b._sortTime);
+
+  if (combined.length === 0) {
+    return <p className="text-sm text-muted-foreground italic p-6">No timeline events yet.</p>;
+  }
+
   return (
     <div className="p-6 space-y-0">
-      {milestones.map((m, i) => {
-        const Icon = sourceIcons[m.source] || Circle;
+      {combined.map((m, i) => {
+        const Icon = m._eventType ? (eventIcons[m._eventType] || Circle) : (sourceIcons[m.source] || Circle);
         return (
           <div key={m.id} className="flex gap-4 relative">
-            {i < milestones.length - 1 && <div className="absolute left-[13px] top-8 bottom-0 w-px bg-border" />}
+            {i < combined.length - 1 && <div className="absolute left-[13px] top-8 bottom-0 w-px bg-border" />}
             <div className="shrink-0 mt-1 z-10 bg-background rounded-full">
               <Icon className="h-[26px] w-[26px] p-1.5 rounded-full bg-muted text-muted-foreground" />
             </div>
             <div className="pb-5 min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground font-mono">{m.date}</span>
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize">{m.source}</Badge>
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize">
+                  {m._eventType ? m._eventType.replace(/_/g, " ") : m.source}
+                </Badge>
               </div>
               <p className="text-sm mt-1">{m.event}</p>
-              {m.details && <p className="text-xs text-muted-foreground mt-0.5">{m.details}</p>}
+              {(m as any).details && <p className="text-xs text-muted-foreground mt-0.5">{(m as any).details}</p>}
             </div>
           </div>
         );

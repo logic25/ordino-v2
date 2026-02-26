@@ -336,6 +336,13 @@ function TimelineTab({ projectId }: { projectId?: string }) {
   const eventIcons: Record<string, typeof Circle> = {
     action_item_created: ClipboardList,
     action_item_completed: CheckCircle2,
+    co_created: GitBranch,
+    co_signed_internally: CircleDot,
+    co_sent_to_client: Send,
+    co_client_signed: CheckCheck,
+    co_approved: CheckCircle2,
+    co_voided: XCircle,
+    co_rejected: XCircle,
   };
 
   if (isLoading) return <p className="text-sm text-muted-foreground italic p-4">Loading timeline...</p>;

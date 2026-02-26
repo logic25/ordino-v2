@@ -292,9 +292,9 @@ export function useProjectPISStatus(projectId: string | undefined) {
   });
 }
 
-export function useProjectDocuments(projectId: string | undefined) {
+export function useProjectDocuments(projectId: string | undefined, proposalId?: string | null) {
   return useQuery({
-    queryKey: ["project-documents", projectId],
+    queryKey: ["project-documents", projectId, proposalId],
     queryFn: async () => {
       if (!projectId) return [];
 
@@ -357,6 +357,33 @@ export function useProjectDocuments(projectId: string | undefined) {
                   storageBucket: "rfi-attachments",
                 });
               }
+            });
+          }
+        }
+      }
+
+      // 3. Inject signed proposal if it exists in storage
+      if (proposalId) {
+        const signedPath = `proposals/${proposalId}/signed_proposal.html`;
+        const alreadyHasSignedProposal = docs.some(d => d.storage_path === signedPath || d.category === "contract");
+        if (!alreadyHasSignedProposal) {
+          // Check if the file actually exists in storage
+          const { data: fileList } = await supabase.storage
+            .from("documents")
+            .list(`proposals/${proposalId}`, { limit: 10 });
+          const signedFile = fileList?.find(f => f.name === "signed_proposal.html");
+          if (signedFile) {
+            docs.unshift({
+              id: `signed-proposal-${proposalId}`,
+              name: "Signed Proposal",
+              type: "HTML",
+              category: "contract",
+              size: signedFile.metadata?.size ? `${Math.round(signedFile.metadata.size / 1024)} KB` : "—",
+              uploadedBy: "System",
+              uploadedDate: signedFile.created_at ? format(new Date(signedFile.created_at), "MM/dd/yyyy") : "—",
+              storage_path: signedPath,
+              filename: "signed_proposal.html",
+              storageBucket: "documents",
             });
           }
         }
