@@ -1902,21 +1902,24 @@ function ContactsFull({ contacts, pisStatus, projectId, clientId }: { contacts: 
           onOpenChange={setShowNewContactDialog}
           clientId={selectedClientId}
           defaultName={searchTerm.trim() || undefined}
-          onContactCreated={async (contact) => {
-            // Link the newly created contact to this project
-            try {
-              const { data: { user } } = await supabase.auth.getUser();
-              if (user) {
-                const { data: profile } = await supabase.from("profiles").select("company_id").eq("user_id", user.id).maybeSingle();
-                if (profile?.company_id && contact) {
-                  await (supabase.from("project_contacts" as any) as any).insert({
+          onContactCreated={(contact) => {
+            // Link the newly created contact to this project (fire-and-forget)
+            if (contact && projectId) {
+              supabase.auth.getUser().then(({ data: { user } }) => {
+                if (!user) return;
+                supabase.from("profiles").select("company_id").eq("user_id", user.id).maybeSingle().then(({ data: profile }) => {
+                  if (!profile?.company_id) return;
+                  (supabase.from("project_contacts" as any) as any).insert({
                     project_id: projectId,
                     contact_id: contact.id,
                     company_id: profile.company_id,
+                  }).then(({ error }: any) => {
+                    if (error) console.error("Failed to link contact:", error);
+                    queryClient.invalidateQueries({ queryKey: ["project-contacts"] });
                   });
-                }
-              }
-            } catch {}
+                });
+              });
+            }
             queryClient.invalidateQueries({ queryKey: ["project-contacts"] });
             queryClient.invalidateQueries({ queryKey: ["all-clients-with-contacts"] });
             setShowNewContactDialog(false);
