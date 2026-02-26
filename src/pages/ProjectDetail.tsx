@@ -1826,51 +1826,104 @@ function ContactsFull({ contacts, pisStatus, projectId, clientId }: { contacts: 
               />
             </div>
             <div className="max-h-[300px] overflow-y-auto">
-              {filteredClients.length === 0 ? (
-                <div className="p-4 text-center text-sm text-muted-foreground">No results</div>
-              ) : filteredClients.slice(0, 15).map(client => (
-                <div key={client.id}>
-                  <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/30">
-                    {client.name}
-                  </div>
-                  {(client.client_contacts || []).length > 0 ? (
-                    (client.client_contacts || []).map((cc: any) => {
-                      const alreadyAdded = contacts.some(c => c.name === cc.name);
-                      return (
-                        <button
-                          key={cc.id}
-                          className={`w-full text-left px-4 py-2 text-sm transition-colors ${alreadyAdded ? "opacity-40 cursor-not-allowed" : "hover:bg-muted/50"}`}
-                          disabled={alreadyAdded}
-                          onClick={() => handleLinkContact(cc)}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span>{cc.name}</span>
-                            {alreadyAdded && <span className="text-[10px] text-muted-foreground">linked</span>}
-                          </div>
-                          {(cc.title || cc.email) && (
-                            <div className="text-xs text-muted-foreground">{[cc.title, cc.email].filter(Boolean).join(" · ")}</div>
-                          )}
-                        </button>
-                      );
-                    })
-                  ) : (
-                    <div className="px-4 py-2 text-xs text-muted-foreground italic">No contacts</div>
+              {filteredClients.length === 0 && searchTerm.trim() ? (
+                <div className="p-2">
+                  <p className="px-3 py-2 text-sm text-muted-foreground">No matches for &ldquo;{searchTerm}&rdquo;</p>
+                  {clientId && (
+                    <button
+                      className="w-full text-left px-4 py-2 text-sm hover:bg-muted/50 transition-colors flex items-center gap-2"
+                      onClick={() => {
+                        setSelectedClientId(clientId);
+                        setSearchOpen(false);
+                        setShowNewContactDialog(true);
+                      }}
+                    >
+                      <UserPlus className="h-3.5 w-3.5 text-muted-foreground" />
+                      Create &ldquo;{searchTerm}&rdquo; as new contact
+                    </button>
                   )}
+                  <button
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-muted/50 transition-colors flex items-center gap-2"
+                    onClick={() => {
+                      setSearchOpen(false);
+                      setShowNewClientDialog(true);
+                    }}
+                  >
+                    <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                    New company &amp; contact
+                  </button>
                 </div>
-              ))}
-            </div>
-            <div className="border-t p-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full gap-1.5 text-sm"
-                onClick={() => {
-                  setSearchOpen(false);
-                  setShowNewClientDialog(true);
-                }}
-              >
-                <Plus className="h-3.5 w-3.5" /> Add New Company & Contact
-              </Button>
+              ) : filteredClients.length === 0 ? (
+                <div className="p-4 text-center text-sm text-muted-foreground">Start typing to search...</div>
+              ) : (
+                <>
+                  {filteredClients.slice(0, 15).map(client => (
+                    <div key={client.id}>
+                      <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/30">
+                        {client.name}
+                      </div>
+                      {(client.client_contacts || []).length > 0 ? (
+                        (client.client_contacts || []).map((cc: any) => {
+                          const alreadyAdded = contacts.some(c => c.id === cc.id);
+                          return (
+                            <button
+                              key={cc.id}
+                              className={`w-full text-left px-4 py-2 text-sm transition-colors ${alreadyAdded ? "opacity-40 cursor-not-allowed" : "hover:bg-muted/50"}`}
+                              disabled={alreadyAdded}
+                              onClick={() => handleLinkContact(cc)}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span>{cc.name}</span>
+                                {alreadyAdded && <span className="text-[10px] text-muted-foreground">linked</span>}
+                              </div>
+                              {(cc.title || cc.email) && (
+                                <div className="text-xs text-muted-foreground">{[cc.title, cc.email].filter(Boolean).join(" · ")}</div>
+                              )}
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <button
+                          className="w-full text-left px-4 py-2 text-sm hover:bg-muted/50 transition-colors flex items-center gap-2 text-muted-foreground"
+                          onClick={() => {
+                            setSelectedClientId(client.id);
+                            setSearchOpen(false);
+                            setShowNewContactDialog(true);
+                          }}
+                        >
+                          <UserPlus className="h-3.5 w-3.5" /> Add contact to {client.name}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {/* Inline create option at the end of results */}
+                  <div className="border-t">
+                    {searchTerm.trim() && clientId && (
+                      <button
+                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted/50 transition-colors flex items-center gap-2"
+                        onClick={() => {
+                          setSelectedClientId(clientId);
+                          setSearchOpen(false);
+                          setShowNewContactDialog(true);
+                        }}
+                      >
+                        <UserPlus className="h-3.5 w-3.5 text-muted-foreground" />
+                        Create &ldquo;{searchTerm}&rdquo; as new contact
+                      </button>
+                    )}
+                    <button
+                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted/50 transition-colors flex items-center gap-2"
+                      onClick={() => {
+                        setSearchOpen(false);
+                        setShowNewClientDialog(true);
+                      }}
+                    >
+                      <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                      New Company &amp; Contact
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </PopoverContent>
         </Popover>
