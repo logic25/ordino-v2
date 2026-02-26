@@ -60,7 +60,7 @@ export function useProjectContacts(projectId: string | undefined, clientId: stri
       const contacts: MockContact[] = [];
       const seen = new Set<string>();
 
-      // 1. Client contacts
+      // 1. Client contacts (from the project's own client)
       if (clientId) {
         const { data: clientContacts } = await supabase
           .from("client_contacts")
@@ -69,7 +69,7 @@ export function useProjectContacts(projectId: string | undefined, clientId: stri
           .order("is_primary", { ascending: false });
 
         (clientContacts || []).forEach((cc: any) => {
-          const key = (cc.email || cc.name).toLowerCase();
+          const key = cc.id;
           if (seen.has(key)) return;
           seen.add(key);
           contacts.push({
@@ -91,7 +91,43 @@ export function useProjectContacts(projectId: string | undefined, clientId: stri
         });
       }
 
-      // 2. Proposal contacts
+      // 2. Explicitly linked contacts (from project_contacts join table)
+      const { data: linkedRows } = await (supabase.from("project_contacts" as any) as any)
+        .select("contact_id")
+        .eq("project_id", projectId);
+
+      if (linkedRows?.length) {
+        const linkedIds = (linkedRows as any[]).map((r: any) => r.contact_id).filter((id: string) => !seen.has(id));
+        if (linkedIds.length) {
+          const { data: linkedContacts } = await supabase
+            .from("client_contacts")
+            .select("id, name, email, phone, title, company_name, is_primary, first_name, last_name, client_id")
+            .in("id", linkedIds);
+
+          (linkedContacts || []).forEach((cc: any) => {
+            if (seen.has(cc.id)) return;
+            seen.add(cc.id);
+            contacts.push({
+              id: cc.id,
+              name: cc.name,
+              role: cc.title || "Contact",
+              company: cc.company_name || "",
+              phone: cc.phone || "",
+              email: cc.email || "",
+              dobRole: "other",
+              source: "manual",
+              dobRegistered: "unknown",
+              client_id: cc.client_id,
+              first_name: cc.first_name || "",
+              last_name: cc.last_name || "",
+              title: cc.title || "",
+              is_primary: cc.is_primary || false,
+            });
+          });
+        }
+      }
+
+      // 3. Proposal contacts
       if (proposalId) {
         const { data: propContacts } = await (supabase.from("proposal_contacts" as any) as any)
           .select("id, name, email, phone, company_name, role")
