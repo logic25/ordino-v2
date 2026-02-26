@@ -119,13 +119,17 @@ export function AdminCompanyView({ isVisible }: { isVisible?: (id: string) => bo
       </Card>
       )}
 
-      {/* Row 3: YoY + Proposal Activity + Follow-Ups */}
+      {/* Row 3: YoY + Proposal Activity side by side */}
       {show("yoy-proposals-followups") && (
-      <div className="grid gap-6 lg:grid-cols-3">
+      <>
+      <div className="grid gap-6 lg:grid-cols-2">
         <YearOverYearChart />
         <ProposalActivityCard />
-        <ProposalFollowUps />
       </div>
+
+      {/* Row 3b: Follow-Ups full width */}
+      <ProposalFollowUps />
+      </>
       )}
 
       {/* Row 4: Billing Goal Tracker */}

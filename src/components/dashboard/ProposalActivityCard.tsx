@@ -46,11 +46,11 @@ export function ProposalActivityCard() {
   const trendColor = (change: number) => change > 0 ? "text-green-600" : change < 0 ? "text-destructive" : "text-muted-foreground";
 
   return (
-    <Card className="h-full">
+    <Card className="h-full flex flex-col">
       <CardHeader className="pb-2">
         <CardTitle className="text-base">Proposal Activity</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 flex flex-col justify-center">
         {isLoading ? (
           <Skeleton className="h-[220px] w-full" />
         ) : data ? (
