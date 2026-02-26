@@ -124,7 +124,7 @@ export function ClientDialog({
         is_rfp_partner: data.is_rfp_partner || false,
       });
       form.reset();
-      toast({ title: isEditing ? "Company updated" : "Company created", description: `${data.name} saved successfully.` });
+      onOpenChange(false);
     } catch (error: any) {
       toast({ title: "Error saving company", description: error?.message || "Something went wrong", variant: "destructive" });
     }
