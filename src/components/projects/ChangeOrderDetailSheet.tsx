@@ -186,9 +186,55 @@ export function ChangeOrderDetailSheet({
         return;
       }
 
-      const email = (contacts[0] as any).email;
-      await sendCO.mutateAsync({ id: co.id, project_id: co.project_id, sent_to_email: email });
-      toast({ title: "Sent to client", description: `${co.co_number} sent to ${email}. Status → Pending Client.` });
+      const contactEmail = (contacts[0] as any).email;
+      const contactName = (contacts[0] as any).name || "";
+
+      // Generate the PDF and convert to base64 for attachment
+      const pdfBlob = await generatePdfBlob();
+      const arrayBuffer = await pdfBlob.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      let binary = "";
+      for (let i = 0; i < uint8Array.length; i++) {
+        binary += String.fromCharCode(uint8Array[i]);
+      }
+      const pdfBase64 = btoa(binary);
+
+      const fileName = `${co.co_number.replace("#", "")}_${co.title.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`;
+      const companyName = companySettings?.name || "Our Company";
+      const projectAddr = projectInfo?.address || "the project";
+
+      // Send the email via gmail-send edge function
+      const { data: sendResult, error: sendError } = await supabase.functions.invoke("gmail-send", {
+        body: {
+          to: contactEmail,
+          subject: `Change Order ${co.co_number} – ${co.title}`,
+          html_body: `<div style="font-family: Arial, sans-serif; color: #333;">
+            <p>Hi ${contactName},</p>
+            <p>${companyName} has issued <strong>Change Order ${co.co_number}</strong> for ${projectAddr}.</p>
+            <table style="margin: 16px 0; border-collapse: collapse;">
+              <tr><td style="padding: 4px 12px 4px 0; font-weight: 600;">Title:</td><td>${co.title}</td></tr>
+              <tr><td style="padding: 4px 12px 4px 0; font-weight: 600;">Amount:</td><td>${fmt(co.amount)}</td></tr>
+              ${co.description ? `<tr><td style="padding: 4px 12px 4px 0; font-weight: 600;">Description:</td><td>${co.description}</td></tr>` : ""}
+            </table>
+            <p>Please review the attached PDF at your earliest convenience. If you have any questions, feel free to reply to this email.</p>
+            <p>Thank you,<br/>${companyName}</p>
+          </div>`,
+          attachments: [
+            {
+              filename: fileName,
+              content: pdfBase64,
+              mime_type: "application/pdf",
+            },
+          ],
+        },
+      });
+
+      if (sendError) throw new Error(sendError.message || "Failed to send email");
+      if (sendResult?.error) throw new Error(sendResult.error);
+
+      // Update CO status
+      await sendCO.mutateAsync({ id: co.id, project_id: co.project_id, sent_to_email: contactEmail });
+      toast({ title: "Sent to client", description: `${co.co_number} emailed to ${contactEmail} with PDF attached.` });
     } catch (e: any) {
       toast({ title: "Error sending CO", description: e.message, variant: "destructive" });
     }
