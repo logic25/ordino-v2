@@ -100,10 +100,18 @@ export function ChangeOrderDetailSheet({
     queryFn: async () => {
       const { data } = await supabase
         .from("projects")
-        .select("project_number, address, client_id, clients(name)")
+        .select("project_number, property_id, properties(address, borough), client_id, clients!projects_client_id_fkey(name)")
         .eq("id", co!.project_id)
         .single();
-      return data as any;
+      if (!data) return null;
+      const props = data.properties as any;
+      return {
+        project_number: data.project_number,
+        address: props?.address || null,
+        borough: props?.borough || null,
+        client_id: data.client_id,
+        clients: data.clients,
+      };
     },
   });
 
