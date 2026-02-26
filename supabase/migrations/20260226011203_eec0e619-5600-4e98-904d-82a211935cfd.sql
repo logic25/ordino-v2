@@ -1,0 +1,1 @@
+ALTER TABLE public.project_action_items ADD COLUMN service_id uuid REFERENCES public.services(id) ON DELETE SET NULL;
