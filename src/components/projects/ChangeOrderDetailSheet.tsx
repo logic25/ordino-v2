@@ -508,8 +508,8 @@ export function ChangeOrderDetailSheet({
             {/* Action Buttons */}
             <div className="flex flex-wrap gap-2">
               {canSign && (
-                <Button size="sm" className="gap-1.5" onClick={() => setSignOpen(true)}>
-                  <PenLine className="h-3.5 w-3.5" /> Sign Internally
+                <Button size="sm" className="gap-1.5" onClick={() => { setSendAfterSign(true); setSignOpen(true); }}>
+                  <PenLine className="h-3.5 w-3.5" /> Sign & Send
                 </Button>
               )}
               {canSend && (
