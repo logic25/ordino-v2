@@ -112,8 +112,9 @@ export function NewActionItemDialog({ projectId, open, onOpenChange }: Props) {
       setSelectedDocIds([]);
       setUploadedFiles([]);
       setShowDocPicker(false);
-    } catch {
-      toast({ title: "Error creating task", variant: "destructive" });
+    } catch (err: any) {
+      console.error("Task creation error:", err);
+      toast({ title: "Error creating task", description: err?.message || "Unknown error", variant: "destructive" });
       setUploading(false);
     }
   };
