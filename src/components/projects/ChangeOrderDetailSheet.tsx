@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import {
@@ -64,8 +65,25 @@ export function ChangeOrderDetailSheet({
   const updateCO = useUpdateChangeOrder();
   const deleteCO = useDeleteChangeOrder();
 
+  // Resolve internal signer name (must be before conditional return)
+  const { data: signerProfile } = useQuery({
+    queryKey: ["profile", co?.internal_signed_by],
+    enabled: !!co?.internal_signed_by,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("display_name, first_name, last_name")
+        .eq("id", co!.internal_signed_by!)
+        .single();
+      return data;
+    },
+  });
+
   if (!co) return null;
 
+  const signerName = signerProfile
+    ? (signerProfile as any).display_name || `${(signerProfile as any).first_name ?? ""} ${(signerProfile as any).last_name ?? ""}`.trim()
+    : null;
   const statusCfg = STATUS_CONFIG[co.status] || STATUS_CONFIG.draft;
   const internalSigned = !!co.internal_signed_at;
   const clientSigned = !!co.client_signed_at;
@@ -125,8 +143,8 @@ export function ChangeOrderDetailSheet({
         return;
       }
 
-      await sendCO.mutateAsync({ id: co.id, project_id: co.project_id });
       const email = (contacts[0] as any).email;
+      await sendCO.mutateAsync({ id: co.id, project_id: co.project_id, sent_to_email: email });
       toast({ title: "Sent to client", description: `${co.co_number} sent to ${email}. Status → Pending Client.` });
     } catch (e: any) {
       toast({ title: "Error sending CO", description: e.message, variant: "destructive" });
@@ -244,7 +262,7 @@ export function ChangeOrderDetailSheet({
                 </div>
                 {internalSigned ? (
                   <p className="text-emerald-700 dark:text-emerald-300 font-medium">
-                    Signed {fmtDate(co.internal_signed_at)}
+                    {signerName ? `${signerName} — ` : "Signed "}{fmtDate(co.internal_signed_at)}
                   </p>
                 ) : (
                   <p className="text-muted-foreground">Not yet signed</p>
@@ -261,7 +279,12 @@ export function ChangeOrderDetailSheet({
                     {co.client_signer_name ? `${co.client_signer_name} — ` : ""}{fmtDate(co.client_signed_at)}
                   </p>
                 ) : co.sent_at ? (
-                  <p className="text-blue-700 dark:text-blue-300">Sent {fmtDate(co.sent_at)} — awaiting</p>
+                  <div>
+                    <p className="text-blue-700 dark:text-blue-300">Sent {fmtDate(co.sent_at)} — awaiting</p>
+                    {(co as any).sent_to_email && (
+                      <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">To: {(co as any).sent_to_email}</p>
+                    )}
+                  </div>
                 ) : (
                   <p className="text-muted-foreground">Not yet sent</p>
                 )}
@@ -370,13 +393,13 @@ export function ChangeOrderDetailSheet({
                 {co.internal_signed_at && (
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
-                    <span>Signed internally {fmtDate(co.internal_signed_at)}</span>
+                    <span>Signed internally{signerName ? ` by ${signerName}` : ""} {fmtDate(co.internal_signed_at)}</span>
                   </div>
                 )}
                 {co.sent_at && (
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
-                    <span>Sent to client {fmtDate(co.sent_at)}</span>
+                    <span>Sent to {(co as any).sent_to_email ? (co as any).sent_to_email : "client"} {fmtDate(co.sent_at)}</span>
                   </div>
                 )}
                 {co.client_signed_at && (
