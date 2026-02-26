@@ -1761,13 +1761,26 @@ function ContactsFull({ contacts, pisStatus, projectId, clientId }: { contacts: 
   );
 
   const handleLinkContact = async (contact: { id: string; name: string }) => {
-    // Already linked?
-    if (contacts.some(c => c.name === contact.name)) {
+    if (contacts.some(c => c.id === contact.id)) {
       toast({ title: "Already linked", description: `${contact.name} is already on this project.` });
       return;
     }
-    toast({ title: "Contact linked", description: `${contact.name} is now associated with this project.` });
-    queryClient.invalidateQueries({ queryKey: ["project-contacts"] });
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+      const { data: profile } = await supabase.from("profiles").select("company_id").eq("user_id", user.id).maybeSingle();
+      if (!profile?.company_id) throw new Error("No company");
+      const { error } = await (supabase.from("project_contacts" as any) as any).insert({
+        project_id: projectId,
+        contact_id: contact.id,
+        company_id: profile.company_id,
+      });
+      if (error) throw error;
+      toast({ title: "Contact linked", description: `${contact.name} is now associated with this project.` });
+      queryClient.invalidateQueries({ queryKey: ["project-contacts"] });
+    } catch (err: any) {
+      toast({ title: "Error linking contact", description: err.message, variant: "destructive" });
+    }
     setSearchOpen(false);
     setSearchTerm("");
   };
@@ -1888,7 +1901,21 @@ function ContactsFull({ contacts, pisStatus, projectId, clientId }: { contacts: 
           open={showNewContactDialog}
           onOpenChange={setShowNewContactDialog}
           clientId={selectedClientId}
-          onContactCreated={() => {
+          onContactCreated={async (contact) => {
+            // Link the newly created contact to this project
+            try {
+              const { data: { user } } = await supabase.auth.getUser();
+              if (user) {
+                const { data: profile } = await supabase.from("profiles").select("company_id").eq("user_id", user.id).maybeSingle();
+                if (profile?.company_id && contact) {
+                  await (supabase.from("project_contacts" as any) as any).insert({
+                    project_id: projectId,
+                    contact_id: contact.id,
+                    company_id: profile.company_id,
+                  });
+                }
+              }
+            } catch {}
             queryClient.invalidateQueries({ queryKey: ["project-contacts"] });
             queryClient.invalidateQueries({ queryKey: ["all-clients-with-contacts"] });
             setShowNewContactDialog(false);
