@@ -189,6 +189,15 @@ export function ChangeOrderDetailSheet({
       const contactEmail = (contacts[0] as any).email;
       const contactName = (contacts[0] as any).name || "";
 
+      // Fetch the public_token for the signing link
+      const { data: coTokenData } = await (supabase as any)
+        .from("change_orders")
+        .select("public_token")
+        .eq("id", co.id)
+        .single();
+      const publicToken = coTokenData?.public_token;
+      const signingLink = publicToken ? `${window.location.origin}/change-order/${publicToken}` : null;
+
       // Generate the PDF and convert to base64 for attachment
       const pdfBlob = await generatePdfBlob();
       const arrayBuffer = await pdfBlob.arrayBuffer();
@@ -203,21 +212,36 @@ export function ChangeOrderDetailSheet({
       const companyName = companySettings?.name || "Our Company";
       const projectAddr = projectInfo?.address || "the project";
 
+      const signingSection = signingLink
+        ? `<div style="margin: 24px 0; padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center;">
+            <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #1c2127;">Review & Sign Online</p>
+            <p style="margin: 0 0 16px 0; font-size: 13px; color: #64748b;">Click below to review the full change order and sign electronically.</p>
+            <a href="${signingLink}" style="display: inline-block; padding: 12px 32px; background: hsl(38, 92%, 50%); color: #fff; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 14px;">Review & Sign Change Order</a>
+          </div>
+          <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0 0 16px 0;">Or you may print the attached PDF and sign manually.</p>`
+        : `<p>Please review the attached PDF at your earliest convenience. If you have any questions, feel free to reply to this email.</p>`;
+
       // Send the email via gmail-send edge function
       const { data: sendResult, error: sendError } = await supabase.functions.invoke("gmail-send", {
         body: {
           to: contactEmail,
           subject: `Change Order ${co.co_number} – ${co.title}`,
-          html_body: `<div style="font-family: Arial, sans-serif; color: #333;">
-            <p>Hi ${contactName},</p>
-            <p>${companyName} has issued <strong>Change Order ${co.co_number}</strong> for ${projectAddr}.</p>
-            <table style="margin: 16px 0; border-collapse: collapse;">
-              <tr><td style="padding: 4px 12px 4px 0; font-weight: 600;">Title:</td><td>${co.title}</td></tr>
-              <tr><td style="padding: 4px 12px 4px 0; font-weight: 600;">Amount:</td><td>${fmt(co.amount)}</td></tr>
-              ${co.description ? `<tr><td style="padding: 4px 12px 4px 0; font-weight: 600;">Description:</td><td>${co.description}</td></tr>` : ""}
-            </table>
-            <p>Please review the attached PDF at your earliest convenience. If you have any questions, feel free to reply to this email.</p>
-            <p>Thank you,<br/>${companyName}</p>
+          html_body: `<div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
+            <div style="background: #1c2127; color: #fff; padding: 20px 24px; border-radius: 8px 8px 0 0;">
+              <h1 style="margin: 0; font-size: 18px; font-weight: 800; letter-spacing: 0.5px;">CHANGE ORDER</h1>
+              <p style="margin: 4px 0 0; font-size: 13px; opacity: 0.8;">${co.co_number} · ${projectAddr}</p>
+            </div>
+            <div style="padding: 24px; background: #fff; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px;">
+              <p style="margin: 0 0 16px;">Hi ${contactName},</p>
+              <p style="margin: 0 0 16px;">${companyName} has issued <strong>Change Order ${co.co_number}</strong> for ${projectAddr}.</p>
+              <table style="margin: 0 0 16px; border-collapse: collapse; width: 100%;">
+                <tr><td style="padding: 6px 12px 6px 0; font-weight: 600; color: #64748b; font-size: 13px;">Title:</td><td style="padding: 6px 0; font-size: 13px;">${co.title}</td></tr>
+                <tr><td style="padding: 6px 12px 6px 0; font-weight: 600; color: #64748b; font-size: 13px;">Amount:</td><td style="padding: 6px 0; font-size: 13px; font-weight: 700;">${fmt(co.amount)}</td></tr>
+                ${co.description ? `<tr><td style="padding: 6px 12px 6px 0; font-weight: 600; color: #64748b; font-size: 13px;">Description:</td><td style="padding: 6px 0; font-size: 13px;">${co.description}</td></tr>` : ""}
+              </table>
+              ${signingSection}
+              <p style="margin: 16px 0 0;">Thank you,<br/>${companyName}</p>
+            </div>
           </div>`,
           attachments: [
             {
@@ -234,7 +258,7 @@ export function ChangeOrderDetailSheet({
 
       // Update CO status
       await sendCO.mutateAsync({ id: co.id, project_id: co.project_id, sent_to_email: contactEmail });
-      toast({ title: "Sent to client", description: `${co.co_number} emailed to ${contactEmail} with PDF attached.` });
+      toast({ title: "Sent to client", description: `${co.co_number} emailed to ${contactEmail} with signing link.` });
     } catch (e: any) {
       toast({ title: "Error sending CO", description: e.message, variant: "destructive" });
     }

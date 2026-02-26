@@ -1348,6 +1348,7 @@ export type Database = {
           linked_service_names: string[] | null
           notes: string | null
           project_id: string
+          public_token: string | null
           reason: string | null
           requested_by: string | null
           sent_at: string | null
@@ -1375,6 +1376,7 @@ export type Database = {
           linked_service_names?: string[] | null
           notes?: string | null
           project_id: string
+          public_token?: string | null
           reason?: string | null
           requested_by?: string | null
           sent_at?: string | null
@@ -1402,6 +1404,7 @@ export type Database = {
           linked_service_names?: string[] | null
           notes?: string | null
           project_id?: string
+          public_token?: string | null
           reason?: string | null
           requested_by?: string | null
           sent_at?: string | null
