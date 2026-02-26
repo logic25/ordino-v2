@@ -7,6 +7,10 @@ import { useSensors, useSensor, PointerSensor } from "@dnd-kit/core";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -69,7 +73,7 @@ import {
   useProjectServices, useProjectContacts, useProjectTimeline, useProjectPISStatus, useProjectDocuments,
 } from "@/hooks/useProjectDetail";
 import { QuickReferenceBar } from "@/components/projects/QuickReferenceBar";
-import { useChangeOrders, useCreateChangeOrder } from "@/hooks/useChangeOrders";
+import { useChangeOrders, useCreateChangeOrder, useDeleteChangeOrder } from "@/hooks/useChangeOrders";
 import { ChangeOrderDialog } from "@/components/projects/ChangeOrderDialog";
 import { ChangeOrderDetailSheet } from "@/components/projects/ChangeOrderDetailSheet";
 import { ActionItemsTab } from "@/components/projects/ActionItemsTab";
@@ -2570,13 +2574,57 @@ function ChangeOrdersFull({ changeOrders, projectId, companyId, serviceNames, on
   onSelectCO: (co: ChangeOrder) => void;
 }) {
   const coTotal = changeOrders.filter(co => co.status === "approved").reduce((s, co) => s + Number(co.amount), 0);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteReason, setDeleteReason] = useState("");
+  const deleteCO = useDeleteChangeOrder();
+  const { toast } = useToast();
+
+  const toggleSelect = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selectedIds.size === changeOrders.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(changeOrders.map(co => co.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const toDelete = changeOrders.filter(co => selectedIds.has(co.id));
+    let deleted = 0;
+    for (const co of toDelete) {
+      try {
+        await deleteCO.mutateAsync({ id: co.id, project_id: projectId });
+        deleted++;
+      } catch { /* continue */ }
+    }
+    toast({ title: `${deleted} CO${deleted !== 1 ? "s" : ""} deleted`, description: deleteReason ? `Reason: ${deleteReason}` : undefined });
+    setSelectedIds(new Set());
+    setDeleteConfirmOpen(false);
+    setDeleteReason("");
+  };
 
   return (
     <div>
       <div className="flex items-center justify-between px-6 py-4 border-b">
-        <div className="text-sm text-muted-foreground">
-          {changeOrders.length} change order{changeOrders.length !== 1 ? "s" : ""}
-          {coTotal > 0 && <> · Approved: <span className="font-semibold text-foreground">{formatCurrency(coTotal)}</span></>}
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-muted-foreground">
+            {changeOrders.length} change order{changeOrders.length !== 1 ? "s" : ""}
+            {coTotal > 0 && <> · Approved: <span className="font-semibold text-foreground">{formatCurrency(coTotal)}</span></>}
+          </span>
+          {selectedIds.size > 0 && (
+            <Button size="sm" variant="destructive" className="gap-1.5 h-7 text-xs" onClick={() => setDeleteConfirmOpen(true)}>
+              <Trash2 className="h-3 w-3" /> Delete {selectedIds.size}
+            </Button>
+          )}
         </div>
         <Button size="sm" className="gap-1.5" onClick={onOpenCreate}>
           <Plus className="h-4 w-4" /> Create Change Order
@@ -2595,6 +2643,12 @@ function ChangeOrdersFull({ changeOrders, projectId, companyId, serviceNames, on
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30">
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={selectedIds.size === changeOrders.length && changeOrders.length > 0}
+                  onCheckedChange={toggleAll}
+                />
+              </TableHead>
               <TableHead>CO #</TableHead>
               <TableHead>Title</TableHead>
               <TableHead>Status</TableHead>
@@ -2610,7 +2664,19 @@ function ChangeOrdersFull({ changeOrders, projectId, companyId, serviceNames, on
               const internalSigned = !!co.internal_signed_at;
               const clientSigned = !!co.client_signed_at;
               return (
-                <TableRow key={co.id} className="cursor-pointer hover:bg-muted/20" onClick={() => onSelectCO(co)}>
+                <TableRow key={co.id} className={`cursor-pointer hover:bg-muted/20 ${selectedIds.has(co.id) ? "bg-muted/30" : ""}`} onClick={() => onSelectCO(co)}>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedIds.has(co.id)}
+                      onCheckedChange={() => {
+                        setSelectedIds(prev => {
+                          const next = new Set(prev);
+                          if (next.has(co.id)) next.delete(co.id); else next.add(co.id);
+                          return next;
+                        });
+                      }}
+                    />
+                  </TableCell>
                   <TableCell className="font-mono font-medium">{co.co_number}</TableCell>
                   <TableCell>{co.title}</TableCell>
                   <TableCell>
@@ -2626,8 +2692,8 @@ function ChangeOrdersFull({ changeOrders, projectId, companyId, serviceNames, on
                         <span className={internalSigned ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
                           {internalSigned ? `✓ Internal ${co.internal_signed_at ? format(new Date(co.internal_signed_at), "MM/dd/yy") : ""}` : "⏳ Internal"}
                         </span>
-                        <span className={clientSigned ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
-                          {clientSigned ? `✓ Client ${co.client_signed_at ? format(new Date(co.client_signed_at), "MM/dd/yy") : ""}` : "⏳ Client"}
+                        <span className={clientSigned ? "text-emerald-600 dark:text-emerald-400" : co.sent_at ? "text-blue-600 dark:text-blue-400" : "text-amber-600 dark:text-amber-400"}>
+                          {clientSigned ? `✓ Client ${co.client_signed_at ? format(new Date(co.client_signed_at), "MM/dd/yy") : ""}` : co.sent_at ? `📧 Sent ${format(new Date(co.sent_at), "MM/dd/yy")}` : "⏳ Client"}
                         </span>
                       </div>
                     ) : (
@@ -2643,6 +2709,41 @@ function ChangeOrdersFull({ changeOrders, projectId, companyId, serviceNames, on
           </TableBody>
         </Table>
       )}
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Delete {selectedIds.size} Change Order{selectedIds.size !== 1 ? "s" : ""}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. Please provide a reason for deleting.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="delete-reason">Reason *</Label>
+            <Textarea
+              id="delete-reason"
+              placeholder="Why are these change orders being deleted?"
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              className="min-h-[80px]"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={!deleteReason.trim() || deleteCO.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteCO.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
