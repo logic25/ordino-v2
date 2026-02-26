@@ -50,15 +50,15 @@ export function YearOverYearChart() {
   const { data, isLoading } = useYearOverYearRevenue();
 
   return (
-    <Card className="h-full">
+    <Card className="h-full flex flex-col">
       <CardHeader className="pb-2">
         <CardTitle className="text-base">Year-over-Year Revenue</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 min-h-0">
         {isLoading ? (
-          <Skeleton className="h-[220px] w-full" />
+          <Skeleton className="h-full min-h-[180px] w-full" />
         ) : data && data.data.some((d: any) => d[data.currentYear] > 0 || d[data.prevYear] > 0) ? (
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data.data} barGap={1} barSize={12}>
               <XAxis dataKey="month" tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 10 }} tickFormatter={formatCurrency} />
@@ -69,7 +69,7 @@ export function YearOverYearChart() {
             </BarChart>
           </ResponsiveContainer>
         ) : (
-          <div className="h-[220px] flex items-center justify-center text-muted-foreground text-sm">
+          <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
             No revenue data to compare
           </div>
         )}
