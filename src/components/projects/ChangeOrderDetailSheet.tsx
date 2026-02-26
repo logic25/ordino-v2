@@ -372,6 +372,8 @@ export function ChangeOrderDetailSheet({
         companyAddress={settings?.company_address}
         companyPhone={settings?.company_phone}
         companyEmail={settings?.company_email}
+        companyWebsite={settings?.company_website}
+        companyFax={settings?.company_fax}
         projectAddress={projectInfo?.address}
         projectNumber={projectInfo?.project_number}
         clientName={projectInfo?.clients?.name}
