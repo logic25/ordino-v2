@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, RotateCcw, CheckCircle2, PenLine, Printer, Download } from "lucide-react";
+import { Loader2, RotateCcw, CheckCircle2, PenLine, Printer, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const fmt = (v: number) =>
@@ -24,6 +24,9 @@ export default function ClientChangeOrderPage() {
   const [clientName, setClientName] = useState("");
   const [clientTitle, setClientTitle] = useState("");
   const [signed, setSigned] = useState(false);
+  const [savedSignatureData, setSavedSignatureData] = useState<string | null>(null);
+  const [copyEmail, setCopyEmail] = useState("");
+  const [copySent, setCopySent] = useState(false);
 
   // Fetch CO by public token (no joins — anon can only read change_orders)
   const { data: co, isLoading, error } = useQuery({
@@ -88,6 +91,7 @@ export default function ClientChangeOrderPage() {
     mutationFn: async () => {
       if (!canvasRef.current || !token) throw new Error("Missing data");
       const sigData = canvasRef.current.toDataURL("image/png");
+      setSavedSignatureData(sigData);
       const { error } = await (supabase as any)
         .from("change_orders")
         .update({
@@ -211,14 +215,86 @@ export default function ClientChangeOrderPage() {
       <div className="max-w-[720px] mx-auto py-6 px-4 print:max-w-none print:p-0">
         {/* Already signed confirmation */}
         {alreadySigned && (
-          <div className="bg-white shadow-md rounded-lg p-8 text-center mb-6 print:hidden">
-            <div className="inline-flex items-center justify-center rounded-full p-3 mb-4" style={{ background: "hsl(160, 84%, 39%, 0.1)" }}>
-              <CheckCircle2 className="h-12 w-12" style={{ color: "#10b981" }} />
+          <div className="space-y-4 mb-6 print:hidden">
+            <div className="bg-white shadow-md rounded-lg p-8 text-center">
+              <div className="inline-flex items-center justify-center rounded-full p-3 mb-4" style={{ background: "hsl(160, 84%, 39%, 0.1)" }}>
+                <CheckCircle2 className="h-12 w-12" style={{ color: "#10b981" }} />
+              </div>
+              <h2 className="text-xl font-bold mb-2" style={{ color: charcoal }}>Change Order Approved!</h2>
+              <p className="text-sm max-w-md mx-auto" style={{ color: slate }}>
+                Thank you for signing <strong>{co.co_number}</strong>. The team has been notified.
+              </p>
             </div>
-            <h2 className="text-xl font-bold mb-2" style={{ color: charcoal }}>Change Order Approved!</h2>
-            <p className="text-sm max-w-md mx-auto" style={{ color: slate }}>
-              Thank you for signing <strong>{co.co_number}</strong>. The team has been notified.
-            </p>
+
+            {/* Send a copy */}
+            {!copySent ? (
+              <div className="bg-white shadow-md rounded-lg p-5" style={{ borderLeft: `4px solid ${amber}` }}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="rounded-full p-2" style={{ background: "hsl(38, 92%, 50%, 0.1)" }}>
+                    <Mail className="h-5 w-5" style={{ color: amber }} />
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold" style={{ color: charcoal }}>Want a copy for your records?</div>
+                    <div className="text-xs" style={{ color: slate }}>We'll email the signed change order to you.</div>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    type="email"
+                    placeholder="your@email.com"
+                    value={copyEmail}
+                    onChange={(e) => setCopyEmail(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button
+                    size="sm"
+                    disabled={!copyEmail.includes("@") || copySent}
+                    style={{ background: amber, color: "#fff" }}
+                    onClick={async () => {
+                      try {
+                        const coNum = co.co_number || "Change Order";
+                        const totalStr = fmt(co.amount);
+                        await supabase.functions.invoke("gmail-send", {
+                          body: {
+                            to: copyEmail,
+                            subject: `Your Signed Change Order — ${coNum}`,
+                            html_body: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+                              <h2 style="color:#1c2127;">Change Order ${coNum} — Approved</h2>
+                              <p>Thank you for signing. Here is a summary for your records:</p>
+                              <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+                                <tr><td style="padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Change Order</td><td style="padding:8px;border-bottom:1px solid #e2e8f0;font-weight:600;">${coNum}</td></tr>
+                                <tr><td style="padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Title</td><td style="padding:8px;border-bottom:1px solid #e2e8f0;font-weight:600;">${co.title}</td></tr>
+                                <tr><td style="padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Total</td><td style="padding:8px;border-bottom:1px solid #e2e8f0;font-weight:600;">${totalStr}</td></tr>
+                                <tr><td style="padding:8px;color:#64748b;">Signed by</td><td style="padding:8px;font-weight:600;">${co.client_signer_name || clientName}</td></tr>
+                              </table>
+                              <p style="color:#64748b;font-size:13px;">If you need a printable copy, please revisit the original link.</p>
+                            </div>`,
+                          },
+                        });
+                        setCopySent(true);
+                        toast({ title: "Copy sent!", description: `A copy has been emailed to ${copyEmail}.` });
+                      } catch {
+                        toast({ title: "Failed to send", description: "Please try again or use the Print button.", variant: "destructive" });
+                      }
+                    }}
+                  >
+                    Send
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white shadow-md rounded-lg p-5" style={{ borderLeft: "4px solid #10b981" }}>
+                <div className="flex items-center gap-3">
+                  <div className="rounded-full p-2" style={{ background: "hsl(160, 84%, 39%, 0.1)" }}>
+                    <CheckCircle2 className="h-5 w-5" style={{ color: "#10b981" }} />
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold" style={{ color: charcoal }}>Copy Sent</div>
+                    <div className="text-xs" style={{ color: slate }}>A copy was emailed to {copyEmail}.</div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -323,13 +399,9 @@ export default function ClientChangeOrderPage() {
               {/* Client Signature */}
               <div>
                 <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: slate }}>Client Approval</div>
-                {(co.client_signature_data || signed) ? (
+                {(co.client_signature_data || savedSignatureData) ? (
                   <>
-                    {co.client_signature_data ? (
-                      <img src={co.client_signature_data} alt="Client signature" className="h-12 object-contain mb-1" />
-                    ) : canvasRef.current ? (
-                      <img src={canvasRef.current.toDataURL("image/png")} alt="Client signature" className="h-12 object-contain mb-1" />
-                    ) : null}
+                    <img src={co.client_signature_data || savedSignatureData!} alt="Client signature" className="h-12 object-contain mb-1" />
                     <div className="text-xs font-medium" style={{ color: charcoal }}>{co.client_signer_name || clientName}</div>
                     <div className="text-xs" style={{ color: slate }}>Signed {fmtDate(co.client_signed_at || new Date().toISOString())}</div>
                   </>
