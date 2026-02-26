@@ -72,14 +72,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, fetchProfile]);
 
   useEffect(() => {
+    let initialSessionHandled = false;
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Defer profile fetch to avoid deadlock
         if (session?.user) {
+          // Mark that onAuthStateChange handled the session so getSession doesn't double-fetch
+          initialSessionHandled = true;
+          // Defer to avoid Supabase deadlock, but keep loading true until profile resolves
           setTimeout(() => {
             fetchProfile(session.user.id).then((profileData) => {
               setProfile(profileData);
@@ -96,8 +100,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // THEN check for existing session
+    // THEN check for existing session (fallback if onAuthStateChange hasn't fired yet)
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (initialSessionHandled) return; // onAuthStateChange already handled it
+      
       setSession(session);
       setUser(session?.user ?? null);
       

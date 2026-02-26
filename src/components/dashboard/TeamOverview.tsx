@@ -1,13 +1,15 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, TrendingUp } from "lucide-react";
+import { Users, TrendingUp, ArrowRight } from "lucide-react";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { useNavigate } from "react-router-dom";
 
 export function TeamOverview() {
   const { data: profiles, isLoading } = useCompanyProfiles();
+  const navigate = useNavigate();
 
   const getRoleBadge = (role: string) => {
     const colors: Record<string, string> = {
@@ -28,12 +30,17 @@ export function TeamOverview() {
   };
 
   return (
-    <Card>
+    <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/settings?section=team")}>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5" />
-          Team Overview
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Team Overview
+          </CardTitle>
+          <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={(e) => { e.stopPropagation(); navigate("/settings?section=team"); }}>
+            Manage <ArrowRight className="h-3 w-3" />
+          </Button>
+        </div>
         <CardDescription>Active team members</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
