@@ -467,7 +467,7 @@ export default function ProjectDetail() {
                 <TimelineFull milestones={milestones} projectId={project.id} />
               </TabsContent>
               <TabsContent value="documents" className="mt-0">
-                <DocumentsFull documents={documents} projectId={project.id} companyId={project.company_id} />
+                <DocumentsFull documents={documents} projectId={project.id} companyId={project.company_id} proposal={project.proposals} />
               </TabsContent>
               <TabsContent value="time-logs" className="mt-0">
                 <TimeLogsFull timeEntries={timeEntries} services={liveServices} projectId={project.id} companyId={project.company_id} />
@@ -2222,7 +2222,7 @@ function TimelineFull({ milestones, projectId }: { milestones: MockMilestone[]; 
 
 // ======== DOCUMENTS (Universal Documents style) ========
 
-function DocumentsFull({ documents, projectId, companyId }: { documents: MockDocument[]; projectId?: string; companyId?: string }) {
+function DocumentsFull({ documents, projectId, companyId, proposal }: { documents: MockDocument[]; projectId?: string; companyId?: string; proposal?: any }) {
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
   const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string } | null>(null);
@@ -2274,8 +2274,9 @@ function DocumentsFull({ documents, projectId, companyId }: { documents: MockDoc
     const bucket = doc.storageBucket || "documents";
     const { data, error } = await supabase.storage.from(bucket).download(storagePathKey);
     if (error || !data) {
-      if (doc.category === "contract" && doc.name.toLowerCase().includes("proposal")) {
-        toast({ title: "File not yet generated", description: "The signed PDF will be created on the next proposal signing. You can view the proposal from the header banner above." });
+      // For contract docs with missing files, try to generate from proposal public token
+      if (doc.category === "contract" && doc.name.toLowerCase().includes("proposal") && proposal?.public_token) {
+        toast({ title: "Signed contract not yet generated", description: "Please re-sign the proposal from the Proposals page to generate the document.", variant: "destructive" });
       } else {
         toast({ title: "File not found", description: "The file could not be retrieved from storage.", variant: "destructive" });
       }
