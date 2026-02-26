@@ -185,6 +185,25 @@ export function ChangeOrderPDF({
             </Text>
           </View>
 
+          {/* Deposit Due */}
+          {(co as any).deposit_percentage > 0 && (
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: "#fffbeb", padding: "10px 18px" as any, borderRadius: 5, marginTop: 10, borderWidth: 1, borderColor: "#fde68a" }}>
+              <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: "#92400e" }}>
+                Deposit Due Upon Signing ({(co as any).deposit_percentage}%)
+              </Text>
+              <Text style={{ fontSize: 12, fontFamily: "Helvetica-Bold", color: "#92400e" }}>
+                {fmtCurrency(Math.abs(co.amount) * (co as any).deposit_percentage / 100)}
+              </Text>
+            </View>
+          )}
+
+          {/* Terms Reference */}
+          <View style={{ marginTop: 16 }}>
+            <Text style={{ fontSize: 8, color: slate, lineHeight: 1.5, fontStyle: "italic" }}>
+              By signing this Change Order, you acknowledge that all terms and conditions of the original proposal/contract remain in full effect. This Change Order modifies only the scope and fees described above.
+            </Text>
+          </View>
+
           {/* Reason */}
           {co.reason ? (
             <View style={s.reasonBlock}>

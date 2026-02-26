@@ -27,6 +27,10 @@ export default function ClientChangeOrderPage() {
   const [savedSignatureData, setSavedSignatureData] = useState<string | null>(null);
   const [copyEmail, setCopyEmail] = useState("");
   const [copySent, setCopySent] = useState(false);
+  const [autoSendStatus, setAutoSendStatus] = useState<"idle" | "sending" | "sent" | "failed">("idle");
+  const [depositPaying, setDepositPaying] = useState(false);
+  const [depositPaid, setDepositPaid] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "ach">("card");
 
   // Fetch CO by public token (no joins — anon can only read change_orders)
   const { data: co, isLoading, error } = useQuery({
@@ -104,10 +108,39 @@ export default function ClientChangeOrderPage() {
         .eq("public_token", token);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       setSigned(true);
       queryClient.invalidateQueries({ queryKey: ["public-co", token] });
       toast({ title: "Change Order Signed!", description: "Thank you for approving. The team has been notified." });
+
+      // Auto-send signed copy to the email the CO was sent to
+      if (co?.sent_to_email) {
+        setAutoSendStatus("sending");
+        try {
+          const coNum = co.co_number || "Change Order";
+          const totalStr = fmt(co.amount);
+          await supabase.functions.invoke("gmail-send", {
+            body: {
+              to: co.sent_to_email,
+              subject: `Your Signed Change Order — ${coNum}`,
+              html_body: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+                <h2 style="color:#1c2127;">Change Order ${coNum} — Approved</h2>
+                <p>Thank you for signing. Here is a summary for your records:</p>
+                <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+                  <tr><td style="padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Change Order</td><td style="padding:8px;border-bottom:1px solid #e2e8f0;font-weight:600;">${coNum}</td></tr>
+                  <tr><td style="padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Title</td><td style="padding:8px;border-bottom:1px solid #e2e8f0;font-weight:600;">${co.title}</td></tr>
+                  <tr><td style="padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Total</td><td style="padding:8px;border-bottom:1px solid #e2e8f0;font-weight:600;">${totalStr}</td></tr>
+                  <tr><td style="padding:8px;color:#64748b;">Signed by</td><td style="padding:8px;font-weight:600;">${clientName}</td></tr>
+                </table>
+                <p style="color:#64748b;font-size:13px;">If you need a printable copy, please revisit the original link.</p>
+              </div>`,
+            },
+          });
+          setAutoSendStatus("sent");
+        } catch {
+          setAutoSendStatus("failed");
+        }
+      }
     },
     onError: (err: any) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -226,71 +259,109 @@ export default function ClientChangeOrderPage() {
               </p>
             </div>
 
-            {/* Send a copy */}
-            {!copySent ? (
-              <div className="bg-white shadow-md rounded-lg p-5" style={{ borderLeft: `4px solid ${amber}` }}>
-                <div className="flex items-center gap-3 mb-3">
+            {/* Auto-send status */}
+            {autoSendStatus === "sending" && (
+              <div className="bg-white shadow-md rounded-lg p-4 flex items-center gap-3" style={{ borderLeft: `4px solid ${amber}` }}>
+                <Loader2 className="h-4 w-4 animate-spin" style={{ color: amber }} />
+                <span className="text-sm" style={{ color: slate }}>Sending signed copy to {co.sent_to_email}...</span>
+              </div>
+            )}
+            {autoSendStatus === "sent" && (
+              <div className="bg-white shadow-md rounded-lg p-4 flex items-center gap-3" style={{ borderLeft: "4px solid #10b981" }}>
+                <CheckCircle2 className="h-4 w-4" style={{ color: "#10b981" }} />
+                <span className="text-sm" style={{ color: charcoal }}>Signed copy sent to <strong>{co.sent_to_email}</strong></span>
+              </div>
+            )}
+            {autoSendStatus === "failed" && (
+              <div className="bg-white shadow-md rounded-lg p-4 flex items-center gap-3" style={{ borderLeft: "4px solid #ef4444" }}>
+                <Mail className="h-4 w-4" style={{ color: "#ef4444" }} />
+                <span className="text-sm" style={{ color: slate }}>Failed to auto-send copy. Use the Print button for your records.</span>
+              </div>
+            )}
+
+            {/* Deposit Payment Section */}
+            {co.deposit_percentage > 0 && !depositPaid && !co.deposit_paid_at && (
+              <div className="bg-white shadow-md rounded-lg p-6" style={{ borderLeft: `4px solid ${amber}` }}>
+                <div className="flex items-center gap-3 mb-4">
                   <div className="rounded-full p-2" style={{ background: "hsl(38, 92%, 50%, 0.1)" }}>
                     <Mail className="h-5 w-5" style={{ color: amber }} />
                   </div>
                   <div>
-                    <div className="text-sm font-bold" style={{ color: charcoal }}>Want a copy for your records?</div>
-                    <div className="text-xs" style={{ color: slate }}>We'll email the signed change order to you.</div>
+                    <div className="text-sm font-bold" style={{ color: charcoal }}>Deposit Required</div>
+                    <div className="text-xs" style={{ color: slate }}>
+                      {co.deposit_percentage}% deposit — {fmt(Math.abs(co.amount) * co.deposit_percentage / 100)}
+                    </div>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Input
-                    type="email"
-                    placeholder="your@email.com"
-                    value={copyEmail}
-                    onChange={(e) => setCopyEmail(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button
-                    size="sm"
-                    disabled={!copyEmail.includes("@") || copySent}
-                    style={{ background: amber, color: "#fff" }}
-                    onClick={async () => {
-                      try {
-                        const coNum = co.co_number || "Change Order";
-                        const totalStr = fmt(co.amount);
-                        await supabase.functions.invoke("gmail-send", {
-                          body: {
-                            to: copyEmail,
-                            subject: `Your Signed Change Order — ${coNum}`,
-                            html_body: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-                              <h2 style="color:#1c2127;">Change Order ${coNum} — Approved</h2>
-                              <p>Thank you for signing. Here is a summary for your records:</p>
-                              <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-                                <tr><td style="padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Change Order</td><td style="padding:8px;border-bottom:1px solid #e2e8f0;font-weight:600;">${coNum}</td></tr>
-                                <tr><td style="padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Title</td><td style="padding:8px;border-bottom:1px solid #e2e8f0;font-weight:600;">${co.title}</td></tr>
-                                <tr><td style="padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Total</td><td style="padding:8px;border-bottom:1px solid #e2e8f0;font-weight:600;">${totalStr}</td></tr>
-                                <tr><td style="padding:8px;color:#64748b;">Signed by</td><td style="padding:8px;font-weight:600;">${co.client_signer_name || clientName}</td></tr>
-                              </table>
-                              <p style="color:#64748b;font-size:13px;">If you need a printable copy, please revisit the original link.</p>
-                            </div>`,
-                          },
-                        });
-                        setCopySent(true);
-                        toast({ title: "Copy sent!", description: `A copy has been emailed to ${copyEmail}.` });
-                      } catch {
-                        toast({ title: "Failed to send", description: "Please try again or use the Print button.", variant: "destructive" });
-                      }
-                    }}
+
+                <div className="flex gap-2 mb-4">
+                  <button
+                    className={`flex-1 text-sm font-medium py-2 px-3 rounded-lg border transition-colors ${paymentMethod === "card" ? "border-amber-400 bg-amber-50 text-amber-800" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
+                    onClick={() => setPaymentMethod("card")}
                   >
-                    Send
-                  </Button>
+                    Credit Card
+                  </button>
+                  <button
+                    className={`flex-1 text-sm font-medium py-2 px-3 rounded-lg border transition-colors ${paymentMethod === "ach" ? "border-amber-400 bg-amber-50 text-amber-800" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
+                    onClick={() => setPaymentMethod("ach")}
+                  >
+                    ACH Transfer
+                  </button>
                 </div>
+
+                {paymentMethod === "card" ? (
+                  <div className="space-y-3 mb-4">
+                    <Input placeholder="Card Number" />
+                    <div className="grid grid-cols-2 gap-3">
+                      <Input placeholder="MM / YY" />
+                      <Input placeholder="CVC" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3 mb-4">
+                    <Input placeholder="Routing Number" />
+                    <Input placeholder="Account Number" />
+                  </div>
+                )}
+
+                <Button
+                  className="w-full"
+                  style={{ background: amber, color: "#fff" }}
+                  disabled={depositPaying}
+                  onClick={async () => {
+                    setDepositPaying(true);
+                    try {
+                      await (supabase as any)
+                        .from("change_orders")
+                        .update({ deposit_paid_at: new Date().toISOString() })
+                        .eq("public_token", token);
+                      setDepositPaid(true);
+                      toast({ title: "Deposit received!", description: `Payment of ${fmt(Math.abs(co.amount) * co.deposit_percentage / 100)} processed.` });
+                    } catch {
+                      toast({ title: "Payment failed", description: "Please try again.", variant: "destructive" });
+                    } finally {
+                      setDepositPaying(false);
+                    }
+                  }}
+                >
+                  {depositPaying ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Pay Deposit — {fmt(Math.abs(co.amount) * co.deposit_percentage / 100)}
+                </Button>
               </div>
-            ) : (
+            )}
+
+            {/* Deposit paid receipt */}
+            {(depositPaid || co.deposit_paid_at) && co.deposit_percentage > 0 && (
               <div className="bg-white shadow-md rounded-lg p-5" style={{ borderLeft: "4px solid #10b981" }}>
                 <div className="flex items-center gap-3">
                   <div className="rounded-full p-2" style={{ background: "hsl(160, 84%, 39%, 0.1)" }}>
                     <CheckCircle2 className="h-5 w-5" style={{ color: "#10b981" }} />
                   </div>
                   <div>
-                    <div className="text-sm font-bold" style={{ color: charcoal }}>Copy Sent</div>
-                    <div className="text-xs" style={{ color: slate }}>A copy was emailed to {copyEmail}.</div>
+                    <div className="text-sm font-bold" style={{ color: charcoal }}>Deposit Received</div>
+                    <div className="text-xs" style={{ color: slate }}>
+                      {fmt(Math.abs(co.amount) * co.deposit_percentage / 100)} ({co.deposit_percentage}%) has been processed.
+                    </div>
                   </div>
                 </div>
               </div>
@@ -428,9 +499,13 @@ export default function ClientChangeOrderPage() {
               <h3 className="text-base font-bold" style={{ color: charcoal }}>Sign to Approve</h3>
             </div>
 
-            <p className="text-sm mb-4" style={{ color: slate }}>
+            <p className="text-sm mb-2" style={{ color: slate }}>
               By signing below, you approve this change order and authorize the additional work described above.
               Alternatively, you may <button className="underline font-medium" style={{ color: amber }} onClick={() => window.print()}>print this page</button> and sign manually.
+            </p>
+            <p className="text-xs italic mb-4" style={{ color: slate }}>
+              By signing this Change Order, you acknowledge that all terms and conditions of the original proposal/contract remain in full effect.
+              This Change Order modifies only the scope and fees described above.
             </p>
 
             <div className="grid gap-4 sm:grid-cols-2 mb-4">

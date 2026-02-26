@@ -57,6 +57,7 @@ export function ChangeOrderDialog({
   const [serviceLines, setServiceLines] = useState<COServiceLine[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showSearch, setShowSearch] = useState(false);
+  const [depositPct, setDepositPct] = useState(0);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -92,9 +93,11 @@ export function ChangeOrderDialog({
               : []);
           }
         }
+        setDepositPct((existingCO as any).deposit_percentage || 0);
       } else {
         form.reset({ title: "", reason: "", requested_by: "", notes: "" });
         setServiceLines([]);
+        setDepositPct(0);
       }
       setSearchTerm("");
       setShowSearch(false);
@@ -158,6 +161,7 @@ export function ChangeOrderDialog({
       linked_service_names: serviceLines.map(s => s.name),
       line_items: serviceLines.map(s => ({ name: s.name, amount: s.amount, description: s.description })),
       notes: values.notes || undefined,
+      deposit_percentage: depositPct,
     }, asDraft);
   };
 
@@ -324,6 +328,28 @@ export function ChangeOrderDialog({
                 <SelectItem value="DOB">DOB / Agency</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Deposit */}
+          <div className="space-y-1.5">
+            <Label htmlFor="co-deposit">Deposit Required (%)</Label>
+            <div className="flex items-center gap-3">
+              <Input
+                id="co-deposit"
+                type="number"
+                min={0}
+                max={100}
+                className="w-28 text-sm"
+                placeholder="0"
+                value={depositPct || ""}
+                onChange={(e) => setDepositPct(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+              />
+              {depositPct > 0 && rawTotal > 0 && (
+                <span className="text-sm text-muted-foreground">
+                  Deposit: {formatCurrency(Math.abs(totalAmount) * depositPct / 100)} of {formatCurrency(Math.abs(totalAmount))}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Notes */}

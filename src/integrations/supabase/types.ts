@@ -1339,6 +1339,8 @@ export type Database = {
           company_id: string
           created_at: string
           created_by: string | null
+          deposit_paid_at: string | null
+          deposit_percentage: number
           description: string | null
           id: string
           internal_signature_data: string | null
@@ -1367,6 +1369,8 @@ export type Database = {
           company_id: string
           created_at?: string
           created_by?: string | null
+          deposit_paid_at?: string | null
+          deposit_percentage?: number
           description?: string | null
           id?: string
           internal_signature_data?: string | null
@@ -1395,6 +1399,8 @@ export type Database = {
           company_id?: string
           created_at?: string
           created_by?: string | null
+          deposit_paid_at?: string | null
+          deposit_percentage?: number
           description?: string | null
           id?: string
           internal_signature_data?: string | null

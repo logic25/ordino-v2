@@ -31,6 +31,8 @@ export interface ChangeOrder {
   sent_to_email: string | null;
   approved_at: string | null;
   notes: string | null;
+  deposit_percentage: number;
+  deposit_paid_at: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -45,6 +47,7 @@ export interface ChangeOrderFormInput {
   linked_service_names?: string[];
   line_items?: COLineItem[];
   notes?: string;
+  deposit_percentage?: number;
 }
 
 const QK = (projectId: string) => ["change-orders", projectId];
@@ -87,6 +90,7 @@ export function useCreateChangeOrder() {
           linked_service_names: input.linked_service_names ?? [],
           line_items: input.line_items ?? [],
           notes: input.notes ?? null,
+          deposit_percentage: input.deposit_percentage ?? 0,
           status: input.status ?? "draft",
           created_by: profile?.id ?? null,
         })
