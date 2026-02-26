@@ -92,6 +92,7 @@ export function ChangeOrderDetailSheet({
   const canEdit = isDraft || co.status === "pending_internal";
   const canSign = !internalSigned && co.status !== "voided" && co.status !== "rejected";
   const canSend = internalSigned && !co.sent_at && co.status !== "approved" && co.status !== "voided" && co.status !== "rejected";
+  const canResend = internalSigned && !!co.sent_at && co.status === "pending_client" && !clientSigned;
   const canApprove = co.status === "pending_client" || co.status === "pending_internal";
   const canVoid = co.status !== "voided" && co.status !== "approved";
   const canReject = co.status !== "rejected" && co.status !== "voided" && co.status !== "approved";
@@ -309,6 +310,11 @@ export function ChangeOrderDetailSheet({
               {canSend && (
                 <Button size="sm" variant="outline" className="gap-1.5" onClick={handleSend}>
                   <Send className="h-3.5 w-3.5" /> Send to Client
+                </Button>
+              )}
+              {canResend && (
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={handleSend}>
+                  <Send className="h-3.5 w-3.5" /> Resend to Client
                 </Button>
               )}
               {canApprove && (
