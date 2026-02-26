@@ -528,27 +528,27 @@ export default function Proposals() {
       if (fullProposal && !error) {
         setPreviewProposal(fullProposal as any);
 
-        // Generate and upload PDF in background
-        try {
-          const projectId = (result as any)?.project?.id;
-          if (projectId) {
-            // Use print-style HTML capture: open hidden iframe, print to blob
-            // For now, store a simple HTML snapshot as the signed document
-            const htmlContent = document.getElementById("proposal-preview-content")?.innerHTML;
-            if (htmlContent) {
-              const htmlBlob = new Blob([`<!DOCTYPE html><html><head><meta charset="utf-8"><style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');body{font-family:'Inter',system-ui,sans-serif;color:#1a1a1a;max-width:720px;margin:0 auto;font-size:10pt;line-height:1.55;}</style></head><body>${htmlContent}</body></html>`], { type: "text/html" });
-              const storagePath = `proposals/${proposalId}/signed_proposal.html`;
-              await supabase.storage.from("documents").upload(storagePath, htmlBlob, { upsert: true, contentType: "text/html" });
-              // Update the document record with correct storage path
-              await (supabase.from("universal_documents") as any)
-                .update({ storage_path: storagePath, mime_type: "text/html", filename: `Proposal_${fullProposal.proposal_number}_signed.html` })
-                .eq("project_id", projectId)
-                .eq("category", "contract")
-                .like("title", "%Signed Proposal%");
+        // Generate and upload signed HTML in background — deferred until preview modal renders
+        const projectId = (result as any)?.project?.id;
+        if (projectId) {
+          // Wait for React to render the preview modal so the DOM element exists
+          setTimeout(async () => {
+            try {
+              const htmlContent = document.getElementById("proposal-preview-content")?.innerHTML;
+              if (htmlContent) {
+                const htmlBlob = new Blob([`<!DOCTYPE html><html><head><meta charset="utf-8"><style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');body{font-family:'Inter',system-ui,sans-serif;color:#1a1a1a;max-width:720px;margin:0 auto;font-size:10pt;line-height:1.55;}</style></head><body>${htmlContent}</body></html>`], { type: "text/html" });
+                const storagePath = `proposals/${proposalId}/signed_proposal.html`;
+                await supabase.storage.from("documents").upload(storagePath, htmlBlob, { upsert: true, contentType: "text/html" });
+                await (supabase.from("universal_documents") as any)
+                  .update({ storage_path: storagePath, mime_type: "text/html", filename: `Proposal_${fullProposal.proposal_number}_signed.html` })
+                  .eq("project_id", projectId)
+                  .eq("category", "contract")
+                  .like("title", "%Signed Proposal%");
+              }
+            } catch (uploadErr) {
+              console.error("Background signed proposal upload failed:", uploadErr);
             }
-          }
-        } catch (uploadErr) {
-          console.error("Background PDF upload failed:", uploadErr);
+          }, 1500); // Delay to allow modal DOM to render
         }
       } else {
         toast({ title: "Proposal signed!", description: "Open the proposal to send to client." });
