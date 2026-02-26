@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Building2, TrendingUp, Users, DollarSign } from "lucide-react";
 import { useDashboardStats } from "@/hooks/useDashboard";
+import { useNavigate } from "react-router-dom";
 import { useRevenueTrend } from "@/hooks/useDashboardData";
 import { PMDailyView } from "./PMDailyView";
 import { TeamOverview } from "./TeamOverview";
@@ -18,6 +19,7 @@ export function AdminCompanyView({ isVisible }: { isVisible?: (id: string) => bo
   const show = isVisible || (() => true);
   const [view, setView] = useState<"company" | "my">("company");
   const [trendPeriod, setTrendPeriod] = useState("6");
+  const navigate = useNavigate();
   const { data: stats, isLoading } = useDashboardStats();
   const { data: revenueTrend, isLoading: trendLoading } = useRevenueTrend(parseInt(trendPeriod));
 
@@ -35,10 +37,10 @@ export function AdminCompanyView({ isVisible }: { isVisible?: (id: string) => bo
   }
 
   const kpis = [
-    { label: "Active Projects", value: stats?.activeProjects ?? 0, icon: Building2 },
-    { label: "Team Members", value: stats?.teamMembers ?? 0, icon: Users },
-    { label: "Outstanding", value: `$${((stats?.totalOutstanding ?? 0) / 1000).toFixed(0)}k`, icon: DollarSign },
-    { label: "Overdue Invoices", value: stats?.overdueInvoices ?? 0, icon: TrendingUp },
+    { label: "Active Projects", value: stats?.activeProjects ?? 0, icon: Building2, href: "/projects" },
+    { label: "Team Members", value: stats?.teamMembers ?? 0, icon: Users, href: "/settings?section=team" },
+    { label: "Outstanding", value: `$${((stats?.totalOutstanding ?? 0) / 1000).toFixed(0)}k`, icon: DollarSign, href: "/billing" },
+    { label: "Overdue Invoices", value: stats?.overdueInvoices ?? 0, icon: TrendingUp, href: "/billing" },
   ];
 
   const formatCurrency = (v: number) => {
@@ -58,7 +60,7 @@ export function AdminCompanyView({ isVisible }: { isVisible?: (id: string) => bo
       {show("kpis") && (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {kpis.map((kpi) => (
-          <Card key={kpi.label}>
+          <Card key={kpi.label} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate(kpi.href)}>
             <CardContent className="pt-6">
               {isLoading ? (
                 <Skeleton className="h-8 w-20" />
