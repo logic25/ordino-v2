@@ -1,57 +1,113 @@
 
 
-# Change Order: Auto-Send, Deposit, and Terms Reference
+# Project Detail Improvements: Unified Plan
 
-## Changes
+## Summary
+Six changes covering: CO-to-docs archival on execution, CO timeline triggers, unified signed contract viewing in Docs tab, project number format (YYYY-NNNN), simplified proposal viewing, and phase stepper automation.
 
-### 1. Database Migration
-Add columns to `change_orders`:
-- `deposit_percentage` (numeric, default 0) -- percentage of CO total required as deposit
-- `deposit_paid_at` (timestamptz, nullable) -- when client paid
+---
 
-### 2. Change Order Dialog -- Add Deposit Field
-**File:** `src/components/projects/ChangeOrderDialog.tsx`
+## 1. Auto-Archive Executed CO to Docs
 
-Add a "Deposit Required (%)" number input below the "Requested By" selector. Show a calculated preview (e.g., "Deposit: $1,250 of $2,500"). Wire it into `handleSubmit` so `deposit_percentage` is saved.
+**Problem:** When a CO becomes fully executed (both sides signed), the PDF should be automatically saved to the project's Docs tab -- just like proposals.
 
-### 3. Update Hook
-**File:** `src/hooks/useChangeOrders.ts`
+**Current state:** `savePdfToDocuments()` already exists in `ChangeOrderDetailSheet.tsx` and is called on manual "Approve" but NOT when the client signs (which is what makes it fully executed).
 
-Add `deposit_percentage` to the `ChangeOrder` interface and `ChangeOrderFormInput`. Include it in insert/update calls.
+**Fix (File: `src/pages/ClientChangeOrder.tsx`):**
+After the client signs a CO successfully, call the `gmail-send` edge function (already done for auto-send) and ALSO insert a `universal_documents` record with `category: "change_order"` and upload the CO summary as an HTML or trigger the internal system to archive it. Since the client page doesn't have PDF generation, we'll add a database trigger instead.
 
-### 4. Client Signing Page -- Auto-Send Copy
-**File:** `src/pages/ClientChangeOrder.tsx`
+**Fix (New Migration -- trigger):**
+Create an `AFTER UPDATE` trigger on `change_orders`: when `client_signed_at` transitions from NULL to a value (fully executed), insert a `project_timeline_events` entry AND the system will rely on the existing `savePdfToDocuments()` call in the detail sheet's approve flow. We'll also call `savePdfToDocuments()` from the `handleApprove` path that auto-fires when both signatures are present.
 
-Remove the "Want a copy?" prompt. After the sign mutation succeeds, automatically invoke `gmail-send` to email the signed CO summary to `co.sent_to_email`. Show a small status indicator: "Sending signed copy..." then "Signed copy sent to [email]" (matching the proposal's welcome email pattern).
+**File: `src/components/projects/ChangeOrderDetailSheet.tsx`:**
+Add logic so that when the sheet detects a CO is newly fully executed (both `internal_signed_at` and `client_signed_at` present), it auto-saves the PDF to documents if not already archived.
 
-### 5. Client Signing Page -- Terms Reference
-**File:** `src/pages/ClientChangeOrder.tsx`
+---
 
-Add a clause above the signature area stating:
-> "By signing this Change Order, you acknowledge that all terms and conditions of the original proposal/contract remain in full effect. This Change Order modifies only the scope and fees described above."
+## 2. CO Timeline Events (Database Triggers)
 
-This mirrors the legal framing used on the proposal page's Terms section.
+**Problem:** The Timeline tab doesn't show CO activity because: (a) no triggers write CO events to `project_timeline_events`, and (b) the `TimelineFull` component in `ProjectDetail.tsx` uses `useProjectTimeline` (manual query construction) instead of `useTimelineEvents` (which reads the events table).
 
-### 6. Client Signing Page -- Deposit Payment
-**File:** `src/pages/ClientChangeOrder.tsx`
+**Fix -- New Migration (triggers on `change_orders`):**
+- `co_created` -- on INSERT
+- `co_signed_internally` -- on UPDATE when `internal_signed_at` changes from NULL
+- `co_sent_to_client` -- on UPDATE when `sent_at` changes from NULL  
+- `co_client_signed` -- on UPDATE when `client_signed_at` changes from NULL
+- `co_approved` -- on UPDATE when status becomes 'approved'
+- `co_voided` -- on UPDATE when status becomes 'voided'
+- `co_rejected` -- on UPDATE when status becomes 'rejected'
 
-After signing, if `deposit_percentage > 0`, show a "Pay Deposit" card (matching the proposal's payment UI):
-- Calculate deposit amount from `co.amount * (deposit_percentage / 100)`
-- Card/ACH mock payment forms (same pattern as `ClientProposal.tsx`)
-- On "payment success," update `deposit_paid_at` on the CO record
-- Show receipt summary
+**Fix (File: `src/pages/ProjectDetail.tsx`):**
+Update `TimelineFull` to also consume events from `useTimelineEvents` (the `project_timeline_events` table), merging them with the manually-constructed milestones from `useProjectTimeline`. Add appropriate icons for CO event types (GitBranch, PenLine, Send, CheckCheck, XCircle).
 
-### 7. Detail Sheet and PDF
-**Files:** `src/components/projects/ChangeOrderDetailSheet.tsx`, `src/components/projects/ChangeOrderPDF.tsx`
+---
 
-- Show deposit percentage and calculated amount in the detail view
-- Add "Deposit Due Upon Signing" line to the PDF when `deposit_percentage > 0`
-- Show deposit payment status if paid
+## 3. Signed Proposal + CO in Docs Tab (No Separate Button)
+
+**Problem:** The user sees a separate "View Signed Contract" concept in the Proposal Execution Banner. They want to just find the signed proposal in the Docs tab alongside everything else -- view and download it there.
+
+**Fix (File: `src/hooks/useProjectDetail.ts` -- `useProjectDocuments`):**
+Add a query to check for the signed proposal file at `proposals/{proposal_id}/signed_proposal.html` in the `documents` bucket. If it exists, inject a synthetic document entry with `category: "contract"` and `name: "Signed Proposal"` into the documents list. This way it appears in the Docs tab naturally with View/Download buttons -- no separate button needed.
+
+**Fix (File: `src/pages/ProjectDetail.tsx` -- `ProposalExecutionBanner`):**
+Remove any separate "View Signed Contract" button concept. The banner remains informational only (status of signatures). The actual document lives in the Docs tab.
+
+---
+
+## 4. Project Number Format: YYYY-NNNN
+
+**Problem:** Current format is `PJ2026-0001` with letter prefix. User wants year-based numeric format like `2026-01`.
+
+**Fix -- New Migration:**
+Update the `generate_project_number()` function:
+
+```text
+Format: YYYY-NN (e.g., 2026-01, 2026-02, ...)
+- Year prefix so you know when it's from
+- Sequential number within the year per company
+- No letter prefix
+```
+
+Existing project numbers are preserved. Only new projects get the new format.
+
+---
+
+## 5. Header Redesign: "Number - Address - Name"
+
+**File: `src/pages/ProjectDetail.tsx` (lines ~277-373)**
+
+Change the h1 title to combine: `{project_number} - {address} - {name}`
+
+Example: `2026-01 - 200 Riverside Blvd - Test 6`
+
+Remove the project_number, address, floor/unit from the info bar below (since they're now in the title). Keep client name, owner, PM selector, and primary contact in the sub-bar.
+
+---
+
+## 6. Phase Stepper Automation
+
+**Problem:** User asks if the phase stepper can be automated instead of manual clicks.
+
+**Fix -- New Migration (trigger on services/dob_applications):**
+Create a trigger function that evaluates the project's current state and advances the phase:
+
+- **Pre-Filing to Filing**: When a `dob_applications` record is inserted for the project (i.e., a DOB application is created/filed)
+- **Filing to Approval**: When all `dob_applications` for the project have `status = 'approved'`
+- **Approval to Closeout**: When all `services` for the project have `status = 'completed'` or `billed`
+
+The manual click override remains available (users can always click to set any phase). The automation just handles the common transitions so PMs don't have to remember.
+
+**File: `src/pages/ProjectDetail.tsx`:**
+No UI changes needed -- the stepper already reads `project.phase` and the triggers will update it in the DB.
+
+---
 
 ## Technical Sequence
-1. Run database migration (add columns)
-2. Update `useChangeOrders.ts` with new fields
-3. Add deposit input to `ChangeOrderDialog.tsx`
-4. Rewrite post-sign flow in `ClientChangeOrder.tsx` (auto-send + terms clause + deposit payment)
-5. Update detail sheet and PDF
+
+1. Database migration: CO timeline triggers + project number format + phase automation triggers
+2. Update `useProjectDetail.ts` to inject signed proposal into docs list
+3. Merge timeline sources in `ProjectDetail.tsx` (manual milestones + DB events)
+4. Redesign project header layout
+5. Add CO auto-archive on full execution
+6. Clean up ProposalExecutionBanner (remove separate view button concept)
 
