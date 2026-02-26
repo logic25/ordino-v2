@@ -2,6 +2,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
+export interface COLineItem {
+  name: string;
+  amount: number;
+  description?: string;
+}
+
 export interface ChangeOrder {
   id: string;
   company_id: string;
@@ -14,6 +20,7 @@ export interface ChangeOrder {
   status: "draft" | "pending_internal" | "pending_client" | "approved" | "rejected" | "voided";
   requested_by: string | null;
   linked_service_names: string[];
+  line_items: COLineItem[];
   internal_signed_at: string | null;
   internal_signed_by: string | null;
   internal_signature_data: string | null;
@@ -36,6 +43,7 @@ export interface ChangeOrderFormInput {
   amount: number;
   requested_by?: string;
   linked_service_names?: string[];
+  line_items?: COLineItem[];
   notes?: string;
 }
 
@@ -77,6 +85,7 @@ export function useCreateChangeOrder() {
           amount: input.amount,
           requested_by: input.requested_by ?? null,
           linked_service_names: input.linked_service_names ?? [],
+          line_items: input.line_items ?? [],
           notes: input.notes ?? null,
           status: input.status ?? "draft",
           created_by: profile?.id ?? null,

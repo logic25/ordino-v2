@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { pdf } from "@react-pdf/renderer";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from "@/components/ui/sheet";
@@ -10,19 +11,25 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
   PenLine, Send, CheckCheck, XCircle, ShieldCheck, AlertTriangle,
-  Pencil, GitBranch, Clock,
+  Pencil, GitBranch, Clock, MoreVertical, FileDown,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { ChangeOrder } from "@/hooks/useChangeOrders";
 import { useUpdateChangeOrder, useMarkCOApproved, useSendCOToClient, useSignCOInternal, useDeleteChangeOrder } from "@/hooks/useChangeOrders";
 import { COSignatureDialog } from "./COSignatureDialog";
 import { ChangeOrderDialog } from "./ChangeOrderDialog";
+import { ChangeOrderPDF } from "./ChangeOrderPDF";
 import type { ChangeOrderFormInput } from "@/hooks/useChangeOrders";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { useAuth } from "@/hooks/useAuth";
 
 const fmt = (v: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(v);
@@ -53,6 +60,8 @@ export function ChangeOrderDetailSheet({
   serviceNames = [],
 }: ChangeOrderDetailSheetProps) {
   const { toast } = useToast();
+  const { profile } = useAuth();
+  const { data: companySettings } = useCompanySettings();
   const [signOpen, setSignOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [voidConfirmOpen, setVoidConfirmOpen] = useState(false);
@@ -64,6 +73,20 @@ export function ChangeOrderDetailSheet({
   const sendCO = useSendCOToClient();
   const updateCO = useUpdateChangeOrder();
   const deleteCO = useDeleteChangeOrder();
+
+  // Fetch project context for PDF
+  const { data: projectInfo } = useQuery({
+    queryKey: ["project-co-context", co?.project_id],
+    enabled: !!co?.project_id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("projects")
+        .select("project_number, address, client_id, clients(name)")
+        .eq("id", co!.project_id)
+        .single();
+      return data as any;
+    },
+  });
 
   // Resolve internal signer name (must be before conditional return)
   const { data: signerProfile } = useQuery({
@@ -156,6 +179,8 @@ export function ChangeOrderDetailSheet({
     try {
       await approveCO.mutateAsync({ id: co.id, project_id: co.project_id });
       toast({ title: `${co.co_number} approved`, description: "Change order marked as approved." });
+      // Auto-save PDF to documents on approval
+      savePdfToDocuments().catch(() => {});
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     }
@@ -201,9 +226,10 @@ export function ChangeOrderDetailSheet({
         amount: data.amount,
         requested_by: data.requested_by ?? null,
         linked_service_names: data.linked_service_names ?? [],
+        line_items: data.line_items ?? [],
         notes: data.notes ?? null,
         status: asDraft ? "draft" : co.status,
-      });
+      } as any);
       toast({ title: "Change order updated" });
       setEditOpen(false);
     } catch (e: any) {
@@ -218,6 +244,70 @@ export function ChangeOrderDetailSheet({
       toast({ title: "Draft deleted" });
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const generatePdfBlob = async () => {
+    const settings = companySettings?.settings;
+    const blob = await pdf(
+      <ChangeOrderPDF
+        co={co}
+        companyName={companySettings?.name}
+        companyAddress={settings?.company_address}
+        companyPhone={settings?.company_phone}
+        companyEmail={settings?.company_email}
+        projectAddress={projectInfo?.address}
+        projectNumber={projectInfo?.project_number}
+        clientName={projectInfo?.clients?.name}
+        signerName={signerName || undefined}
+      />
+    ).toBlob();
+    return blob;
+  };
+
+  const handleDownloadPdf = async () => {
+    try {
+      const blob = await generatePdfBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${co.co_number.replace("#", "")}_${co.title.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      toast({ title: "PDF error", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const savePdfToDocuments = async () => {
+    try {
+      const blob = await generatePdfBlob();
+      const fileName = `${co.co_number.replace("#", "")}_${co.title.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`;
+      const filePath = `${co.company_id}/${co.project_id}/change-orders/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("universal-documents")
+        .upload(filePath, blob, { contentType: "application/pdf", upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Save record in universal_documents table
+      await supabase
+        .from("universal_documents" as any)
+        .insert({
+          company_id: co.company_id,
+          project_id: co.project_id,
+          name: fileName,
+          storage_path: filePath,
+          mime_type: "application/pdf",
+          size_bytes: blob.size,
+          uploaded_by: profile?.id ?? null,
+          category: "change_order",
+        });
+
+      toast({ title: "PDF saved", description: `${fileName} saved to project documents.` });
+    } catch (e: any) {
+      toast({ title: "Error saving PDF", description: e.message, variant: "destructive" });
     }
   };
 
@@ -338,36 +428,69 @@ export function ChangeOrderDetailSheet({
                 </Button>
               )}
               {canDelete && (
-                <Button size="sm" variant="ghost" className="gap-1.5 text-destructive hover:text-destructive ml-auto" onClick={handleDelete}>
+                <Button size="sm" variant="ghost" className="gap-1.5 text-destructive hover:text-destructive" onClick={handleDelete}>
                   Delete Draft
                 </Button>
               )}
+
+              {/* More menu with PDF */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 ml-auto">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleDownloadPdf} className="gap-2">
+                    <FileDown className="h-3.5 w-3.5" /> Download PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             <Separator />
 
             {/* Details */}
             <div className="space-y-4">
-              {co.description && (
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Scope / Description</p>
-                  <p className="text-sm whitespace-pre-line">{co.description}</p>
-                </div>
-              )}
+              {/* Line Items */}
+              {(() => {
+                const items = Array.isArray((co as any).line_items) && (co as any).line_items.length > 0
+                  ? (co as any).line_items
+                  : co.linked_service_names?.map((name: string) => ({ name, amount: co.amount / (co.linked_service_names?.length || 1) }));
+                return items && items.length > 0 ? (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Services</p>
+                    <div className="space-y-1.5">
+                      {items.map((item: any, i: number) => (
+                        <div key={i} className="flex items-start justify-between gap-2 text-sm">
+                          <div className="min-w-0">
+                            <span className="font-medium">{item.name}</span>
+                            {item.description && (
+                              <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
+                            )}
+                          </div>
+                          <span className="tabular-nums shrink-0">{fmt(item.amount || 0)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-between items-center mt-3 pt-2 border-t text-sm font-semibold">
+                      <span>{co.amount < 0 ? "Total Credit" : "Total"}</span>
+                      <span className={`tabular-nums ${co.amount < 0 ? "text-red-600 dark:text-red-400" : ""}`}>
+                        {co.amount < 0 ? `-${fmt(Math.abs(co.amount))}` : fmt(co.amount)}
+                      </span>
+                    </div>
+                  </div>
+                ) : co.description ? (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Scope / Description</p>
+                    <p className="text-sm whitespace-pre-line">{co.description}</p>
+                  </div>
+                ) : null;
+              })()}
               {co.reason && (
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Reason</p>
                   <p className="text-sm whitespace-pre-line">{co.reason}</p>
-                </div>
-              )}
-              {co.linked_service_names && co.linked_service_names.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Linked Services</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {co.linked_service_names.map((s) => (
-                      <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
-                    ))}
-                  </div>
                 </div>
               )}
             </div>

@@ -1,0 +1,1 @@
+ALTER TABLE public.change_orders ADD COLUMN IF NOT EXISTS line_items jsonb DEFAULT '[]'::jsonb;
