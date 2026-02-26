@@ -1344,6 +1344,7 @@ export type Database = {
           internal_signature_data: string | null
           internal_signed_at: string | null
           internal_signed_by: string | null
+          line_items: Json | null
           linked_service_names: string[] | null
           notes: string | null
           project_id: string
@@ -1370,6 +1371,7 @@ export type Database = {
           internal_signature_data?: string | null
           internal_signed_at?: string | null
           internal_signed_by?: string | null
+          line_items?: Json | null
           linked_service_names?: string[] | null
           notes?: string | null
           project_id: string
@@ -1396,6 +1398,7 @@ export type Database = {
           internal_signature_data?: string | null
           internal_signed_at?: string | null
           internal_signed_by?: string | null
+          line_items?: Json | null
           linked_service_names?: string[] | null
           notes?: string | null
           project_id?: string

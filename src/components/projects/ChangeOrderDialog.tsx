@@ -72,15 +72,25 @@ export function ChangeOrderDialog({
           requested_by: existingCO.requested_by ?? "",
           notes: existingCO.notes ?? "",
         });
-        // Restore service lines from linked_service_names + amount
-        const names = existingCO.linked_service_names || [];
-        if (names.length > 0) {
-          const perService = existingCO.amount / names.length;
-          setServiceLines(names.map((n, i) => ({ id: `existing-${i}`, name: n, amount: perService, description: existingCO.description || "" })));
+        // Restore service lines from line_items (preferred) or fall back to linked_service_names
+        const storedItems = (existingCO as any).line_items;
+        if (Array.isArray(storedItems) && storedItems.length > 0) {
+          setServiceLines(storedItems.map((item: any, i: number) => ({
+            id: `existing-${i}`,
+            name: item.name,
+            amount: item.amount || 0,
+            description: item.description || "",
+          })));
         } else {
-          setServiceLines(existingCO.amount !== 0
-            ? [{ id: "existing-0", name: existingCO.description || "Service", amount: existingCO.amount }]
-            : []);
+          const names = existingCO.linked_service_names || [];
+          if (names.length > 0) {
+            const perService = existingCO.amount / names.length;
+            setServiceLines(names.map((n, i) => ({ id: `existing-${i}`, name: n, amount: perService, description: "" })));
+          } else {
+            setServiceLines(existingCO.amount !== 0
+              ? [{ id: "existing-0", name: existingCO.description || "Service", amount: existingCO.amount }]
+              : []);
+          }
         }
       } else {
         form.reset({ title: "", reason: "", requested_by: "", notes: "" });
@@ -132,6 +142,10 @@ export function ChangeOrderDialog({
     setServiceLines(prev => prev.map(l => l.id === id ? { ...l, amount: num } : l));
   };
 
+  const updateServiceDescription = (id: string, val: string) => {
+    setServiceLines(prev => prev.map(l => l.id === id ? { ...l, description: val } : l));
+  };
+
   const handleSubmit = async (values: FormValues, asDraft: boolean) => {
     track("projects", "co_create_completed", { as_draft: asDraft, is_edit: !!existingCO });
 
@@ -142,6 +156,7 @@ export function ChangeOrderDialog({
       amount: totalAmount,
       requested_by: values.requested_by || undefined,
       linked_service_names: serviceLines.map(s => s.name),
+      line_items: serviceLines.map(s => ({ name: s.name, amount: s.amount, description: s.description })),
       notes: values.notes || undefined,
     }, asDraft);
   };
@@ -191,24 +206,29 @@ export function ChangeOrderDialog({
             {serviceLines.length > 0 && (
               <div className="space-y-2">
                 {serviceLines.map((line) => (
-                  <div key={line.id} className="flex items-center gap-2 p-2.5 rounded-lg border bg-muted/20">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{line.name}</div>
-                      {line.description && (
-                        <div className="text-xs text-muted-foreground truncate">{line.description}</div>
-                      )}
+                  <div key={line.id} className="flex flex-col gap-1.5 p-2.5 rounded-lg border bg-muted/20">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">{line.name}</div>
+                      </div>
+                      <div className="w-28 shrink-0">
+                        <Input
+                          className="text-right text-sm h-8"
+                          placeholder="$0"
+                          value={line.amount !== 0 ? line.amount.toLocaleString("en-US") : ""}
+                          onChange={(e) => updateServiceAmount(line.id, e.target.value)}
+                        />
+                      </div>
+                      <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" onClick={() => removeService(line.id)}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
-                    <div className="w-28 shrink-0">
-                      <Input
-                        className="text-right text-sm h-8"
-                        placeholder="$0"
-                        value={line.amount !== 0 ? line.amount.toLocaleString("en-US") : ""}
-                        onChange={(e) => updateServiceAmount(line.id, e.target.value)}
-                      />
-                    </div>
-                    <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" onClick={() => removeService(line.id)}>
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
+                    <Input
+                      className="text-xs h-7"
+                      placeholder="Description (optional — does not alter master record)"
+                      value={line.description || ""}
+                      onChange={(e) => updateServiceDescription(line.id, e.target.value)}
+                    />
                   </div>
                 ))}
               </div>
