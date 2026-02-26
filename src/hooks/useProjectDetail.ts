@@ -64,7 +64,7 @@ export function useProjectContacts(projectId: string | undefined, clientId: stri
       if (clientId) {
         const { data: clientContacts } = await supabase
           .from("client_contacts")
-          .select("id, name, email, phone, title, company_name, is_primary")
+          .select("id, name, email, phone, title, company_name, is_primary, first_name, last_name, client_id")
           .eq("client_id", clientId)
           .order("is_primary", { ascending: false });
 
@@ -82,6 +82,11 @@ export function useProjectContacts(projectId: string | undefined, clientId: stri
             dobRole: "owner",
             source: "proposal",
             dobRegistered: "unknown",
+            client_id: cc.client_id,
+            first_name: cc.first_name || "",
+            last_name: cc.last_name || "",
+            title: cc.title || "",
+            is_primary: cc.is_primary || false,
           });
         });
       }
