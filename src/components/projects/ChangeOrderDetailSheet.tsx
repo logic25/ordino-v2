@@ -102,11 +102,30 @@ export function ChangeOrderDetailSheet({
     },
   });
 
+  // Resolve sent_to_email to a contact name
+  const sentToEmail = (co as any)?.sent_to_email;
+  const { data: sentToContact } = useQuery({
+    queryKey: ["contact-by-email", sentToEmail],
+    enabled: !!sentToEmail,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("client_contacts")
+        .select("name")
+        .eq("email", sentToEmail)
+        .limit(1)
+        .maybeSingle();
+      return data as { name: string } | null;
+    },
+  });
+
   if (!co) return null;
 
   const signerName = signerProfile
     ? (signerProfile as any).display_name || `${(signerProfile as any).first_name ?? ""} ${(signerProfile as any).last_name ?? ""}`.trim()
     : null;
+  const sentToDisplay = sentToContact?.name
+    ? `${sentToContact.name} (${sentToEmail})`
+    : sentToEmail || "client";
   const statusCfg = STATUS_CONFIG[co.status] || STATUS_CONFIG.draft;
   const internalSigned = !!co.internal_signed_at;
   const clientSigned = !!co.client_signed_at;
@@ -372,8 +391,8 @@ export function ChangeOrderDetailSheet({
                 ) : co.sent_at ? (
                   <div>
                     <p className="text-blue-700 dark:text-blue-300">Sent {fmtDate(co.sent_at)} — awaiting</p>
-                    {(co as any).sent_to_email && (
-                      <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">To: {(co as any).sent_to_email}</p>
+                    {sentToEmail && (
+                      <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">To: {sentToDisplay}</p>
                     )}
                   </div>
                 ) : (
@@ -528,7 +547,7 @@ export function ChangeOrderDetailSheet({
                 {co.sent_at && (
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
-                    <span>Sent to {(co as any).sent_to_email ? (co as any).sent_to_email : "client"} {fmtDate(co.sent_at)}</span>
+                    <span>Sent to {sentToDisplay} {fmtDate(co.sent_at)}</span>
                   </div>
                 )}
                 {co.client_signed_at && (
