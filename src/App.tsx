@@ -29,6 +29,7 @@ import Rfps from "./pages/Rfps";
 import RfpLibrary from "./pages/RfpLibrary";
 import RfpDiscovery from "./pages/RfpDiscovery";
 import ClientProposal from "./pages/ClientProposal";
+import ClientChangeOrder from "./pages/ClientChangeOrder";
 import Reports from "./pages/Reports";
 import HelpDesk from "./pages/HelpDesk";
 import Chat from "./pages/Chat";
@@ -91,6 +92,9 @@ function AppRoutes() {
 
       {/* Public proposal page - client views & signs */}
       <Route path="/proposal/:token" element={<ClientProposal />} />
+
+      {/* Public change order page - client views & signs */}
+      <Route path="/change-order/:token" element={<ClientChangeOrder />} />
 
       {/* Legal pages - public, no auth required */}
       <Route path="/privacy" element={<Privacy />} />
