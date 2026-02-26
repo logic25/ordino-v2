@@ -268,6 +268,11 @@ export function useProjectDocuments(projectId: string | undefined) {
 
       if (!error && data) {
         data.forEach((doc: any) => {
+          // Resolve correct storage bucket based on path prefix
+          let bucket = "universal-documents";
+          if (doc.storage_path?.startsWith("proposals/")) {
+            bucket = "documents";
+          }
           docs.push({
             id: doc.id,
             name: doc.title || doc.filename,
@@ -278,6 +283,7 @@ export function useProjectDocuments(projectId: string | undefined) {
             uploadedDate: format(new Date(doc.created_at), "MM/dd/yyyy"),
             storage_path: doc.storage_path,
             filename: doc.filename,
+            storageBucket: bucket,
           });
         });
       }
