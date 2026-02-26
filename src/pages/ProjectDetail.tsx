@@ -110,6 +110,7 @@ export default function ProjectDetail() {
   const [coDialogOpen, setCoDialogOpen] = useState(false);
   const [selectedCO, setSelectedCO] = useState<ChangeOrder | null>(null);
   const [coSheetOpen, setCoSheetOpen] = useState(false);
+  const [coAutoSign, setCoAutoSign] = useState(false);
 
   const project = projects.find((p) => p.id === id);
 
@@ -530,22 +531,30 @@ export default function ProjectDetail() {
         onOpenChange={setCoDialogOpen}
         serviceNames={liveServices.map(s => s.name)}
         onSubmit={async (data, asDraft) => {
-          await createCO.mutateAsync({
+          const newCO = await createCO.mutateAsync({
             ...data,
             project_id: project.id,
             company_id: project.company_id,
-            status: asDraft ? "draft" : "pending_client",
+            status: asDraft ? "draft" : "pending_internal",
           });
           setCoDialogOpen(false);
+          if (!asDraft && newCO) {
+            // Open the detail sheet with auto-sign flow
+            setSelectedCO(newCO);
+            setCoAutoSign(true);
+            setCoSheetOpen(true);
+          }
         }}
         isLoading={createCO.isPending}
       />
 
       <ChangeOrderDetailSheet
         open={coSheetOpen}
-        onOpenChange={setCoSheetOpen}
+        onOpenChange={(v) => { setCoSheetOpen(v); if (!v) setCoAutoSign(false); }}
         co={selectedCO}
         serviceNames={liveServices.map(s => s.name)}
+        autoSign={coAutoSign}
+        onAutoSignComplete={() => setCoAutoSign(false)}
       />
     </AppLayout>
   );
