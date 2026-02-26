@@ -1350,6 +1350,7 @@ export type Database = {
           reason: string | null
           requested_by: string | null
           sent_at: string | null
+          sent_to_email: string | null
           status: Database["public"]["Enums"]["co_status"]
           title: string
           updated_at: string
@@ -1375,6 +1376,7 @@ export type Database = {
           reason?: string | null
           requested_by?: string | null
           sent_at?: string | null
+          sent_to_email?: string | null
           status?: Database["public"]["Enums"]["co_status"]
           title: string
           updated_at?: string
@@ -1400,6 +1402,7 @@ export type Database = {
           reason?: string | null
           requested_by?: string | null
           sent_at?: string | null
+          sent_to_email?: string | null
           status?: Database["public"]["Enums"]["co_status"]
           title?: string
           updated_at?: string

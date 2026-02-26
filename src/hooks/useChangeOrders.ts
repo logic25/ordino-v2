@@ -21,6 +21,7 @@ export interface ChangeOrder {
   client_signer_name: string | null;
   client_signature_data: string | null;
   sent_at: string | null;
+  sent_to_email: string | null;
   approved_at: string | null;
   notes: string | null;
   created_by: string | null;
@@ -206,12 +207,13 @@ export function useSendCOToClient() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, project_id }: { id: string; project_id: string }) => {
+    mutationFn: async ({ id, project_id, sent_to_email }: { id: string; project_id: string; sent_to_email?: string }) => {
       const { data, error } = await supabase
         .from("change_orders" as any)
         .update({
           sent_at: new Date().toISOString(),
           status: "pending_client",
+          ...(sent_to_email ? { sent_to_email } : {}),
         })
         .eq("id", id)
         .select()

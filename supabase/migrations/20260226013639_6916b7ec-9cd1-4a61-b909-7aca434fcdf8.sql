@@ -1,0 +1,1 @@
+ALTER TABLE public.change_orders ADD COLUMN IF NOT EXISTS sent_to_email text;
