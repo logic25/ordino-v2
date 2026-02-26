@@ -91,7 +91,10 @@ export function ChangeOrderDialog({
     }
   }, [open, existingCO]);
 
-  const totalAmount = serviceLines.reduce((s, l) => s + l.amount, 0);
+  const requestedBy = form.watch("requested_by");
+  const rawTotal = serviceLines.reduce((s, l) => s + Math.abs(l.amount), 0);
+  // Auto-negate when "Internal" — it's the company's mistake / credit
+  const totalAmount = requestedBy === "Internal" ? -rawTotal : rawTotal;
 
   const filteredCatalog = useMemo(() => {
     if (!searchTerm.trim()) return catalog.slice(0, 20);
@@ -176,8 +179,11 @@ export function ChangeOrderDialog({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Services *</Label>
-              <span className="text-sm font-semibold tabular-nums">
-                Total: {formatCurrency(totalAmount)}
+              <span className={`text-sm font-semibold tabular-nums ${totalAmount < 0 ? "text-red-600 dark:text-red-400" : ""}`}>
+                Total: {totalAmount < 0 ? `-${formatCurrency(Math.abs(totalAmount))}` : formatCurrency(totalAmount)}
+                {requestedBy === "Internal" && rawTotal > 0 && (
+                  <span className="text-xs font-normal text-muted-foreground ml-1">(credit)</span>
+                )}
               </span>
             </div>
 

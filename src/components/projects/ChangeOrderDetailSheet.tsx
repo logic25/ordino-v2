@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
@@ -89,11 +90,26 @@ export function ChangeOrderDetailSheet({
   };
 
   const handleSend = async () => {
+    // Check if project has a client contact with an email
     try {
+      const { data: contacts } = await supabase
+        .from("client_contacts" as any)
+        .select("email")
+        .eq("project_id", co.project_id)
+        .not("email", "is", null)
+        .limit(1);
+      if (!contacts || contacts.length === 0 || !(contacts[0] as any).email) {
+        toast({
+          title: "No client email found",
+          description: "Add a contact with an email address to this project before sending.",
+          variant: "destructive",
+        });
+        return;
+      }
       await sendCO.mutateAsync({ id: co.id, project_id: co.project_id });
-      toast({ title: "Sent to client", description: `${co.co_number} is now pending client signature.` });
+      toast({ title: "Sent to client", description: `${co.co_number} sent to ${(contacts[0] as any).email}. Status → Pending Client.` });
     } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+      toast({ title: "Error sending CO", description: e.message, variant: "destructive" });
     }
   };
 
@@ -169,7 +185,7 @@ export function ChangeOrderDetailSheet({
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="w-full sm:max-w-[600px] overflow-y-auto p-0">
+        <SheetContent side="right" className="!w-full !sm:max-w-[480px] !max-w-[480px] overflow-y-auto p-0">
           {/* Header */}
           <SheetHeader className="px-6 pt-6 pb-4 border-b">
             <div className="flex items-start justify-between gap-3">
