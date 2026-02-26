@@ -1,78 +1,62 @@
 
 
-# Show Beacon's Actual Knowledge Files in the KB Folder
+# Merge Chris + Cleanup + Auto-Join
 
-## Overview
+## Current State
 
-When the "Beacon Knowledge Base" folder is selected in the sidebar, replace the empty document table with a live view of Beacon's 87 knowledge files fetched from the Railway API. Files are grouped by their 14 folders (processes, dob_notices, zoning, etc.) in collapsible sections. An upload button lets users add new files directly to Beacon's knowledge base.
+| User | Email | Company | Issue |
+|------|-------|---------|-------|
+| Manny | manny@greenlightexpediting.com | Green Light Expediting LLC | user_role points to non-existent company |
+| erussell25 | erussell25@gmail.com | Green Light Expediting LLC | Fine -- keeping as-is |
+| Chris | chris@greenlightexpediting.com | "Green Light Expediting-Chris" (duplicate) | Wrong company, needs admin |
+| test@test.com | test@test.com | "Green Light Expeditings" (duplicate) | Removing |
 
-## Files to Create
+3 duplicate companies exist: "Green Light Expediting-Chris", "Green Light Expeditings", "Test Direct Insert". They contain some stale data (4 projects, 4 proposals, 7 clients, attendance logs, etc.) that will be cleaned up.
 
-### 1. `src/hooks/useBeaconKnowledge.ts`
-- `useBeaconKnowledge()` -- React Query hook calling `fetchBeaconKnowledgeList()`, returns `{ folders, total_files, folder_count }` plus loading/error states
-- `useUploadToBeaconKB()` -- mutation that POSTs multipart form data to `/api/ingest` with `file`, `source_type`, and `folder` fields, invalidates the knowledge list query on success
+## Plan
 
-### 2. `src/components/documents/KnowledgeBaseView.tsx`
-Replaces the standard document table when the KB folder is selected:
-- **Stats row**: 3 compact cards -- Total Documents, Total Folders, File Types
-- **Collapsible folder sections**: Accordion with humanized folder names (e.g., `building_code` becomes "Building Code") and file count badges. Each section expands to show filenames with file icons
-- **Upload button**: "Upload to Knowledge Base" dialog accepting PDF/MD/TXT, with a dropdown to pick the target folder (populated from API response). POSTs to `/api/ingest`
-- **Loading state**: Spinner while fetching
-- **Error state**: Message if Beacon API is unreachable
+### Step 1: Data operations (using insert tool, not migration)
 
-## Files to Modify
+In a specific order to respect FK constraints:
 
-### 3. `src/services/beaconApi.ts`
-Add `fetchBeaconKnowledgeList()` that:
-- Calls `GET /api/knowledge/list`
-- Receives `{ files: ["folder/file.md", ...], count: 87 }`
-- Parses folder names from path strings (split on `/`)
-- Returns `{ folders: Record<string, string[]>, total_files, folder_count }`
+1. **Move Chris** -- Update his `profiles` row to `company_id = 01993413-...` and `role = 'admin'`
+2. **Update Chris's user_role** -- Point to correct company, set role to `admin`
+3. **Fix Manny's user_role** -- Currently points to non-existent company `99d5c902-...`, update to `01993413-...`
+4. **Delete test@test.com's profile and user_role**
+5. **Delete role_permissions** for the 3 duplicate companies
+6. **Delete all child data** (projects, proposals, clients, attendance, notifications, etc.) from the 3 duplicate companies
+7. **Delete the 3 duplicate companies**: "Green Light Expediting-Chris", "Green Light Expeditings", "Test Direct Insert"
 
-Also add the `FOLDER_TO_SOURCE_TYPE` mapping for upload ingestion.
+### Step 2: Database migration -- `auto_join_existing_company` function
 
-### 4. `src/pages/Documents.tsx`
-- Import `KnowledgeBaseView`
-- In the main content area (around line 295), check `isBeaconFolder`
-- When true, render `<KnowledgeBaseView />` instead of the search filters + document table
-- Keep breadcrumbs, sidebar, and all dialogs unchanged
+Create a SECURITY DEFINER function that:
+- Checks if user already has a profile (returns existing company_id if so)
+- Finds the single existing company
+- Creates a `staff` profile and `admin` user_role (since right now all team members are admin-level)
+- Returns the company_id
 
-## Technical Details
+### Step 3: Rewrite `src/pages/Setup.tsx`
 
-### API Response Shape
-```text
-GET /api/knowledge/list
-Response: { "files": ["building_code/bc_chapter5.md", ...], "count": 87 }
-```
+Remove the company creation form entirely. Replace with a loading screen that:
+- On mount, extracts first/last name from Google OAuth `user_metadata` (or email prefix as fallback)
+- Calls `auto_join_existing_company` RPC
+- On success: `refreshProfile()` then navigates to `/dashboard`
+- On error: shows a toast and redirects to `/auth`
 
-### Path Parsing Logic
-```text
-"building_code/bc_chapter5.md" -> folder: "building_code", file: "bc_chapter5.md"
-"standalone.md" (no slash) -> folder: "_root", file: "standalone.md"
-```
+No form, no inputs -- just an automatic "Setting up your account..." spinner.
 
-### Folder-to-Source-Type Mapping (for uploads)
-| Folder | source_type |
-|--------|-------------|
-| processes | procedure |
-| dob_notices | service_notice |
-| zoning | zoning |
-| building_code | building_code |
-| building_code_1968 | building_code |
-| building_code_2022 | building_code |
-| mdl | multiple_dwelling_law |
-| rcny | rule |
-| hmc | housing_maintenance_code |
-| energy_code | building_code |
-| communication | communication |
-| historical | historical_determination |
-| case_studies | historical_determination |
-| objections | reference |
+## Files Changed
 
-### Upload Flow
-1. User clicks "Upload to Knowledge Base" in the KB view
-2. Selects file + target folder from dropdown
-3. POST multipart to `/api/ingest` with `file`, `source_type` (from mapping), `folder`
-4. On success, invalidate knowledge list query to refresh the view
+| File | Change |
+|------|--------|
+| Data operations | Move Chris, fix Manny's role, delete test data + duplicate companies |
+| New migration | `auto_join_existing_company` function |
+| `src/pages/Setup.tsx` | Replace form with auto-join loading screen |
 
-No database migrations or sidebar changes needed -- the existing "Beacon Knowledge Base" folder with `is_beacon_synced: true` already exists.
+## Result
+
+- Chris appears in Settings > Team as admin with full access
+- Manny, erussell25, and Chris all under Green Light Expediting LLC
+- test@test.com profile removed (auth record stays but has no access)
+- Any future user who signs in auto-joins the company as staff
+
