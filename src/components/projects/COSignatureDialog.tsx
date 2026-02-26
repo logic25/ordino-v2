@@ -127,7 +127,7 @@ export function COSignatureDialog({
             Sign Change Order
           </DialogTitle>
           <DialogDescription>
-            Your internal signature advances this CO to "Pending Client" status.
+            Sign this change order and send it to the client for approval.
           </DialogDescription>
         </DialogHeader>
 
@@ -205,9 +205,9 @@ export function COSignatureDialog({
             disabled={!hasSignature || isLoading}
           >
             {isLoading ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing...</>
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing & Sending...</>
             ) : (
-              <><PenLine className="mr-2 h-4 w-4" /> Sign Internally</>
+              <><PenLine className="mr-2 h-4 w-4" /> Sign & Send</>
             )}
           </Button>
         </DialogFooter>
