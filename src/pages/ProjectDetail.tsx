@@ -1868,7 +1868,9 @@ function ContactsFull({ contacts, pisStatus, projectId, clientId }: { contacts: 
         open={showNewClientDialog}
         onOpenChange={setShowNewClientDialog}
         onSubmit={async (data) => {
-          const { data: profile } = await supabase.from("profiles").select("company_id").single();
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) throw new Error("Not authenticated");
+          const { data: profile } = await supabase.from("profiles").select("company_id").eq("user_id", user.id).single();
           if (!profile?.company_id) throw new Error("No company");
           const { data: newClient, error } = await supabase.from("clients").insert({
             ...data,
