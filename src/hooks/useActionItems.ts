@@ -135,13 +135,17 @@ export function useCreateActionItem() {
       if (error) throw error;
 
       // Fire-and-forget GChat notification
+      console.log("Task created, data:", data);
       if (data?.id) {
+        console.log("Invoking send-gchat-action-item for:", data.id);
         supabase.functions.invoke("send-gchat-action-item", {
           body: { action_item_id: data.id },
         }).then((res) => {
           if (res.error) console.error("GChat notification error:", res.error);
-          else console.log("GChat notification sent:", res.data);
+          else console.log("GChat notification result:", res.data);
         }).catch((err) => console.error("GChat notification failed:", err));
+      } else {
+        console.warn("No task ID returned from insert — GChat notification skipped");
       }
     },
     onSuccess: (_, vars) => {
