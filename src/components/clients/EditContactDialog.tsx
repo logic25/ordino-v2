@@ -112,6 +112,7 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["client-contacts"] });
       queryClient.invalidateQueries({ queryKey: ["client-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["project-contacts"] });
       onOpenChange(false);
       toast({ title: "Contact updated", description: `${form.first_name} ${form.last_name}`.trim() + " saved successfully." });
     },

@@ -69,6 +69,11 @@ export interface MockContact {
   source: "proposal" | "pis" | "manual";
   dobRegistered: "registered" | "not_registered" | "unknown";
   review?: { rating: number; comment?: string };
+  client_id?: string;
+  first_name?: string;
+  last_name?: string;
+  title?: string;
+  is_primary?: boolean;
 }
 
 export interface MockMilestone {
