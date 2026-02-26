@@ -263,7 +263,8 @@ export function ChangeOrderDetailSheet({
               <table style="margin: 0 0 16px; border-collapse: collapse; width: 100%;">
                 <tr><td style="padding: 6px 12px 6px 0; font-weight: 600; color: #64748b; font-size: 13px;">Title:</td><td style="padding: 6px 0; font-size: 13px;">${co.title}</td></tr>
                 <tr><td style="padding: 6px 12px 6px 0; font-weight: 600; color: #64748b; font-size: 13px;">Amount:</td><td style="padding: 6px 0; font-size: 13px; font-weight: 700;">${fmt(co.amount)}</td></tr>
-                ${co.description ? `<tr><td style="padding: 6px 12px 6px 0; font-weight: 600; color: #64748b; font-size: 13px;">Description:</td><td style="padding: 6px 0; font-size: 13px;">${co.description}</td></tr>` : ""}
+                ${co.description ? `<tr><td style="padding: 6px 12px 6px 0; font-weight: 600; color: #64748b; font-size: 13px;">Services:</td><td style="padding: 6px 0; font-size: 13px;">${co.description}</td></tr>` : ""}
+                ${co.reason ? `<tr><td style="padding: 6px 12px 6px 0; font-weight: 600; color: #64748b; font-size: 13px;">Reason:</td><td style="padding: 6px 0; font-size: 13px;">${co.reason}</td></tr>` : ""}
               </table>
               ${signingSection}
               <p style="margin: 16px 0 0;">Thank you,<br/>${companyName}</p>
