@@ -2289,8 +2289,13 @@ function DocumentsFull({ documents, projectId, companyId, proposal }: { document
     try {
       const blob = await loadDocBlob(doc);
       if (!blob) return;
-      // Use object URL for proper rendering (especially HTML files)
-      const url = URL.createObjectURL(blob);
+      // Ensure correct MIME type for proper iframe rendering (Supabase blobs may lack it)
+      const ext = (doc.filename || doc.name).split(".").pop()?.toLowerCase();
+      const mime = ext === "html" || ext === "htm" ? "text/html"
+        : ext === "pdf" ? "application/pdf"
+        : blob.type || "application/octet-stream";
+      const typedBlob = new Blob([blob], { type: mime });
+      const url = URL.createObjectURL(typedBlob);
       setPreviewDoc({ url, name: doc.filename || doc.name });
     } catch {
       toast({ title: "Error", description: "Failed to load document.", variant: "destructive" });
