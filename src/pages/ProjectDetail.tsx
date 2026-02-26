@@ -2289,12 +2289,9 @@ function DocumentsFull({ documents, projectId, companyId, proposal }: { document
     try {
       const blob = await loadDocBlob(doc);
       if (!blob) return;
-      // Convert to data URI for preview in sandboxed iframe
-      const reader = new FileReader();
-      reader.onload = () => {
-        setPreviewDoc({ url: reader.result as string, name: doc.filename || doc.name });
-      };
-      reader.readAsDataURL(blob);
+      // Use object URL for proper rendering (especially HTML files)
+      const url = URL.createObjectURL(blob);
+      setPreviewDoc({ url, name: doc.filename || doc.name });
     } catch {
       toast({ title: "Error", description: "Failed to load document.", variant: "destructive" });
     }
@@ -2304,14 +2301,12 @@ function DocumentsFull({ documents, projectId, companyId, proposal }: { document
     try {
       const blob = await loadDocBlob(doc);
       if (!blob) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        const a = document.createElement("a");
-        a.href = reader.result as string;
-        a.download = doc.filename || doc.name;
-        a.click();
-      };
-      reader.readAsDataURL(blob);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = doc.filename || doc.name;
+      a.click();
+      URL.revokeObjectURL(url);
     } catch {
       toast({ title: "Error", description: "Failed to download document.", variant: "destructive" });
     }
