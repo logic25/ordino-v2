@@ -1,55 +1,57 @@
 
-# Fix CO Timeline Details and Send-to-Email Tracking
 
-## Problems
-1. The CO timeline shows "Signed internally" and "Sent to client" but doesn't say **who** signed or **which email** it was sent to
-2. The CO currently in the database already shows "Sent to client — awaiting" even though the client has no email (this happened before the validation fix was added)
-3. The `internal_signed_by` field stores a profile ID but the UI never resolves it to a name
+# Change Order: Auto-Send, Deposit, and Terms Reference
 
 ## Changes
 
-### 1. Database Migration -- Add `sent_to_email` column
-Add a `sent_to_email` text column to the `change_orders` table so we can record exactly which email address a CO was sent to.
+### 1. Database Migration
+Add columns to `change_orders`:
+- `deposit_percentage` (numeric, default 0) -- percentage of CO total required as deposit
+- `deposit_paid_at` (timestamptz, nullable) -- when client paid
 
-```sql
-ALTER TABLE change_orders ADD COLUMN IF NOT EXISTS sent_to_email text;
-```
+### 2. Change Order Dialog -- Add Deposit Field
+**File:** `src/components/projects/ChangeOrderDialog.tsx`
 
-### 2. Update `handleSend` to store the recipient email
-In `ChangeOrderDetailSheet.tsx`, after confirming a valid contact email exists, pass the email to the mutation so it gets saved on the CO record alongside `sent_at`.
+Add a "Deposit Required (%)" number input below the "Requested By" selector. Show a calculated preview (e.g., "Deposit: $1,250 of $2,500"). Wire it into `handleSubmit` so `deposit_percentage` is saved.
 
-### 3. Update `useSendCOToClient` hook to accept and store email
-Modify the mutation in `useChangeOrders.ts` to accept an optional `sent_to_email` parameter and include it in the update.
+### 3. Update Hook
+**File:** `src/hooks/useChangeOrders.ts`
 
-### 4. Enhance Timeline with signer name and email
-- Query the `profiles` table using `co.internal_signed_by` to resolve the signer's display name
-- Show the signer name in the timeline: "Signed internally by **Manny Russell** on 02/26/2026"
-- Show the recipient email in the timeline: "Sent to **client@email.com** on 02/26/2026"
-- Also show the email in the "Client Signature" tracker card when awaiting
+Add `deposit_percentage` to the `ChangeOrder` interface and `ChangeOrderFormInput`. Include it in insert/update calls.
 
-### 5. Show signer name in the Internal Signature tracker card
-Instead of just "Signed 02/22/2026", show "Manny Russell -- 02/22/2026"
+### 4. Client Signing Page -- Auto-Send Copy
+**File:** `src/pages/ClientChangeOrder.tsx`
 
-## Technical Details
+Remove the "Want a copy?" prompt. After the sign mutation succeeds, automatically invoke `gmail-send` to email the signed CO summary to `co.sent_to_email`. Show a small status indicator: "Sending signed copy..." then "Signed copy sent to [email]" (matching the proposal's welcome email pattern).
 
-**Files to modify:**
-- `supabase/migrations/` -- new migration for `sent_to_email` column
-- `src/hooks/useChangeOrders.ts` -- update `ChangeOrder` interface and `useSendCOToClient` mutation
-- `src/components/projects/ChangeOrderDetailSheet.tsx` -- resolve signer name via useQuery, pass email to send mutation, enhance timeline entries
+### 5. Client Signing Page -- Terms Reference
+**File:** `src/pages/ClientChangeOrder.tsx`
 
-**Data fetch for signer name:**
-Use a simple query inside the component:
-```typescript
-const { data: signerProfile } = useQuery({
-  queryKey: ["profile", co.internal_signed_by],
-  enabled: !!co.internal_signed_by,
-  queryFn: async () => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("display_name, first_name, last_name")
-      .eq("id", co.internal_signed_by!)
-      .single();
-    return data;
-  },
-});
-```
+Add a clause above the signature area stating:
+> "By signing this Change Order, you acknowledge that all terms and conditions of the original proposal/contract remain in full effect. This Change Order modifies only the scope and fees described above."
+
+This mirrors the legal framing used on the proposal page's Terms section.
+
+### 6. Client Signing Page -- Deposit Payment
+**File:** `src/pages/ClientChangeOrder.tsx`
+
+After signing, if `deposit_percentage > 0`, show a "Pay Deposit" card (matching the proposal's payment UI):
+- Calculate deposit amount from `co.amount * (deposit_percentage / 100)`
+- Card/ACH mock payment forms (same pattern as `ClientProposal.tsx`)
+- On "payment success," update `deposit_paid_at` on the CO record
+- Show receipt summary
+
+### 7. Detail Sheet and PDF
+**Files:** `src/components/projects/ChangeOrderDetailSheet.tsx`, `src/components/projects/ChangeOrderPDF.tsx`
+
+- Show deposit percentage and calculated amount in the detail view
+- Add "Deposit Due Upon Signing" line to the PDF when `deposit_percentage > 0`
+- Show deposit payment status if paid
+
+## Technical Sequence
+1. Run database migration (add columns)
+2. Update `useChangeOrders.ts` with new fields
+3. Add deposit input to `ChangeOrderDialog.tsx`
+4. Rewrite post-sign flow in `ClientChangeOrder.tsx` (auto-send + terms clause + deposit payment)
+5. Update detail sheet and PDF
+
