@@ -10,6 +10,8 @@ import { useProposalContacts } from "@/hooks/useProposalContacts";
 import { sendBillingEmail } from "@/hooks/useBillingEmail";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useTelemetry } from "@/hooks/useTelemetry";
+import { useGmailConnection } from "@/hooks/useGmailConnection";
+import { useToast } from "@/hooks/use-toast";
 
 interface SendProposalDialogProps {
   proposal: ProposalWithRelations | null;
@@ -137,6 +139,8 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
   const { data: contacts = [] } = useProposalContacts(proposal?.id);
   const { data: company } = useCompanySettings();
   const { track } = useTelemetry();
+  const { data: gmailConnection } = useGmailConnection();
+  const { toast } = useToast();
 
   const resolvedCompanyName = companyNameProp || (company as any)?.name || "Our Team";
   const companyEmail = (company as any)?.email || "";
@@ -213,8 +217,11 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
       setSent(true);
     } catch (error: any) {
       console.error("Failed to send proposal email:", error);
-      onConfirmSend(proposal.id);
-      setSent(true);
+      toast({
+        title: "Failed to send email",
+        description: error.message || "Please check your Gmail connection.",
+        variant: "destructive",
+      });
     } finally {
       setIsSending(false);
     }
@@ -287,6 +294,12 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
             </p>
           )}
 
+          {!gmailConnection && (
+            <p className="text-xs text-destructive font-medium">
+              ⚠ Gmail must be connected to send emails. Go to Emails to connect your account.
+            </p>
+          )}
+
           {sent && (
             <div className="flex items-center gap-2 text-sm text-emerald-600 font-medium">
               <CheckCircle2 className="h-4 w-4" />
@@ -313,7 +326,7 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
             <Button
               className="bg-accent text-accent-foreground hover:bg-accent/90"
               onClick={handleSend}
-              disabled={!clientEmail || !clientLink || isSending}
+              disabled={!clientEmail || !clientLink || isSending || !gmailConnection}
             >
               {isSending ? (
                 <>
