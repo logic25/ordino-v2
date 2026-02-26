@@ -36,7 +36,7 @@ import {
   Phone, Circle, Upload, Search, Plus, AlertTriangle, Trash2,
   ArrowUpRight, ArrowDownLeft, ClipboardList, FileImage,
   FileSpreadsheet, Download, Sparkles, Eye, ShieldCheck, PenLine,
-  GripVertical, ArrowUp, ArrowDown,
+  GripVertical, ArrowUp, ArrowDown, UserPlus,
 } from "lucide-react";
 import { useProjects, useUpdateProject, ProjectWithRelations } from "@/hooks/useProjects";
 import { useSendProposal } from "@/hooks/useProposals";
@@ -1901,6 +1901,7 @@ function ContactsFull({ contacts, pisStatus, projectId, clientId }: { contacts: 
           open={showNewContactDialog}
           onOpenChange={setShowNewContactDialog}
           clientId={selectedClientId}
+          defaultName={searchTerm.trim() || undefined}
           onContactCreated={async (contact) => {
             // Link the newly created contact to this project
             try {
