@@ -323,13 +323,15 @@ export default function ClientChangeOrderPage() {
               {/* Client Signature */}
               <div>
                 <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: slate }}>Client Approval</div>
-                {co.client_signature_data ? (
+                {(co.client_signature_data || signed) ? (
                   <>
-                    <img src={co.client_signature_data} alt="Client signature" className="h-12 object-contain mb-1" />
-                    <div className="text-xs font-medium" style={{ color: charcoal }}>{co.client_signer_name}</div>
-                    {co.client_signed_at && (
-                      <div className="text-xs" style={{ color: slate }}>Signed {fmtDate(co.client_signed_at)}</div>
-                    )}
+                    {co.client_signature_data ? (
+                      <img src={co.client_signature_data} alt="Client signature" className="h-12 object-contain mb-1" />
+                    ) : canvasRef.current ? (
+                      <img src={canvasRef.current.toDataURL("image/png")} alt="Client signature" className="h-12 object-contain mb-1" />
+                    ) : null}
+                    <div className="text-xs font-medium" style={{ color: charcoal }}>{co.client_signer_name || clientName}</div>
+                    <div className="text-xs" style={{ color: slate }}>Signed {fmtDate(co.client_signed_at || new Date().toISOString())}</div>
                   </>
                 ) : (
                   <div className="h-12 border-b-2 border-gray-800 mb-1" />
