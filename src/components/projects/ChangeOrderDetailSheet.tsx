@@ -90,24 +90,44 @@ export function ChangeOrderDetailSheet({
   };
 
   const handleSend = async () => {
-    // Check if project has a client contact with an email
     try {
-      const { data: contacts } = await supabase
-        .from("client_contacts" as any)
-        .select("email")
-        .eq("project_id", co.project_id)
-        .not("email", "is", null)
-        .limit(1);
-      if (!contacts || contacts.length === 0 || !(contacts[0] as any).email) {
+      // Look up the project's client_id first
+      const { data: project } = await supabase
+        .from("projects")
+        .select("client_id")
+        .eq("id", co.project_id)
+        .single();
+
+      const clientId = (project as any)?.client_id;
+      if (!clientId) {
         toast({
-          title: "No client email found",
-          description: "Add a contact with an email address to this project before sending.",
+          title: "No client linked",
+          description: "This project has no client assigned. Link a client before sending.",
           variant: "destructive",
         });
         return;
       }
+
+      // Find a contact with an email for that client
+      const { data: contacts } = await supabase
+        .from("client_contacts" as any)
+        .select("email, name")
+        .eq("client_id", clientId)
+        .not("email", "is", null)
+        .limit(1);
+
+      if (!contacts || contacts.length === 0 || !(contacts[0] as any).email) {
+        toast({
+          title: "No client email found",
+          description: "Add a contact with an email address to this client before sending.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       await sendCO.mutateAsync({ id: co.id, project_id: co.project_id });
-      toast({ title: "Sent to client", description: `${co.co_number} sent to ${(contacts[0] as any).email}. Status → Pending Client.` });
+      const email = (contacts[0] as any).email;
+      toast({ title: "Sent to client", description: `${co.co_number} sent to ${email}. Status → Pending Client.` });
     } catch (e: any) {
       toast({ title: "Error sending CO", description: e.message, variant: "destructive" });
     }
