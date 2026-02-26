@@ -453,20 +453,124 @@ export function useSendProposal() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      // Send only updates sent_at — status is managed by sign flow
-      const updatePayload: Record<string, any> = {
-        sent_at: new Date().toISOString(),
-      };
-
-      const { data, error } = await supabase
+      // 1. Fetch proposal with property and items
+      const { data: proposal, error: pErr } = await supabase
         .from("proposals")
-        .update(updatePayload)
+        .select("*, properties(*), proposal_items(*)")
+        .eq("id", id)
+        .single();
+      if (pErr || !proposal) throw pErr || new Error("Proposal not found");
+
+      // 2. Fetch bill_to contact
+      const { data: contacts } = await supabase
+        .from("proposal_contacts")
+        .select("*")
+        .eq("proposal_id", id);
+      const billTo = (contacts || []).find((c: any) => c.role === "bill_to");
+      const clientEmail = billTo?.email || proposal.client_email;
+      const clientName = billTo?.name || proposal.client_name || "Client";
+
+      if (!clientEmail) throw new Error("No client email address found on this proposal.");
+
+      const token = (proposal as any).public_token;
+      if (!token) throw new Error("No public link token found. Please re-send from the Proposals page.");
+      const clientLink = `${window.location.origin}/proposal/${token}`;
+
+      // 3. Fetch company settings
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .single();
+      let companyName = "Our Team";
+      let companyEmail = "";
+      let companyPhone = "";
+      if (profile?.company_id) {
+        const { data: co } = await supabase
+          .from("companies")
+          .select("name, email, phone")
+          .eq("id", profile.company_id)
+          .single();
+        if (co) {
+          companyName = co.name || companyName;
+          companyEmail = co.email || "";
+          companyPhone = co.phone || "";
+        }
+      }
+
+      // 4. Calculate totals
+      const items = (proposal as any).proposal_items || [];
+      const fmt = (v: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(v);
+      const nonOptionalTotal = items
+        .filter((i: any) => !i.is_optional)
+        .reduce((sum: number, i: any) => sum + Number(i.total_price || i.quantity * i.unit_price || 0), 0);
+      const totalAmount = nonOptionalTotal || Number(proposal.total_amount || 0);
+      const depositPct = Number((proposal as any).deposit_percentage || 0);
+      const depositAmt = Number((proposal as any).deposit_required || 0) || (depositPct > 0 ? totalAmount * (depositPct / 100) : 0);
+
+      // 5. Build email
+      const serviceRows = items
+        .filter((i: any) => !i.is_optional)
+        .map((i: any) => `<tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;">${i.name}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;text-align:right;">${fmt(Number(i.total_price || i.quantity * i.unit_price || 0))}</td></tr>`)
+        .join("");
+      const optionalRows = items
+        .filter((i: any) => i.is_optional)
+        .map((i: any) => `<tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#64748b;font-style:italic;">${i.name} (optional)</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;text-align:right;color:#64748b;">${fmt(Number(i.total_price || i.quantity * i.unit_price || 0))}</td></tr>`)
+        .join("");
+
+      const footerParts = [
+        companyEmail ? `<a href="mailto:${companyEmail}" style="color:#64748b;">${companyEmail}</a>` : null,
+        companyPhone ? `<span style="color:#64748b;">${companyPhone}</span>` : null,
+      ].filter(Boolean).join(" &nbsp;|&nbsp; ");
+
+      const subject = `Proposal ${proposal.proposal_number} — ${proposal.title}`;
+      const htmlBody = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;padding:32px 16px;">
+    <div style="background:#1e293b;padding:24px 32px;border-radius:12px 12px 0 0;">
+      <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;">${companyName}</h1>
+      <p style="margin:4px 0 0;color:#94a3b8;font-size:13px;">Proposal for Your Review</p>
+    </div>
+    <div style="background:#ffffff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;">
+      <p style="margin:0 0 16px;font-size:15px;color:#1e293b;">Dear ${clientName.split(" ")[0]},</p>
+      <p style="margin:0 0 24px;font-size:15px;color:#334155;">Thank you for the opportunity to work with you. We've prepared a proposal for <strong>${proposal.title}</strong> at <strong>${(proposal as any).properties?.address || ""}</strong>.</p>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:24px;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr style="border-bottom:2px solid #e2e8f0;"><th style="padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:#64748b;">Service</th><th style="padding:8px 12px;text-align:right;font-size:11px;text-transform:uppercase;color:#64748b;">Amount</th></tr></thead>
+          <tbody>${serviceRows}${optionalRows}</tbody>
+        </table>
+        <div style="border-top:2px solid #1e293b;margin-top:8px;padding-top:12px;">
+          <table style="width:100%;"><tr><td style="font-size:15px;font-weight:700;color:#1e293b;">Total</td><td style="font-size:18px;font-weight:800;color:#1e293b;text-align:right;">${fmt(totalAmount)}</td></tr>
+          <tr><td style="font-size:13px;color:#64748b;padding-top:4px;">Retainer Due</td><td style="font-size:14px;font-weight:600;color:#64748b;text-align:right;padding-top:4px;">${fmt(depositAmt)}</td></tr></table>
+        </div>
+      </div>
+      <div style="text-align:center;margin:32px 0;">
+        <a href="${clientLink}" style="display:inline-block;background:#d97706;color:#ffffff;text-decoration:none;padding:14px 40px;border-radius:8px;font-size:16px;font-weight:700;">Review &amp; Sign Proposal</a>
+      </div>
+      <p style="margin:0 0 8px;font-size:13px;color:#64748b;text-align:center;">The link above also includes a Project Information Sheet — please fill it out at your convenience so we can begin work on your behalf.</p>
+      <p style="margin:24px 0 0;font-size:15px;color:#334155;">Please don't hesitate to reach out if you have any questions.</p>
+      <p style="margin:16px 0 0;font-size:15px;color:#1e293b;">Best regards,<br/><strong>${companyName}</strong></p>
+    </div>
+    ${footerParts ? `<div style="text-align:center;padding:16px;font-size:12px;">${footerParts}</div>` : ""}
+  </div>
+</body></html>`;
+
+      // 6. Send via Gmail
+      const { data: sendResult, error: sendErr } = await supabase.functions.invoke("gmail-send", {
+        body: { to: clientEmail, subject, html_body: htmlBody },
+      });
+      if (sendErr) throw sendErr;
+      if (sendResult?.error) throw new Error(sendResult.error);
+
+      // 7. Update sent_at
+      const { data: updated, error: updateErr } = await supabase
+        .from("proposals")
+        .update({ sent_at: new Date().toISOString() })
         .eq("id", id)
         .select()
         .single();
-
-      if (error) throw error;
-      return data;
+      if (updateErr) throw updateErr;
+      return updated;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["proposals"] });
