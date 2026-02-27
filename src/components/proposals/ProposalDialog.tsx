@@ -916,7 +916,7 @@ export function ProposalDialog({
 
         {/* ── Scrollable body ── */}
         <div className="flex flex-col flex-1 min-h-0">
-          <div className={cn("flex-1", step === 2 ? "overflow-visible" : "overflow-y-auto")}>
+          <div className="flex-1 overflow-y-auto">
 
             {/* ═══ STEP 1: PROPERTY & CONTACTS ═══ */}
             {step === 0 && (
@@ -1086,7 +1086,7 @@ export function ProposalDialog({
 
             {/* ═══ STEP 3: SERVICES ═══ */}
             {step === 2 && (
-              <div className="flex flex-col min-h-0">
+              <div className="flex flex-col min-h-0 overflow-y-auto">
                 <div className="grid grid-cols-[auto_auto_1fr_80px_70px_90px_80px_auto] items-center gap-1 px-3 py-2 bg-muted/50 border-b text-xs font-medium text-muted-foreground uppercase tracking-wider shrink-0">
                   <div className="w-7" />
                   <div className="w-7" />
@@ -1097,7 +1097,7 @@ export function ProposalDialog({
                   <div className="text-right pr-1">Total</div>
                   <div className="w-7" />
                 </div>
-                <div className="overflow-visible flex-1">
+                <div className="flex-1">
                   <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                     <SortableContext items={itemFields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
                       <div className="border rounded-b-lg mx-4 mb-3">

@@ -242,7 +242,7 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                   </div>
                   <div style={{ fontSize: "10pt", marginBottom: 4 }}><strong>Project:</strong> {proposal.title}</div>
                   <div style={{ fontSize: "10pt", marginBottom: 4 }}><strong>Address:</strong> {proposal.properties?.address || "—"}</div>
-                  {proposal.properties?.borough && (
+                  {proposal.properties?.borough && !proposal.properties?.address?.toLowerCase().includes(proposal.properties.borough.toLowerCase()) && (
                     <div style={{ fontSize: "10pt" }}><strong>Borough:</strong> {proposal.properties.borough}</div>
                   )}
                   {proposal.valid_until && (
