@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Admins see all company emails" ON public.emails;
