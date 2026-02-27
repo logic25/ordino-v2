@@ -9,6 +9,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
 
 export function QuickTimeLog() {
@@ -19,6 +21,7 @@ export function QuickTimeLog() {
   const [applicationId, setApplicationId] = useState("");
   const [hours, setHours] = useState("");
   const [description, setDescription] = useState("");
+  const [billable, setBillable] = useState(true);
 
   const { data: applications } = useQuery({
     queryKey: ["applications-for-time", profile?.company_id],
@@ -49,12 +52,14 @@ export function QuickTimeLog() {
         application_id: applicationId || null,
         duration_minutes: totalMinutes,
         description: description || null,
+        billable,
         activity_date: new Date().toISOString().split("T")[0],
       });
       toast({ title: "Time logged" });
       setApplicationId("");
       setHours("");
       setDescription("");
+      setBillable(true);
     } catch {
       toast({ title: "Failed to log", variant: "destructive" });
     }
@@ -93,6 +98,11 @@ export function QuickTimeLog() {
         onChange={(e) => setDescription(e.target.value)}
         className="flex-1 min-w-[150px]"
       />
+
+      <div className="flex items-center gap-1.5">
+        <Switch id="quick-billable" checked={billable} onCheckedChange={setBillable} className="scale-75" />
+        <Label htmlFor="quick-billable" className="text-xs text-muted-foreground cursor-pointer">Billable</Label>
+      </div>
 
       <Button
         size="sm"
