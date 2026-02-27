@@ -1,52 +1,51 @@
 
 
-# Fix Proposal Email Sending
+## Plan: Fix Proposal Dialog UX Issues
 
-## Problem
-The proposal "Send via Email" button appears to succeed but never actually delivers the email. Two issues:
+Based on Chris's feedback and your testing, here are the issues identified and what needs to be fixed:
 
-1. **Silent failure handling** — The catch block in `SendProposalDialog.tsx` (lines 214-217) swallows all errors and still shows "Proposal sent successfully!" even when sending fails.
-2. **Gmail connection dependency** — `sendBillingEmail` calls the `gmail-send` edge function, which requires the user to have an active Gmail OAuth connection. If no connection exists, the function returns an error that gets silently caught.
+### Issues Found
 
-## Plan
+**1. Work Type Selector Not Discoverable**
+The work type picker is hidden inside the expanded view of each service line item (click the chevron). For services like "ALT-2 Non-D14 Approval" and "Work Permit," the `show_work_types` flag in the Service Catalog may not be enabled, so the disciplines section never appears. Additionally, the Service Catalog settings page needs an "Edit" action on existing services (currently only has Add/Delete).
 
-### 1. Fix error handling in SendProposalDialog.tsx
-- Show a toast error when `sendBillingEmail` throws instead of silently marking as sent
-- Remove `onConfirmSend(proposal.id)` and `setSent(true)` from the catch block
-- Add a user-visible error message so you know when sending actually fails
+**2. Cannot Edit a Service in Service Catalog**
+The Service Catalog in Settings only allows adding new services and toggling the work type checkbox. There is no edit button or click-to-edit functionality for existing services, so users cannot modify descriptions, prices, or enable work types after creation.
 
-### 2. Verify Gmail connection status
-- Before attempting to send, check if a Gmail connection exists for the current user
-- If not connected, show a clear message: "Gmail must be connected to send emails. Go to Emails to connect your account."
+**3. License Type and License Number Not Shown**
+The fields exist in the Architect/Engineer party section (Step 2), but they may not be rendering on the proposal preview PDF or the project detail view. Need to verify and ensure these fields appear on the `ProposalPreviewModal` output.
 
-## Technical Details
+**4. Cannot See Next Service Being Added (Scroll Issue)**
+The services step (Step 3) uses `overflow-y-auto` on the outer container but the inner content area may not be scrolling properly when many services are added. The auto-appended empty row at the bottom may be clipped.
 
-### File: `src/components/proposals/SendProposalDialog.tsx`
+**5. Classification Step Feels Disjointed**
+Step 4 (Details and Terms) contains Classification, Assignment, Financial, and Terms all in one page. The jump from Services to this catch-all step feels abrupt. Will reorganize the visual hierarchy and spacing.
 
-**Current (broken) catch block:**
-```typescript
-} catch (error: any) {
-  console.error("Failed to send proposal email:", error);
-  onConfirmSend(proposal.id);  // marks as "sent" even on failure!
-  setSent(true);               // shows success even on failure!
-}
-```
+### Changes
 
-**Fixed catch block:**
-```typescript
-} catch (error: any) {
-  console.error("Failed to send proposal email:", error);
-  toast({
-    title: "Failed to send email",
-    description: error.message || "Please check your Gmail connection.",
-    variant: "destructive",
-  });
-}
-```
+**A. Add Edit functionality to Service Catalog** (`src/components/settings/ServiceCatalogSettings.tsx`)
+- Add an "Edit" button to each service row that opens the same dialog pre-filled with existing values
+- Allow saving changes back to the service catalog
 
-- Add `useToast` import and hook
-- The `onConfirmSend` call (which updates the proposal status to "sent") will only happen on actual success
+**B. Fix Service Step scrolling** (`src/components/proposals/ProposalDialog.tsx`)
+- Ensure the services container properly scrolls when many items are added
+- The empty auto-appended row should always be visible at the bottom
 
-### File: No other changes needed
-The `sendBillingEmail` and `gmail-send` edge function are already wired correctly -- the only issue is the client-side error handling hiding failures.
+**C. Ensure License Type/Number appear on Proposal Preview** (`src/components/proposals/ProposalPreviewModal.tsx`)
+- Add architect license type and license number to the preview output under the Prepared For or Project Parties section
+
+**D. Improve Step 4 layout** (`src/components/proposals/ProposalDialog.tsx`)
+- Add clearer visual separation between Classification, Assignment, Financial, and Terms sections
+- Consider moving Classification fields earlier or making the flow feel more natural
+
+**E. Add "Analyze work type per plans" to roadmap** (informational only)
+- This is a future AI vision feature: analyzing uploaded architectural plans to auto-detect disciplines (plumbing, HVAC, electrical, etc.)
+- Will note this as a roadmap item, no code change needed now
+
+### Technical Details
+
+- **Service Catalog Edit**: Reuse the existing "Add New Service" dialog component, passing the selected service as initial values and switching the submit handler from `append` to `update` on the settings array
+- **Scroll fix**: The Step 3 container at line 1088-1119 needs the inner `div.flex-1` to have explicit `overflow-y-auto` and `min-h-0` to work within the flex layout
+- **License fields on preview**: Add `architect_license_type` and `architect_license_number` from the proposal data to the preview modal's party info section
+- **Step 4 spacing**: Add `Separator` components and adjust padding between the Classification/Assignment/Financial/Terms sections
 
