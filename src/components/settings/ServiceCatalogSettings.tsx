@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RichTextEditor } from "@/components/emails/RichTextEditor";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Trash2, Loader2, Save, Package, History, Search } from "lucide-react";
+import { Plus, Trash2, Loader2, Save, Package, History, Search, Pencil } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -41,6 +41,7 @@ export function ServiceCatalogSettings() {
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedServiceId, setExpandedServiceId] = useState<string | null>(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
   const [newService, setNewService] = useState<Partial<ServiceCatalogItem>>({
     name: "",
     description: "",
@@ -70,23 +71,42 @@ export function ServiceCatalogSettings() {
 
   const addService = () => {
     if (!newService.name?.trim()) return;
-    const id = crypto.randomUUID();
-    setServices([
-      {
-        id,
-        name: newService.name || "",
-        description: newService.description || "",
-        default_price: newService.default_price || 0,
-        default_hours: newService.default_hours || 0,
-        default_fee_type: newService.default_fee_type as any,
-        multiplier: newService.multiplier || 0,
-        has_discipline_pricing: newService.has_discipline_pricing || false,
-        discipline_fee: newService.discipline_fee || 0,
-        default_requirements: (newService as any).default_requirements || [],
-        complexity_weight: (newService as any).complexity_weight || 1,
-      },
-      ...services,
-    ]);
+    
+    if (editingServiceId) {
+      // Update existing service
+      setServices(services.map(s => s.id === editingServiceId ? {
+        ...s,
+        name: newService.name || s.name,
+        description: newService.description ?? s.description,
+        default_price: newService.default_price ?? s.default_price,
+        default_hours: newService.default_hours ?? s.default_hours,
+        default_fee_type: (newService.default_fee_type as any) ?? s.default_fee_type,
+        multiplier: newService.multiplier ?? s.multiplier,
+        has_discipline_pricing: newService.has_discipline_pricing ?? s.has_discipline_pricing,
+        discipline_fee: newService.discipline_fee ?? s.discipline_fee,
+        show_work_types: newService.show_work_types ?? s.show_work_types,
+        default_requirements: (newService as any).default_requirements ?? s.default_requirements,
+        complexity_weight: (newService as any).complexity_weight ?? s.complexity_weight,
+      } : s));
+    } else {
+      const id = crypto.randomUUID();
+      setServices([
+        {
+          id,
+          name: newService.name || "",
+          description: newService.description || "",
+          default_price: newService.default_price || 0,
+          default_hours: newService.default_hours || 0,
+          default_fee_type: newService.default_fee_type as any,
+          multiplier: newService.multiplier || 0,
+          has_discipline_pricing: newService.has_discipline_pricing || false,
+          discipline_fee: newService.discipline_fee || 0,
+          default_requirements: (newService as any).default_requirements || [],
+          complexity_weight: (newService as any).complexity_weight || 1,
+        },
+        ...services,
+      ]);
+    }
     setNewService({
       name: "",
       description: "",
@@ -97,6 +117,7 @@ export function ServiceCatalogSettings() {
       has_discipline_pricing: false,
       discipline_fee: 0,
     });
+    setEditingServiceId(null);
     setAddDialogOpen(false);
   };
 
@@ -411,15 +432,32 @@ export function ServiceCatalogSettings() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => removeService(service.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-muted-foreground" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => {
+                                setNewService({
+                                  ...service,
+                                });
+                                setEditingServiceId(service.id);
+                                setAddDialogOpen(true);
+                              }}
+                            >
+                              <Pencil className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => removeService(service.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                       {/* Expanded Description Row */}
@@ -585,11 +623,17 @@ export function ServiceCatalogSettings() {
       </div>
 
       {/* Add Service Dialog */}
-      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+      <Dialog open={addDialogOpen} onOpenChange={(open) => {
+        setAddDialogOpen(open);
+        if (!open) {
+          setEditingServiceId(null);
+          setNewService({ name: "", description: "", default_price: 0, default_hours: 0, default_fee_type: "fixed", multiplier: 0, has_discipline_pricing: false, discipline_fee: 0 });
+        }
+      }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Add New Service</DialogTitle>
-            <DialogDescription>Define a new service for your catalog.</DialogDescription>
+            <DialogTitle>{editingServiceId ? "Edit Service" : "Add New Service"}</DialogTitle>
+            <DialogDescription>{editingServiceId ? "Update this service in your catalog." : "Define a new service for your catalog."}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
