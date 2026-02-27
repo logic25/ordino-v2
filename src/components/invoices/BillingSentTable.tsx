@@ -159,14 +159,16 @@ export function BillingSentTable() {
             <TableHead className="text-right">Amount</TableHead>
             <TableHead>Method</TableHead>
             <TableHead>Billed By</TableHead>
+            <TableHead>Sent</TableHead>
+            <TableHead>Paid</TableHead>
             <TableHead>Status</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {isLoading ? (
-            <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
+            <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
           ) : paginated.length === 0 ? (
-            <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No billing requests found</TableCell></TableRow>
+            <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No billing requests found</TableCell></TableRow>
           ) : (
             paginated.map((req) => (
               <TableRow key={req.id}>
@@ -184,6 +186,12 @@ export function BillingSentTable() {
                 <TableCell className="text-xs">{getBillingMethod(req)}</TableCell>
                 <TableCell className="text-sm">
                   {req.created_by_profile ? `${req.created_by_profile.first_name || ""} ${req.created_by_profile.last_name || ""}`.trim() : "—"}
+                </TableCell>
+                <TableCell className="text-xs tabular-nums">
+                  {req.invoices?.sent_at ? format(new Date(req.invoices.sent_at), "MM/dd/yyyy") : "—"}
+                </TableCell>
+                <TableCell className="text-xs tabular-nums">
+                  {req.invoices?.paid_at ? format(new Date(req.invoices.paid_at), "MM/dd/yyyy") : "—"}
                 </TableCell>
                 <TableCell>
                   <Badge variant={req.status === "invoiced" ? "default" : req.status === "pending" ? "secondary" : "outline"} className="text-[10px]">

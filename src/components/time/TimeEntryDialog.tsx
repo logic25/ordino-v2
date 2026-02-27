@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -30,6 +31,7 @@ export function TimeEntryDialog({ open, onOpenChange }: TimeEntryDialogProps) {
   const [durationHours, setDurationHours] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
   const [description, setDescription] = useState("");
+  const [billable, setBillable] = useState(true);
   const [activityDate, setActivityDate] = useState(
     new Date().toISOString().split("T")[0]
   );
@@ -71,6 +73,7 @@ export function TimeEntryDialog({ open, onOpenChange }: TimeEntryDialogProps) {
     setDurationHours("");
     setDurationMinutes("");
     setDescription("");
+    setBillable(true);
     setActivityDate(new Date().toISOString().split("T")[0]);
   };
 
@@ -90,6 +93,7 @@ export function TimeEntryDialog({ open, onOpenChange }: TimeEntryDialogProps) {
         service_id: serviceId || null,
         duration_minutes: totalMinutes,
         description: description || null,
+        billable,
         activity_date: activityDate,
       });
       toast({ title: "Time logged", description: `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m recorded.` });
@@ -172,6 +176,11 @@ export function TimeEntryDialog({ open, onOpenChange }: TimeEntryDialogProps) {
               />
               <span className="text-sm text-muted-foreground">m</span>
             </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <Label>Billable</Label>
+            <Switch checked={billable} onCheckedChange={setBillable} />
           </div>
 
           <div className="space-y-1.5">

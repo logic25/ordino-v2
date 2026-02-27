@@ -26,6 +26,7 @@ export interface BillingRequestWithRelations extends BillingRequest {
   projects?: { id: string; name: string | null; project_number: string | null } | null;
   clients?: { id: string; name: string } | null;
   created_by_profile?: { id: string; first_name: string | null; last_name: string | null } | null;
+  invoices?: { id: string; sent_at: string | null; paid_at: string | null } | null;
 }
 
 export interface BillingRequestInput {
@@ -47,7 +48,8 @@ export function useBillingRequests(status?: string) {
         .select(`
           *,
           projects (id, name, project_number),
-          created_by_profile:profiles!billing_requests_created_by_fkey (id, first_name, last_name)
+          created_by_profile:profiles!billing_requests_created_by_fkey (id, first_name, last_name),
+          invoices (id, sent_at, paid_at)
         `)
         .order("created_at", { ascending: false });
 
