@@ -76,11 +76,15 @@ export default function Clients() {
   const metrics = useClientMetrics(clients);
 
   const filteredClients = clients.filter((c) => {
+    if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
       c.name?.toLowerCase().includes(query) ||
       c.email?.toLowerCase().includes(query) ||
-      c.phone?.toLowerCase().includes(query)
+      c.phone?.toLowerCase().includes(query) ||
+      c.address?.toLowerCase().includes(query) ||
+      (c as any).client_type?.toLowerCase().includes(query) ||
+      (c as any).tax_id?.toLowerCase().includes(query)
     );
   });
 
