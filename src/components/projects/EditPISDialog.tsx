@@ -358,14 +358,32 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
     setValues((prev) => ({ ...prev, [key]: value }));
   };
 
-  // Check if a contact name exists in the CRM
+  // Fetch client contacts for CRM check
+  const { data: allContacts = [] } = useQuery({
+    queryKey: ["pis-crm-contacts"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("client_contacts")
+        .select("id, name, first_name, last_name, company_name");
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Check if a contact name exists in the CRM (clients OR client_contacts)
   const isContactInCRM = (nameFieldId: string): boolean => {
     const name = values[nameFieldId]?.trim();
     if (!name) return true;
     if (addedToCRM.has(nameFieldId)) return true;
-    return clients.some((c) =>
-      c.name.toLowerCase().includes(name.toLowerCase())
-    );
+    const lowerName = name.toLowerCase();
+    // Check company names (clients table)
+    if (clients.some((c) => c.name.toLowerCase().includes(lowerName))) return true;
+    // Check individual contact names (client_contacts table)
+    if (allContacts.some((c) =>
+      c.name?.toLowerCase().includes(lowerName) ||
+      `${c.first_name || ""} ${c.last_name || ""}`.trim().toLowerCase().includes(lowerName)
+    )) return true;
+    return false;
   };
 
   // Count filled fields

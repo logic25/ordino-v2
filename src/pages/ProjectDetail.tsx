@@ -2457,8 +2457,10 @@ function TimeLogsFull({ timeEntries, services, projectId, companyId }: { timeEnt
     }
     setLogging(true);
     try {
-      const { data: profile } = await supabase.from("profiles").select("id, company_id").single();
-      if (!profile) throw new Error("Not authenticated");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+      const { data: profile } = await supabase.from("profiles").select("id, company_id").eq("user_id", user.id).single();
+      if (!profile) throw new Error("Profile not found");
 
       // Find an application for this project to link to
       const { data: apps } = await supabase.from("dob_applications").select("id").eq("project_id", projectId).limit(1);

@@ -239,11 +239,11 @@ export function useActionItemComments(actionItemId: string | undefined) {
     enabled: !!actionItemId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("action_item_comments" as any)
+        .from("action_item_comments")
         .select(`*, profile:profiles!action_item_comments_user_id_fkey(id, display_name, first_name, last_name)`)
         .eq("action_item_id", actionItemId!)
         .order("created_at", { ascending: true });
-      if (error) throw error;
+      if (error) { console.error("Failed to fetch comments:", error); throw error; }
       return (data || []) as unknown as ActionItemComment[];
     },
   });
@@ -280,7 +280,7 @@ export function useAddActionItemComment() {
     }) => {
       if (!profile?.company_id || !profile?.id) throw new Error("Not authenticated");
       const { error } = await supabase
-        .from("action_item_comments" as any)
+        .from("action_item_comments")
         .insert({
           action_item_id: input.action_item_id,
           user_id: profile.id,
@@ -288,7 +288,7 @@ export function useAddActionItemComment() {
           content: input.content,
           attachments: input.attachments || [],
         });
-      if (error) throw error;
+      if (error) { console.error("Failed to insert comment:", error); throw error; }
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["action-item-comments", vars.action_item_id] });
