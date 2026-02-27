@@ -251,6 +251,35 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                 </div>
               </div>
 
+              {/* Architect / Engineer info */}
+              {((proposal as any).architect_company || (proposal as any).architect_name) && (
+                <div style={{ display: "flex", gap: 32, marginBottom: 28 }}>
+                  <div style={{ flex: 1, background: lightBg, padding: "16px 20px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
+                    <div style={{ fontSize: "8pt", textTransform: "uppercase", letterSpacing: 1.5, color: slate, marginBottom: 8, fontWeight: 700 }}>
+                      Architect / Engineer
+                    </div>
+                    {(proposal as any).architect_company && <div style={{ fontWeight: 700, fontSize: "11pt" }}>{(proposal as any).architect_company}</div>}
+                    {(proposal as any).architect_name && <div style={{ fontSize: "10pt" }}>{(proposal as any).architect_name}</div>}
+                    {(proposal as any).architect_license_type && (
+                      <div style={{ fontSize: "9pt", color: slate }}>License: {(proposal as any).architect_license_type}{(proposal as any).architect_license_number ? ` #${(proposal as any).architect_license_number}` : ""}</div>
+                    )}
+                    {(proposal as any).architect_email && <div style={{ fontSize: "9pt", color: slate }}>{(proposal as any).architect_email}</div>}
+                    {(proposal as any).architect_phone && <div style={{ fontSize: "9pt", color: slate }}>{(proposal as any).architect_phone}</div>}
+                  </div>
+                  {((proposal as any).gc_company || (proposal as any).gc_name) && (
+                    <div style={{ flex: 1, background: lightBg, padding: "16px 20px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
+                      <div style={{ fontSize: "8pt", textTransform: "uppercase", letterSpacing: 1.5, color: slate, marginBottom: 8, fontWeight: 700 }}>
+                        General Contractor
+                      </div>
+                      {(proposal as any).gc_company && <div style={{ fontWeight: 700, fontSize: "11pt" }}>{(proposal as any).gc_company}</div>}
+                      {(proposal as any).gc_name && <div style={{ fontSize: "10pt" }}>{(proposal as any).gc_name}</div>}
+                      {(proposal as any).gc_email && <div style={{ fontSize: "9pt", color: slate }}>{(proposal as any).gc_email}</div>}
+                      {(proposal as any).gc_phone && <div style={{ fontSize: "9pt", color: slate }}>{(proposal as any).gc_phone}</div>}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Greeting */}
               {billTo && (
                 <div style={{ fontSize: "10.5pt", marginBottom: 24, lineHeight: 1.65 }}>

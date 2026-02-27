@@ -1086,7 +1086,7 @@ export function ProposalDialog({
 
             {/* ═══ STEP 3: SERVICES ═══ */}
             {step === 2 && (
-              <div className="flex flex-col min-h-0 overflow-y-auto">
+              <div className="flex flex-col min-h-0 flex-1">
                 <div className="grid grid-cols-[auto_auto_1fr_80px_70px_90px_80px_auto] items-center gap-1 px-3 py-2 bg-muted/50 border-b text-xs font-medium text-muted-foreground uppercase tracking-wider shrink-0">
                   <div className="w-7" />
                   <div className="w-7" />
@@ -1097,7 +1097,7 @@ export function ProposalDialog({
                   <div className="text-right pr-1">Total</div>
                   <div className="w-7" />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-h-0 overflow-y-auto">
                   <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                     <SortableContext items={itemFields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
                       <div className="border rounded-b-lg mx-4 mb-3">
@@ -1121,7 +1121,7 @@ export function ProposalDialog({
 
             {/* ═══ STEP 3: DETAILS & TERMS ═══ */}
             {step === 3 && (
-              <div className="px-6 py-5 space-y-4">
+              <div className="px-6 py-5 space-y-6">
                 <SectionLabel>Classification</SectionLabel>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
@@ -1160,6 +1160,7 @@ export function ProposalDialog({
                   )}
                 </div>
 
+                <Separator className="my-2" />
                 <SectionLabel>Assignment</SectionLabel>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
@@ -1191,6 +1192,7 @@ export function ProposalDialog({
                   <Label className="text-sm cursor-pointer">Notable Project</Label>
                 </div>
 
+                <Separator className="my-2" />
                 <SectionLabel>Financial</SectionLabel>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
@@ -1210,6 +1212,7 @@ export function ProposalDialog({
                   </div>
                 </div>
 
+                <Separator className="my-2" />
                 <SectionLabel>Terms & Notes</SectionLabel>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Terms & Conditions</Label>
