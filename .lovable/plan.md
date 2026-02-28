@@ -1,54 +1,44 @@
 
 
-# Project Detail Page Improvements
+## Restore Financial Summary Cards to Project Detail Page
 
-## Issues to Fix
+### What happened
+The financial summary cards (Contract, Change Orders, Total Value, Billed, Internal Cost, Margin) were removed in a previous edit. You want them back, along with the contract total visible at the bottom of the services table.
 
-### 1. "Send to Billing" should open the full billing dialog with confirmation
-**Current behavior:** The "Send to Billing" button on the services table just instantly marks services as "billed" with a toast -- no confirmation, no partial billing options.
-**Fix:** Wire the button to open the existing `SendToBillingDialog` (which already supports % and $ amount partial billing). The dialog already has confirmation built in. After successful submission, refresh the services list so billed services reflect their new status.
+### What will be done
 
-### 2. Billed services should be hidden (or visually separated) from the active services list
-**Current behavior:** Billed services stay in the list with a "Billed" badge but still clutter the view.
-**Fix:** Filter out services with status "billed" from the main table, or collapse them into a "Billed Services" section at the bottom that's collapsed by default. This keeps the active service list clean.
+**1. Restore Financial Summary Cards** (above the tabbed content area)
+- Add back the 6-card grid showing: Contract, Change Orders, Total Value, Billed, Internal Cost, and Margin
+- These cards will use the existing calculated variables (`contractTotal`, `approvedCOs`, `adjustedTotal`, `billed`, `cost`, `margin`) which are still computed in the component
+- Placed between the Readiness Checklist and the main tabbed content card
 
-### 3. "Add Task" in service detail vs "Tasks" tab -- clarify these are the same
-**Current behavior:** Each expanded service has an "+ Add Task" button for service-level tasks (local state only). The "Tasks" tab at the top is the Action Items tab (database-backed). These are actually different things.
-**Fix:** Rename the service-level tasks section to "Service Notes / Checklist" or keep "Tasks" but add a label clarifying it's specific to that service. The "Tasks" tab in the main nav stays as the project-wide action items. No functional change needed -- they serve different purposes, but the labeling can be clearer.
+**2. Contract total at the bottom**
+- The services table footer already displays Contract, Billed, Remaining, and Cost at the bottom of the services tab -- this is already working. No changes needed here.
 
-### 4. "Email about this" button -- what it does
-**Current behavior:** The "Email about this" button next to the service-level "Add Task" button currently does nothing (no onClick handler).
-**Fix:** Wire it to open the Compose Email dialog pre-filled with the service name in the subject line and the project context, making it easy to email a team member or client about a specific service.
+### Technical details
 
-### 5. Horizontal scrolling on the page -- must be eliminated
-**Current behavior:** The services table has 12 columns (checkbox, expand, drag, Service, Status, Assigned, Disciplines, Est. Bill Date, Price, Cost, Margin, Action) causing horizontal overflow.
-**Fix:** Wrap the services table in `overflow-x-auto` on the table container and ensure the outer page container has `overflow-x-hidden`. Also add `min-w-0` to flex containers to prevent content from pushing the page wider.
+**File**: `src/pages/ProjectDetail.tsx`
 
----
+Insert the following grid at ~line 384 (before the tabs `<Card>`):
 
-## Technical Details
+```tsx
+<div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+  {[
+    { label: "Contract", value: servicesLoading ? "..." : formatCurrency(contractTotal) },
+    { label: "Change Orders", value: approvedCOs > 0 ? `+${formatCurrency(approvedCOs)}` : "--" },
+    { label: "Total Value", value: servicesLoading ? "..." : formatCurrency(adjustedTotal) },
+    { label: "Billed", value: servicesLoading ? "..." : formatCurrency(billed), color: "text-emerald-600 dark:text-emerald-400" },
+    { label: "Internal Cost", value: formatCurrency(cost) },
+    { label: "Margin", value: servicesLoading ? "..." : `${margin}%`, color: margin > 50 ? "text-emerald-600" : margin < 20 ? "text-red-600" : "" },
+  ].map((stat) => (
+    <Card key={stat.label}>
+      <CardContent className="p-4">
+        <div className="text-xs text-muted-foreground">{stat.label}</div>
+        <div className={`text-xl font-bold mt-1 ${stat.color || ""}`}>{stat.value}</div>
+      </CardContent>
+    </Card>
+  ))}
+</div>
+```
 
-### File: `src/pages/ProjectDetail.tsx`
-
-**Send to Billing with dialog:**
-- Import `SendToBillingDialog` from the invoices folder.
-- Add state `sendToBillingOpen` to the `ServicesFull` component.
-- Change `handleSendToBilling` to open the dialog instead of instantly marking as billed.
-- Pass `preselectedProjectId` to the dialog so it auto-fills.
-
-**Hide billed services:**
-- In the `ServicesFull` component, split `orderedServices` into active (non-billed) and billed groups.
-- Show only active services in the main table.
-- Add a collapsible "Billed Services" section below showing completed ones.
-
-**Horizontal scroll fix:**
-- Add `overflow-x-auto` wrapper around the services `<Table>`.
-- Add `overflow-x-hidden` to the outermost project detail container.
-- Add `min-w-0` to key flex containers.
-
-**"Email about this" button:**
-- Wire the onClick to open the ComposeEmailDialog with the service name as subject context.
-
-**Task label clarification:**
-- Rename the service-level "Tasks" heading to "To-Dos" to distinguish from the main "Tasks" (Action Items) tab.
-
+This is a single-file change restoring the exact cards that were previously removed.
