@@ -256,7 +256,7 @@ export function useProjectPISStatus(projectId: string | undefined) {
         if (EXCLUDED_PIS_SECTION_IDS.has(section.id)) continue;
         const fields = (section.fields as any[]) || [];
         for (const field of fields) {
-          if (field.type === "heading") continue;
+          if (field.type === "heading" || field.type === "file_upload" || field.type === "work_type_picker") continue;
           const fieldId = field.id as string;
           if (OPTIONAL_PIS_FIELD_IDS.has(fieldId)) continue;
           allFields.push({ id: fieldId, label: field.label || fieldId, sectionId: section.id });
