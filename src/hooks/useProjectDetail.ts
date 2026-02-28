@@ -9,7 +9,7 @@ import { OPTIONAL_PIS_FIELD_IDS, EXCLUDED_PIS_SECTION_IDS } from "@/components/p
 
 export function useProjectServices(projectId: string | undefined) {
   return useQuery({
-    queryKey: ["project-services", projectId],
+    queryKey: ["project-services-full", projectId],
     queryFn: async () => {
       if (!projectId) return [];
 
