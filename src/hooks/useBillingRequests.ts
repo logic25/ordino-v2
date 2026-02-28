@@ -144,6 +144,39 @@ export function useCreateBillingRequest() {
         performed_by: profile.id,
       } as any);
 
+      // Create in-app notifications for admin/accounting users
+      try {
+        const { data: adminUsers } = await supabase
+          .from("user_roles")
+          .select("user_id")
+          .eq("company_id", profile.company_id)
+          .in("role", ["admin", "accounting"]);
+
+        const { data: proj } = await supabase
+          .from("projects")
+          .select("name, project_number")
+          .eq("id", input.project_id)
+          .single();
+
+        const notifRows = (adminUsers || [])
+          .filter((u) => u.user_id !== user.id) // don't notify self
+          .map((u) => ({
+            company_id: profile.company_id,
+            user_id: u.user_id,
+            type: "billing_submitted",
+            title: "New Billing Submitted",
+            body: `${proj?.project_number || ""} ${proj?.name || "Project"} — $${input.total_amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
+            link: "/invoices",
+            project_id: input.project_id,
+          }));
+
+        if (notifRows.length > 0) {
+          await supabase.from("notifications").insert(notifRows);
+        }
+      } catch (err) {
+        console.error("Failed to create billing notifications:", err);
+      }
+
       return { billingRequest: billingReq, invoice };
     },
     onSuccess: (result) => {
@@ -151,6 +184,8 @@ export function useCreateBillingRequest() {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["invoice-counts"] });
       queryClient.invalidateQueries({ queryKey: ["previously-billed"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-pending-count"] });
 
       // Trigger billing notifications asynchronously (don't block on this)
       if (result?.billingRequest) {

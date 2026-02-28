@@ -69,7 +69,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { canAccess, loading: permLoading } = usePermissions();
   const { user, profile, signOut } = useAuth();
   const isAdmin = useIsAdmin();
-  const { chatHasUnread, emailHasUnread, emailUnreadCount } = useUnreadIndicators();
+  const { chatHasUnread, emailHasUnread, emailUnreadCount, billingPendingCount } = useUnreadIndicators();
 
   const unreadDotMap: Record<string, boolean> = {
     "/chat": chatHasUnread,
@@ -77,6 +77,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   const unreadCountMap: Record<string, number> = {
     "/emails": emailUnreadCount,
+    "/invoices": billingPendingCount,
   };
 
   const filteredMainNav = useMemo(() =>
