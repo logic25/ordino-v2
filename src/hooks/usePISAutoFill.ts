@@ -50,10 +50,11 @@ export function usePISContactOptions() {
       const mapping = SECTION_FIELD_MAP[sectionId];
       if (!mapping) return [];
       const q = query.toLowerCase().trim();
+      const hasQuery = q.length > 0;
 
       const clientOpts: ContactOption[] = clients
-        .filter(c => !q || c.name.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q))
-        .slice(0, 6)
+        .filter(c => !hasQuery || c.name.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q))
+        .slice(0, hasQuery ? 10 : 20)
         .map(c => ({
           id: `client-${c.id}`,
           label: c.name,
@@ -68,8 +69,8 @@ export function usePISContactOptions() {
         }));
 
       const contactOpts: ContactOption[] = contacts
-        .filter(c => !q || c.name.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q) || c.company_name?.toLowerCase().includes(q))
-        .slice(0, 6)
+        .filter(c => !hasQuery || c.name.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q) || c.company_name?.toLowerCase().includes(q))
+        .slice(0, hasQuery ? 10 : 20)
         .map(c => {
           const fullAddress = [c.address_1, c.city, c.state, c.zip].filter(Boolean).join(", ");
           return {

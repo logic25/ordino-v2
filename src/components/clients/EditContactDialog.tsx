@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatPhoneNumber } from "@/lib/formatters";
 import {
   Dialog,
   DialogContent,
@@ -52,6 +53,8 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
     state: "",
     zip: "",
     is_primary: false,
+    license_type: "",
+    license_number: "",
   };
 
   const [form, setForm] = useState(emptyForm);
@@ -74,6 +77,8 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
         state: contact.state || "",
         zip: contact.zip || "",
         is_primary: contact.is_primary,
+        license_type: (contact as any).license_type || "",
+        license_number: (contact as any).license_number || "",
       });
     }
   }, [contact]);
@@ -105,7 +110,9 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
           state: form.state || null,
           zip: form.zip || null,
           is_primary: form.is_primary,
-        })
+          license_type: form.license_type || null,
+          license_number: form.license_number || null,
+        } as any)
         .eq("id", contact.id);
       if (error) throw error;
     },
@@ -188,11 +195,23 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
             </div>
             <div className="space-y-1.5">
               <Label>Telephone</Label>
-              <Input value={form.phone} onChange={(e) => update("phone", e.target.value)} />
+              <Input
+                value={formatPhoneNumber(form.phone)}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                  update("phone", digits);
+                }}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Mobile</Label>
-              <Input value={form.mobile} onChange={(e) => update("mobile", e.target.value)} />
+              <Input
+                value={formatPhoneNumber(form.mobile)}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                  update("mobile", digits);
+                }}
+              />
             </div>
           </div>
 
@@ -206,6 +225,28 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
                 <Linkedin className="h-3.5 w-3.5" /> LinkedIn URL
               </Label>
               <Input value={form.linkedin_url} onChange={(e) => update("linkedin_url", e.target.value)} />
+            </div>
+          </div>
+
+          {/* License Info */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>License Type</Label>
+              <Select value={form.license_type || ""} onValueChange={(v) => update("license_type", v === "none" ? "" : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="RA">RA</SelectItem>
+                  <SelectItem value="PE">PE</SelectItem>
+                  <SelectItem value="Contractor">Contractor</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>License #</Label>
+              <Input value={form.license_number} onChange={(e) => update("license_number", e.target.value)} />
             </div>
           </div>
 

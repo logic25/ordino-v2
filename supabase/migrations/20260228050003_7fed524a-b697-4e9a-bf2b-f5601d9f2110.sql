@@ -1,0 +1,1 @@
+ALTER TABLE public.client_contacts ADD COLUMN IF NOT EXISTS license_type text, ADD COLUMN IF NOT EXISTS license_number text;

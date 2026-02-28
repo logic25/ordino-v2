@@ -1707,6 +1707,8 @@ export type Database = {
           is_primary: boolean
           last_name: string | null
           lead_owner_id: string | null
+          license_number: string | null
+          license_type: string | null
           linkedin_url: string | null
           mobile: string | null
           name: string
@@ -1733,6 +1735,8 @@ export type Database = {
           is_primary?: boolean
           last_name?: string | null
           lead_owner_id?: string | null
+          license_number?: string | null
+          license_type?: string | null
           linkedin_url?: string | null
           mobile?: string | null
           name: string
@@ -1759,6 +1763,8 @@ export type Database = {
           is_primary?: boolean
           last_name?: string | null
           lead_owner_id?: string | null
+          license_number?: string | null
+          license_type?: string | null
           linkedin_url?: string | null
           mobile?: string | null
           name?: string
