@@ -2391,6 +2391,7 @@ function DocumentsFull({ documents, projectId, companyId, proposal }: { document
             <TableRow>
               <TableHead>Document</TableHead>
               <TableHead>Category</TableHead>
+              <TableHead>Type</TableHead>
               <TableHead>Size</TableHead>
               <TableHead>Uploaded By</TableHead>
               <TableHead>Date</TableHead>
@@ -2408,6 +2409,9 @@ function DocumentsFull({ documents, projectId, companyId, proposal }: { document
                 </TableCell>
                 <TableCell>
                   <Badge variant="outline" className="text-xs">{docCategoryLabels[doc.category] || doc.category}</Badge>
+                </TableCell>
+                <TableCell className="text-muted-foreground text-xs font-mono uppercase">
+                  {(doc.filename || doc.name).split(".").pop() || "—"}
                 </TableCell>
                 <TableCell className="text-muted-foreground text-sm tabular-nums">{doc.size}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">{doc.uploadedBy}</TableCell>
@@ -2456,6 +2460,15 @@ function DocumentsFull({ documents, projectId, companyId, proposal }: { document
             <div className="px-4 pb-4" style={{ height: "75vh" }}>
               {previewDoc.isImage ? (
                 <img src={previewDoc.url} alt={previewDoc.name} className="max-w-full max-h-full mx-auto rounded-md border object-contain" />
+              ) : previewDoc.isPdf ? (
+                <object data={previewDoc.url} type="application/pdf" className="w-full h-full rounded-md border">
+                  <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
+                    <p>PDF preview not supported in this browser context.</p>
+                    <Button variant="outline" size="sm" onClick={() => window.open(previewDoc.url, "_blank")}>
+                      <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Open in New Tab
+                    </Button>
+                  </div>
+                </object>
               ) : (
                 <iframe
                   src={previewDoc.url}
@@ -2485,6 +2498,12 @@ function TimeLogsFull({ timeEntries, services, projectId, companyId, onCreateCO 
   const [logDesc, setLogDesc] = useState("");
   const [logService, setLogService] = useState("");
   const [logging, setLogging] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<MockTimeEntry | null>(null);
+  const [editHours, setEditHours] = useState("");
+  const [editMinutes, setEditMinutes] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [editReason, setEditReason] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
 
   // Aggregate hours by service
   const hoursByService: Record<string, number> = {};
@@ -2666,6 +2685,102 @@ function TimeLogsFull({ timeEntries, services, projectId, companyId, onCreateCO 
         </div>
       )}
 
+      {/* Edit Time Entry Dialog */}
+      <Dialog open={!!editingEntry} onOpenChange={(open) => { if (!open) setEditingEntry(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Time Entry</DialogTitle>
+            <DialogDescription>Changes are logged for audit purposes.</DialogDescription>
+          </DialogHeader>
+          {editingEntry && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Hours</Label>
+                  <Input type="number" min="0" value={editHours} onChange={e => setEditHours(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Minutes</Label>
+                  <Input type="number" min="0" max="59" value={editMinutes} onChange={e => setEditMinutes(e.target.value)} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Description</Label>
+                <Input value={editDesc} onChange={e => setEditDesc(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Reason for change <span className="text-destructive">*</span></Label>
+                <Input placeholder="e.g. Incorrect hours logged" value={editReason} onChange={e => setEditReason(e.target.value)} />
+              </div>
+              <div className="flex gap-2 justify-end pt-2">
+                <Button variant="outline" size="sm" onClick={() => setEditingEntry(null)}>Cancel</Button>
+                <Button size="sm" disabled={editSaving || !editReason.trim()} onClick={async () => {
+                  setEditSaving(true);
+                  try {
+                    const newHours = parseInt(editHours || "0");
+                    const newMinutes = parseInt(editMinutes || "0");
+                    const newTotalMinutes = newHours * 60 + newMinutes;
+                    const oldTotalMinutes = Math.round(editingEntry.hours * 60);
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (!user) throw new Error("Not authenticated");
+                    const { data: profile } = await supabase.from("profiles").select("id, company_id").eq("user_id", user.id).single();
+                    if (!profile) throw new Error("Profile not found");
+
+                    // Log audit entries for changed fields
+                    const auditEntries: any[] = [];
+                    if (newTotalMinutes !== oldTotalMinutes) {
+                      auditEntries.push({
+                        activity_id: editingEntry.id,
+                        company_id: companyId,
+                        edited_by: profile.id,
+                        field_changed: "duration_minutes",
+                        old_value: String(oldTotalMinutes),
+                        new_value: String(newTotalMinutes),
+                        reason: editReason,
+                      });
+                    }
+                    if (editDesc !== editingEntry.description) {
+                      auditEntries.push({
+                        activity_id: editingEntry.id,
+                        company_id: companyId,
+                        edited_by: profile.id,
+                        field_changed: "description",
+                        old_value: editingEntry.description || null,
+                        new_value: editDesc || null,
+                        reason: editReason,
+                      });
+                    }
+                    if (auditEntries.length > 0) {
+                      await supabase.from("activity_edit_logs" as any).insert(auditEntries);
+                    }
+
+                    // Update the activity
+                    const updates: any = {};
+                    if (newTotalMinutes !== oldTotalMinutes) updates.duration_minutes = newTotalMinutes;
+                    if (editDesc !== editingEntry.description) updates.description = editDesc || null;
+                    if (Object.keys(updates).length > 0) {
+                      const { error } = await supabase.from("activities").update(updates).eq("id", editingEntry.id);
+                      if (error) throw error;
+                    }
+
+                    queryClient.invalidateQueries({ queryKey: ["project-time-entries"] });
+                    toast({ title: "Time entry updated", description: "Change has been logged for audit." });
+                    setEditingEntry(null);
+                  } catch (err: any) {
+                    toast({ title: "Error", description: err.message, variant: "destructive" });
+                  } finally {
+                    setEditSaving(false);
+                  }
+                }}>
+                  {editSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+                  Save Changes
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Time entries table */}
       {timeEntries.length === 0 && !showLogForm ? (
         <p className="text-sm text-muted-foreground italic">No time logged.</p>
@@ -2674,23 +2789,41 @@ function TimeLogsFull({ timeEntries, services, projectId, companyId, onCreateCO 
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead>Date</TableHead>
-              <TableHead>Team Member</TableHead>
-              <TableHead>Service</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead className="text-right">Hours</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {timeEntries.map((te) => (
-              <TableRow key={te.id}>
-                <TableCell className="font-mono">{te.date}</TableCell>
-                <TableCell>{te.user}</TableCell>
-                <TableCell className="text-muted-foreground">{te.service}</TableCell>
-                <TableCell className="text-muted-foreground">{te.description}</TableCell>
-                <TableCell className="text-right tabular-nums font-medium">{te.hours.toFixed(2)}</TableCell>
+                <TableHead>Team Member</TableHead>
+                <TableHead>Service</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="text-right">Hours</TableHead>
+                <TableHead className="w-[60px]" />
               </TableRow>
-            ))}
-          </TableBody>
+            </TableHeader>
+            <TableBody>
+              {timeEntries.map((te) => (
+                <TableRow key={te.id}>
+                  <TableCell className="font-mono">{te.date}</TableCell>
+                  <TableCell>{te.user}</TableCell>
+                  <TableCell className="text-muted-foreground">{te.service}</TableCell>
+                  <TableCell className="text-muted-foreground">{te.description}</TableCell>
+                  <TableCell className="text-right tabular-nums font-medium">{te.hours.toFixed(2)}</TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      title="Edit time entry"
+                      onClick={() => {
+                        setEditingEntry(te);
+                        setEditHours(String(Math.floor(te.hours)));
+                        setEditMinutes(String(Math.round((te.hours % 1) * 60)));
+                        setEditDesc(te.description);
+                        setEditReason("");
+                      }}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
         </Table>
       ) : null}
     </div>
