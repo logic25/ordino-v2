@@ -390,6 +390,7 @@ export function ChangeOrderDetailSheet({
       ...co,
       internal_signature_data: pendingSignatureData,
       internal_signed_at: co.internal_signed_at || new Date().toISOString(),
+      internal_signer_name: co.internal_signer_name || signerName || null,
     } : co;
     const blob = await pdf(
       <ChangeOrderPDF

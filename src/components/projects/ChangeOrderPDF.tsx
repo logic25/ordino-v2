@@ -232,7 +232,7 @@ export function ChangeOrderPDF({
                 ) : (
                   <View style={s.sigLine} />
                 )}
-                <Text style={s.sigMeta}>By: {signerName || "Authorized Representative"}</Text>
+                <Text style={s.sigMeta}>By: {signerName || co.internal_signer_name || "—"}</Text>
                 {co.internal_signed_at ? <Text style={s.sigMeta}>Date: {fmtDate(co.internal_signed_at)}</Text> : null}
               </View>
 
