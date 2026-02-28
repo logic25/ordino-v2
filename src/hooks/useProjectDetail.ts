@@ -255,29 +255,37 @@ export function useProjectPISStatus(projectId: string | undefined) {
       };
 
       // Determine which GC/TPP/SIA detail fields should be excluded
-      // based on the _known gating answers
+      // based on the _same_as checkbox or whether details are filled
       const conditionallyExcludedIds = new Set<string>();
 
-      // GC fields excluded when gc_known is not "Yes"
-      const gcKnown = getResponseVal("contractors_inspections", "gc_known");
-      if (gcKnown !== "Yes") {
-        ["gc_name", "gc_company", "gc_phone", "gc_email", "gc_address", "gc_dob_tracking", "gc_hic_lic"].forEach(id => conditionallyExcludedIds.add(id));
+      // GC: check if "same as applicant" is checked or if details are filled
+      const gcSameAs = getResponseVal("contractors_inspections", "gc_same_as");
+      const gcHasDetails = !!(getResponseVal("contractors_inspections", "gc_name"));
+      const gcFieldIds = ["gc_name", "gc_company", "gc_phone", "gc_email", "gc_address", "gc_dob_tracking", "gc_hic_lic"];
+
+      // TPP: check if "same as applicant" is checked or if details are filled
+      const tppSameAs = getResponseVal("contractors_inspections", "tpp_same_as");
+      const tppHasDetails = !!(getResponseVal("contractors_inspections", "tpp_name"));
+      const tppFieldIds = ["tpp_name", "tpp_email"];
+
+      // SIA: check if "same as applicant" is checked or if details are filled
+      const siaSameAs = getResponseVal("contractors_inspections", "sia_same_as");
+      const siaHasDetails = !!(getResponseVal("contractors_inspections", "sia_name"));
+      const siaFieldIds = ["sia_name", "sia_company", "sia_phone", "sia_email", "sia_number", "sia_nys_lic"];
+
+      // If same_as is checked OR details are not filled, exclude detail fields from individual counting
+      if (gcSameAs || !gcHasDetails) {
+        gcFieldIds.forEach(id => conditionallyExcludedIds.add(id));
+      }
+      if (tppSameAs || !tppHasDetails) {
+        tppFieldIds.forEach(id => conditionallyExcludedIds.add(id));
+      }
+      if (siaSameAs || !siaHasDetails) {
+        siaFieldIds.forEach(id => conditionallyExcludedIds.add(id));
       }
 
-      // TPP fields excluded when tpp_known is not "Yes"
-      const tppKnown = getResponseVal("contractors_inspections", "tpp_known");
-      if (!tppKnown || tppKnown === "No" || tppKnown.includes("Same as Applicant")) {
-        ["tpp_name", "tpp_email"].forEach(id => conditionallyExcludedIds.add(id));
-      }
-
-      // SIA fields excluded when sia_known is not "Yes"
-      const siaKnown = getResponseVal("contractors_inspections", "sia_known");
-      if (siaKnown !== "Yes") {
-        ["sia_name", "sia_company", "sia_phone", "sia_email", "sia_number", "sia_nys_lic"].forEach(id => conditionallyExcludedIds.add(id));
-      }
-
-      // The _known gating questions themselves are not data fields
-      const gatingFieldIds = new Set(["gc_known", "tpp_known", "sia_known"]);
+      // The _same_as checkboxes themselves are UI toggles, not data fields
+      const gatingFieldIds = new Set(["gc_same_as", "tpp_same_as", "sia_same_as", "gc_known", "tpp_known", "sia_known"]);
 
       // Collect all individual fields from section definitions
       // Exclude optional fields, gating questions, conditional fields, and excluded sections
@@ -319,16 +327,14 @@ export function useProjectPISStatus(projectId: string | undefined) {
         .map(f => f.label);
 
       // Append grouped TBD labels for unknown contractors
-      if (gcKnown !== "Yes") {
+      // "Same as Applicant" checked = resolved, not missing
+      if (!gcSameAs && !gcHasDetails) {
         missingFields.push("General Contractor (TBD)");
       }
-      const tppIsSameAsApplicant = tppKnown && (tppKnown.includes("Same as Applicant") || tppKnown.includes("Same as applicant"));
-      if (!tppIsSameAsApplicant) {
-        if (!tppKnown || tppKnown === "No") {
-          missingFields.push("TPP Applicant (TBD)");
-        }
+      if (!tppSameAs && !tppHasDetails) {
+        missingFields.push("TPP Applicant (TBD)");
       }
-      if (siaKnown !== "Yes") {
+      if (!siaSameAs && !siaHasDetails) {
         missingFields.push("Special Inspector (TBD)");
       }
 
