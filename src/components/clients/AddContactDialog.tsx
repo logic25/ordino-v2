@@ -45,6 +45,9 @@ export function AddContactDialog({ open, onOpenChange, clientId, defaultName, on
     mobile: "",
     fax: "",
     linkedin_url: "",
+    license_type: "",
+    license_number: "",
+    specialty: "",
     lead_owner_id: "",
     address_1: "",
     address_2: "",
@@ -67,7 +70,7 @@ export function AddContactDialog({ open, onOpenChange, clientId, defaultName, on
     if (!open) {
       setForm({
         first_name: "", last_name: "", title: "", email: "", phone: "",
-        mobile: "", fax: "", linkedin_url: "",
+        mobile: "", fax: "", linkedin_url: "", license_type: "", license_number: "", specialty: "",
         lead_owner_id: "", address_1: "", address_2: "", city: "",
         state: "", zip: "", is_primary: false,
       });
@@ -101,6 +104,9 @@ export function AddContactDialog({ open, onOpenChange, clientId, defaultName, on
         mobile: form.mobile || null,
         fax: form.fax || null,
         linkedin_url: form.linkedin_url || null,
+        license_type: form.license_type || null,
+        license_number: form.license_number || null,
+        specialty: form.specialty || null,
         lead_owner_id: form.lead_owner_id || null,
         address_1: form.address_1 || null,
         address_2: form.address_2 || null,
@@ -119,7 +125,7 @@ export function AddContactDialog({ open, onOpenChange, clientId, defaultName, on
       }
       setForm({
         first_name: "", last_name: "", title: "", email: "", phone: "",
-        mobile: "", fax: "", linkedin_url: "",
+        mobile: "", fax: "", linkedin_url: "", license_type: "", license_number: "", specialty: "",
         lead_owner_id: "", address_1: "", address_2: "", city: "",
         state: "", zip: "", is_primary: false,
       });
@@ -216,6 +222,52 @@ export function AddContactDialog({ open, onOpenChange, clientId, defaultName, on
               </Label>
               <Input value={form.linkedin_url} onChange={(e) => update("linkedin_url", e.target.value)} />
             </div>
+          </div>
+
+          {/* License Info */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>License Type</Label>
+              <Select value={form.license_type || ""} onValueChange={(v) => update("license_type", v === "none" ? "" : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="RA">RA</SelectItem>
+                  <SelectItem value="PE">PE</SelectItem>
+                  <SelectItem value="Contractor">Contractor</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {form.license_type === "Contractor" ? (
+              <div className="space-y-1.5">
+                <Label>Specialty</Label>
+                <Select value={form.specialty || ""} onValueChange={(v) => update("specialty", v === "none" ? "" : v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="General Contractor">General Contractor</SelectItem>
+                    <SelectItem value="Plumber">Plumber</SelectItem>
+                    <SelectItem value="Electrician">Electrician</SelectItem>
+                    <SelectItem value="HVAC">HVAC</SelectItem>
+                    <SelectItem value="Fire Suppression">Fire Suppression</SelectItem>
+                    <SelectItem value="Roofer">Roofer</SelectItem>
+                    <SelectItem value="Mason">Mason</SelectItem>
+                    <SelectItem value="Carpenter">Carpenter</SelectItem>
+                    <SelectItem value="Painter">Painter</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (form.license_type === "RA" || form.license_type === "PE") ? (
+              <div className="space-y-1.5">
+                <Label>License #</Label>
+                <Input value={form.license_number} onChange={(e) => update("license_number", e.target.value)} />
+              </div>
+            ) : <div />}
           </div>
 
           {/* Settings */}
