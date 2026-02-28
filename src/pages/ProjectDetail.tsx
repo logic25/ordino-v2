@@ -146,7 +146,7 @@ export default function ProjectDetail() {
   // DB-backed checklist items (must be before early returns)
   const { data: dbChecklistItems = [] } = useProjectChecklist(id);
 
-  const [liveServices, setLiveServices] = useState<MockService[]>([]);
+  const [liveServices, setLiveServices] = useState<MockService[]>(realServices);
 
   // Fetch primary contact from client's contacts
   const { data: primaryContact } = useQuery({
@@ -176,11 +176,9 @@ export default function ProjectDetail() {
     }
   };
 
-  // Sync live services from real DB data via useEffect (not render-time setState)
+  // Sync live services from real DB data — always update when realServices changes
   useEffect(() => {
-    if (realServices.length > 0) {
-      setLiveServices(realServices);
-    }
+    setLiveServices(realServices);
   }, [realServices]);
 
   // Real change orders
@@ -272,8 +270,8 @@ export default function ProjectDetail() {
   const timeEntries: MockTimeEntry[] = realTimeEntries;
   const pisStatus: MockPISStatus = realPISStatus || { sentDate: null, totalFields: 0, completedFields: 0, missingFields: [] };
 
-  // Use realServices for summary calculations (liveServices may lag behind due to state sync)
-  const servicesForCalc = realServices.length > 0 ? realServices : liveServices;
+  // Always prefer realServices for financial calculations — liveServices is only for local reorder state
+  const servicesForCalc = realServices;
   const approvedCOs = changeOrders.filter(co => co.status === "approved").reduce((s, co) => s + (Number(co.amount) || 0), 0);
   const contractTotal = servicesForCalc.reduce((s, svc) => s + (Number(svc.totalAmount) || 0), 0);
   const adjustedTotal = contractTotal + approvedCOs;
@@ -434,7 +432,7 @@ export default function ProjectDetail() {
             <div className="overflow-x-auto border-b bg-muted/20 rounded-t-lg">
             <TabsList className="w-max justify-start rounded-none bg-transparent h-11 px-4 gap-1">
               <TabsTrigger value="services" className="gap-1.5 data-[state=active]:bg-background">
-                <FileText className="h-3.5 w-3.5" /> Services ({liveServices.length})
+                <FileText className="h-3.5 w-3.5" /> Services ({realServices.length})
               </TabsTrigger>
               <TabsTrigger value="emails" className="gap-1.5 data-[state=active]:bg-background">
                 <Mail className="h-3.5 w-3.5" /> Emails
@@ -465,7 +463,7 @@ export default function ProjectDetail() {
 
             <CardContent className="p-0">
               <TabsContent value="services" className="mt-0">
-                <ServicesFull services={liveServices} project={project} contacts={contacts} allServices={liveServices} timeEntries={timeEntries} onServicesChange={setLiveServices} onAddCOs={async (cos) => {
+                <ServicesFull services={realServices} project={project} contacts={contacts} allServices={realServices} timeEntries={timeEntries} onServicesChange={setLiveServices} onAddCOs={async (cos) => {
                   for (const co of cos) {
                     try {
                       await createCO.mutateAsync(co);
@@ -486,14 +484,14 @@ export default function ProjectDetail() {
                 <DocumentsFull documents={documents} projectId={project.id} companyId={project.company_id} proposal={project.proposals} />
               </TabsContent>
               <TabsContent value="time-logs" className="mt-0">
-                <TimeLogsFull timeEntries={timeEntries} services={liveServices} projectId={project.id} companyId={project.company_id} onCreateCO={() => setCoDialogOpen(true)} />
+                <TimeLogsFull timeEntries={timeEntries} services={realServices} projectId={project.id} companyId={project.company_id} onCreateCO={() => setCoDialogOpen(true)} />
               </TabsContent>
               <TabsContent value="change-orders" className="mt-0">
                 <ChangeOrdersFull
                   changeOrders={changeOrders}
                   projectId={project.id}
                   companyId={project.company_id}
-                  serviceNames={liveServices.map(s => s.name)}
+                  serviceNames={realServices.map(s => s.name)}
                   onOpenCreate={() => setCoDialogOpen(true)}
                   onSelectCO={(co) => { setSelectedCOId(co.id); setCoSheetOpen(true); }}
                 />
@@ -502,7 +500,7 @@ export default function ProjectDetail() {
                 <ActionItemsTab projectId={project.id} />
               </TabsContent>
               <TabsContent value="job-costing" className="mt-0">
-                <JobCostingFull services={liveServices} timeEntries={timeEntries} />
+                <JobCostingFull services={realServices} timeEntries={timeEntries} />
               </TabsContent>
             </CardContent>
           </Tabs>
@@ -534,13 +532,13 @@ export default function ProjectDetail() {
         timeEntries={timeEntries}
         changeOrders={changeOrders}
         contacts={contacts}
-        services={liveServices}
+        services={realServices}
       />
 
       <ChangeOrderDialog
         open={coDialogOpen}
         onOpenChange={setCoDialogOpen}
-        serviceNames={liveServices.map(s => s.name)}
+        serviceNames={realServices.map(s => s.name)}
         onSubmit={async (data, asDraft) => {
           const newCO = await createCO.mutateAsync({
             ...data,
@@ -563,7 +561,7 @@ export default function ProjectDetail() {
         open={coSheetOpen}
         onOpenChange={(v) => { setCoSheetOpen(v); if (!v) setCoAutoSign(false); }}
         co={selectedCO}
-        serviceNames={liveServices.map(s => s.name)}
+        serviceNames={realServices.map(s => s.name)}
         autoSign={coAutoSign}
         onAutoSignComplete={() => setCoAutoSign(false)}
       />
