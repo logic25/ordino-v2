@@ -69,12 +69,16 @@ export function useCreateBillingRequest() {
 
   return useMutation({
     mutationFn: async (input: BillingRequestInput) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
       const { data: profile } = await supabase
         .from("profiles")
         .select("id, company_id")
-        .single();
+        .eq("user_id", user.id)
+        .maybeSingle();
 
-      if (!profile?.company_id) throw new Error("No company found for user");
+      if (!profile?.company_id) throw new Error("No company found for user. Please complete your profile setup first.");
 
       // Create billing request
       const { data: billingReq, error: brError } = await supabase

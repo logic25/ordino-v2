@@ -1764,6 +1764,7 @@ function ServicesFull({ services: initialServices, project, contacts, allService
           }
         }}
         preselectedProjectId={project.id}
+        preselectedServiceIds={selectedIds}
       />
     </div>
   );

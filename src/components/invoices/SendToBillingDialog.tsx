@@ -24,6 +24,7 @@ interface SendToBillingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   preselectedProjectId?: string;
+  preselectedServiceIds?: Set<string>;
 }
 
 interface ProjectService {
@@ -110,7 +111,7 @@ interface BillingHistoryEntry {
   billedToContactId: string | null;
 }
 
-export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId }: SendToBillingDialogProps) {
+export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId, preselectedServiceIds }: SendToBillingDialogProps) {
   const [projectId, setProjectId] = useState(preselectedProjectId || "");
   const [billedToContactId, setBilledToContactId] = useState("");
   const [selectedServices, setSelectedServices] = useState<SelectedService[]>([]);
@@ -151,6 +152,35 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId }
     setBilledToContactId("");
     setSelectedServices([]);
   }, [projectId]);
+
+  // Auto-select services: if preselectedServiceIds provided, select those; otherwise if only 1 service, auto-select it
+  useEffect(() => {
+    if (!open || !hasProjectServices || selectedServices.length > 0) return;
+
+    const toAutoSelect = preselectedServiceIds && preselectedServiceIds.size > 0
+      ? projectServices.filter(s => preselectedServiceIds.has(s.id))
+      : projectServices.length === 1
+        ? [projectServices[0]]
+        : [];
+
+    if (toAutoSelect.length > 0) {
+      setSelectedServices(toAutoSelect.map(svc => {
+        const contractAmount = svc.total_amount || svc.fixed_price || 0;
+        const prevBilled = previouslyBilled[svc.name] || 0;
+        const remaining = Math.max(0, contractAmount - prevBilled);
+        return {
+          serviceId: svc.id,
+          name: svc.name,
+          contractAmount,
+          previouslyBilled: prevBilled,
+          remaining,
+          billingMode: "amount" as const,
+          inputValue: remaining,
+          billedAmount: remaining,
+        };
+      }));
+    }
+  }, [open, projectServices, preselectedServiceIds, previouslyBilled]);
 
   const selectedContact = contacts?.find((c) => c.id === billedToContactId);
 
