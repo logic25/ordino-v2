@@ -61,21 +61,34 @@ function useYTDSalesByRep() {
   });
 }
 
-function useChangeOrderAnalytics() {
+function useChangeOrderAnalytics(selectedPmId: string) {
   const { session } = useAuth();
   return useQuery({
-    queryKey: ["co-analytics", session?.user?.id],
+    queryKey: ["co-analytics", session?.user?.id, selectedPmId],
     enabled: !!session?.user?.id,
     queryFn: async () => {
-      const [{ data: changeOrders }, { data: projects }, { data: clients }] = await Promise.all([
+      const [{ data: changeOrders }, { data: projects }, { data: clients }, { data: profiles }] = await Promise.all([
         supabase.from("change_orders").select("id, project_id, amount, status, created_at"),
-        supabase.from("projects").select("id, client_id, project_number, address"),
+        supabase.from("projects").select("id, client_id, project_number, assigned_pm_id"),
         supabase.from("clients").select("id, name, client_type"),
+        supabase.from("profiles").select("id, display_name"),
       ]);
 
-      const cos = changeOrders || [];
-      const projs = projects || [];
+      let projs = projects || [];
+      // Filter projects by PM if selected
+      if (selectedPmId !== "all") {
+        const filteredProjIds = new Set(projs.filter((p: any) => p.assigned_pm_id === selectedPmId).map((p: any) => p.id));
+        projs = projs.filter((p: any) => filteredProjIds.has(p.id));
+      }
+      const projIdSet = new Set(projs.map((p: any) => p.id));
+
+      const cos = (changeOrders || []).filter((c: any) => projIdSet.has(c.project_id));
       const cls = clients || [];
+
+      // Build team members list for the filter
+      const teamMembers = (profiles || [])
+        .map((p: any) => ({ id: p.id, name: p.display_name || "Unknown" }))
+        .sort((a: any, b: any) => a.name.localeCompare(b.name));
 
       const clientMap: Record<string, { name: string; type: string }> = {};
       cls.forEach((c: any) => { clientMap[c.id] = { name: c.name, type: c.client_type || "Unknown" }; });
@@ -103,7 +116,6 @@ function useChangeOrderAnalytics() {
         byClient[clientId].coCount++;
         byClient[clientId].coValue += co.amount || 0;
       });
-      // Count distinct projects per client that have COs
       projectsWithCOs.forEach((projId) => {
         const clientId = projClientMap[projId as string];
         if (clientId && byClient[clientId]) byClient[clientId].projectCount++;
@@ -125,7 +137,7 @@ function useChangeOrderAnalytics() {
         clientCount: v.clientCount,
       })).sort((a, b) => b.coCount - a.coCount);
 
-      return { totalCOs, approvedCOs, totalCOValue, coProjectCount, totalProjectCount, coProjectRate, clientCOData, typeCOData };
+      return { totalCOs, approvedCOs, totalCOValue, coProjectCount, totalProjectCount, coProjectRate, clientCOData, typeCOData, teamMembers };
     },
   });
 }
@@ -133,10 +145,11 @@ function useChangeOrderAnalytics() {
 export default function ProposalReports() {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(String(currentYear));
+  const [selectedPm, setSelectedPm] = useState("all");
   const { data, isLoading } = useProposalReports();
   const { data: detailed, isLoading: detailedLoading } = useProposalDetailedReports();
   const { data: salesByRep } = useYTDSalesByRep();
-  const { data: coData } = useChangeOrderAnalytics();
+  const { data: coData } = useChangeOrderAnalytics(selectedPm);
 
   const years: string[] = useMemo(() => {
     if (!detailed?.allProposals) return [String(currentYear)];
@@ -490,7 +503,23 @@ export default function ProposalReports() {
       {/* Change Order Analytics Section */}
       {coData && (
         <>
-          <h2 className="text-lg font-semibold text-foreground pt-4 border-t border-border">Change Order Analytics</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-foreground pt-4 border-t border-border">Change Order Analytics</h2>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Filter by PM:</span>
+              <Select value={selectedPm} onValueChange={setSelectedPm}>
+                <SelectTrigger className="w-[180px] h-8">
+                  <SelectValue placeholder="All Users" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Users</SelectItem>
+                  {coData.teamMembers?.map((m: any) => (
+                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
