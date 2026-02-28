@@ -99,10 +99,10 @@ export function DobNowFilingPrepSheet({
 
   const filingFields: DobField[] = [
     { label: "Filing Type", value: service.name, category: "filing", dobFieldName: "Filing Type" },
-    { label: "Work Types / Disciplines", value: service.subServices.length > 0 ? service.subServices.join(", ") : null, category: "filing", dobFieldName: "Work Type" },
+    { label: "Work Types / Disciplines", value: (service.subServices || []).length > 0 ? (service.subServices || []).join(", ") : null, category: "filing", dobFieldName: "Work Type" },
     { label: "Floor", value: proj.floor_number, category: "filing", dobFieldName: "Floor" },
     { label: "Unit / Apt", value: proj.unit_number, category: "filing", dobFieldName: "Apt/Suite" },
-    { label: "Estimated Job Cost", value: service.estimatedCosts && service.estimatedCosts.length > 0 ? service.estimatedCosts.map(ec => `${ec.discipline}: $${ec.amount.toLocaleString()}`).join("; ") : (proj.estimated_value ? `$${Number(proj.estimated_value).toLocaleString()}` : null), category: "filing", dobFieldName: "Estimated Job Cost" },
+    { label: "Estimated Job Cost", value: service.estimatedCosts && (service.estimatedCosts || []).length > 0 ? (service.estimatedCosts || []).map(ec => `${ec.discipline}: $${ec.amount.toLocaleString()}`).join("; ") : (proj.estimated_value ? `$${Number(proj.estimated_value).toLocaleString()}` : null), category: "filing", dobFieldName: "Estimated Job Cost" },
     { label: "Job Description", value: service.jobDescription || null, category: "filing", dobFieldName: "Description of Work", editable: true },
   ];
 
@@ -120,7 +120,7 @@ export function DobNowFilingPrepSheet({
   };
 
   // Filter contacts relevant to this service's disciplines
-  const serviceDisciplines = service.subServices.map(s => s.toLowerCase());
+  const serviceDisciplines = (service.subServices || []).map(s => s.toLowerCase());
   const filteredContacts = contacts.filter((c) => {
     // Engineers should only appear if their discipline matches the service's subServices
     if (c.dobRole === "engineer" && c.discipline) {
