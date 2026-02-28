@@ -142,14 +142,11 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId, 
   }, [preselectedProjectId]);
 
   useEffect(() => {
-    if (contacts && contacts.length > 0) {
+    if (contacts && contacts.length > 0 && !billedToContactId) {
       const primary = contacts.find((c) => c.is_primary);
-      const autoId = primary?.id || contacts[0].id;
-      if (!billedToContactId || !contacts.find(c => c.id === billedToContactId)) {
-        setBilledToContactId(autoId);
-      }
+      setBilledToContactId(primary?.id || contacts[0].id);
     }
-  }, [contacts]);
+  }, [contacts, billedToContactId]);
 
   useEffect(() => {
     setBilledToContactId("");
