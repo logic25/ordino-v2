@@ -874,7 +874,13 @@ export function ProposalDialog({
 
   const doSave = (action: ProposalSaveAction) => {
     pendingActionRef.current = action;
-    form.handleSubmit(handleSubmit)();
+    form.handleSubmit(handleSubmit, (errors) => {
+      const missing = Object.entries(errors).map(([key, err]) => {
+        const label = key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+        return `${label}: ${(err as any)?.message || "required"}`;
+      });
+      toast({ title: "Missing required fields", description: missing.join(", "), variant: "destructive" });
+    })();
   };
 
   const selectedProperty = properties.find(p => p.id === form.watch("property_id"));
@@ -916,7 +922,7 @@ export function ProposalDialog({
 
         {/* ── Scrollable body ── */}
         <div className="flex flex-col flex-1 min-h-0">
-          <div className="flex-1 overflow-y-auto">
+          <div className={cn("flex-1", step === 2 ? "min-h-0 flex flex-col" : "overflow-y-auto")}>
 
             {/* ═══ STEP 1: PROPERTY & CONTACTS ═══ */}
             {step === 0 && (

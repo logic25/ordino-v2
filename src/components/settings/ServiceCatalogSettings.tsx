@@ -38,6 +38,8 @@ export function ServiceCatalogSettings() {
 
   const [services, setServices] = useState<ServiceCatalogItem[]>([]);
   const [defaultTerms, setDefaultTerms] = useState("");
+  const [customWorkTypes, setCustomWorkTypes] = useState<string[]>([]);
+  const [newWorkType, setNewWorkType] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedServiceId, setExpandedServiceId] = useState<string | null>(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -66,6 +68,7 @@ export function ServiceCatalogSettings() {
     if (companyData?.settings) {
       setServices(companyData.settings.service_catalog || []);
       setDefaultTerms(companyData.settings.default_terms || "");
+      setCustomWorkTypes(companyData.settings.custom_work_types || []);
     }
   }, [companyData]);
 
@@ -184,6 +187,7 @@ export function ServiceCatalogSettings() {
         settings: {
           service_catalog: services.filter((s) => s.name.trim()),
           default_terms: defaultTerms,
+          custom_work_types: customWorkTypes,
         },
       });
       toast({
@@ -559,6 +563,54 @@ export function ServiceCatalogSettings() {
         );
       })()}
 
+      {/* Custom Work Types */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Work Type Disciplines</CardTitle>
+          <CardDescription>
+            Manage the list of disciplines available for work-type pricing. The default list includes Plumbing, Mechanical, Electrical, etc. Add custom disciplines below.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {WORK_TYPE_DISCIPLINES.map((d) => (
+              <span key={d} className="px-2.5 py-1 text-xs rounded-full bg-muted text-muted-foreground">{d}</span>
+            ))}
+            {customWorkTypes.map((d, i) => (
+              <span key={d} className="px-2.5 py-1 text-xs rounded-full bg-primary/10 text-primary flex items-center gap-1">
+                {d}
+                <button className="hover:text-destructive" onClick={() => setCustomWorkTypes(customWorkTypes.filter((_, j) => j !== i))}>×</button>
+              </span>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <Input
+              value={newWorkType}
+              onChange={(e) => setNewWorkType(e.target.value)}
+              placeholder="Add custom discipline…"
+              className="h-8 text-sm max-w-xs"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newWorkType.trim()) {
+                  e.preventDefault();
+                  if (!customWorkTypes.includes(newWorkType.trim()) && !WORK_TYPE_DISCIPLINES.includes(newWorkType.trim() as any)) {
+                    setCustomWorkTypes([...customWorkTypes, newWorkType.trim()]);
+                  }
+                  setNewWorkType("");
+                }
+              }}
+            />
+            <Button variant="outline" size="sm" className="h-8" disabled={!newWorkType.trim()} onClick={() => {
+              if (newWorkType.trim() && !customWorkTypes.includes(newWorkType.trim()) && !WORK_TYPE_DISCIPLINES.includes(newWorkType.trim() as any)) {
+                setCustomWorkTypes([...customWorkTypes, newWorkType.trim()]);
+              }
+              setNewWorkType("");
+            }}>
+              <Plus className="h-3.5 w-3.5 mr-1" /> Add
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Default Terms */}
       <Card>
         <CardHeader>
@@ -581,7 +633,8 @@ export function ServiceCatalogSettings() {
       {(() => {
         const savedCatalog = companyData?.settings?.service_catalog || [];
         const isDirty = JSON.stringify(services.filter(s => s.name.trim())) !== JSON.stringify(savedCatalog) ||
-          defaultTerms !== (companyData?.settings?.default_terms || "");
+          defaultTerms !== (companyData?.settings?.default_terms || "") ||
+          JSON.stringify(customWorkTypes) !== JSON.stringify(companyData?.settings?.custom_work_types || []);
         if (!isDirty) return null;
         return (
           <div className="sticky bottom-0 z-10 bg-background border-t py-3 px-4 flex items-center justify-between rounded-lg shadow-lg -mx-2">
@@ -756,7 +809,7 @@ export function ServiceCatalogSettings() {
             </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddDialogOpen(false)}>Cancel</Button>
-            <Button onClick={addService} disabled={!newService.name?.trim()}>Add Service</Button>
+            <Button onClick={addService} disabled={!newService.name?.trim()}>{editingServiceId ? "Save Changes" : "Add Service"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

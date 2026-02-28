@@ -49,16 +49,19 @@ export function getFilteredEmails(
 ): EmailWithTags[] {
   switch (tab) {
     case "inbox": {
-      // Exclude sent-only, archived, snoozed — then sort unread first
+      // Exclude sent-only (no INBOX label), archived, snoozed — then sort unread first
       const inbox = emails.filter((e) => {
         if ((e as any).archived_at) return false;
         if ((e as any).snoozed_until && new Date((e as any).snoozed_until) > new Date()) return false;
+        // Exclude emails that are sent but NOT in inbox
+        const labels = (e.labels as string[] | null) || [];
+        if (labels.includes("SENT") && !labels.includes("INBOX")) return false;
         return true;
       });
       return inbox.sort((a, b) => {
         if (!a.is_read && b.is_read) return -1;
         if (a.is_read && !b.is_read) return 1;
-        return 0; // preserve existing date order within each group
+        return 0;
       });
     }
     case "sent":
@@ -94,6 +97,8 @@ export function getTabCounts(
   const inboxEmails = emails.filter((e) => {
     if ((e as any).archived_at) return false;
     if ((e as any).snoozed_until && new Date((e as any).snoozed_until) > new Date()) return false;
+    const labels = (e.labels as string[] | null) || [];
+    if (labels.includes("SENT") && !labels.includes("INBOX")) return false;
     return true;
   });
   const unreadCount = inboxEmails.filter((e: EmailWithTags) => !e.is_read).length;

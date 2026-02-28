@@ -337,8 +337,8 @@ export function ProposalContactsSection({
       client_id: client.id,
       company_name: client.name,
       name: "",
-      email: "",
-      phone: "",
+      email: (client as any).email || "",
+      phone: (client as any).phone || "",
     });
   };
 
