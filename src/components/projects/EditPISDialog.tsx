@@ -20,7 +20,7 @@ import { usePISContactOptions, getPriorSectionFields } from "@/hooks/usePISAutoF
 interface PisFieldDef {
   id: string;
   label: string;
-  type: "text" | "textarea" | "email" | "phone" | "number" | "select" | "checkbox" | "heading";
+  type: "text" | "textarea" | "email" | "phone" | "number" | "select" | "checkbox" | "checkbox_group" | "heading";
   width?: "full" | "half";
   options?: string[];
   placeholder?: string;
@@ -49,6 +49,7 @@ const PIS_SECTIONS: PisSection[] = [
       { id: "apt_numbers", label: "Apt #(s)", type: "text", width: "half", optional: true },
       { id: "sq_ft", label: "Area (sq ft)", type: "number", width: "half", optional: true },
       { id: "job_description", label: "Job Description", type: "textarea", width: "full", placeholder: "Describe the scope of work..." },
+      { id: "work_types", label: "Work Types", type: "checkbox_group", width: "full", options: ["Architectural", "Structural", "Mechanical", "Plumbing", "Sprinkler", "Fire Alarm", "Fire Suppression", "Standpipe", "Fuel Burning", "Boiler", "Fuel Storage", "Curb Cut", "Other"], optional: true },
       { id: "filing_type", label: "Filing Type", type: "select", options: ["Plan Exam", "Pro-Cert", "TBD"], width: "half" },
       { id: "directive_14", label: "Directive 14?", type: "select", options: ["Yes", "No"], width: "half" },
     ],
@@ -141,9 +142,14 @@ const PIS_SECTIONS: PisSection[] = [
 ];
 
 // Export set of optional field IDs for readiness calculation
-export const OPTIONAL_PIS_FIELD_IDS = new Set(
-  PIS_SECTIONS.flatMap(s => s.fields.filter(f => f.optional).map(f => f.id))
-);
+// Includes fields marked optional + file uploads + conditional corp officer fields
+export const OPTIONAL_PIS_FIELD_IDS = new Set([
+  ...PIS_SECTIONS.flatMap(s => s.fields.filter(f => f.optional).map(f => f.id)),
+  "plans_upload",           // file upload — not a data field
+  "applicant_work_types",   // depends on work_types selection
+  "corp_officer_name",      // conditional on ownership type
+  "corp_officer_title",     // conditional on ownership type
+]);
 
 // The entire "notes" section is excluded from readiness
 export const EXCLUDED_PIS_SECTION_IDS = new Set(["notes"]);
@@ -401,16 +407,24 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
     for (const section of PIS_SECTIONS) {
       for (const field of section.fields) {
         if (field.type === "heading") continue;
-        if (resp[field.id] !== undefined) {
-          mapped[field.id] = String(resp[field.id]);
-        }
+        const flatVal = resp[field.id];
         const prefixedKey = `${section.id}_${field.id}`;
-        if (resp[prefixedKey] !== undefined) {
-          mapped[field.id] = String(resp[prefixedKey]);
+        const prefixedVal = resp[prefixedKey];
+        // Also try _selected suffix (work_types stored as work_types_selected)
+        const selectedKey = `${section.id}_${field.id}_selected`;
+        const selectedVal = resp[selectedKey];
+        const val = prefixedVal ?? selectedVal ?? flatVal;
+        if (val !== undefined && val !== null) {
+          // Arrays (checkbox_group / work_type_picker) → comma-separated string
+          mapped[field.id] = Array.isArray(val) ? val.join(",") : String(val);
         }
-        for (const [key, val] of Object.entries(resp)) {
-          if (key.endsWith(`_${field.id}`) && val && !mapped[field.id]) {
-            mapped[field.id] = String(val);
+        // Fallback: try any key ending with field id
+        if (!mapped[field.id]) {
+          for (const [key, v] of Object.entries(resp)) {
+            if (key.endsWith(`_${field.id}`) && v) {
+              mapped[field.id] = Array.isArray(v) ? v.join(",") : String(v);
+              break;
+            }
           }
         }
       }
@@ -500,11 +514,15 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
           if (field.type === "heading") continue;
           const val = values[field.id];
           if (val !== undefined) {
-            // Store with section prefix to match RFI format
+            // checkbox_group fields stored as arrays for RFI compat
+            const storeVal = field.type === "checkbox_group" ? val.split(",").filter(Boolean) : val;
             const prefixedKey = `${section.id}_${field.id}`;
-            updatedResponses[prefixedKey] = val;
-            // Also store flat key
-            updatedResponses[field.id] = val;
+            updatedResponses[prefixedKey] = storeVal;
+            updatedResponses[field.id] = storeVal;
+            // Also store _selected variant for work_types compat
+            if (field.type === "checkbox_group") {
+              updatedResponses[`${prefixedKey}_selected`] = storeVal;
+            }
           }
         }
       }
@@ -542,6 +560,25 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
             placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
             className="min-h-[70px]"
           />
+        ) : field.type === "checkbox_group" ? (
+          <div className="grid grid-cols-3 gap-1.5 pt-1">
+            {field.options?.map((opt) => {
+              const selected: string[] = values[key] ? values[key].split(",").filter(Boolean) : [];
+              const checked = selected.includes(opt);
+              return (
+                <label key={opt} className="flex items-center gap-1.5 cursor-pointer text-xs py-1 px-2 rounded hover:bg-muted/50 transition-colors">
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={(c) => {
+                      const next = c ? [...selected, opt] : selected.filter(v => v !== opt);
+                      updateValue(key, next.join(","));
+                    }}
+                  />
+                  {opt}
+                </label>
+              );
+            })}
+          </div>
         ) : field.type === "select" ? (
           <Select value={values[key] || ""} onValueChange={(v) => updateValue(key, v)}>
             <SelectTrigger className="h-9">
