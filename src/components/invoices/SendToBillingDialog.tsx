@@ -142,11 +142,14 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId, 
   }, [preselectedProjectId]);
 
   useEffect(() => {
-    if (contacts && contacts.length > 0 && !billedToContactId) {
+    if (contacts && contacts.length > 0) {
       const primary = contacts.find((c) => c.is_primary);
-      setBilledToContactId(primary?.id || contacts[0].id);
+      const autoId = primary?.id || contacts[0].id;
+      if (!billedToContactId || !contacts.find(c => c.id === billedToContactId)) {
+        setBilledToContactId(autoId);
+      }
     }
-  }, [contacts, billedToContactId]);
+  }, [contacts]);
 
   useEffect(() => {
     setBilledToContactId("");
@@ -549,10 +552,17 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId, 
                             )}
                           </div>
 
-                          {/* Computed amount */}
-                          <span className="text-sm font-medium tabular-nums ml-auto">
-                            ${selected.billedAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                          </span>
+                          {/* Computed amount + remaining balance */}
+                          <div className="ml-auto text-right">
+                            <span className="text-sm font-medium tabular-nums">
+                              ${selected.billedAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                            </span>
+                            {selected.billedAmount < selected.remaining && selected.contractAmount > 0 && (
+                              <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
+                                Bal: ${(selected.remaining - selected.billedAmount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                                {" "}({Math.round(((selected.remaining - selected.billedAmount) / selected.contractAmount) * 100)}%)
+                              </div>
+                            )}</div>
                         </div>
                       )}
                     </div>
@@ -661,7 +671,7 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId, 
             className="bg-accent text-accent-foreground hover:bg-accent/90"
           >
             {createBillingRequest.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Submit & Create Invoice
+            Submit
           </Button>
         </DialogFooter>
       </DialogContent>
