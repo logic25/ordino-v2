@@ -1776,6 +1776,7 @@ export type Database = {
           notes: string | null
           phone: string | null
           sort_order: number | null
+          specialty: string | null
           state: string | null
           title: string | null
           updated_at: string | null
@@ -1804,6 +1805,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           sort_order?: number | null
+          specialty?: string | null
           state?: string | null
           title?: string | null
           updated_at?: string | null
@@ -1832,6 +1834,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           sort_order?: number | null
+          specialty?: string | null
           state?: string | null
           title?: string | null
           updated_at?: string | null

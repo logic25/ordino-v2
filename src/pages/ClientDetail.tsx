@@ -399,6 +399,7 @@ export default function ClientDetail() {
                       <div className="w-5 shrink-0" />
                       <div className="flex-1 min-w-[140px]">Name</div>
                       <div className="w-[120px] shrink-0 hidden sm:block">Title</div>
+                      <div className="w-[100px] shrink-0 hidden md:block">License</div>
                       <div className="w-[120px] shrink-0 hidden md:block">Mobile</div>
                       <div className="w-[180px] shrink-0 hidden lg:block">Email</div>
                       <div className="w-10 shrink-0" />
@@ -568,6 +569,9 @@ function ContactRow({
     state: contact.state || "",
     zip: contact.zip || "",
     is_primary: contact.is_primary,
+    license_type: (contact as any).license_type || "",
+    license_number: (contact as any).license_number || "",
+    specialty: (contact as any).specialty || "",
   });
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -599,7 +603,10 @@ function ContactRow({
           state: form.state || null,
           zip: form.zip || null,
           is_primary: form.is_primary,
-        })
+          license_type: form.license_type || null,
+          license_number: form.license_number || null,
+          specialty: form.specialty || null,
+        } as any)
         .eq("id", contact.id);
       if (error) {
         toast({ title: "Error saving contact", description: error.message, variant: "destructive" });
@@ -657,6 +664,13 @@ function ContactRow({
             </div>
             <div className="w-[120px] shrink-0 hidden sm:block text-sm text-muted-foreground truncate">
               {contact.title || "—"}
+            </div>
+            <div className="w-[100px] shrink-0 hidden md:block text-sm text-muted-foreground truncate">
+              {(contact as any).license_type
+                ? (contact as any).license_type === "Contractor" && (contact as any).specialty
+                  ? (contact as any).specialty
+                  : (contact as any).license_type
+                : "—"}
             </div>
             <div className="w-[120px] shrink-0 hidden md:block text-sm text-muted-foreground truncate">
               {formatPhone(contact.mobile) || "—"}
@@ -779,14 +793,59 @@ function ContactRow({
               </div>
             </div>
 
-            {/* LinkedIn, Lead Owner & Primary */}
+            {/* License + LinkedIn, Lead Owner & Primary */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 items-end">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">License Type</Label>
+                <Select value={form.license_type || "none"} onValueChange={(v) => { update("license_type", v === "none" ? "" : v); if (v !== "Contractor") update("specialty", ""); }}>
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="RA">RA</SelectItem>
+                    <SelectItem value="PE">PE</SelectItem>
+                    <SelectItem value="Contractor">Contractor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {form.license_type === "Contractor" ? (
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Specialty</Label>
+                  <Select value={form.specialty || "none"} onValueChange={(v) => update("specialty", v === "none" ? "" : v)}>
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="General Contractor">General Contractor</SelectItem>
+                      <SelectItem value="Plumber">Plumber</SelectItem>
+                      <SelectItem value="Electrician">Electrician</SelectItem>
+                      <SelectItem value="HVAC">HVAC</SelectItem>
+                      <SelectItem value="Fire Suppression">Fire Suppression</SelectItem>
+                      <SelectItem value="Roofer">Roofer</SelectItem>
+                      <SelectItem value="Mason">Mason</SelectItem>
+                      <SelectItem value="Carpenter">Carpenter</SelectItem>
+                      <SelectItem value="Painter">Painter</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (form.license_type === "RA" || form.license_type === "PE") ? (
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">License #</Label>
+                  <Input className="h-8 text-sm" value={form.license_number} onChange={(e) => update("license_number", e.target.value)} />
+                </div>
+              ) : <div />}
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground flex items-center gap-1">
                   <Linkedin className="h-3 w-3" /> LinkedIn URL
                 </Label>
                 <Input className="h-8 text-sm" value={form.linkedin_url} onChange={(e) => update("linkedin_url", e.target.value)} />
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 items-end">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Lead Owner</Label>
                 <Select

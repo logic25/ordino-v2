@@ -2172,6 +2172,7 @@ function ContactsFull({ contacts, pisStatus, projectId, clientId }: { contacts: 
           updated_at: "",
           license_type: null,
           license_number: null,
+          specialty: null,
         } : null}
       />
     </div>

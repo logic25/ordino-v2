@@ -55,6 +55,7 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
     is_primary: false,
     license_type: "",
     license_number: "",
+    specialty: "",
   };
 
   const [form, setForm] = useState(emptyForm);
@@ -79,6 +80,7 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
         is_primary: contact.is_primary,
         license_type: (contact as any).license_type || "",
         license_number: (contact as any).license_number || "",
+        specialty: (contact as any).specialty || "",
       });
     }
   }, [contact]);
@@ -112,6 +114,7 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
           is_primary: form.is_primary,
           license_type: form.license_type || null,
           license_number: form.license_number || null,
+          specialty: form.specialty || null,
         } as any)
         .eq("id", contact.id);
       if (error) throw error;
@@ -244,10 +247,34 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label>License #</Label>
-              <Input value={form.license_number} onChange={(e) => update("license_number", e.target.value)} />
-            </div>
+            {form.license_type === "Contractor" ? (
+              <div className="space-y-1.5">
+                <Label>Specialty</Label>
+                <Select value={form.specialty || ""} onValueChange={(v) => update("specialty", v === "none" ? "" : v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="General Contractor">General Contractor</SelectItem>
+                    <SelectItem value="Plumber">Plumber</SelectItem>
+                    <SelectItem value="Electrician">Electrician</SelectItem>
+                    <SelectItem value="HVAC">HVAC</SelectItem>
+                    <SelectItem value="Fire Suppression">Fire Suppression</SelectItem>
+                    <SelectItem value="Roofer">Roofer</SelectItem>
+                    <SelectItem value="Mason">Mason</SelectItem>
+                    <SelectItem value="Carpenter">Carpenter</SelectItem>
+                    <SelectItem value="Painter">Painter</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (form.license_type === "RA" || form.license_type === "PE") ? (
+              <div className="space-y-1.5">
+                <Label>License #</Label>
+                <Input value={form.license_number} onChange={(e) => update("license_number", e.target.value)} />
+              </div>
+            ) : <div />}
           </div>
 
           {/* Settings */}
