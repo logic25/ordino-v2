@@ -318,6 +318,20 @@ export function useProjectPISStatus(projectId: string | undefined) {
         })
         .map(f => f.label);
 
+      // Append grouped TBD labels for unknown contractors
+      if (gcKnown !== "Yes") {
+        missingFields.push("General Contractor (TBD)");
+      }
+      const tppIsSameAsApplicant = tppKnown && (tppKnown.includes("Same as Applicant") || tppKnown.includes("Same as applicant"));
+      if (!tppIsSameAsApplicant) {
+        if (!tppKnown || tppKnown === "No") {
+          missingFields.push("TPP Applicant (TBD)");
+        }
+      }
+      if (siaKnown !== "Yes") {
+        missingFields.push("Special Inspector (TBD)");
+      }
+
       return {
         sentDate: format(new Date(rfi.created_at), "MM/dd/yyyy"),
         totalFields,
