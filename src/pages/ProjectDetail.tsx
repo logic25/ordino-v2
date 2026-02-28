@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -55,6 +55,7 @@ import { LitigationExportDialog } from "@/components/projects/LitigationExportDi
 import { DobNowFilingPrepSheet } from "@/components/projects/DobNowFilingPrepSheet";
 import { EditPISDialog } from "@/components/projects/EditPISDialog";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -470,7 +471,7 @@ export default function ProjectDetail() {
                 <DocumentsFull documents={documents} projectId={project.id} companyId={project.company_id} proposal={project.proposals} />
               </TabsContent>
               <TabsContent value="time-logs" className="mt-0">
-                <TimeLogsFull timeEntries={timeEntries} services={liveServices} projectId={project.id} companyId={project.company_id} />
+                <TimeLogsFull timeEntries={timeEntries} services={liveServices} projectId={project.id} companyId={project.company_id} onCreateCO={() => setCoDialogOpen(true)} />
               </TabsContent>
               <TabsContent value="change-orders" className="mt-0">
                 <ChangeOrdersFull
@@ -2433,9 +2434,10 @@ function DocumentsFull({ documents, projectId, companyId, proposal }: { document
 
 // ======== TIME LOGS (with service utilization summary) ========
 
-function TimeLogsFull({ timeEntries, services, projectId, companyId }: { timeEntries: MockTimeEntry[]; services: MockService[]; projectId: string; companyId: string }) {
+function TimeLogsFull({ timeEntries, services, projectId, companyId, onCreateCO }: { timeEntries: MockTimeEntry[]; services: MockService[]; projectId: string; companyId: string; onCreateCO?: () => void }) {
   const totalHours = timeEntries.reduce((s, t) => s + t.hours, 0);
   const { toast } = useToast();
+  const [budgetAlertShown, setBudgetAlertShown] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
   const [showLogForm, setShowLogForm] = useState(false);
   const [logDate, setLogDate] = useState(new Date().toISOString().split("T")[0]);
@@ -2456,9 +2458,38 @@ function TimeLogsFull({ timeEntries, services, projectId, companyId }: { timeEnt
     .filter(svc => svc.allottedHours > 0)
     .map(svc => {
       const logged = hoursByService[svc.name] || 0;
-      const pct = Math.min(Math.round((logged / svc.allottedHours) * 100), 100);
-      return { name: svc.name, allotted: svc.allottedHours, logged, remaining: Math.max(svc.allottedHours - logged, 0), pct };
+      const pct = Math.round((logged / svc.allottedHours) * 100);
+      const status: "ok" | "warning" | "over" = pct >= 100 ? "over" : pct >= 80 ? "warning" : "ok";
+      return { name: svc.name, allotted: svc.allottedHours, logged, remaining: Math.max(svc.allottedHours - logged, 0), pct, status };
     });
+
+  // Budget alert toasts
+  useEffect(() => {
+    serviceUtilization.forEach(su => {
+      if (budgetAlertShown.has(su.name)) return;
+      if (su.status === "over") {
+        setBudgetAlertShown(prev => new Set(prev).add(su.name));
+        toast({
+          title: `⚠️ ${su.name} is over budget`,
+          description: `${su.logged.toFixed(1)} of ${su.allotted} hrs used (${su.pct}%). Consider creating a Change Order.`,
+          variant: "destructive",
+          duration: 10000,
+          action: onCreateCO ? (
+            <ToastAction altText="Create Change Order" onClick={onCreateCO}>
+              Create CO
+            </ToastAction>
+          ) : undefined,
+        });
+      } else if (su.status === "warning") {
+        setBudgetAlertShown(prev => new Set(prev).add(su.name));
+        toast({
+          title: `🔔 ${su.name} approaching budget`,
+          description: `${su.logged.toFixed(1)} of ${su.allotted} hrs used (${su.pct}%). ${su.remaining.toFixed(1)} hrs remaining.`,
+          duration: 8000,
+        });
+      }
+    });
+  }, [serviceUtilization.map(s => s.status).join(",")]);
 
   const handleLogTime = async () => {
     const hours = parseInt(logHours || "0");
@@ -2563,21 +2594,35 @@ function TimeLogsFull({ timeEntries, services, projectId, companyId }: { timeEnt
       {/* Utilization Summary */}
       {serviceUtilization.length > 0 && (
         <div>
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Time by Service</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {serviceUtilization.map(su => (
-              <div key={su.name} className="p-3 rounded-lg border bg-background space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium">{su.name}</span>
-                  <span className="text-muted-foreground tabular-nums">{su.logged.toFixed(1)} / {su.allotted} hrs</span>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Time by Service</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+            {serviceUtilization.map(su => {
+              const barColor = su.status === "over"
+                ? "[&>div]:bg-destructive"
+                : su.status === "warning"
+                ? "[&>div]:bg-amber-500"
+                : "[&>div]:bg-primary";
+              return (
+                <div key={su.name} className="px-3 py-2 rounded-md border bg-background space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium truncate mr-2">{su.name}</span>
+                    <span className="text-xs text-muted-foreground tabular-nums whitespace-nowrap">{su.logged.toFixed(1)} / {su.allotted} hrs</span>
+                  </div>
+                  <Progress value={Math.min(su.pct, 100)} className={cn("h-1.5", barColor)} />
+                  <div className="flex justify-between text-[11px] text-muted-foreground">
+                    {su.status === "over" ? (
+                      <span className="text-destructive font-medium">{(su.logged - su.allotted).toFixed(1)} hrs over budget</span>
+                    ) : (
+                      <span>{su.remaining.toFixed(1)} hrs remaining</span>
+                    )}
+                    <span className={cn(
+                      su.status === "over" && "text-destructive font-semibold",
+                      su.status === "warning" && "text-amber-600 dark:text-amber-400 font-medium",
+                    )}>{su.pct}% used</span>
+                  </div>
                 </div>
-                <Progress value={su.pct} className="h-2" />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>{su.remaining.toFixed(1)} hrs remaining</span>
-                  <span className={su.pct > 80 ? "text-amber-600 dark:text-amber-400 font-medium" : ""}>{su.pct}% used</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
