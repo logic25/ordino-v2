@@ -1191,6 +1191,10 @@ export function ProposalDialog({
                     <Label className="text-xs text-muted-foreground">Follow-up Reminder</Label>
                     <Input type="date" className="h-9 text-sm" {...form.register("reminder_date")} />
                   </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Valid Until</Label>
+                    <Input type="date" className="h-9 text-sm" {...form.register("valid_until")} />
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-3 pt-1">
@@ -1200,22 +1204,16 @@ export function ProposalDialog({
 
                 <Separator className="my-2" />
                 <SectionLabel>Financial</SectionLabel>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Deposit %</Label>
-                    <Input type="number" min="0" max="100" placeholder="50" className="h-9 text-sm" {...form.register("deposit_percentage")} />
-                    {(() => {
-                      const pct = Number(form.watch("deposit_percentage")) || 0;
-                      const retainerAmt = pct > 0 ? subtotal * pct / 100 : 0;
-                      return retainerAmt > 0 ? (
-                        <p className="text-xs text-muted-foreground">Retainer: {formatCurrency(retainerAmt)}</p>
-                      ) : null;
-                    })()}
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Valid Until</Label>
-                    <Input type="date" className="h-9 text-sm" {...form.register("valid_until")} />
-                  </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Deposit %</Label>
+                  <Input type="number" min="0" max="100" placeholder="50" className="h-9 text-sm" {...form.register("deposit_percentage")} />
+                  {(() => {
+                    const pct = Number(form.watch("deposit_percentage")) || 0;
+                    const retainerAmt = pct > 0 ? subtotal * pct / 100 : 0;
+                    return retainerAmt > 0 ? (
+                      <p className="text-xs text-muted-foreground">Retainer: {formatCurrency(retainerAmt)}</p>
+                    ) : null;
+                  })()}
                 </div>
 
                 <Separator className="my-2" />
