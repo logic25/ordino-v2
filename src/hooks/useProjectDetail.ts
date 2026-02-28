@@ -332,27 +332,60 @@ export function useProjectPISStatus(projectId: string | undefined) {
         return String(val).trim().length > 0;
       }).length;
 
+      const isMissing = (f: { id: string; sectionId: string }) => {
+        const flatVal = responses[f.id];
+        const prefixedVal = responses[`${f.sectionId}_${f.id}`];
+        const val = prefixedVal ?? flatVal;
+        if (val === null || val === undefined || val === "") return true;
+        if (Array.isArray(val)) return val.length === 0;
+        return String(val).trim().length === 0;
+      };
+
       const missingFields = allFields
-        .filter(f => {
-          const flatVal = responses[f.id];
-          const prefixedVal = responses[`${f.sectionId}_${f.id}`];
-          const val = prefixedVal ?? flatVal;
-          if (val === null || val === undefined || val === "") return true;
-          if (Array.isArray(val)) return val.length === 0;
-          return String(val).trim().length === 0;
-        })
+        .filter(isMissing)
         .map(f => f.label);
 
+      // Build grouped missing fields by section heading
+      const missingBySection: Record<string, string[]> = {};
+      // Track current heading per field for grouping
+      const fieldHeadingMap = new Map<string, string>();
+      for (const section of sections) {
+        if (EXCLUDED_PIS_SECTION_IDS.has(section.id)) continue;
+        const fields = (section.fields as any[]) || [];
+        let heading = section.title || section.id;
+        for (const field of fields) {
+          if (field.type === "heading") {
+            heading = (field.label as string || "").replace(/\s*\(.*\)/, "").trim();
+            continue;
+          }
+          fieldHeadingMap.set(field.id, heading);
+        }
+      }
+
+      for (const f of allFields) {
+        if (!isMissing(f)) continue;
+        const heading = fieldHeadingMap.get(f.id) || "Other";
+        if (!missingBySection[heading]) missingBySection[heading] = [];
+        // Use the raw label without the heading prefix for the grouped view
+        const rawLabel = (f.label.includes(" — ") ? f.label.split(" — ").slice(1).join(" — ") : f.label);
+        missingBySection[heading].push(rawLabel);
+      }
+
       // Append grouped TBD labels for unknown contractors
-      // "Same as Applicant" checked = resolved, not missing
       if (!gcSameAs && !gcHasDetails) {
         missingFields.push("General Contractor (TBD)");
+        if (!missingBySection["Contractors & Inspections"]) missingBySection["Contractors & Inspections"] = [];
+        missingBySection["Contractors & Inspections"].push("General Contractor (TBD)");
       }
       if (!tppSameAs && !tppHasDetails) {
         missingFields.push("TPP Applicant (TBD)");
+        if (!missingBySection["Contractors & Inspections"]) missingBySection["Contractors & Inspections"] = [];
+        missingBySection["Contractors & Inspections"].push("TPP Applicant (TBD)");
       }
       if (!siaSameAs && !siaHasDetails) {
         missingFields.push("Special Inspector (TBD)");
+        if (!missingBySection["Contractors & Inspections"]) missingBySection["Contractors & Inspections"] = [];
+        missingBySection["Contractors & Inspections"].push("Special Inspector (TBD)");
       }
 
       return {
@@ -360,6 +393,7 @@ export function useProjectPISStatus(projectId: string | undefined) {
         totalFields,
         completedFields,
         missingFields,
+        missingBySection,
       };
     },
     enabled: !!projectId,

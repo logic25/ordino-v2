@@ -848,9 +848,20 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
                       <span className="text-muted-foreground text-xs">Sent {pisStatus.sentDate}</span>
                     </div>
                     <Progress value={(pisStatus.completedFields / pisStatus.totalFields) * 100} className="h-2" />
-                    <div className="text-xs text-muted-foreground mt-1">
-                      Missing: {pisStatus.missingFields.join(", ")}
-                    </div>
+                    {pisStatus.missingBySection && Object.keys(pisStatus.missingBySection).length > 0 ? (
+                      <div className="mt-2 space-y-1.5">
+                        {Object.entries(pisStatus.missingBySection).map(([section, fields]) => (
+                          <div key={section} className="text-xs">
+                            <span className="font-medium text-foreground/70">{section}:</span>{" "}
+                            <span className="text-muted-foreground">{fields.join(", ")}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Missing: {pisStatus.missingFields.join(", ")}
+                      </div>
+                    )}
                   </div>
                   <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={() => setShowEditPIS(true)}>
                     <Pencil className="h-3.5 w-3.5" /> Edit PIS
