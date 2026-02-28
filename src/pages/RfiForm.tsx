@@ -485,7 +485,21 @@ export default function RfiForm() {
     "contractors_inspections_sia_known": ["sia_name", "sia_company", "sia_phone", "sia_email", "sia_number", "sia_nys_lic"],
   };
 
+  // Fields that should only show for Corporation/Partnership ownership
+  const corpOfficerFields = ["corp_officer_name", "corp_officer_title"];
+
   const isFieldHiddenByTbd = (sectionId: string, fieldId: string): boolean => {
+    // Hide Corporate Officer fields unless ownership is Corporation or Partnership
+    if (sectionId === "applicant_and_owner" && corpOfficerFields.includes(fieldId)) {
+      const ownershipType = responses["applicant_and_owner_ownership_type"];
+      if (ownershipType !== "Corporation" && ownershipType !== "Partnership") return true;
+    }
+    // Hide Corporate Officer heading too
+    if (sectionId === "applicant_and_owner" && fieldId === "corp_officer_heading") {
+      const ownershipType = responses["applicant_and_owner_ownership_type"];
+      if (ownershipType !== "Corporation" && ownershipType !== "Partnership") return true;
+    }
+
     for (const [knownKey, showFields] of Object.entries(knownGroupFields)) {
       if (knownKey.startsWith(sectionId) && showFields.includes(fieldId)) {
         const knownValue = responses[knownKey];
