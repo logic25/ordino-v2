@@ -1648,7 +1648,17 @@ function ServicesFull({ services: initialServices, project, contacts, allService
                             </PopoverContent>
                           </Popover>
                         </TableCell>
-                        <TableCell className="text-right tabular-nums font-medium">{formatCurrency(svc.totalAmount)}</TableCell>
+                        <TableCell className="text-right tabular-nums font-medium">
+                          <div>{formatCurrency(svc.totalAmount)}</div>
+                          {svc.billedAmount > 0 && (
+                            <div className="text-[10px] text-muted-foreground mt-0.5">
+                              <span className="text-emerald-600 dark:text-emerald-400">Billed: {formatCurrency(svc.billedAmount)}</span>
+                              {svc.totalAmount > 0 && (
+                                <span className="ml-1 opacity-70">({Math.round((svc.billedAmount / svc.totalAmount) * 100)}%)</span>
+                              )}
+                            </div>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right tabular-nums text-muted-foreground">{displayCost > 0 ? formatCurrency(displayCost) : "—"}</TableCell>
                         <TableCell className="text-right tabular-nums">
                           {displayCost > 0 ? <span className={svcMargin > 50 ? "text-emerald-600 dark:text-emerald-400" : svcMargin < 20 ? "text-red-600 dark:text-red-400" : ""}>{svcMargin}%</span> : "—"}
