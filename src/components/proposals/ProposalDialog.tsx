@@ -190,6 +190,7 @@ function ServiceLineItem({
     form.setValue(`items.${index}.unit_price`, service.default_price || 0, opts);
     form.setValue(`items.${index}.estimated_hours`, service.default_hours || 0, opts);
     form.setValue(`items.${index}.fee_type`, service.default_fee_type || "fixed", opts);
+    form.setValue(`items.${index}.needs_dob_filing`, service.needs_dob_filing || false, opts);
     if (service.has_discipline_pricing) {
       form.setValue(`items.${index}.discipline_fee`, service.discipline_fee || 0, opts);
       form.setValue(`items.${index}.disciplines`, [], opts);
