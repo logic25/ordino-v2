@@ -2239,7 +2239,7 @@ function TimelineFull({ milestones, projectId }: { milestones: MockMilestone[]; 
 function DocumentsFull({ documents, projectId, companyId, proposal }: { documents: MockDocument[]; projectId?: string; companyId?: string; proposal?: any }) {
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
-  const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string } | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string; isPdf?: boolean } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const { toast } = useToast();
@@ -2306,7 +2306,8 @@ function DocumentsFull({ documents, projectId, companyId, proposal }: { document
         toast({ title: "Error", description: "Failed to load document preview.", variant: "destructive" });
         return;
       }
-      setPreviewDoc({ url: data.signedUrl, name: doc.filename || doc.name });
+      const ext = (doc.filename || doc.name).split(".").pop()?.toLowerCase();
+      setPreviewDoc({ url: data.signedUrl, name: doc.filename || doc.name, isPdf: ext === "pdf" });
     } catch {
       toast({ title: "Error", description: "Failed to load document.", variant: "destructive" });
     }
@@ -2403,7 +2404,7 @@ function DocumentsFull({ documents, projectId, companyId, proposal }: { document
                     <Button variant="ghost" size="icon" className="h-8 w-8" title="Download" onClick={() => handleDownload(doc)}>
                       <Download className="h-4 w-4" />
                     </Button>
-                    {!doc.id.startsWith("signed-proposal-") && (
+                    {!doc.id.startsWith("signed-proposal-") && doc.category !== "contract" && doc.category !== "change_order" && (
                       <Button
                         variant="ghost"
                         size="icon"
@@ -2431,11 +2432,24 @@ function DocumentsFull({ documents, projectId, companyId, proposal }: { document
           </DialogHeader>
           {previewDoc && (
             <div className="px-4 pb-4" style={{ height: "75vh" }}>
-              <iframe
-                src={previewDoc.url}
-                className="w-full h-full rounded-md border"
-                title={previewDoc.name}
-              />
+              {previewDoc.isPdf ? (
+                <object
+                  data={previewDoc.url}
+                  type="application/pdf"
+                  className="w-full h-full rounded-md border"
+                >
+                  <p className="p-4 text-center text-muted-foreground">
+                    PDF preview not supported.{" "}
+                    <a href={previewDoc.url} target="_blank" rel="noopener noreferrer" className="underline text-primary">Open in new tab</a>
+                  </p>
+                </object>
+              ) : (
+                <iframe
+                  src={previewDoc.url}
+                  className="w-full h-full rounded-md border"
+                  title={previewDoc.name}
+                />
+              )}
             </div>
           )}
         </DialogContent>
