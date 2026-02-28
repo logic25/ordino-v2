@@ -1157,8 +1157,8 @@ function ServiceExpandedDetail({ service, projectName }: { service: MockService;
   const [newTaskText, setNewTaskText] = useState("");
   const [newTaskAssignee, setNewTaskAssignee] = useState("");
   const [newTaskDue, setNewTaskDue] = useState("");
-  const [localTasks, setLocalTasks] = useState(service.tasks);
-  const [localReqs, setLocalReqs] = useState(service.requirements);
+  const [localTasks, setLocalTasks] = useState(service.tasks || []);
+  const [localReqs, setLocalReqs] = useState(service.requirements || []);
   const [localCosts, setLocalCosts] = useState<{ discipline: string; amount: number; editing?: string }[]>(
     (service.estimatedCosts || []).map(ec => ({ ...ec }))
   );
