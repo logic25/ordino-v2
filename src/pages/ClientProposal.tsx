@@ -19,7 +19,7 @@ export default function ClientProposalPage() {
   const [clientName, setClientName] = useState("");
   const [clientTitle, setClientTitle] = useState("");
   const [signed, setSigned] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState<"card" | "ach" | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<"card" | "ach" | "check" | null>(null);
   const [paymentStep, setPaymentStep] = useState<"select" | "form" | "processing" | "success">("select");
   const [welcomeEmailSent, setWelcomeEmailSent] = useState(false);
   const [pisAutoCreated, setPisAutoCreated] = useState(false);
@@ -404,7 +404,7 @@ export default function ClientProposalPage() {
                       <div style={{ fontSize: "8.5pt", color: slate, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1, fontWeight: 700 }}>Receipt</div>
                       <div className="space-y-1" style={{ fontSize: "9pt" }}>
                         <div className="flex justify-between"><span style={{ color: slate }}>Amount</span><span style={{ fontWeight: 600, fontFamily: "'JetBrains Mono', monospace" }}>{fmt(depositAmt)}</span></div>
-                        <div className="flex justify-between"><span style={{ color: slate }}>Method</span><span style={{ fontWeight: 600 }}>{selectedPayment === "card" ? "Credit Card" : "ACH Transfer"}</span></div>
+                        <div className="flex justify-between"><span style={{ color: slate }}>Method</span><span style={{ fontWeight: 600 }}>{selectedPayment === "card" ? "Credit Card" : selectedPayment === "ach" ? "ACH Transfer" : "Check"}</span></div>
                         <div className="flex justify-between"><span style={{ color: slate }}>Date</span><span style={{ fontWeight: 600 }}>{new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span></div>
                       </div>
                     </div>
@@ -494,12 +494,46 @@ export default function ClientProposalPage() {
                       </Button>
                     </div>
                   </>
+                ) : paymentStep === "form" && selectedPayment === "check" ? (
+                  <>
+                    <div className="flex items-center gap-2 mb-4">
+                      <button onClick={() => { setPaymentStep("select"); setSelectedPayment(null); }} style={{ fontSize: "8.5pt", color: amber, background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>← Back</button>
+                      <span style={{ fontSize: "9pt", color: slate }}>Pay by Check</span>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="rounded-lg p-4" style={{ background: lightBg, border: "1px solid #e2e8f0" }}>
+                        <div style={{ fontSize: "9pt", fontWeight: 700, color: charcoal, marginBottom: 8 }}>Please mail your check to:</div>
+                        <div style={{ fontSize: "9.5pt", color: charcoal, lineHeight: 1.6 }}>
+                          <strong>{company?.name || "Our Company"}</strong><br />
+                          {company?.address || "Company Address"}
+                        </div>
+                      </div>
+                      <div className="rounded-lg p-4" style={{ background: lightBg, border: "1px solid #e2e8f0" }}>
+                        <div style={{ fontSize: "9pt", fontWeight: 700, color: charcoal, marginBottom: 6 }}>Check Details:</div>
+                        <ul style={{ fontSize: "8.5pt", color: slate, paddingLeft: 16, lineHeight: 1.8, margin: 0 }}>
+                          <li>Make payable to: <strong style={{ color: charcoal }}>{company?.name || "Our Company"}</strong></li>
+                          <li>Amount: <strong style={{ color: charcoal }}>{fmt(depositAmt)}</strong></li>
+                          <li>Reference: <strong style={{ color: charcoal }}>Proposal #{proposal.proposal_number}</strong></li>
+                        </ul>
+                      </div>
+                      <Button
+                        className="w-full font-bold"
+                        style={{ background: amber, color: charcoal }}
+                        onClick={() => {
+                          setPaymentStep("processing");
+                          setTimeout(() => setPaymentStep("success"), 1500);
+                        }}
+                      >
+                        I've Sent / Will Send a Check — {fmt(depositAmt)}
+                      </Button>
+                    </div>
+                  </>
                 ) : (
                   <>
                     <p style={{ fontSize: "9.5pt", color: slate, marginBottom: 16, lineHeight: 1.6 }}>
                       Your retainer of <strong style={{ color: charcoal }}>{fmt(depositAmt)}</strong> is due to begin work. Select a payment method below.
                     </p>
-                    <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="grid grid-cols-3 gap-3 mb-4">
                       <button
                         className="border-2 rounded-lg p-4 text-left transition-colors cursor-pointer"
                         style={{ borderColor: selectedPayment === "card" ? amber : "#e2e8f0", background: selectedPayment === "card" ? "hsl(38, 92%, 50%, 0.06)" : undefined }}
@@ -515,8 +549,17 @@ export default function ClientProposalPage() {
                         onClick={() => setSelectedPayment("ach")}
                       >
                         <Building2 className="h-5 w-5 mb-2" style={{ color: amber }} />
-                        <div style={{ fontSize: "10pt", fontWeight: 700, color: charcoal }}>ACH / Bank Transfer</div>
-                        <div style={{ fontSize: "8.5pt", color: slate, marginTop: 2 }}>Direct from your bank account</div>
+                        <div style={{ fontSize: "10pt", fontWeight: 700, color: charcoal }}>ACH / Bank</div>
+                        <div style={{ fontSize: "8.5pt", color: slate, marginTop: 2 }}>Direct bank transfer</div>
+                      </button>
+                      <button
+                        className="border-2 rounded-lg p-4 text-left transition-colors cursor-pointer"
+                        style={{ borderColor: selectedPayment === "check" ? amber : "#e2e8f0", background: selectedPayment === "check" ? "hsl(38, 92%, 50%, 0.06)" : undefined }}
+                        onClick={() => setSelectedPayment("check")}
+                      >
+                        <FileText className="h-5 w-5 mb-2" style={{ color: amber }} />
+                        <div style={{ fontSize: "10pt", fontWeight: 700, color: charcoal }}>Pay by Check</div>
+                        <div style={{ fontSize: "8.5pt", color: slate, marginTop: 2 }}>Mail a check</div>
                       </button>
                     </div>
                     {selectedPayment && (
@@ -525,12 +568,12 @@ export default function ClientProposalPage() {
                         style={{ background: amber, color: charcoal }}
                         onClick={() => setPaymentStep("form")}
                       >
-                        Continue with {selectedPayment === "card" ? "Card" : "ACH"} <ChevronRight className="h-4 w-4 ml-1" />
+                        Continue with {selectedPayment === "card" ? "Card" : selectedPayment === "ach" ? "ACH" : "Check"} <ChevronRight className="h-4 w-4 ml-1" />
                       </Button>
                     )}
                     <div className="rounded-lg p-3 text-center mt-3" style={{ background: lightBg, border: "1px solid #e2e8f0" }}>
                       <p style={{ fontSize: "8.5pt", color: slate }}>
-                        Secure payment processing powered by Stripe. Your information is encrypted and never stored on our servers.
+                        Secure payment processing. Your information is encrypted and never stored on our servers.
                       </p>
                     </div>
                   </>
