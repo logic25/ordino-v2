@@ -79,6 +79,8 @@ import { useChangeOrders, useCreateChangeOrder, useDeleteChangeOrder } from "@/h
 import { ChangeOrderDialog } from "@/components/projects/ChangeOrderDialog";
 import { ChangeOrderDetailSheet } from "@/components/projects/ChangeOrderDetailSheet";
 import { ActionItemsTab } from "@/components/projects/ActionItemsTab";
+import { SendToBillingDialog } from "@/components/invoices/SendToBillingDialog";
+import { ComposeEmailDialog } from "@/components/emails/ComposeEmailDialog";
 import type { ChangeOrder } from "@/hooks/useChangeOrders";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -281,7 +283,7 @@ export default function ProjectDetail() {
 
   return (
     <AppLayout>
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-6 animate-fade-in overflow-x-hidden">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">
@@ -1147,7 +1149,7 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
 }
 // ======== SERVICES ========
 
-function ServiceExpandedDetail({ service }: { service: MockService }) {
+function ServiceExpandedDetail({ service, projectName }: { service: MockService; projectName?: string }) {
   const [showAddReq, setShowAddReq] = useState(false);
   const [newReqLabel, setNewReqLabel] = useState("");
   const [newReqFrom, setNewReqFrom] = useState("");
@@ -1160,6 +1162,7 @@ function ServiceExpandedDetail({ service }: { service: MockService }) {
   const [localCosts, setLocalCosts] = useState<{ discipline: string; amount: number; editing?: string }[]>(
     (service.estimatedCosts || []).map(ec => ({ ...ec }))
   );
+  const [composeEmailOpen, setComposeEmailOpen] = useState(false);
   const { toast } = useToast();
 
   const COMMON_TASKS = [
@@ -1307,10 +1310,10 @@ function ServiceExpandedDetail({ service }: { service: MockService }) {
         </div>
       </div>
 
-      {/* Tasks */}
+      {/* To-Dos (service-level checklist) */}
       <div>
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-          <CheckCircle2 className="h-3.5 w-3.5" /> Tasks ({localTasks.length})
+          <CheckCircle2 className="h-3.5 w-3.5" /> To-Dos ({localTasks.length})
         </h4>
         {localTasks.length > 0 && (
           <div className="space-y-1.5 mb-3">
@@ -1355,14 +1358,21 @@ function ServiceExpandedDetail({ service }: { service: MockService }) {
         ) : (
           <div className="flex gap-2">
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowAddTask(true)}>
-              <Plus className="h-3.5 w-3.5" /> Add Task
+              <Plus className="h-3.5 w-3.5" /> Add To-Do
             </Button>
-            <Button variant="outline" size="sm" className="gap-1.5">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setComposeEmailOpen(true)}>
               <Mail className="h-3.5 w-3.5" /> Email about this
             </Button>
           </div>
         )}
       </div>
+
+      <ComposeEmailDialog
+        open={composeEmailOpen}
+        onOpenChange={setComposeEmailOpen}
+        defaultSubject={`Re: ${service.name}${projectName ? ` — ${projectName}` : ""}`}
+        defaultBody={`<p>Hi,</p><p>Regarding the service <strong>${service.name}</strong>${projectName ? ` on project <strong>${projectName}</strong>` : ""}:</p><p></p>`}
+      />
     </div>
   );
 }
@@ -1396,8 +1406,10 @@ function ServicesFull({ services: initialServices, project, contacts, allService
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [editingBillDate, setEditingBillDate] = useState<string | null>(null);
   const [dobPrepService, setDobPrepService] = useState<MockService | null>(null);
+  const [sendToBillingOpen, setSendToBillingOpen] = useState(false);
   const { data: companyProfiles = [] } = useCompanyProfiles();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const updateServiceField = (id: string, field: "assignedTo" | "estimatedBillDate", value: string) => {
     setOrderedServices(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
@@ -1447,13 +1459,7 @@ function ServicesFull({ services: initialServices, project, contacts, allService
   );
 
   const handleSendToBilling = () => {
-    const today = format(new Date(), "MM/dd/yyyy");
-    setOrderedServices(prev => prev.map(s => {
-      if (!selectedIds.has(s.id)) return s;
-      return { ...s, status: "billed" as const, billedAmount: s.totalAmount, billedAt: today };
-    }));
-    toast({ title: "Sent to Billing", description: `${selectedIds.size} service(s) marked as billed.` });
-    setSelectedIds(new Set());
+    setSendToBillingOpen(true);
   };
 
   const handleDropService = () => {
@@ -1483,7 +1489,9 @@ function ServicesFull({ services: initialServices, project, contacts, allService
     setSelectedIds(new Set());
   };
 
-  const services = orderedServices;
+  const activeServices = orderedServices.filter(s => s.status !== "billed");
+  const billedServices = orderedServices.filter(s => s.status === "billed");
+  const services = activeServices;
 
   const toggle = (id: string) => setExpandedIds(prev => {
     const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
@@ -1492,12 +1500,13 @@ function ServicesFull({ services: initialServices, project, contacts, allService
     const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
   });
 
-  const total = services.reduce((s, svc) => s + svc.totalAmount, 0);
-  const billed = services.reduce((s, svc) => s + svc.billedAmount, 0);
-  const cost = services.reduce((s, svc) => s + svc.costAmount, 0);
+  const total = orderedServices.reduce((s, svc) => s + svc.totalAmount, 0);
+  const billed = orderedServices.reduce((s, svc) => s + svc.billedAmount, 0);
+  const cost = orderedServices.reduce((s, svc) => s + svc.costAmount, 0);
+  const [showBilled, setShowBilled] = useState(false);
 
   return (
-    <div>
+    <div className="min-w-0">
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-2 px-6 py-3 bg-muted/40 border-b flex-wrap">
           <span className="text-sm text-muted-foreground font-medium">{selectedIds.size} selected:</span>
@@ -1508,6 +1517,7 @@ function ServicesFull({ services: initialServices, project, contacts, allService
       )}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={topLevelIds} strategy={verticalListSortingStrategy}>
+      <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
@@ -1677,7 +1687,7 @@ function ServicesFull({ services: initialServices, project, contacts, allService
                       </TableRow>
                       {isExpanded && (
                         <TableRow key={`${svc.id}-detail`} className="hover:bg-transparent">
-                          <TableCell colSpan={12} className="p-0"><ServiceExpandedDetail service={svc} /></TableCell>
+                          <TableCell colSpan={12} className="p-0"><ServiceExpandedDetail service={svc} projectName={project.name || project.proposals?.title || ""} /></TableCell>
                         </TableRow>
                       )}
                       {!isChild && children.map((child) => renderServiceRow(child, svcIndex, true))}
@@ -1693,8 +1703,46 @@ function ServicesFull({ services: initialServices, project, contacts, allService
           })()}
         </TableBody>
       </Table>
+      </div>
         </SortableContext>
       </DndContext>
+
+      {/* Billed Services — collapsed by default */}
+      {billedServices.length > 0 && (
+        <Collapsible open={showBilled} onOpenChange={setShowBilled}>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground h-8 px-6 w-full justify-start border-t rounded-none">
+              {showBilled ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+              Billed Services ({billedServices.length})
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="overflow-x-auto">
+            <Table>
+              <TableBody>
+                {billedServices.filter(s => !s.parentServiceId).map((svc) => (
+                  <TableRow key={svc.id} className="opacity-60">
+                    <TableCell className="pl-6 w-[44px]" />
+                    <TableCell className="w-[36px]" />
+                    <TableCell className="w-[28px]" />
+                    <TableCell><span className="font-medium">{svc.name}</span></TableCell>
+                    <TableCell><Badge variant="secondary" className="text-[10px]">Billed</Badge></TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{svc.assignedTo || "—"}</TableCell>
+                    <TableCell />
+                    <TableCell className="text-sm text-muted-foreground">{svc.billedAt || "—"}</TableCell>
+                    <TableCell className="text-right tabular-nums font-medium">{formatCurrency(svc.totalAmount)}</TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">{formatCurrency(svc.billedAmount)}</TableCell>
+                    <TableCell />
+                    <TableCell />
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
+
       <div className="px-6 py-4 bg-muted/20 border-t flex items-center gap-8 text-sm flex-wrap">
         <span><span className="text-muted-foreground">Contract:</span> <span className="font-semibold">{formatCurrency(total)}</span></span>
         <Separator orientation="vertical" className="h-4" />
@@ -1715,6 +1763,19 @@ function ServicesFull({ services: initialServices, project, contacts, allService
           allServices={allServices}
         />
       )}
+
+      <SendToBillingDialog
+        open={sendToBillingOpen}
+        onOpenChange={(open) => {
+          setSendToBillingOpen(open);
+          if (!open) {
+            // Refresh services after billing dialog closes
+            setSelectedIds(new Set());
+            queryClient.invalidateQueries({ queryKey: ["project-services"] });
+          }
+        }}
+        preselectedProjectId={project.id}
+      />
     </div>
   );
 }
