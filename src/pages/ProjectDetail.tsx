@@ -123,7 +123,7 @@ export default function ProjectDetail() {
   const project = projects.find((p) => p.id === id);
 
   // Real data hooks — use URL id directly so services don't wait for useProjects() to resolve
-  const { data: realServices = [] } = useProjectServices(id);
+  const { data: realServices = [], isLoading: servicesLoading } = useProjectServices(id);
   const { data: realContacts = [] } = useProjectContacts(project?.id, project?.client_id, (project as any)?.proposal_id);
   const { data: realTimeline = [] } = useProjectTimeline(project?.id, (project as any)?.proposal_id);
   const { data: realPISStatus } = useProjectPISStatus(project?.id);
@@ -388,12 +388,12 @@ export default function ProjectDetail() {
         {/* Financial Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
           {[
-            { label: "Contract", value: formatCurrency(contractTotal) },
+            { label: "Contract", value: servicesLoading ? "…" : formatCurrency(contractTotal) },
             { label: "Change Orders", value: approvedCOs > 0 ? `+${formatCurrency(approvedCOs)}` : "—" },
-            { label: "Total Value", value: formatCurrency(adjustedTotal) },
-            { label: "Billed", value: formatCurrency(billed), color: "text-emerald-600 dark:text-emerald-400" },
+            { label: "Total Value", value: servicesLoading ? "…" : formatCurrency(adjustedTotal) },
+            { label: "Billed", value: servicesLoading ? "…" : formatCurrency(billed), color: "text-emerald-600 dark:text-emerald-400" },
             { label: "Internal Cost", value: formatCurrency(cost) },
-            { label: "Margin", value: `${margin}%`, color: margin > 50 ? "text-emerald-600 dark:text-emerald-400" : margin < 20 ? "text-red-600 dark:text-red-400" : "" },
+            { label: "Margin", value: servicesLoading ? "…" : `${margin}%`, color: margin > 50 ? "text-emerald-600 dark:text-emerald-400" : margin < 20 ? "text-red-600 dark:text-red-400" : "" },
           ].map((stat) => (
             <Card key={stat.label}>
               <CardContent className="p-4">
