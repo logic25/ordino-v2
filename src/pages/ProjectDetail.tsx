@@ -146,7 +146,7 @@ export default function ProjectDetail() {
   // DB-backed checklist items (must be before early returns)
   const { data: dbChecklistItems = [] } = useProjectChecklist(id);
 
-  const [liveServices, setLiveServices] = useState<MockService[]>(realServices);
+  // liveServices state removed — was causing infinite render loop. ServicesFull manages its own orderedServices internally.
 
   // Fetch primary contact from client's contacts
   const { data: primaryContact } = useQuery({
@@ -176,10 +176,6 @@ export default function ProjectDetail() {
     }
   };
 
-  // Sync live services from real DB data — always update when realServices changes
-  useEffect(() => {
-    setLiveServices(realServices);
-  }, [realServices]);
 
   // Real change orders
   const { data: realChangeOrders = [] } = useChangeOrders(project?.id);
@@ -463,7 +459,7 @@ export default function ProjectDetail() {
 
             <CardContent className="p-0">
               <TabsContent value="services" className="mt-0">
-                <ServicesFull services={realServices} project={project} contacts={contacts} allServices={realServices} timeEntries={timeEntries} onServicesChange={setLiveServices} onAddCOs={async (cos) => {
+                <ServicesFull services={realServices} project={project} contacts={contacts} allServices={realServices} timeEntries={timeEntries} onAddCOs={async (cos) => {
                   for (const co of cos) {
                     try {
                       await createCO.mutateAsync(co);
@@ -1386,21 +1382,14 @@ function SortableServiceRowWrapper({ id, disabled, children }: { id: string; dis
   return <>{children(attributes, disabled ? undefined : listeners, setNodeRef, style)}</>;
 }
 
-function ServicesFull({ services: initialServices, project, contacts, allServices, timeEntries = [], onServicesChange, onAddCOs }: { services: MockService[]; project: ProjectWithRelations; contacts: MockContact[]; allServices: MockService[]; timeEntries?: MockTimeEntry[]; onServicesChange?: (services: MockService[]) => void; onAddCOs?: (cos: Array<{ title: string; description?: string; amount: number; status?: ChangeOrder["status"]; requested_by?: string; linked_service_names?: string[]; reason?: string; project_id: string; company_id: string }>) => void }) {
-  const [orderedServices, setOrderedServicesLocal] = useState(initialServices);
+function ServicesFull({ services: initialServices, project, contacts, allServices, timeEntries = [], onAddCOs }: { services: MockService[]; project: ProjectWithRelations; contacts: MockContact[]; allServices: MockService[]; timeEntries?: MockTimeEntry[]; onAddCOs?: (cos: Array<{ title: string; description?: string; amount: number; status?: ChangeOrder["status"]; requested_by?: string; linked_service_names?: string[]; reason?: string; project_id: string; company_id: string }>) => void }) {
+  const [orderedServices, setOrderedServices] = useState(initialServices);
   const initialKey = initialServices.map(s => `${s.id}:${s.needsDobFiling ? 1 : 0}:${s.status}:${s.totalAmount}:${s.billedAmount}:${s.costAmount}:${s.assignedTo}:${s.estimatedBillDate}`).join(",");
   const [lastKey, setLastKey] = useState(initialKey);
   if (initialKey !== lastKey) {
-    setOrderedServicesLocal(initialServices);
+    setOrderedServices(initialServices);
     setLastKey(initialKey);
   }
-  const setOrderedServices = (updater: MockService[] | ((prev: MockService[]) => MockService[])) => {
-    setOrderedServicesLocal(prev => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      onServicesChange?.(next);
-      return next;
-    });
-  };
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [editingBillDate, setEditingBillDate] = useState<string | null>(null);
