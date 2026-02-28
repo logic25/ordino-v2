@@ -1,0 +1,1 @@
+ALTER TABLE public.change_orders ADD COLUMN IF NOT EXISTS internal_signer_name text;

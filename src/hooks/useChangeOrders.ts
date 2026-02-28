@@ -23,6 +23,7 @@ export interface ChangeOrder {
   line_items: COLineItem[];
   internal_signed_at: string | null;
   internal_signed_by: string | null;
+  internal_signer_name: string | null;
   internal_signature_data: string | null;
   client_signed_at: string | null;
   client_signer_name: string | null;
@@ -161,11 +162,16 @@ export function useSignCOInternal() {
           .then(() => {});
       }
 
+      const signerName = profile
+        ? (profile as any).display_name || `${(profile as any).first_name ?? ""} ${(profile as any).last_name ?? ""}`.trim() || null
+        : null;
+
       const { data, error } = await supabase
         .from("change_orders" as any)
         .update({
           internal_signed_at: new Date().toISOString(),
           internal_signed_by: profile?.id ?? null,
+          internal_signer_name: signerName,
           internal_signature_data: signatureData,
           status: "pending_client",
         })

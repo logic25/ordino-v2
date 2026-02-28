@@ -492,7 +492,7 @@ export default function ClientChangeOrderPage() {
                 {co.internal_signed_at && (
                   <>
                     <div className="text-xs font-medium" style={{ color: charcoal }}>
-                      By: {co.internal_signer_name || "Authorized Representative"}
+                      By: {co.internal_signer_name || "—"}
                     </div>
                     <div className="text-xs" style={{ color: slate }}>Signed {fmtDate(co.internal_signed_at)}</div>
                   </>
