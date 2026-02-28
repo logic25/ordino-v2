@@ -1520,8 +1520,8 @@ function ServicesFull({ services: initialServices, project, contacts, allService
             <TableHead>Disciplines</TableHead>
             <TableHead>Est. Bill Date</TableHead>
             <TableHead className="text-right">Price</TableHead>
+            <TableHead className="text-right">Billed</TableHead>
             <TableHead className="text-right">Cost</TableHead>
-            <TableHead className="text-right">Margin</TableHead>
             <TableHead>Action</TableHead>
           </TableRow>
         </TableHeader>
@@ -1649,20 +1649,14 @@ function ServicesFull({ services: initialServices, project, contacts, allService
                           </Popover>
                         </TableCell>
                         <TableCell className="text-right tabular-nums font-medium">
-                          <div>{formatCurrency(svc.totalAmount)}</div>
-                          {svc.billedAmount > 0 && (
-                            <div className="text-[10px] text-muted-foreground mt-0.5">
-                              <span className="text-emerald-600 dark:text-emerald-400">Billed: {formatCurrency(svc.billedAmount)}</span>
-                              {svc.totalAmount > 0 && (
-                                <span className="ml-1 opacity-70">({Math.round((svc.billedAmount / svc.totalAmount) * 100)}%)</span>
-                              )}
-                            </div>
-                          )}
+                          {formatCurrency(svc.totalAmount)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {svc.billedAmount > 0 ? (
+                            <span className="text-emerald-600 dark:text-emerald-400 font-medium">{formatCurrency(svc.billedAmount)}</span>
+                          ) : "—"}
                         </TableCell>
                         <TableCell className="text-right tabular-nums text-muted-foreground">{displayCost > 0 ? formatCurrency(displayCost) : "—"}</TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {displayCost > 0 ? <span className={svcMargin > 50 ? "text-emerald-600 dark:text-emerald-400" : svcMargin < 20 ? "text-red-600 dark:text-red-400" : ""}>{svcMargin}%</span> : "—"}
-                        </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           {svc.needsDobFiling ? (
                             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setDobPrepService(svc)}><ExternalLink className="h-3.5 w-3.5" /> Submit</Button>
