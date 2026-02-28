@@ -90,11 +90,23 @@ export interface ProposalMilestoneInput {
   sort_order?: number;
 }
 
-export function useProposals() {
+export interface ProposalQueryOptions {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  statusFilter?: string | null;
+}
+
+export function useProposals(options?: ProposalQueryOptions) {
+  const page = options?.page ?? 0;
+  const pageSize = options?.pageSize ?? 25;
+  const search = options?.search ?? "";
+  const statusFilter = options?.statusFilter ?? null;
+
   return useQuery({
-    queryKey: ["proposals"],
+    queryKey: ["proposals", page, pageSize, search, statusFilter],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("proposals")
         .select(`
           *,
@@ -104,11 +116,52 @@ export function useProposals() {
           sales_person:profiles!proposals_sales_person_id_fkey (id, first_name, last_name),
           creator:profiles!proposals_created_by_fkey (id, first_name, last_name),
           converted_project:projects!proposals_converted_project_id_fkey (id, project_number)
-        `)
+        `, { count: "exact" })
         .order("created_at", { ascending: false });
+
+      // Server-side status filter
+      if (statusFilter === "draft") {
+        query = query.eq("status", "draft");
+      } else if (statusFilter === "sent") {
+        query = query.in("status", ["sent", "viewed"]);
+      } else if (statusFilter === "executed") {
+        query = query.eq("status", "executed");
+      } else if (statusFilter === "lost") {
+        query = query.eq("status", "lost");
+      }
+      // Note: "follow_up" filter handled client-side after fetch since it needs date logic
+
+      // Server-side search
+      if (search) {
+        query = query.or(`title.ilike.%${search}%,client_name.ilike.%${search}%,proposal_number.ilike.%${search}%`);
+      }
+
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
+      query = query.range(from, to);
+
+      const { data, error, count } = await query;
       
       if (error) throw error;
-      return data as unknown as ProposalWithRelations[];
+      return { 
+        proposals: data as unknown as ProposalWithRelations[], 
+        totalCount: count ?? 0 
+      };
+    },
+    placeholderData: (prev) => prev,
+  });
+}
+
+// Lightweight query for stats cards — only fetches status, amounts, dates (no joins)
+export function useProposalStats() {
+  return useQuery({
+    queryKey: ["proposal-stats"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("proposals")
+        .select("status, total_amount, created_at, next_follow_up_date, follow_up_dismissed_at");
+      if (error) throw error;
+      return data || [];
     },
   });
 }
@@ -302,6 +355,7 @@ export function useCreateProposal() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["proposals"] });
+      queryClient.invalidateQueries({ queryKey: ["proposal-stats"] });
     },
   });
 }
@@ -425,6 +479,7 @@ export function useUpdateProposal() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["proposals"] });
+      queryClient.invalidateQueries({ queryKey: ["proposal-stats"] });
       queryClient.invalidateQueries({ queryKey: ["proposals", data.id] });
     },
   });
@@ -444,6 +499,7 @@ export function useDeleteProposal() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["proposals"] });
+      queryClient.invalidateQueries({ queryKey: ["proposal-stats"] });
     },
   });
 }
