@@ -49,6 +49,7 @@ const PIS_SECTIONS: PisSection[] = [
       { id: "apt_numbers", label: "Apt #(s)", type: "text", width: "half", optional: true },
       { id: "sq_ft", label: "Area (sq ft)", type: "number", width: "half", optional: true },
       { id: "job_description", label: "Job Description", type: "textarea", width: "full", placeholder: "Describe the scope of work..." },
+      { id: "filing_type", label: "Filing Type", type: "select", options: ["Plan Exam", "Pro-Cert", "TBD"], width: "half" },
       { id: "directive_14", label: "Directive 14?", type: "select", options: ["Yes", "No"], width: "half" },
     ],
   },
@@ -58,7 +59,6 @@ const PIS_SECTIONS: PisSection[] = [
     description: "Licensed professional filing the application",
     contactRole: "Applicant",
     fields: [
-      { id: "filing_type", label: "Filing Type", type: "select", options: ["Plan Exam", "Pro-Cert", "TBD"], width: "half" },
       { id: "applicant_name", label: "Full Name", type: "text", width: "half" },
       { id: "applicant_business_name", label: "Business Name", type: "text", width: "half" },
       { id: "applicant_business_address", label: "Business Address", type: "text", width: "full" },
