@@ -1404,6 +1404,19 @@ function ServicesFull({ services: initialServices, project, contacts, allService
     toast({ title: "Updated", description: `Service ${field === "assignedTo" ? "assignment" : "bill date"} updated.` });
   };
 
+  const toggleDobFiling = async (serviceId: string) => {
+    const svc = orderedServices.find(s => s.id === serviceId);
+    if (!svc) return;
+    const newVal = !svc.needsDobFiling;
+    setOrderedServices(prev => prev.map(s => s.id === serviceId ? { ...s, needsDobFiling: newVal } : s));
+    try {
+      await supabase.from("services").update({ needs_dob_filing: newVal }).eq("id", serviceId);
+      toast({ title: newVal ? "DOB filing enabled" : "DOB filing disabled" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -1650,8 +1663,16 @@ function ServicesFull({ services: initialServices, project, contacts, allService
                             const parent = services.find(s => s.id === svc.parentServiceId);
                             return parent?.application ? (
                               <Badge variant="outline" className="font-mono text-xs text-muted-foreground">#{parent.application.jobNumber}</Badge>
-                            ) : null;
-                          })() : null}
+                            ) : (
+                              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-1" onClick={() => toggleDobFiling(svc.id)}>
+                                Enable DOB
+                              </Button>
+                            );
+                          })() : (
+                            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-1" onClick={() => toggleDobFiling(svc.id)}>
+                              Enable DOB
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                       {isExpanded && (

@@ -717,6 +717,7 @@ export function useSignProposalInternal() {
           total_amount: item.total_price,
           billing_type: "fixed",
           status: "not_started",
+          needs_dob_filing: item.needs_dob_filing ?? false,
         }));
 
         // We need a DOB application to satisfy the FK constraint on services
