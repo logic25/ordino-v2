@@ -1,27 +1,40 @@
 
 
-## Fix Missing Items: Group by Section Heading + TPP "Same as Applicant" Logic
+# Add Contact License Type + Specialty Fields
 
-### What Changes
+## Overview
+Add a two-field system to contacts: **License Type** (RA, PE, Contractor) and a **Specialty** sub-field (Plumber, Electrician, GC, HVAC, etc.) that appears when "Contractor" is selected. This will be surfaced across all contact forms and visible in the contact table so you can identify and filter contacts by trade.
 
-Update the readiness calculation in `useProjectDetail.ts` to show smarter, grouped missing items instead of individual field labels:
+## Database Change
+- Add a `specialty` text column to `client_contacts` (nullable).
 
-1. **GC unknown** -- Instead of listing individual GC fields, show a single **"General Contractor (TBD)"** entry in missingFields
-2. **TPP "Same as Applicant"** -- Treat this as resolved (not missing at all). No entry in missingFields.
-3. **TPP unknown (No / blank)** -- Show a single **"TPP Applicant (TBD)"** entry
-4. **SIA unknown** -- Show a single **"Special Inspector (TBD)"** entry
-5. **GC/TPP/SIA "Yes" but details incomplete** -- Continue showing individual missing field labels as before
+## UI Changes
 
-### Technical Detail
+### 1. Client Detail Page -- Contact Table + Inline Edit (`ClientDetail.tsx`)
+- Add a **License** column to the contacts table header (between Title and Mobile).
+- Display the license type (and specialty if Contractor) in the contact row.
+- Add **License Type** dropdown and **Specialty** dropdown (conditional on Contractor) to the inline edit panel.
+- Include both fields in the `handleSave` update call.
 
-**File: `src/hooks/useProjectDetail.ts` -- `useProjectPISStatus`**
+### 2. Add Contact Dialog (`AddContactDialog.tsx`)
+- Add `license_type` and `specialty` fields to the form state.
+- Add License Type select (RA / PE / Contractor) and conditional Specialty select.
+- Include both fields in the insert mutation.
 
-After the existing conditional exclusion logic (lines 257-277), instead of simply excluding fields from `allFields`, build the `missingFields` array with grouped labels:
+### 3. Edit Contact Dialog (`EditContactDialog.tsx`)
+- Already has `license_type` and `license_number`. Replace `license_number` with a `specialty` field when type is Contractor, keep license_number for RA/PE.
+- Add the `specialty` field to the update mutation.
 
-- When `gcKnown !== "Yes"`: exclude all GC detail fields from `allFields` (already done), then append `"General Contractor (TBD)"` to the final missingFields array
-- When `tppKnown` includes "Same as Applicant": exclude TPP fields (already done), add **nothing** to missingFields -- it's resolved
-- When `tppKnown` is blank or "No": exclude TPP fields (already done), append `"TPP Applicant (TBD)"` to missingFields
-- When `siaKnown !== "Yes"`: exclude SIA fields (already done), append `"Special Inspector (TBD)"` to missingFields
+### 4. Proposal Reports (`ProposalReports.tsx`)
+- In the Change Order analytics "by client type" breakdown, also allow grouping/filtering by contact license type if desired (future enhancement).
 
-The grouped TBD labels are appended after the per-field missing calculation so they appear alongside any other genuinely missing fields (like owner name, address, etc.) but replace the noisy individual contractor fields.
+## Specialty Options (Contractor subtypes)
+Default list: General Contractor, Plumber, Electrician, HVAC, Fire Suppression, Roofer, Mason, Carpenter, Painter, Other.
+
+## Technical Details
+- Migration: `ALTER TABLE client_contacts ADD COLUMN specialty text;`
+- The Specialty dropdown only appears when License Type = "Contractor".
+- RA and PE contacts keep the existing License # field.
+- Contractor contacts get a Specialty dropdown instead.
+- All three surfaces (table row, inline edit, both dialogs) will be updated consistently.
 
