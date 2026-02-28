@@ -249,16 +249,48 @@ export function useProjectPISStatus(projectId: string | undefined) {
       const sections = (rfi.sections as any[]) || [];
       const responses = (rfi.responses as Record<string, any>) || {};
 
+      // Helper: resolve a response value by trying prefixed and flat keys
+      const getResponseVal = (sectionId: string, fieldId: string) => {
+        return responses[`${sectionId}_${fieldId}`] ?? responses[fieldId];
+      };
+
+      // Determine which GC/TPP/SIA detail fields should be excluded
+      // based on the _known gating answers
+      const conditionallyExcludedIds = new Set<string>();
+
+      // GC fields excluded when gc_known is not "Yes"
+      const gcKnown = getResponseVal("contractors_inspections", "gc_known");
+      if (gcKnown !== "Yes") {
+        ["gc_name", "gc_company", "gc_phone", "gc_email", "gc_address", "gc_dob_tracking", "gc_hic_lic"].forEach(id => conditionallyExcludedIds.add(id));
+      }
+
+      // TPP fields excluded when tpp_known is not "Yes"
+      const tppKnown = getResponseVal("contractors_inspections", "tpp_known");
+      if (!tppKnown || tppKnown === "No" || tppKnown.includes("Same as Applicant")) {
+        ["tpp_name", "tpp_email"].forEach(id => conditionallyExcludedIds.add(id));
+      }
+
+      // SIA fields excluded when sia_known is not "Yes"
+      const siaKnown = getResponseVal("contractors_inspections", "sia_known");
+      if (siaKnown !== "Yes") {
+        ["sia_name", "sia_company", "sia_phone", "sia_email", "sia_number", "sia_nys_lic"].forEach(id => conditionallyExcludedIds.add(id));
+      }
+
+      // The _known gating questions themselves are not data fields
+      const gatingFieldIds = new Set(["gc_known", "tpp_known", "sia_known"]);
+
       // Collect all individual fields from section definitions
-      // Exclude optional fields and fields from excluded sections (notes)
+      // Exclude optional fields, gating questions, conditional fields, and excluded sections
       const allFields: { id: string; label: string; sectionId: string }[] = [];
       for (const section of sections) {
         if (EXCLUDED_PIS_SECTION_IDS.has(section.id)) continue;
         const fields = (section.fields as any[]) || [];
         for (const field of fields) {
-          if (field.type === "heading" || field.type === "file_upload" || field.type === "work_type_picker") continue;
+          if (field.type === "heading" || field.type === "file_upload" || field.type === "work_type_picker" || field.type === "checkbox_group") continue;
           const fieldId = field.id as string;
           if (OPTIONAL_PIS_FIELD_IDS.has(fieldId)) continue;
+          if (gatingFieldIds.has(fieldId)) continue;
+          if (conditionallyExcludedIds.has(fieldId)) continue;
           allFields.push({ id: fieldId, label: field.label || fieldId, sectionId: section.id });
         }
       }
