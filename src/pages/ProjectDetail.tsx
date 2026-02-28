@@ -6,7 +6,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useSensors, useSensor, PointerSensor } from "@dnd-kit/core";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -2239,7 +2239,7 @@ function TimelineFull({ milestones, projectId }: { milestones: MockMilestone[]; 
 function DocumentsFull({ documents, projectId, companyId, proposal }: { documents: MockDocument[]; projectId?: string; companyId?: string; proposal?: any }) {
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
-  const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string; isPdf?: boolean } | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string; isPdf?: boolean; isImage?: boolean; isHtml?: boolean } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const { toast } = useToast();
@@ -2301,13 +2301,17 @@ function DocumentsFull({ documents, projectId, companyId, proposal }: { document
   const handlePreview = async (doc: MockDocument) => {
     try {
       const bucket = doc.storageBucket || "universal-documents";
-      const { data, error } = await supabase.storage.from(bucket).createSignedUrl(doc.storage_path || "", 3600);
-      if (error || !data?.signedUrl) {
+      const { data, error } = await supabase.storage.from(bucket).download(doc.storage_path || "");
+      if (error || !data) {
         toast({ title: "Error", description: "Failed to load document preview.", variant: "destructive" });
         return;
       }
       const ext = (doc.filename || doc.name).split(".").pop()?.toLowerCase();
-      setPreviewDoc({ url: data.signedUrl, name: doc.filename || doc.name, isPdf: ext === "pdf" });
+      const isPdf = ext === "pdf";
+      const isImage = ["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext || "");
+      const isHtml = ext === "html" || ext === "htm";
+      const blobUrl = URL.createObjectURL(data);
+      setPreviewDoc({ url: blobUrl, name: doc.filename || doc.name, isPdf, isImage, isHtml });
     } catch {
       toast({ title: "Error", description: "Failed to load document.", variant: "destructive" });
     }
@@ -2425,24 +2429,21 @@ function DocumentsFull({ documents, projectId, companyId, proposal }: { document
       )}
 
       {/* Document Preview Modal */}
-      <Dialog open={!!previewDoc} onOpenChange={(open) => !open && setPreviewDoc(null)}>
+      <Dialog open={!!previewDoc} onOpenChange={(open) => {
+        if (!open) {
+          if (previewDoc?.url) URL.revokeObjectURL(previewDoc.url);
+          setPreviewDoc(null);
+        }
+      }}>
         <DialogContent className="sm:max-w-[900px] max-h-[90vh] p-0">
           <DialogHeader className="p-4 pb-2">
             <DialogTitle className="text-base">{previewDoc?.name}</DialogTitle>
+            <DialogDescription className="sr-only">Document preview</DialogDescription>
           </DialogHeader>
           {previewDoc && (
             <div className="px-4 pb-4" style={{ height: "75vh" }}>
-              {previewDoc.isPdf ? (
-                <object
-                  data={previewDoc.url}
-                  type="application/pdf"
-                  className="w-full h-full rounded-md border"
-                >
-                  <p className="p-4 text-center text-muted-foreground">
-                    PDF preview not supported.{" "}
-                    <a href={previewDoc.url} target="_blank" rel="noopener noreferrer" className="underline text-primary">Open in new tab</a>
-                  </p>
-                </object>
+              {previewDoc.isImage ? (
+                <img src={previewDoc.url} alt={previewDoc.name} className="max-w-full max-h-full mx-auto rounded-md border object-contain" />
               ) : (
                 <iframe
                   src={previewDoc.url}
