@@ -98,6 +98,8 @@ export interface CompanySettings {
   bonus_tiers?: { min_pct: number; max_pct: number; amount: number }[];
   // Instruction templates
   instruction_templates?: InstructionTemplate[];
+  // Custom work type disciplines
+  custom_work_types?: string[];
   // Google Chat integration
   gchat_enabled?: boolean;
   gchat_space_id?: string;
