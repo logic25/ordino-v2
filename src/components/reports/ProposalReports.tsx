@@ -6,8 +6,8 @@ import { useProposalReports, useProposalDetailedReports } from "@/hooks/useRepor
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Legend, CartesianGrid } from "recharts";
-import { Users } from "lucide-react";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Legend, CartesianGrid, LineChart, Line } from "recharts";
+import { Users, TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 const COLORS = [
   "hsl(var(--primary))",
@@ -61,12 +61,82 @@ function useYTDSalesByRep() {
   });
 }
 
+function useChangeOrderAnalytics() {
+  const { session } = useAuth();
+  return useQuery({
+    queryKey: ["co-analytics", session?.user?.id],
+    enabled: !!session?.user?.id,
+    queryFn: async () => {
+      const [{ data: changeOrders }, { data: projects }, { data: clients }] = await Promise.all([
+        supabase.from("change_orders").select("id, project_id, amount, status, created_at"),
+        supabase.from("projects").select("id, client_id, project_number, address"),
+        supabase.from("clients").select("id, name, client_type"),
+      ]);
+
+      const cos = changeOrders || [];
+      const projs = projects || [];
+      const cls = clients || [];
+
+      const clientMap: Record<string, { name: string; type: string }> = {};
+      cls.forEach((c: any) => { clientMap[c.id] = { name: c.name, type: c.client_type || "Unknown" }; });
+
+      const projClientMap: Record<string, string> = {};
+      projs.forEach((p: any) => { if (p.client_id) projClientMap[p.id] = p.client_id; });
+
+      const totalCOs = cos.length;
+      const approvedCOs = cos.filter((c: any) => c.status === "approved").length;
+      const totalCOValue = cos.reduce((s: number, c: any) => s + (c.amount || 0), 0);
+
+      // Projects with COs
+      const projectsWithCOs = new Set(cos.map((c: any) => c.project_id));
+      const coProjectCount = projectsWithCOs.size;
+      const totalProjectCount = projs.length;
+      const coProjectRate = totalProjectCount > 0 ? Math.round((coProjectCount / totalProjectCount) * 100) : 0;
+
+      // By client
+      const byClient: Record<string, { name: string; type: string; coCount: number; coValue: number; projectCount: number }> = {};
+      cos.forEach((co: any) => {
+        const clientId = projClientMap[co.project_id];
+        if (!clientId) return;
+        const info = clientMap[clientId] || { name: "Unknown", type: "Unknown" };
+        if (!byClient[clientId]) byClient[clientId] = { name: info.name, type: info.type, coCount: 0, coValue: 0, projectCount: 0 };
+        byClient[clientId].coCount++;
+        byClient[clientId].coValue += co.amount || 0;
+      });
+      // Count distinct projects per client that have COs
+      projectsWithCOs.forEach((projId) => {
+        const clientId = projClientMap[projId as string];
+        if (clientId && byClient[clientId]) byClient[clientId].projectCount++;
+      });
+      const clientCOData = Object.values(byClient).sort((a, b) => b.coCount - a.coCount);
+
+      // By client type
+      const byType: Record<string, { coCount: number; coValue: number; clientCount: number }> = {};
+      Object.values(byClient).forEach((c) => {
+        if (!byType[c.type]) byType[c.type] = { coCount: 0, coValue: 0, clientCount: 0 };
+        byType[c.type].coCount += c.coCount;
+        byType[c.type].coValue += c.coValue;
+        byType[c.type].clientCount++;
+      });
+      const typeCOData = Object.entries(byType).map(([type, v]) => ({
+        name: type,
+        coCount: v.coCount,
+        coValue: v.coValue,
+        clientCount: v.clientCount,
+      })).sort((a, b) => b.coCount - a.coCount);
+
+      return { totalCOs, approvedCOs, totalCOValue, coProjectCount, totalProjectCount, coProjectRate, clientCOData, typeCOData };
+    },
+  });
+}
+
 export default function ProposalReports() {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(String(currentYear));
   const { data, isLoading } = useProposalReports();
   const { data: detailed, isLoading: detailedLoading } = useProposalDetailedReports();
   const { data: salesByRep } = useYTDSalesByRep();
+  const { data: coData } = useChangeOrderAnalytics();
 
   const years: string[] = useMemo(() => {
     if (!detailed?.allProposals) return [String(currentYear)];
@@ -74,6 +144,37 @@ export default function ProposalReports() {
     yrs.add(String(currentYear));
     return Array.from(yrs).sort().reverse();
   }, [detailed, currentYear]);
+
+  // Monthly trend data — count & avg price
+  const trendData = useMemo(() => {
+    if (!detailed?.allProposals) return [];
+    const yearProposals = detailed.allProposals.filter(
+      (p: any) => String(new Date(p.created_at).getFullYear()) === selectedYear
+    );
+    return MONTHS.map((month, idx) => {
+      const mp = yearProposals.filter((p: any) => new Date(p.created_at).getMonth() === idx);
+      const count = mp.length;
+      const totalValue = mp.reduce((s: number, p: any) => s + (p.total_amount || 0), 0);
+      const avgPrice = count > 0 ? Math.round(totalValue / count) : 0;
+      return { month, count, avgPrice };
+    });
+  }, [detailed, selectedYear]);
+
+  // Compute MoM trend
+  const currentMonth = new Date().getMonth();
+  const thisMonthCount = trendData[currentMonth]?.count || 0;
+  const lastMonthCount = currentMonth > 0 ? (trendData[currentMonth - 1]?.count || 0) : 0;
+  const countTrend = lastMonthCount > 0 ? Math.round(((thisMonthCount - lastMonthCount) / lastMonthCount) * 100) : thisMonthCount > 0 ? 100 : 0;
+  const thisMonthAvg = trendData[currentMonth]?.avgPrice || 0;
+  const lastMonthAvg = currentMonth > 0 ? (trendData[currentMonth - 1]?.avgPrice || 0) : 0;
+  const avgTrend = lastMonthAvg > 0 ? Math.round(((thisMonthAvg - lastMonthAvg) / lastMonthAvg) * 100) : thisMonthAvg > 0 ? 100 : 0;
+
+  const TrendIcon = ({ change }: { change: number }) => {
+    if (change > 0) return <TrendingUp className="h-4 w-4 text-green-600" />;
+    if (change < 0) return <TrendingDown className="h-4 w-4 text-destructive" />;
+    return <Minus className="h-4 w-4 text-muted-foreground" />;
+  };
+  const trendColor = (c: number) => c > 0 ? "text-green-600" : c < 0 ? "text-destructive" : "text-muted-foreground";
 
   // Conversion table data
   const conversionData = useMemo(() => {
@@ -164,8 +265,8 @@ export default function ProposalReports() {
         </Select>
       </div>
 
-      {/* Summary Cards Row */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {/* Summary Cards Row — now with trends */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Win Rate</CardTitle>
@@ -186,14 +287,65 @@ export default function ProposalReports() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Avg Follow-ups to Close</CardTitle>
+            <CardTitle className="text-base">Proposals This Month</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <span className="text-3xl font-bold">{thisMonthCount}</span>
+              <TrendIcon change={countTrend} />
+              <span className={`text-sm font-medium ${trendColor(countTrend)}`}>
+                {countTrend > 0 ? "+" : ""}{countTrend}%
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">vs {lastMonthCount} last month</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Avg Proposal Price</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <span className="text-3xl font-bold">{fmt(thisMonthAvg)}</span>
+              <TrendIcon change={avgTrend} />
+              <span className={`text-sm font-medium ${trendColor(avgTrend)}`}>
+                {avgTrend > 0 ? "+" : ""}{avgTrend}%
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">vs {fmt(lastMonthAvg)} last month</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Avg Follow-ups</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">{data.avgFollowUps}</p>
-            <p className="text-sm text-muted-foreground">For executed proposals</p>
+            <p className="text-sm text-muted-foreground">To close</p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Proposal Count & Avg Price Trend Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Monthly Proposal Count & Avg Price — {selectedYear}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={trendData}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+              <YAxis yAxisId="count" orientation="left" tick={{ fontSize: 11 }} label={{ value: "Count", angle: -90, position: "insideLeft", style: { fontSize: 11 } }} />
+              <YAxis yAxisId="price" orientation="right" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} label={{ value: "Avg Price", angle: 90, position: "insideRight", style: { fontSize: 11 } }} />
+              <Tooltip formatter={(v: number, name: string) => name === "avgPrice" ? fmt(v) : v} />
+              <Legend />
+              <Line yAxisId="count" type="monotone" dataKey="count" name="Proposals" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+              <Line yAxisId="price" type="monotone" dataKey="avgPrice" name="Avg Price" stroke="hsl(142, 76%, 36%)" strokeWidth={2} dot={{ r: 3 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
 
       {/* Conversion Rates Table */}
       <Card>
@@ -244,7 +396,6 @@ export default function ProposalReports() {
 
       {/* Charts Row */}
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Proposal Sources */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Proposal Sources — {selectedYear}</CardTitle>
@@ -265,7 +416,6 @@ export default function ProposalReports() {
           </CardContent>
         </Card>
 
-        {/* Status Breakdown */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Status Breakdown</CardTitle>
@@ -336,6 +486,125 @@ export default function ProposalReports() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Change Order Analytics Section */}
+      {coData && (
+        <>
+          <h2 className="text-lg font-semibold text-foreground pt-4 border-t border-border">Change Order Analytics</h2>
+
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Total COs</CardTitle></CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold">{coData.totalCOs}</p>
+                <p className="text-sm text-muted-foreground">{coData.approvedCOs} approved</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-base">CO Value</CardTitle></CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold">{fmt(coData.totalCOValue)}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Projects with COs</CardTitle></CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold">{coData.coProjectCount}</p>
+                <p className="text-sm text-muted-foreground">{coData.coProjectRate}% of {coData.totalProjectCount} projects</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Avg CO per Project</CardTitle></CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold">{coData.coProjectCount > 0 ? (coData.totalCOs / coData.coProjectCount).toFixed(1) : "—"}</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* CO by Client */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Change Orders by Client</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {coData.clientCOData.length > 0 ? (
+                <div className="overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Client</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead className="text-right">COs</TableHead>
+                        <TableHead className="text-right">Projects w/ COs</TableHead>
+                        <TableHead className="text-right">CO Value</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {coData.clientCOData.map((row) => (
+                        <TableRow key={row.name}>
+                          <TableCell className="font-medium">{row.name}</TableCell>
+                          <TableCell className="text-muted-foreground">{row.type}</TableCell>
+                          <TableCell className="text-right">{row.coCount}</TableCell>
+                          <TableCell className="text-right">{row.projectCount}</TableCell>
+                          <TableCell className="text-right">{fmt(row.coValue)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-8">No change order data</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* CO by Client Type */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">COs by Client Type</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {coData.typeCOData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <BarChart data={coData.typeCOData}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="coCount" name="Change Orders" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="clientCount" name="Clients" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-8">No data</p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">CO Value by Client Type</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {coData.typeCOData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <PieChart>
+                      <Pie data={coData.typeCOData} dataKey="coValue" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, coValue }) => `${name} (${fmt(coValue)})`}>
+                        {coData.typeCOData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                      </Pie>
+                      <Tooltip formatter={(v: number) => fmt(v)} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-8">No data</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
     </div>
   );
 }
