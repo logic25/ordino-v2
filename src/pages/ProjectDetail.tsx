@@ -1760,7 +1760,7 @@ function ServicesFull({ services: initialServices, project, contacts, allService
           if (!open) {
             // Refresh services after billing dialog closes
             setSelectedIds(new Set());
-            queryClient.invalidateQueries({ queryKey: ["project-services"] });
+            queryClient.invalidateQueries({ queryKey: ["project-services-full"] });
           }
         }}
         preselectedProjectId={project.id}
