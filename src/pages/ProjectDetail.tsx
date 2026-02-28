@@ -2241,7 +2241,7 @@ function DocumentsFull({ documents, projectId, companyId, proposal }: { document
   const [catFilter, setCatFilter] = useState("all");
   const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string } | null>(null);
   const [uploading, setUploading] = useState(false);
-  const fileInputRef = useState<HTMLInputElement | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -2254,7 +2254,6 @@ function DocumentsFull({ documents, projectId, companyId, proposal }: { document
       const path = `${companyId}/${crypto.randomUUID()}.${ext}`;
       const { error: uploadError } = await supabase.storage.from("universal-documents").upload(path, file);
       if (uploadError) throw uploadError;
-      // Get current user profile for uploaded_by
       const { data: uploaderProfile } = await supabase.from("profiles").select("id").single();
       const { error } = await supabase.from("universal_documents").insert({
         company_id: companyId,
@@ -2279,38 +2278,35 @@ function DocumentsFull({ documents, projectId, companyId, proposal }: { document
     }
   };
 
-  const loadDocBlob = async (doc: MockDocument): Promise<Blob | null> => {
-    const storagePathKey = doc.storage_path;
-    if (!storagePathKey) {
-      toast({ title: "No file available", description: "This document is a reference record without an uploaded file.", variant: "destructive" });
-      return null;
-    }
-    const bucket = doc.storageBucket || "documents";
-    const { data, error } = await supabase.storage.from(bucket).download(storagePathKey);
-    if (error || !data) {
-      // For contract docs with missing files, try to generate from proposal public token
-      if (doc.category === "contract" && doc.name.toLowerCase().includes("proposal") && proposal?.public_token) {
-        toast({ title: "Signed contract not yet generated", description: "Please re-sign the proposal from the Proposals page to generate the document.", variant: "destructive" });
-      } else {
-        toast({ title: "File not found", description: "The file could not be retrieved from storage.", variant: "destructive" });
+  const handleDelete = async (doc: MockDocument) => {
+    if (!doc.storage_path) return;
+    setDeleting(doc.id);
+    try {
+      const bucket = doc.storageBucket || "universal-documents";
+      await supabase.storage.from(bucket).remove([doc.storage_path]);
+      // Only delete from universal_documents if it's not a virtual doc (PIS, signed proposal)
+      if (!doc.id.startsWith("pis-") && !doc.id.startsWith("signed-proposal-")) {
+        const { error } = await supabase.from("universal_documents").delete().eq("id", doc.id);
+        if (error) throw error;
       }
-      return null;
+      queryClient.invalidateQueries({ queryKey: ["project-documents"] });
+      toast({ title: "Deleted", description: `${doc.name} removed.` });
+    } catch (err: any) {
+      toast({ title: "Delete failed", description: err.message, variant: "destructive" });
+    } finally {
+      setDeleting(null);
     }
-    return data;
   };
 
   const handlePreview = async (doc: MockDocument) => {
     try {
-      const blob = await loadDocBlob(doc);
-      if (!blob) return;
-      // Ensure correct MIME type for proper iframe rendering (Supabase blobs may lack it)
-      const ext = (doc.filename || doc.name).split(".").pop()?.toLowerCase();
-      const mime = ext === "html" || ext === "htm" ? "text/html"
-        : ext === "pdf" ? "application/pdf"
-        : blob.type || "application/octet-stream";
-      const typedBlob = new Blob([blob], { type: mime });
-      const url = URL.createObjectURL(typedBlob);
-      setPreviewDoc({ url, name: doc.filename || doc.name });
+      const bucket = doc.storageBucket || "universal-documents";
+      const { data, error } = await supabase.storage.from(bucket).createSignedUrl(doc.storage_path || "", 3600);
+      if (error || !data?.signedUrl) {
+        toast({ title: "Error", description: "Failed to load document preview.", variant: "destructive" });
+        return;
+      }
+      setPreviewDoc({ url: data.signedUrl, name: doc.filename || doc.name });
     } catch {
       toast({ title: "Error", description: "Failed to load document.", variant: "destructive" });
     }
@@ -2318,9 +2314,13 @@ function DocumentsFull({ documents, projectId, companyId, proposal }: { document
 
   const handleDownload = async (doc: MockDocument) => {
     try {
-      const blob = await loadDocBlob(doc);
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
+      const bucket = doc.storageBucket || "universal-documents";
+      const { data, error } = await supabase.storage.from(bucket).download(doc.storage_path || "");
+      if (error || !data) {
+        toast({ title: "Download failed", variant: "destructive" });
+        return;
+      }
+      const url = URL.createObjectURL(data);
       const a = document.createElement("a");
       a.href = url;
       a.download = doc.filename || doc.name;
@@ -2377,7 +2377,7 @@ function DocumentsFull({ documents, projectId, companyId, proposal }: { document
               <TableHead>Size</TableHead>
               <TableHead>Uploaded By</TableHead>
               <TableHead>Date</TableHead>
-              <TableHead className="w-[120px]" />
+              <TableHead className="w-[140px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -2403,6 +2403,18 @@ function DocumentsFull({ documents, projectId, companyId, proposal }: { document
                     <Button variant="ghost" size="icon" className="h-8 w-8" title="Download" onClick={() => handleDownload(doc)}>
                       <Download className="h-4 w-4" />
                     </Button>
+                    {!doc.id.startsWith("signed-proposal-") && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        title="Delete"
+                        onClick={() => handleDelete(doc)}
+                        disabled={deleting === doc.id}
+                      >
+                        {deleting === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
