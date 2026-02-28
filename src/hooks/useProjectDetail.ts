@@ -27,9 +27,9 @@ export function useProjectServices(projectId: string | undefined) {
         status: svc.status || "not_started",
         application: null, // Will be populated separately if needed
         subServices: svc.disciplines || [],
-        totalAmount: svc.total_amount || svc.fixed_price || 0,
-        billedAmount: svc.billed_amount || 0,
-        costAmount: svc.cost_amount || 0,
+        totalAmount: Number(svc.total_amount ?? svc.fixed_price ?? 0) || 0,
+        billedAmount: Number(svc.billed_amount ?? 0) || 0,
+        costAmount: Number(svc.cost_amount ?? 0) || 0,
         assignedTo: (svc as any).assigned_to_name || "Unassigned",
         estimatedBillDate: svc.estimated_bill_date
           ? format(new Date(svc.estimated_bill_date), "MM/dd/yyyy")

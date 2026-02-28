@@ -273,12 +273,12 @@ export default function ProjectDetail() {
   const timeEntries: MockTimeEntry[] = realTimeEntries;
   const pisStatus: MockPISStatus = realPISStatus || { sentDate: null, totalFields: 0, completedFields: 0, missingFields: [] };
 
-  const approvedCOs = changeOrders.filter(co => co.status === "approved").reduce((s, co) => s + Number(co.amount), 0);
-  const contractTotal = liveServices.reduce((s, svc) => s + svc.totalAmount, 0);
+  const approvedCOs = changeOrders.filter(co => co.status === "approved").reduce((s, co) => s + (Number(co.amount) || 0), 0);
+  const contractTotal = liveServices.reduce((s, svc) => s + (Number(svc.totalAmount) || 0), 0);
   const adjustedTotal = contractTotal + approvedCOs;
-  const billed = liveServices.reduce((s, svc) => s + svc.billedAmount, 0);
+  const billed = liveServices.reduce((s, svc) => s + (Number(svc.billedAmount) || 0), 0);
   // Derive cost from actual time entries (hours × hourly rate)
-  const cost = timeEntries.reduce((s, te) => s + te.hours * (te.hourlyRate || 0), 0);
+  const cost = timeEntries.reduce((s, te) => s + (Number(te.hours) || 0) * (Number(te.hourlyRate) || 0), 0);
   const margin = adjustedTotal > 0 ? Math.round((adjustedTotal - cost) / adjustedTotal * 100) : 0;
 
   return (
@@ -1500,9 +1500,9 @@ function ServicesFull({ services: initialServices, project, contacts, allService
     const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
   });
 
-  const total = orderedServices.reduce((s, svc) => s + svc.totalAmount, 0);
-  const billed = orderedServices.reduce((s, svc) => s + svc.billedAmount, 0);
-  const cost = orderedServices.reduce((s, svc) => s + svc.costAmount, 0);
+  const total = orderedServices.reduce((s, svc) => s + (Number(svc.totalAmount) || 0), 0);
+  const billed = orderedServices.reduce((s, svc) => s + (Number(svc.billedAmount) || 0), 0);
+  const cost = orderedServices.reduce((s, svc) => s + (Number(svc.costAmount) || 0), 0);
   const [showBilled, setShowBilled] = useState(false);
 
   return (
