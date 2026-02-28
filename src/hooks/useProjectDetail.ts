@@ -277,8 +277,16 @@ export function useProjectPISStatus(projectId: string | undefined) {
       if (gcSameAs || !gcHasDetails) {
         gcFieldIds.forEach(id => conditionallyExcludedIds.add(id));
       }
-      if (tppSameAs || !tppHasDetails) {
-        tppFieldIds.forEach(id => conditionallyExcludedIds.add(id));
+      // TPP: if same_as, keep rent/units fields visible (they still need answers); only exclude tpp_name/tpp_email
+      // If TBD (no details, not same_as), exclude everything including rent/units
+      const tppContactFieldIds = ["tpp_name", "tpp_email"];
+      const tppExtraFieldIds = ["rent_controlled", "rent_stabilized", "units_occupied"];
+      if (tppSameAs) {
+        // Same as applicant: skip contact fields, but rent/units questions still required
+        tppContactFieldIds.forEach(id => conditionallyExcludedIds.add(id));
+      } else if (!tppHasDetails) {
+        // TBD: exclude everything
+        [...tppContactFieldIds, ...tppExtraFieldIds].forEach(id => conditionallyExcludedIds.add(id));
       }
       if (siaSameAs || !siaHasDetails) {
         siaFieldIds.forEach(id => conditionallyExcludedIds.add(id));
