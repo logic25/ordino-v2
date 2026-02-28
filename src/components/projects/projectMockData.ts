@@ -142,6 +142,7 @@ export interface MockTimeEntry {
   hours: number;
   description: string;
   billable: boolean;
+  hourlyRate?: number;
 }
 
 export interface MockChecklistItem {

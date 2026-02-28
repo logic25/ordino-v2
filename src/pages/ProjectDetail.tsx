@@ -198,20 +198,29 @@ export default function ProjectDetail() {
         .eq("project_id", project!.id);
       const appIds = (apps || []).map(a => a.id);
 
-      let query = supabase
-        .from("activities")
-        .select("id, activity_date, description, duration_minutes, user:profiles!activities_user_id_fkey(first_name, last_name, display_name), service:services!activities_service_id_fkey(name)")
-        .eq("company_id", project!.company_id)
-        .order("activity_date", { ascending: false });
+      // Get service IDs for this project
+      const { data: svcs } = await supabase
+        .from("services")
+        .select("id")
+        .eq("project_id", project!.id);
+      const svcIds = (svcs || []).map(s => s.id);
 
-      if (appIds.length > 0) {
-        query = query.in("application_id", appIds);
-      } else {
-        // No apps = no time entries for this project
+      if (appIds.length === 0 && svcIds.length === 0) {
         return [] as MockTimeEntry[];
       }
 
-      const { data, error } = await query;
+      // Build OR filter: application_id in appIds OR service_id in svcIds
+      const filters: string[] = [];
+      if (appIds.length > 0) filters.push(`application_id.in.(${appIds.join(",")})`);
+      if (svcIds.length > 0) filters.push(`service_id.in.(${svcIds.join(",")})`);
+
+      const { data, error } = await supabase
+        .from("activities")
+        .select("id, activity_date, description, duration_minutes, billable, user:profiles!activities_user_id_fkey(first_name, last_name, display_name, hourly_rate), service:services!activities_service_id_fkey(name)")
+        .eq("company_id", project!.company_id)
+        .or(filters.join(","))
+        .order("activity_date", { ascending: false });
+
       if (error) throw error;
       return (data || []).map((a: any) => ({
         id: a.id,
@@ -220,6 +229,8 @@ export default function ProjectDetail() {
         service: a.service?.name || "General",
         description: a.description || "",
         hours: (a.duration_minutes || 0) / 60,
+        hourlyRate: a.user?.hourly_rate || 0,
+        billable: a.billable ?? true,
       })) as MockTimeEntry[];
     },
   });
@@ -264,7 +275,8 @@ export default function ProjectDetail() {
   const contractTotal = liveServices.reduce((s, svc) => s + svc.totalAmount, 0);
   const adjustedTotal = contractTotal + approvedCOs;
   const billed = liveServices.reduce((s, svc) => s + svc.billedAmount, 0);
-  const cost = liveServices.reduce((s, svc) => s + svc.costAmount, 0);
+  // Derive cost from actual time entries (hours × hourly rate)
+  const cost = timeEntries.reduce((s, te) => s + te.hours * (te.hourlyRate || 0), 0);
   const margin = adjustedTotal > 0 ? Math.round((adjustedTotal - cost) / adjustedTotal * 100) : 0;
 
   return (
@@ -2873,8 +2885,17 @@ function ChangeOrdersFull({ changeOrders, projectId, companyId, serviceNames, on
 // ======== JOB COSTING ========
 
 function JobCostingFull({ services, timeEntries }: { services: MockService[]; timeEntries: MockTimeEntry[] }) {
+  // Calculate cost from actual time entries (hours × hourly rate)
+  const costByService: Record<string, number> = {};
+  const hoursByService: Record<string, number> = {};
+  timeEntries.forEach(te => {
+    const rate = te.hourlyRate || 0;
+    costByService[te.service] = (costByService[te.service] || 0) + te.hours * rate;
+    hoursByService[te.service] = (hoursByService[te.service] || 0) + te.hours;
+  });
+
   const contractTotal = services.reduce((s, svc) => s + svc.totalAmount, 0);
-  const costTotal = services.reduce((s, svc) => s + svc.costAmount, 0);
+  const costTotal = Object.values(costByService).reduce((s, v) => s + v, 0);
   const totalHours = timeEntries.reduce((s, t) => s + t.hours, 0);
   const margin = contractTotal > 0 ? ((contractTotal - costTotal) / contractTotal * 100) : 0;
 
@@ -2896,6 +2917,11 @@ function JobCostingFull({ services, timeEntries }: { services: MockService[]; ti
           </Card>
         ))}
       </div>
+      {costTotal === 0 && totalHours > 0 && (
+        <p className="text-xs text-muted-foreground italic">
+          Cost shows $0 because team members don't have hourly rates set. Update rates in Settings → Team to see accurate job costing.
+        </p>
+      )}
       <div className="overflow-x-auto -mx-4 sm:mx-0">
         <div className="min-w-[480px] px-4 sm:px-0">
           <Table>
@@ -2903,6 +2929,7 @@ function JobCostingFull({ services, timeEntries }: { services: MockService[]; ti
               <TableRow className="hover:bg-transparent">
                 <TableHead>Service</TableHead>
                 <TableHead className="text-right">Price</TableHead>
+                <TableHead className="text-right">Hours</TableHead>
                 <TableHead className="text-right">Cost</TableHead>
                 <TableHead className="text-right">Profit</TableHead>
                 <TableHead className="text-right">Margin</TableHead>
@@ -2910,15 +2937,18 @@ function JobCostingFull({ services, timeEntries }: { services: MockService[]; ti
             </TableHeader>
             <TableBody>
               {services.map((svc) => {
-                const sMargin = svc.totalAmount > 0 ? ((svc.totalAmount - svc.costAmount) / svc.totalAmount * 100) : 0;
+                const svcCost = costByService[svc.name] || 0;
+                const svcHours = hoursByService[svc.name] || 0;
+                const sMargin = svc.totalAmount > 0 ? ((svc.totalAmount - svcCost) / svc.totalAmount * 100) : 0;
                 return (
                   <TableRow key={svc.id}>
                     <TableCell className="font-medium">{svc.name}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatCurrency(svc.totalAmount)}</TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">{svc.costAmount > 0 ? formatCurrency(svc.costAmount) : "—"}</TableCell>
-                    <TableCell className="text-right tabular-nums">{svc.costAmount > 0 ? formatCurrency(svc.totalAmount - svc.costAmount) : "—"}</TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">{svcHours > 0 ? `${svcHours.toFixed(1)}h` : "—"}</TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">{svcCost > 0 ? formatCurrency(svcCost) : "—"}</TableCell>
+                    <TableCell className="text-right tabular-nums">{svcCost > 0 ? formatCurrency(svc.totalAmount - svcCost) : "—"}</TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {svc.costAmount > 0 ? (
+                      {svcCost > 0 ? (
                         <span className={sMargin > 50 ? "text-emerald-600 dark:text-emerald-400" : sMargin < 20 ? "text-red-600 dark:text-red-400" : ""}>{Math.round(sMargin)}%</span>
                       ) : "—"}
                     </TableCell>
