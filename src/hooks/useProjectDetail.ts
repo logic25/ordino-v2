@@ -289,17 +289,34 @@ export function useProjectPISStatus(projectId: string | undefined) {
 
       // Collect all individual fields from section definitions
       // Exclude optional fields, gating questions, conditional fields, and excluded sections
+      // Map of section id to a short prefix for disambiguating generic labels
+      const sectionPrefixMap: Record<string, string> = {
+        building_and_scope: "",
+        applicant_owner: "",
+        contractors_inspections: "",
+      };
+      const genericLabels = new Set(["Email", "Phone", "Full Name", "Company / Entity Name", "Address", "Name", "Business Name"]);
+      // Derive a human-friendly prefix from the current heading context within each section
       const allFields: { id: string; label: string; sectionId: string }[] = [];
       for (const section of sections) {
         if (EXCLUDED_PIS_SECTION_IDS.has(section.id)) continue;
         const fields = (section.fields as any[]) || [];
+        let currentHeading = sectionPrefixMap[section.id] ?? "";
         for (const field of fields) {
-          if (field.type === "heading" || field.type === "file_upload" || field.type === "work_type_picker" || field.type === "checkbox_group") continue;
+          if (field.type === "heading") {
+            // Track the current heading so we can prefix generic fields
+            currentHeading = (field.label as string || "").replace(/\s*\(.*\)/, "").trim();
+            continue;
+          }
+          if (field.type === "file_upload" || field.type === "work_type_picker" || field.type === "checkbox_group") continue;
           const fieldId = field.id as string;
           if (OPTIONAL_PIS_FIELD_IDS.has(fieldId)) continue;
           if (gatingFieldIds.has(fieldId)) continue;
           if (conditionallyExcludedIds.has(fieldId)) continue;
-          allFields.push({ id: fieldId, label: field.label || fieldId, sectionId: section.id });
+          const rawLabel = field.label || fieldId;
+          // Prefix generic labels with the current heading context for clarity
+          const label = (genericLabels.has(rawLabel) && currentHeading) ? `${currentHeading} — ${rawLabel}` : rawLabel;
+          allFields.push({ id: fieldId, label, sectionId: section.id });
         }
       }
 
