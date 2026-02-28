@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
-import { Save, AlertTriangle, UserPlus, CheckCircle2, Loader2, Copy, Search, Building2, User, Zap, ShieldAlert, ShieldCheck as ShieldCheckIcon } from "lucide-react";
+import { Save, AlertTriangle, UserPlus, CheckCircle2, Loader2, Copy, Search, Building2, User, Zap, ShieldAlert, ShieldCheck as ShieldCheckIcon, Link } from "lucide-react";
 import { formatPhoneNumber } from "@/lib/formatters";
 import { useClients } from "@/hooks/useClients";
 import { supabase } from "@/integrations/supabase/client";
@@ -433,6 +433,9 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
     if (!mapped["job_description"] && proposalJobDesc) {
       mapped["job_description"] = proposalJobDesc;
     }
+    // Load same_as flags
+    if (resp["tpp_same_as"]) mapped["tpp_same_as"] = String(resp["tpp_same_as"]);
+    if (resp["sia_same_as"]) mapped["sia_same_as"] = String(resp["sia_same_as"]);
     setValues(mapped);
   }, [rfiData, proposalJobDesc]);
 
@@ -526,6 +529,9 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
           }
         }
       }
+      // Persist same_as flags
+      if (values["tpp_same_as"]) updatedResponses["tpp_same_as"] = values["tpp_same_as"];
+      if (values["sia_same_as"]) updatedResponses["sia_same_as"] = values["sia_same_as"];
       const { error } = await (supabase.from("rfi_requests") as any)
         .update({ responses: updatedResponses, updated_at: new Date().toISOString() })
         .eq("id", rfiData.id);
@@ -670,6 +676,33 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
                         toast({ title: "Auto-filled", description: `${section.contactRole} details populated.` });
                       }}
                     />
+                  )}
+                  {/* Same as Applicant toggle for TPP and SIA */}
+                  {(section.id === "tpp" || section.id === "sia") && (
+                    <label className="flex items-center gap-2 mb-3 cursor-pointer text-sm">
+                      <Checkbox
+                        checked={values[section.id === "tpp" ? "tpp_same_as" : "sia_same_as"] === "true"}
+                        onCheckedChange={(checked) => {
+                          const flagKey = section.id === "tpp" ? "tpp_same_as" : "sia_same_as";
+                          if (checked) {
+                            // Auto-fill from applicant fields
+                            const mapping: Record<string, string> = section.id === "tpp"
+                              ? { tpp_name: values["applicant_name"] || "", tpp_email: values["applicant_email"] || "" }
+                              : {
+                                  sia_name: values["applicant_name"] || "",
+                                  sia_company: values["applicant_business_name"] || "",
+                                  sia_phone: values["applicant_phone"] || "",
+                                  sia_email: values["applicant_email"] || "",
+                                };
+                            setValues(prev => ({ ...prev, [flagKey]: "true", ...mapping }));
+                          } else {
+                            setValues(prev => ({ ...prev, [flagKey]: "" }));
+                          }
+                        }}
+                      />
+                      <Link className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>Same as Applicant</span>
+                    </label>
                   )}
                   <div className="grid grid-cols-2 gap-3 pb-2">
                     {section.fields.map((field) => renderField(field))}
