@@ -1,54 +1,53 @@
 
 
-## Plan: Fix Chris's Follow-Up Issues (Round 2)
+## PIS Refinements and GC Compliance Checking
 
-### Issues to Address
+### Summary of Changes
 
-**1. Sent emails appearing in Inbox after Gmail sync**
-The Gmail sync edge function syncs ALL emails (inbox + sent). The inbox filter in `EmailFilterTabs.tsx` does NOT exclude sent-only emails -- it only excludes archived and snoozed. Emails with the "SENT" label but no "INBOX" label still show up in the inbox tab.
+Based on your feedback, here's what needs to happen:
 
-**2. Company email doesn't autopopulate when selecting a company in proposal contacts**
-In `ProposalContactsSection.tsx` line 335-343, `handleSelectCompany` resets `name`, `email`, and `phone` to empty when a company is selected. It does not fetch the company's own email from the `clients` table -- it only fills the company name. The client's email should be set on the contact row.
-
-**3. Can't add more work types in Settings**
-The work type list (`WORK_TYPE_DISCIPLINES` in `useCompanySettings.ts`) is hardcoded to 12 disciplines. There is no UI to add custom work types. Need to allow companies to define additional disciplines in Settings.
-
-**4. Services step still doesn't scroll**
-The outer body container at line 918-919 wraps ALL steps with `overflow-y-auto`, but the services step (step 2) at line 1088-1119 uses its own `flex-1 min-h-0 overflow-y-auto` layout. The problem is the parent `overflow-y-auto` at line 919 fights with the child's flex layout. When step === 2, the outer wrapper should NOT scroll -- the inner services container should handle it.
-
-**5. "Save & Preview" button not working / no validation feedback**
-The `doSave` function calls `form.handleSubmit(handleSubmit)()` which runs Zod validation. If validation fails, `handleSubmit` is never called and the user sees nothing -- no toast, no error highlight. The `validateStep` function only runs on "Next" clicks (step 0), not on save. Need to add an `onError` handler to `form.handleSubmit` that shows which fields are invalid.
-
-**6. Add "Analyze work type per plans" to product roadmap**
-Already acknowledged as a roadmap item. Will add it to `docs/spec.md` or the roadmap table.
+1. **Keep Filing Type on PIS** -- it stays where it is (reverting previous plan to remove it)
+2. **Remove Client Reference Number from PIS** -- move it to the internal project record only
+3. **Exclude Insurance and Special Notes section from readiness scoring** -- the section stays visible but won't count as "missing"
+4. **Format phone numbers properly** -- apply `(XXX) XXX-XXXX` formatting to all phone fields in the PIS
+5. **Corporate Officer fields conditional** -- only show when Ownership Type is Corporation, Condo/Co-op, or Non-profit
+6. **Make Area (sq ft) and HIC License optional** -- don't count them toward readiness
+7. **GC Compliance cross-reference** -- when a GC is entered (by staff or client), check the clients table for their `dob_tracking_expiration`, `hic_license`, and insurance status; flag if expired or missing
 
 ---
 
-### Technical Changes
+### Technical Details
 
-**A. Fix sent emails in inbox** (`src/components/emails/EmailFilterTabs.tsx`)
-- Update the `inbox` case in `getFilteredEmails` to exclude emails that have "SENT" label but do NOT have "INBOX" label
-- Change filter: `if (isSentEmail(e) && !labels.includes("INBOX")) return false`
+**A. EditPISDialog.tsx (Internal PIS editor)**
+- Add `optional?: boolean` to `PisFieldDef` interface
+- Mark `sq_ft`, `apt_numbers`, `gc_hic_lic` as `optional: true`
+- Mark all `notes` section fields as `optional: true`
+- Remove `client_reference_number` from the `applicant` section fields
+- Keep `filing_type` in place
+- Conditionally render `corp_officer_name` and `corp_officer_title` only when `ownership_type` is "Corporation", "Condo/Co-op", or "Non-profit"
+- Apply `formatPhoneNumber` from `src/lib/formatters.ts` to all phone-type fields in `renderField`
+- Update `getSectionProgress` and `allFields` count to exclude optional fields from totals
+- Add a GC compliance banner: after the GC section, if `gc_company` or `gc_name` matches a client record, show their DOB tracking expiration and insurance status with a warning badge if expired
 
-**B. Autopopulate company email on contact selection** (`src/components/proposals/ProposalContactsSection.tsx`)
-- In `handleSelectCompany`, after setting `company_name`, set `email` to `client.email` if available (the `Client` type includes `email`)
-- This gives the contact row the company's email as a starting point
+**B. useProjectDetail.ts (Readiness calculation)**
+- Export an `OPTIONAL_PIS_FIELD_IDS` set from EditPISDialog
+- In `useProjectPISStatus`, exclude optional field IDs from `totalFields` and `missingFields` counts
+- Exclude the entire `notes` section fields from the readiness calculation
 
-**C. Allow adding custom work types** (`src/components/settings/ServiceCatalogSettings.tsx` + `src/hooks/useCompanySettings.ts`)
-- Add `custom_work_types?: string[]` to `CompanySettings` interface
-- In the Service Catalog settings, add a small "Manage Work Types" section or inline "Add Work Type" button
-- Merge `WORK_TYPE_DISCIPLINES` with `companyData.settings.custom_work_types` wherever disciplines are displayed (ProposalDialog, ServiceCatalogSettings)
+**C. RfiForm.tsx (Public client-facing PIS)**
+- Remove `client_reference_number` field from the public form sections
+- Keep `filing_type` visible for clients
+- Apply `formatPhoneNumber` to phone fields (already partially implemented)
 
-**D. Fix services step scrolling** (`src/components/proposals/ProposalDialog.tsx`)
-- Change the outer scrollable body wrapper (line 919) to conditionally NOT apply `overflow-y-auto` when on the services step (step === 2)
-- The services step's own inner container already has the correct flex/scroll setup
-- Something like: `className={cn("flex-1", step === 2 ? "min-h-0 flex flex-col" : "overflow-y-auto")}`
+**D. GC Compliance Check (EditPISDialog.tsx)**
+- When GC name/company is entered, query the `clients` table to find a matching record (by name or DOB tracking number)
+- If a match is found, display an inline status card showing:
+  - DOB Tracking # and expiration date (green if current, red if expired)
+  - HIC License status (if they have one)
+  - Insurance status from their client record
+- If expired or missing, show a warning with option to "Send Reminder" (pre-fills an email draft)
+- This uses existing data from the `clients` table (`dob_tracking`, `dob_tracking_expiration`, `hic_license`, insurance fields) -- no new tables needed
 
-**E. Show validation errors on Save/Preview** (`src/components/proposals/ProposalDialog.tsx`)
-- Add an `onError` callback to `form.handleSubmit` in the `doSave` function
-- In `onError`, inspect the errors object and show a toast listing the missing required fields (e.g., "Property is required", "Title is required")
-- This ensures users know exactly what's blocking the save
-
-**F. Update "Add Service" button label when editing** (`src/components/settings/ServiceCatalogSettings.tsx`)
-- Line 759: The dialog footer button still says "Add Service" even when editing -- change to "Save Changes" when `editingServiceId` is set
+**E. ProjectDetail or ProjectDialog**
+- Add `client_reference_number` as an editable field on the project record (internal only) so it's still tracked but not on the PIS sent to clients
 
