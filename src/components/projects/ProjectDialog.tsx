@@ -61,6 +61,7 @@ export function ProjectDialog({
     notable: false,
     unit_number: "",
     tenant_name: "",
+    client_reference_number: "",
     completion_date: null,
     notes: "",
     expected_construction_start: null,
@@ -95,6 +96,7 @@ export function ProjectDialog({
         notable: project.notable,
         unit_number: (project as any).unit_number || "",
         tenant_name: (project as any).tenant_name || "",
+        client_reference_number: (project as any).client_reference_number || "",
         completion_date: project.completion_date,
         notes: project.notes || "",
         expected_construction_start: (project as any).expected_construction_start || null,
@@ -127,6 +129,7 @@ export function ProjectDialog({
         notable: false,
         unit_number: "",
         tenant_name: "",
+        client_reference_number: "",
         completion_date: null,
         notes: "",
         expected_construction_start: null,
@@ -285,6 +288,15 @@ export function ProjectDialog({
                 value={form.tenant_name || ""}
                 onChange={(e) => setForm((f) => ({ ...f, tenant_name: e.target.value }))}
                 placeholder="e.g., Acme Corp"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="client_reference_number">Client Reference #</Label>
+              <Input
+                id="client_reference_number"
+                value={form.client_reference_number || ""}
+                onChange={(e) => setForm((f) => ({ ...f, client_reference_number: e.target.value }))}
+                placeholder="e.g., NY Tent #611490"
               />
             </div>
           </div>
