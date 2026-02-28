@@ -338,7 +338,7 @@ export default function ProposalReports() {
               <XAxis dataKey="month" tick={{ fontSize: 11 }} />
               <YAxis yAxisId="count" orientation="left" tick={{ fontSize: 11 }} label={{ value: "Count", angle: -90, position: "insideLeft", style: { fontSize: 11 } }} />
               <YAxis yAxisId="price" orientation="right" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} label={{ value: "Avg Price", angle: 90, position: "insideRight", style: { fontSize: 11 } }} />
-              <Tooltip formatter={(v: number, name: string) => name === "avgPrice" ? fmt(v) : v} />
+              <Tooltip formatter={(v: number, name: string) => name === "Avg Price" ? fmt(v) : v} />
               <Legend />
               <Line yAxisId="count" type="monotone" dataKey="count" name="Proposals" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
               <Line yAxisId="price" type="monotone" dataKey="avgPrice" name="Avg Price" stroke="hsl(142, 76%, 36%)" strokeWidth={2} dot={{ r: 3 }} />
