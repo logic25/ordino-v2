@@ -371,22 +371,7 @@ export function useProjectPISStatus(projectId: string | undefined) {
         missingBySection[heading].push(rawLabel);
       }
 
-      // Append grouped TBD labels for unknown contractors
-      if (!gcSameAs && !gcHasDetails) {
-        missingFields.push("General Contractor (TBD)");
-        if (!missingBySection["Contractors & Inspections"]) missingBySection["Contractors & Inspections"] = [];
-        missingBySection["Contractors & Inspections"].push("General Contractor (TBD)");
-      }
-      if (!tppSameAs && !tppHasDetails) {
-        missingFields.push("TPP Applicant (TBD)");
-        if (!missingBySection["Contractors & Inspections"]) missingBySection["Contractors & Inspections"] = [];
-        missingBySection["Contractors & Inspections"].push("TPP Applicant (TBD)");
-      }
-      if (!siaSameAs && !siaHasDetails) {
-        missingFields.push("Special Inspector (TBD)");
-        if (!missingBySection["Contractors & Inspections"]) missingBySection["Contractors & Inspections"] = [];
-        missingBySection["Contractors & Inspections"].push("Special Inspector (TBD)");
-      }
+      // TBD contractors are not counted as missing — they're simply not known yet
 
       return {
         sentDate: format(new Date(rfi.created_at), "MM/dd/yyyy"),
