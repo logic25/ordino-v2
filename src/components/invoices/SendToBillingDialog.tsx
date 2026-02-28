@@ -141,17 +141,19 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId, 
     if (preselectedProjectId) setProjectId(preselectedProjectId);
   }, [preselectedProjectId]);
 
+  // Reset selections when project changes
+  useEffect(() => {
+    setBilledToContactId("");
+    setSelectedServices([]);
+  }, [projectId]);
+
+  // Auto-select primary contact when contacts load
   useEffect(() => {
     if (contacts && contacts.length > 0 && !billedToContactId) {
       const primary = contacts.find((c) => c.is_primary);
       setBilledToContactId(primary?.id || contacts[0].id);
     }
-  }, [contacts, billedToContactId]);
-
-  useEffect(() => {
-    setBilledToContactId("");
-    setSelectedServices([]);
-  }, [projectId]);
+  }, [contacts]);
 
   // Auto-select services: if preselectedServiceIds provided, select those; otherwise if only 1 service, auto-select it
   useEffect(() => {
