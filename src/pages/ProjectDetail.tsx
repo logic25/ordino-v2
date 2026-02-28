@@ -1633,8 +1633,8 @@ function ServicesFull({ services: initialServices, project, contacts, allService
                           </Select>
                         </TableCell>
                         <TableCell>
-                          {svc.subServices.length > 0 ? (
-                            <div className="flex gap-1 flex-wrap">{svc.subServices.map((d) => <Badge key={d} variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">{d}</Badge>)}</div>
+                          {(svc.subServices || []).length > 0 ? (
+                            <div className="flex gap-1 flex-wrap">{(svc.subServices || []).map((d) => <Badge key={d} variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">{d}</Badge>)}</div>
                           ) : <span className="text-xs text-muted-foreground">—</span>}
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
