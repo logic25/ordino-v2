@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, GripVertical, Save } from "lucide-react";
+import { Plus, Trash2, GripVertical, Save, Pencil, Check, X } from "lucide-react";
 
 interface ChecklistTemplate {
   id: string;
@@ -30,6 +30,8 @@ export function FilingChecklistSettings() {
   const { toast } = useToast();
   const [items, setItems] = useState<ChecklistTemplate[]>(DEFAULT_ITEMS);
   const [newLabel, setNewLabel] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingLabel, setEditingLabel] = useState("");
 
   const addItem = () => {
     if (!newLabel.trim()) return;
@@ -70,24 +72,76 @@ export function FilingChecklistSettings() {
               className="flex items-center gap-3 px-3 py-2 rounded-md border bg-background group"
             >
               <GripVertical className="h-4 w-4 text-muted-foreground/40 cursor-grab" />
-              <span className="flex-1 text-sm">{item.label}</span>
-              <button
-                onClick={() => toggleRequired(item.id)}
-                className="shrink-0"
-              >
-                <Badge
-                  variant={item.required ? "default" : "secondary"}
-                  className="text-[10px] px-1.5 py-0 cursor-pointer"
+              {editingId === item.id ? (
+                <div className="flex-1 flex items-center gap-2">
+                  <Input
+                    value={editingLabel}
+                    onChange={(e) => setEditingLabel(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        setItems(prev => prev.map(i => i.id === item.id ? { ...i, label: editingLabel.trim() || i.label } : i));
+                        setEditingId(null);
+                      }
+                      if (e.key === "Escape") setEditingId(null);
+                    }}
+                    className="h-7 text-sm"
+                    autoFocus
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 text-emerald-600"
+                    onClick={() => {
+                      setItems(prev => prev.map(i => i.id === item.id ? { ...i, label: editingLabel.trim() || i.label } : i));
+                      setEditingId(null);
+                    }}
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 text-muted-foreground"
+                    onClick={() => setEditingId(null)}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ) : (
+                <span
+                  className="flex-1 text-sm cursor-pointer hover:text-primary transition-colors"
+                  onDoubleClick={() => { setEditingId(item.id); setEditingLabel(item.label); }}
                 >
-                  {item.required ? "Required" : "Optional"}
-                </Badge>
-              </button>
-              <button
-                onClick={() => removeItem(item.id)}
-                className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+                  {item.label}
+                </span>
+              )}
+              {editingId !== item.id && (
+                <>
+                  <button
+                    onClick={() => { setEditingId(item.id); setEditingLabel(item.label); }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => toggleRequired(item.id)}
+                    className="shrink-0"
+                  >
+                    <Badge
+                      variant={item.required ? "default" : "secondary"}
+                      className="text-[10px] px-1.5 py-0 cursor-pointer"
+                    >
+                      {item.required ? "Required" : "Optional"}
+                    </Badge>
+                  </button>
+                  <button
+                    onClick={() => removeItem(item.id)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </>
+              )}
             </div>
           ))}
         </div>
