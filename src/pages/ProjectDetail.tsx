@@ -462,7 +462,7 @@ export default function ProjectDetail() {
 
             <CardContent className="p-0">
               <TabsContent value="services" className="mt-0">
-                <ServicesFull services={liveServices} project={project} contacts={contacts} allServices={liveServices} onServicesChange={setLiveServices} onAddCOs={async (cos) => {
+                <ServicesFull services={liveServices} project={project} contacts={contacts} allServices={liveServices} timeEntries={timeEntries} onServicesChange={setLiveServices} onAddCOs={async (cos) => {
                   for (const co of cos) {
                     try {
                       await createCO.mutateAsync(co);
@@ -1377,7 +1377,7 @@ function SortableServiceRowWrapper({ id, disabled, children }: { id: string; dis
   return <>{children(attributes, disabled ? undefined : listeners, setNodeRef, style)}</>;
 }
 
-function ServicesFull({ services: initialServices, project, contacts, allServices, onServicesChange, onAddCOs }: { services: MockService[]; project: ProjectWithRelations; contacts: MockContact[]; allServices: MockService[]; onServicesChange?: (services: MockService[]) => void; onAddCOs?: (cos: Array<{ title: string; description?: string; amount: number; status?: ChangeOrder["status"]; requested_by?: string; linked_service_names?: string[]; reason?: string; project_id: string; company_id: string }>) => void }) {
+function ServicesFull({ services: initialServices, project, contacts, allServices, timeEntries = [], onServicesChange, onAddCOs }: { services: MockService[]; project: ProjectWithRelations; contacts: MockContact[]; allServices: MockService[]; timeEntries?: MockTimeEntry[]; onServicesChange?: (services: MockService[]) => void; onAddCOs?: (cos: Array<{ title: string; description?: string; amount: number; status?: ChangeOrder["status"]; requested_by?: string; linked_service_names?: string[]; reason?: string; project_id: string; company_id: string }>) => void }) {
   const [orderedServices, setOrderedServicesLocal] = useState(initialServices);
   const initialKey = initialServices.map(s => `${s.id}:${s.needsDobFiling ? 1 : 0}:${s.status}`).join(",");
   const [lastKey, setLastKey] = useState(initialKey);
@@ -1528,7 +1528,10 @@ function ServicesFull({ services: initialServices, project, contacts, allService
             const renderServiceRow = (svc: MockService, svcIndex: number, isChild: boolean) => {
               const sStatus = serviceStatusStyles[svc.status] || serviceStatusStyles.not_started;
               const isExpanded = expandedIds.has(svc.id);
-              const svcMargin = svc.totalAmount > 0 ? Math.round((svc.totalAmount - svc.costAmount) / svc.totalAmount * 100) : 0;
+              // Use dynamic cost from time entries instead of static costAmount
+              const dynamicCost = timeEntries.filter(te => te.service === svc.name).reduce((s, te) => s + te.hours * (te.hourlyRate || 0), 0);
+              const displayCost = dynamicCost > 0 ? dynamicCost : svc.costAmount;
+              const svcMargin = svc.totalAmount > 0 ? Math.round((svc.totalAmount - displayCost) / svc.totalAmount * 100) : 0;
               const pendingReqs = svc.requirements.filter(r => !r.met).length;
               const children = childMap.get(svc.id) || [];
 
@@ -1634,9 +1637,9 @@ function ServicesFull({ services: initialServices, project, contacts, allService
                           </Popover>
                         </TableCell>
                         <TableCell className="text-right tabular-nums font-medium">{formatCurrency(svc.totalAmount)}</TableCell>
-                        <TableCell className="text-right tabular-nums text-muted-foreground">{svc.costAmount > 0 ? formatCurrency(svc.costAmount) : "—"}</TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">{displayCost > 0 ? formatCurrency(displayCost) : "—"}</TableCell>
                         <TableCell className="text-right tabular-nums">
-                          {svc.costAmount > 0 ? <span className={svcMargin > 50 ? "text-emerald-600 dark:text-emerald-400" : svcMargin < 20 ? "text-red-600 dark:text-red-400" : ""}>{svcMargin}%</span> : "—"}
+                          {displayCost > 0 ? <span className={svcMargin > 50 ? "text-emerald-600 dark:text-emerald-400" : svcMargin < 20 ? "text-red-600 dark:text-red-400" : ""}>{svcMargin}%</span> : "—"}
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           {svc.needsDobFiling ? (
@@ -2826,7 +2829,91 @@ function TimeLogsFull({ timeEntries, services, projectId, companyId, onCreateCO 
             </TableBody>
         </Table>
       ) : null}
+
+      {/* Audit Log */}
+      <AuditLogSection companyId={companyId} timeEntries={timeEntries} />
     </div>
+  );
+}
+
+// ======== AUDIT LOG ========
+
+function AuditLogSection({ companyId, timeEntries }: { companyId: string; timeEntries: MockTimeEntry[] }) {
+  const [open, setOpen] = useState(false);
+  const activityIds = timeEntries.map(te => te.id).filter(Boolean);
+
+  const { data: auditLogs = [] } = useQuery({
+    queryKey: ["audit-logs", companyId, activityIds.join(",")],
+    enabled: open && activityIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("activity_edit_logs") as any)
+        .select("id, activity_id, field_changed, old_value, new_value, reason, created_at, edited_by, editor:profiles!activity_edit_logs_edited_by_fkey(first_name, last_name, display_name)")
+        .eq("company_id", companyId)
+        .in("activity_id", activityIds)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  if (activityIds.length === 0) return null;
+
+  const fieldLabels: Record<string, string> = {
+    duration_minutes: "Duration",
+    description: "Description",
+  };
+
+  const formatValue = (field: string, val: string | null) => {
+    if (!val) return "—";
+    if (field === "duration_minutes") {
+      const mins = parseInt(val);
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      return `${h}h ${m}m`;
+    }
+    return val;
+  };
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors py-2">
+        {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+        <ClipboardList className="h-3.5 w-3.5" />
+        <span className="font-medium uppercase tracking-wider">Edit Audit Log</span>
+        {auditLogs.length > 0 && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{auditLogs.length}</Badge>}
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        {auditLogs.length === 0 ? (
+          <p className="text-xs text-muted-foreground italic pl-6 pb-2">No edits recorded.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="text-xs">Date</TableHead>
+                <TableHead className="text-xs">Edited By</TableHead>
+                <TableHead className="text-xs">Field</TableHead>
+                <TableHead className="text-xs">Old</TableHead>
+                <TableHead className="text-xs">New</TableHead>
+                <TableHead className="text-xs">Reason</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {auditLogs.map((log: any) => (
+                <TableRow key={log.id} className="text-xs">
+                  <TableCell className="font-mono text-muted-foreground">{format(new Date(log.created_at), "MM/dd/yy h:mm a")}</TableCell>
+                  <TableCell>{log.editor?.display_name || [log.editor?.first_name, log.editor?.last_name].filter(Boolean).join(" ") || "Unknown"}</TableCell>
+                  <TableCell className="font-medium">{fieldLabels[log.field_changed] || log.field_changed}</TableCell>
+                  <TableCell className="text-muted-foreground">{formatValue(log.field_changed, log.old_value)}</TableCell>
+                  <TableCell>{formatValue(log.field_changed, log.new_value)}</TableCell>
+                  <TableCell className="text-muted-foreground italic max-w-[200px] truncate">{log.reason || "—"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
