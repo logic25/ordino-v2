@@ -55,6 +55,7 @@ export interface ServiceCatalogItem {
   price_history?: PriceChangeEntry[];
   default_requirements?: ServiceRequirement[];
   complexity_weight?: number;
+  needs_dob_filing?: boolean;
 }
 
 export interface CompanySettings {

@@ -88,6 +88,7 @@ export function ServiceCatalogSettings() {
         has_discipline_pricing: newService.has_discipline_pricing ?? s.has_discipline_pricing,
         discipline_fee: newService.discipline_fee ?? s.discipline_fee,
         show_work_types: newService.show_work_types ?? s.show_work_types,
+        needs_dob_filing: (newService as any).needs_dob_filing ?? (s as any).needs_dob_filing,
         default_requirements: (newService as any).default_requirements ?? s.default_requirements,
         complexity_weight: (newService as any).complexity_weight ?? s.complexity_weight,
       } : s));
@@ -105,6 +106,7 @@ export function ServiceCatalogSettings() {
           has_discipline_pricing: newService.has_discipline_pricing || false,
           discipline_fee: newService.discipline_fee || 0,
           default_requirements: (newService as any).default_requirements || [],
+          needs_dob_filing: (newService as any).needs_dob_filing || false,
           complexity_weight: (newService as any).complexity_weight || 1,
         },
         ...services,
@@ -800,6 +802,15 @@ export function ServiceCatalogSettings() {
                 id="new-show-wt"
               />
               <Label htmlFor="new-show-wt" className="text-sm cursor-pointer">Show Work Type picker on proposals</Label>
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <Checkbox
+                checked={!!(newService as any).needs_dob_filing}
+                onCheckedChange={(checked) => setNewService({ ...newService, needs_dob_filing: !!checked } as any)}
+                className="h-3.5 w-3.5"
+                id="new-needs-dob"
+              />
+              <Label htmlFor="new-needs-dob" className="text-sm cursor-pointer">Requires DOB NOW filing</Label>
             </div>
             <div className="border-t pt-3">
               <ServiceRequirementsEditor
