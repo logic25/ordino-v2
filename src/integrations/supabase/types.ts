@@ -6549,10 +6549,12 @@ export type Database = {
         Row: {
           actual_hours: number | null
           application_id: string
+          billed_amount: number | null
           billing_milestones: Json | null
           billing_type: string | null
           company_id: string
           completed_date: string | null
+          cost_amount: number | null
           created_at: string | null
           description: string | null
           due_date: string | null
@@ -6573,10 +6575,12 @@ export type Database = {
         Insert: {
           actual_hours?: number | null
           application_id: string
+          billed_amount?: number | null
           billing_milestones?: Json | null
           billing_type?: string | null
           company_id: string
           completed_date?: string | null
+          cost_amount?: number | null
           created_at?: string | null
           description?: string | null
           due_date?: string | null
@@ -6597,10 +6601,12 @@ export type Database = {
         Update: {
           actual_hours?: number | null
           application_id?: string
+          billed_amount?: number | null
           billing_milestones?: Json | null
           billing_type?: string | null
           company_id?: string
           completed_date?: string | null
+          cost_amount?: number | null
           created_at?: string | null
           description?: string | null
           due_date?: string | null

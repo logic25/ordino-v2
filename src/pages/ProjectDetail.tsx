@@ -382,14 +382,14 @@ export default function ProjectDetail() {
         </div>
 
         {/* Financial Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
             { label: "Contract", value: servicesLoading ? "..." : formatCurrency(contractTotal) },
             { label: "Change Orders", value: approvedCOs > 0 ? `+${formatCurrency(approvedCOs)}` : "--" },
             { label: "Total Value", value: servicesLoading ? "..." : formatCurrency(adjustedTotal) },
             { label: "Billed", value: servicesLoading ? "..." : formatCurrency(billed), color: "text-emerald-600 dark:text-emerald-400" },
+            { label: "Remaining", value: servicesLoading ? "..." : formatCurrency(adjustedTotal - billed) },
             { label: "Internal Cost", value: formatCurrency(cost) },
-            { label: "Margin", value: servicesLoading ? "..." : `${margin}%`, color: margin > 50 ? "text-emerald-600 dark:text-emerald-400" : margin < 20 ? "text-red-600 dark:text-red-400" : "" },
           ].map((stat) => (
             <Card key={stat.label}>
               <CardContent className="p-4">
@@ -1665,7 +1665,7 @@ function ServicesFull({ services: initialServices, project, contacts, allService
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           {svc.needsDobFiling ? (
-                            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setDobPrepService(svc)}><ExternalLink className="h-3.5 w-3.5" /> Start DOB NOW</Button>
+                            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setDobPrepService(svc)}><ExternalLink className="h-3.5 w-3.5" /> Submit</Button>
                           ) : svc.application ? (
                             <Badge variant="outline" className="font-mono text-xs">#{svc.application.jobNumber}</Badge>
                           ) : isChild && svc.parentServiceId ? (() => {
