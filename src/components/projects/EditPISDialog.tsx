@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
@@ -205,12 +206,12 @@ function SectionAutoFill({ sectionId, sectionTitle, getOptions, priorResponses, 
           <Input
             value={search}
             onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
-            onFocus={() => { if (search.trim()) setOpen(true); }}
+            onFocus={() => setOpen(true)}
             placeholder={`Search contacts for ${sectionTitle}...`}
             className="h-7 text-xs pl-7"
           />
         </div>
-        {open && search.trim() && results.length > 0 && (
+        {open && results.length > 0 && (
           <div className="absolute left-0 right-0 top-full mt-1 z-[9999] rounded-md border bg-popover shadow-lg max-h-[180px] overflow-y-auto">
             {results.map((r) => (
               <button
@@ -680,12 +681,11 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
                   {/* Same as Applicant toggle for TPP and SIA */}
                   {(section.id === "tpp" || section.id === "sia") && (
                     <label className="flex items-center gap-2 mb-3 cursor-pointer text-sm">
-                      <Checkbox
+                      <Switch
                         checked={values[section.id === "tpp" ? "tpp_same_as" : "sia_same_as"] === "true"}
                         onCheckedChange={(checked) => {
                           const flagKey = section.id === "tpp" ? "tpp_same_as" : "sia_same_as";
                           if (checked) {
-                            // Auto-fill from applicant fields
                             const mapping: Record<string, string> = section.id === "tpp"
                               ? { tpp_name: values["applicant_name"] || "", tpp_email: values["applicant_email"] || "" }
                               : {

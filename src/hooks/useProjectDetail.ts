@@ -249,7 +249,7 @@ export function useProjectPISStatus(projectId: string | undefined) {
       const sections = (rfi.sections as any[]) || [];
       const responses = (rfi.responses as Record<string, any>) || {};
 
-      // Helper: resolve a response value by trying prefixed and flat keys
+      // Helper: resolve a response value by trying multiple key patterns
       const getResponseVal = (sectionId: string, fieldId: string) => {
         return responses[`${sectionId}_${fieldId}`] ?? responses[fieldId];
       };
@@ -259,18 +259,18 @@ export function useProjectPISStatus(projectId: string | undefined) {
       const conditionallyExcludedIds = new Set<string>();
 
       // GC: check if "same as applicant" is checked or if details are filled
-      const gcSameAs = getResponseVal("contractors_inspections", "gc_same_as");
-      const gcHasDetails = !!(getResponseVal("contractors_inspections", "gc_name"));
+      const gcSameAs = getResponseVal("contractors_inspections", "gc_same_as") || getResponseVal("gc", "gc_same_as");
+      const gcHasDetails = !!(getResponseVal("contractors_inspections", "gc_name") || getResponseVal("gc", "gc_name"));
       const gcFieldIds = ["gc_name", "gc_company", "gc_phone", "gc_email", "gc_address", "gc_dob_tracking", "gc_hic_lic"];
 
       // TPP: check if "same as applicant" is checked or if details are filled
-      const tppSameAs = getResponseVal("contractors_inspections", "tpp_same_as");
-      const tppHasDetails = !!(getResponseVal("contractors_inspections", "tpp_name"));
+      const tppSameAs = getResponseVal("contractors_inspections", "tpp_same_as") || getResponseVal("tpp", "tpp_same_as") || responses["tpp_same_as"];
+      const tppHasDetails = !!(getResponseVal("contractors_inspections", "tpp_name") || getResponseVal("tpp", "tpp_name"));
       const tppFieldIds = ["tpp_name", "tpp_email", "rent_controlled", "rent_stabilized", "units_occupied"];
 
       // SIA: check if "same as applicant" is checked or if details are filled
-      const siaSameAs = getResponseVal("contractors_inspections", "sia_same_as");
-      const siaHasDetails = !!(getResponseVal("contractors_inspections", "sia_name"));
+      const siaSameAs = getResponseVal("contractors_inspections", "sia_same_as") || getResponseVal("sia", "sia_same_as") || responses["sia_same_as"];
+      const siaHasDetails = !!(getResponseVal("contractors_inspections", "sia_name") || getResponseVal("sia", "sia_name"));
       const siaFieldIds = ["sia_name", "sia_company", "sia_phone", "sia_email", "sia_number", "sia_nys_lic"];
 
       // If same_as is checked OR details are not filled, exclude detail fields from individual counting
@@ -328,6 +328,18 @@ export function useProjectPISStatus(projectId: string | undefined) {
         }
       }
 
+      // Ensure filing_type is always tracked in readiness even if not in DB sections template
+      const hasFilingType = allFields.some(f => f.id === "filing_type");
+      if (!hasFilingType) {
+        allFields.push({ id: "filing_type", label: "Filing Type", sectionId: "building_scope" });
+      }
+
+      // Ensure directive_14 is always tracked
+      const hasDirective14 = allFields.some(f => f.id === "directive_14");
+      if (!hasDirective14) {
+        allFields.push({ id: "directive_14", label: "Directive 14?", sectionId: "building_scope" });
+      }
+
       const totalFields = allFields.length || 7;
 
       // Check which fields have responses (try both flat and prefixed keys)
@@ -369,6 +381,9 @@ export function useProjectPISStatus(projectId: string | undefined) {
           fieldHeadingMap.set(field.id, heading);
         }
       }
+      // Ensure injected fields have heading mappings
+      if (!fieldHeadingMap.has("filing_type")) fieldHeadingMap.set("filing_type", "Building Details & Scope of Work");
+      if (!fieldHeadingMap.has("directive_14")) fieldHeadingMap.set("directive_14", "Building Details & Scope of Work");
 
       for (const f of allFields) {
         if (!isMissing(f)) continue;

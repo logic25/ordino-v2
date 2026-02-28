@@ -2154,6 +2154,8 @@ function ContactsFull({ contacts, pisStatus, projectId, clientId }: { contacts: 
           sort_order: 0,
           created_at: "",
           updated_at: "",
+          license_type: null,
+          license_number: null,
         } : null}
       />
     </div>
