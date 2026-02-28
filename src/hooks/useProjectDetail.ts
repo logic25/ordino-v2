@@ -5,6 +5,7 @@ import type {
   MockService, MockContact, MockMilestone,
   MockDocument, MockTimeEntry, MockChecklistItem, MockPISStatus,
 } from "@/components/projects/projectMockData";
+import { OPTIONAL_PIS_FIELD_IDS, EXCLUDED_PIS_SECTION_IDS } from "@/components/projects/EditPISDialog";
 
 export function useProjectServices(projectId: string | undefined) {
   return useQuery({
@@ -249,12 +250,16 @@ export function useProjectPISStatus(projectId: string | undefined) {
       const responses = (rfi.responses as Record<string, any>) || {};
 
       // Collect all individual fields from section definitions
+      // Exclude optional fields and fields from excluded sections (notes)
       const allFields: { id: string; label: string; sectionId: string }[] = [];
       for (const section of sections) {
+        if (EXCLUDED_PIS_SECTION_IDS.has(section.id)) continue;
         const fields = (section.fields as any[]) || [];
         for (const field of fields) {
           if (field.type === "heading") continue;
-          allFields.push({ id: field.id, label: field.label || field.id, sectionId: section.id });
+          const fieldId = field.id as string;
+          if (OPTIONAL_PIS_FIELD_IDS.has(fieldId)) continue;
+          allFields.push({ id: fieldId, label: field.label || fieldId, sectionId: section.id });
         }
       }
 

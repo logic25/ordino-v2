@@ -9,7 +9,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
-import { Save, AlertTriangle, UserPlus, CheckCircle2, Loader2, Copy, Search, Building2, User, Zap } from "lucide-react";
+import { Save, AlertTriangle, UserPlus, CheckCircle2, Loader2, Copy, Search, Building2, User, Zap, ShieldAlert, ShieldCheck as ShieldCheckIcon } from "lucide-react";
+import { formatPhoneNumber } from "@/lib/formatters";
 import { useClients } from "@/hooks/useClients";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -23,6 +24,7 @@ interface PisFieldDef {
   width?: "full" | "half";
   options?: string[];
   placeholder?: string;
+  optional?: boolean;
 }
 
 interface PisSection {
@@ -44,8 +46,8 @@ const PIS_SECTIONS: PisSection[] = [
       { id: "block", label: "Block", type: "text", width: "half" },
       { id: "lot", label: "Lot", type: "text", width: "half" },
       { id: "floors", label: "Floor(s)", type: "text", width: "half" },
-      { id: "apt_numbers", label: "Apt #(s)", type: "text", width: "half" },
-      { id: "sq_ft", label: "Area (sq ft)", type: "number", width: "half" },
+      { id: "apt_numbers", label: "Apt #(s)", type: "text", width: "half", optional: true },
+      { id: "sq_ft", label: "Area (sq ft)", type: "number", width: "half", optional: true },
       { id: "job_description", label: "Job Description", type: "textarea", width: "full", placeholder: "Describe the scope of work..." },
       { id: "directive_14", label: "Directive 14?", type: "select", options: ["Yes", "No"], width: "half" },
     ],
@@ -57,7 +59,6 @@ const PIS_SECTIONS: PisSection[] = [
     contactRole: "Applicant",
     fields: [
       { id: "filing_type", label: "Filing Type", type: "select", options: ["Plan Exam", "Pro-Cert", "TBD"], width: "half" },
-      { id: "client_reference_number", label: "Client Reference Number", type: "text", width: "half", placeholder: "e.g. NY Tent #611490" },
       { id: "applicant_name", label: "Full Name", type: "text", width: "half" },
       { id: "applicant_business_name", label: "Business Name", type: "text", width: "half" },
       { id: "applicant_business_address", label: "Business Address", type: "text", width: "full" },
@@ -81,8 +82,8 @@ const PIS_SECTIONS: PisSection[] = [
       { id: "owner_address", label: "Address", type: "text", width: "full" },
       { id: "owner_email", label: "Email", type: "email", width: "half" },
       { id: "owner_phone", label: "Phone", type: "phone", width: "half" },
-      { id: "corp_officer_name", label: "Corporate Officer Name", type: "text", width: "half" },
-      { id: "corp_officer_title", label: "Corporate Officer Title", type: "text", width: "half" },
+      // corp_officer_name and corp_officer_title rendered conditionally based on ownership_type
+
     ],
   },
   {
@@ -97,7 +98,7 @@ const PIS_SECTIONS: PisSection[] = [
       { id: "gc_email", label: "Email", type: "email", width: "half" },
       { id: "gc_address", label: "Address", type: "text", width: "full" },
       { id: "gc_dob_tracking", label: "DOB Tracking #", type: "text", width: "half" },
-      { id: "gc_hic_lic", label: "HIC License #", type: "text", width: "half" },
+      { id: "gc_hic_lic", label: "HIC License #", type: "text", width: "half", optional: true },
     ],
   },
   {
@@ -132,12 +133,28 @@ const PIS_SECTIONS: PisSection[] = [
     title: "Insurance & Special Notes",
     description: "Additional project information",
     fields: [
-      { id: "insurance_certs", label: "Insurance Certificates", type: "textarea", width: "full", placeholder: "GC cert on file, Architect cert pending, etc." },
-      { id: "site_contact", label: "Site Contact & Access", type: "text", width: "full", placeholder: "Contact name — availability" },
-      { id: "special_notes", label: "Special Notes / Instructions", type: "textarea", width: "full", placeholder: "Any special instructions..." },
+      { id: "insurance_certs", label: "Insurance Certificates", type: "textarea", width: "full", placeholder: "GC cert on file, Architect cert pending, etc.", optional: true },
+      { id: "site_contact", label: "Site Contact & Access", type: "text", width: "full", placeholder: "Contact name — availability", optional: true },
+      { id: "special_notes", label: "Special Notes / Instructions", type: "textarea", width: "full", placeholder: "Any special instructions...", optional: true },
     ],
   },
 ];
+
+// Export set of optional field IDs for readiness calculation
+export const OPTIONAL_PIS_FIELD_IDS = new Set(
+  PIS_SECTIONS.flatMap(s => s.fields.filter(f => f.optional).map(f => f.id))
+);
+
+// The entire "notes" section is excluded from readiness
+export const EXCLUDED_PIS_SECTION_IDS = new Set(["notes"]);
+
+// Corporate officer fields shown conditionally
+const CORP_OFFICER_FIELDS: PisFieldDef[] = [
+  { id: "corp_officer_name", label: "Corporate Officer Name", type: "text", width: "half" },
+  { id: "corp_officer_title", label: "Corporate Officer Title", type: "text", width: "half" },
+];
+
+const CORP_OWNERSHIP_TYPES = ["Corporation", "Condo/Co-op", "Non-profit"];
 
 interface SectionAutoFillProps {
   sectionId: string;
@@ -211,6 +228,57 @@ function SectionAutoFill({ sectionId, sectionTitle, getOptions, priorResponses, 
                 </div>
               </button>
             ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function GCComplianceBanner({ gcName, gcCompany, gcDobTracking, clients }: {
+  gcName?: string; gcCompany?: string; gcDobTracking?: string;
+  clients: { id: string; name: string; dob_tracking?: string | null; dob_tracking_expiration?: string | null; hic_license?: string | null }[];
+}) {
+  const searchVal = (gcCompany || gcName || "").trim().toLowerCase();
+  if (!searchVal) return null;
+
+  // Match by name or DOB tracking number
+  const match = clients.find(c => {
+    if (c.name.toLowerCase().includes(searchVal) || searchVal.includes(c.name.toLowerCase())) return true;
+    if (gcDobTracking && c.dob_tracking && c.dob_tracking === gcDobTracking) return true;
+    return false;
+  });
+
+  if (!match) return null;
+
+  const now = new Date();
+  const expDate = match.dob_tracking_expiration ? new Date(match.dob_tracking_expiration) : null;
+  const isExpired = expDate ? expDate < now : false;
+  const isExpiringSoon = expDate ? (expDate.getTime() - now.getTime()) < 30 * 24 * 60 * 60 * 1000 && !isExpired : false;
+
+  return (
+    <div className={`mt-3 p-3 rounded-lg border text-sm ${isExpired ? "bg-destructive/10 border-destructive/30" : isExpiringSoon ? "bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800" : "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800"}`}>
+      <div className="flex items-center gap-2 mb-1.5">
+        {isExpired ? <ShieldAlert className="h-4 w-4 text-destructive" /> : <ShieldCheckIcon className="h-4 w-4 text-emerald-600" />}
+        <span className="font-medium">{match.name} — CRM Match</span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div>
+          <span className="text-muted-foreground">DOB Tracking #:</span>{" "}
+          <span className="font-medium">{match.dob_tracking || "Not on file"}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground">Expiration:</span>{" "}
+          <span className={`font-medium ${isExpired ? "text-destructive" : isExpiringSoon ? "text-amber-600" : ""}`}>
+            {expDate ? expDate.toLocaleDateString() : "Not set"}
+            {isExpired && " — EXPIRED"}
+            {isExpiringSoon && " — Expiring soon"}
+          </span>
+        </div>
+        {match.hic_license && (
+          <div>
+            <span className="text-muted-foreground">HIC License:</span>{" "}
+            <span className="font-medium">{match.hic_license}</span>
           </div>
         )}
       </div>
@@ -386,14 +454,28 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
     return false;
   };
 
-  // Count filled fields
-  const allFields = PIS_SECTIONS.flatMap((s) => s.fields.filter((f) => f.type !== "heading"));
-  const filledCount = allFields.filter((f) => values[f.id]?.trim()).length;
+  // Count filled fields (exclude optional and notes section)
+  const allFields = PIS_SECTIONS
+    .filter(s => !EXCLUDED_PIS_SECTION_IDS.has(s.id))
+    .flatMap((s) => s.fields.filter((f) => f.type !== "heading" && !f.optional));
+  // Also count corp officer fields if visible
+  const showCorpOfficer = CORP_OWNERSHIP_TYPES.includes(values["ownership_type"] || "");
+  const corpOfficerFilled = showCorpOfficer ? CORP_OFFICER_FIELDS.filter(f => values[f.id]?.trim()).length : 0;
+  const corpOfficerTotal = showCorpOfficer ? CORP_OFFICER_FIELDS.length : 0;
+  const filledCount = allFields.filter((f) => values[f.id]?.trim()).length + corpOfficerFilled;
+  const totalFieldCount = allFields.length + corpOfficerTotal;
 
   const getSectionProgress = (section: PisSection) => {
-    const fields = section.fields.filter((f) => f.type !== "heading");
+    const fields = section.fields.filter((f) => f.type !== "heading" && !f.optional);
     const filled = fields.filter((f) => values[f.id]?.trim()).length;
-    return { filled, total: fields.length };
+    let total = fields.length;
+    let filledExtra = 0;
+    // Add corp officer fields for owner section
+    if (section.id === "owner" && showCorpOfficer) {
+      total += CORP_OFFICER_FIELDS.length;
+      filledExtra = CORP_OFFICER_FIELDS.filter(f => values[f.id]?.trim()).length;
+    }
+    return { filled: filled + filledExtra, total };
   };
 
   const getContactNameField = (section: PisSection): string | null => {
@@ -432,7 +514,7 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["rfi-responses", projectId] });
       queryClient.invalidateQueries({ queryKey: ["project-pis-status", projectId] });
-      toast({ title: "PIS Saved", description: `${filledCount}/${allFields.length} fields completed.` });
+      toast({ title: "PIS Saved", description: `${filledCount}/${totalFieldCount} fields completed.` });
       onOpenChange(false);
     } catch (err: any) {
       toast({ title: "Save failed", description: err.message, variant: "destructive" });
@@ -475,8 +557,15 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
           <Input
             id={key}
             type={field.type === "phone" ? "tel" : field.type === "number" ? "number" : field.type === "email" ? "email" : "text"}
-            value={values[key] || ""}
-            onChange={(e) => updateValue(key, e.target.value)}
+            value={field.type === "phone" ? formatPhoneNumber(values[key] || "") : (values[key] || "")}
+            onChange={(e) => {
+              if (field.type === "phone") {
+                const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                updateValue(key, digits);
+              } else {
+                updateValue(key, e.target.value);
+              }
+            }}
             placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
             className="h-9"
           />
@@ -491,7 +580,7 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
         <DialogHeader>
           <DialogTitle>Edit Project Information Sheet</DialogTitle>
           <DialogDescription>
-            {filledCount}/{allFields.length} fields completed
+            {filledCount}/{totalFieldCount} fields completed
             {pisStatus.sentDate && ` · Sent ${pisStatus.sentDate}`}
           </DialogDescription>
         </DialogHeader>
@@ -547,7 +636,11 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
                   )}
                   <div className="grid grid-cols-2 gap-3 pb-2">
                     {section.fields.map((field) => renderField(field))}
+                    {/* Conditional corporate officer fields */}
+                    {section.id === "owner" && showCorpOfficer && CORP_OFFICER_FIELDS.map(f => renderField(f))}
                   </div>
+                  {/* GC Compliance Banner */}
+                  {section.id === "gc" && <GCComplianceBanner gcName={values["gc_name"]} gcCompany={values["gc_company"]} gcDobTracking={values["gc_dob_tracking"]} clients={clients} />}
                   {section.contactRole && hasContactName && !contactInCRM && (
                     <div className="flex items-center gap-2 mt-2 p-2 rounded-md bg-destructive/10 border border-destructive/20">
                       <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />

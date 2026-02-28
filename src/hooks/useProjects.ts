@@ -72,6 +72,7 @@ export interface ProjectFormInput {
   notable?: boolean;
   unit_number?: string | null;
   tenant_name?: string | null;
+  client_reference_number?: string | null;
   completion_date?: string | null;
   notes?: string | null;
   // Timeline & performance

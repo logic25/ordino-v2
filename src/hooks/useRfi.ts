@@ -85,7 +85,6 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
     description: "Licensed professional and building owner details",
     fields: [
       { id: "filing_type", label: "Filing Type", type: "select", options: ["Plan Exam", "Pro-Cert", "TBD"], width: "half" },
-      { id: "client_reference_number", label: "Client Reference Number", type: "text", width: "half", placeholder: "e.g. NY Tent #611490" },
       { id: "applicant_heading", label: "Applicant (Architect / Engineer)", type: "heading", repeatableGroup: true, maxRepeatGroup: 5 },
       { id: "applicant_first_name", label: "First Name", type: "text", required: true, width: "half" },
       { id: "applicant_last_name", label: "Last Name", type: "text", width: "half" },
