@@ -122,8 +122,8 @@ export default function ProjectDetail() {
 
   const project = projects.find((p) => p.id === id);
 
-  // Real data hooks
-  const { data: realServices = [] } = useProjectServices(project?.id);
+  // Real data hooks — use URL id directly so services don't wait for useProjects() to resolve
+  const { data: realServices = [] } = useProjectServices(id);
   const { data: realContacts = [] } = useProjectContacts(project?.id, project?.client_id, (project as any)?.proposal_id);
   const { data: realTimeline = [] } = useProjectTimeline(project?.id, (project as any)?.proposal_id);
   const { data: realPISStatus } = useProjectPISStatus(project?.id);
@@ -147,7 +147,6 @@ export default function ProjectDetail() {
   const { data: dbChecklistItems = [] } = useProjectChecklist(id);
 
   const [liveServices, setLiveServices] = useState<MockService[]>([]);
-  const [servicesInitialized, setServicesInitialized] = useState<string | null>(null);
 
   // Fetch primary contact from client's contacts
   const { data: primaryContact } = useQuery({
@@ -177,12 +176,12 @@ export default function ProjectDetail() {
     }
   };
 
-  // Sync live services from real DB data (include data hash to catch field changes like needs_dob_filing)
-  const realServicesKey = realServices.map(s => `${s.id}:${s.needsDobFiling ? 1 : 0}:${s.status}`).join(",");
-  if (project && realServices.length > 0 && servicesInitialized !== `${project.id}:${realServicesKey}`) {
-    setLiveServices(realServices);
-    setServicesInitialized(`${project.id}:${realServicesKey}`);
-  }
+  // Sync live services from real DB data via useEffect (not render-time setState)
+  useEffect(() => {
+    if (realServices.length > 0) {
+      setLiveServices(realServices);
+    }
+  }, [realServices]);
 
   // Real change orders
   const { data: realChangeOrders = [] } = useChangeOrders(project?.id);
@@ -273,10 +272,12 @@ export default function ProjectDetail() {
   const timeEntries: MockTimeEntry[] = realTimeEntries;
   const pisStatus: MockPISStatus = realPISStatus || { sentDate: null, totalFields: 0, completedFields: 0, missingFields: [] };
 
+  // Use realServices for summary calculations (liveServices may lag behind due to state sync)
+  const servicesForCalc = realServices.length > 0 ? realServices : liveServices;
   const approvedCOs = changeOrders.filter(co => co.status === "approved").reduce((s, co) => s + (Number(co.amount) || 0), 0);
-  const contractTotal = liveServices.reduce((s, svc) => s + (Number(svc.totalAmount) || 0), 0);
+  const contractTotal = servicesForCalc.reduce((s, svc) => s + (Number(svc.totalAmount) || 0), 0);
   const adjustedTotal = contractTotal + approvedCOs;
-  const billed = liveServices.reduce((s, svc) => s + (Number(svc.billedAmount) || 0), 0);
+  const billed = servicesForCalc.reduce((s, svc) => s + (Number(svc.billedAmount) || 0), 0);
   // Derive cost from actual time entries (hours × hourly rate)
   const cost = timeEntries.reduce((s, te) => s + (Number(te.hours) || 0) * (Number(te.hourlyRate) || 0), 0);
   const margin = adjustedTotal > 0 ? Math.round((adjustedTotal - cost) / adjustedTotal * 100) : 0;
@@ -1389,7 +1390,7 @@ function SortableServiceRowWrapper({ id, disabled, children }: { id: string; dis
 
 function ServicesFull({ services: initialServices, project, contacts, allServices, timeEntries = [], onServicesChange, onAddCOs }: { services: MockService[]; project: ProjectWithRelations; contacts: MockContact[]; allServices: MockService[]; timeEntries?: MockTimeEntry[]; onServicesChange?: (services: MockService[]) => void; onAddCOs?: (cos: Array<{ title: string; description?: string; amount: number; status?: ChangeOrder["status"]; requested_by?: string; linked_service_names?: string[]; reason?: string; project_id: string; company_id: string }>) => void }) {
   const [orderedServices, setOrderedServicesLocal] = useState(initialServices);
-  const initialKey = initialServices.map(s => `${s.id}:${s.needsDobFiling ? 1 : 0}:${s.status}`).join(",");
+  const initialKey = initialServices.map(s => `${s.id}:${s.needsDobFiling ? 1 : 0}:${s.status}:${s.totalAmount}:${s.billedAmount}:${s.costAmount}:${s.assignedTo}:${s.estimatedBillDate}`).join(",");
   const [lastKey, setLastKey] = useState(initialKey);
   if (initialKey !== lastKey) {
     setOrderedServicesLocal(initialServices);
