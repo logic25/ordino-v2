@@ -472,28 +472,44 @@ export default function ClientChangeOrderPage() {
               </div>
             )}
 
+            {/* Terms Reference */}
+            <div className="my-6 text-xs italic" style={{ color: slate }}>
+              By signing this Change Order, you acknowledge that all terms and conditions of the original proposal/contract remain in full effect. This Change Order modifies only the scope and fees described above.
+            </div>
+
             {/* Signatures */}
-            <div className="grid grid-cols-2 gap-8 mt-8">
+            <div className="grid grid-cols-2 gap-8 mt-4">
               {/* Internal Signature */}
               <div>
-                <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: slate }}>Company Authorization</div>
+                <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: slate }}>
+                  {company?.name || "Company"}
+                </div>
                 {co.internal_signature_data ? (
                   <img src={co.internal_signature_data} alt="Internal signature" className="h-12 object-contain mb-1" />
                 ) : (
                   <div className="h-12 border-b-2 border-gray-800 mb-1" />
                 )}
                 {co.internal_signed_at && (
-                  <div className="text-xs" style={{ color: slate }}>Signed {fmtDate(co.internal_signed_at)}</div>
+                  <>
+                    <div className="text-xs font-medium" style={{ color: charcoal }}>
+                      By: {co.internal_signer_name || "Authorized Representative"}
+                    </div>
+                    <div className="text-xs" style={{ color: slate }}>Signed {fmtDate(co.internal_signed_at)}</div>
+                  </>
                 )}
               </div>
 
               {/* Client Signature */}
               <div>
-                <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: slate }}>Client Approval</div>
+                <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: slate }}>
+                  {clientInfo?.name || "Client"}
+                </div>
                 {(co.client_signature_data || savedSignatureData) ? (
                   <>
                     <img src={co.client_signature_data || savedSignatureData!} alt="Client signature" className="h-12 object-contain mb-1" />
-                    <div className="text-xs font-medium" style={{ color: charcoal }}>{co.client_signer_name || clientName}</div>
+                    <div className="text-xs font-medium" style={{ color: charcoal }}>
+                      By: {co.client_signer_name || clientName}
+                    </div>
                     <div className="text-xs" style={{ color: slate }}>Signed {fmtDate(co.client_signed_at || new Date().toISOString())}</div>
                   </>
                 ) : (
