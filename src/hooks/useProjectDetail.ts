@@ -13,22 +13,39 @@ export function useProjectServices(projectId: string | undefined) {
     queryFn: async () => {
       if (!projectId) return [];
 
-      const { data, error } = await supabase
-        .from("services")
-        .select("*")
-        .eq("project_id", projectId)
-        .order("created_at", { ascending: true });
+      const [{ data, error }, { data: billingReqs }] = await Promise.all([
+        supabase
+          .from("services")
+          .select("*")
+          .eq("project_id", projectId)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("billing_requests")
+          .select("services")
+          .eq("project_id", projectId)
+          .in("status", ["pending", "invoiced"]),
+      ]);
 
       if (error) throw error;
+
+      // Build a map of service name -> total billed from billing_requests
+      const billedMap: Record<string, number> = {};
+      for (const br of billingReqs || []) {
+        const items = (br.services as any[]) || [];
+        for (const item of items) {
+          const key = item.name || "";
+          billedMap[key] = (billedMap[key] || 0) + (Number(item.amount) || Number(item.billed_amount) || 0);
+        }
+      }
 
       return (data || []).map((svc: any): MockService => ({
         id: svc.id,
         name: svc.name || "Untitled Service",
         status: svc.status || "not_started",
-        application: null, // Will be populated separately if needed
+        application: null,
         subServices: svc.disciplines || [],
         totalAmount: Number(svc.total_amount ?? svc.fixed_price ?? 0) || 0,
-        billedAmount: Number(svc.billed_amount ?? 0) || 0,
+        billedAmount: billedMap[svc.name] || Number(svc.billed_amount ?? 0) || 0,
         costAmount: Number(svc.cost_amount ?? 0) || 0,
         assignedTo: (svc as any).assigned_to_name || "Unassigned",
         estimatedBillDate: svc.estimated_bill_date
