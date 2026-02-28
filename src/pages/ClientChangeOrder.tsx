@@ -30,7 +30,7 @@ export default function ClientChangeOrderPage() {
   const [autoSendStatus, setAutoSendStatus] = useState<"idle" | "sending" | "sent" | "failed">("idle");
   const [depositPaying, setDepositPaying] = useState(false);
   const [depositPaid, setDepositPaid] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "ach">("card");
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "ach" | "check">("card");
 
   // Fetch CO by public token (no joins — anon can only read change_orders)
   const { data: co, isLoading, error } = useQuery({
@@ -307,6 +307,12 @@ export default function ClientChangeOrderPage() {
                   >
                     ACH Transfer
                   </button>
+                  <button
+                    className={`flex-1 text-sm font-medium py-2 px-3 rounded-lg border transition-colors ${paymentMethod === "check" ? "border-amber-400 bg-amber-50 text-amber-800" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
+                    onClick={() => setPaymentMethod("check")}
+                  >
+                    Check
+                  </button>
                 </div>
 
                 {paymentMethod === "card" ? (
@@ -317,10 +323,24 @@ export default function ClientChangeOrderPage() {
                       <Input placeholder="CVC" />
                     </div>
                   </div>
-                ) : (
+                ) : paymentMethod === "ach" ? (
                   <div className="space-y-3 mb-4">
                     <Input placeholder="Routing Number" />
                     <Input placeholder="Account Number" />
+                  </div>
+                ) : (
+                  <div className="space-y-3 mb-4">
+                    <div className="rounded-lg p-4" style={{ background: "#f8f9fa", border: "1px solid #e2e8f0" }}>
+                      <div className="text-sm font-bold mb-2" style={{ color: charcoal }}>Mail your check to:</div>
+                      <div className="text-sm" style={{ color: charcoal, lineHeight: 1.6 }}>
+                        <strong>{company?.name || "Company"}</strong><br />
+                        {company?.address || "Company Address"}
+                      </div>
+                    </div>
+                    <div className="text-xs" style={{ color: slate }}>
+                      Make payable to: <strong>{company?.name || "Company"}</strong><br />
+                      Reference: <strong>{co.co_number}</strong>
+                    </div>
                   </div>
                 )}
 
@@ -336,7 +356,7 @@ export default function ClientChangeOrderPage() {
                         .update({ deposit_paid_at: new Date().toISOString() })
                         .eq("public_token", token);
                       setDepositPaid(true);
-                      toast({ title: "Deposit received!", description: `Payment of ${fmt(Math.abs(co.amount) * co.deposit_percentage / 100)} processed.` });
+                      toast({ title: paymentMethod === "check" ? "Check payment noted!" : "Deposit received!", description: `Payment of ${fmt(Math.abs(co.amount) * co.deposit_percentage / 100)} ${paymentMethod === "check" ? "will be processed upon receipt." : "processed."}` });
                     } catch {
                       toast({ title: "Payment failed", description: "Please try again.", variant: "destructive" });
                     } finally {
@@ -345,7 +365,7 @@ export default function ClientChangeOrderPage() {
                   }}
                 >
                   {depositPaying ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  Pay Deposit — {fmt(Math.abs(co.amount) * co.deposit_percentage / 100)}
+                  {paymentMethod === "check" ? `I'll Send a Check — ${fmt(Math.abs(co.amount) * co.deposit_percentage / 100)}` : `Pay Deposit — ${fmt(Math.abs(co.amount) * co.deposit_percentage / 100)}`}
                 </Button>
               </div>
             )}

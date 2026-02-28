@@ -186,15 +186,15 @@ export function ChangeOrderDetailSheet({
       // Auto-send to client after signing if triggered from create flow
       if (sendAfterSign) {
         setSendAfterSign(false);
-        // Small delay to let queries refresh with the new signed state
-        setTimeout(() => handleSend(), 500);
+        // Pass signature data so PDF includes it before query refreshes
+        setTimeout(() => handleSend(signatureData), 500);
       }
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     }
   };
 
-  const handleSend = async () => {
+  const handleSend = async (pendingSignatureData?: string) => {
     try {
       // Look up the project's client_id first
       const { data: project } = await supabase
@@ -243,7 +243,7 @@ export function ChangeOrderDetailSheet({
       const signingLink = publicToken ? `${window.location.origin}/change-order/${publicToken}` : null;
 
       // Generate the PDF and convert to base64 for attachment
-      const pdfBlob = await generatePdfBlob();
+      const pdfBlob = await generatePdfBlob(pendingSignatureData);
       const arrayBuffer = await pdfBlob.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
       let binary = "";
@@ -382,11 +382,18 @@ export function ChangeOrderDetailSheet({
     }
   };
 
-  const generatePdfBlob = async () => {
+  const generatePdfBlob = async (pendingSignatureData?: string) => {
     const settings = companySettings?.settings;
+    // Use a merged CO object that includes any pending signature data
+    // This handles the case where Sign & Send is used and the query hasn't refreshed yet
+    const coForPdf = pendingSignatureData ? {
+      ...co,
+      internal_signature_data: pendingSignatureData,
+      internal_signed_at: co.internal_signed_at || new Date().toISOString(),
+    } : co;
     const blob = await pdf(
       <ChangeOrderPDF
-        co={co}
+        co={coForPdf}
         companyName={companySettings?.name}
         companyAddress={settings?.company_address}
         companyPhone={settings?.company_phone}
@@ -552,12 +559,12 @@ export function ChangeOrderDetailSheet({
                 </Button>
               )}
               {canSend && (
-                <Button size="sm" variant="outline" className="gap-1.5" onClick={handleSend}>
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => handleSend()}>
                   <Send className="h-3.5 w-3.5" /> Send to Client
                 </Button>
               )}
               {canResend && (
-                <Button size="sm" variant="outline" className="gap-1.5" onClick={handleSend}>
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => handleSend()}>
                   <Send className="h-3.5 w-3.5" /> Resend to Client
                 </Button>
               )}
