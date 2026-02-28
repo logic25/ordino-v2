@@ -1552,9 +1552,10 @@ function ServicesFull({ services: initialServices, project, contacts, allService
               const sStatus = serviceStatusStyles[svc.status] || serviceStatusStyles.not_started;
               const isExpanded = expandedIds.has(svc.id);
               // Use dynamic cost from time entries instead of static costAmount
-              const dynamicCost = timeEntries.filter(te => te.service === svc.name).reduce((s, te) => s + te.hours * (te.hourlyRate || 0), 0);
-              const displayCost = dynamicCost > 0 ? dynamicCost : svc.costAmount;
-              const svcMargin = svc.totalAmount > 0 ? Math.round((svc.totalAmount - displayCost) / svc.totalAmount * 100) : 0;
+              const dynamicCost = timeEntries.filter(te => te.service === svc.name).reduce((s, te) => s + (Number(te.hours) || 0) * (Number(te.hourlyRate) || 0), 0);
+              const displayCost = dynamicCost > 0 ? dynamicCost : (Number(svc.costAmount) || 0);
+              const svcTotal = Number(svc.totalAmount) || 0;
+              const svcMargin = svcTotal > 0 ? Math.round((svcTotal - displayCost) / svcTotal * 100) : 0;
               const pendingReqs = (svc.requirements || []).filter(r => !r.met).length;
               const children = childMap.get(svc.id) || [];
 
