@@ -216,7 +216,7 @@ export function ChangeOrderPDF({
           ) : null}
 
           {/* ═══ Signature Section ═══ */}
-          <View style={s.sigSection}>
+          <View style={s.sigSection} wrap={false}>
             <Text style={s.sigSubtext}>Please sign the designated space provided below and return a copy</Text>
             <View style={[s.sectionHeading, { marginBottom: 16 }]}>
               <View style={s.sectionBar} />
