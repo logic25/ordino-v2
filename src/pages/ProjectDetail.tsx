@@ -1555,7 +1555,7 @@ function ServicesFull({ services: initialServices, project, contacts, allService
               const dynamicCost = timeEntries.filter(te => te.service === svc.name).reduce((s, te) => s + te.hours * (te.hourlyRate || 0), 0);
               const displayCost = dynamicCost > 0 ? dynamicCost : svc.costAmount;
               const svcMargin = svc.totalAmount > 0 ? Math.round((svc.totalAmount - displayCost) / svc.totalAmount * 100) : 0;
-              const pendingReqs = svc.requirements.filter(r => !r.met).length;
+              const pendingReqs = (svc.requirements || []).filter(r => !r.met).length;
               const children = childMap.get(svc.id) || [];
 
               return (
@@ -1586,7 +1586,7 @@ function ServicesFull({ services: initialServices, project, contacts, allService
                               <span className="text-muted-foreground/50 ml-2 mr-1 border-l-2 border-b-2 border-muted-foreground/20 w-3 h-3 inline-block rounded-bl-sm" style={{ marginBottom: -4 }} />
                             )}
                             <span className={cn("font-medium whitespace-nowrap", isChild && "text-sm")}>{svc.name}</span>
-                            {svc.requirements.length > 0 && (
+                            {(svc.requirements || []).length > 0 && (
                               <Badge
                                 variant="secondary"
                                 className={cn(
@@ -1600,7 +1600,7 @@ function ServicesFull({ services: initialServices, project, contacts, allService
                                   if (!isExpanded) toggle(svc.id);
                                 }}
                               >
-                                {svc.requirements.filter(r => r.met).length}/{svc.requirements.length} req
+                                {(svc.requirements || []).filter(r => r.met).length}/{(svc.requirements || []).length} req
                               </Badge>
                             )}
                             {isChild && !svc.application && svc.parentServiceId && (() => {
