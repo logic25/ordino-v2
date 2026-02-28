@@ -381,6 +381,24 @@ export default function ProjectDetail() {
           </div>
         </div>
 
+        {/* Financial Summary Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+          {[
+            { label: "Contract", value: servicesLoading ? "..." : formatCurrency(contractTotal) },
+            { label: "Change Orders", value: approvedCOs > 0 ? `+${formatCurrency(approvedCOs)}` : "--" },
+            { label: "Total Value", value: servicesLoading ? "..." : formatCurrency(adjustedTotal) },
+            { label: "Billed", value: servicesLoading ? "..." : formatCurrency(billed), color: "text-emerald-600 dark:text-emerald-400" },
+            { label: "Internal Cost", value: formatCurrency(cost) },
+            { label: "Margin", value: servicesLoading ? "..." : `${margin}%`, color: margin > 50 ? "text-emerald-600 dark:text-emerald-400" : margin < 20 ? "text-red-600 dark:text-red-400" : "" },
+          ].map((stat) => (
+            <Card key={stat.label}>
+              <CardContent className="p-4">
+                <div className="text-xs text-muted-foreground">{stat.label}</div>
+                <div className={`text-xl font-bold mt-1 ${stat.color || ""}`}>{stat.value}</div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
         {/* Proposal Execution Status + Quick Reference + Readiness Checklist */}
         <ProposalExecutionBanner project={project} changeOrders={changeOrders} />
