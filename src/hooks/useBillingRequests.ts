@@ -135,6 +135,27 @@ export function useCreateBillingRequest() {
         .update({ status: "invoiced", invoice_id: (invoice as any).id } as any)
         .eq("id", (billingReq as any).id);
 
+      // Update billed_amount on each service
+      if (input.project_id) {
+        const { data: projectServices } = await supabase
+          .from("services")
+          .select("id, name, billed_amount")
+          .eq("project_id", input.project_id);
+
+        if (projectServices) {
+          for (const svcLine of input.services) {
+            const match = projectServices.find((ps: any) => ps.name === svcLine.name);
+            if (match) {
+              const currentBilled = Number((match as any).billed_amount ?? 0);
+              await supabase
+                .from("services")
+                .update({ billed_amount: currentBilled + svcLine.amount } as any)
+                .eq("id", match.id);
+            }
+          }
+        }
+      }
+
       // Log activity
       await supabase.from("invoice_activity_log").insert({
         company_id: profile.company_id,
@@ -186,6 +207,7 @@ export function useCreateBillingRequest() {
       queryClient.invalidateQueries({ queryKey: ["previously-billed"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["billing-pending-count"] });
+      queryClient.invalidateQueries({ queryKey: ["project-services-full"] });
 
       // Trigger billing notifications asynchronously (don't block on this)
       if (result?.billingRequest) {
