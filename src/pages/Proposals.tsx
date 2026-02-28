@@ -19,6 +19,7 @@ import { LeadCaptureDialog, type LeadCaptureData } from "@/components/proposals/
 import { SendProposalDialog } from "@/components/proposals/SendProposalDialog";
 import {
   useProposals,
+  useProposalStats,
   useCreateProposal,
   useUpdateProposal,
   useDeleteProposal,
@@ -225,10 +226,37 @@ export default function Proposals() {
   const [composeSubject, setComposeSubject] = useState("");
   const [composeBody, setComposeBody] = useState("");
   const [isDraftingFollowUp, setIsDraftingFollowUp] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const pageSize = 25;
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: proposals = [], isLoading } = useProposals();
+  // Debounce search for server-side query
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setCurrentPage(0); // reset to first page on search
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Reset page when status filter changes
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [statusFilter]);
+
+  const { data: proposalData, isLoading } = useProposals({ 
+    page: currentPage, 
+    pageSize, 
+    search: debouncedSearch,
+    statusFilter: statusFilter === "follow_up" ? null : statusFilter,
+  });
+  const proposals = proposalData?.proposals ?? [];
+  const totalCount = proposalData?.totalCount ?? 0;
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  const { data: statsData } = useProposalStats();
   const createProposal = useCreateProposal();
   const updateProposal = useUpdateProposal();
   const deleteProposal = useDeleteProposal();
@@ -245,9 +273,9 @@ export default function Proposals() {
   const deleteLead = useDeleteLead();
   const updateLead = useUpdateLead();
 
-  const displayProposals = proposals.length > 0 ? proposals : MOCK_PROPOSALS;
+  const displayProposals = proposals.length > 0 ? proposals : (currentPage === 0 && !debouncedSearch && !statusFilter ? MOCK_PROPOSALS : []);
   const displayLeads = leads.length > 0 ? leads : MOCK_LEADS;
-  const showingMockProposals = proposals.length === 0 && !isLoading;
+  const showingMockProposals = proposals.length === 0 && !isLoading && currentPage === 0 && !debouncedSearch && !statusFilter;
   const showingMockLeads = leads.length === 0 && !leadsLoading;
 
   // Open dialog if coming from properties with a property pre-selected (once only)
@@ -259,27 +287,14 @@ export default function Proposals() {
     }
   }, [defaultPropertyId]);
 
-  const filteredProposals = displayProposals.filter((p) => {
-    if (statusFilter) {
-      if (statusFilter === "draft" && p.status !== "draft") return false;
-      if (statusFilter === "sent" && !["sent", "viewed"].includes(p.status || "")) return false;
-      if (statusFilter === "executed" && p.status !== "executed") return false;
-      if (statusFilter === "lost" && (p.status as string) !== "lost") return false;
-      if (statusFilter === "follow_up") {
+  // For follow_up filter, apply client-side on the already-fetched page
+  const filteredProposals = statusFilter === "follow_up" 
+    ? displayProposals.filter(p => {
         const nextDate = (p as any).next_follow_up_date;
         const dismissed = (p as any).follow_up_dismissed_at;
-        if (!nextDate || dismissed || new Date(nextDate) > new Date()) return false;
-      }
-    }
-    const query = searchQuery.toLowerCase();
-    if (!query) return true;
-    return (
-      p.properties?.address?.toLowerCase().includes(query) ||
-      p.proposal_number?.toLowerCase().includes(query) ||
-      p.title?.toLowerCase().includes(query) ||
-      p.client_name?.toLowerCase().includes(query)
-    );
-  });
+        return nextDate && !dismissed && new Date(nextDate) <= new Date();
+      })
+    : displayProposals;
 
   const filteredLeads = displayLeads.filter((l) => {
     const query = searchQuery.toLowerCase();
@@ -292,17 +307,18 @@ export default function Proposals() {
     );
   });
 
-  // Month-over-month analytics
+  // Month-over-month analytics from lightweight stats query
+  const allStats = statsData || [];
   const now = new Date();
   const thisMonthStart = startOfMonth(now);
   const lastMonthStart = startOfMonth(subMonths(now, 1));
   const lastMonthEnd = endOfMonth(subMonths(now, 1));
 
-  const thisMonthProposals = displayProposals.filter(p => {
+  const thisMonthProposals = allStats.filter(p => {
     const d = new Date(p.created_at || "");
     return isWithinInterval(d, { start: thisMonthStart, end: now });
   });
-  const lastMonthProposals = displayProposals.filter(p => {
+  const lastMonthProposals = allStats.filter(p => {
     const d = new Date(p.created_at || "");
     return isWithinInterval(d, { start: lastMonthStart, end: lastMonthEnd });
   });
@@ -313,7 +329,7 @@ export default function Proposals() {
 
   const thisMonthSent = thisMonthProposals.filter(p => ["sent", "viewed"].includes(p.status || "")).length;
   const lastMonthSent = lastMonthProposals.filter(p => ["sent", "viewed"].includes(p.status || "")).length;
-  const awaitingValue = displayProposals
+  const awaitingValue = allStats
     .filter(p => ["sent", "viewed"].includes(p.status || ""))
     .reduce((s, p) => s + Number(p.total_amount || 0), 0);
 
@@ -329,7 +345,7 @@ export default function Proposals() {
   const revenueWon = thisMonthExecuted.reduce((s, p) => s + Number(p.total_amount || 0), 0);
   const lastRevenueWon = lastMonthExecuted.reduce((s, p) => s + Number(p.total_amount || 0), 0);
 
-  const followUpDueCount = displayProposals.filter((p) => {
+  const followUpDueCount = allStats.filter((p) => {
     const nextDate = (p as any).next_follow_up_date;
     const dismissed = (p as any).follow_up_dismissed_at;
     return nextDate && !dismissed && new Date(nextDate) <= new Date();
@@ -454,7 +470,7 @@ export default function Proposals() {
 
   const handleDelete = async (id: string) => {
     // Check if proposal is executed — cannot delete
-    const proposal = proposals.find((p) => p.id === id);
+    const proposal = filteredProposals.find((p) => p.id === id);
     if (proposal?.status === "executed") {
       toast({
         title: "Cannot delete executed proposal",
@@ -899,7 +915,7 @@ export default function Proposals() {
               <FileText className="h-4 w-4" />
               Proposals
               <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">
-                {displayProposals.length}
+                {totalCount || displayProposals.length}
               </Badge>
             </TabsTrigger>
             <TabsTrigger value="leads" className="gap-1.5">
@@ -919,7 +935,7 @@ export default function Proposals() {
                   All Proposals
                   {!isLoading && (
                     <span className="text-muted-foreground font-normal text-sm">
-                      ({filteredProposals.length})
+                      ({totalCount})
                     </span>
                   )}
                 </CardTitle>
@@ -959,23 +975,53 @@ export default function Proposals() {
                     </div>
                   </div>
                 ) : (
-                  <ProposalTable
-                    proposals={filteredProposals}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                    onSend={handleOpenSend}
-                    onSign={handleOpenSign}
-                    onView={handleView}
-                    onPreview={(p) => setPreviewProposal(p)}
-                    onMarkApproved={handleOpenApproval}
-                    onMarkLost={handleMarkLost}
-                    onDismissFollowUp={handleDismissFollowUp}
-                    onLogFollowUp={handleLogFollowUp}
-                    onSnoozeFollowUp={handleSnoozeFollowUp}
-                    onDraftFollowUp={handleDraftFollowUp}
-                    isDeleting={deleteProposal.isPending}
-                    isSending={sendProposal.isPending || isDraftingFollowUp}
-                  />
+                  <>
+                    <ProposalTable
+                      proposals={filteredProposals}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                      onSend={handleOpenSend}
+                      onSign={handleOpenSign}
+                      onView={handleView}
+                      onPreview={(p) => setPreviewProposal(p)}
+                      onMarkApproved={handleOpenApproval}
+                      onMarkLost={handleMarkLost}
+                      onDismissFollowUp={handleDismissFollowUp}
+                      onLogFollowUp={handleLogFollowUp}
+                      onSnoozeFollowUp={handleSnoozeFollowUp}
+                      onDraftFollowUp={handleDraftFollowUp}
+                      isDeleting={deleteProposal.isPending}
+                      isSending={sendProposal.isPending || isDraftingFollowUp}
+                    />
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                        <p className="text-sm text-muted-foreground">
+                          Showing {currentPage * pageSize + 1}–{Math.min((currentPage + 1) * pageSize, totalCount)} of {totalCount}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={currentPage === 0}
+                            onClick={() => setCurrentPage(p => p - 1)}
+                          >
+                            Previous
+                          </Button>
+                          <span className="text-sm text-muted-foreground">
+                            Page {currentPage + 1} of {totalPages}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={currentPage >= totalPages - 1}
+                            onClick={() => setCurrentPage(p => p + 1)}
+                          >
+                            Next
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
