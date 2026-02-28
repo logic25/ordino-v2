@@ -266,7 +266,7 @@ export function useProjectPISStatus(projectId: string | undefined) {
       // TPP: check if "same as applicant" is checked or if details are filled
       const tppSameAs = getResponseVal("contractors_inspections", "tpp_same_as");
       const tppHasDetails = !!(getResponseVal("contractors_inspections", "tpp_name"));
-      const tppFieldIds = ["tpp_name", "tpp_email"];
+      const tppFieldIds = ["tpp_name", "tpp_email", "rent_controlled", "rent_stabilized", "units_occupied"];
 
       // SIA: check if "same as applicant" is checked or if details are filled
       const siaSameAs = getResponseVal("contractors_inspections", "sia_same_as");
@@ -371,7 +371,25 @@ export function useProjectPISStatus(projectId: string | undefined) {
         missingBySection[heading].push(rawLabel);
       }
 
-      // TBD contractors are not counted as missing — they're simply not known yet
+      // Append grouped TBD labels for unknown contractors
+      const contractorsHeading = "Contractors & Inspections";
+      const ensureHeading = () => { if (!missingBySection[contractorsHeading]) missingBySection[contractorsHeading] = []; };
+
+      if (!gcSameAs && !gcHasDetails) {
+        missingFields.push("General Contractor (TBD)");
+        ensureHeading();
+        missingBySection[contractorsHeading].push("General Contractor (TBD)");
+      }
+      if (!tppSameAs && !tppHasDetails) {
+        missingFields.push("TPP Applicant (TBD)");
+        ensureHeading();
+        missingBySection[contractorsHeading].push("TPP Applicant (TBD)");
+      }
+      if (!siaSameAs && !siaHasDetails) {
+        missingFields.push("Special Inspector (TBD)");
+        ensureHeading();
+        missingBySection[contractorsHeading].push("Special Inspector (TBD)");
+      }
 
       return {
         sentDate: format(new Date(rfi.created_at), "MM/dd/yyyy"),
