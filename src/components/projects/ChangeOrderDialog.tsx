@@ -101,7 +101,7 @@ export function ChangeOrderDialog({
   }, [open, existingCO]);
 
   const requestedBy = form.watch("requested_by");
-  const [searchFocused, setSearchFocused] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(true);
   const rawTotal = serviceLines.reduce((s, l) => s + Math.abs(l.amount), 0);
   // Auto-negate when "Internal" — it's the company's mistake / credit
   const totalAmount = requestedBy === "Internal" ? -rawTotal : rawTotal;
