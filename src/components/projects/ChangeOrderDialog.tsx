@@ -26,8 +26,7 @@ interface COServiceLine {
 }
 
 const schema = z.object({
-  title: z.string().min(1, "Title is required"),
-  reason: z.string().optional(),
+  description: z.string().min(1, "Description is required"),
   requested_by: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -56,20 +55,18 @@ export function ChangeOrderDialog({
 
   const [serviceLines, setServiceLines] = useState<COServiceLine[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [showSearch, setShowSearch] = useState(false);
   const [depositPct, setDepositPct] = useState(0);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { title: "", reason: "", requested_by: "", notes: "" },
+    defaultValues: { description: "", requested_by: "", notes: "" },
   });
 
   useEffect(() => {
     if (open) {
       if (existingCO) {
         form.reset({
-          title: existingCO.title,
-          reason: existingCO.reason ?? "",
+          description: existingCO.reason || existingCO.title,
           requested_by: existingCO.requested_by ?? "",
           notes: existingCO.notes ?? "",
         });
@@ -95,16 +92,16 @@ export function ChangeOrderDialog({
         }
         setDepositPct((existingCO as any).deposit_percentage || 0);
       } else {
-        form.reset({ title: "", reason: "", requested_by: "", notes: "" });
+        form.reset({ description: "", requested_by: "", notes: "" });
         setServiceLines([]);
         setDepositPct(0);
       }
       setSearchTerm("");
-      setShowSearch(false);
     }
   }, [open, existingCO]);
 
   const requestedBy = form.watch("requested_by");
+  const [searchFocused, setSearchFocused] = useState(false);
   const rawTotal = serviceLines.reduce((s, l) => s + Math.abs(l.amount), 0);
   // Auto-negate when "Internal" — it's the company's mistake / credit
   const totalAmount = requestedBy === "Internal" ? -rawTotal : rawTotal;
@@ -123,7 +120,6 @@ export function ChangeOrderDialog({
       description: svc.description,
     }]);
     setSearchTerm("");
-    setShowSearch(false);
   };
 
   const addCustomService = () => {
@@ -133,7 +129,6 @@ export function ChangeOrderDialog({
       amount: 0,
     }]);
     setSearchTerm("");
-    setShowSearch(false);
   };
 
   const removeService = (id: string) => {
@@ -152,10 +147,13 @@ export function ChangeOrderDialog({
   const handleSubmit = async (values: FormValues, asDraft: boolean) => {
     track("projects", "co_create_completed", { as_draft: asDraft, is_edit: !!existingCO });
 
+    const descText = values.description.trim();
+    const title = descText.length > 80 ? descText.slice(0, 77) + "..." : descText;
+
     await onSubmit({
-      title: values.title,
+      title,
       description: serviceLines.map(s => s.name).join(", "),
-      reason: values.reason || undefined,
+      reason: descText,
       amount: totalAmount,
       requested_by: values.requested_by || undefined,
       linked_service_names: serviceLines.map(s => s.name),
@@ -181,16 +179,17 @@ export function ChangeOrderDialog({
         </DialogHeader>
 
         <form className="space-y-4">
-          {/* Title */}
+          {/* Description */}
           <div className="space-y-1.5">
-            <Label htmlFor="co-title">Title *</Label>
-            <Input
-              id="co-title"
-              placeholder="e.g. PAA to address Schedule B"
-              {...form.register("title")}
+            <Label htmlFor="co-description">Description *</Label>
+            <Textarea
+              id="co-description"
+              placeholder="e.g. PAA to address Schedule B — additional engineering review required"
+              className="min-h-[60px] text-sm"
+              {...form.register("description")}
             />
-            {form.formState.errors.title && (
-              <p className="text-xs text-destructive">{form.formState.errors.title.message}</p>
+            {form.formState.errors.description && (
+              <p className="text-xs text-destructive">{form.formState.errors.description.message}</p>
             )}
           </div>
 
@@ -227,8 +226,9 @@ export function ChangeOrderDialog({
                         <X className="h-3.5 w-3.5" />
                       </Button>
                     </div>
-                    <Input
-                      className="text-xs h-7"
+                    <Textarea
+                      className="text-xs min-h-[28px] resize-none"
+                      rows={2}
                       placeholder="Description (optional — does not alter master record)"
                       value={line.description || ""}
                       onChange={(e) => updateServiceDescription(line.id, e.target.value)}
@@ -238,22 +238,25 @@ export function ChangeOrderDialog({
               </div>
             )}
 
-            {/* Search / Add service */}
-            {showSearch ? (
-              <div className="border rounded-lg overflow-hidden">
-                <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/20">
-                  <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <input
-                    className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-                    placeholder="Search service catalog..."
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    autoFocus
-                  />
-                  <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => { setShowSearch(false); setSearchTerm(""); }}>
+            {/* Always-visible service search */}
+            <div className="border rounded-lg overflow-hidden">
+              <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/20">
+                <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <input
+                  className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                  placeholder="Search service catalog or type custom name..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  onFocus={() => setSearchFocused(true)}
+                  onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
+                />
+                {searchTerm && (
+                  <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setSearchTerm("")}>
                     <X className="h-3 w-3" />
                   </Button>
-                </div>
+                )}
+              </div>
+              {(searchFocused || searchTerm) && (
                 <div className="max-h-48 overflow-y-auto divide-y">
                   {filteredCatalog.map((svc) => (
                     <button
@@ -286,28 +289,14 @@ export function ChangeOrderDialog({
                     </button>
                   )}
                 </div>
-              </div>
-            ) : (
-              <Button type="button" variant="outline" size="sm" className="gap-1.5 w-full" onClick={() => setShowSearch(true)}>
-                <Plus className="h-3.5 w-3.5" /> Add Service
-              </Button>
-            )}
+              )}
+            </div>
 
-            {serviceLines.length === 0 && !showSearch && (
+            {serviceLines.length === 0 && (
               <p className="text-xs text-muted-foreground">Add at least one service to define the CO scope and amount.</p>
             )}
           </div>
 
-          {/* Reason */}
-          <div className="space-y-1.5">
-            <Label htmlFor="co-reason">Reason</Label>
-            <Textarea
-              id="co-reason"
-              placeholder="Why is this change order being issued?"
-              className="min-h-[60px] text-sm"
-              {...form.register("reason")}
-            />
-          </div>
 
           {/* Requested By */}
           <div className="space-y-1.5">
