@@ -1202,6 +1202,14 @@ function ServiceExpandedDetail({ service, projectName }: { service: MockService;
 
   return (
     <div className="px-8 py-5 space-y-5 bg-muted/10">
+      {/* Row 0: Assigned */}
+      {service.assignedTo && (
+        <div className="flex items-center gap-2 text-sm">
+          <User className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-muted-foreground">Assigned to:</span>
+          <span className="font-medium">{service.assignedTo}</span>
+        </div>
+      )}
       {/* Row 1: Scope + Job Description + Application */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div>
@@ -1434,9 +1442,26 @@ function ServicesFull({ services: initialServices, project, contacts, allService
     return map;
   }, [filingAuditLogs]);
 
-  const updateServiceField = (id: string, field: "assignedTo" | "estimatedBillDate", value: string) => {
+  const updateServiceField = async (id: string, field: "assignedTo" | "estimatedBillDate", value: string) => {
     setOrderedServices(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
-    toast({ title: "Updated", description: `Service ${field === "assignedTo" ? "assignment" : "bill date"} updated.` });
+    const dbField = field === "assignedTo" ? "assigned_to" : "estimated_bill_date";
+    try {
+      await supabase.from("services").update({ [dbField]: value || null } as any).eq("id", id);
+      toast({ title: "Updated", description: `Service ${field === "assignedTo" ? "assignment" : "bill date"} updated.` });
+    } catch (err: any) {
+      toast({ title: "Error saving", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const updateServiceStatus = async (id: string, status: string) => {
+    setOrderedServices(prev => prev.map(s => s.id === id ? { ...s, status: status as MockService["status"] } : s));
+    try {
+      await supabase.from("services").update({ status } as any).eq("id", id);
+      queryClient.invalidateQueries({ queryKey: ["project-services-full"] });
+      toast({ title: "Status updated" });
+    } catch (err: any) {
+      toast({ title: "Error saving status", description: err.message, variant: "destructive" });
+    }
   };
 
   const toggleDobFiling = async (serviceId: string) => {
@@ -1485,15 +1510,17 @@ function ServicesFull({ services: initialServices, project, contacts, allService
     setSendToBillingOpen(true);
   };
 
-  const handleDropService = () => {
+  const handleDropService = async () => {
+    const droppedIds: string[] = [];
     const newCOInputs: Parameters<ReturnType<typeof useCreateChangeOrder>["mutateAsync"]>[0][] = [];
     setOrderedServices(prev => prev.map(s => {
       if (!selectedIds.has(s.id) || s.status === "dropped") return s;
+      droppedIds.push(s.id);
       newCOInputs.push({
         title: `Dropped service: ${s.name}`,
         description: `Service "${s.name}" was removed from project scope`,
         amount: -s.totalAmount,
-        status: "voided",
+        status: "approved",
         requested_by: "Internal",
         linked_service_names: [s.name],
         reason: `Service "${s.name}" was dropped from scope`,
@@ -1502,6 +1529,10 @@ function ServicesFull({ services: initialServices, project, contacts, allService
       });
       return { ...s, status: "dropped" as const };
     }));
+    // Persist dropped status to DB
+    for (const id of droppedIds) {
+      await supabase.from("services").update({ status: "dropped" } as any).eq("id", id);
+    }
     if (newCOInputs.length > 0) {
       onAddCOs?.(newCOInputs);
     }
@@ -1510,6 +1541,7 @@ function ServicesFull({ services: initialServices, project, contacts, allService
       description: `${selectedIds.size} service(s) dropped. Negative change order(s) created automatically.`,
     });
     setSelectedIds(new Set());
+    queryClient.invalidateQueries({ queryKey: ["project-services-full"] });
   };
 
   const activeServices = orderedServices.filter(s => s.status !== "billed");
@@ -1551,8 +1583,8 @@ function ServicesFull({ services: initialServices, project, contacts, allService
             <TableHead className="w-[28px]" />
             <TableHead>Service</TableHead>
             <TableHead className="whitespace-nowrap">Status</TableHead>
-            <TableHead>Assigned</TableHead>
-            <TableHead>Disciplines</TableHead>
+            <TableHead>Work Types</TableHead>
+            <TableHead className="text-right">Margin</TableHead>
             <TableHead>Est. Bill Date</TableHead>
             <TableHead className="text-right">Price</TableHead>
             <TableHead className="text-right">Billed</TableHead>
@@ -1635,24 +1667,20 @@ function ServicesFull({ services: initialServices, project, contacts, allService
                             })()}
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <span className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${sStatus.className}`}>{sStatus.label}</span>
-                        </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <Select
-                            value={svc.assignedTo || "__none__"}
-                            onValueChange={(val) => updateServiceField(svc.id, "assignedTo", val === "__none__" ? "" : val)}
+                            value={svc.status}
+                            onValueChange={(val) => updateServiceStatus(svc.id, val)}
                           >
-                            <SelectTrigger className="h-7 w-auto min-w-[100px] border-none bg-transparent shadow-none text-sm p-0 px-1 hover:bg-muted/40 focus:ring-0 gap-1 text-muted-foreground">
-                              <SelectValue placeholder="Assign" />
+                            <SelectTrigger className="h-7 w-auto min-w-[110px] border-none bg-transparent shadow-none text-xs p-0 px-1 hover:bg-muted/40 focus:ring-0 gap-1">
+                              <span className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${sStatus.className}`}>{sStatus.label}</span>
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="__none__">Unassigned</SelectItem>
-                              {companyProfiles.map((p) => (
-                                <SelectItem key={p.id} value={[p.first_name, p.last_name].filter(Boolean).join(" ") || p.user_id}>
-                                  {[p.first_name, p.last_name].filter(Boolean).join(" ") || p.user_id}
-                                </SelectItem>
-                              ))}
+                              <SelectItem value="not_started">Not Started</SelectItem>
+                              <SelectItem value="in_progress">In Progress</SelectItem>
+                              <SelectItem value="complete">Complete</SelectItem>
+                              <SelectItem value="billed">Billed</SelectItem>
+                              <SelectItem value="dropped">Dropped</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>
@@ -1660,6 +1688,17 @@ function ServicesFull({ services: initialServices, project, contacts, allService
                           {(svc.subServices || []).length > 0 ? (
                             <div className="flex gap-1 flex-wrap">{(svc.subServices || []).map((d) => <Badge key={d} variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">{d}</Badge>)}</div>
                           ) : <span className="text-xs text-muted-foreground">—</span>}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {(() => {
+                            const margin = svcTotal - displayCost;
+                            if (displayCost === 0 && svcTotal === 0) return <span className="text-xs text-muted-foreground">—</span>;
+                            return (
+                              <span className={margin >= 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-red-600 dark:text-red-400 font-medium"}>
+                                {formatCurrency(margin)}
+                              </span>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <Popover open={editingBillDate === svc.id} onOpenChange={(open) => setEditingBillDate(open ? svc.id : null)}>
@@ -1774,7 +1813,7 @@ function ServicesFull({ services: initialServices, project, contacts, allService
                     <TableCell className="w-[28px]" />
                     <TableCell><span className="font-medium">{svc.name}</span></TableCell>
                     <TableCell><Badge variant="secondary" className="text-[10px]">Billed</Badge></TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{svc.assignedTo || "—"}</TableCell>
+                    <TableCell />
                     <TableCell />
                     <TableCell className="text-sm text-muted-foreground">{svc.billedAt || "—"}</TableCell>
                     <TableCell className="text-right tabular-nums font-medium">{formatCurrency(svc.totalAmount)}</TableCell>
