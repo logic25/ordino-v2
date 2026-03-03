@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { InvoiceStatusBadge } from "./InvoiceStatusBadge";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -85,6 +86,13 @@ const urgencyConfig: Record<UrgencyLevel, {
   },
 };
 
+function getRiskExplanation(score: number): string {
+  if (score >= 80) return "High risk — client has significant payment delays or broken promises";
+  if (score >= 60) return "Elevated risk — payment history shows concerning patterns";
+  if (score >= 40) return "Moderate risk — some late payments but generally reliable";
+  return "Low risk — strong payment history";
+}
+
 function RiskBadge({ invoiceId }: { invoiceId: string }) {
   const { data: prediction } = usePaymentPrediction(invoiceId);
   if (!prediction) return null;
@@ -94,10 +102,18 @@ function RiskBadge({ invoiceId }: { invoiceId: string }) {
     : score >= 40 ? "text-amber-600 bg-amber-50 border-amber-200 dark:text-amber-400 dark:bg-amber-950 dark:border-amber-800"
     : "text-emerald-600 bg-emerald-50 border-emerald-200 dark:text-emerald-400 dark:bg-emerald-950 dark:border-emerald-800";
   return (
-    <Badge variant="outline" className={`text-[10px] tabular-nums ${color}`}>
-      <TrendingUp className="h-2.5 w-2.5 mr-0.5" />
-      Risk {score}
-    </Badge>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Badge variant="outline" className={`text-[10px] tabular-nums ${color}`}>
+          <TrendingUp className="h-2.5 w-2.5 mr-0.5" />
+          Risk {score}
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-[250px]">
+        <p className="text-xs">Payment risk score: {score}/100</p>
+        <p className="text-xs text-muted-foreground">{getRiskExplanation(score)}</p>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -107,19 +123,36 @@ function PromiseBadge({ invoiceId }: { invoiceId: string }) {
   const latest = promises[0];
   if (latest.status === "broken") {
     return (
-      <Badge variant="outline" className="text-[10px] text-destructive bg-destructive/10 border-destructive/30">
-        <ShieldAlert className="h-2.5 w-2.5 mr-0.5" />
-        Broken Promise
-      </Badge>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge variant="outline" className="text-[10px] text-destructive bg-destructive/10 border-destructive/30">
+            <ShieldAlert className="h-2.5 w-2.5 mr-0.5" />
+            Broken Promise
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-[250px]">
+          <p className="text-xs">Promise to pay ${Number(latest.promised_amount).toLocaleString()} by {format(new Date(latest.promised_date), "MMM d, yyyy")} was broken</p>
+          {latest.notes && <p className="text-xs text-muted-foreground mt-0.5">{latest.notes}</p>}
+        </TooltipContent>
+      </Tooltip>
     );
   }
   if (latest.status === "pending") {
     const isPast = new Date(latest.promised_date) < new Date();
     return (
-      <Badge variant="outline" className={`text-[10px] ${isPast ? "text-destructive bg-destructive/10 border-destructive/30" : "text-primary bg-primary/10 border-primary/30"}`}>
-        <HandCoins className="h-2.5 w-2.5 mr-0.5" />
-        Promise: {format(new Date(latest.promised_date), "MMM d")}
-      </Badge>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge variant="outline" className={`text-[10px] ${isPast ? "text-destructive bg-destructive/10 border-destructive/30" : "text-primary bg-primary/10 border-primary/30"}`}>
+            <HandCoins className="h-2.5 w-2.5 mr-0.5" />
+            Promise: {format(new Date(latest.promised_date), "MMM d")}
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-[250px]">
+          <p className="text-xs">${Number(latest.promised_amount).toLocaleString()} promised by {format(new Date(latest.promised_date), "MMM d, yyyy")}</p>
+          <p className="text-xs text-muted-foreground">via {latest.payment_method || "unspecified"}{isPast ? " — OVERDUE" : ""}</p>
+          {latest.notes && <p className="text-xs text-muted-foreground mt-0.5">{latest.notes}</p>}
+        </TooltipContent>
+      </Tooltip>
     );
   }
   return null;
@@ -194,9 +227,16 @@ function InvoiceCard({
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-medium">{inv.invoice_number}</span>
             <InvoiceStatusBadge status={inv.status} />
-            <Badge variant="secondary" className="text-[10px]">
-              {inv.daysOverdue} days
-            </Badge>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge variant="secondary" className="text-[10px]">
+                  {inv.daysOverdue} days
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p className="text-xs">Overdue by {inv.daysOverdue} days{inv.due_date ? ` since ${format(new Date(inv.due_date), "MMM d, yyyy")}` : ""}</p>
+              </TooltipContent>
+            </Tooltip>
             {showAiInfo && <RiskBadge invoiceId={inv.id} />}
             <PromiseBadge invoiceId={inv.id} />
           </div>

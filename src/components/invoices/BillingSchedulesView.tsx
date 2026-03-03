@@ -53,6 +53,7 @@ export function BillingSchedulesView() {
             <TableHead>Frequency</TableHead>
             <TableHead>Next Bill</TableHead>
             <TableHead>Last Billed</TableHead>
+            <TableHead>Auto</TableHead>
             <TableHead>Status</TableHead>
             <TableHead></TableHead>
           </TableRow>
@@ -81,6 +82,13 @@ export function BillingSchedulesView() {
                 </TableCell>
                 <TableCell className="text-sm tabular-nums text-muted-foreground">
                   {s.last_billed_at ? format(new Date(s.last_billed_at), "MM/dd/yyyy") : "Never"}
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-1 flex-wrap">
+                    {s.auto_approve && <Badge variant="outline" className="text-[10px]">Approve</Badge>}
+                    {(s as any).auto_send && <Badge variant="outline" className="text-[10px]">Send</Badge>}
+                    {!s.auto_approve && !(s as any).auto_send && <span className="text-xs text-muted-foreground">Manual</span>}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <Badge variant={s.is_active ? "default" : "secondary"} className="text-[10px]">

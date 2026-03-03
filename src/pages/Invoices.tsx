@@ -17,6 +17,7 @@ import { SendToBillingDialog } from "@/components/invoices/SendToBillingDialog";
 import { CollectionsView } from "@/components/invoices/CollectionsView";
 import { RetainersView } from "@/components/invoices/RetainersView";
 import { AnalyticsView } from "@/components/invoices/AnalyticsView";
+import { PaidView } from "@/components/invoices/PaidView";
 import { AutomationActivityPanel } from "@/components/invoices/AutomationActivityPanel";
 import {
   useInvoices, useInvoiceCounts, useDeleteInvoice,
@@ -37,7 +38,7 @@ export default function Invoices() {
   const [billingOpen, setBillingOpen] = useState(false);
   const { track } = useTelemetry();
 
-  const isSpecialTab = ["to_invoice", "deposits", "analytics", "schedules"].includes(activeFilter);
+  const isSpecialTab = ["to_invoice", "deposits", "analytics", "schedules", "paid"].includes(activeFilter);
   const queryFilter = isSpecialTab ? "all" : activeFilter;
   const { data: dbInvoices = [], isLoading } = useInvoices(queryFilter as InvoiceStatus | "all");
   const { data: dbCounts } = useInvoiceCounts();
@@ -190,6 +191,8 @@ export default function Invoices() {
               </div>
             ) : activeFilter === "deposits" ? (
               <RetainersView />
+            ) : activeFilter === "paid" ? (
+              <PaidView />
             ) : activeFilter === "analytics" ? (
               <AnalyticsView />
             ) : activeFilter === "schedules" ? (
