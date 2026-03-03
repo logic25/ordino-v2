@@ -2,26 +2,23 @@ import { useState, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Search, LayoutGrid, LayoutList, ChevronLeft, ChevronRight,
-  Flag, FileText, CheckCircle2, Clock, Plus, AlertCircle, Trash2,
-  ChevronDown, ClipboardList,
+  Flag, FileText, CheckCircle2, Clock, AlertCircle, ClipboardList,
 } from "lucide-react";
 import { format } from "date-fns";
 import type { COApplication, BISOpenItem } from "./coMockData";
 import {
   WORK_TYPE_LABELS, WORK_TYPE_COLORS, STATUS_COLORS, PRIORITY_COLORS,
 } from "./coMockData";
-import { type RequiredItem, PHASE_LABELS, PHASE_COLORS, createDefaultRequiredItems } from "./requiredItemsData";
+import { type RequiredItem } from "./requiredItemsData";
+import { RequiredItemsModal } from "./RequiredItemsModal";
 
 interface COApplicationsViewProps {
   applications: COApplication[];
@@ -44,18 +41,10 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
   const [selectedApp, setSelectedApp] = useState<COApplication | null>(null);
   const [drawerNotes, setDrawerNotes] = useState("");
   const [drawerAction, setDrawerAction] = useState("");
-  const [drawerBisItems, setDrawerBisItems] = useState<BISOpenItem[]>([]);
   const [drawerRequiredItems, setDrawerRequiredItems] = useState<RequiredItem[]>([]);
-  const [requiredItemsOpen, setRequiredItemsOpen] = useState(false);
-  const [requiredPhaseFilter, setRequiredPhaseFilter] = useState<"All" | "APP" | "PER" | "SGN">("All");
+  const [requiredItemsModalOpen, setRequiredItemsModalOpen] = useState(false);
   const [page, setPage] = useState(0);
   const pageSize = 50;
-
-  // New BIS item form
-  const [newBisDesc, setNewBisDesc] = useState("");
-  const [newBisFrom, setNewBisFrom] = useState("");
-  const [newBisDate, setNewBisDate] = useState("");
-  const [newBisNotes, setNewBisNotes] = useState("");
 
   const filtered = useMemo(() => {
     return applications.filter((app) => {
@@ -86,45 +75,9 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
     setSelectedApp(app);
     setDrawerNotes(app.notes || "");
     setDrawerAction(app.action);
-    setDrawerBisItems(app.bisOpenItems ? [...app.bisOpenItems] : []);
-    // Initialize required items — in real app these would be persisted per application
-    setDrawerRequiredItems((app as any).requiredItems || createDefaultRequiredItems());
-    setRequiredItemsOpen(false);
-    setRequiredPhaseFilter("All");
-    // Reset new item form
-    setNewBisDesc("");
-    setNewBisFrom("");
-    setNewBisDate("");
-    setNewBisNotes("");
-  };
-
-  const addBisItem = () => {
-    if (!newBisDesc.trim()) return;
-    const item: BISOpenItem = {
-      id: `bis-new-${Date.now()}`,
-      description: newBisDesc.trim(),
-      receivedFrom: newBisFrom.trim(),
-      receivedDate: newBisDate || new Date().toISOString().slice(0, 10),
-      notes: newBisNotes.trim(),
-      resolved: false,
-    };
-    setDrawerBisItems(prev => [...prev, item]);
-    setNewBisDesc("");
-    setNewBisFrom("");
-    setNewBisDate("");
-    setNewBisNotes("");
-  };
-
-  const toggleBisResolved = (id: string) => {
-    setDrawerBisItems(prev => prev.map(i => i.id === id ? { ...i, resolved: !i.resolved } : i));
-  };
-
-  const updateBisField = (id: string, field: keyof BISOpenItem, value: string) => {
-    setDrawerBisItems(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
-  };
-
-  const removeBisItem = (id: string) => {
-    setDrawerBisItems(prev => prev.filter(i => i.id !== id));
+    // Initialize required items — start empty, user loads B-SCAN template on demand
+    setDrawerRequiredItems((app as any).requiredItems || []);
+    setRequiredItemsModalOpen(false);
   };
 
   const grouped = useMemo(() => {
@@ -341,264 +294,20 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
 
                 <Separator />
 
-                {/* BIS Open Items Section */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium flex items-center gap-1.5">
-                      <AlertCircle className="h-4 w-4 text-purple-600" />
-                      BIS Open Items
-                      {drawerBisItems.filter(i => !i.resolved).length > 0 && (
-                        <Badge variant="outline" className="bg-purple-500/10 text-purple-700 border-purple-500/20 text-[10px] ml-1">
-                          {drawerBisItems.filter(i => !i.resolved).length} open
-                        </Badge>
-                      )}
-                    </p>
-                  </div>
-
-                   {/* Existing BIS items — editable inline */}
-                  {drawerBisItems.length > 0 && (
-                    <div className="space-y-2">
-                      {drawerBisItems.map((item) => (
-                        <div key={item.id} className={`rounded-lg border p-3 space-y-2 text-sm ${item.resolved ? "opacity-60 bg-muted/20" : ""}`}>
-                          <div className="flex items-start gap-2">
-                            <Checkbox
-                              checked={item.resolved}
-                              onCheckedChange={() => toggleBisResolved(item.id)}
-                              className="mt-0.5"
-                            />
-                            <div className="flex-1 min-w-0 space-y-2">
-                              <Input
-                                value={item.description}
-                                onChange={(e) => updateBisField(item.id, "description", e.target.value)}
-                                className={`h-7 text-sm font-medium ${item.resolved ? "line-through" : ""}`}
-                              />
-                              <div className="grid grid-cols-2 gap-2">
-                                <div className="space-y-0.5">
-                                  <Label className="text-[10px] text-muted-foreground">Received From</Label>
-                                  <Input
-                                    value={item.receivedFrom}
-                                    onChange={(e) => updateBisField(item.id, "receivedFrom", e.target.value)}
-                                    placeholder="DOB Examiner, FDNY, etc."
-                                    className="h-7 text-xs"
-                                  />
-                                </div>
-                                <div className="space-y-0.5">
-                                  <Label className="text-[10px] text-muted-foreground">Date Received</Label>
-                                  <Input
-                                    type="date"
-                                    value={item.receivedDate}
-                                    onChange={(e) => updateBisField(item.id, "receivedDate", e.target.value)}
-                                    className="h-7 text-xs"
-                                  />
-                                </div>
-                              </div>
-                              {/* Sign-off tracking */}
-                              <div className="grid grid-cols-3 gap-2">
-                                <div className="space-y-0.5">
-                                  <Label className="text-[10px] text-muted-foreground">Sign-Off Required</Label>
-                                  <Input
-                                    value={item.signOffRequired || ""}
-                                    onChange={(e) => updateBisField(item.id, "signOffRequired", e.target.value)}
-                                    placeholder="FDNY, DOB, Owner..."
-                                    className="h-7 text-xs"
-                                  />
-                                </div>
-                                <div className="space-y-0.5">
-                                  <Label className="text-[10px] text-muted-foreground">Signed Off By</Label>
-                                  <Input
-                                    value={item.signedOffBy || ""}
-                                    onChange={(e) => updateBisField(item.id, "signedOffBy", e.target.value)}
-                                    placeholder="Name / title"
-                                    className="h-7 text-xs"
-                                  />
-                                </div>
-                                <div className="space-y-0.5">
-                                  <Label className="text-[10px] text-muted-foreground">Sign-Off Date</Label>
-                                  <Input
-                                    type="date"
-                                    value={item.signedOffDate || ""}
-                                    onChange={(e) => updateBisField(item.id, "signedOffDate", e.target.value)}
-                                    className="h-7 text-xs"
-                                  />
-                                </div>
-                              </div>
-                              <div className="space-y-0.5">
-                                <Label className="text-[10px] text-muted-foreground">Notes</Label>
-                                <Textarea
-                                  value={item.notes}
-                                  onChange={(e) => updateBisField(item.id, "notes", e.target.value)}
-                                  rows={2}
-                                  className="text-xs"
-                                />
-                              </div>
-                            </div>
-                            <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => removeBisItem(item.id)}>
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Add new BIS item */}
-                  <div className="rounded-lg border border-dashed p-3 space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">Add Open Item</p>
-                    <Input
-                      placeholder="Description (e.g., FDNY Letter of Approval required)"
-                      value={newBisDesc}
-                      onChange={(e) => setNewBisDesc(e.target.value)}
-                      className="h-8 text-sm"
-                    />
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <Label className="text-[10px] text-muted-foreground">Received From</Label>
-                        <Input
-                          placeholder="DOB Examiner, FDNY, etc."
-                          value={newBisFrom}
-                          onChange={(e) => setNewBisFrom(e.target.value)}
-                          className="h-8 text-sm"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-[10px] text-muted-foreground">Date Received</Label>
-                        <Input
-                          type="date"
-                          value={newBisDate}
-                          onChange={(e) => setNewBisDate(e.target.value)}
-                          className="h-8 text-sm"
-                        />
-                      </div>
-                    </div>
-                    <Textarea
-                      placeholder="Notes..."
-                      value={newBisNotes}
-                      onChange={(e) => setNewBisNotes(e.target.value)}
-                      rows={2}
-                      className="text-sm"
-                    />
-                    <Button variant="outline" size="sm" className="w-full gap-1.5" onClick={addBisItem} disabled={!newBisDesc.trim()}>
-                      <Plus className="h-3.5 w-3.5" /> Add Item
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Required Items (B-SCAN Checklist) */}
-                <Separator />
-                <Collapsible open={requiredItemsOpen} onOpenChange={setRequiredItemsOpen}>
-                  <CollapsibleTrigger asChild>
-                    <Button variant="ghost" className="w-full justify-between px-0 h-auto py-1 hover:bg-transparent">
-                      <span className="text-sm font-medium flex items-center gap-1.5">
-                        <ClipboardList className="h-4 w-4 text-blue-600" />
-                        Required Items (B-SCAN)
-                        <Badge variant="outline" className="text-[10px] ml-1">
-                          {drawerRequiredItems.filter(i => i.dateReceived).length}/{drawerRequiredItems.length}
-                        </Badge>
-                      </span>
-                      <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${requiredItemsOpen ? "rotate-180" : ""}`} />
-                    </Button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="space-y-3 pt-2">
-                    {/* Phase filter chips */}
-                    <div className="flex gap-1">
-                      {(["All", "APP", "PER", "SGN"] as const).map((phase) => (
-                        <Button
-                          key={phase}
-                          variant={requiredPhaseFilter === phase ? "default" : "outline"}
-                          size="sm"
-                          className="h-6 text-[10px] px-2"
-                          onClick={() => setRequiredPhaseFilter(phase)}
-                        >
-                          {phase === "All" ? "All" : PHASE_LABELS[phase]}
-                        </Button>
-                      ))}
-                    </div>
-
-                    {/* Items list */}
-                    <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
-                      {drawerRequiredItems
-                        .filter(item => requiredPhaseFilter === "All" || item.phase === requiredPhaseFilter)
-                        .map((item) => (
-                        <div
-                          key={item.id}
-                          className={`rounded-md border p-2 space-y-1.5 text-xs ${item.dateReceived ? "opacity-60 bg-muted/20" : item.waived ? "opacity-40 bg-muted/10" : ""}`}
-                        >
-                          <div className="flex items-start gap-2">
-                            <Checkbox
-                              checked={!!item.dateReceived}
-                              onCheckedChange={() => {
-                                setDrawerRequiredItems(prev => prev.map(ri =>
-                                  ri.id === item.id
-                                    ? { ...ri, dateReceived: ri.dateReceived ? null : new Date().toISOString().slice(0, 10) }
-                                    : ri
-                                ));
-                              }}
-                              className="mt-0.5"
-                            />
-                            <div className="flex-1 min-w-0 space-y-1.5">
-                              <div className="flex items-center gap-1.5">
-                                <Badge variant="outline" className={`${PHASE_COLORS[item.phase]} text-[9px] px-1 py-0`}>
-                                  {item.phase}
-                                </Badge>
-                                <span className={`font-medium text-xs ${item.dateReceived ? "line-through" : ""}`}>{item.name}</span>
-                              </div>
-                              <div className="grid grid-cols-2 gap-1.5">
-                                <div className="space-y-0.5">
-                                  <Label className="text-[9px] text-muted-foreground">From (who)</Label>
-                                  <Input
-                                    value={item.receivedFrom}
-                                    onChange={(e) => setDrawerRequiredItems(prev => prev.map(ri => ri.id === item.id ? { ...ri, receivedFrom: e.target.value } : ri))}
-                                    placeholder="DOB, Architect, GC..."
-                                    className="h-6 text-[11px]"
-                                  />
-                                </div>
-                                <div className="space-y-0.5">
-                                  <Label className="text-[9px] text-muted-foreground">Date Requested</Label>
-                                  <Input
-                                    type="date"
-                                    value={item.dateRequested || ""}
-                                    onChange={(e) => setDrawerRequiredItems(prev => prev.map(ri => ri.id === item.id ? { ...ri, dateRequested: e.target.value || null } : ri))}
-                                    className="h-6 text-[11px]"
-                                  />
-                                </div>
-                              </div>
-                              <div className="grid grid-cols-2 gap-1.5">
-                                <div className="space-y-0.5">
-                                  <Label className="text-[9px] text-muted-foreground">Date Received</Label>
-                                  <Input
-                                    type="date"
-                                    value={item.dateReceived || ""}
-                                    onChange={(e) => setDrawerRequiredItems(prev => prev.map(ri => ri.id === item.id ? { ...ri, dateReceived: e.target.value || null } : ri))}
-                                    className="h-6 text-[11px]"
-                                  />
-                                </div>
-                                <div className="flex items-end gap-1">
-                                  <Button
-                                    variant={item.waived ? "secondary" : "ghost"}
-                                    size="sm"
-                                    className="h-6 text-[10px] px-2"
-                                    onClick={() => setDrawerRequiredItems(prev => prev.map(ri => ri.id === item.id ? { ...ri, waived: !ri.waived } : ri))}
-                                  >
-                                    {item.waived ? "Waived ✓" : "Waive"}
-                                  </Button>
-                                </div>
-                              </div>
-                              <div className="space-y-0.5">
-                                <Label className="text-[9px] text-muted-foreground">Notes</Label>
-                                <Input
-                                  value={item.notes}
-                                  onChange={(e) => setDrawerRequiredItems(prev => prev.map(ri => ri.id === item.id ? { ...ri, notes: e.target.value } : ri))}
-                                  placeholder="Follow-up details..."
-                                  className="h-6 text-[11px]"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
+                {/* Required Items — opens full modal */}
+                <Button
+                  variant="outline"
+                  className="w-full gap-2 justify-between"
+                  onClick={() => setRequiredItemsModalOpen(true)}
+                >
+                  <span className="flex items-center gap-2">
+                    <ClipboardList className="h-4 w-4" />
+                    Required Items
+                  </span>
+                  <Badge variant="outline" className="text-xs">
+                    {drawerRequiredItems.filter(i => i.dateReceived).length}/{drawerRequiredItems.length || 0}
+                  </Badge>
+                </Button>
 
                 <Separator />
 
@@ -623,13 +332,13 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
 
                 <div className="flex gap-2">
                   <Button size="sm" className="flex-1 gap-1.5" onClick={() => {
-                    onUpdateApp(selectedApp.jobNum, { status: "Signed Off", action: "Closed out", bisOpenItems: drawerBisItems });
+                    onUpdateApp(selectedApp.jobNum, { status: "Signed Off", action: "Closed out" });
                     setSelectedApp(null);
                   }}>
                     <CheckCircle2 className="h-3.5 w-3.5" /> Mark as Closed
                   </Button>
                   <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => {
-                    onUpdateApp(selectedApp.jobNum, { action: "FLAGGED FOR WITHDRAWAL — " + drawerAction, bisOpenItems: drawerBisItems });
+                    onUpdateApp(selectedApp.jobNum, { action: "FLAGGED FOR WITHDRAWAL — " + drawerAction });
                     setSelectedApp(null);
                   }}>
                     <Flag className="h-3.5 w-3.5" /> Flag for Withdrawal
@@ -637,7 +346,7 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
                 </div>
 
                 <Button variant="ghost" size="sm" className="w-full gap-1.5" onClick={() => {
-                  onUpdateApp(selectedApp.jobNum, { action: drawerAction, notes: drawerNotes, bisOpenItems: drawerBisItems });
+                  onUpdateApp(selectedApp.jobNum, { action: drawerAction, notes: drawerNotes });
                   setSelectedApp(null);
                 }}>
                   Save & Close
@@ -647,6 +356,17 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Required Items Modal */}
+      {selectedApp && (
+        <RequiredItemsModal
+          open={requiredItemsModalOpen}
+          onOpenChange={setRequiredItemsModalOpen}
+          items={drawerRequiredItems}
+          onItemsChange={setDrawerRequiredItems}
+          jobNum={selectedApp.jobNum}
+        />
+      )}
     </div>
   );
 }
