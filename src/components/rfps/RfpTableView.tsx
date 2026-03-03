@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { formatCurrency } from "@/lib/utils";
-import { useUpdateRfpStatus, useUpdateRfpNotes, useDeleteRfp, type Rfp, type RfpStatus } from "@/hooks/useRfps";
+import { useUpdateRfpStatus, useUpdateRfpNotes, useDeleteRfp, type Rfp, type RfpStatus, type RfpWithProfiles } from "@/hooks/useRfps";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -25,7 +25,7 @@ type SortDir = "asc" | "desc";
 const statusOrder: Record<string, number> = { prospect: 0, drafting: 1, submitted: 2, won: 3, lost: 4 };
 
 interface RfpTableViewProps {
-  rfps: Rfp[];
+  rfps: RfpWithProfiles[];
   isLoading: boolean;
   cardFilter: RfpFilter;
 }
@@ -102,13 +102,13 @@ function InlineNotes({ rfp }: { rfp: Rfp }) {
   );
 }
 
-function ExpandedRow({ rfp, onEdit, onBuild, onDelete }: { rfp: Rfp; onEdit: (rfp: Rfp) => void; onBuild: (rfp: Rfp) => void; onDelete: (rfp: Rfp) => void }) {
+function ExpandedRow({ rfp, onEdit, onBuild, onDelete }: { rfp: RfpWithProfiles; onEdit: (rfp: RfpWithProfiles) => void; onBuild: (rfp: RfpWithProfiles) => void; onDelete: (rfp: RfpWithProfiles) => void }) {
   const updateStatus = useUpdateRfpStatus();
   const insurance = rfp.insurance_requirements as Record<string, string> | null;
 
   return (
     <TableRow className="bg-muted/30 hover:bg-muted/40">
-      <TableCell colSpan={7} className="py-4 px-6">
+      <TableCell colSpan={9} className="py-4 px-6">
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="space-y-1.5">
@@ -191,9 +191,9 @@ export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps)
   const [sortKey, setSortKey] = useState<SortKey>("due_date");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const [editingRfp, setEditingRfp] = useState<Rfp | null>(null);
-  const [buildingRfp, setBuildingRfp] = useState<Rfp | null>(null);
-  const [deletingRfp, setDeletingRfp] = useState<Rfp | null>(null);
+  const [editingRfp, setEditingRfp] = useState<RfpWithProfiles | null>(null);
+  const [buildingRfp, setBuildingRfp] = useState<RfpWithProfiles | null>(null);
+  const [deletingRfp, setDeletingRfp] = useState<RfpWithProfiles | null>(null);
   const deleteRfp = useDeleteRfp();
   const { toast } = useToast();
 
@@ -270,12 +270,18 @@ export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps)
               <TableHead><SortHeader label="Agency" field="agency" /></TableHead>
               <TableHead><SortHeader label="Status" field="status" /></TableHead>
               <TableHead><SortHeader label="Due Date" field="due_date" /></TableHead>
+              <TableHead>Entered By</TableHead>
               <TableHead>Value</TableHead>
+              <TableHead className="w-10"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.map((rfp) => {
               const isExpanded = expandedIds.has(rfp.id);
+              const createdByName = rfp.created_by_profile?.display_name || 
+                (rfp.created_by_profile ? `${rfp.created_by_profile.first_name || ""} ${rfp.created_by_profile.last_name || ""}`.trim() : null);
+              const submittedByName = rfp.submitted_by_profile?.display_name ||
+                (rfp.submitted_by_profile ? `${rfp.submitted_by_profile.first_name || ""} ${rfp.submitted_by_profile.last_name || ""}`.trim() : null);
               return (
                 <>
                   <TableRow
@@ -295,8 +301,24 @@ export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps)
                     <TableCell className="text-sm">{rfp.agency || "—"}</TableCell>
                     <TableCell><RfpStatusBadge status={rfp.status} /></TableCell>
                     <TableCell><DueDateCell dueDate={rfp.due_date} /></TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      <div>{createdByName || "—"}</div>
+                      {submittedByName && rfp.submitted_at && (
+                        <div className="text-[10px] text-info">Submitted: {submittedByName}</div>
+                      )}
+                    </TableCell>
                     <TableCell className="tabular-nums text-sm">
                       {rfp.contract_value ? formatCurrency(rfp.contract_value) : "—"}
+                    </TableCell>
+                    <TableCell className="w-10 px-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={(e) => { e.stopPropagation(); setDeletingRfp(rfp); }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                   {isExpanded && <ExpandedRow key={`${rfp.id}-detail`} rfp={rfp} onEdit={setEditingRfp} onBuild={setBuildingRfp} onDelete={setDeletingRfp} />}
@@ -305,7 +327,7 @@ export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps)
             })}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                   No RFPs found.
                 </TableCell>
               </TableRow>

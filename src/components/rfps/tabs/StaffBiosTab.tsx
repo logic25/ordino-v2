@@ -13,10 +13,11 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Loader2, Plus, Pencil, Trash2, User, Download, GitBranch } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, User, Download, GitBranch, FileUp, FileText } from "lucide-react";
 import { useRfpContent, useCreateRfpContent, useUpdateRfpContent, useDeleteRfpContent } from "@/hooks/useRfpContent";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface StaffBioContent {
   name: string;
@@ -30,6 +31,8 @@ interface StaffBioContent {
   education: { school: string; degree: string }[];
   reports_to?: string;
   include_in_org_chart?: boolean;
+  resume_url?: string | null;
+  resume_filename?: string | null;
 }
 
 const emptyBio: StaffBioContent = {
@@ -44,6 +47,8 @@ const emptyBio: StaffBioContent = {
   education: [],
   reports_to: "",
   include_in_org_chart: true,
+  resume_url: null,
+  resume_filename: null,
 };
 
 // ── Org Chart Visual ──
@@ -170,6 +175,7 @@ export function StaffBiosTab() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<StaffBioContent>(emptyBio);
   const [showOrgChart, setShowOrgChart] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const existingNames = new Set(items.map((i) => (i.content as unknown as StaffBioContent).name?.toLowerCase()));
   const importableProfiles = profiles.filter((p) => {
@@ -195,6 +201,8 @@ export function StaffBiosTab() {
           education: [],
           reports_to: "",
           include_in_org_chart: true,
+          resume_url: null,
+          resume_filename: null,
         } as any,
         tags: ["staff"],
       });
@@ -227,8 +235,37 @@ export function StaffBiosTab() {
       education: c.education || [],
       reports_to: c.reports_to || "",
       include_in_org_chart: c.include_in_org_chart !== false,
+      resume_url: c.resume_url || null,
+      resume_filename: c.resume_filename || null,
     });
     setDialogOpen(true);
+  };
+
+  const handleResumeUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const safeName = form.name.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+      const ext = file.name.split(".").pop() || "pdf";
+      const path = `resumes/${safeName}_${Date.now()}.${ext}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from("rfp-documents")
+        .upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage.from("rfp-documents").getPublicUrl(path);
+      
+      setForm((prev) => ({
+        ...prev,
+        resume_url: path,
+        resume_filename: file.name,
+      }));
+      toast({ title: "Resume uploaded" });
+    } catch (e: any) {
+      toast({ title: "Upload failed", description: e.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSave = async () => {
@@ -265,6 +302,20 @@ export function StaffBiosTab() {
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     }
+  };
+
+  const handleDownloadResume = async (resumeUrl: string, filename: string) => {
+    const { data, error } = await supabase.storage.from("rfp-documents").download(resumeUrl);
+    if (error || !data) {
+      toast({ title: "Download failed", variant: "destructive" });
+      return;
+    }
+    const url = URL.createObjectURL(data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   if (isLoading) {
@@ -345,6 +396,15 @@ export function StaffBiosTab() {
                           {c.include_in_org_chart !== false && (
                             <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/30">
                               <GitBranch className="h-3 w-3 mr-0.5" /> Org Chart
+                            </Badge>
+                          )}
+                          {c.resume_url && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs bg-info/10 text-info border-info/30 cursor-pointer hover:bg-info/20"
+                              onClick={() => handleDownloadResume(c.resume_url!, c.resume_filename || "resume.pdf")}
+                            >
+                              <FileText className="h-3 w-3 mr-0.5" /> Resume
                             </Badge>
                           )}
                         </div>
@@ -469,6 +529,57 @@ export function StaffBiosTab() {
                 rows={4}
                 placeholder="Brief professional biography..."
               />
+            </div>
+
+            {/* Resume Upload */}
+            <div className="space-y-2">
+              <Label>Resume / CV</Label>
+              {form.resume_filename ? (
+                <div className="flex items-center gap-2 p-2 rounded-md border border-border bg-muted/30">
+                  <FileText className="h-4 w-4 text-info shrink-0" />
+                  <span className="text-sm truncate flex-1">{form.resume_filename}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-destructive h-7"
+                    onClick={() => setForm({ ...form, resume_url: null, resume_filename: null })}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="relative"
+                    disabled={uploading || !form.name}
+                    onClick={() => document.getElementById("resume-upload-input")?.click()}
+                  >
+                    {uploading ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <FileUp className="h-4 w-4 mr-1" />
+                    )}
+                    {uploading ? "Uploading..." : "Upload Resume"}
+                  </Button>
+                  <span className="text-xs text-muted-foreground">PDF, DOC, or DOCX</span>
+                  <input
+                    id="resume-upload-input"
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleResumeUpload(file);
+                      e.target.value = "";
+                    }}
+                  />
+                </div>
+              )}
+              {!form.name && (
+                <p className="text-xs text-muted-foreground">Enter a name first to upload a resume.</p>
+              )}
             </div>
           </div>
           <DialogFooter>
