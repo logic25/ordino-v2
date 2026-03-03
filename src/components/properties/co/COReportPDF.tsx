@@ -285,14 +285,17 @@ export function COReportPDF({
                   <Text><Text style={s.bold}>Action Required:</Text> {app.action}</Text>
                 </View>
 
-                {/* BIS Open Items */}
+                {/* Open Required Items (from BIS data) */}
                 {openBis.length > 0 && (
                   <View style={{ marginTop: 4 }}>
-                    <Text style={s.bisTitle}>⚠ {openBis.length} Open BIS Item{openBis.length > 1 ? "s" : ""}</Text>
+                    <Text style={s.bisTitle}>⚠ {openBis.length} Open Required Item{openBis.length > 1 ? "s" : ""}</Text>
                     {openBis.map(item => (
                       <View key={item.id} style={s.bisItem}>
                         <Text style={{ fontSize: 7, fontWeight: "bold" }}>{item.description}</Text>
-                        <Text style={s.bisText}>From: {item.receivedFrom || "—"} · Received: {item.receivedDate || "—"}</Text>
+                        <Text style={s.bisText}>
+                          From: {item.receivedFrom || "—"} · Received: {item.receivedDate || "—"}
+                          {item.signOffRequired ? ` · Sign-Off: ${item.signOffRequired}` : ""}
+                        </Text>
                         {item.notes && <Text style={[s.bisText, { fontStyle: "italic" }]}>{item.notes}</Text>}
                       </View>
                     ))}

@@ -574,14 +574,14 @@ export function COSummaryView({
                   <strong>{highPenaltyViols.length} violations</strong> have penalties exceeding $2,500.
                 </p>
               )}
-              {/* BIS open items summary */}
+              {/* Required items summary (from BIS data) */}
               {(() => {
                 const totalBisItems = applications.reduce((sum, a) => sum + (a.bisOpenItems?.filter(i => !i.resolved).length || 0), 0);
                 const appsWithBis = applications.filter(a => a.bisOpenItems && a.bisOpenItems.some(i => !i.resolved)).length;
                 return totalBisItems > 0 ? (
                   <p className="flex items-center gap-1.5 text-purple-700">
                     <FileText className="h-3.5 w-3.5" />
-                    <strong>{totalBisItems} open BIS items</strong> across {appsWithBis} applications require attention.
+                    <strong>{totalBisItems} open required items</strong> across {appsWithBis} applications require attention.
                   </p>
                 ) : null;
               })()}
@@ -799,7 +799,7 @@ export function COSummaryView({
                         {openBis.length > 0 && (
                           <div className="space-y-1.5 pl-3 border-l-2 border-purple-500/30">
                             <p className="text-xs font-medium text-purple-700 flex items-center gap-1">
-                              <AlertTriangle className="h-3 w-3" /> {openBis.length} Open BIS Item{openBis.length > 1 ? "s" : ""}
+                              <AlertTriangle className="h-3 w-3" /> {openBis.length} Open Required Item{openBis.length > 1 ? "s" : ""}
                             </p>
                             {openBis.map(item => (
                               <div key={item.id} className="rounded-md bg-purple-500/5 border border-purple-500/10 p-2 text-xs space-y-0.5">
@@ -807,6 +807,9 @@ export function COSummaryView({
                                 <div className="flex flex-wrap gap-x-3 text-muted-foreground">
                                   <span>From: <span className="text-foreground">{item.receivedFrom || "—"}</span></span>
                                   <span>Received: <span className="text-foreground">{item.receivedDate ? format(new Date(item.receivedDate), "MM/dd/yyyy") : "—"}</span></span>
+                                  {item.signOffRequired && (
+                                    <span>Sign-Off Required: <span className="text-foreground font-medium">{item.signOffRequired}</span></span>
+                                  )}
                                 </div>
                                 {item.notes && <p className="text-muted-foreground italic">{item.notes}</p>}
                               </div>
