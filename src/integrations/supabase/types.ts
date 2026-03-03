@@ -6595,6 +6595,8 @@ export type Database = {
           completed_date: string | null
           cost_amount: number | null
           created_at: string | null
+          deposit_amount: number | null
+          deposit_paid: boolean | null
           description: string | null
           due_date: string | null
           estimated_hours: number | null
@@ -6622,6 +6624,8 @@ export type Database = {
           completed_date?: string | null
           cost_amount?: number | null
           created_at?: string | null
+          deposit_amount?: number | null
+          deposit_paid?: boolean | null
           description?: string | null
           due_date?: string | null
           estimated_hours?: number | null
@@ -6649,6 +6653,8 @@ export type Database = {
           completed_date?: string | null
           cost_amount?: number | null
           created_at?: string | null
+          deposit_amount?: number | null
+          deposit_paid?: boolean | null
           description?: string | null
           due_date?: string | null
           estimated_hours?: number | null

@@ -236,7 +236,15 @@ function ServicesTab({ services }: { services: MockService[] }) {
                     ) : <span className="text-xs text-muted-foreground">—</span>}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{svc.estimatedBillDate || "—"}</TableCell>
-                  <TableCell className="text-sm text-right tabular-nums font-medium" data-clarity-mask="true">{formatCurrency(svc.totalAmount)}</TableCell>
+                  <TableCell className="text-sm text-right tabular-nums font-medium" data-clarity-mask="true">
+                    {formatCurrency(svc.totalAmount)}
+                    {svc.depositAmount > 0 && (
+                      <div className="text-[10px] text-muted-foreground mt-0.5">
+                        Dep: {formatCurrency(svc.depositAmount)}
+                        {svc.depositPaid && <span className="text-emerald-600 dark:text-emerald-400 ml-1">✓</span>}
+                      </div>
+                    )}
+                  </TableCell>
                   <TableCell className="text-sm text-right tabular-nums text-muted-foreground" data-clarity-mask="true">
                     {svc.costAmount > 0 ? formatCurrency(svc.costAmount) : "—"}
                   </TableCell>

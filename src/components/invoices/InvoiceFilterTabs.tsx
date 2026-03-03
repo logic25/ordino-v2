@@ -1,7 +1,7 @@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { InvoiceStatus } from "@/hooks/useInvoices";
 
-export type BillingTab = InvoiceStatus | "all" | "to_invoice" | "retainers" | "analytics" | "schedules";
+export type BillingTab = InvoiceStatus | "all" | "to_invoice" | "deposits" | "analytics" | "schedules";
 
 interface InvoiceFilterTabsProps {
   activeTab: BillingTab;
@@ -15,7 +15,7 @@ const tabs: { value: string; label: string; showCount?: boolean; countKey?: stri
   { value: "sent", label: "Sent", showCount: true },
   { value: "overdue", label: "Overdue", showCount: true },
   { value: "paid", label: "Paid", showCount: true },
-  { value: "retainers", label: "Retainers" },
+  { value: "deposits", label: "Deposits" },
   { value: "schedules", label: "Schedules" },
   { value: "analytics", label: "Analytics" },
 ];
