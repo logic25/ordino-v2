@@ -763,11 +763,11 @@ export function COSummaryView({
 
             {/* ===== FULL APPLICATION DETAIL ===== */}
             <div className="space-y-2">
-              <h4 className="font-semibold">All Open Applications ({applications.filter(a => a.status !== "Signed Off").length})</h4>
-              <p className="text-xs text-muted-foreground">Every open application with BIS open items, action required, and current status.</p>
+              <h4 className="font-semibold">All Applications with Outstanding Items ({applications.filter(a => a.status !== "Signed Off" || (a.bisOpenItems && a.bisOpenItems.some(i => !i.resolved))).length})</h4>
+              <p className="text-xs text-muted-foreground">Every application with open items, action required, and current status — including signed-off jobs with unresolved items.</p>
               <div className="space-y-3">
                 {applications
-                  .filter(a => a.status !== "Signed Off")
+                  .filter(a => a.status !== "Signed Off" || (a.bisOpenItems && a.bisOpenItems.some(i => !i.resolved)))
                   .sort((a, b) => {
                     const pOrder = { High: 0, Medium: 1, Low: 2 };
                     return (pOrder[a.priority] ?? 2) - (pOrder[b.priority] ?? 2);
