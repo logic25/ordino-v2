@@ -54,6 +54,7 @@ import { ProjectDialog } from "@/components/projects/ProjectDialog";
 import { LitigationExportDialog } from "@/components/projects/LitigationExportDialog";
 import { DobNowFilingPrepSheet } from "@/components/projects/DobNowFilingPrepSheet";
 import { EditPISDialog } from "@/components/projects/EditPISDialog";
+import { ResearchWorkspace } from "@/components/projects/ResearchWorkspace";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -454,6 +455,9 @@ export default function ProjectDetail() {
               <TabsTrigger value="job-costing" className="gap-1.5 data-[state=active]:bg-background">
                 <DollarSign className="h-3.5 w-3.5" /> Job Costing
               </TabsTrigger>
+              <TabsTrigger value="research" className="gap-1.5 data-[state=active]:bg-background">
+                <Search className="h-3.5 w-3.5" /> Research
+              </TabsTrigger>
             </TabsList>
             </div>
 
@@ -497,6 +501,13 @@ export default function ProjectDetail() {
               </TabsContent>
               <TabsContent value="job-costing" className="mt-0">
                 <JobCostingFull services={realServices} timeEntries={timeEntries} />
+              </TabsContent>
+              <TabsContent value="research" className="mt-0">
+                <ResearchWorkspace
+                  projectId={project.id}
+                  projectAddress={project.properties?.address}
+                  architectEmail={contacts.find(c => c.dobRole === "architect")?.email}
+                />
               </TabsContent>
             </CardContent>
           </Tabs>
