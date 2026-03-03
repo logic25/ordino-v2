@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
@@ -114,10 +113,10 @@ export function RequiredItemsModal({ open, onOpenChange, items, onItemsChange, j
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead className="w-8"></TableHead>
                 <TableHead>Item</TableHead>
                 <TableHead className="w-[160px]">Responsible Party</TableHead>
-                <TableHead className="w-[60px]">Status</TableHead>
+                <TableHead className="w-[120px]">Requested</TableHead>
+                <TableHead className="w-[120px]">Received</TableHead>
                 <TableHead className="w-8"></TableHead>
               </TableRow>
             </TableHeader>
@@ -132,25 +131,36 @@ export function RequiredItemsModal({ open, onOpenChange, items, onItemsChange, j
                       className={`cursor-pointer hover:bg-accent/5 ${done ? "opacity-60" : ""}`}
                       onClick={() => setExpandedId(isExpanded ? null : item.id)}
                     >
-                      <TableCell className="p-1">
-                        <Checkbox
-                          checked={done}
-                          onCheckedChange={(checked) => {
-                            updateItem(item.id, { dateReceived: checked ? new Date().toISOString().slice(0, 10) : null });
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </TableCell>
-                      <TableCell className={`text-sm ${done ? "line-through" : ""}`}>
+                      <TableCell className={`text-sm font-medium ${done ? "line-through" : ""}`}>
                         {item.name}
                         {item.notes && <span className="ml-2 text-muted-foreground text-xs">💬</span>}
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{item.receivedFrom || "—"}</TableCell>
                       <TableCell>
-                        {done
-                          ? <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-500/20 text-[9px]">✓</Badge>
-                          : <Badge variant="outline" className="bg-yellow-500/10 text-yellow-700 border-yellow-500/20 text-[9px]">—</Badge>
-                        }
+                        <Input
+                          value={item.receivedFrom}
+                          onChange={(e) => updateItem(item.id, { receivedFrom: e.target.value })}
+                          placeholder="Who..."
+                          className="h-7 text-xs border-transparent hover:border-input focus:border-input"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="date"
+                          value={item.dateRequested || ""}
+                          onChange={(e) => updateItem(item.id, { dateRequested: e.target.value || null })}
+                          className="h-7 text-xs border-transparent hover:border-input focus:border-input"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="date"
+                          value={item.dateReceived || ""}
+                          onChange={(e) => updateItem(item.id, { dateReceived: e.target.value || null })}
+                          className={`h-7 text-xs border-transparent hover:border-input focus:border-input ${done ? "text-green-700" : ""}`}
+                          onClick={(e) => e.stopPropagation()}
+                        />
                       </TableCell>
                       <TableCell className="p-1">
                         {isExpanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
@@ -160,26 +170,8 @@ export function RequiredItemsModal({ open, onOpenChange, items, onItemsChange, j
                     {isExpanded && (
                       <TableRow key={`${item.id}-expanded`} className="bg-muted/5">
                         <TableCell colSpan={5} className="p-3">
-                          <div className="grid grid-cols-2 gap-3 max-w-2xl">
+                          <div className="space-y-2 max-w-2xl">
                             <div className="space-y-1">
-                              <Label className="text-[10px] text-muted-foreground">Responsible Party</Label>
-                              <Input
-                                value={item.receivedFrom}
-                                onChange={(e) => updateItem(item.id, { receivedFrom: e.target.value })}
-                                placeholder="DOB, Architect, GC, Client..."
-                                className="h-7 text-xs"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-[10px] text-muted-foreground">Date Received</Label>
-                              <Input
-                                type="date"
-                                value={item.dateReceived || ""}
-                                onChange={(e) => updateItem(item.id, { dateReceived: e.target.value || null })}
-                                className="h-7 text-xs"
-                              />
-                            </div>
-                            <div className="col-span-2 space-y-1">
                               <Label className="text-[10px] text-muted-foreground">Notes</Label>
                               <Textarea
                                 value={item.notes}
@@ -189,7 +181,7 @@ export function RequiredItemsModal({ open, onOpenChange, items, onItemsChange, j
                                 className="text-xs"
                               />
                             </div>
-                            <div className="col-span-2 flex items-center">
+                            <div className="flex items-center">
                               <Button
                                 variant="ghost"
                                 size="sm"
