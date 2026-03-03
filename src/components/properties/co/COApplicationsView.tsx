@@ -296,7 +296,7 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
 
                 {/* Required Items — opens full modal */}
                 <Button
-                  variant="outline"
+                  variant="default"
                   className="w-full gap-2 justify-between"
                   onClick={() => setRequiredItemsModalOpen(true)}
                 >
@@ -304,7 +304,7 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
                     <ClipboardList className="h-4 w-4" />
                     Required Items
                   </span>
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant="secondary" className="text-xs bg-primary-foreground/20 text-primary-foreground">
                     {drawerRequiredItems.filter(i => i.dateReceived).length}/{drawerRequiredItems.length || 0}
                   </Badge>
                 </Button>
