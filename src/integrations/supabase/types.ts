@@ -5724,6 +5724,44 @@ export type Database = {
           },
         ]
       }
+      report_settings: {
+        Row: {
+          company_id: string
+          created_at: string
+          day_of_week: string | null
+          frequency: string
+          id: string
+          report_type: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          day_of_week?: string | null
+          frequency?: string
+          id?: string
+          report_type?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          day_of_week?: string | null
+          frequency?: string
+          id?: string
+          report_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       retainer_transactions: {
         Row: {
           amount: number
