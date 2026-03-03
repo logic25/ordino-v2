@@ -24,7 +24,7 @@ export function useUnreadIndicators() {
 
   // Count invoices in ready_to_send status (pending billing for admin review)
   const { data: pendingBillingCount = 0 } = useQuery({
-    queryKey: ["billing-pending-count"],
+    queryKey: ["billing-sidebar-badge"],
     queryFn: async () => {
       const { count, error } = await supabase
         .from("invoices")

@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, RotateCcw, CheckCircle2, PenLine, CreditCard, Building2, FileText, ArrowRight, Mail, Clock, Shield, ChevronRight, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { BlobProvider } from "@react-pdf/renderer";
+import { DepositReceiptPDF, type DepositReceiptData } from "@/components/invoices/DepositReceiptPDF";
 
 export default function ClientProposalPage() {
   const { token } = useParams<{ token: string }>();
@@ -32,6 +34,8 @@ export default function ClientProposalPage() {
   const [bankRouting, setBankRouting] = useState("");
   const [bankAccount, setBankAccount] = useState("");
   const [bankName, setBankName] = useState("");
+  const [receiptData, setReceiptData] = useState<DepositReceiptData | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   // Fetch proposal by public token
   const { data: proposal, isLoading, error } = useQuery({
@@ -270,6 +274,30 @@ export default function ClientProposalPage() {
   };
 
   const fmt = (v: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 }).format(v);
+
+  const processDepositPayment = async (method: "card" | "ach" | "check") => {
+    setPaymentStep("processing");
+    setPaymentError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("process-deposit-payment", {
+        body: {
+          proposal_token: token,
+          payment_method: method,
+          amount: depositAmt,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setReceiptData(data.receipt as DepositReceiptData);
+      setPaymentStep("success");
+      queryClient.invalidateQueries({ queryKey: ["public-proposal", token] });
+    } catch (err: any) {
+      console.error("Deposit payment failed:", err);
+      setPaymentError(err.message || "Payment processing failed. Please try again.");
+      setPaymentStep("form");
+      toast({ title: "Payment Failed", description: err.message || "Please try again.", variant: "destructive" });
+    }
+  };
   const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "";
 
   const interpolate = (text: string | null | undefined): string => {
@@ -390,15 +418,21 @@ export default function ClientProposalPage() {
               <div className="bg-white shadow-md rounded-lg p-6">
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
                   <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
-                  <h3 style={{ fontSize: "13pt", fontWeight: 800, margin: 0, color: charcoal }}>Pay Retainer Deposit</h3>
+                   <h3 style={{ fontSize: "13pt", fontWeight: 800, margin: 0, color: charcoal }}>Pay Deposit</h3>
                 </div>
 
-                {paymentStep === "success" ? (
+                {proposal.deposit_paid_at ? (
+                  <div className="text-center py-6">
+                    <CheckCircle2 className="h-12 w-12 mx-auto mb-4" style={{ color: "#10b981" }} />
+                    <h4 style={{ fontSize: "13pt", fontWeight: 800, color: charcoal, marginBottom: 4 }}>Deposit Already Paid</h4>
+                    <p style={{ fontSize: "10pt", color: slate }}>The deposit for this proposal has already been processed.</p>
+                  </div>
+                ) : paymentStep === "success" ? (
                   <div className="text-center py-6">
                     <CheckCircle2 className="h-12 w-12 mx-auto mb-4" style={{ color: "#10b981" }} />
                     <h4 style={{ fontSize: "13pt", fontWeight: 800, color: charcoal, marginBottom: 4 }}>Payment Received!</h4>
                     <p style={{ fontSize: "10pt", color: slate, marginBottom: 12 }}>
-                      Your retainer payment of <strong style={{ color: charcoal }}>{fmt(depositAmt)}</strong> has been processed successfully.
+                      Your deposit of <strong style={{ color: charcoal }}>{fmt(depositAmt)}</strong> has been processed successfully.
                     </p>
                     <div className="rounded-lg p-4 text-left" style={{ background: lightBg, border: "1px solid #e2e8f0" }}>
                       <div style={{ fontSize: "8.5pt", color: slate, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1, fontWeight: 700 }}>Receipt</div>
@@ -407,7 +441,28 @@ export default function ClientProposalPage() {
                         <div className="flex justify-between"><span style={{ color: slate }}>Method</span><span style={{ fontWeight: 600 }}>{selectedPayment === "card" ? "Credit Card" : selectedPayment === "ach" ? "ACH Transfer" : "Check"}</span></div>
                         <div className="flex justify-between"><span style={{ color: slate }}>Date</span><span style={{ fontWeight: 600 }}>{new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span></div>
                       </div>
-                    </div>
+                     </div>
+                    {receiptData && (
+                      <BlobProvider document={<DepositReceiptPDF data={receiptData} />}>
+                        {({ blob, url, loading }) => (
+                          <Button
+                            variant="outline"
+                            className="mt-3"
+                            disabled={loading || !url}
+                            onClick={() => {
+                              if (!url || !blob) return;
+                              const a = document.createElement("a");
+                              a.href = url;
+                              a.download = `Deposit-Receipt-${receiptData.invoice_number}.pdf`;
+                              a.click();
+                            }}
+                          >
+                            {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                            Download Receipt
+                          </Button>
+                        )}
+                      </BlobProvider>
+                    )}
                     <p style={{ fontSize: "8pt", color: slate, marginTop: 10 }}>A confirmation email with your receipt has been sent.</p>
                   </div>
                 ) : paymentStep === "processing" ? (
@@ -449,10 +504,7 @@ export default function ClientProposalPage() {
                         className="w-full font-bold"
                         style={{ background: amber, color: charcoal }}
                         disabled={!cardName || cardNumber.replace(/\s/g, '').length < 16 || cardExpiry.length < 5 || cardCvc.length < 3}
-                        onClick={() => {
-                          setPaymentStep("processing");
-                          setTimeout(() => setPaymentStep("success"), 2500);
-                        }}
+                        onClick={() => processDepositPayment("card")}
                       >
                         Pay {fmt(depositAmt)}
                       </Button>
@@ -485,10 +537,7 @@ export default function ClientProposalPage() {
                         className="w-full font-bold"
                         style={{ background: amber, color: charcoal }}
                         disabled={!bankName || bankRouting.length < 9 || bankAccount.length < 4}
-                        onClick={() => {
-                          setPaymentStep("processing");
-                          setTimeout(() => setPaymentStep("success"), 3000);
-                        }}
+                        onClick={() => processDepositPayment("ach")}
                       >
                         Authorize ACH Payment — {fmt(depositAmt)}
                       </Button>
@@ -519,10 +568,7 @@ export default function ClientProposalPage() {
                       <Button
                         className="w-full font-bold"
                         style={{ background: amber, color: charcoal }}
-                        onClick={() => {
-                          setPaymentStep("processing");
-                          setTimeout(() => setPaymentStep("success"), 1500);
-                        }}
+                        onClick={() => processDepositPayment("check")}
                       >
                         I've Sent / Will Send a Check — {fmt(depositAmt)}
                       </Button>
@@ -531,7 +577,7 @@ export default function ClientProposalPage() {
                 ) : (
                   <>
                     <p style={{ fontSize: "9.5pt", color: slate, marginBottom: 16, lineHeight: 1.6 }}>
-                      Your retainer of <strong style={{ color: charcoal }}>{fmt(depositAmt)}</strong> is due to begin work. Select a payment method below.
+                      Your deposit of <strong style={{ color: charcoal }}>{fmt(depositAmt)}</strong> is due to begin work. Select a payment method below.
                     </p>
                     <div className="grid grid-cols-3 gap-3 mb-4">
                       <button
