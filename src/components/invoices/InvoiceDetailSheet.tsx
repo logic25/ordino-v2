@@ -353,6 +353,33 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
               </SheetTitle>
               <InvoiceStatusBadge status={invoice.status} />
             </div>
+            <div className="flex items-center gap-2 pt-1">
+              <Label className="text-xs text-muted-foreground">Status:</Label>
+              <Select
+                value={invoice.status}
+                onValueChange={async (val) => {
+                  try {
+                    await updateInvoice.mutateAsync({ id: invoice.id, status: val as any });
+                    toast({ title: `Status changed to ${val.replace(/_/g, " ")}` });
+                  } catch (err: any) {
+                    toast({ title: "Error", description: err.message, variant: "destructive" });
+                  }
+                }}
+              >
+                <SelectTrigger className="h-7 w-[160px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="ready_to_send">Ready to Send</SelectItem>
+                  <SelectItem value="needs_review">Needs Review</SelectItem>
+                  <SelectItem value="sent">Sent</SelectItem>
+                  <SelectItem value="overdue">Overdue</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="legal_hold">Legal Hold</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </SheetHeader>
 
           <div className="mt-6 space-y-6">
