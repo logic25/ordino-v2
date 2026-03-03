@@ -2,18 +2,20 @@ import { useState, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Search, LayoutGrid, LayoutList, ChevronLeft, ChevronRight,
-  Flag, X as XIcon, FileText, CheckCircle2, Clock,
+  Flag, FileText, CheckCircle2, Clock, Plus, AlertCircle, Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
-import type { COApplication } from "./coMockData";
+import type { COApplication, BISOpenItem } from "./coMockData";
 import {
   WORK_TYPE_LABELS, WORK_TYPE_COLORS, STATUS_COLORS, PRIORITY_COLORS,
 } from "./coMockData";
@@ -39,8 +41,15 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
   const [selectedApp, setSelectedApp] = useState<COApplication | null>(null);
   const [drawerNotes, setDrawerNotes] = useState("");
   const [drawerAction, setDrawerAction] = useState("");
+  const [drawerBisItems, setDrawerBisItems] = useState<BISOpenItem[]>([]);
   const [page, setPage] = useState(0);
   const pageSize = 50;
+
+  // New BIS item form
+  const [newBisDesc, setNewBisDesc] = useState("");
+  const [newBisFrom, setNewBisFrom] = useState("");
+  const [newBisDate, setNewBisDate] = useState("");
+  const [newBisNotes, setNewBisNotes] = useState("");
 
   const filtered = useMemo(() => {
     return applications.filter((app) => {
@@ -71,6 +80,37 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
     setSelectedApp(app);
     setDrawerNotes(app.notes || "");
     setDrawerAction(app.action);
+    setDrawerBisItems(app.bisOpenItems ? [...app.bisOpenItems] : []);
+    // Reset new item form
+    setNewBisDesc("");
+    setNewBisFrom("");
+    setNewBisDate("");
+    setNewBisNotes("");
+  };
+
+  const addBisItem = () => {
+    if (!newBisDesc.trim()) return;
+    const item: BISOpenItem = {
+      id: `bis-new-${Date.now()}`,
+      description: newBisDesc.trim(),
+      receivedFrom: newBisFrom.trim(),
+      receivedDate: newBisDate || new Date().toISOString().slice(0, 10),
+      notes: newBisNotes.trim(),
+      resolved: false,
+    };
+    setDrawerBisItems(prev => [...prev, item]);
+    setNewBisDesc("");
+    setNewBisFrom("");
+    setNewBisDate("");
+    setNewBisNotes("");
+  };
+
+  const toggleBisResolved = (id: string) => {
+    setDrawerBisItems(prev => prev.map(i => i.id === id ? { ...i, resolved: !i.resolved } : i));
+  };
+
+  const removeBisItem = (id: string) => {
+    setDrawerBisItems(prev => prev.filter(i => i.id !== id));
   };
 
   const grouped = useMemo(() => {
@@ -82,6 +122,8 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
     });
     return groups;
   }, [filtered]);
+
+  const openBisCount = (app: COApplication) => app.bisOpenItems?.filter(i => !i.resolved).length || 0;
 
   return (
     <div className="space-y-4">
@@ -137,29 +179,40 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
                 <TableHead>Work</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="max-w-[200px]">Action Required</TableHead>
+                <TableHead>BIS</TableHead>
                 <TableHead>Priority</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginated.map((app) => (
-                <TableRow key={app.jobNum} className="cursor-pointer hover:bg-accent/5" onClick={() => openDrawer(app)}>
-                  <TableCell className="text-xs text-muted-foreground">{app.num}</TableCell>
-                  <TableCell className="font-mono text-sm font-medium">{app.jobNum}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={app.source === "DOB_NOW_BUILD" ? "bg-blue-500/10 text-blue-700 border-blue-500/20" : "bg-muted text-muted-foreground"}>
-                      {app.source === "DOB_NOW_BUILD" ? "DOB NOW" : "Legacy"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm max-w-[280px] truncate">{app.desc}</TableCell>
-                  <TableCell className="text-sm">{app.tenant || "—"}</TableCell>
-                  <TableCell className="text-sm">{app.floor}</TableCell>
-                  <TableCell className="text-xs">{app.jobType}</TableCell>
-                  <TableCell><Badge variant="outline" className={WORK_TYPE_COLORS[app.workType] || ""}>{app.workType}</Badge></TableCell>
-                  <TableCell><Badge variant="outline" className={STATUS_COLORS[app.status] || ""}>{app.status}</Badge></TableCell>
-                  <TableCell className="text-xs max-w-[200px] truncate text-muted-foreground">{app.action}</TableCell>
-                  <TableCell><Badge variant="outline" className={PRIORITY_COLORS[app.priority]}>{app.priority}</Badge></TableCell>
-                </TableRow>
-              ))}
+              {paginated.map((app) => {
+                const bisCount = openBisCount(app);
+                return (
+                  <TableRow key={app.jobNum} className="cursor-pointer hover:bg-accent/5" onClick={() => openDrawer(app)}>
+                    <TableCell className="text-xs text-muted-foreground">{app.num}</TableCell>
+                    <TableCell className="font-mono text-sm font-medium">{app.jobNum}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={app.source === "DOB_NOW_BUILD" ? "bg-blue-500/10 text-blue-700 border-blue-500/20" : "bg-muted text-muted-foreground"}>
+                        {app.source === "DOB_NOW_BUILD" ? "DOB NOW" : "Legacy"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm max-w-[280px] truncate">{app.desc}</TableCell>
+                    <TableCell className="text-sm">{app.tenant || "—"}</TableCell>
+                    <TableCell className="text-sm">{app.floor}</TableCell>
+                    <TableCell className="text-xs">{app.jobType}</TableCell>
+                    <TableCell><Badge variant="outline" className={WORK_TYPE_COLORS[app.workType] || ""}>{app.workType}</Badge></TableCell>
+                    <TableCell><Badge variant="outline" className={STATUS_COLORS[app.status] || ""}>{app.status}</Badge></TableCell>
+                    <TableCell className="text-xs max-w-[200px] truncate text-muted-foreground">{app.action}</TableCell>
+                    <TableCell>
+                      {bisCount > 0 ? (
+                        <Badge variant="outline" className="bg-purple-500/10 text-purple-700 border-purple-500/20 gap-1">
+                          <AlertCircle className="h-3 w-3" />{bisCount}
+                        </Badge>
+                      ) : "—"}
+                    </TableCell>
+                    <TableCell><Badge variant="outline" className={PRIORITY_COLORS[app.priority]}>{app.priority}</Badge></TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
@@ -175,23 +228,33 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
                 {WORK_TYPE_LABELS[wt]} ({apps.length})
               </h4>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {apps.map((app) => (
-                  <div key={app.jobNum} className="rounded-lg border p-3 space-y-2 cursor-pointer hover:bg-accent/5 transition-colors" onClick={() => openDrawer(app)}>
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-sm font-medium">{app.jobNum}</span>
-                      <Badge variant="outline" className={app.source === "DOB_NOW_BUILD" ? "bg-blue-500/10 text-blue-700 border-blue-500/20" : "bg-muted text-muted-foreground text-[10px]"}>
-                        {app.source === "DOB_NOW_BUILD" ? "DOB NOW" : "Legacy"}
-                      </Badge>
+                {apps.map((app) => {
+                  const bisCount = openBisCount(app);
+                  return (
+                    <div key={app.jobNum} className="rounded-lg border p-3 space-y-2 cursor-pointer hover:bg-accent/5 transition-colors" onClick={() => openDrawer(app)}>
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-sm font-medium">{app.jobNum}</span>
+                        <div className="flex items-center gap-1">
+                          {bisCount > 0 && (
+                            <Badge variant="outline" className="bg-purple-500/10 text-purple-700 border-purple-500/20 gap-1 text-[10px]">
+                              <AlertCircle className="h-2.5 w-2.5" />{bisCount} open
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className={app.source === "DOB_NOW_BUILD" ? "bg-blue-500/10 text-blue-700 border-blue-500/20" : "bg-muted text-muted-foreground text-[10px]"}>
+                            {app.source === "DOB_NOW_BUILD" ? "DOB NOW" : "Legacy"}
+                          </Badge>
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground line-clamp-2">{app.desc}</p>
+                      {app.tenant && <p className="text-xs">Tenant: <span className="font-medium">{app.tenant}</span></p>}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Badge variant="outline" className={STATUS_COLORS[app.status] || ""} >{app.status}</Badge>
+                        <Badge variant="outline" className={PRIORITY_COLORS[app.priority]}>{app.priority}</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground font-medium">{app.action}</p>
                     </div>
-                    <p className="text-sm text-muted-foreground line-clamp-2">{app.desc}</p>
-                    {app.tenant && <p className="text-xs">Tenant: <span className="font-medium">{app.tenant}</span></p>}
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <Badge variant="outline" className={STATUS_COLORS[app.status] || ""} >{app.status}</Badge>
-                      <Badge variant="outline" className={PRIORITY_COLORS[app.priority]}>{app.priority}</Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground font-medium">{app.action}</p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -264,6 +327,92 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
 
                 <Separator />
 
+                {/* BIS Open Items Section */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium flex items-center gap-1.5">
+                      <AlertCircle className="h-4 w-4 text-purple-600" />
+                      BIS Open Items
+                      {drawerBisItems.filter(i => !i.resolved).length > 0 && (
+                        <Badge variant="outline" className="bg-purple-500/10 text-purple-700 border-purple-500/20 text-[10px] ml-1">
+                          {drawerBisItems.filter(i => !i.resolved).length} open
+                        </Badge>
+                      )}
+                    </p>
+                  </div>
+
+                  {/* Existing BIS items */}
+                  {drawerBisItems.length > 0 && (
+                    <div className="space-y-2">
+                      {drawerBisItems.map((item) => (
+                        <div key={item.id} className={`rounded-lg border p-3 space-y-1.5 text-sm ${item.resolved ? "opacity-60 bg-muted/20" : ""}`}>
+                          <div className="flex items-start gap-2">
+                            <Checkbox
+                              checked={item.resolved}
+                              onCheckedChange={() => toggleBisResolved(item.id)}
+                              className="mt-0.5"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className={`font-medium ${item.resolved ? "line-through" : ""}`}>{item.description}</p>
+                              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-1">
+                                <span>From: <span className="text-foreground">{item.receivedFrom || "—"}</span></span>
+                                <span>Received: <span className="text-foreground">{item.receivedDate ? format(new Date(item.receivedDate), "MM/dd/yyyy") : "—"}</span></span>
+                              </div>
+                              {item.notes && <p className="text-xs text-muted-foreground mt-1">{item.notes}</p>}
+                            </div>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => removeBisItem(item.id)}>
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add new BIS item */}
+                  <div className="rounded-lg border border-dashed p-3 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">Add Open Item</p>
+                    <Input
+                      placeholder="Description (e.g., FDNY Letter of Approval required)"
+                      value={newBisDesc}
+                      onChange={(e) => setNewBisDesc(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">Received From</Label>
+                        <Input
+                          placeholder="DOB Examiner, FDNY, etc."
+                          value={newBisFrom}
+                          onChange={(e) => setNewBisFrom(e.target.value)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">Date Received</Label>
+                        <Input
+                          type="date"
+                          value={newBisDate}
+                          onChange={(e) => setNewBisDate(e.target.value)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    </div>
+                    <Textarea
+                      placeholder="Notes..."
+                      value={newBisNotes}
+                      onChange={(e) => setNewBisNotes(e.target.value)}
+                      rows={2}
+                      className="text-sm"
+                    />
+                    <Button variant="outline" size="sm" className="w-full gap-1.5" onClick={addBisItem} disabled={!newBisDesc.trim()}>
+                      <Plus className="h-3.5 w-3.5" /> Add Item
+                    </Button>
+                  </div>
+                </div>
+
+                <Separator />
+
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status History</p>
                   <div className="space-y-2">
@@ -285,13 +434,13 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
 
                 <div className="flex gap-2">
                   <Button size="sm" className="flex-1 gap-1.5" onClick={() => {
-                    onUpdateApp(selectedApp.jobNum, { status: "Signed Off", action: "Closed out" });
+                    onUpdateApp(selectedApp.jobNum, { status: "Signed Off", action: "Closed out", bisOpenItems: drawerBisItems });
                     setSelectedApp(null);
                   }}>
                     <CheckCircle2 className="h-3.5 w-3.5" /> Mark as Closed
                   </Button>
                   <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => {
-                    onUpdateApp(selectedApp.jobNum, { action: "FLAGGED FOR WITHDRAWAL — " + drawerAction });
+                    onUpdateApp(selectedApp.jobNum, { action: "FLAGGED FOR WITHDRAWAL — " + drawerAction, bisOpenItems: drawerBisItems });
                     setSelectedApp(null);
                   }}>
                     <Flag className="h-3.5 w-3.5" /> Flag for Withdrawal
@@ -299,7 +448,7 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
                 </div>
 
                 <Button variant="ghost" size="sm" className="w-full gap-1.5" onClick={() => {
-                  onUpdateApp(selectedApp.jobNum, { action: drawerAction, notes: drawerNotes });
+                  onUpdateApp(selectedApp.jobNum, { action: drawerAction, notes: drawerNotes, bisOpenItems: drawerBisItems });
                   setSelectedApp(null);
                 }}>
                   Save & Close
