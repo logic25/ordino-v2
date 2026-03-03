@@ -33,6 +33,7 @@ import {
   MOCK_CO_APPLICATIONS, MOCK_CO_VIOLATIONS,
   type COApplication, type COViolation,
 } from "@/components/properties/co/coMockData";
+import { type RequiredItem, createDefaultRequiredItems } from "@/components/properties/co/requiredItemsData";
 
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -49,6 +50,18 @@ export default function PropertyDetail() {
   const [coViolations, setCoViolations] = useState<COViolation[]>(MOCK_CO_VIOLATIONS);
   const [lastSynced, setLastSynced] = useState<string | null>(format(new Date(), "MM/dd/yyyy h:mm a"));
   const [coWorkTypeFilter, setCoWorkTypeFilter] = useState<string | null>(null);
+
+  // Required items per application (keyed by jobNum)
+  const [requiredItemsMap, setRequiredItemsMap] = useState<Record<string, RequiredItem[]>>(() => {
+    // Pre-populate apps that have BIS items with default required items for demo
+    const map: Record<string, RequiredItem[]> = {};
+    MOCK_CO_APPLICATIONS.forEach(app => {
+      if (app.bisOpenItems && app.bisOpenItems.length > 0) {
+        map[app.jobNum] = createDefaultRequiredItems();
+      }
+    });
+    return map;
+  });
 
   const { data: property, isLoading } = useProperty(id);
   const { data: applications = [] } = useApplicationsByProperty(id);
@@ -442,6 +455,7 @@ export default function PropertyDetail() {
                     lot={property.lot}
                     onFilterWorkType={handleFilterWorkType}
                     lastSynced={lastSynced}
+                    requiredItemsMap={requiredItemsMap}
                   />
                 )}
               </TabsContent>
