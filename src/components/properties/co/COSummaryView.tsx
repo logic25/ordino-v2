@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
 import { pdf } from "@react-pdf/renderer";
 import type { COApplication, COViolation, COSignOff, ReportSnapshot } from "./coMockData";
 import {
@@ -39,6 +40,9 @@ interface COSummaryViewProps {
   onFilterWorkType: (wt: string) => void;
   lastSynced: string | null;
   requiredItemsMap?: Record<string, RequiredItem[]>;
+  projectId?: string | null;
+  companyId?: string | null;
+  profileId?: string | null;
 }
 
 interface NextStep {
@@ -49,6 +53,7 @@ interface NextStep {
 
 export function COSummaryView({
   applications, violations, propertyAddress, block, lot, onFilterWorkType, lastSynced, requiredItemsMap = {},
+  projectId, companyId, profileId,
 }: COSummaryViewProps) {
   const { toast } = useToast();
   const [reportOpen, setReportOpen] = useState(false);
@@ -958,13 +963,50 @@ export function COSummaryView({
                     requiredItemsMap={requiredItemsMap}
                   />
                 ).toBlob();
+                const filename = `CO-Report-${propertyAddress.replace(/[^a-zA-Z0-9]/g, "-")}-${format(new Date(), "yyyy-MM-dd")}.pdf`;
+                
+                // Download locally
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
-                a.download = `CO-Report-${propertyAddress.replace(/[^a-zA-Z0-9]/g, "-")}-${format(new Date(), "yyyy-MM-dd")}.pdf`;
+                a.download = filename;
                 a.click();
                 URL.revokeObjectURL(url);
-                toast({ title: "PDF downloaded", description: "The CO report has been saved." });
+
+                // Auto-save to project documents if we have company context
+                if (companyId) {
+                  try {
+                    const storagePath = `${companyId}/${crypto.randomUUID()}.pdf`;
+                    const { error: uploadError } = await supabase.storage
+                      .from("universal-documents")
+                      .upload(storagePath, blob, { contentType: "application/pdf" });
+                    
+                    if (!uploadError) {
+                      await supabase.from("universal_documents").insert({
+                        company_id: companyId,
+                        title: `CO Report — ${propertyAddress} — ${format(new Date(), "MMM d, yyyy")}`,
+                        description: `${reportType} Status Report auto-saved on generation`,
+                        category: "CO Report",
+                        filename,
+                        storage_path: storagePath,
+                        mime_type: "application/pdf",
+                        size_bytes: blob.size,
+                        uploaded_by: profileId || null,
+                        tags: ["co-report", reportType.toLowerCase(), "auto-generated"],
+                        project_id: projectId || null,
+                      } as any);
+                      toast({ title: "PDF downloaded & archived", description: "Report saved to project documents." });
+                    } else {
+                      console.error("Upload error:", uploadError);
+                      toast({ title: "PDF downloaded", description: "Downloaded but failed to archive to documents." });
+                    }
+                  } catch (archiveErr) {
+                    console.error("Archive error:", archiveErr);
+                    toast({ title: "PDF downloaded", description: "Downloaded but failed to archive to documents." });
+                  }
+                } else {
+                  toast({ title: "PDF downloaded", description: "The CO report has been saved." });
+                }
               } catch (err) {
                 console.error("PDF generation error:", err);
                 toast({ title: "PDF error", description: "Failed to generate PDF. Please try again.", variant: "destructive" });

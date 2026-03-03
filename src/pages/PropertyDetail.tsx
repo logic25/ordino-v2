@@ -23,6 +23,7 @@ import { SignalEnrollDialog } from "@/components/properties/SignalEnrollDialog";
 import { PropertyDialog, PropertyFormData } from "@/components/properties/PropertyDialog";
 import { useUpdateProperty } from "@/hooks/useProperties";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -39,6 +40,7 @@ export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { profile } = useAuth();
   const [editOpen, setEditOpen] = useState(false);
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
@@ -447,6 +449,9 @@ export default function PropertyDetail() {
                     onFilterWorkType={handleFilterWorkType}
                     lastSynced={lastSynced}
                     requiredItemsMap={requiredItemsMap}
+                    projectId={projects[0]?.id || null}
+                    companyId={profile?.company_id || null}
+                    profileId={profile?.id || null}
                   />
                 )}
               </TabsContent>
