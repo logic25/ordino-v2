@@ -1157,6 +1157,40 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
 }
 // ======== SERVICES ========
 
+function AssignedToField({ service }: { service: MockService }) {
+  const { data: profiles = [] } = useCompanyProfiles();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const handleChange = async (value: string) => {
+    try {
+      await supabase.from("services").update({ assigned_to: value || null } as any).eq("id", service.id);
+      queryClient.invalidateQueries({ queryKey: ["project-services-full"] });
+      toast({ title: "Assignment updated" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <User className="h-3.5 w-3.5 text-muted-foreground" />
+      <span className="text-muted-foreground">Assigned to:</span>
+      <Select value={service.assignedTo || ""} onValueChange={handleChange}>
+        <SelectTrigger className="h-7 w-auto min-w-[140px] border-none bg-transparent shadow-none text-sm p-0 px-1 hover:bg-muted/40 focus:ring-0 gap-1">
+          <SelectValue placeholder="Select team member" />
+        </SelectTrigger>
+        <SelectContent>
+          {profiles.map((p) => (
+            <SelectItem key={p.id} value={p.display_name || `${p.first_name} ${p.last_name}`.trim()}>
+              {p.display_name || `${p.first_name} ${p.last_name}`.trim() || "Unnamed"}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+
 function ServiceExpandedDetail({ service, projectName }: { service: MockService; projectName?: string }) {
   const [showAddReq, setShowAddReq] = useState(false);
   const [newReqLabel, setNewReqLabel] = useState("");
@@ -1202,14 +1236,8 @@ function ServiceExpandedDetail({ service, projectName }: { service: MockService;
 
   return (
     <div className="px-8 py-5 space-y-5 bg-muted/10">
-      {/* Row 0: Assigned */}
-      {service.assignedTo && (
-        <div className="flex items-center gap-2 text-sm">
-          <User className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-muted-foreground">Assigned to:</span>
-          <span className="font-medium">{service.assignedTo}</span>
-        </div>
-      )}
+      {/* Row 0: Assigned — editable */}
+      <AssignedToField service={service} />
       {/* Row 1: Scope + Job Description + Application */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div>
@@ -1584,11 +1612,11 @@ function ServicesFull({ services: initialServices, project, contacts, allService
             <TableHead>Service</TableHead>
             <TableHead className="whitespace-nowrap">Status</TableHead>
             <TableHead>Work Types</TableHead>
-            <TableHead className="text-right">Margin</TableHead>
             <TableHead>Est. Bill Date</TableHead>
             <TableHead className="text-right">Price</TableHead>
-            <TableHead className="text-right">Billed</TableHead>
             <TableHead className="text-right">Cost</TableHead>
+            <TableHead className="text-right">Billed</TableHead>
+            <TableHead className="text-right">Margin</TableHead>
             <TableHead>Action</TableHead>
           </TableRow>
         </TableHeader>
@@ -1689,17 +1717,6 @@ function ServicesFull({ services: initialServices, project, contacts, allService
                             <div className="flex gap-1 flex-wrap">{(svc.subServices || []).map((d) => <Badge key={d} variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">{d}</Badge>)}</div>
                           ) : <span className="text-xs text-muted-foreground">—</span>}
                         </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {(() => {
-                            const margin = svcTotal - displayCost;
-                            if (displayCost === 0 && svcTotal === 0) return <span className="text-xs text-muted-foreground">—</span>;
-                            return (
-                              <span className={margin >= 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-red-600 dark:text-red-400 font-medium"}>
-                                {formatCurrency(margin)}
-                              </span>
-                            );
-                          })()}
-                        </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <Popover open={editingBillDate === svc.id} onOpenChange={(open) => setEditingBillDate(open ? svc.id : null)}>
                             <PopoverTrigger asChild>
@@ -1725,12 +1742,23 @@ function ServicesFull({ services: initialServices, project, contacts, allService
                         <TableCell className="text-right tabular-nums font-medium">
                           {formatCurrency(svc.totalAmount)}
                         </TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">{displayCost > 0 ? formatCurrency(displayCost) : "—"}</TableCell>
                         <TableCell className="text-right tabular-nums">
                           {svc.billedAmount > 0 ? (
                             <span className="text-emerald-600 dark:text-emerald-400 font-medium">{formatCurrency(svc.billedAmount)}</span>
                           ) : "—"}
                         </TableCell>
-                        <TableCell className="text-right tabular-nums text-muted-foreground">{displayCost > 0 ? formatCurrency(displayCost) : "—"}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {(() => {
+                            const margin = svcTotal - displayCost;
+                            if (displayCost === 0 && svcTotal === 0) return <span className="text-xs text-muted-foreground">—</span>;
+                            return (
+                              <span className={margin >= 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-red-600 dark:text-red-400 font-medium"}>
+                                {formatCurrency(margin)}
+                              </span>
+                            );
+                          })()}
+                        </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           {svc.needsDobFiling ? (
                             <div className="flex items-center gap-1.5">

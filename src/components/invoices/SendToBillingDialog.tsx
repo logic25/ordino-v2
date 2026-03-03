@@ -304,6 +304,13 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId, 
         fees: Object.keys(fees).length > 0 ? fees : undefined,
         special_instructions: activeRule?.special_instructions || null,
       });
+      // Auto-update service status to "billed" when fully billed
+      for (const s of selectedServices) {
+        const totalBilledAfter = s.previouslyBilled + s.billedAmount;
+        if (s.contractAmount > 0 && totalBilledAfter >= s.contractAmount) {
+          await supabase.from("services").update({ status: "billed", billed_at: new Date().toISOString() }).eq("id", s.serviceId);
+        }
+      }
       toast({ title: "Billing request submitted & invoice created" });
       onOpenChange(false);
       resetForm();
@@ -421,27 +428,30 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId, 
             <div className="space-y-3">
               <Label>Select Services to Bill</Label>
               <div className="space-y-2">
-                {projectServices.map((svc) => {
+                {projectServices.filter((svc) => {
+                  const contractAmt = svc.total_amount || svc.fixed_price || 0;
+                  const prevBilled = previouslyBilled[svc.name] || 0;
+                  const remaining = Math.max(0, contractAmt - prevBilled);
+                  return !(contractAmt > 0 && remaining <= 0);
+                }).map((svc) => {
                   const selected = selectedServices.find((s) => s.serviceId === svc.id);
                   const contractAmt = svc.total_amount || svc.fixed_price || 0;
                   const prevBilled = previouslyBilled[svc.name] || 0;
                   const remaining = Math.max(0, contractAmt - prevBilled);
-                  const fullyBilled = contractAmt > 0 && remaining <= 0;
 
                   return (
                     <div
                       key={svc.id}
                       className={cn(
                         "rounded-lg border p-3 transition-colors",
-                        selected ? "border-primary bg-primary/5" : "hover:border-muted-foreground/30",
-                        fullyBilled && "opacity-50"
+                        selected ? "border-primary bg-primary/5" : "hover:border-muted-foreground/30"
                       )}
                     >
                       {/* Top row: checkbox + name + contract info */}
                       <div className="flex items-center gap-3">
                         <Checkbox
                           checked={!!selected}
-                          disabled={fullyBilled}
+                          
                           onCheckedChange={() => toggleService(svc)}
                         />
                         <div className="flex-1 min-w-0">
@@ -458,8 +468,8 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId, 
                             {prevBilled > 0 && (
                               <span>Billed: ${prevBilled.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
                             )}
-                            <span className={cn(fullyBilled ? "text-destructive" : "text-foreground font-medium")}>
-                              {fullyBilled ? "Fully billed" : `Remaining: $${remaining.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
+                            <span className="text-foreground font-medium">
+                              {`Remaining: $${remaining.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
                             </span>
                           </div>
                           </div>
@@ -492,7 +502,7 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId, 
                               ]);
                               if (entry.billedToContactId) setBilledToContactId(entry.billedToContactId);
                             }}
-                            fullyBilled={fullyBilled}
+                            fullyBilled={false}
                           />
                         )}
                       {/* Amount / % input — shown when selected */}
