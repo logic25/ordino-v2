@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import {
 import {
   ArrowLeft, MapPin, Building2, Loader2, Pencil,
   FolderKanban, Radio, FileText, Briefcase, AlertTriangle,
-  Shield, ExternalLink, User,
+  Shield, ExternalLink, User, Download, RefreshCw, ClipboardList,
 } from "lucide-react";
 import { useProperty } from "@/hooks/useProperties";
 import { useApplicationsByProperty, APPLICATION_STATUSES } from "@/hooks/useApplications";
@@ -26,6 +26,13 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { COApplicationsView } from "@/components/properties/co/COApplicationsView";
+import { COViolationsView } from "@/components/properties/co/COViolationsView";
+import { COSummaryView } from "@/components/properties/co/COSummaryView";
+import {
+  MOCK_CO_APPLICATIONS, MOCK_CO_VIOLATIONS,
+  type COApplication, type COViolation,
+} from "@/components/properties/co/coMockData";
 
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -33,6 +40,15 @@ export default function PropertyDetail() {
   const { toast } = useToast();
   const [editOpen, setEditOpen] = useState(false);
   const [enrollOpen, setEnrollOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
+
+  // CO state
+  const [coImported, setCoImported] = useState(false);
+  const [coImporting, setCoImporting] = useState(false);
+  const [coApps, setCoApps] = useState<COApplication[]>([]);
+  const [coViolations, setCoViolations] = useState<COViolation[]>([]);
+  const [lastSynced, setLastSynced] = useState<string | null>(null);
+  const [coWorkTypeFilter, setCoWorkTypeFilter] = useState<string | null>(null);
 
   const { data: property, isLoading } = useProperty(id);
   const { data: applications = [] } = useApplicationsByProperty(id);
@@ -61,6 +77,37 @@ export default function PropertyDetail() {
     },
     enabled: !!id,
   });
+
+  // Import DOB data (mock)
+  const handleImportDOBData = useCallback(() => {
+    setCoImporting(true);
+    setTimeout(() => {
+      setCoApps(MOCK_CO_APPLICATIONS);
+      setCoViolations(MOCK_CO_VIOLATIONS);
+      setCoImported(true);
+      setCoImporting(false);
+      setLastSynced(format(new Date(), "MM/dd/yyyy h:mm a"));
+      toast({
+        title: "DOB Data Imported",
+        description: `Imported ${MOCK_CO_APPLICATIONS.length} applications and ${MOCK_CO_VIOLATIONS.length} violations for Block ${property?.block || "—"}, Lot ${property?.lot || "—"}`,
+      });
+    }, 2000);
+  }, [property, toast]);
+
+  const handleUpdateApp = useCallback((jobNum: string, updates: Partial<COApplication>) => {
+    setCoApps(prev => prev.map(a => a.jobNum === jobNum ? { ...a, ...updates } : a));
+    toast({ title: "Application updated" });
+  }, [toast]);
+
+  const handleUpdateViolation = useCallback((violationNum: string, updates: Partial<COViolation>) => {
+    setCoViolations(prev => prev.map(v => v.violationNum === violationNum ? { ...v, ...updates } : v));
+    toast({ title: "Violation updated" });
+  }, [toast]);
+
+  const handleFilterWorkType = useCallback((wt: string) => {
+    setCoWorkTypeFilter(wt);
+    setActiveTab("co_applications");
+  }, []);
 
   if (isLoading) {
     return (
@@ -124,6 +171,9 @@ export default function PropertyDetail() {
   const openViolations = violations.filter(v => v.status === "open").length;
   const totalPenalties = violations.reduce((s, v) => s + (v.penalty_amount || 0), 0);
 
+  const openCoApps = coApps.filter(a => a.status !== "Signed Off").length;
+  const activeCoViols = coViolations.filter(v => v.status === "Active" || v.status === "In Resolution").length;
+
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
@@ -160,6 +210,18 @@ export default function PropertyDetail() {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            {!coImported && (
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={handleImportDOBData} disabled={coImporting}>
+                {coImporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                {coImporting ? "Importing..." : "Import DOB Data"}
+              </Button>
+            )}
+            {coImported && (
+              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={handleImportDOBData} disabled={coImporting}>
+                {coImporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                Refresh
+              </Button>
+            )}
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditOpen(true)}>
               <Pencil className="h-3.5 w-3.5" /> Edit
             </Button>
@@ -177,7 +239,7 @@ export default function PropertyDetail() {
           <Card>
             <CardContent className="p-4">
               <div className="text-xs text-muted-foreground">DOB Applications</div>
-              <div className="text-2xl font-bold mt-1">{applications.length}</div>
+              <div className="text-2xl font-bold mt-1">{coImported ? coApps.length : applications.length}</div>
             </CardContent>
           </Card>
           <Card>
@@ -191,8 +253,8 @@ export default function PropertyDetail() {
           <Card>
             <CardContent className="p-4">
               <div className="text-xs text-muted-foreground">Open Violations</div>
-              <div className={`text-2xl font-bold mt-1 ${openViolations > 0 ? "text-red-600" : ""}`}>
-                {openViolations}
+              <div className={`text-2xl font-bold mt-1 ${(coImported ? activeCoViols : openViolations) > 0 ? "text-red-600" : ""}`}>
+                {coImported ? activeCoViols : openViolations}
               </div>
             </CardContent>
           </Card>
@@ -206,10 +268,23 @@ export default function PropertyDetail() {
           </Card>
         </div>
 
+        {/* CO Import Banner */}
+        {coImported && lastSynced && (
+          <div className="flex items-center gap-3 rounded-lg border border-blue-500/30 bg-blue-500/5 px-4 py-2.5 text-sm">
+            <Radio className="h-4 w-4 text-blue-600 shrink-0" />
+            <span>NYC Open Data imported · Last synced: {lastSynced}</span>
+            <div className="flex gap-1.5 ml-auto">
+              <Badge variant="outline" className="bg-muted text-muted-foreground text-[10px]">DOB Job Filings</Badge>
+              <Badge variant="outline" className="bg-blue-500/10 text-blue-700 border-blue-500/20 text-[10px]">DOB NOW Build</Badge>
+              <Badge variant="outline" className="bg-red-500/10 text-red-700 border-red-500/20 text-[10px]">DOB Violations</Badge>
+            </div>
+          </div>
+        )}
+
         {/* Tabbed Content */}
         <Card>
-          <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="w-full justify-start rounded-none rounded-t-lg border-b bg-muted/20 h-11 px-4 gap-1">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="w-full justify-start rounded-none rounded-t-lg border-b bg-muted/20 h-11 px-4 gap-1 flex-wrap">
               <TabsTrigger value="overview" className="gap-1.5 data-[state=active]:bg-background">
                 <Building2 className="h-3.5 w-3.5" /> Overview
               </TabsTrigger>
@@ -221,12 +296,37 @@ export default function PropertyDetail() {
                   </Badge>
                 )}
               </TabsTrigger>
+              {coImported && (
+                <>
+                  <TabsTrigger value="co_summary" className="gap-1.5 data-[state=active]:bg-background">
+                    <ClipboardList className="h-3.5 w-3.5" /> CO Summary
+                  </TabsTrigger>
+                  <TabsTrigger value="co_applications" className="gap-1.5 data-[state=active]:bg-background">
+                    <FolderKanban className="h-3.5 w-3.5" /> Applications
+                    {openCoApps > 0 && (
+                      <Badge variant="outline" className="ml-1 bg-orange-500/10 text-orange-600 border-orange-500/20 text-xs h-5 px-1.5">
+                        {openCoApps}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="co_violations" className="gap-1.5 data-[state=active]:bg-background">
+                    <AlertTriangle className="h-3.5 w-3.5" /> Violations
+                    {activeCoViols > 0 && (
+                      <Badge variant="outline" className="ml-1 bg-red-500/10 text-red-600 border-red-500/20 text-xs h-5 px-1.5">
+                        {activeCoViols}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                </>
+              )}
               <TabsTrigger value="projects" className="gap-1.5 data-[state=active]:bg-background">
                 <Briefcase className="h-3.5 w-3.5" /> Projects ({projects.length})
               </TabsTrigger>
-              <TabsTrigger value="applications" className="gap-1.5 data-[state=active]:bg-background">
-                <FolderKanban className="h-3.5 w-3.5" /> Applications ({applications.length})
-              </TabsTrigger>
+              {!coImported && (
+                <TabsTrigger value="applications" className="gap-1.5 data-[state=active]:bg-background">
+                  <FolderKanban className="h-3.5 w-3.5" /> Applications ({applications.length})
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <CardContent className="p-0">
@@ -268,7 +368,7 @@ export default function PropertyDetail() {
                       <div className="flex justify-between border-b border-border/50 pb-2">
                         <span className="text-sm text-muted-foreground">Open Applications</span>
                         <span className="text-sm font-medium">
-                          {applications.filter(a => !["complete", "closed"].includes(a.status || "")).length}
+                          {coImported ? openCoApps : applications.filter(a => !["complete", "closed"].includes(a.status || "")).length}
                         </span>
                       </div>
                       <div className="flex justify-between border-b border-border/50 pb-2">
@@ -277,7 +377,7 @@ export default function PropertyDetail() {
                       </div>
                       <div className="flex justify-between border-b border-border/50 pb-2">
                         <span className="text-sm text-muted-foreground">Total Violations</span>
-                        <span className="text-sm font-medium">{totalViolations}</span>
+                        <span className="text-sm font-medium">{coImported ? coViolations.length : totalViolations}</span>
                       </div>
                     </div>
                   </div>
@@ -413,6 +513,42 @@ export default function PropertyDetail() {
                 )}
               </TabsContent>
 
+              {/* CO Summary Tab */}
+              {coImported && (
+                <TabsContent value="co_summary" className="mt-0 p-6">
+                  <COSummaryView
+                    applications={coApps}
+                    violations={coViolations}
+                    propertyAddress={property.address}
+                    block={property.block}
+                    lot={property.lot}
+                    onFilterWorkType={handleFilterWorkType}
+                    lastSynced={lastSynced}
+                  />
+                </TabsContent>
+              )}
+
+              {/* CO Applications Tab */}
+              {coImported && (
+                <TabsContent value="co_applications" className="mt-0 p-6">
+                  <COApplicationsView
+                    applications={coApps}
+                    onUpdateApp={handleUpdateApp}
+                    initialWorkTypeFilter={coWorkTypeFilter}
+                  />
+                </TabsContent>
+              )}
+
+              {/* CO Violations Tab */}
+              {coImported && (
+                <TabsContent value="co_violations" className="mt-0 p-6">
+                  <COViolationsView
+                    violations={coViolations}
+                    onUpdateViolation={handleUpdateViolation}
+                  />
+                </TabsContent>
+              )}
+
               {/* Projects Tab */}
               <TabsContent value="projects" className="mt-0 p-6">
                 {projects.length === 0 ? (
@@ -462,52 +598,54 @@ export default function PropertyDetail() {
                 )}
               </TabsContent>
 
-              {/* Applications Tab */}
-              <TabsContent value="applications" className="mt-0 p-6">
-                {applications.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <FolderKanban className="h-10 w-10 text-muted-foreground/50 mb-3" />
-                    <p className="text-muted-foreground">No DOB applications for this property</p>
-                  </div>
-                ) : (
-                  <div className="rounded-lg border overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-muted/50">
-                          <TableHead>Type</TableHead>
-                          <TableHead>Job #</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Filed</TableHead>
-                          <TableHead>PM</TableHead>
-                          <TableHead>Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {applications.map((app) => (
-                          <TableRow key={app.id}>
-                            <TableCell className="font-medium text-sm">{app.application_type || "DOB"}</TableCell>
-                            <TableCell className="font-mono text-sm">{app.job_number || "—"}</TableCell>
-                            <TableCell className="text-sm max-w-xs truncate">{app.description || "—"}</TableCell>
-                            <TableCell className="text-sm">
-                              {app.filed_date ? format(new Date(app.filed_date), "MM/dd/yyyy") : "—"}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {app.profiles
-                                ? [app.profiles.first_name, app.profiles.last_name].filter(Boolean).join(" ")
-                                : "—"}
-                            </TableCell>
-                            <TableCell>
-                              <Badge className={appStatusColor(app.status)}>
-                                {formatStatus(app.status)}
-                              </Badge>
-                            </TableCell>
+              {/* Original Applications Tab (shown when CO not imported) */}
+              {!coImported && (
+                <TabsContent value="applications" className="mt-0 p-6">
+                  {applications.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-center">
+                      <FolderKanban className="h-10 w-10 text-muted-foreground/50 mb-3" />
+                      <p className="text-muted-foreground">No DOB applications for this property</p>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/50">
+                            <TableHead>Type</TableHead>
+                            <TableHead>Job #</TableHead>
+                            <TableHead>Description</TableHead>
+                            <TableHead>Filed</TableHead>
+                            <TableHead>PM</TableHead>
+                            <TableHead>Status</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </TabsContent>
+                        </TableHeader>
+                        <TableBody>
+                          {applications.map((app) => (
+                            <TableRow key={app.id}>
+                              <TableCell className="font-medium text-sm">{app.application_type || "DOB"}</TableCell>
+                              <TableCell className="font-mono text-sm">{app.job_number || "—"}</TableCell>
+                              <TableCell className="text-sm max-w-xs truncate">{app.description || "—"}</TableCell>
+                              <TableCell className="text-sm">
+                                {app.filed_date ? format(new Date(app.filed_date), "MM/dd/yyyy") : "—"}
+                              </TableCell>
+                              <TableCell className="text-sm">
+                                {app.profiles
+                                  ? [app.profiles.first_name, app.profiles.last_name].filter(Boolean).join(" ")
+                                  : "—"}
+                              </TableCell>
+                              <TableCell>
+                                <Badge className={appStatusColor(app.status)}>
+                                  {formatStatus(app.status)}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </TabsContent>
+              )}
             </CardContent>
           </Tabs>
         </Card>
