@@ -83,3 +83,6 @@ verify_jwt = false
 
 [functions.beacon-analytics]
 verify_jwt = false
+
+[functions.send-open-services-report]
+verify_jwt = false
