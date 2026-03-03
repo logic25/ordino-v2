@@ -3195,6 +3195,77 @@ export type Database = {
           },
         ]
       }
+      filing_audit_log: {
+        Row: {
+          company_id: string
+          created_at: string
+          filing_type: string
+          id: string
+          initiated_by: string
+          method: string
+          payload_snapshot: Json | null
+          project_id: string
+          property_address: string | null
+          service_id: string
+          work_types: string[] | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          filing_type: string
+          id?: string
+          initiated_by: string
+          method?: string
+          payload_snapshot?: Json | null
+          project_id: string
+          property_address?: string | null
+          service_id: string
+          work_types?: string[] | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          filing_type?: string
+          id?: string
+          initiated_by?: string
+          method?: string
+          payload_snapshot?: Json | null
+          project_id?: string
+          property_address?: string | null
+          service_id?: string
+          work_types?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "filing_audit_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "filing_audit_log_initiated_by_fkey"
+            columns: ["initiated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "filing_audit_log_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "filing_audit_log_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gchat_spaces_cache: {
         Row: {
           cache_key: string

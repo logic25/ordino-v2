@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -1399,6 +1399,28 @@ function ServicesFull({ services: initialServices, project, contacts, allService
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Query filing audit logs for all services in this project to show filed/not-filed badges
+  const { data: filingAuditLogs = [] } = useQuery({
+    queryKey: ["filing-audit-logs", project.id],
+    queryFn: async () => {
+      const { data } = await (supabase.from("filing_audit_log" as any)
+        .select("service_id, created_at")
+        .eq("project_id", project.id)
+        .order("created_at", { ascending: false }) as any);
+      return (data || []) as { service_id: string; created_at: string }[];
+    },
+    enabled: !!project.id,
+  });
+
+  // Map: service_id -> most recent filing date
+  const filingStatusByService = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const log of filingAuditLogs) {
+      if (!map[log.service_id]) map[log.service_id] = log.created_at;
+    }
+    return map;
+  }, [filingAuditLogs]);
+
   const updateServiceField = (id: string, field: "assignedTo" | "estimatedBillDate", value: string) => {
     setOrderedServices(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
     toast({ title: "Updated", description: `Service ${field === "assignedTo" ? "assignment" : "bill date"} updated.` });
@@ -1659,7 +1681,26 @@ function ServicesFull({ services: initialServices, project, contacts, allService
                         <TableCell className="text-right tabular-nums text-muted-foreground">{displayCost > 0 ? formatCurrency(displayCost) : "—"}</TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           {svc.needsDobFiling ? (
-                            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setDobPrepService(svc)}><ExternalLink className="h-3.5 w-3.5" /> Submit</Button>
+                            <div className="flex items-center gap-1.5">
+                              {filingStatusByService[svc.id] ? (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] px-1.5 py-0 text-emerald-600 border-emerald-200 cursor-pointer"
+                                  onClick={() => setDobPrepService(svc)}
+                                >
+                                  ✓ Filed {new Date(filingStatusByService[svc.id]).toLocaleDateString("en-US", { month: "numeric", day: "numeric" })}
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] px-1.5 py-0 text-muted-foreground cursor-pointer"
+                                  onClick={() => setDobPrepService(svc)}
+                                >
+                                  Not Filed
+                                </Badge>
+                              )}
+                              <Button variant="outline" size="sm" className="gap-1.5 h-7" onClick={() => setDobPrepService(svc)}><ExternalLink className="h-3 w-3" /> Submit</Button>
+                            </div>
                           ) : svc.application ? (
                             <Badge variant="outline" className="font-mono text-xs">#{svc.application.jobNumber}</Badge>
                           ) : isChild && svc.parentServiceId ? (() => {

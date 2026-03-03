@@ -1,15 +1,19 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import {
   Copy, CheckCircle2, AlertTriangle, MapPin, Building2,
   User, Phone, Mail, ExternalLink, ClipboardList, Save,
-  Plus, Trash2, Settings, Download,
+  Plus, Trash2, Settings, Download, Type, ChevronDown, ChevronRight,
+  ArrowLeft, Loader2,
 } from "lucide-react";
 import type { MockService, MockContact } from "./projectMockData";
 import { engineerDisciplineLabels } from "./projectMockData";
@@ -43,6 +47,43 @@ const DEFAULT_CHECKLIST: Omit<ChecklistItem, "checked">[] = [
   { id: "restrictive", label: "Restrictive declaration (if required)", required: false },
 ];
 
+// ---- Helpers ----
+
+function stripFormatting(text: string): string {
+  let cleaned = text
+    .replace(/<[^>]*>/g, "")          // Remove HTML tags
+    .replace(/&nbsp;/gi, " ")         // Replace &nbsp;
+    .replace(/[\u201C\u201D]/g, '"')  // Curly double quotes → straight
+    .replace(/[\u2018\u2019]/g, "'")  // Curly single quotes → straight
+    .replace(/\s{2,}/g, " ")          // Collapse multiple spaces
+    .trim();
+  return cleaned;
+}
+
+function getPISValue(responses: Record<string, any> | null, sectionPrefix: string, fieldName: string): string | null {
+  if (!responses) return null;
+  // Try prefixed key first, then bare field name
+  const prefixed = `${sectionPrefix}_${fieldName}`;
+  const val = responses[prefixed] ?? responses[fieldName];
+  if (val === null || val === undefined || val === "") return null;
+  return String(val);
+}
+
+function getPISArrayValue(responses: Record<string, any> | null, sectionPrefix: string, fieldName: string): string[] | null {
+  if (!responses) return null;
+  const prefixed = `${sectionPrefix}_${fieldName}`;
+  const val = responses[prefixed] ?? responses[fieldName];
+  if (!val) return null;
+  if (Array.isArray(val)) return val.filter(Boolean);
+  try { const parsed = JSON.parse(val); if (Array.isArray(parsed)) return parsed; } catch {}
+  return null;
+}
+
+// ---- Submit flow steps ----
+type SubmitStep = "idle" | "confirm" | "submitting" | "success";
+
+// ---- Component ----
+
 interface DobNowFilingPrepSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -67,6 +108,39 @@ export function DobNowFilingPrepSheet({
   const [checklist, setChecklist] = useState<ChecklistItem[]>(
     DEFAULT_CHECKLIST.map((item) => ({ ...item, checked: false }))
   );
+  const [submitStep, setSubmitStep] = useState<SubmitStep>("idle");
+  const [confirmSectionOpen, setConfirmSectionOpen] = useState<Record<string, boolean>>({ location: true, stakeholders: true, filing: true });
+  const [editOverrides, setEditOverrides] = useState<Record<string, string>>({});
+  const [filedAt, setFiledAt] = useState<Date | null>(null);
+  const [filerName, setFilerName] = useState<string | null>(null);
+  const [checklistWarning, setChecklistWarning] = useState(false);
+
+  // Fetch PIS (rfi_requests) data for this project
+  const { data: pisResponses } = useQuery({
+    queryKey: ["filing-pis-data", project.id],
+    queryFn: async () => {
+      const { data } = await (supabase.from("rfi_requests") as any)
+        .select("responses")
+        .eq("project_id", project.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return (data?.responses as Record<string, any>) || null;
+    },
+    enabled: !!project.id && open,
+  });
+
+  // Fetch current user profile for audit trail
+  const { data: currentUser } = useQuery({
+    queryKey: ["current-user-profile"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      const { data } = await supabase.from("profiles").select("id, display_name, company_id").eq("user_id", user.id).maybeSingle();
+      return data;
+    },
+    enabled: open,
+  });
 
   const copyToClipboard = (value: string, label: string) => {
     navigator.clipboard.writeText(value);
@@ -77,6 +151,7 @@ export function DobNowFilingPrepSheet({
     setChecklist((prev) =>
       prev.map((item) => (item.id === id ? { ...item, checked: !item.checked } : item))
     );
+    setChecklistWarning(false);
   };
 
   const saveJobNumber = () => {
@@ -84,9 +159,19 @@ export function DobNowFilingPrepSheet({
     toast({ title: "Job Number Saved", description: `Application #${jobNumber} linked to ${service.name}.` });
   };
 
-  // Build DOB field mapping from project data
+  // Build DOB field mapping from project data + PIS
   const property = project.properties;
   const proj = project as any;
+
+  // PIS-derived values
+  const pisSquareFootage = getPISValue(pisResponses, "building_scope", "sq_ft");
+  const pisJobDescription = getPISValue(pisResponses, "building_scope", "job_description");
+  const pisWorkTypes = getPISArrayValue(pisResponses, "building_scope", "work_types");
+
+  // Prefer PIS job description over service's
+  const jobDescription = pisJobDescription || service.jobDescription || null;
+  // Prefer PIS work types over service's subServices
+  const workTypes = pisWorkTypes && pisWorkTypes.length > 0 ? pisWorkTypes : (service.subServices || []);
 
   const propertyFields: DobField[] = [
     { label: "House Number", value: property?.address?.match(/^(\d+[\w-]*)/)?.[1], category: "property", dobFieldName: "House Number" },
@@ -99,11 +184,12 @@ export function DobNowFilingPrepSheet({
 
   const filingFields: DobField[] = [
     { label: "Filing Type", value: service.name, category: "filing", dobFieldName: "Filing Type" },
-    { label: "Work Types / Disciplines", value: (service.subServices || []).length > 0 ? (service.subServices || []).join(", ") : null, category: "filing", dobFieldName: "Work Type" },
+    { label: "Work Types / Disciplines", value: workTypes.length > 0 ? workTypes.join(", ") : null, category: "filing", dobFieldName: "Work Type" },
     { label: "Floor", value: proj.floor_number, category: "filing", dobFieldName: "Floor" },
     { label: "Unit / Apt", value: proj.unit_number, category: "filing", dobFieldName: "Apt/Suite" },
+    { label: "Floor Area (sq ft)", value: pisSquareFootage, category: "filing", dobFieldName: "Floor Area (sq ft)" },
     { label: "Estimated Job Cost", value: service.estimatedCosts && (service.estimatedCosts || []).length > 0 ? (service.estimatedCosts || []).map(ec => `${ec.discipline}: $${ec.amount.toLocaleString()}`).join("; ") : (proj.estimated_value ? `$${Number(proj.estimated_value).toLocaleString()}` : null), category: "filing", dobFieldName: "Estimated Job Cost" },
-    { label: "Job Description", value: service.jobDescription || null, category: "filing", dobFieldName: "Description of Work", editable: true },
+    { label: "Job Description", value: jobDescription, category: "filing", dobFieldName: "Description of Work", editable: true },
   ];
 
   // Map contacts by DOB role
@@ -119,14 +205,11 @@ export function DobNowFilingPrepSheet({
     other: "Other",
   };
 
-  // Filter contacts relevant to this service's disciplines
   const serviceDisciplines = (service.subServices || []).map(s => s.toLowerCase());
   const filteredContacts = contacts.filter((c) => {
-    // Engineers should only appear if their discipline matches the service's subServices
     if (c.dobRole === "engineer" && c.discipline) {
       const engLabel = (engineerDisciplineLabels[c.discipline] || c.discipline).toLowerCase();
-      // Match if subServices includes the discipline or related terms (e.g. "GC" won't match "structural")
-      return serviceDisciplines.some(ss => 
+      return serviceDisciplines.some(ss =>
         engLabel.includes(ss.toLowerCase()) || ss.toLowerCase().includes(engLabel)
       );
     }
@@ -141,14 +224,95 @@ export function DobNowFilingPrepSheet({
 
   const allFields = [...propertyFields, ...filingFields];
   const missingFields = allFields.filter((f) => !f.value);
-  const filledFields = allFields.filter((f) => f.value);
-  // Only flag truly required roles as missing (not sia_applicant/tpp_applicant unless relevant)
   const missingContacts = ["applicant", "owner", "filing_rep"].filter(
     (role) => !contactsByRole[role]?.length
   );
-  const checklistComplete = checklist.filter((c) => c.required).every((c) => c.checked);
   const requiredChecked = checklist.filter((c) => c.required && c.checked).length;
   const requiredTotal = checklist.filter((c) => c.required).length;
+  const checklistComplete = checklist.filter((c) => c.required).every((c) => c.checked);
+
+  // Build full payload for confirmation card
+  const buildPayload = () => {
+    const cleanedJobDesc = stripFormatting(editOverrides["Job Description"] || jobDescription || "");
+    return {
+      location: propertyFields.map(f => ({
+        label: f.dobFieldName || f.label,
+        value: editOverrides[f.label] ?? f.value ?? null,
+      })),
+      stakeholders: Object.entries(contactsByRole).flatMap(([role, cs]) =>
+        cs.map(c => ({
+          role: dobRoleLabelsMap[role] || role,
+          name: c.name,
+          email: c.email || null,
+          phone: c.phone || null,
+        }))
+      ),
+      filing: [
+        { label: "Filing Type", value: service.name },
+        { label: "Work Types", value: workTypes.join(", ") || null },
+        { label: "Floor", value: editOverrides["Floor"] ?? proj.floor_number ?? null },
+        { label: "Unit / Apt", value: editOverrides["Unit / Apt"] ?? proj.unit_number ?? null },
+        { label: "Floor Area (sq ft)", value: editOverrides["Floor Area (sq ft)"] ?? pisSquareFootage ?? null },
+        { label: "Estimated Job Cost", value: editOverrides["Estimated Job Cost"] ?? filingFields.find(f => f.label === "Estimated Job Cost")?.value ?? null },
+        { label: "Job Description", value: cleanedJobDesc || null },
+      ],
+    };
+  };
+
+  const handleSubmitClick = () => {
+    if (!checklistComplete) {
+      setChecklistWarning(true);
+      toast({ title: "Checklist incomplete", description: "Complete all required checklist items before submitting.", variant: "destructive" });
+      return;
+    }
+    setSubmitStep("confirm");
+  };
+
+  const handleConfirmAndOpen = async () => {
+    setSubmitStep("submitting");
+    const payload = buildPayload();
+
+    // Copy to clipboard
+    const allData = [
+      ...payload.location.filter(f => f.value).map(f => `${f.label}: ${f.value}`),
+      "",
+      ...payload.filing.filter(f => f.value).map(f => `${f.label}: ${f.value}`),
+      "",
+      "--- CONTACTS ---",
+      ...payload.stakeholders.map(s => `${s.role}: ${s.name} (${s.email || "no email"}) ${s.phone || ""}`),
+    ].join("\n");
+    await navigator.clipboard.writeText(allData);
+
+    // Fire-and-forget audit log
+    if (currentUser) {
+      (supabase.from("filing_audit_log" as any).insert({
+        company_id: currentUser.company_id,
+        project_id: project.id,
+        service_id: service.id,
+        initiated_by: currentUser.id,
+        filing_type: service.name,
+        work_types: workTypes,
+        property_address: property?.address || null,
+        method: "clipboard",
+        payload_snapshot: payload,
+      }) as any).then(() => {});
+    }
+
+    setFiledAt(new Date());
+    setFilerName(currentUser?.display_name || "Unknown");
+    setSubmitStep("success");
+
+    // Open DOB NOW
+    setTimeout(() => window.open("https://a810-dobnow.nyc.gov/publish/#!/", "_blank"), 400);
+    toast({ title: "Fields copied to clipboard", description: "Opening DOB NOW BUILD — paste fields into the application form." });
+  };
+
+  const handleStripFormatting = () => {
+    const current = editOverrides["Job Description"] || jobDescription || "";
+    const stripped = stripFormatting(current);
+    setEditOverrides(prev => ({ ...prev, "Job Description": stripped }));
+    toast({ title: "Formatting stripped", description: "Plain-text formatting applied to job description." });
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -208,7 +372,19 @@ export function DobNowFilingPrepSheet({
             </h3>
             <div className="space-y-1.5">
               {filingFields.map((field) => (
-                <FieldRow key={field.label} field={field} onCopy={copyToClipboard} />
+                <div key={field.label}>
+                  <FieldRow field={field} onCopy={copyToClipboard} />
+                  {field.label === "Job Description" && field.value && (
+                    <div className="flex items-center gap-1 mt-1 ml-3">
+                      <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 text-muted-foreground" onClick={handleStripFormatting}>
+                        <Type className="h-3 w-3" /> Strip Formatting
+                      </Button>
+                      {pisJobDescription && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-blue-600 border-blue-200">From PIS</Badge>
+                      )}
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           </div>
@@ -302,6 +478,12 @@ export function DobNowFilingPrepSheet({
                 </Button>
               </div>
             </div>
+            {checklistWarning && !checklistComplete && (
+              <div className="flex items-center gap-2 p-2 mb-2 rounded-md bg-destructive/10 border border-destructive/30 text-sm text-destructive">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                Complete all required checklist items before submitting.
+              </div>
+            )}
             {showAddItem && (
               <div className="flex gap-2 mb-2">
                 <Input
@@ -329,7 +511,9 @@ export function DobNowFilingPrepSheet({
             )}
             <div className="space-y-1.5">
               {checklist.map((item) => (
-                <div key={item.id} className="flex items-center gap-3 text-sm py-2 px-3 rounded-md bg-background border group/check">
+                <div key={item.id} className={`flex items-center gap-3 text-sm py-2 px-3 rounded-md bg-background border group/check ${
+                  checklistWarning && item.required && !item.checked ? "border-destructive/50 bg-destructive/5" : ""
+                }`}>
                   <Checkbox
                     checked={item.checked}
                     onCheckedChange={() => toggleChecklist(item.id)}
@@ -354,104 +538,262 @@ export function DobNowFilingPrepSheet({
 
           <Separator />
 
-          {/* Post-Filing Workflow */}
+          {/* Submit Flow */}
           <div>
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <Save className="h-3.5 w-3.5" /> Post-Filing
-            </h3>
+            {submitStep === "idle" && (
+              <Button className="w-full gap-2" onClick={handleSubmitClick}>
+                <ExternalLink className="h-4 w-4" /> Submit to DOB NOW
+              </Button>
+            )}
 
-            {/* Copy All Fields button for manual DOB NOW form filling */}
-            <div className="space-y-3">
-              <div className="p-3 rounded-lg border bg-background">
-                <p className="text-xs text-muted-foreground mb-2">
-                  Copy all field data to paste into DOB NOW/BUILD forms.
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full gap-1.5"
-                  onClick={() => {
-                    const allData = [...propertyFields, ...filingFields]
-                      .filter((f) => f.value)
-                      .map((f) => `${f.dobFieldName || f.label}: ${f.value}`)
-                      .join("\n");
-                    const contactData = Object.entries(contactsByRole)
-                      .flatMap(([role, contacts]) =>
-                        contacts.map((c) => `${dobRoleLabelsMap[role] || role}: ${c.name} (${c.email || "no email"})`)
-                      )
-                      .join("\n");
-                    navigator.clipboard.writeText(`${allData}\n\n--- CONTACTS ---\n${contactData}`);
-                    toast({ title: "All fields copied", description: "Paste into DOB NOW/BUILD form fields." });
-                  }}
-                >
-                  <Copy className="h-3.5 w-3.5" /> Copy All Fields to Clipboard
-                </Button>
+            {submitStep === "confirm" && (
+              <ConfirmationCard
+                payload={buildPayload()}
+                workTypes={workTypes}
+                editOverrides={editOverrides}
+                setEditOverrides={setEditOverrides}
+                onConfirm={handleConfirmAndOpen}
+                onBack={() => setSubmitStep("idle")}
+                confirmSectionOpen={confirmSectionOpen}
+                setConfirmSectionOpen={setConfirmSectionOpen}
+              />
+            )}
+
+            {submitStep === "submitting" && (
+              <div className="flex items-center justify-center gap-2 p-6 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Copying and opening DOB NOW...
               </div>
+            )}
 
-              {/* Job Number entry */}
-              <div className="p-3 rounded-lg border bg-background">
-                <p className="text-xs text-muted-foreground mb-2">
-                  After filing, enter the job/application number assigned by DOB NOW.
-                </p>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="e.g. 520112847"
-                    value={jobNumber}
-                    onChange={(e) => setJobNumber(e.target.value)}
-                    className="h-9 font-mono"
-                  />
-                  <Button size="sm" className="gap-1.5 shrink-0" onClick={saveJobNumber} disabled={!jobNumber.trim()}>
-                    <Save className="h-3.5 w-3.5" /> Save
+            {submitStep === "success" && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-3 rounded-lg border bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  <div>
+                    <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                      Filed on {filedAt?.toLocaleDateString()} at {filedAt?.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} by {filerName}
+                    </p>
+                    <Badge variant="outline" className="text-[10px] mt-1">Method: Clipboard</Badge>
+                  </div>
+                </div>
+
+                {/* Job Number entry */}
+                <div className="p-3 rounded-lg border bg-background">
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Enter the job/application number assigned by DOB NOW.
+                  </p>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="e.g. 520112847"
+                      value={jobNumber}
+                      onChange={(e) => setJobNumber(e.target.value)}
+                      className="h-9 font-mono"
+                    />
+                    <Button size="sm" className="gap-1.5 shrink-0" onClick={saveJobNumber} disabled={!jobNumber.trim()}>
+                      <Save className="h-3.5 w-3.5" /> Save
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Pull from DOB NOW */}
+                <div className="p-3 rounded-lg border bg-background">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-1.5"
+                    onClick={() => {
+                      toast({ title: "Looking up filings...", description: `Searching DOB NOW for ${property?.address || "this property"}. This feature is coming soon.` });
+                    }}
+                  >
+                    <Download className="h-3.5 w-3.5" /> Pull Job # from DOB NOW
                   </Button>
                 </div>
-              </div>
 
-              {/* Scrape from DOB NOW */}
-              <div className="p-3 rounded-lg border bg-background">
-                <p className="text-xs text-muted-foreground mb-2">
-                  Or look up the job number from DOB NOW by property address.
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full gap-1.5"
-                  onClick={() => {
-                    toast({ title: "Looking up filings...", description: `Searching DOB NOW for ${property?.address || "this property"}. This feature is coming soon.` });
-                  }}
-                >
-                  <Download className="h-3.5 w-3.5" /> Pull Job # from DOB NOW
+                <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground" onClick={() => setSubmitStep("idle")}>
+                  Submit Again
                 </Button>
               </div>
-            </div>
+            )}
           </div>
-
-          {/* Open DOB NOW — copies all fields to clipboard first */}
-          <Button
-            className="w-full gap-2"
-            onClick={() => {
-              const allData = [...propertyFields, ...filingFields]
-                .filter((f) => f.value)
-                .map((f) => `${f.dobFieldName || f.label}: ${f.value}`)
-                .join("\n");
-              const contactData = Object.entries(contactsByRole)
-                .flatMap(([role, rContacts]) =>
-                  rContacts.map((c) => `${dobRoleLabelsMap[role] || role}: ${c.name} — ${c.email || ""} — ${c.phone || ""}`)
-                )
-                .join("\n");
-              navigator.clipboard.writeText(`${allData}\n\n--- CONTACTS ---\n${contactData}`);
-              toast({ title: "Fields copied to clipboard", description: "Opening DOB NOW BUILD — paste fields into the application form." });
-              setTimeout(() => window.open("https://a810-dobnow.nyc.gov/publish/#!/", "_blank"), 500);
-            }}
-          >
-            <ExternalLink className="h-4 w-4" /> Open DOB NOW BUILD
-          </Button>
         </div>
       </SheetContent>
     </Sheet>
   );
 }
 
-// Individual field row with copy button, missing highlight, and optional inline editing
+// ---- Confirmation Card ----
+
+function ConfirmationCard({
+  payload,
+  workTypes,
+  editOverrides,
+  setEditOverrides,
+  onConfirm,
+  onBack,
+  confirmSectionOpen,
+  setConfirmSectionOpen,
+}: {
+  payload: ReturnType<any>;
+  workTypes: string[];
+  editOverrides: Record<string, string>;
+  setEditOverrides: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  onConfirm: () => void;
+  onBack: () => void;
+  confirmSectionOpen: Record<string, boolean>;
+  setConfirmSectionOpen: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+}) {
+  const toggleSection = (key: string) => setConfirmSectionOpen(prev => ({ ...prev, [key]: !prev[key] }));
+
+  return (
+    <div className="space-y-3 p-3 rounded-lg border-2 border-primary/30 bg-primary/5">
+      <h4 className="text-sm font-semibold flex items-center gap-2">
+        <ClipboardList className="h-4 w-4" /> Confirm Filing Data
+      </h4>
+      <p className="text-xs text-muted-foreground">Review the data below. Click any value to edit before submitting.</p>
+
+      {/* Location */}
+      <Collapsible open={confirmSectionOpen.location} onOpenChange={() => toggleSection("location")}>
+        <CollapsibleTrigger className="flex items-center gap-2 w-full text-xs font-semibold text-muted-foreground uppercase tracking-wider py-1 hover:text-foreground transition-colors">
+          {confirmSectionOpen.location ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          <MapPin className="h-3 w-3" /> Location Information
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="space-y-1 mt-1">
+            {payload.location.map((f: any) => (
+              <ConfirmFieldRow key={f.label} label={f.label} value={editOverrides[f.label] ?? f.value} onEdit={(val) => setEditOverrides(prev => ({ ...prev, [f.label]: val }))} />
+            ))}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Stakeholders */}
+      <Collapsible open={confirmSectionOpen.stakeholders} onOpenChange={() => toggleSection("stakeholders")}>
+        <CollapsibleTrigger className="flex items-center gap-2 w-full text-xs font-semibold text-muted-foreground uppercase tracking-wider py-1 hover:text-foreground transition-colors">
+          {confirmSectionOpen.stakeholders ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          <User className="h-3 w-3" /> Stakeholders
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="space-y-1 mt-1">
+            {payload.stakeholders.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic px-2">No contacts assigned</p>
+            ) : (
+              payload.stakeholders.map((s: any, i: number) => (
+                <div key={i} className="flex items-center justify-between py-1.5 px-2 rounded-md bg-background border text-sm">
+                  <div>
+                    <span className="text-muted-foreground text-xs">{s.role}:</span>{" "}
+                    <span className="font-medium">{s.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    {s.email || <Badge variant="outline" className="text-[10px] px-1 py-0 text-amber-600 border-amber-200">Missing</Badge>}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Filing Details */}
+      <Collapsible open={confirmSectionOpen.filing} onOpenChange={() => toggleSection("filing")}>
+        <CollapsibleTrigger className="flex items-center gap-2 w-full text-xs font-semibold text-muted-foreground uppercase tracking-wider py-1 hover:text-foreground transition-colors">
+          {confirmSectionOpen.filing ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          <ClipboardList className="h-3 w-3" /> Filing Details
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="space-y-1 mt-1">
+            {payload.filing.map((f: any) => {
+              if (f.label === "Work Types") {
+                return (
+                  <div key={f.label} className="flex items-center justify-between py-1.5 px-2 rounded-md bg-background border text-sm">
+                    <span className="text-muted-foreground text-xs shrink-0">{f.label}</span>
+                    <div className="flex gap-1 flex-wrap justify-end">
+                      {workTypes.length > 0 ? workTypes.map(wt => (
+                        <Badge key={wt} variant="secondary" className="text-[10px] px-1.5 py-0">{wt}</Badge>
+                      )) : <Badge variant="outline" className="text-[10px] px-1 py-0 text-amber-600 border-amber-200">Missing</Badge>}
+                    </div>
+                  </div>
+                );
+              }
+              if (f.label === "Job Description") {
+                const val = editOverrides[f.label] ?? f.value ?? "";
+                const truncated = val.length > 200;
+                return (
+                  <ConfirmFieldRow key={f.label} label={f.label} value={val} truncateAt={200} onEdit={(v) => setEditOverrides(prev => ({ ...prev, [f.label]: v }))} />
+                );
+              }
+              return <ConfirmFieldRow key={f.label} label={f.label} value={editOverrides[f.label] ?? f.value} onEdit={(val) => setEditOverrides(prev => ({ ...prev, [f.label]: val }))} />;
+            })}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+
+      <div className="flex items-center gap-2 pt-2">
+        <Button className="flex-1 gap-2 bg-orange-600 hover:bg-orange-700 text-white" onClick={onConfirm}>
+          <ExternalLink className="h-4 w-4" /> Confirm & Open DOB NOW
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onBack}>Back</Button>
+      </div>
+    </div>
+  );
+}
+
+// ---- Confirmation field row with inline editing ----
+
+function ConfirmFieldRow({ label, value, truncateAt, onEdit }: { label: string; value: string | null; truncateAt?: number; onEdit: (val: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [editVal, setEditVal] = useState(value || "");
+  const [expanded, setExpanded] = useState(false);
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-2 py-1 px-2 rounded-md bg-background border">
+        <span className="text-xs text-muted-foreground shrink-0">{label}</span>
+        <Input
+          value={editVal}
+          onChange={(e) => setEditVal(e.target.value)}
+          className="h-7 text-sm flex-1"
+          autoFocus
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { onEdit(editVal); setEditing(false); }
+            if (e.key === "Escape") { setEditVal(value || ""); setEditing(false); }
+          }}
+          onBlur={() => { onEdit(editVal); setEditing(false); }}
+        />
+      </div>
+    );
+  }
+
+  const displayVal = truncateAt && value && value.length > truncateAt && !expanded
+    ? value.slice(0, truncateAt) + "..."
+    : value;
+
+  return (
+    <div
+      className="flex items-center justify-between py-1.5 px-2 rounded-md bg-background border text-sm cursor-pointer hover:bg-muted/20 transition-colors"
+      onClick={() => setEditing(true)}
+    >
+      <span className="text-muted-foreground text-xs shrink-0">{label}</span>
+      {value ? (
+        <div className="text-right">
+          <span className="font-medium text-sm max-w-[250px] truncate">{displayVal}</span>
+          {truncateAt && value && value.length > truncateAt && (
+            <button
+              className="text-[10px] text-primary ml-1"
+              onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+            >
+              {expanded ? "less" : "more"}
+            </button>
+          )}
+        </div>
+      ) : (
+        <Badge variant="outline" className="text-[10px] px-1 py-0 text-amber-600 border-amber-200">Missing</Badge>
+      )}
+    </div>
+  );
+}
+
+// ---- Individual field row with copy button ----
+
 function FieldRow({
   field,
   onCopy,
