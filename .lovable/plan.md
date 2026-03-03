@@ -1,124 +1,131 @@
 
 
-# Auto-Create Services When Change Order Is Approved
+# Fix Badge Mismatch, Wire Deposit Payments, Create Deposit Receipt PDF
 
-## Current State
+## Overview
 
-The dual-signature approval flow **already works**:
-- When the client signs a CO on the public page (`/change-order/:token`), the status is automatically set to "approved" with `approved_at` timestamped.
-- Internally, there's a `useMarkCOApproved` hook for manual approval.
-- The `co_timeline_trigger` database function already logs a timeline event when status changes to "approved."
-
-**What's missing**: When a CO becomes "approved," its line items do NOT automatically appear as billable services in the project. PMs have to manually recreate them.
-
-## What This Plan Adds
-
-When a CO is approved (by either path), its line items automatically become services in the project -- available for the standard "Send to Billing" workflow.
+Three connected issues to resolve:
+1. "To Invoice" tab shows "4" but the tab is empty -- caused by a query key collision
+2. Client deposit payments on the proposal page are mock (just a `setTimeout`) -- no records created
+3. Need a Deposit Receipt PDF that auto-generates when a client pays
 
 ---
 
-## Technical Details
+## 1. Fix "To Invoice" Badge Showing Wrong Number
 
-### 1. Database Migration: Add `change_order_id` to `services` table
+**Root cause**: Both `useUnreadIndicators` and `usePendingBillingCount` use the same React Query key `billing-pending-count`, but query different tables:
+- `useUnreadIndicators` counts **invoices** with status `ready_to_send` (returns 4)
+- `usePendingBillingCount` counts **billing_requests** with status `pending` (returns 0)
 
-Add a nullable UUID column linking a service back to its source change order:
+Whichever resolves first gets cached and shared with the other hook.
 
-```sql
-ALTER TABLE public.services
-ADD COLUMN change_order_id uuid REFERENCES public.change_orders(id) ON DELETE SET NULL;
-```
+**Fix**: Rename the query key in `useUnreadIndicators.ts` from `billing-pending-count` to `billing-sidebar-badge` so each hook maintains its own cache.
 
-This enables:
-- Preventing duplicate services if a CO is re-approved (check for existing services with that `change_order_id`)
-- UI can show a "CO#X" badge on services that originated from change orders
-
-### 2. Database Trigger: Auto-create services on CO approval
-
-Create a trigger function that fires when `change_orders.status` changes to `approved`. This runs at the database level so it works regardless of whether the client signs on the public page or an internal user manually approves:
-
-```sql
-CREATE OR REPLACE FUNCTION public.create_services_from_approved_co()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
-DECLARE
-  item jsonb;
-  app_id uuid;
-BEGIN
-  -- Only fire when status changes to approved
-  IF NEW.status != 'approved' OR (OLD.status IS NOT NULL AND OLD.status = 'approved') THEN
-    RETURN NEW;
-  END IF;
-
-  -- Skip if services already exist for this CO (idempotency)
-  IF EXISTS (SELECT 1 FROM public.services WHERE change_order_id = NEW.id) THEN
-    RETURN NEW;
-  END IF;
-
-  -- Find the first DOB application for this project (required FK)
-  SELECT id INTO app_id
-  FROM public.dob_applications
-  WHERE project_id = NEW.project_id
-  LIMIT 1;
-
-  -- If no application exists, create services with project_id only
-  IF NEW.line_items IS NOT NULL AND jsonb_array_length(NEW.line_items::jsonb) > 0 THEN
-    FOR item IN SELECT * FROM jsonb_array_elements(NEW.line_items::jsonb) LOOP
-      INSERT INTO public.services (
-        company_id, project_id, application_id,
-        name, description, fixed_price, total_amount,
-        billing_type, status, change_order_id
-      ) VALUES (
-        NEW.company_id, NEW.project_id, app_id,
-        'CO#' || SUBSTRING(NEW.co_number FROM 4) || ' - ' || (item->>'name'),
-        COALESCE(item->>'description', NEW.description),
-        COALESCE((item->>'amount')::numeric, 0),
-        COALESCE((item->>'amount')::numeric, 0),
-        'fixed', 'not_started', NEW.id
-      );
-    END LOOP;
-  ELSE
-    -- CO has no line items array, use single amount
-    INSERT INTO public.services (
-      company_id, project_id, application_id,
-      name, description, fixed_price, total_amount,
-      billing_type, status, change_order_id
-    ) VALUES (
-      NEW.company_id, NEW.project_id, app_id,
-      'CO#' || SUBSTRING(NEW.co_number FROM 4) || ' - ' || NEW.title,
-      NEW.description,
-      NEW.amount, NEW.amount,
-      'fixed', 'not_started', NEW.id
-    );
-  END IF;
-
-  RETURN NEW;
-END;
-$$;
-
-CREATE TRIGGER trg_co_create_services
-AFTER UPDATE ON public.change_orders
-FOR EACH ROW
-EXECUTE FUNCTION public.create_services_from_approved_co();
-```
-
-### 3. Update Services UI: Show CO Badge
-
-In the project's services table, services with a non-null `change_order_id` will display a small "CO" badge next to the service name. This is a minor visual change to the existing service row rendering in `ProjectExpandedTabs.tsx` (or wherever the services table renders).
-
-### 4. Remove `useMarkCOApproved` Service Creation from Hook
-
-Since the database trigger now handles service creation automatically, the `useMarkCOApproved` hook in `useChangeOrders.ts` stays as-is (it just sets status to "approved," and the trigger does the rest). No changes needed there.
+| File | Change |
+|------|--------|
+| `src/hooks/useUnreadIndicators.ts` | Rename query key to `billing-sidebar-badge` |
 
 ---
 
-## Files Changed
+## 2. Wire Up Real Deposit Payments
+
+Currently, the payment buttons on `ClientProposal.tsx` call `setTimeout(() => setPaymentStep("success"), 2500)` -- pure mock. No database records are created.
+
+### New Edge Function: `process-deposit-payment`
+
+Since the proposal page is public (no auth), we need an edge function with service-role access to create records.
+
+**Accepts**:
+```json
+{
+  "proposal_token": "abc123...",
+  "payment_method": "card",
+  "amount": 4250
+}
+```
+
+**Performs** (server-side with service role):
+1. Validate the proposal exists, is `executed`, and has a `converted_project_id`
+2. Look up the client from the proposal
+3. Create a `client_retainers` record (deposit) with `original_amount` and `current_balance` = amount
+4. Create a `retainer_transactions` record (type: `deposit`)
+5. Create a `paid` invoice with a single line item "Deposit -- Proposal #XXXXXX" and `payment_method` set
+6. Set `deposit_paid_at` on the proposal
+7. Return receipt data (invoice number, date, amount)
+
+**Config**: Add `verify_jwt = false` in `supabase/config.toml` for this function.
+
+### Update ClientProposal.tsx
+
+- Replace all three `setTimeout` calls with `supabase.functions.invoke("process-deposit-payment", { body: {...} })`
+- On success, show the receipt with real invoice number from the response
+- Rename remaining "retainer" labels to "deposit" ("Pay Retainer Deposit" becomes "Pay Deposit", "Your retainer of..." becomes "Your deposit of...")
+
+| File | Change |
+|------|--------|
+| `supabase/functions/process-deposit-payment/index.ts` | New edge function |
+| `supabase/config.toml` | Add `verify_jwt = false` for the function |
+| `src/pages/ClientProposal.tsx` | Replace mock payment with real edge function call; rename retainer labels |
+
+---
+
+## 3. Deposit Receipt PDF
+
+Create a `DepositReceiptPDF` component using `@react-pdf/renderer` (already installed). This receipt is what the client sees after paying and what gets emailed as confirmation.
+
+**Layout** (single page, A4):
+
+```text
++--------------------------------------------------+
+|  [Company Name]                   DEPOSIT RECEIPT |
+|  Address / Phone / Email             Receipt #DR-X|
+|                                      Date: Mar 3  |
+|--------------------------------------------------|
+|  RECEIVED FROM                    PROJECT         |
+|  Client Name                      #2026-0001      |
+|  Client Email                     Project Name    |
+|--------------------------------------------------|
+|  Description                             Amount   |
+|  ------------------------------------------------|
+|  Deposit - Proposal #030326-1           $4,250.00 |
+|--------------------------------------------------|
+|                            Total Paid  $4,250.00  |
+|--------------------------------------------------|
+|  Payment Method: Credit Card                      |
+|  Reference: Proposal #030326-1                    |
+|--------------------------------------------------|
+|  This deposit will be applied as a credit toward  |
+|  future invoices for the above project.           |
+|--------------------------------------------------|
+|        Thank you for your business!               |
++--------------------------------------------------+
+```
+
+This component will be rendered in two places:
+- **ClientProposal.tsx**: A "Download Receipt" button appears after payment success, using `BlobProvider` to generate the PDF client-side
+- **InvoicePDFPreview**: The existing preview dialog can render deposit receipts when the invoice is a deposit type
+
+| File | Change |
+|------|--------|
+| `src/components/invoices/DepositReceiptPDF.tsx` | New PDF component |
+| `src/pages/ClientProposal.tsx` | Add "Download Receipt" button after payment success |
+
+---
+
+## Files Summary
 
 | Action | File |
 |--------|------|
-| Migration | Add `change_order_id` column to `services` + create trigger function |
-| Modify | `src/pages/ProjectDetail.tsx` or services table component -- add CO badge for CO-sourced services |
+| Modify | `src/hooks/useUnreadIndicators.ts` -- fix query key |
+| Create | `supabase/functions/process-deposit-payment/index.ts` -- process real payments |
+| Modify | `supabase/config.toml` -- add verify_jwt config |
+| Create | `src/components/invoices/DepositReceiptPDF.tsx` -- receipt PDF |
+| Modify | `src/pages/ClientProposal.tsx` -- wire real payments, add receipt download, rename labels |
 
-This is a clean, minimal approach: one migration adds the column and trigger, and the services appear automatically no matter how the CO gets approved (client signature, internal approval, or any future path).
+## Sequence
+
+1. Fix badge (1 line change)
+2. Create edge function for deposit processing
+3. Create DepositReceiptPDF component
+4. Update ClientProposal.tsx to use both
+
