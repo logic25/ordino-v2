@@ -805,10 +805,11 @@ export function COSummaryView({
                               <div key={item.id} className="rounded-md bg-purple-500/5 border border-purple-500/10 p-2 text-xs space-y-0.5">
                                 <p className="font-medium">{item.description}</p>
                                 <div className="flex flex-wrap gap-x-3 text-muted-foreground">
-                                  <span>From: <span className="text-foreground">{item.receivedFrom || "—"}</span></span>
-                                  <span>Received: <span className="text-foreground">{item.receivedDate ? format(new Date(item.receivedDate), "MM/dd/yyyy") : "—"}</span></span>
+                                  <span>From: <span className="text-foreground font-medium">{item.receivedFrom || "—"}</span></span>
+                                  <span>Requested: <span className="text-foreground">{item.dateRequested ? format(new Date(item.dateRequested), "MM/dd/yyyy") : "—"}</span></span>
+                                  <span>Received: <span className={item.receivedDate ? "text-green-600 font-medium" : "text-red-600 font-medium"}>{item.receivedDate ? format(new Date(item.receivedDate), "MM/dd/yyyy") : "Outstanding"}</span></span>
                                   {item.signOffRequired && (
-                                    <span>Sign-Off Required: <span className="text-foreground font-medium">{item.signOffRequired}</span></span>
+                                    <span>Sign-Off: <span className="text-foreground font-medium">{item.signOffRequired}</span></span>
                                   )}
                                 </div>
                                 {item.notes && <p className="text-muted-foreground italic">{item.notes}</p>}
