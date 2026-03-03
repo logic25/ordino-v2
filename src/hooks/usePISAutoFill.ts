@@ -19,7 +19,7 @@ const SECTION_FIELD_MAP: Record<string, { nameField: string; companyField?: stri
   tpp: { nameField: "tpp_name", emailField: "tpp_email" },
 };
 
-export function usePISContactOptions() {
+export function usePISContactOptions(proposalId?: string | null) {
   const { data: clients = [] } = useQuery({
     queryKey: ["pis-autofill-clients"],
     queryFn: async () => {
@@ -42,6 +42,21 @@ export function usePISContactOptions() {
       return data || [];
     },
     staleTime: 5 * 60 * 1000,
+  });
+
+  // Also fetch proposal contacts if proposalId is provided
+  const { data: proposalContacts = [] } = useQuery({
+    queryKey: ["pis-autofill-proposal-contacts", proposalId],
+    queryFn: async () => {
+      if (!proposalId) return [];
+      const { data } = await (supabase.from("proposal_contacts" as any) as any)
+        .select("id, name, email, phone, company_name, role")
+        .eq("proposal_id", proposalId)
+        .order("sort_order");
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: !!proposalId,
   });
 
   // Build options per section
@@ -88,9 +103,26 @@ export function usePISContactOptions() {
           };
         });
 
-      return [...contactOpts, ...clientOpts];
+      // Proposal contacts
+      const proposalOpts: ContactOption[] = proposalContacts
+        .filter((c: any) => !hasQuery || c.name?.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q) || c.company_name?.toLowerCase().includes(q))
+        .slice(0, hasQuery ? 10 : 20)
+        .map((c: any) => ({
+          id: `proposal-${c.id}`,
+          label: c.name || "Unnamed",
+          sublabel: c.company_name || c.role || undefined,
+          source: "contact" as const,
+          fields: {
+            [mapping.nameField]: c.name || "",
+            ...(mapping.companyField && c.company_name ? { [mapping.companyField]: c.company_name } : {}),
+            ...(mapping.emailField && c.email ? { [mapping.emailField]: c.email } : {}),
+            ...(mapping.phoneField && c.phone ? { [mapping.phoneField]: c.phone } : {}),
+          },
+        }));
+
+      return [...proposalOpts, ...contactOpts, ...clientOpts];
     };
-  }, [clients, contacts]);
+  }, [clients, contacts, proposalContacts]);
 
   return { getOptionsForSection, sectionFieldMap: SECTION_FIELD_MAP };
 }

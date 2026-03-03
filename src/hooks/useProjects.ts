@@ -111,7 +111,16 @@ export function useProjects() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data as unknown as ProjectWithRelations[];
+      // Filter out projects whose linked proposal hasn't been client-signed yet
+      const filtered = (data as unknown as ProjectWithRelations[]).filter((p) => {
+        if (!p.proposals) return true; // No linked proposal — show it
+        // If proposal exists and client hasn't signed, hide it
+        if (p.proposals.client_signed_at) return true;
+        // If proposal status is "executed" show regardless
+        if (p.proposals.status === "executed") return true;
+        return false;
+      });
+      return filtered;
     },
   });
 }

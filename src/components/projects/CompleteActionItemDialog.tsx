@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Camera } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Camera, Clock } from "lucide-react";
 import { useCompleteActionItem, type ActionItem } from "@/hooks/useActionItems";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -18,6 +19,9 @@ interface Props {
 
 export function CompleteActionItemDialog({ item, open, onOpenChange }: Props) {
   const [note, setNote] = useState("");
+  const [hours, setHours] = useState("");
+  const [timeDescription, setTimeDescription] = useState("");
+  const [billable, setBillable] = useState(true);
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const completeMutation = useCompleteActionItem();
@@ -25,6 +29,11 @@ export function CompleteActionItemDialog({ item, open, onOpenChange }: Props) {
   const { toast } = useToast();
 
   const handleSubmit = async () => {
+    if (!hours || Number(hours) <= 0) {
+      toast({ title: "Hours required", description: "Please enter the time spent on this task.", variant: "destructive" });
+      return;
+    }
+
     setUploading(true);
     try {
       let attachments: { name: string; storage_path: string }[] = [];
@@ -44,11 +53,19 @@ export function CompleteActionItemDialog({ item, open, onOpenChange }: Props) {
         project_id: item.project_id,
         completion_note: note.trim() || undefined,
         completion_attachments: attachments.length > 0 ? attachments : undefined,
+        time_entry: {
+          hours: Number(hours),
+          description: timeDescription.trim() || item.title,
+          billable,
+        },
       });
 
       toast({ title: "Task completed" });
       onOpenChange(false);
       setNote("");
+      setHours("");
+      setTimeDescription("");
+      setBillable(true);
       setFiles([]);
     } catch {
       toast({ title: "Error completing task", variant: "destructive" });
@@ -64,6 +81,50 @@ export function CompleteActionItemDialog({ item, open, onOpenChange }: Props) {
           <DialogTitle>Complete: {item.title}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          {/* Time entry — required */}
+          <div className="space-y-3 p-3 rounded-lg border bg-muted/30">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              Log Your Time
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="comp-hours" className="text-xs">Hours Spent *</Label>
+                <Input
+                  id="comp-hours"
+                  type="number"
+                  step="0.25"
+                  min="0.25"
+                  placeholder="e.g. 1.5"
+                  value={hours}
+                  onChange={(e) => setHours(e.target.value)}
+                  className="h-8"
+                />
+              </div>
+              <div className="space-y-1.5 flex flex-col justify-end">
+                <div className="flex items-center gap-2 h-8">
+                  <Switch
+                    id="comp-billable"
+                    checked={billable}
+                    onCheckedChange={setBillable}
+                  />
+                  <Label htmlFor="comp-billable" className="text-xs">Billable</Label>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="comp-time-desc" className="text-xs">Description</Label>
+              <Input
+                id="comp-time-desc"
+                placeholder={item.title}
+                value={timeDescription}
+                onChange={(e) => setTimeDescription(e.target.value)}
+                className="h-8 text-sm"
+              />
+            </div>
+          </div>
+
+          {/* Completion note — optional */}
           <div className="space-y-1.5">
             <Label htmlFor="comp-note">What did you do? (optional)</Label>
             <Textarea
@@ -71,7 +132,7 @@ export function CompleteActionItemDialog({ item, open, onOpenChange }: Props) {
               placeholder="Add a note about what was done..."
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              className="min-h-[80px]"
+              className="min-h-[60px]"
             />
           </div>
           <div className="space-y-1.5">
@@ -101,7 +162,7 @@ export function CompleteActionItemDialog({ item, open, onOpenChange }: Props) {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={uploading || completeMutation.isPending}>
+          <Button onClick={handleSubmit} disabled={uploading || completeMutation.isPending || !hours || Number(hours) <= 0}>
             {uploading ? "Uploading..." : "Mark Done"}
           </Button>
         </DialogFooter>

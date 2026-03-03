@@ -42,6 +42,8 @@ export interface MockService {
   requirements: MockRequirement[];
   allottedHours: number;
   parentServiceId?: string;
+  sentDate?: string | null;
+  paidDate?: string | null;
 }
 
 export type EngineerDiscipline = "structural" | "mechanical" | "plumbing" | "sprinkler" | "electrical" | "civil" | "environmental" | "other";

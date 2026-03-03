@@ -292,19 +292,34 @@ Deno.serve(async (req) => {
       sendBody.threadId = threadId;
     }
 
-    const sendRes = await fetch(
-      "https://www.googleapis.com/gmail/v1/users/me/messages/send",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(sendBody),
-      }
-    );
+    // Send with one retry on transient failures
+    let sendData: any = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const sendRes = await fetch(
+        "https://www.googleapis.com/gmail/v1/users/me/messages/send",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(sendBody),
+        }
+      );
 
-    const sendData = await sendRes.json();
+      sendData = await sendRes.json();
+      if (!sendData.error) break;
+
+      // Retry only on 5xx or rate-limit errors
+      const code = sendData.error.code || sendRes.status;
+      if (attempt === 0 && (code >= 500 || code === 429)) {
+        console.warn(`Gmail send attempt ${attempt + 1} failed (${code}), retrying...`);
+        await new Promise(r => setTimeout(r, 1000));
+        continue;
+      }
+      break;
+    }
+
     if (sendData.error) {
       return new Response(
         JSON.stringify({ error: sendData.error.message || "Send failed" }),

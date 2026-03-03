@@ -304,7 +304,18 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: clients = [] } = useClients();
-  const { getOptionsForSection, sectionFieldMap } = usePISContactOptions();
+
+  // Fetch proposal_id for this project to include proposal contacts in picker
+  const { data: projectProposalId } = useQuery({
+    queryKey: ["project-proposal-id", projectId],
+    queryFn: async () => {
+      const { data } = await supabase.from("projects").select("proposal_id").eq("id", projectId).single();
+      return data?.proposal_id || null;
+    },
+    enabled: !!projectId && open,
+  });
+
+  const { getOptionsForSection, sectionFieldMap } = usePISContactOptions(projectProposalId);
   const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [addedToCRM, setAddedToCRM] = useState<Set<string>>(new Set());
