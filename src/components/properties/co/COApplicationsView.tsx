@@ -382,6 +382,36 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
                                   />
                                 </div>
                               </div>
+                              {/* Sign-off tracking */}
+                              <div className="grid grid-cols-3 gap-2">
+                                <div className="space-y-0.5">
+                                  <Label className="text-[10px] text-muted-foreground">Sign-Off Required</Label>
+                                  <Input
+                                    value={item.signOffRequired || ""}
+                                    onChange={(e) => updateBisField(item.id, "signOffRequired", e.target.value)}
+                                    placeholder="FDNY, DOB, Owner..."
+                                    className="h-7 text-xs"
+                                  />
+                                </div>
+                                <div className="space-y-0.5">
+                                  <Label className="text-[10px] text-muted-foreground">Signed Off By</Label>
+                                  <Input
+                                    value={item.signedOffBy || ""}
+                                    onChange={(e) => updateBisField(item.id, "signedOffBy", e.target.value)}
+                                    placeholder="Name / title"
+                                    className="h-7 text-xs"
+                                  />
+                                </div>
+                                <div className="space-y-0.5">
+                                  <Label className="text-[10px] text-muted-foreground">Sign-Off Date</Label>
+                                  <Input
+                                    type="date"
+                                    value={item.signedOffDate || ""}
+                                    onChange={(e) => updateBisField(item.id, "signedOffDate", e.target.value)}
+                                    className="h-7 text-xs"
+                                  />
+                                </div>
+                              </div>
                               <div className="space-y-0.5">
                                 <Label className="text-[10px] text-muted-foreground">Notes</Label>
                                 <Textarea
