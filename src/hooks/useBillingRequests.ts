@@ -80,7 +80,7 @@ export function useCreateBillingRequest() {
 
       if (!profile?.company_id) throw new Error("No company found for user. Please complete your profile setup first.");
 
-      // Create billing request
+      // Create billing request — stays pending for accounting review
       const { data: billingReq, error: brError } = await supabase
         .from("billing_requests")
         .insert({
@@ -97,74 +97,6 @@ export function useCreateBillingRequest() {
 
       if (brError) throw brError;
 
-      // Auto-create invoice from billing request
-      const lineItems = input.services.map((s) => ({
-        description: s.description || s.name,
-        quantity: s.quantity,
-        rate: s.rate,
-        amount: s.amount,
-      }));
-
-      const { data: invoice, error: invError } = await supabase
-        .from("invoices")
-        .insert({
-          company_id: profile.company_id,
-          invoice_number: "", // trigger generates
-          project_id: input.project_id,
-          client_id: input.client_id || null,
-          billing_request_id: (billingReq as any).id,
-          line_items: lineItems as any,
-          subtotal: input.total_amount,
-          retainer_applied: 0,
-          fees: (input.fees || {}) as any,
-          total_due: input.total_amount,
-          status: "ready_to_send",
-          payment_terms: "Net 30",
-          billed_to_contact_id: input.billed_to_contact_id || null,
-          special_instructions: input.special_instructions || null,
-          created_by: profile.id,
-        } as any)
-        .select()
-        .single();
-
-      if (invError) throw invError;
-
-      // Link billing request to invoice
-      await supabase
-        .from("billing_requests")
-        .update({ status: "invoiced", invoice_id: (invoice as any).id } as any)
-        .eq("id", (billingReq as any).id);
-
-      // Update billed_amount on each service
-      if (input.project_id) {
-        const { data: projectServices } = await supabase
-          .from("services")
-          .select("id, name, billed_amount")
-          .eq("project_id", input.project_id);
-
-        if (projectServices) {
-          for (const svcLine of input.services) {
-            const match = projectServices.find((ps: any) => ps.name === svcLine.name);
-            if (match) {
-              const currentBilled = Number((match as any).billed_amount ?? 0);
-              await supabase
-                .from("services")
-                .update({ billed_amount: currentBilled + svcLine.amount } as any)
-                .eq("id", match.id);
-            }
-          }
-        }
-      }
-
-      // Log activity
-      await supabase.from("invoice_activity_log").insert({
-        company_id: profile.company_id,
-        invoice_id: (invoice as any).id,
-        action: "created",
-        details: "Auto-created from billing request",
-        performed_by: profile.id,
-      } as any);
-
       // Create in-app notifications for admin/accounting users
       try {
         const { data: adminUsers } = await supabase
@@ -180,7 +112,7 @@ export function useCreateBillingRequest() {
           .single();
 
         const notifRows = (adminUsers || [])
-          .filter((u) => u.user_id !== user.id) // don't notify self
+          .filter((u) => u.user_id !== user.id)
           .map((u) => ({
             company_id: profile.company_id,
             user_id: u.user_id,
@@ -198,21 +130,147 @@ export function useCreateBillingRequest() {
         console.error("Failed to create billing notifications:", err);
       }
 
-      return { billingRequest: billingReq, invoice };
+      return { billingRequest: billingReq };
     },
     onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["billing-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-pending-count"] });
+
+      if (result?.billingRequest) {
+        triggerBillingNotifications(result.billingRequest as any).catch(console.error);
+      }
+    },
+  });
+}
+
+/** Create an invoice from a pending billing request (accounting action) */
+export function useCreateInvoiceFromRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (request: BillingRequestWithRelations) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, company_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!profile?.company_id) throw new Error("No company found");
+
+      const services = (request.services as any[]) || [];
+      const lineItems = services.map((s) => ({
+        description: s.description || s.name,
+        quantity: s.quantity,
+        rate: s.rate,
+        amount: s.amount,
+      }));
+
+      const { data: invoice, error: invError } = await supabase
+        .from("invoices")
+        .insert({
+          company_id: profile.company_id,
+          invoice_number: "",
+          project_id: request.project_id,
+          client_id: request.projects ? undefined : null,
+          billing_request_id: request.id,
+          line_items: lineItems as any,
+          subtotal: request.total_amount,
+          retainer_applied: 0,
+          fees: {} as any,
+          total_due: request.total_amount,
+          status: "ready_to_send",
+          payment_terms: "Net 30",
+          billed_to_contact_id: request.billed_to_contact_id || null,
+          created_by: profile.id,
+        } as any)
+        .select()
+        .single();
+
+      if (invError) throw invError;
+
+      // Mark billing request as invoiced
+      await supabase
+        .from("billing_requests")
+        .update({ status: "invoiced", invoice_id: (invoice as any).id } as any)
+        .eq("id", request.id);
+
+      // Update billed_amount on services
+      if (request.project_id) {
+        const { data: projectServices } = await supabase
+          .from("services")
+          .select("id, name, billed_amount")
+          .eq("project_id", request.project_id);
+
+        if (projectServices) {
+          for (const svcLine of services) {
+            const match = projectServices.find((ps: any) => ps.name === svcLine.name);
+            if (match) {
+              const currentBilled = Number((match as any).billed_amount ?? 0);
+              await supabase
+                .from("services")
+                .update({ billed_amount: currentBilled + svcLine.amount } as any)
+                .eq("id", match.id);
+            }
+          }
+        }
+      }
+
+      // Log activity
+      await supabase.from("invoice_activity_log").insert({
+        company_id: profile.company_id,
+        invoice_id: (invoice as any).id,
+        action: "created",
+        details: "Created from billing request by accounting",
+        performed_by: profile.id,
+      } as any);
+
+      return invoice;
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["billing-requests"] });
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["invoice-counts"] });
       queryClient.invalidateQueries({ queryKey: ["previously-billed"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["billing-pending-count"] });
       queryClient.invalidateQueries({ queryKey: ["project-services-full"] });
+    },
+  });
+}
 
-      // Trigger billing notifications asynchronously (don't block on this)
-      if (result?.billingRequest) {
-        triggerBillingNotifications(result.billingRequest as any).catch(console.error);
-      }
+/** Reject a billing request */
+export function useRejectBillingRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (requestId: string) => {
+      const { error } = await supabase
+        .from("billing_requests")
+        .update({ status: "cancelled" } as any)
+        .eq("id", requestId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["billing-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-pending-count"] });
+    },
+  });
+}
+
+/** Count of pending billing requests */
+export function usePendingBillingCount() {
+  return useQuery({
+    queryKey: ["billing-pending-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("billing_requests")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "pending");
+      if (error) throw error;
+      return count || 0;
     },
   });
 }

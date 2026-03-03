@@ -1,36 +1,36 @@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { InvoiceStatus } from "@/hooks/useInvoices";
 
-export type BillingTab = InvoiceStatus | "all" | "collections" | "promises" | "retainers" | "analytics" | "sent_to_billing" | "schedules";
+export type BillingTab = InvoiceStatus | "all" | "to_invoice" | "retainers" | "analytics" | "schedules";
 
 interface InvoiceFilterTabsProps {
   activeTab: BillingTab;
   onTabChange: (tab: BillingTab) => void;
   counts: { [key: string]: number; total: number };
+  pendingBillingCount?: number;
 }
 
-const tabs: { value: string; label: string; showCount?: boolean }[] = [
-  { value: "all", label: "All", showCount: true },
-  { value: "ready_to_send", label: "Ready to Send", showCount: true },
-  { value: "needs_review", label: "Needs Review", showCount: true },
+const tabs: { value: string; label: string; showCount?: boolean; countKey?: string }[] = [
+  { value: "to_invoice", label: "To Invoice", showCount: true, countKey: "pending_billing" },
   { value: "sent", label: "Sent", showCount: true },
   { value: "overdue", label: "Overdue", showCount: true },
   { value: "paid", label: "Paid", showCount: true },
-  { value: "legal_hold", label: "Legal Hold", showCount: true },
-  { value: "collections", label: "Collections" },
-  { value: "promises", label: "Promises" },
   { value: "retainers", label: "Retainers" },
-  { value: "sent_to_billing", label: "Sent to Billing" },
   { value: "schedules", label: "Schedules" },
   { value: "analytics", label: "Analytics" },
 ];
 
-export function InvoiceFilterTabs({ activeTab, onTabChange, counts }: InvoiceFilterTabsProps) {
+export function InvoiceFilterTabs({ activeTab, onTabChange, counts, pendingBillingCount = 0 }: InvoiceFilterTabsProps) {
   return (
     <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as BillingTab)}>
       <TabsList className="h-auto bg-transparent p-0 gap-0">
         {tabs.map((tab) => {
-          const count = tab.showCount ? (tab.value === "all" ? counts.total : counts[tab.value] || 0) : 0;
+          let count = 0;
+          if (tab.countKey === "pending_billing") {
+            count = pendingBillingCount;
+          } else if (tab.showCount) {
+            count = counts[tab.value] || 0;
+          }
           return (
             <TabsTrigger
               key={tab.value}
