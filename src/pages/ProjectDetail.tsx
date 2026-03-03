@@ -1750,11 +1750,10 @@ function ServicesFull({ services: initialServices, project, contacts, allService
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
                           {(() => {
-                            const margin = svcTotal - displayCost;
                             if (displayCost === 0 && svcTotal === 0) return <span className="text-xs text-muted-foreground">—</span>;
                             return (
-                              <span className={margin >= 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-red-600 dark:text-red-400 font-medium"}>
-                                {formatCurrency(margin)}
+                              <span className={svcMargin >= 50 ? "text-emerald-600 dark:text-emerald-400 font-medium" : svcMargin < 20 ? "text-destructive font-medium" : "font-medium"}>
+                                {svcMargin}%
                               </span>
                             );
                           })()}
@@ -1835,7 +1834,12 @@ function ServicesFull({ services: initialServices, project, contacts, allService
             </TableBody>
             {showBilled && (
               <TableBody>
-                {billedServices.filter(s => !s.parentServiceId).map((svc) => (
+                {billedServices.filter(s => !s.parentServiceId).map((svc) => {
+                  const billedDynamicCost = timeEntries.filter(te => te.service === svc.name).reduce((s, te) => s + (Number(te.hours) || 0) * (Number(te.hourlyRate) || 0), 0);
+                  const billedDisplayCost = billedDynamicCost > 0 ? billedDynamicCost : (Number(svc.costAmount) || 0);
+                  const billedSvcTotal = Number(svc.totalAmount) || 0;
+                  const billedMarginPct = billedSvcTotal > 0 ? Math.round((billedSvcTotal - billedDisplayCost) / billedSvcTotal * 100) : 0;
+                  return (
                   <TableRow key={svc.id} className="opacity-70">
                     <TableCell className="pl-6 w-[44px]" />
                     <TableCell className="w-[36px]" />
@@ -1848,15 +1852,18 @@ function ServicesFull({ services: initialServices, project, contacts, allService
                     </TableCell>
                     <TableCell className="text-muted-foreground">—</TableCell>
                     <TableCell />
-                    <TableCell className="text-right tabular-nums font-medium">{formatCurrency(svc.totalAmount)}</TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">{formatCurrency(svc.costAmount)}</TableCell>
+                    <TableCell className="text-right tabular-nums font-medium">{formatCurrency(billedSvcTotal)}</TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">{formatCurrency(billedDisplayCost)}</TableCell>
                     <TableCell className="text-right tabular-nums text-emerald-600 dark:text-emerald-400 font-medium">{formatCurrency(svc.billedAmount)}</TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {(() => { const m = svc.totalAmount - svc.costAmount; return <span className={m >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}>{formatCurrency(m)}</span>; })()}
+                      {billedDisplayCost === 0 && billedSvcTotal === 0 ? <span className="text-xs text-muted-foreground">—</span> : (
+                        <span className={billedMarginPct >= 50 ? "text-emerald-600 dark:text-emerald-400 font-medium" : billedMarginPct < 20 ? "text-destructive font-medium" : "font-medium"}>{billedMarginPct}%</span>
+                      )}
                     </TableCell>
                     <TableCell />
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             )}
           </>
