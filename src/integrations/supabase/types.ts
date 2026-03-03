@@ -6453,6 +6453,7 @@ export type Database = {
           status: string
           submission_method: string | null
           submitted_at: string | null
+          submitted_by: string | null
           title: string
           updated_at: string
           uploaded_pdf_url: string | null
@@ -6479,6 +6480,7 @@ export type Database = {
           status?: string
           submission_method?: string | null
           submitted_at?: string | null
+          submitted_by?: string | null
           title: string
           updated_at?: string
           uploaded_pdf_url?: string | null
@@ -6505,6 +6507,7 @@ export type Database = {
           status?: string
           submission_method?: string | null
           submitted_at?: string | null
+          submitted_by?: string | null
           title?: string
           updated_at?: string
           uploaded_pdf_url?: string | null
@@ -6529,6 +6532,13 @@ export type Database = {
             columns: ["discovered_from_id"]
             isOneToOne: false
             referencedRelation: "discovered_rfps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfps_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
