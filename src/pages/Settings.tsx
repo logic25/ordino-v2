@@ -20,8 +20,9 @@ import { InstructionTemplateSettings } from "@/components/settings/InstructionTe
 import { RolesSettings } from "@/components/settings/RolesSettings";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import { BillingNotificationSettings } from "@/components/settings/BillingNotificationSettings";
+import { ReportSettings } from "@/components/settings/ReportSettings";
 import { useIsAdmin } from "@/hooks/useUserRoles";
-import { Mail, Brain, ExternalLink } from "lucide-react";
+import { Mail, Brain, ExternalLink, BarChart3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 function BeaconSettingsSection() {
@@ -83,7 +84,7 @@ function BeaconSettingsSection() {
   );
 }
 
-type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists" | "roles" | "partner_templates" | "signal" | "instruction_templates" | "notifications" | "beacon" | "billing_notifications";
+type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists" | "roles" | "partner_templates" | "signal" | "instruction_templates" | "notifications" | "beacon" | "billing_notifications" | "reports";
 
 const settingsSections = [
   { id: "profile" as const, title: "Profile", description: "Your personal information, hourly rate, and signature", icon: User },
@@ -99,6 +100,7 @@ const settingsSections = [
   { id: "billing_notifications" as const, title: "Billing Notifications", description: "Control who gets notified when services are sent to billing", icon: Receipt },
   { id: "partner_templates" as const, title: "Partner Outreach Templates", description: "Email templates for RFP partner notifications", icon: Mail },
   { id: "signal" as const, title: "Signal Monitoring", description: "Configure property monitoring preferences and notification rules", icon: Radio },
+  { id: "reports" as const, title: "Automated Reports", description: "Configure frequency and settings for the Open Services Report", icon: BarChart3, adminOnly: true },
   { id: "roles" as const, title: "Roles & Permissions", description: "Configure what each role can access across the system", icon: ShieldCheck, adminOnly: true },
   { id: "beacon" as const, title: "Beacon AI", description: "Connection status, bot identity, and link to Beacon dashboard", icon: Brain, adminOnly: true },
 ];
@@ -132,6 +134,7 @@ export default function Settings() {
       case "notifications": return <NotificationSettings />;
       case "beacon": return <BeaconSettingsSection />;
       case "billing_notifications": return <BillingNotificationSettings />;
+      case "reports": return <ReportSettings />;
       default:
         return (
           <>
