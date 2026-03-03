@@ -43,6 +43,22 @@ export function useProjectServices(projectId: string | undefined) {
         }
       }
 
+      // Reconcile: if a service is fully billed but status is still not_started/in_progress, fix it
+      const reconcilePromises: Promise<any>[] = [];
+      for (const svc of data || []) {
+        const totalAmt = Number(svc.total_amount ?? svc.fixed_price ?? 0) || 0;
+        const billed = billedMap[svc.name] || Number((svc as any).billed_amount ?? 0) || 0;
+        if (totalAmt > 0 && billed >= totalAmt && !['billed', 'dropped'].includes(svc.status || '')) {
+          reconcilePromises.push(
+            Promise.resolve(supabase.from("services").update({ status: "billed" }).eq("id", svc.id))
+          );
+          (svc as any).status = 'billed';
+        }
+      }
+      if (reconcilePromises.length > 0) {
+        await Promise.all(reconcilePromises);
+      }
+
       return (data || []).map((svc: any): MockService => ({
         id: svc.id,
         name: svc.name || "Untitled Service",
