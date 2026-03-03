@@ -2090,6 +2090,66 @@ export type Database = {
           },
         ]
       }
+      co_sign_offs: {
+        Row: {
+          company_id: string
+          created_at: string
+          expiration_date: string | null
+          id: string
+          job_num: string | null
+          name: string
+          property_id: string
+          sign_off_date: string | null
+          sort_order: number
+          status: string
+          tco_required: boolean
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          expiration_date?: string | null
+          id?: string
+          job_num?: string | null
+          name: string
+          property_id: string
+          sign_off_date?: string | null
+          sort_order?: number
+          status?: string
+          tco_required?: boolean
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          expiration_date?: string | null
+          id?: string
+          job_num?: string | null
+          name?: string
+          property_id?: string
+          sign_off_date?: string | null
+          sort_order?: number
+          status?: string
+          tco_required?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "co_sign_offs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "co_sign_offs_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       collection_tasks: {
         Row: {
           ai_recommended_action: string | null

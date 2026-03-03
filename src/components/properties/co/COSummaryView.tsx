@@ -14,9 +14,9 @@ import {
 } from "@/components/ui/dialog";
 import {
   CheckCircle2, Clock, AlertTriangle, FileDown, Mail, FileText,
-  BarChart3, Radio, ArrowRight, Plus, Trash2,
+  BarChart3, Radio, ArrowRight, Trash2,
   TrendingUp, TrendingDown, ShieldAlert, ArrowUpRight, ArrowDownRight,
-  CalendarClock, ClipboardList, Loader2,
+  CalendarClock, ClipboardList, Loader2, Pencil, Plus,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -30,6 +30,8 @@ import {
 } from "./coMockData";
 import type { RequiredItem } from "./requiredItemsData";
 import { COReportPDF } from "./COReportPDF";
+import { EditSignOffDialog } from "./EditSignOffDialog";
+import { useAddCoSignOff, type CoSignOff as DbCoSignOff } from "@/hooks/useCoSignOffs";
 
 interface COSummaryViewProps {
   applications: COApplication[];
@@ -43,6 +45,9 @@ interface COSummaryViewProps {
   projectId?: string | null;
   companyId?: string | null;
   profileId?: string | null;
+  propertyId?: string;
+  /** Real sign-offs from DB — when provided, overrides mock data */
+  dbSignOffs?: DbCoSignOff[];
 }
 
 interface NextStep {
@@ -53,7 +58,7 @@ interface NextStep {
 
 export function COSummaryView({
   applications, violations, propertyAddress, block, lot, onFilterWorkType, lastSynced, requiredItemsMap = {},
-  projectId, companyId, profileId,
+  projectId, companyId, profileId, propertyId, dbSignOffs,
 }: COSummaryViewProps) {
   const { toast } = useToast();
   const [reportOpen, setReportOpen] = useState(false);
@@ -78,7 +83,24 @@ export function COSummaryView({
   const activeViols = totalViols - resolvedViols;
   const violPct = totalViols > 0 ? Math.round((resolvedViols / totalViols) * 100) : 0;
 
-  const signOffs = MOCK_SIGN_OFFS;
+  // Convert DB sign-offs to COSignOff format, falling back to mock
+  const signOffs: COSignOff[] = dbSignOffs && dbSignOffs.length > 0
+    ? dbSignOffs.map(db => ({
+        name: db.name,
+        status: db.status as COSignOff["status"],
+        date: db.sign_off_date,
+        expirationDate: db.expiration_date,
+        jobNum: db.job_num,
+        tcoRequired: db.tco_required,
+      }))
+    : MOCK_SIGN_OFFS;
+
+  // Editable sign-off state
+  const [editingSignOff, setEditingSignOff] = useState<DbCoSignOff | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [addingSignOff, setAddingSignOff] = useState(false);
+  const [newSignOffName, setNewSignOffName] = useState("");
+  const addSignOff = useAddCoSignOff();
   const completedSignOffs = signOffs.filter(s => s.status === "Signed Off").length;
   const pendingSignOffs = signOffs.filter(s => s.status !== "Signed Off");
   const signOffPct = signOffs.length > 0 ? Math.round((completedSignOffs / signOffs.length) * 100) : 0;
@@ -324,17 +346,67 @@ export function COSummaryView({
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Required Sign-Offs</h4>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={handleOpenReport}>
-            <FileText className="h-3.5 w-3.5" /> Generate CO Report
-          </Button>
+          <div className="flex gap-2">
+            {dbSignOffs && propertyId && (
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setAddingSignOff(true)}>
+                <Plus className="h-3.5 w-3.5" /> Add Sign-Off
+              </Button>
+            )}
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={handleOpenReport}>
+              <FileText className="h-3.5 w-3.5" /> Generate CO Report
+            </Button>
+          </div>
         </div>
+
+        {/* Inline add sign-off */}
+        {addingSignOff && propertyId && (
+          <div className="flex gap-2 items-center">
+            <Input
+              placeholder="New sign-off name..."
+              value={newSignOffName}
+              onChange={(e) => setNewSignOffName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newSignOffName.trim()) {
+                  addSignOff.mutate(
+                    { propertyId, name: newSignOffName.trim(), sort_order: signOffs.length },
+                    { onSuccess: () => { setNewSignOffName(""); setAddingSignOff(false); } }
+                  );
+                }
+              }}
+              autoFocus
+              className="max-w-xs"
+            />
+            <Button size="sm" disabled={!newSignOffName.trim() || addSignOff.isPending} onClick={() => {
+              addSignOff.mutate(
+                { propertyId, name: newSignOffName.trim(), sort_order: signOffs.length },
+                { onSuccess: () => { setNewSignOffName(""); setAddingSignOff(false); } }
+              );
+            }}>
+              {addSignOff.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Add"}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => { setAddingSignOff(false); setNewSignOffName(""); }}>
+              Cancel
+            </Button>
+          </div>
+        )}
+
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
-          {signOffs.map((so) => {
+          {signOffs.map((so, idx) => {
             const isComplete = so.status === "Signed Off";
             const isPending = so.status === "Pending";
             const isExpiring = isComplete && so.expirationDate && new Date(so.expirationDate) <= new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000);
+            const isEditable = dbSignOffs && dbSignOffs[idx];
             return (
-              <div key={so.name} className={`rounded-lg border p-3 flex items-center gap-3 ${isExpiring ? "border-orange-500/30 bg-orange-500/5" : isComplete ? "border-green-500/30 bg-green-500/5" : isPending ? "border-red-500/30 bg-red-500/5" : "border-yellow-500/30 bg-yellow-500/5"}`}>
+              <div
+                key={so.name + idx}
+                className={`rounded-lg border p-3 flex items-center gap-3 ${isEditable ? "cursor-pointer hover:ring-1 hover:ring-primary/30" : ""} ${isExpiring ? "border-orange-500/30 bg-orange-500/5" : isComplete ? "border-green-500/30 bg-green-500/5" : isPending ? "border-red-500/30 bg-red-500/5" : "border-yellow-500/30 bg-yellow-500/5"}`}
+                onClick={() => {
+                  if (isEditable) {
+                    setEditingSignOff(dbSignOffs[idx]);
+                    setEditDialogOpen(true);
+                  }
+                }}
+              >
                 {isExpiring ? (
                   <CalendarClock className="h-4 w-4 text-orange-600 shrink-0" />
                 ) : isComplete ? (
@@ -350,6 +422,7 @@ export function COSummaryView({
                     {so.tcoRequired && (
                       <Badge variant="outline" className="text-[9px] px-1 py-0 bg-blue-500/10 text-blue-700 border-blue-500/20">TCO</Badge>
                     )}
+                    {isEditable && <Pencil className="h-3 w-3 text-muted-foreground ml-auto" />}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {isComplete ? `Signed Off${so.date ? ` (${so.date})` : ""}` : so.status}
@@ -1028,6 +1101,12 @@ export function COSummaryView({
           </div>
         </DialogContent>
       </Dialog>
+
+      <EditSignOffDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        signOff={editingSignOff}
+      />
     </div>
   );
 }

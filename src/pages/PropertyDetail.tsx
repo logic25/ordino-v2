@@ -30,6 +30,8 @@ import { format } from "date-fns";
 import { COApplicationsView } from "@/components/properties/co/COApplicationsView";
 import { COViolationsView } from "@/components/properties/co/COViolationsView";
 import { COSummaryView } from "@/components/properties/co/COSummaryView";
+import { COSetupWizard } from "@/components/properties/co/COSetupWizard";
+import { useCoSignOffs } from "@/hooks/useCoSignOffs";
 import {
   MOCK_CO_APPLICATIONS, MOCK_CO_VIOLATIONS,
   type COApplication, type COViolation,
@@ -61,6 +63,7 @@ export default function PropertyDetail() {
   const { data: subscription } = useSignalSubscription(id);
   const { data: violations = [] } = useSignalViolations(id);
   const { data: signalApps = [] } = useSignalApplications(id);
+  const { data: coSignOffs = [], isLoading: signOffsLoading } = useCoSignOffs(id);
   const updateProperty = useUpdateProperty();
   const summaries = summarizeViolations(violations);
 
@@ -439,6 +442,12 @@ export default function PropertyDetail() {
                       Import DOB Data
                     </Button>
                   </div>
+                ) : !signOffsLoading && coSignOffs.length === 0 ? (
+                  <COSetupWizard
+                    propertyId={property.id}
+                    propertyAddress={property.address}
+                    onComplete={() => {}}
+                  />
                 ) : (
                   <COSummaryView
                     applications={coApps}
@@ -452,6 +461,8 @@ export default function PropertyDetail() {
                     projectId={projects[0]?.id || null}
                     companyId={profile?.company_id || null}
                     profileId={profile?.id || null}
+                    propertyId={property.id}
+                    dbSignOffs={coSignOffs.length > 0 ? coSignOffs : undefined}
                   />
                 )}
               </TabsContent>
