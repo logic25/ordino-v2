@@ -115,11 +115,6 @@ export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, is
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => navigate(`/projects/${project.id}`)}><Eye className="h-4 w-4 mr-2" />View</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onEdit(project)}><Pencil className="h-4 w-4 mr-2" />Edit</DropdownMenuItem>
-                      {onSendRfi && (
-                        <DropdownMenuItem disabled={isSendingRfi} onClick={() => onSendRfi(project)}>
-                          <FileText className="h-4 w-4 mr-2" />Send RFI
-                        </DropdownMenuItem>
-                      )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem className="text-destructive" disabled={isDeleting} onClick={() => onDelete(project.id)}>
                         <Trash2 className="h-4 w-4 mr-2" />Delete
