@@ -177,22 +177,33 @@ export function ChangeOrderDetailSheet({
   const canReject = co.status !== "rejected" && co.status !== "voided" && co.status !== "approved";
   const canDelete = isDraft;
 
+  const pendingSendSignatureRef = useRef<string | null>(null);
+
   const handleSign = async (signatureData: string) => {
     try {
+      const shouldSend = sendAfterSign;
+      setSendAfterSign(false);
       await signCO.mutateAsync({ id: co.id, project_id: co.project_id, signatureData });
       setSignOpen(false);
       toast({ title: `${co.co_number} signed`, description: "Status → Pending Client." });
       onAutoSignComplete?.();
-      // Auto-send to client after signing if triggered from create flow
-      if (sendAfterSign) {
-        setSendAfterSign(false);
-        // Pass signature data so PDF includes it before query refreshes
-        setTimeout(() => handleSend(signatureData), 500);
+      // Auto-send to client after signing — use ref to survive re-renders
+      if (shouldSend) {
+        pendingSendSignatureRef.current = signatureData;
       }
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     }
   };
+
+  // Effect to trigger send after sign completes and query refreshes
+  useEffect(() => {
+    if (pendingSendSignatureRef.current && co.internal_signed_at) {
+      const sigData = pendingSendSignatureRef.current;
+      pendingSendSignatureRef.current = null;
+      handleSend(sigData);
+    }
+  }, [co.internal_signed_at]);
 
   const handleSend = async (pendingSignatureData?: string) => {
     try {
