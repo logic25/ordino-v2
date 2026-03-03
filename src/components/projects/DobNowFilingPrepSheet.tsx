@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
 import {
   Copy, CheckCircle2, AlertTriangle, MapPin, Building2,
   User, Phone, Mail, ExternalLink, ClipboardList, Save,
@@ -102,9 +103,11 @@ export function DobNowFilingPrepSheet({
   allServices,
 }: DobNowFilingPrepSheetProps) {
   const { toast } = useToast();
+  const { data: companyData } = useCompanySettings();
   const [jobNumber, setJobNumber] = useState(service.application?.jobNumber || "");
   const [showAddItem, setShowAddItem] = useState(false);
   const [newItemLabel, setNewItemLabel] = useState("");
+  const [checklistInitialized, setChecklistInitialized] = useState(false);
   const [checklist, setChecklist] = useState<ChecklistItem[]>(
     DEFAULT_CHECKLIST.map((item) => ({ ...item, checked: false }))
   );
@@ -114,6 +117,17 @@ export function DobNowFilingPrepSheet({
   const [filedAt, setFiledAt] = useState<Date | null>(null);
   const [filerName, setFilerName] = useState<string | null>(null);
   const [checklistWarning, setChecklistWarning] = useState(false);
+
+  // Load checklist from company settings defaults
+  useEffect(() => {
+    if (companyData && !checklistInitialized) {
+      const saved = companyData.settings?.filing_checklist_defaults;
+      if (saved && Array.isArray(saved) && saved.length > 0) {
+        setChecklist(saved.map((item: any) => ({ id: item.id, label: item.label, required: !!item.required, checked: false })));
+      }
+      setChecklistInitialized(true);
+    }
+  }, [companyData, checklistInitialized]);
 
   // Fetch PIS (rfi_requests) data for this project
   const { data: pisResponses } = useQuery({
@@ -472,7 +486,16 @@ export function DobNowFilingPrepSheet({
                   variant="ghost"
                   size="sm"
                   className="h-6 text-[10px] gap-1 text-muted-foreground"
-                  onClick={() => window.open("/settings?section=lists&tab=filing_checklist", "_blank")}
+                  onClick={() => {
+                    const saved = companyData?.settings?.filing_checklist_defaults;
+                    if (saved && Array.isArray(saved) && saved.length > 0) {
+                      setChecklist(saved.map((item: any) => ({ id: item.id, label: item.label, required: !!item.required, checked: false })));
+                      toast({ title: "Checklist reset", description: "Loaded company default checklist items." });
+                    } else {
+                      setChecklist(DEFAULT_CHECKLIST.map((item) => ({ ...item, checked: false })));
+                      toast({ title: "Checklist reset", description: "No saved defaults found — using built-in defaults." });
+                    }
+                  }}
                 >
                   <Settings className="h-3 w-3" /> Defaults
                 </Button>
