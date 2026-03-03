@@ -59,7 +59,7 @@ export function RequiredItemsModal({ open, onOpenChange, items, onItemsChange, j
     };
     onItemsChange([...items, newItem]);
     setNewName("");
-    setShowAddForm(false);
+    // Keep form open so user can add more items
   };
 
   const completedCount = items.filter(i => i.dateReceived).length;
@@ -104,7 +104,7 @@ export function RequiredItemsModal({ open, onOpenChange, items, onItemsChange, j
               <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g., Letter of Completion, Cost Affidavit..." className="h-8 text-sm" onKeyDown={(e) => e.key === "Enter" && addCustomItem()} />
             </div>
             <Button size="sm" className="h-8" onClick={addCustomItem} disabled={!newName.trim()}>Add</Button>
-            <Button variant="ghost" size="sm" className="h-8" onClick={() => setShowAddForm(false)}>Cancel</Button>
+            <Button variant="ghost" size="sm" className="h-8" onClick={() => { setShowAddForm(false); setNewName(""); }}>Done</Button>
           </div>
         )}
 
@@ -214,6 +214,10 @@ export function RequiredItemsModal({ open, onOpenChange, items, onItemsChange, j
               )}
             </TableBody>
           </Table>
+        </div>
+
+        <div className="flex justify-end pt-2">
+          <Button size="sm" onClick={() => onOpenChange(false)}>Save & Close</Button>
         </div>
       </DialogContent>
     </Dialog>
