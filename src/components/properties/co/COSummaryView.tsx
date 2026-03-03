@@ -813,32 +813,37 @@ export function COSummaryView({
                             ))}
                           </div>
                         )}
-                        {/* Required Items per Application */}
+                        {/* Required Items per Application (user-added, shown in BIS style) */}
                         {(() => {
                           const reqItems = requiredItemsMap[app.jobNum] || [];
                           if (reqItems.length === 0) return null;
                           const outstanding = reqItems.filter(ri => !ri.dateReceived);
-                          const completed = reqItems.filter(ri => ri.dateReceived);
+                          const received = reqItems.filter(ri => ri.dateReceived);
                           return (
                             <div className="space-y-1.5 pl-3 border-l-2 border-blue-500/30">
                               <p className="text-xs font-medium text-blue-700 flex items-center gap-1">
-                                <ClipboardList className="h-3 w-3" /> Required Items — {completed.length}/{reqItems.length} received
+                                <ClipboardList className="h-3 w-3" /> {outstanding.length} Outstanding Required Item{outstanding.length !== 1 ? "s" : ""} · {received.length}/{reqItems.length} received
                               </p>
-                              {outstanding.length > 0 && (
-                                <div className="space-y-1">
-                                  {outstanding.map(ri => (
-                                    <div key={ri.id} className="flex items-center gap-2 text-xs">
-                                      <span className="text-red-600">☐</span>
-                                      <span className="flex-1">{ri.name}</span>
-                                      <span className="text-muted-foreground">{ri.receivedFrom || "—"}</span>
-                                      {ri.dateRequested && <span className="text-muted-foreground text-[10px]">Req: {format(new Date(ri.dateRequested), "MM/dd/yy")}</span>}
-                                    </div>
-                                  ))}
+                              {outstanding.map(ri => (
+                                <div key={ri.id} className="rounded-md bg-blue-500/5 border border-blue-500/10 p-2 text-xs space-y-0.5">
+                                  <p className="font-medium">{ri.name}</p>
+                                  <div className="flex flex-wrap gap-x-3 text-muted-foreground">
+                                    <span>From: <span className="text-foreground">{ri.receivedFrom || "—"}</span></span>
+                                    <span>Requested: <span className="text-foreground">{ri.dateRequested ? format(new Date(ri.dateRequested), "MM/dd/yyyy") : "—"}</span></span>
+                                    <span>Received: <span className="text-red-600 font-medium">Outstanding</span></span>
+                                  </div>
+                                  {ri.notes && <p className="text-muted-foreground italic">{ri.notes}</p>}
                                 </div>
-                              )}
-                              {completed.length > 0 && (
-                                <p className="text-[10px] text-green-600">{completed.length} item{completed.length > 1 ? "s" : ""} received</p>
-                              )}
+                              ))}
+                              {received.map(ri => (
+                                <div key={ri.id} className="rounded-md bg-green-500/5 border border-green-500/10 p-2 text-xs space-y-0.5">
+                                  <p className="font-medium line-through opacity-70">{ri.name}</p>
+                                  <div className="flex flex-wrap gap-x-3 text-muted-foreground">
+                                    <span>From: <span className="text-foreground">{ri.receivedFrom || "—"}</span></span>
+                                    <span>Received: <span className="text-green-600 font-medium">{ri.dateReceived ? format(new Date(ri.dateReceived), "MM/dd/yyyy") : "—"}</span></span>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           );
                         })()}

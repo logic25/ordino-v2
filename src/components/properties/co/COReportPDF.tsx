@@ -299,25 +299,27 @@ export function COReportPDF({
                   </View>
                 )}
 
-                {/* Required Items */}
+                {/* Required Items (user-added, shown in BIS style) */}
                 {reqItems.length > 0 && (
-                  <View style={s.reqItemSection}>
-                    <Text style={s.reqItemTitle}>
-                      📋 Required Items — {completedReq.length}/{reqItems.length} received
-                      {outstandingReq.length > 0 ? ` (${outstandingReq.length} outstanding)` : ""}
+                  <View style={{ marginTop: 4 }}>
+                    <Text style={[s.bisTitle, { color: "#1d4ed8" }]}>
+                      📋 {outstandingReq.length} Outstanding Required Item{outstandingReq.length !== 1 ? "s" : ""} · {completedReq.length}/{reqItems.length} received
                     </Text>
                     {outstandingReq.map(ri => (
-                      <View key={ri.id} style={s.reqItemRow}>
-                        <Text style={[s.reqItemName, { color: "#dc2626" }]}>☐ {ri.name}</Text>
-                        <Text style={s.reqItemDate}>{ri.dateRequested ? format(new Date(ri.dateRequested), "MM/dd/yy") : "—"}</Text>
-                        <Text style={[s.reqItemStatus, { color: "#dc2626" }]}>Outstanding</Text>
+                      <View key={ri.id} style={[s.bisItem, { borderLeftColor: "#2563eb" }]}>
+                        <Text style={{ fontSize: 7, fontWeight: "bold" }}>{ri.name}</Text>
+                        <Text style={s.bisText}>
+                          From: {ri.receivedFrom || "—"} · Requested: {ri.dateRequested ? format(new Date(ri.dateRequested), "MM/dd/yyyy") : "—"} · Received: Outstanding
+                        </Text>
+                        {ri.notes && <Text style={[s.bisText, { fontStyle: "italic" }]}>{ri.notes}</Text>}
                       </View>
                     ))}
                     {completedReq.map(ri => (
-                      <View key={ri.id} style={s.reqItemRow}>
-                        <Text style={[s.reqItemName, { color: "#16a34a" }]}>☑ {ri.name}</Text>
-                        <Text style={s.reqItemDate}>{ri.dateReceived ? format(new Date(ri.dateReceived), "MM/dd/yy") : "—"}</Text>
-                        <Text style={[s.reqItemStatus, { color: "#16a34a" }]}>Received</Text>
+                      <View key={ri.id} style={[s.bisItem, { borderLeftColor: "#16a34a" }]}>
+                        <Text style={{ fontSize: 7, fontWeight: "bold", color: "#666" }}>{ri.name}</Text>
+                        <Text style={s.bisText}>
+                          From: {ri.receivedFrom || "—"} · Received: {ri.dateReceived ? format(new Date(ri.dateReceived), "MM/dd/yyyy") : "—"}
+                        </Text>
                       </View>
                     ))}
                   </View>
