@@ -65,9 +65,6 @@ export interface ProjectFormInput {
   phase?: string;
   assigned_pm_id?: string | null;
   senior_pm_id?: string | null;
-  client_id?: string | null;
-  building_owner_id?: string | null;
-  building_owner_name?: string | null;
   is_external?: boolean;
   notable?: boolean;
   unit_number?: string | null;
@@ -75,22 +72,6 @@ export interface ProjectFormInput {
   client_reference_number?: string | null;
   completion_date?: string | null;
   notes?: string | null;
-  // Timeline & performance
-  expected_construction_start?: string | null;
-  estimated_construction_completion?: string | null;
-  actual_construction_start?: string | null;
-  actual_construction_completion?: string | null;
-  project_complexity_tier?: string | null;
-  // GC
-  gc_company_name?: string | null;
-  gc_contact_name?: string | null;
-  gc_phone?: string | null;
-  gc_email?: string | null;
-  // Architect
-  architect_company_name?: string | null;
-  architect_contact_name?: string | null;
-  architect_phone?: string | null;
-  architect_email?: string | null;
 }
 
 export function useProjects() {
@@ -176,9 +157,6 @@ export function useCreateProject() {
           status: input.status || "open",
           assigned_pm_id: input.assigned_pm_id || null,
           senior_pm_id: input.senior_pm_id || null,
-          client_id: input.client_id || null,
-          building_owner_id: input.building_owner_id || null,
-          building_owner_name: input.building_owner_name || null,
           is_external: input.is_external || false,
           notable: input.notable || false,
           unit_number: input.unit_number || null,
@@ -219,9 +197,6 @@ export function useUpdateProject() {
           status: input.status || "open",
           assigned_pm_id: input.assigned_pm_id || null,
           senior_pm_id: input.senior_pm_id || null,
-          client_id: input.client_id || null,
-          building_owner_id: input.building_owner_id || null,
-          building_owner_name: input.building_owner_name || null,
           is_external: input.is_external ?? false,
           notable: input.notable ?? false,
           unit_number: input.unit_number || null,
