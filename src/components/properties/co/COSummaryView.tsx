@@ -5,7 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -14,14 +14,17 @@ import {
 } from "@/components/ui/dialog";
 import {
   CheckCircle2, Clock, AlertTriangle, FileDown, Mail, FileText,
-  BarChart3, Building2, Radio, ArrowRight, Plus, Trash2, GripVertical,
-  TrendingUp, ShieldAlert, ArrowUpRight, ArrowDownRight,
+  BarChart3, Radio, ArrowRight, Plus, Trash2,
+  TrendingUp, TrendingDown, ShieldAlert, ArrowUpRight, ArrowDownRight,
+  CalendarClock,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { COApplication, COViolation, COSignOff } from "./coMockData";
+import { format } from "date-fns";
+import type { COApplication, COViolation, COSignOff, ReportSnapshot } from "./coMockData";
 import {
   WORK_TYPE_LABELS, WORK_TYPE_COLORS, STATUS_COLORS,
   MOCK_SIGN_OFFS, MOCK_WORK_TYPE_BREAKDOWN, TCO_REQUIREMENTS,
+  MOCK_PREVIOUS_REPORT,
 } from "./coMockData";
 
 interface COSummaryViewProps {
@@ -46,9 +49,14 @@ export function COSummaryView({
   const { toast } = useToast();
   const [reportOpen, setReportOpen] = useState(false);
   const [reportType, setReportType] = useState<"CO" | "TCO">("CO");
-  const [lastReportDate, setLastReportDate] = useState<string | null>(null);
+  const [lastReportDate, setLastReportDate] = useState<string | null>(MOCK_PREVIOUS_REPORT.ranAt);
+  const [previousSnapshot, setPreviousSnapshot] = useState<ReportSnapshot | null>(MOCK_PREVIOUS_REPORT);
   const [nextSteps, setNextSteps] = useState<NextStep[]>([]);
   const [newStepText, setNewStepText] = useState("");
+  // Report metadata
+  const [reportReceivedFrom, setReportReceivedFrom] = useState(MOCK_PREVIOUS_REPORT.receivedFrom);
+  const [reportReceivedDate, setReportReceivedDate] = useState(MOCK_PREVIOUS_REPORT.receivedDate);
+  const [reportNotes, setReportNotes] = useState(MOCK_PREVIOUS_REPORT.notes);
 
   const totalApps = applications.length;
   const closedApps = applications.filter(a => a.status === "Signed Off").length;
@@ -65,12 +73,21 @@ export function COSummaryView({
   const pendingSignOffs = signOffs.filter(s => s.status !== "Signed Off");
   const signOffPct = signOffs.length > 0 ? Math.round((completedSignOffs / signOffs.length) * 100) : 0;
 
-  // TCO-specific sign-offs
+  // Expiring sign-offs (within 6 months)
+  const expiringSignOffs = signOffs.filter(s => {
+    if (!s.expirationDate) return false;
+    const exp = new Date(s.expirationDate);
+    const sixMonths = new Date();
+    sixMonths.setMonth(sixMonths.getMonth() + 6);
+    return exp <= sixMonths && s.status === "Signed Off";
+  });
+
+  // TCO-specific
   const tcoSignOffs = signOffs.filter(s => s.tcoRequired);
   const tcoComplete = tcoSignOffs.filter(s => s.status === "Signed Off").length;
   const tcoPending = tcoSignOffs.filter(s => s.status !== "Signed Off");
 
-  // Action summary counts
+  // Action summary
   const needsLOC = applications.filter(a => a.action.toLowerCase().includes("loc")).length;
   const needsFDNY = applications.filter(a => a.action.toLowerCase().includes("fdny")).length;
   const needsCostAffidavit = applications.filter(a => a.action.toLowerCase().includes("cost affidavit")).length;
@@ -86,16 +103,20 @@ export function COSummaryView({
     [violations]
   );
 
-  // Estimated completion (mock calculation)
+  // Work type totals
   const totalWorkItems = MOCK_WORK_TYPE_BREAKDOWN.reduce((s, r) => s + r.total, 0);
   const totalClosed = MOCK_WORK_TYPE_BREAKDOWN.reduce((s, r) => s + r.closed, 0);
   const totalOpen = totalWorkItems - totalClosed;
   const overallPct = totalWorkItems > 0 ? Math.round((totalClosed / totalWorkItems) * 100) : 0;
-  // Assume ~40 close-outs per month rate
   const estMonths = Math.ceil(totalOpen / 40);
 
-  // Blockers
   const highPenaltyViols = violations.filter(v => (v.penalty || 0) >= 2500);
+
+  // Delta calculations from previous report
+  const appDelta = previousSnapshot ? (totalWorkItems - previousSnapshot.totalApps) : null;
+  const openAppDelta = previousSnapshot ? (totalOpen - previousSnapshot.openApps) : null;
+  const closedAppDelta = previousSnapshot ? (totalClosed - previousSnapshot.closedApps) : null;
+  const violDelta = previousSnapshot ? (activeViols - previousSnapshot.activeViols) : null;
 
   // Auto-populate next steps
   const handleOpenReport = () => {
@@ -106,6 +127,7 @@ export function COSummaryView({
     if (withdrawalCandidates > 0) auto.push({ id: "withdraw", text: `Process ${withdrawalCandidates} withdrawal candidates`, priority: "Low" });
     if (activeViols > 0) auto.push({ id: "viols", text: `Resolve ${activeViols} active violations`, priority: "High" });
     if (tcoPending.length > 0) auto.push({ id: "tco", text: `Obtain ${tcoPending.length} pending sign-offs for TCO eligibility`, priority: "High" });
+    if (expiringSignOffs.length > 0) auto.push({ id: "expiring", text: `Renew ${expiringSignOffs.length} sign-offs expiring within 6 months`, priority: "High" });
     setNextSteps(auto);
     setReportOpen(true);
   };
@@ -121,9 +143,36 @@ export function COSummaryView({
   };
 
   const handleGenerateReport = () => {
-    setLastReportDate(new Date().toISOString());
+    const now = new Date().toISOString();
+    const snapshot: ReportSnapshot = {
+      ranAt: now,
+      openApps: totalOpen,
+      closedApps: totalClosed,
+      totalApps: totalWorkItems,
+      activeViols,
+      resolvedViols,
+      totalViols,
+      receivedFrom: reportReceivedFrom,
+      receivedDate: reportReceivedDate,
+      notes: reportNotes,
+    };
+    setPreviousSnapshot(snapshot);
+    setLastReportDate(now);
     setReportOpen(false);
-    toast({ title: "Report generated", description: "Status snapshot saved. Changes will be tracked from this point." });
+    toast({ title: "Report generated", description: `Snapshot saved at ${format(new Date(now), "MMM d, yyyy h:mm a")}. Changes will be tracked from this point.` });
+  };
+
+  // Delta indicator component
+  const DeltaIndicator = ({ value, inverse = false }: { value: number | null; inverse?: boolean }) => {
+    if (value === null || value === 0) return null;
+    const isPositive = value > 0;
+    const isGood = inverse ? !isPositive : isPositive;
+    return (
+      <span className={`inline-flex items-center gap-0.5 text-xs font-semibold ${isGood ? "text-green-600" : "text-red-600"}`}>
+        {isPositive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+        {Math.abs(value)}
+      </span>
+    );
   };
 
   // Circular progress ring SVG
@@ -145,10 +194,41 @@ export function COSummaryView({
   };
 
   const displaySignOffs = reportType === "TCO" ? tcoSignOffs : signOffs;
-  const displayPending = reportType === "TCO" ? tcoPending : pendingSignOffs;
 
   return (
     <div className="space-y-6">
+      {/* Delta Cards — change since last report */}
+      {previousSnapshot && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="rounded-lg border p-3 space-y-1">
+            <p className="text-xs text-muted-foreground">Open Applications</p>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-bold">{totalOpen.toLocaleString()}</span>
+              <DeltaIndicator value={openAppDelta} inverse />
+            </div>
+          </div>
+          <div className="rounded-lg border p-3 space-y-1">
+            <p className="text-xs text-muted-foreground">Closed Applications</p>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-bold">{totalClosed.toLocaleString()}</span>
+              <DeltaIndicator value={closedAppDelta} />
+            </div>
+          </div>
+          <div className="rounded-lg border p-3 space-y-1">
+            <p className="text-xs text-muted-foreground">Active Violations</p>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-bold">{activeViols}</span>
+              <DeltaIndicator value={violDelta} inverse />
+            </div>
+          </div>
+          <div className="rounded-lg border p-3 space-y-1">
+            <p className="text-xs text-muted-foreground">Last Report</p>
+            <p className="text-sm font-medium">{format(new Date(previousSnapshot.ranAt), "MMM d, yyyy")}</p>
+            <p className="text-xs text-muted-foreground">{format(new Date(previousSnapshot.ranAt), "h:mm a")}</p>
+          </div>
+        </div>
+      )}
+
       {/* Progress Overview Cards */}
       <div className="grid sm:grid-cols-3 gap-4">
         <div className="rounded-lg border p-4 flex items-center gap-4">
@@ -178,8 +258,10 @@ export function COSummaryView({
           <div className="flex-1">
             <p className="text-sm font-medium">{completedSignOffs} / {signOffs.length}</p>
             <p className="text-xs text-muted-foreground">{pendingSignOffs.length} pending</p>
-            {lastSynced && (
-              <p className="text-xs text-muted-foreground mt-1">Synced: {lastSynced}</p>
+            {expiringSignOffs.length > 0 && (
+              <p className="text-xs text-orange-600 mt-1 flex items-center gap-1">
+                <CalendarClock className="h-3 w-3" /> {expiringSignOffs.length} expiring soon
+              </p>
             )}
           </div>
         </div>
@@ -190,7 +272,7 @@ export function COSummaryView({
         <div className="rounded-lg border border-green-500/30 bg-green-500/5 p-4 space-y-2">
           <h4 className="text-sm font-semibold flex items-center gap-2">
             <ArrowUpRight className="h-4 w-4 text-green-600" />
-            Changes Since Last Report ({new Date(lastReportDate).toLocaleDateString()})
+            Changes Since Last Report ({format(new Date(lastReportDate), "MMM d, yyyy h:mm a")})
           </h4>
           <div className="flex flex-wrap gap-2">
             {changedApps.map(a => (
@@ -225,9 +307,12 @@ export function COSummaryView({
           {signOffs.map((so) => {
             const isComplete = so.status === "Signed Off";
             const isPending = so.status === "Pending";
+            const isExpiring = isComplete && so.expirationDate && new Date(so.expirationDate) <= new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000);
             return (
-              <div key={so.name} className={`rounded-lg border p-3 flex items-center gap-3 ${isComplete ? "border-green-500/30 bg-green-500/5" : isPending ? "border-red-500/30 bg-red-500/5" : "border-yellow-500/30 bg-yellow-500/5"}`}>
-                {isComplete ? (
+              <div key={so.name} className={`rounded-lg border p-3 flex items-center gap-3 ${isExpiring ? "border-orange-500/30 bg-orange-500/5" : isComplete ? "border-green-500/30 bg-green-500/5" : isPending ? "border-red-500/30 bg-red-500/5" : "border-yellow-500/30 bg-yellow-500/5"}`}>
+                {isExpiring ? (
+                  <CalendarClock className="h-4 w-4 text-orange-600 shrink-0" />
+                ) : isComplete ? (
                   <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
                 ) : isPending ? (
                   <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
@@ -245,6 +330,11 @@ export function COSummaryView({
                     {isComplete ? `Signed Off${so.date ? ` (${so.date})` : ""}` : so.status}
                     {so.jobNum && <span className="ml-1 font-mono">#{so.jobNum}</span>}
                   </p>
+                  {so.expirationDate && isComplete && (
+                    <p className={`text-[10px] mt-0.5 ${isExpiring ? "text-orange-600 font-medium" : "text-muted-foreground"}`}>
+                      {isExpiring ? "⚠ " : ""}Expires: {so.expirationDate}
+                    </p>
+                  )}
                 </div>
               </div>
             );
@@ -297,6 +387,7 @@ export function COSummaryView({
               { label: "Needing cost affidavit", count: needsCostAffidavit, color: "text-purple-600" },
               { label: "Withdrawal candidates", count: withdrawalCandidates, color: "text-muted-foreground" },
               { label: "Active violations", count: activeViols, color: "text-red-600" },
+              { label: "Sign-offs expiring soon", count: expiringSignOffs.length, color: "text-orange-600" },
             ].map((item) => (
               <div key={item.label} className="flex items-center justify-between rounded-lg border px-3 py-2.5">
                 <span className="text-sm">{item.label}</span>
@@ -314,8 +405,40 @@ export function COSummaryView({
             <DialogTitle className="flex items-center gap-2">
               <Radio className="h-5 w-5" /> CO Status Report
             </DialogTitle>
-            <DialogDescription>{propertyAddress} — {new Date().toLocaleDateString()}</DialogDescription>
+            <DialogDescription>{propertyAddress} — {format(new Date(), "MMMM d, yyyy 'at' h:mm a")}</DialogDescription>
           </DialogHeader>
+
+          {/* Report Metadata — who it's from, when received */}
+          <div className="grid sm:grid-cols-2 gap-3 rounded-lg border p-4 bg-muted/20">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Report Requested By</Label>
+              <Input
+                value={reportReceivedFrom}
+                onChange={(e) => setReportReceivedFrom(e.target.value)}
+                placeholder="Owner / management company name"
+                className="h-8 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Date Received</Label>
+              <Input
+                type="date"
+                value={reportReceivedDate}
+                onChange={(e) => setReportReceivedDate(e.target.value)}
+                className="h-8 text-sm"
+              />
+            </div>
+            <div className="sm:col-span-2 space-y-1.5">
+              <Label className="text-xs">Report Notes</Label>
+              <Textarea
+                value={reportNotes}
+                onChange={(e) => setReportNotes(e.target.value)}
+                placeholder="Context for this report (e.g., 'Owner requested ahead of Q1 board meeting')"
+                rows={2}
+                className="text-sm"
+              />
+            </div>
+          </div>
 
           {/* CO / TCO Toggle */}
           <Tabs value={reportType} onValueChange={(v) => setReportType(v as "CO" | "TCO")} className="w-full">
@@ -359,6 +482,32 @@ export function COSummaryView({
           </Tabs>
 
           <div className="space-y-4 text-sm">
+            {/* Delta Summary Cards in Report */}
+            {previousSnapshot && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="rounded-lg border p-2.5 text-center">
+                  <p className="text-[10px] text-muted-foreground uppercase">Open Apps</p>
+                  <p className="text-lg font-bold">{totalOpen.toLocaleString()}</p>
+                  <DeltaIndicator value={openAppDelta} inverse />
+                </div>
+                <div className="rounded-lg border p-2.5 text-center">
+                  <p className="text-[10px] text-muted-foreground uppercase">Closed</p>
+                  <p className="text-lg font-bold">{totalClosed.toLocaleString()}</p>
+                  <DeltaIndicator value={closedAppDelta} />
+                </div>
+                <div className="rounded-lg border p-2.5 text-center">
+                  <p className="text-[10px] text-muted-foreground uppercase">Active Viols</p>
+                  <p className="text-lg font-bold">{activeViols}</p>
+                  <DeltaIndicator value={violDelta} inverse />
+                </div>
+                <div className="rounded-lg border p-2.5 text-center">
+                  <p className="text-[10px] text-muted-foreground uppercase">Overall</p>
+                  <p className="text-lg font-bold">{overallPct}%</p>
+                  <span className="text-xs text-muted-foreground">complete</span>
+                </div>
+              </div>
+            )}
+
             {/* Executive Summary */}
             <div className="rounded-lg border p-4 bg-muted/30 space-y-2">
               <h4 className="font-semibold">Executive Summary</h4>
@@ -381,6 +530,12 @@ export function COSummaryView({
                   <strong>{tcoPending.map(s => s.name).join(", ")}</strong>.
                 </p>
               )}
+              {expiringSignOffs.length > 0 && (
+                <p className="flex items-center gap-1.5 text-orange-700">
+                  <CalendarClock className="h-3.5 w-3.5" />
+                  <strong>{expiringSignOffs.length} sign-offs</strong> are expiring within 6 months and must be renewed.
+                </p>
+              )}
               {needsFDNY > 0 && (
                 <p className="flex items-center gap-1.5 text-orange-700">
                   <AlertTriangle className="h-3.5 w-3.5" />
@@ -393,6 +548,17 @@ export function COSummaryView({
                   <strong>{highPenaltyViols.length} violations</strong> have penalties exceeding $2,500.
                 </p>
               )}
+              {/* BIS open items summary */}
+              {(() => {
+                const totalBisItems = applications.reduce((sum, a) => sum + (a.bisOpenItems?.filter(i => !i.resolved).length || 0), 0);
+                const appsWithBis = applications.filter(a => a.bisOpenItems && a.bisOpenItems.some(i => !i.resolved)).length;
+                return totalBisItems > 0 ? (
+                  <p className="flex items-center gap-1.5 text-purple-700">
+                    <FileText className="h-3.5 w-3.5" />
+                    <strong>{totalBisItems} open BIS items</strong> across {appsWithBis} applications require attention.
+                  </p>
+                ) : null;
+              })()}
             </div>
 
             {/* Status Changes Since Last Report */}
@@ -400,7 +566,7 @@ export function COSummaryView({
               <div className="rounded-lg border p-4 border-green-500/30 bg-green-500/5 space-y-2">
                 <h4 className="font-semibold flex items-center gap-2">
                   <ArrowUpRight className="h-4 w-4 text-green-600" />
-                  Changes Since Last Report ({new Date(lastReportDate).toLocaleDateString()})
+                  Changes Since Last Report ({format(new Date(lastReportDate), "MMM d, yyyy h:mm a")})
                 </h4>
                 {changedApps.length > 0 && (
                   <div>
@@ -432,7 +598,7 @@ export function COSummaryView({
               </div>
             )}
 
-            {/* Sign-Offs Table */}
+            {/* Sign-Offs Table with Expiration */}
             <div className="space-y-2">
               <h4 className="font-semibold">{reportType === "TCO" ? "TCO " : ""}Required Sign-Offs</h4>
               <div className="rounded-lg border overflow-hidden">
@@ -443,21 +609,32 @@ export function COSummaryView({
                       <TableHead>Category</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Date</TableHead>
+                      <TableHead>Expires</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {displaySignOffs.map((so) => (
-                      <TableRow key={so.name}>
-                        <TableCell className="font-medium">{so.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-[10px]">
-                            {so.category || "general"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell><Badge variant="outline" className={STATUS_COLORS[so.status] || ""}>{so.status}</Badge></TableCell>
-                        <TableCell>{so.date || "—"}</TableCell>
-                      </TableRow>
-                    ))}
+                    {displaySignOffs.map((so) => {
+                      const isExpiring = so.expirationDate && so.status === "Signed Off" && new Date(so.expirationDate) <= new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000);
+                      return (
+                        <TableRow key={so.name}>
+                          <TableCell className="font-medium">{so.name}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-[10px]">
+                              {so.category || "general"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell><Badge variant="outline" className={STATUS_COLORS[so.status] || ""}>{so.status}</Badge></TableCell>
+                          <TableCell>{so.date || "—"}</TableCell>
+                          <TableCell>
+                            {so.expirationDate ? (
+                              <span className={isExpiring ? "text-orange-600 font-medium" : ""}>
+                                {isExpiring && "⚠ "}{so.expirationDate}
+                              </span>
+                            ) : "—"}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -510,11 +687,7 @@ export function COSummaryView({
                 {nextSteps.map((step, i) => (
                   <div key={step.id} className="flex items-center gap-2 rounded-md border px-3 py-2">
                     <span className="text-xs text-muted-foreground w-5">{i + 1}.</span>
-                    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${
-                      step.priority === "High" ? "bg-red-500/10 text-red-700 border-red-500/20" :
-                      step.priority === "Medium" ? "bg-yellow-500/10 text-yellow-700 border-yellow-500/20" :
-                      "bg-muted text-muted-foreground"
-                    }`}>{step.priority}</Badge>
+                    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${PRIORITY_COLORS[step.priority]}`}>{step.priority}</Badge>
                     <span className="text-sm flex-1">{step.text}</span>
                     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeStep(step.id)}>
                       <Trash2 className="h-3 w-3" />
@@ -538,7 +711,9 @@ export function COSummaryView({
 
             {/* Report Footer */}
             <div className="rounded-lg border p-3 bg-muted/20 text-xs text-muted-foreground space-y-1">
-              <p>Prepared via <strong>CitiSignal</strong> · {new Date().toLocaleString()}</p>
+              <p>Prepared via <strong>CitiSignal</strong> · {format(new Date(), "MMMM d, yyyy 'at' h:mm a")}</p>
+              {reportReceivedFrom && <p>Requested by: <strong>{reportReceivedFrom}</strong>{reportReceivedDate ? ` (received ${format(new Date(reportReceivedDate), "MMM d, yyyy")})` : ""}</p>}
+              {reportNotes && <p>Notes: {reportNotes}</p>}
               <p>Data sourced from NYC Open Data — DOB Job Filings, DOB NOW Build, DOB Violations</p>
             </div>
           </div>
@@ -562,3 +737,9 @@ export function COSummaryView({
     </div>
   );
 }
+
+const PRIORITY_COLORS: Record<string, string> = {
+  High: "bg-red-500/10 text-red-700 border-red-500/20",
+  Medium: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
+  Low: "bg-muted text-muted-foreground",
+};

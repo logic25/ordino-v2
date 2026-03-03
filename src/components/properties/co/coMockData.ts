@@ -16,7 +16,18 @@ export interface COApplication {
   assignedTo: string | null;
   priority: "High" | "Medium" | "Low";
   notes?: string;
-  previousStatus?: string | null; // for change-tracking between reports
+  previousStatus?: string | null;
+  // BIS open items
+  bisOpenItems?: BISOpenItem[];
+}
+
+export interface BISOpenItem {
+  id: string;
+  description: string;
+  receivedFrom: string;
+  receivedDate: string;
+  notes: string;
+  resolved: boolean;
 }
 
 export interface COViolation {
@@ -28,13 +39,14 @@ export interface COViolation {
   assignedTo: string | null;
   priority: "High" | "Medium" | "Low";
   penalty: number | null;
-  previousStatus?: string | null; // for change-tracking between reports
+  previousStatus?: string | null;
 }
 
 export interface COSignOff {
   name: string;
   status: "Signed Off" | "Permit Issued" | "Approved" | "Pending";
   date: string | null;
+  expirationDate: string | null;
   jobNum: string | null;
   category?: "life-safety" | "vertical-transport" | "general" | "deferrable";
   tcoRequired?: boolean;
@@ -44,6 +56,19 @@ export interface TCORequirement {
   name: string;
   required: boolean;
   category: "life-safety" | "vertical-transport" | "deferrable";
+}
+
+export interface ReportSnapshot {
+  ranAt: string; // ISO datetime
+  openApps: number;
+  closedApps: number;
+  totalApps: number;
+  activeViols: number;
+  resolvedViols: number;
+  totalViols: number;
+  receivedFrom: string;
+  receivedDate: string;
+  notes: string;
 }
 
 export const TCO_REQUIREMENTS: TCORequirement[] = [
@@ -99,14 +124,25 @@ export const PRIORITY_COLORS: Record<string, string> = {
 };
 
 export const MOCK_CO_APPLICATIONS: COApplication[] = [
-  { num: 1, jobNum: "421644714", source: "DOB_JOB_FILINGS", fileDate: "2019-04-29", desc: "Additions to existing fire alarm system - Auntie Anne's Space #1033", tenant: "Auntie Anne's", floor: "1", docNum: "1", jobType: "A2", workType: "FA", status: "Signed Off", action: "Confirm sign-off recorded in BIS", assignedTo: null, priority: "Low", previousStatus: "Permit Issued" },
+  { num: 1, jobNum: "421644714", source: "DOB_JOB_FILINGS", fileDate: "2019-04-29", desc: "Additions to existing fire alarm system - Auntie Anne's Space #1033", tenant: "Auntie Anne's", floor: "1", docNum: "1", jobType: "A2", workType: "FA", status: "Signed Off", action: "Confirm sign-off recorded in BIS", assignedTo: null, priority: "Low", previousStatus: "Permit Issued", bisOpenItems: [
+    { id: "bis-1a", description: "Final inspection sign-off pending in BIS system", receivedFrom: "DOB Examiner R. Chen", receivedDate: "2024-11-15", notes: "Examiner confirmed sign-off entered but not yet reflected in BIS. Follow up in 2 weeks.", resolved: false },
+  ] },
   { num: 2, jobNum: "421912041", source: "DOB_JOB_FILINGS", fileDate: "2019-10-24", desc: "Interior renovation of existing retail space #2021 (Parfois). No change to use, egress or occupancy.", tenant: "Parfois", floor: "2", docNum: null, jobType: "A2", workType: "OT", status: "Permit Issued", action: "Confirm if work is complete. Distribute LOC forms. Request LOC.", assignedTo: null, priority: "Medium" },
   { num: 3, jobNum: "421912728", source: "DOB_JOB_FILINGS", fileDate: "2019-10-22", desc: "Interior renovations - removal and installation of partitions, ceiling, door modifications. No change in use, egress or occupancy.", tenant: "Unknown", floor: "1", docNum: null, jobType: "A2", workType: "OT", status: "Approved", action: "Confirm if work is complete. Send out completion forms.", assignedTo: null, priority: "Medium", previousStatus: "In Process" },
   { num: 4, jobNum: "421915592", source: "DOB_JOB_FILINGS", fileDate: "2019-09-19", desc: "Tenant renovations for Aeropostale in tenant space 3021", tenant: "Aeropostale", floor: "3", docNum: null, jobType: "A2", workType: "OT", status: "Permit Issued", action: "Confirm if work is complete. Distribute LOC forms. Request LOC.", assignedTo: null, priority: "Medium" },
-  { num: 5, jobNum: "440247207", source: "DOB_JOB_FILINGS", fileDate: "2021-06-15", desc: "Installation of heavy duty sidewalk shed for remedial repair work", tenant: null, floor: "1", docNum: null, jobType: "A2", workType: "OT", status: "Permit Issued", action: "EUP needed. Confirm if work is complete. Withdraw or request LOC.", assignedTo: null, priority: "High" },
+  { num: 5, jobNum: "440247207", source: "DOB_JOB_FILINGS", fileDate: "2021-06-15", desc: "Installation of heavy duty sidewalk shed for remedial repair work", tenant: null, floor: "1", docNum: null, jobType: "A2", workType: "OT", status: "Permit Issued", action: "EUP needed. Confirm if work is complete. Withdraw or request LOC.", assignedTo: null, priority: "High", bisOpenItems: [
+    { id: "bis-5a", description: "Extension of Use Permit (EUP) required — current permit expired", receivedFrom: "Borough Commissioner's Office", receivedDate: "2024-10-01", notes: "Must file for EUP before any further action. Contact expeditor.", resolved: false },
+    { id: "bis-5b", description: "Sidewalk shed inspection overdue", receivedFrom: "DOB Inspector M. Torres", receivedDate: "2024-09-20", notes: "Inspection was due 09/15. Schedule immediately to avoid violation.", resolved: false },
+    { id: "bis-5c", description: "Insurance certificate expired on file", receivedFrom: "DOB Records", receivedDate: "2024-08-15", notes: "GC needs to submit updated COI to DOB.", resolved: true },
+  ] },
   { num: 6, jobNum: "421538571", source: "DOB_JOB_FILINGS", fileDate: "2018-05-20", desc: "Tenant fit-out, existing retail store. No change to existing use, egress or occupancy.", tenant: "Unknown", floor: "1", docNum: null, jobType: "A2", workType: "OT", status: "Permit Issued", action: "Confirm if work is complete. Distribute LOC forms. Request LOC.", assignedTo: null, priority: "Medium" },
-  { num: 7, jobNum: "421481658", source: "DOB_JOB_FILINGS", fileDate: "2017-09-10", desc: "Modifications to existing sprinkler system as indicated on plans", tenant: null, floor: "1", docNum: null, jobType: "A2", workType: "SP", status: "Permit Issued", action: "PL sign off needed. Confirm if work is complete. Send out forms. Withdraw or request LOC.", assignedTo: null, priority: "High" },
-  { num: 8, jobNum: "421524309", source: "DOB_JOB_FILINGS", fileDate: "2018-01-15", desc: "Additions to existing fire alarm system - E.L.F. Cosmetics store", tenant: "E.L.F. Cosmetics", floor: "2", docNum: null, jobType: "A2", workType: "FA", status: "Permit Issued", action: "FDNY LOA needed. Confirm if work is complete. Distribute LOC forms. Request LOC.", assignedTo: null, priority: "High" },
+  { num: 7, jobNum: "421481658", source: "DOB_JOB_FILINGS", fileDate: "2017-09-10", desc: "Modifications to existing sprinkler system as indicated on plans", tenant: null, floor: "1", docNum: null, jobType: "A2", workType: "SP", status: "Permit Issued", action: "PL sign off needed. Confirm if work is complete. Send out forms. Withdraw or request LOC.", assignedTo: null, priority: "High", bisOpenItems: [
+    { id: "bis-7a", description: "Plumbing sign-off required before sprinkler close-out", receivedFrom: "DOB Plumbing Unit", receivedDate: "2024-12-01", notes: "PL sign-off is prerequisite. Submitted request — awaiting response.", resolved: false },
+    { id: "bis-7b", description: "Updated sprinkler test report needed", receivedFrom: "FDNY", receivedDate: "2024-11-10", notes: "FDNY requires 5-year test report. Contractor scheduling.", resolved: false },
+  ] },
+  { num: 8, jobNum: "421524309", source: "DOB_JOB_FILINGS", fileDate: "2018-01-15", desc: "Additions to existing fire alarm system - E.L.F. Cosmetics store", tenant: "E.L.F. Cosmetics", floor: "2", docNum: null, jobType: "A2", workType: "FA", status: "Permit Issued", action: "FDNY LOA needed. Confirm if work is complete. Distribute LOC forms. Request LOC.", assignedTo: null, priority: "High", bisOpenItems: [
+    { id: "bis-8a", description: "FDNY Letter of Approval required", receivedFrom: "FDNY Bureau of Fire Prevention", receivedDate: "2024-10-20", notes: "Application submitted to FDNY. Typical turnaround 6-8 weeks.", resolved: false },
+  ] },
   { num: 9, jobNum: "421549202", source: "DOB_JOB_FILINGS", fileDate: "2018-03-01", desc: "Modification of existing sprinkler system on 1st floor at Superdry", tenant: "Superdry", floor: "1", docNum: null, jobType: "A2", workType: "SP", status: "Signed Off", action: "Confirm sign-off recorded in BIS", assignedTo: null, priority: "Medium", previousStatus: "Permit Issued" },
   { num: 10, jobNum: "421554507", source: "DOB_JOB_FILINGS", fileDate: "2018-03-15", desc: "Additions to existing fire alarm system - Superdry Space #2065", tenant: "Superdry", floor: "2", docNum: null, jobType: "A2", workType: "FA", status: "Permit Issued", action: "FDNY LOA needed. Confirm if work is complete. Distribute LOC forms. Request LOC.", assignedTo: null, priority: "High" },
   { num: 11, jobNum: "440307197", source: "DOB_NOW_BUILD", fileDate: "2021-08-10", desc: "Proposed installation of plywood enclosure as per plans. No change in use, egress or occupancy.", tenant: null, floor: "1", docNum: null, jobType: "A2", workType: "OT", status: "Approved", action: "Plans/EUP needed. Confirm if work is complete. Distribute LOC forms. Request LOC.", assignedTo: null, priority: "High" },
@@ -135,20 +171,20 @@ export const MOCK_CO_VIOLATIONS: COViolation[] = [
 ];
 
 export const MOCK_SIGN_OFFS: COSignOff[] = [
-  { name: "Final Construction", status: "Pending", date: null, jobNum: null, category: "general", tcoRequired: false },
-  { name: "Final Plumbing", status: "Signed Off", date: "01/20/2005", jobNum: "401536806", category: "deferrable", tcoRequired: false },
-  { name: "Final Elevator", status: "Pending", date: null, jobNum: null, category: "vertical-transport", tcoRequired: true },
-  { name: "Temp Elevator", status: "Signed Off", date: "09/18/2019", jobNum: null, category: "vertical-transport", tcoRequired: true },
-  { name: "Final Electrical", status: "Pending", date: null, jobNum: null, category: "life-safety", tcoRequired: true },
-  { name: "Sprinkler (Garage)", status: "Signed Off", date: "05/17/2005", jobNum: "401536806", category: "life-safety", tcoRequired: true },
-  { name: "Sprinkler (Mall)", status: "Signed Off", date: "05/17/2005", jobNum: "401536806", category: "life-safety", tcoRequired: true },
-  { name: "Standpipe (Garage)", status: "Signed Off", date: "02/05/2004", jobNum: "401536726", category: "life-safety", tcoRequired: true },
-  { name: "Standpipe (Mall)", status: "Signed Off", date: "03/18/2004", jobNum: "401623221", category: "life-safety", tcoRequired: true },
-  { name: "Fire Alarm (Garage)", status: "Signed Off", date: "05/02/2007", jobNum: "401536735", category: "life-safety", tcoRequired: true },
-  { name: "Fire Alarm (Mall)", status: "Signed Off", date: "05/02/2007", jobNum: "401538476", category: "life-safety", tcoRequired: true },
-  { name: "Smoke Purge (Garage)", status: "Permit Issued", date: null, jobNum: "401414830", category: "life-safety", tcoRequired: true },
-  { name: "Smoke Purge (Mall)", status: "Permit Issued", date: null, jobNum: "401414830", category: "life-safety", tcoRequired: true },
-  { name: "Fire Protection Plan", status: "Approved", date: "02/10/2004", jobNum: "401808923", category: "life-safety", tcoRequired: true },
+  { name: "Final Construction", status: "Pending", date: null, expirationDate: null, jobNum: null, category: "general", tcoRequired: false },
+  { name: "Final Plumbing", status: "Signed Off", date: "01/20/2005", expirationDate: "01/20/2026", jobNum: "401536806", category: "deferrable", tcoRequired: false },
+  { name: "Final Elevator", status: "Pending", date: null, expirationDate: null, jobNum: null, category: "vertical-transport", tcoRequired: true },
+  { name: "Temp Elevator", status: "Signed Off", date: "09/18/2019", expirationDate: "09/18/2025", jobNum: null, category: "vertical-transport", tcoRequired: true },
+  { name: "Final Electrical", status: "Pending", date: null, expirationDate: null, jobNum: null, category: "life-safety", tcoRequired: true },
+  { name: "Sprinkler (Garage)", status: "Signed Off", date: "05/17/2005", expirationDate: "05/17/2026", jobNum: "401536806", category: "life-safety", tcoRequired: true },
+  { name: "Sprinkler (Mall)", status: "Signed Off", date: "05/17/2005", expirationDate: "05/17/2026", jobNum: "401536806", category: "life-safety", tcoRequired: true },
+  { name: "Standpipe (Garage)", status: "Signed Off", date: "02/05/2004", expirationDate: "02/05/2025", jobNum: "401536726", category: "life-safety", tcoRequired: true },
+  { name: "Standpipe (Mall)", status: "Signed Off", date: "03/18/2004", expirationDate: "03/18/2025", jobNum: "401623221", category: "life-safety", tcoRequired: true },
+  { name: "Fire Alarm (Garage)", status: "Signed Off", date: "05/02/2007", expirationDate: "05/02/2027", jobNum: "401536735", category: "life-safety", tcoRequired: true },
+  { name: "Fire Alarm (Mall)", status: "Signed Off", date: "05/02/2007", expirationDate: "05/02/2027", jobNum: "401538476", category: "life-safety", tcoRequired: true },
+  { name: "Smoke Purge (Garage)", status: "Permit Issued", date: null, expirationDate: null, jobNum: "401414830", category: "life-safety", tcoRequired: true },
+  { name: "Smoke Purge (Mall)", status: "Permit Issued", date: null, expirationDate: null, jobNum: "401414830", category: "life-safety", tcoRequired: true },
+  { name: "Fire Protection Plan", status: "Approved", date: "02/10/2004", expirationDate: "02/10/2025", jobNum: "401808923", category: "life-safety", tcoRequired: true },
 ];
 
 export const MOCK_WORK_TYPE_BREAKDOWN = [
@@ -161,3 +197,17 @@ export const MOCK_WORK_TYPE_BREAKDOWN = [
   { workType: "SG", open: 29, closed: 15, total: 44 },
   { workType: "EQ", open: 16, closed: 8, total: 24 },
 ];
+
+// Mock previous report snapshot for delta comparison
+export const MOCK_PREVIOUS_REPORT: ReportSnapshot = {
+  ranAt: "2025-02-15T14:30:00Z",
+  openApps: 625,
+  closedApps: 904,
+  totalApps: 1529,
+  activeViols: 215,
+  resolvedViols: 85,
+  totalViols: 300,
+  receivedFrom: "Mack-Cali Realty / Queens Center Mall Management",
+  receivedDate: "2025-02-10",
+  notes: "Owner requested full status update ahead of Q1 board meeting.",
+};
