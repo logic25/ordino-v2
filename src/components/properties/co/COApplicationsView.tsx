@@ -10,15 +10,18 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Search, LayoutGrid, LayoutList, ChevronLeft, ChevronRight,
   Flag, FileText, CheckCircle2, Clock, Plus, AlertCircle, Trash2,
+  ChevronDown, ClipboardList,
 } from "lucide-react";
 import { format } from "date-fns";
 import type { COApplication, BISOpenItem } from "./coMockData";
 import {
   WORK_TYPE_LABELS, WORK_TYPE_COLORS, STATUS_COLORS, PRIORITY_COLORS,
 } from "./coMockData";
+import { type RequiredItem, PHASE_LABELS, PHASE_COLORS, createDefaultRequiredItems } from "./requiredItemsData";
 
 interface COApplicationsViewProps {
   applications: COApplication[];
@@ -42,6 +45,9 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
   const [drawerNotes, setDrawerNotes] = useState("");
   const [drawerAction, setDrawerAction] = useState("");
   const [drawerBisItems, setDrawerBisItems] = useState<BISOpenItem[]>([]);
+  const [drawerRequiredItems, setDrawerRequiredItems] = useState<RequiredItem[]>([]);
+  const [requiredItemsOpen, setRequiredItemsOpen] = useState(false);
+  const [requiredPhaseFilter, setRequiredPhaseFilter] = useState<"All" | "APP" | "PER" | "SGN">("All");
   const [page, setPage] = useState(0);
   const pageSize = 50;
 
@@ -81,6 +87,10 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
     setDrawerNotes(app.notes || "");
     setDrawerAction(app.action);
     setDrawerBisItems(app.bisOpenItems ? [...app.bisOpenItems] : []);
+    // Initialize required items — in real app these would be persisted per application
+    setDrawerRequiredItems((app as any).requiredItems || createDefaultRequiredItems());
+    setRequiredItemsOpen(false);
+    setRequiredPhaseFilter("All");
     // Reset new item form
     setNewBisDesc("");
     setNewBisFrom("");
@@ -472,6 +482,123 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
                     </Button>
                   </div>
                 </div>
+
+                {/* Required Items (B-SCAN Checklist) */}
+                <Separator />
+                <Collapsible open={requiredItemsOpen} onOpenChange={setRequiredItemsOpen}>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" className="w-full justify-between px-0 h-auto py-1 hover:bg-transparent">
+                      <span className="text-sm font-medium flex items-center gap-1.5">
+                        <ClipboardList className="h-4 w-4 text-blue-600" />
+                        Required Items (B-SCAN)
+                        <Badge variant="outline" className="text-[10px] ml-1">
+                          {drawerRequiredItems.filter(i => i.dateReceived).length}/{drawerRequiredItems.length}
+                        </Badge>
+                      </span>
+                      <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${requiredItemsOpen ? "rotate-180" : ""}`} />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-3 pt-2">
+                    {/* Phase filter chips */}
+                    <div className="flex gap-1">
+                      {(["All", "APP", "PER", "SGN"] as const).map((phase) => (
+                        <Button
+                          key={phase}
+                          variant={requiredPhaseFilter === phase ? "default" : "outline"}
+                          size="sm"
+                          className="h-6 text-[10px] px-2"
+                          onClick={() => setRequiredPhaseFilter(phase)}
+                        >
+                          {phase === "All" ? "All" : PHASE_LABELS[phase]}
+                        </Button>
+                      ))}
+                    </div>
+
+                    {/* Items list */}
+                    <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
+                      {drawerRequiredItems
+                        .filter(item => requiredPhaseFilter === "All" || item.phase === requiredPhaseFilter)
+                        .map((item) => (
+                        <div
+                          key={item.id}
+                          className={`rounded-md border p-2 space-y-1.5 text-xs ${item.dateReceived ? "opacity-60 bg-muted/20" : item.waived ? "opacity-40 bg-muted/10" : ""}`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <Checkbox
+                              checked={!!item.dateReceived}
+                              onCheckedChange={() => {
+                                setDrawerRequiredItems(prev => prev.map(ri =>
+                                  ri.id === item.id
+                                    ? { ...ri, dateReceived: ri.dateReceived ? null : new Date().toISOString().slice(0, 10) }
+                                    : ri
+                                ));
+                              }}
+                              className="mt-0.5"
+                            />
+                            <div className="flex-1 min-w-0 space-y-1.5">
+                              <div className="flex items-center gap-1.5">
+                                <Badge variant="outline" className={`${PHASE_COLORS[item.phase]} text-[9px] px-1 py-0`}>
+                                  {item.phase}
+                                </Badge>
+                                <span className={`font-medium text-xs ${item.dateReceived ? "line-through" : ""}`}>{item.name}</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-1.5">
+                                <div className="space-y-0.5">
+                                  <Label className="text-[9px] text-muted-foreground">From (who)</Label>
+                                  <Input
+                                    value={item.receivedFrom}
+                                    onChange={(e) => setDrawerRequiredItems(prev => prev.map(ri => ri.id === item.id ? { ...ri, receivedFrom: e.target.value } : ri))}
+                                    placeholder="DOB, Architect, GC..."
+                                    className="h-6 text-[11px]"
+                                  />
+                                </div>
+                                <div className="space-y-0.5">
+                                  <Label className="text-[9px] text-muted-foreground">Date Requested</Label>
+                                  <Input
+                                    type="date"
+                                    value={item.dateRequested || ""}
+                                    onChange={(e) => setDrawerRequiredItems(prev => prev.map(ri => ri.id === item.id ? { ...ri, dateRequested: e.target.value || null } : ri))}
+                                    className="h-6 text-[11px]"
+                                  />
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-1.5">
+                                <div className="space-y-0.5">
+                                  <Label className="text-[9px] text-muted-foreground">Date Received</Label>
+                                  <Input
+                                    type="date"
+                                    value={item.dateReceived || ""}
+                                    onChange={(e) => setDrawerRequiredItems(prev => prev.map(ri => ri.id === item.id ? { ...ri, dateReceived: e.target.value || null } : ri))}
+                                    className="h-6 text-[11px]"
+                                  />
+                                </div>
+                                <div className="flex items-end gap-1">
+                                  <Button
+                                    variant={item.waived ? "secondary" : "ghost"}
+                                    size="sm"
+                                    className="h-6 text-[10px] px-2"
+                                    onClick={() => setDrawerRequiredItems(prev => prev.map(ri => ri.id === item.id ? { ...ri, waived: !ri.waived } : ri))}
+                                  >
+                                    {item.waived ? "Waived ✓" : "Waive"}
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="space-y-0.5">
+                                <Label className="text-[9px] text-muted-foreground">Notes</Label>
+                                <Input
+                                  value={item.notes}
+                                  onChange={(e) => setDrawerRequiredItems(prev => prev.map(ri => ri.id === item.id ? { ...ri, notes: e.target.value } : ri))}
+                                  placeholder="Follow-up details..."
+                                  className="h-6 text-[11px]"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
 
                 <Separator />
 
