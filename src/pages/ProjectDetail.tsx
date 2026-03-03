@@ -91,6 +91,20 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   paid: { label: "Paid", variant: "default" },
 };
 
+// High-complexity project types (multi-discipline, regulatory-heavy)
+const COMPLEX_PROJECT_TYPES = ["new building", "major alteration", "enlargement", "full gut renovation", "demolition"];
+const MODERATE_PROJECT_TYPES = ["alteration type 1", "alteration type 2", "alt-1", "alt-2", "facade repair", "sidewalk shed"];
+
+function calculateComplexityTier(projectType: string | null | undefined, serviceCount: number): { label: string; color: string } {
+  const type = (projectType || "").toLowerCase().trim();
+  const isComplex = COMPLEX_PROJECT_TYPES.some(t => type.includes(t));
+  const isModerate = MODERATE_PROJECT_TYPES.some(t => type.includes(t));
+
+  if (isComplex || serviceCount >= 8) return { label: "Complex", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" };
+  if (isModerate || serviceCount >= 4) return { label: "Standard", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" };
+  return { label: "Simple", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" };
+}
+
 const formatName = (profile: { first_name: string | null; last_name: string | null } | null | undefined) => {
   if (!profile) return "—";
   return [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "—";
@@ -294,6 +308,14 @@ export default function ProjectDetail() {
                   {[project.project_number, project.properties?.address, project.name || project.proposals?.title].filter(Boolean).join(" — ") || "Untitled Project"}
                 </h1>
                 <Badge variant={status.variant} className="shrink-0">{status.label}</Badge>
+                {(() => {
+                  const tier = calculateComplexityTier(project.project_type, realServices.length);
+                  return (
+                    <Badge variant="outline" className={cn("shrink-0 border-none text-[10px] font-medium", tier.color)}>
+                      {tier.label}
+                    </Badge>
+                  );
+                })()}
               </div>
               <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
                 {(project as any).tenant_name && (
