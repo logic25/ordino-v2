@@ -109,6 +109,10 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
     setDrawerBisItems(prev => prev.map(i => i.id === id ? { ...i, resolved: !i.resolved } : i));
   };
 
+  const updateBisField = (id: string, field: keyof BISOpenItem, value: string) => {
+    setDrawerBisItems(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
+  };
+
   const removeBisItem = (id: string) => {
     setDrawerBisItems(prev => prev.filter(i => i.id !== id));
   };
@@ -341,24 +345,52 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
                     </p>
                   </div>
 
-                  {/* Existing BIS items */}
+                   {/* Existing BIS items — editable inline */}
                   {drawerBisItems.length > 0 && (
                     <div className="space-y-2">
                       {drawerBisItems.map((item) => (
-                        <div key={item.id} className={`rounded-lg border p-3 space-y-1.5 text-sm ${item.resolved ? "opacity-60 bg-muted/20" : ""}`}>
+                        <div key={item.id} className={`rounded-lg border p-3 space-y-2 text-sm ${item.resolved ? "opacity-60 bg-muted/20" : ""}`}>
                           <div className="flex items-start gap-2">
                             <Checkbox
                               checked={item.resolved}
                               onCheckedChange={() => toggleBisResolved(item.id)}
                               className="mt-0.5"
                             />
-                            <div className="flex-1 min-w-0">
-                              <p className={`font-medium ${item.resolved ? "line-through" : ""}`}>{item.description}</p>
-                              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-1">
-                                <span>From: <span className="text-foreground">{item.receivedFrom || "—"}</span></span>
-                                <span>Received: <span className="text-foreground">{item.receivedDate ? format(new Date(item.receivedDate), "MM/dd/yyyy") : "—"}</span></span>
+                            <div className="flex-1 min-w-0 space-y-2">
+                              <Input
+                                value={item.description}
+                                onChange={(e) => updateBisField(item.id, "description", e.target.value)}
+                                className={`h-7 text-sm font-medium ${item.resolved ? "line-through" : ""}`}
+                              />
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-0.5">
+                                  <Label className="text-[10px] text-muted-foreground">Received From</Label>
+                                  <Input
+                                    value={item.receivedFrom}
+                                    onChange={(e) => updateBisField(item.id, "receivedFrom", e.target.value)}
+                                    placeholder="DOB Examiner, FDNY, etc."
+                                    className="h-7 text-xs"
+                                  />
+                                </div>
+                                <div className="space-y-0.5">
+                                  <Label className="text-[10px] text-muted-foreground">Date Received</Label>
+                                  <Input
+                                    type="date"
+                                    value={item.receivedDate}
+                                    onChange={(e) => updateBisField(item.id, "receivedDate", e.target.value)}
+                                    className="h-7 text-xs"
+                                  />
+                                </div>
                               </div>
-                              {item.notes && <p className="text-xs text-muted-foreground mt-1">{item.notes}</p>}
+                              <div className="space-y-0.5">
+                                <Label className="text-[10px] text-muted-foreground">Notes</Label>
+                                <Textarea
+                                  value={item.notes}
+                                  onChange={(e) => updateBisField(item.id, "notes", e.target.value)}
+                                  rows={2}
+                                  className="text-xs"
+                                />
+                              </div>
                             </div>
                             <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => removeBisItem(item.id)}>
                               <Trash2 className="h-3 w-3" />
