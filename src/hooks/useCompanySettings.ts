@@ -104,6 +104,8 @@ export interface CompanySettings {
   // Google Chat integration
   gchat_enabled?: boolean;
   gchat_space_id?: string;
+  // Filing checklist defaults
+  filing_checklist_defaults?: { id: string; label: string; required: boolean }[];
 }
 
 export function useCompanySettings() {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, GripVertical, Save, Pencil, Check, X } from "lucide-react";
+import { useCompanySettings, useUpdateCompanySettings } from "@/hooks/useCompanySettings";
+import { Plus, Trash2, GripVertical, Save, Pencil, Check, X, Loader2 } from "lucide-react";
 
 interface ChecklistTemplate {
   id: string;
@@ -109,10 +110,24 @@ function SortableChecklistItem({
 
 export function FilingChecklistSettings() {
   const { toast } = useToast();
+  const { data: companyData, isLoading } = useCompanySettings();
+  const updateSettings = useUpdateCompanySettings();
   const [items, setItems] = useState<ChecklistTemplate[]>(DEFAULT_ITEMS);
+  const [initialized, setInitialized] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingLabel, setEditingLabel] = useState("");
+
+  // Load saved defaults from company settings
+  useEffect(() => {
+    if (companyData && !initialized) {
+      const saved = companyData.settings?.filing_checklist_defaults;
+      if (saved && Array.isArray(saved) && saved.length > 0) {
+        setItems(saved as ChecklistTemplate[]);
+      }
+      setInitialized(true);
+    }
+  }, [companyData, initialized]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -140,9 +155,28 @@ export function FilingChecklistSettings() {
     });
   };
 
-  const handleSave = () => {
-    toast({ title: "Checklist saved", description: `${items.length} items saved as company default.` });
+  const handleSave = async () => {
+    if (!companyData?.companyId) return;
+    try {
+      await updateSettings.mutateAsync({
+        companyId: companyData.companyId,
+        settings: { filing_checklist_defaults: items },
+      });
+      toast({ title: "Checklist saved", description: `${items.length} items saved as company default.` });
+    } catch {
+      toast({ title: "Error", description: "Failed to save checklist defaults.", variant: "destructive" });
+    }
   };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -186,8 +220,9 @@ export function FilingChecklistSettings() {
           </Button>
         </div>
 
-        <Button className="gap-1.5" onClick={handleSave}>
-          <Save className="h-3.5 w-3.5" /> Save Defaults
+        <Button className="gap-1.5" onClick={handleSave} disabled={updateSettings.isPending}>
+          {updateSettings.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+          Save Defaults
         </Button>
       </CardContent>
     </Card>
