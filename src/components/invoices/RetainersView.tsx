@@ -19,6 +19,8 @@ import {
   type ClientRetainer, type RetainerTransaction,
 } from "@/hooks/useRetainers";
 import { useClients } from "@/hooks/useClients";
+import { useProjects } from "@/hooks/useProjects";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import {
@@ -28,6 +30,7 @@ import {
 export function RetainersView() {
   const { data: retainers = [], isLoading } = useRetainers();
   const { data: clients = [] } = useClients();
+  const { data: projects = [] } = useProjects();
   const createRetainer = useCreateRetainer();
   const addFunds = useAddRetainerFunds();
 
@@ -35,9 +38,12 @@ export function RetainersView() {
   const [selectedRetainer, setSelectedRetainer] = useState<ClientRetainer | null>(null);
   const [addFundsOpen, setAddFundsOpen] = useState(false);
   const [addFundsRetainerId, setAddFundsRetainerId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   // Create form
   const [newClientId, setNewClientId] = useState("");
+  const [newProjectId, setNewProjectId] = useState("");
+  const [newPaymentMethod, setNewPaymentMethod] = useState("check");
   const [newAmount, setNewAmount] = useState("");
   const [newNotes, setNewNotes] = useState("");
 
@@ -49,21 +55,91 @@ export function RetainersView() {
   const depletedRetainers = retainers.filter((r) => r.status !== "active");
   const totalBalance = activeRetainers.reduce((sum, r) => sum + Number(r.current_balance), 0);
 
+  const openProjects = useMemo(
+    () => projects.filter((p) => p.status === "open"),
+    [projects]
+  );
+
+  const clientProjects = useMemo(
+    () => newClientId ? openProjects.filter((p) => p.client_id === newClientId) : openProjects,
+    [newClientId, openProjects]
+  );
+
   const handleCreate = async () => {
-    if (!newClientId || !newAmount) return;
+    if (!newClientId || !newAmount || !newProjectId) return;
+    setCreating(true);
     try {
-      await createRetainer.mutateAsync({
-        client_id: newClientId,
-        original_amount: parseFloat(newAmount),
-        notes: newNotes || undefined,
+      const { data: profile } = await supabase.from("profiles").select("id, company_id").single();
+      if (!profile) throw new Error("No profile");
+
+      const amount = parseFloat(newAmount);
+      const project = projects.find((p) => p.id === newProjectId);
+
+      // Create retainer
+      const { data: retainer, error: rErr } = await supabase
+        .from("client_retainers")
+        .insert({
+          company_id: profile.company_id,
+          client_id: newClientId,
+          original_amount: amount,
+          current_balance: amount,
+          notes: newNotes || null,
+          created_by: profile.id,
+        })
+        .select()
+        .single();
+      if (rErr) throw rErr;
+
+      // Record deposit transaction
+      await supabase.from("retainer_transactions").insert({
+        company_id: profile.company_id,
+        retainer_id: retainer.id,
+        type: "deposit",
+        amount,
+        balance_after: amount,
+        description: `Deposit - ${project?.name || "Project"}`,
+        performed_by: profile.id,
       });
-      toast({ title: "Deposit created" });
+
+      // Create paid invoice
+      const { data: invoice } = await supabase
+        .from("invoices")
+        .insert({
+          company_id: profile.company_id,
+          project_id: newProjectId,
+          client_id: newClientId,
+          invoice_number: "",
+          line_items: [{ description: `Deposit - ${project?.name || "Project"}`, quantity: 1, rate: amount, amount }],
+          subtotal: amount,
+          retainer_applied: 0,
+          fees: {},
+          total_due: amount,
+          status: "paid",
+          payment_terms: "Due on Receipt",
+          payment_amount: amount,
+          payment_method: newPaymentMethod,
+          paid_at: new Date().toISOString(),
+          created_by: profile.id,
+        })
+        .select("invoice_number")
+        .single();
+
+      toast({
+        title: "Deposit created",
+        description: invoice?.invoice_number ? `Invoice ${invoice.invoice_number} created` : undefined,
+      });
       setCreateOpen(false);
       setNewClientId("");
+      setNewProjectId("");
       setNewAmount("");
       setNewNotes("");
+      setNewPaymentMethod("check");
+      // Invalidate queries
+      createRetainer.reset();
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -164,7 +240,7 @@ export function RetainersView() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Client</Label>
-              <Select value={newClientId} onValueChange={setNewClientId}>
+              <Select value={newClientId} onValueChange={(v) => { setNewClientId(v); setNewProjectId(""); }}>
                 <SelectTrigger><SelectValue placeholder="Select client" /></SelectTrigger>
                 <SelectContent>
                   {clients.map((c) => (
@@ -174,15 +250,42 @@ export function RetainersView() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Deposit Amount ($)</Label>
-              <Input
-                type="number"
-                min={0}
-                step={0.01}
-                value={newAmount}
-                onChange={(e) => setNewAmount(e.target.value)}
-                placeholder="5,000.00"
-              />
+              <Label>Project *</Label>
+              <Select value={newProjectId} onValueChange={setNewProjectId}>
+                <SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger>
+                <SelectContent>
+                  {clientProjects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.project_number || "—"} – {p.name || "Untitled"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Deposit Amount ($)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={newAmount}
+                  onChange={(e) => setNewAmount(e.target.value)}
+                  placeholder="5,000.00"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Payment Method</Label>
+                <Select value={newPaymentMethod} onValueChange={setNewPaymentMethod}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="check">Check</SelectItem>
+                    <SelectItem value="card">Credit Card</SelectItem>
+                    <SelectItem value="ach">ACH</SelectItem>
+                    <SelectItem value="wire">Wire Transfer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Notes</Label>
@@ -196,8 +299,8 @@ export function RetainersView() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreate} disabled={!newClientId || !newAmount || createRetainer.isPending}>
-              {createRetainer.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            <Button onClick={handleCreate} disabled={!newClientId || !newProjectId || !newAmount || creating}>
+              {creating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Create Deposit
             </Button>
           </DialogFooter>

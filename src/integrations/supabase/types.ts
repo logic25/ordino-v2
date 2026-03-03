@@ -1103,6 +1103,7 @@ export type Database = {
       billing_schedules: {
         Row: {
           auto_approve: boolean | null
+          auto_send: boolean | null
           billed_to_contact_id: string | null
           billing_method: string
           billing_value: number
@@ -1118,6 +1119,7 @@ export type Database = {
           max_occurrences: number | null
           next_bill_date: string
           occurrences_completed: number | null
+          payment_method: string | null
           project_id: string
           service_id: string | null
           service_name: string
@@ -1125,6 +1127,7 @@ export type Database = {
         }
         Insert: {
           auto_approve?: boolean | null
+          auto_send?: boolean | null
           billed_to_contact_id?: string | null
           billing_method?: string
           billing_value: number
@@ -1140,6 +1143,7 @@ export type Database = {
           max_occurrences?: number | null
           next_bill_date: string
           occurrences_completed?: number | null
+          payment_method?: string | null
           project_id: string
           service_id?: string | null
           service_name: string
@@ -1147,6 +1151,7 @@ export type Database = {
         }
         Update: {
           auto_approve?: boolean | null
+          auto_send?: boolean | null
           billed_to_contact_id?: string | null
           billing_method?: string
           billing_value?: number
@@ -1162,6 +1167,7 @@ export type Database = {
           max_occurrences?: number | null
           next_bill_date?: string
           occurrences_completed?: number | null
+          payment_method?: string | null
           project_id?: string
           service_id?: string | null
           service_name?: string

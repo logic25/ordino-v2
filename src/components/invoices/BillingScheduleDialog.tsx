@@ -44,6 +44,8 @@ export function BillingScheduleDialog({ open, onOpenChange }: BillingScheduleDia
   const [frequency, setFrequency] = useState("monthly");
   const [nextBillDate, setNextBillDate] = useState("");
   const [autoApprove, setAutoApprove] = useState(false);
+  const [autoSend, setAutoSend] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("");
   const [contactId, setContactId] = useState("");
 
   const { data: projects } = useProjects();
@@ -79,7 +81,9 @@ export function BillingScheduleDialog({ open, onOpenChange }: BillingScheduleDia
         frequency,
         next_bill_date: nextBillDate,
         auto_approve: autoApprove,
-      });
+        auto_send: autoSend,
+        payment_method: paymentMethod || null,
+      } as any);
       toast({ title: "Billing schedule created" });
       onOpenChange(false);
     } catch (err: any) {
@@ -176,6 +180,19 @@ export function BillingScheduleDialog({ open, onOpenChange }: BillingScheduleDia
             </div>
           )}
 
+          <div className="space-y-2">
+            <Label>Payment Method (optional)</Label>
+            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+              <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="check">Check</SelectItem>
+                <SelectItem value="card">Credit Card</SelectItem>
+                <SelectItem value="ach">ACH</SelectItem>
+                <SelectItem value="wire">Wire Transfer</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>
               <Label>Auto-approve</Label>
@@ -183,6 +200,16 @@ export function BillingScheduleDialog({ open, onOpenChange }: BillingScheduleDia
             </div>
             <Switch checked={autoApprove} onCheckedChange={setAutoApprove} />
           </div>
+
+          {autoApprove && (
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <Label>Auto-send</Label>
+                <p className="text-xs text-muted-foreground">Mark invoice as sent automatically. Email delivery requires Gmail integration.</p>
+              </div>
+              <Switch checked={autoSend} onCheckedChange={setAutoSend} />
+            </div>
+          )}
         </div>
 
         <DialogFooter>

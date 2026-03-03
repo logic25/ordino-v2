@@ -77,6 +77,7 @@ serve(async (req) => {
 
       // If auto-approve, also create invoice
       if (schedule.auto_approve && billingReq) {
+        const invoiceStatus = schedule.auto_send ? "sent" : "ready_to_send";
         const { data: invoice, error: invErr } = await supabase
           .from("invoices")
           .insert({
@@ -90,8 +91,10 @@ serve(async (req) => {
             retainer_applied: 0,
             fees: {},
             total_due: serviceItem.amount,
-            status: "ready_to_send",
+            status: invoiceStatus,
             payment_terms: "Net 30",
+            payment_method: schedule.payment_method || null,
+            sent_at: schedule.auto_send ? new Date().toISOString() : null,
             billed_to_contact_id: schedule.billed_to_contact_id,
             created_by: schedule.created_by,
           })
