@@ -174,7 +174,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
         body: {
           to: submitEmail,
           subject: `RFP Response: ${rfp.title}${rfp.rfp_number ? ` (#${rfp.rfp_number})` : ""}`,
-          body: buildEmailBody(),
+          html_body: buildEmailBody(),
         },
       });
       if (error) throw error;
