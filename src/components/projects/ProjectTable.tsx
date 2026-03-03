@@ -68,7 +68,7 @@ export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, is
             <TableHead>Client</TableHead>
             <TableHead>PM</TableHead>
              <TableHead>Status</TableHead>
-            <TableHead>Phase</TableHead>
+            
             <TableHead>Value</TableHead>
             <TableHead className="w-[50px]" />
           </TableRow>
@@ -106,11 +106,6 @@ export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, is
                   </Select>
                 </TableCell>
                 <TableCell><Badge variant={status.variant}>{status.label}</Badge></TableCell>
-                <TableCell>
-                  <Badge variant="outline" className="text-[10px] capitalize">
-                    {((project as any).phase || "pre_filing").replace(/_/g, "-")}
-                  </Badge>
-                </TableCell>
                 <TableCell className="text-muted-foreground">{formatCurrency(project.proposals?.total_amount ?? null)}</TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
