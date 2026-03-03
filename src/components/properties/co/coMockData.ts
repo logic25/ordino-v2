@@ -25,7 +25,8 @@ export interface BISOpenItem {
   id: string;
   description: string;
   receivedFrom: string;
-  receivedDate: string;
+  dateRequested?: string;            // When we asked for it
+  receivedDate: string;             // When we got it (empty = outstanding)
   notes: string;
   resolved: boolean;
   signOffRequired?: string;   // e.g. "FDNY", "DOB Plumbing", "Owner"
@@ -128,11 +129,11 @@ export const PRIORITY_COLORS: Record<string, string> = {
 
 export const MOCK_CO_APPLICATIONS: COApplication[] = [
   { num: 1, jobNum: "421644714", source: "DOB_JOB_FILINGS", fileDate: "2019-04-29", desc: "Additions to existing fire alarm system - Auntie Anne's Space #1033", tenant: "Auntie Anne's", floor: "1", docNum: "1", jobType: "A2", workType: "FA", status: "Signed Off", action: "Confirm sign-off recorded in BIS", assignedTo: null, priority: "Low", previousStatus: "Permit Issued", bisOpenItems: [
-    { id: "bis-1a", description: "Final inspection sign-off pending in BIS system", receivedFrom: "DOB Examiner R. Chen", receivedDate: "", notes: "Examiner confirmed sign-off entered but not yet reflected in BIS. Follow up in 2 weeks.", resolved: false },
-    { id: "bis-1b", description: "TR1 — Special Inspection Sign-Off (Structural Steel)", receivedFrom: "Engineer — Thornton Tomasetti", receivedDate: "", notes: "Awaiting final letter from engineer. Site visit completed 01/15.", resolved: false, signOffRequired: "DOB" },
-    { id: "bis-1c", description: "Fire Alarm Certificate of Fitness", receivedFrom: "FDNY — Bureau of Fire Prevention", receivedDate: "", notes: "C of F application submitted 12/20. Processing takes 4–6 weeks.", resolved: false, signOffRequired: "FDNY" },
-    { id: "bis-1d", description: "Letter of Completion from Tenant", receivedFrom: "Auntie Anne's — Store Manager K. Patel", receivedDate: "", notes: "Form sent to tenant 01/08, awaiting signed copy.", resolved: false, signOffRequired: "Tenant" },
-    { id: "bis-1e", description: "Updated As-Built Drawings (Reflected Ceiling Plan)", receivedFrom: "Architect — GF55 Partners", receivedDate: "", notes: "Architect revising RCP to match field conditions. Expected by end of Feb.", resolved: false, signOffRequired: "DOB Plan Examiner" },
+    { id: "bis-1a", description: "Final inspection sign-off pending in BIS system", receivedFrom: "DOB Examiner R. Chen", dateRequested: "2024-10-01", receivedDate: "", notes: "Examiner confirmed sign-off entered but not yet reflected in BIS. Follow up in 2 weeks.", resolved: false },
+    { id: "bis-1b", description: "TR1 — Special Inspection Sign-Off (Structural Steel)", receivedFrom: "Engineer — Thornton Tomasetti", dateRequested: "2024-12-15", receivedDate: "", notes: "Awaiting final letter from engineer. Site visit completed 01/15.", resolved: false, signOffRequired: "DOB" },
+    { id: "bis-1c", description: "Fire Alarm Certificate of Fitness", receivedFrom: "FDNY — Bureau of Fire Prevention", dateRequested: "2024-12-20", receivedDate: "", notes: "C of F application submitted 12/20. Processing takes 4–6 weeks.", resolved: false, signOffRequired: "FDNY" },
+    { id: "bis-1d", description: "Letter of Completion from Tenant", receivedFrom: "Auntie Anne's — Store Manager K. Patel", dateRequested: "2025-01-08", receivedDate: "", notes: "Form sent to tenant 01/08, awaiting signed copy.", resolved: false, signOffRequired: "Tenant" },
+    { id: "bis-1e", description: "Updated As-Built Drawings (Reflected Ceiling Plan)", receivedFrom: "Architect — GF55 Partners", dateRequested: "2025-01-20", receivedDate: "", notes: "Architect revising RCP to match field conditions. Expected by end of Feb.", resolved: false, signOffRequired: "DOB Plan Examiner" },
   ] },
   { num: 2, jobNum: "421912041", source: "DOB_JOB_FILINGS", fileDate: "2019-10-24", desc: "Interior renovation of existing retail space #2021 (Parfois). No change to use, egress or occupancy.", tenant: "Parfois", floor: "2", docNum: null, jobType: "A2", workType: "OT", status: "Permit Issued", action: "Confirm if work is complete. Distribute LOC forms. Request LOC.", assignedTo: null, priority: "High", bisOpenItems: [
     { id: "bis-2a", description: "As-built drawings required — field conditions differ from approved plans", receivedFrom: "DOB Plan Examiner J. Martinez", receivedDate: "2024-12-10", notes: "Examiner noted partition layout doesn't match approved set. Architect must submit revised as-builts.", resolved: false, signOffRequired: "DOB Plan Examiner" },

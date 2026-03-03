@@ -293,7 +293,7 @@ export function COReportPDF({
                       <View key={item.id} style={s.bisItem}>
                         <Text style={{ fontSize: 7, fontWeight: "bold" }}>{item.description}</Text>
                         <Text style={s.bisText}>
-                          From: {item.receivedFrom || "—"} · Received: {item.receivedDate || "—"}
+                          From: {item.receivedFrom || "—"} · Requested: {item.dateRequested || "—"} · Received: {item.receivedDate || "Outstanding"}
                           {item.signOffRequired ? ` · Sign-Off: ${item.signOffRequired}` : ""}
                         </Text>
                         {item.notes && <Text style={[s.bisText, { fontStyle: "italic" }]}>{item.notes}</Text>}
