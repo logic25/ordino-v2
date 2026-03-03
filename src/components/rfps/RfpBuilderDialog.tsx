@@ -73,6 +73,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   const [submitting, setSubmitting] = useState(false);
   const [submitEmail, setSubmitEmail] = useState("");
   const [draftLoaded, setDraftLoaded] = useState(false);
+  const [dirty, setDirty] = useState(false);
 
   const updateStatus = useUpdateRfpStatus();
   const { toast } = useToast();
@@ -91,9 +92,9 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   const { data: certs = [] } = useRfpContent("certification");
   const { data: notableProjects = [] } = useNotableApplications();
 
-  // Load draft
+  // Load draft only once on open
   useEffect(() => {
-    if (draft && !draftLoaded && open) {
+    if (draft && !draftLoaded && !dirty && open) {
       setSelectedSections(draft.selected_sections.length ? draft.selected_sections : [...DEFAULT_SECTIONS]);
       setSectionOrder(draft.section_order.length ? draft.section_order : [...DEFAULT_SECTIONS]);
       setCoverLetter(draft.cover_letter || "");
@@ -101,13 +102,13 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
       setStep(draft.wizard_step || 0);
       setDraftLoaded(true);
     }
-  }, [draft, draftLoaded, open]);
+  }, [draft, draftLoaded, dirty, open]);
 
   useEffect(() => {
-    if (!open) setDraftLoaded(false);
+    if (!open) { setDraftLoaded(false); setDirty(false); }
   }, [open]);
 
-  const saveDraft = useCallback(() => {
+  const saveDraft = useCallback((overrideStep?: number) => {
     if (!rfp?.id) return;
     upsertDraft.mutate({
       rfp_id: rfp.id,
@@ -115,7 +116,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
       section_order: sectionOrder,
       cover_letter: coverLetter || null,
       submit_email: submitEmail || null,
-      wizard_step: step,
+      wizard_step: overrideStep ?? step,
     });
   }, [rfp?.id, selectedSections, sectionOrder, coverLetter, submitEmail, step]);
 
@@ -128,6 +129,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
+      setDirty(true);
       setSectionOrder((prev) => {
         const oldIndex = prev.indexOf(active.id as string);
         const newIndex = prev.indexOf(over.id as string);
@@ -137,6 +139,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   };
 
   const toggleSection = (id: string) => {
+    setDirty(true);
     setSelectedSections((prev) =>
       prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
     );
@@ -196,10 +199,10 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
 
   const buildEmailBody = () => {
     const parts: string[] = [];
-    if (coverLetter) parts.push(coverLetter);
-    parts.push(`\n\n--- RFP Response: ${rfp?.title} ---\n`);
+    if (coverLetter) parts.push(coverLetter.replace(/\n/g, "<br>"));
+    parts.push(`<br><br><hr><strong>RFP Response: ${rfp?.title}</strong><br>`);
     parts.push("Please find our complete RFP response package attached.");
-    return parts.join("\n");
+    return `<div style="font-family: Arial, sans-serif; line-height: 1.6;">${parts.join("\n")}</div>`;
   };
 
   const contentCounts: Record<string, number> = {
@@ -238,8 +241,8 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
 
   const draggableSections = sectionOrder.filter((s) => s !== "cover_letter");
 
-  const goNext = () => { saveDraft(); setStep((s) => Math.min(s + 1, STEPS.length - 1)); };
-  const goBack = () => setStep((s) => Math.max(s - 1, 0));
+  const goNext = () => { const next = Math.min(step + 1, STEPS.length - 1); setDirty(true); saveDraft(next); setStep(next); };
+  const goBack = () => { setDirty(true); setStep((s) => Math.max(s - 1, 0)); };
 
   const goToLibrary = (tab?: string | null) => {
     saveDraft();
@@ -268,7 +271,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
                 return (
                   <button
                     key={i}
-                    onClick={() => { saveDraft(); setStep(i); }}
+                    onClick={() => { setDirty(true); saveDraft(i); setStep(i); }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                       isActive ? "bg-accent text-accent-foreground" :
                       isDone ? "bg-accent/15 text-accent" :
