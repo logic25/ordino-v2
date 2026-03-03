@@ -111,18 +111,23 @@ export function useCreateBillingRequest() {
           .eq("project_id", input.project_id)
           .neq("status", "cancelled");
 
-        // Build total billed per service name
-        const totalBilledMap: Record<string, number> = {};
+        // Build total billed per service — prefer service_id, fallback to name
+        const totalBilledById: Record<string, number> = {};
+        const totalBilledByName: Record<string, number> = {};
         for (const br of allBillingReqs || []) {
           for (const item of (br.services as any[]) || []) {
+            const amt = Number(item.amount) || Number(item.billed_amount) || 0;
+            if (item.service_id) {
+              totalBilledById[item.service_id] = (totalBilledById[item.service_id] || 0) + amt;
+            }
             const key = item.name || "";
-            totalBilledMap[key] = (totalBilledMap[key] || 0) + (Number(item.amount) || Number(item.billed_amount) || 0);
+            totalBilledByName[key] = (totalBilledByName[key] || 0) + amt;
           }
         }
 
         for (const svc of projectServices || []) {
           const contractAmt = Number((svc as any).total_amount ?? (svc as any).fixed_price ?? 0);
-          const totalBilled = totalBilledMap[(svc as any).name] || 0;
+          const totalBilled = totalBilledById[svc.id] || totalBilledByName[(svc as any).name] || 0;
           if (contractAmt > 0 && totalBilled >= contractAmt) {
             await supabase.from("services").update({ 
               status: "billed",
@@ -178,6 +183,7 @@ export function useCreateBillingRequest() {
       queryClient.invalidateQueries({ queryKey: ["billing-requests"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["billing-pending-count"] });
+      queryClient.invalidateQueries({ queryKey: ["project-services-full"] });
 
       if (result?.billingRequest) {
         triggerBillingNotifications(result.billingRequest as any).catch(console.error);

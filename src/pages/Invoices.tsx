@@ -212,7 +212,7 @@ export default function Invoices() {
         </Card>
       </div>
 
-      <CreateInvoiceDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <CreateInvoiceDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={(inv) => setDetailInvoice(inv)} />
       <SendToBillingDialog open={billingOpen} onOpenChange={setBillingOpen} />
 
       <InvoiceDetailSheet

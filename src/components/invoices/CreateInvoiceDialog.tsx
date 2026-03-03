@@ -22,9 +22,10 @@ import { Loader2, Wallet } from "lucide-react";
 interface CreateInvoiceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onCreated?: (invoice: any) => void;
 }
 
-export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogProps) {
+export function CreateInvoiceDialog({ open, onOpenChange, onCreated }: CreateInvoiceDialogProps) {
   const { track } = useTelemetry();
   const [projectId, setProjectId] = useState<string>("");
   const [clientId, setClientId] = useState<string>("");
@@ -100,6 +101,9 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
       toast({ title: `Invoice ${status === "draft" ? "saved as draft" : "marked ready to send"}` });
       onOpenChange(false);
       resetForm();
+      if (onCreated && invoice) {
+        onCreated(invoice);
+      }
     } catch (err: any) {
       toast({ title: "Error creating invoice", description: err.message, variant: "destructive" });
     }
