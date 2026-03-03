@@ -218,7 +218,10 @@ function ServicesTab({ services }: { services: MockService[] }) {
                   <TableCell className="pr-0">
                     {isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
                   </TableCell>
-                  <TableCell className="text-sm font-medium">{svc.name}</TableCell>
+                  <TableCell className="text-sm font-medium">
+                    {svc.changeOrderId && <Badge variant="outline" className="mr-1.5 text-[10px] px-1.5 py-0 font-mono border-amber-500/50 text-amber-600 dark:text-amber-400">CO</Badge>}
+                    {svc.name}
+                  </TableCell>
                   <TableCell>
                     <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${sStatus.className}`}>{sStatus.label}</span>
                   </TableCell>
@@ -542,7 +545,10 @@ function JobCostingTab({ services, timeEntries }: { services: MockService[]; tim
             const sMargin = svc.totalAmount > 0 ? ((svc.totalAmount - svc.costAmount) / svc.totalAmount * 100) : 0;
             return (
               <TableRow key={svc.id} className="hover:bg-muted/20">
-                <TableCell className="text-sm font-medium">{svc.name}</TableCell>
+                <TableCell className="text-sm font-medium">
+                  {svc.changeOrderId && <Badge variant="outline" className="mr-1.5 text-[10px] px-1.5 py-0 font-mono border-amber-500/50 text-amber-600 dark:text-amber-400">CO</Badge>}
+                  {svc.name}
+                </TableCell>
                 <TableCell className="text-sm text-right tabular-nums">{formatCurrency(svc.totalAmount)}</TableCell>
                 <TableCell className="text-sm text-right tabular-nums text-muted-foreground">{svc.costAmount > 0 ? formatCurrency(svc.costAmount) : "—"}</TableCell>
                 <TableCell className="text-sm text-right tabular-nums">

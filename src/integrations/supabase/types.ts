@@ -6590,6 +6590,7 @@ export type Database = {
           billed_amount: number | null
           billing_milestones: Json | null
           billing_type: string | null
+          change_order_id: string | null
           company_id: string
           completed_date: string | null
           cost_amount: number | null
@@ -6616,6 +6617,7 @@ export type Database = {
           billed_amount?: number | null
           billing_milestones?: Json | null
           billing_type?: string | null
+          change_order_id?: string | null
           company_id: string
           completed_date?: string | null
           cost_amount?: number | null
@@ -6642,6 +6644,7 @@ export type Database = {
           billed_amount?: number | null
           billing_milestones?: Json | null
           billing_type?: string | null
+          change_order_id?: string | null
           company_id?: string
           completed_date?: string | null
           cost_amount?: number | null
@@ -6668,6 +6671,13 @@ export type Database = {
             columns: ["application_id"]
             isOneToOne: false
             referencedRelation: "dob_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "services_change_order_id_fkey"
+            columns: ["change_order_id"]
+            isOneToOne: false
+            referencedRelation: "change_orders"
             referencedColumns: ["id"]
           },
           {
