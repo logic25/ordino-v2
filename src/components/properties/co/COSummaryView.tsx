@@ -16,16 +16,19 @@ import {
   CheckCircle2, Clock, AlertTriangle, FileDown, Mail, FileText,
   BarChart3, Radio, ArrowRight, Plus, Trash2,
   TrendingUp, TrendingDown, ShieldAlert, ArrowUpRight, ArrowDownRight,
-  CalendarClock,
+  CalendarClock, ClipboardList, Loader2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { pdf } from "@react-pdf/renderer";
 import type { COApplication, COViolation, COSignOff, ReportSnapshot } from "./coMockData";
 import {
   WORK_TYPE_LABELS, WORK_TYPE_COLORS, STATUS_COLORS,
   MOCK_SIGN_OFFS, MOCK_WORK_TYPE_BREAKDOWN, TCO_REQUIREMENTS,
   MOCK_PREVIOUS_REPORT,
 } from "./coMockData";
+import type { RequiredItem } from "./requiredItemsData";
+import { COReportPDF } from "./COReportPDF";
 
 interface COSummaryViewProps {
   applications: COApplication[];
@@ -35,6 +38,7 @@ interface COSummaryViewProps {
   lot?: string | null;
   onFilterWorkType: (wt: string) => void;
   lastSynced: string | null;
+  requiredItemsMap?: Record<string, RequiredItem[]>;
 }
 
 interface NextStep {
@@ -44,11 +48,12 @@ interface NextStep {
 }
 
 export function COSummaryView({
-  applications, violations, propertyAddress, block, lot, onFilterWorkType, lastSynced,
+  applications, violations, propertyAddress, block, lot, onFilterWorkType, lastSynced, requiredItemsMap = {},
 }: COSummaryViewProps) {
   const { toast } = useToast();
   const [reportOpen, setReportOpen] = useState(false);
   const [reportType, setReportType] = useState<"CO" | "TCO">("CO");
+  const [generatingPdf, setGeneratingPdf] = useState(false);
   const [lastReportDate, setLastReportDate] = useState<string | null>(MOCK_PREVIOUS_REPORT.ranAt);
   const [previousSnapshot, setPreviousSnapshot] = useState<ReportSnapshot | null>(MOCK_PREVIOUS_REPORT);
   const [nextSteps, setNextSteps] = useState<NextStep[]>([]);
@@ -580,6 +585,19 @@ export function COSummaryView({
                   </p>
                 ) : null;
               })()}
+              {/* Required items summary */}
+              {(() => {
+                const allReqItems = Object.values(requiredItemsMap).flat();
+                const totalReq = allReqItems.length;
+                const outstandingReq = allReqItems.filter(ri => !ri.dateReceived).length;
+                const appsWithReq = Object.keys(requiredItemsMap).filter(k => requiredItemsMap[k].length > 0).length;
+                return totalReq > 0 ? (
+                  <p className="flex items-center gap-1.5 text-blue-700">
+                    <ClipboardList className="h-3.5 w-3.5" />
+                    <strong>{outstandingReq} outstanding required items</strong> across {appsWithReq} applications ({totalReq - outstandingReq}/{totalReq} received).
+                  </p>
+                ) : null;
+              })()}
             </div>
 
             {/* Status Changes Since Last Report */}
@@ -795,6 +813,35 @@ export function COSummaryView({
                             ))}
                           </div>
                         )}
+                        {/* Required Items per Application */}
+                        {(() => {
+                          const reqItems = requiredItemsMap[app.jobNum] || [];
+                          if (reqItems.length === 0) return null;
+                          const outstanding = reqItems.filter(ri => !ri.dateReceived);
+                          const completed = reqItems.filter(ri => ri.dateReceived);
+                          return (
+                            <div className="space-y-1.5 pl-3 border-l-2 border-blue-500/30">
+                              <p className="text-xs font-medium text-blue-700 flex items-center gap-1">
+                                <ClipboardList className="h-3 w-3" /> Required Items — {completed.length}/{reqItems.length} received
+                              </p>
+                              {outstanding.length > 0 && (
+                                <div className="space-y-1">
+                                  {outstanding.map(ri => (
+                                    <div key={ri.id} className="flex items-center gap-2 text-xs">
+                                      <span className="text-red-600">☐</span>
+                                      <span className="flex-1">{ri.name}</span>
+                                      <span className="text-muted-foreground">{ri.receivedFrom || "—"}</span>
+                                      {ri.dateRequested && <span className="text-muted-foreground text-[10px]">Req: {format(new Date(ri.dateRequested), "MM/dd/yy")}</span>}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {completed.length > 0 && (
+                                <p className="text-[10px] text-green-600">{completed.length} item{completed.length > 1 ? "s" : ""} received</p>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     );
                   })}
@@ -881,8 +928,42 @@ export function COSummaryView({
           </div>
 
           <div className="flex gap-2 pt-2">
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => toast({ title: "Coming soon", description: "PDF generation will be available in Phase 7." })}>
-              <FileDown className="h-3.5 w-3.5" /> Download PDF
+            <Button variant="outline" size="sm" className="gap-1.5" disabled={generatingPdf} onClick={async () => {
+              setGeneratingPdf(true);
+              try {
+                const blob = await pdf(
+                  <COReportPDF
+                    propertyAddress={propertyAddress}
+                    block={block}
+                    lot={lot}
+                    reportType={reportType}
+                    applications={applications}
+                    violations={violations}
+                    signOffs={displaySignOffs}
+                    workTypeBreakdown={MOCK_WORK_TYPE_BREAKDOWN}
+                    previousSnapshot={previousSnapshot}
+                    nextSteps={nextSteps}
+                    reportReceivedFrom={reportReceivedFrom}
+                    reportReceivedDate={reportReceivedDate}
+                    reportNotes={reportNotes}
+                    requiredItemsMap={requiredItemsMap}
+                  />
+                ).toBlob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `CO-Report-${propertyAddress.replace(/[^a-zA-Z0-9]/g, "-")}-${format(new Date(), "yyyy-MM-dd")}.pdf`;
+                a.click();
+                URL.revokeObjectURL(url);
+                toast({ title: "PDF downloaded", description: "The CO report has been saved." });
+              } catch (err) {
+                console.error("PDF generation error:", err);
+                toast({ title: "PDF error", description: "Failed to generate PDF. Please try again.", variant: "destructive" });
+              } finally {
+                setGeneratingPdf(false);
+              }
+            }}>
+              {generatingPdf ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />} {generatingPdf ? "Generating..." : "Download PDF"}
             </Button>
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => toast({ title: "Coming soon", description: "Word export will be available in Phase 7." })}>
               <FileDown className="h-3.5 w-3.5" /> Download Word
