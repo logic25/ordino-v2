@@ -1,106 +1,91 @@
 
 
-# Fix Plan: Chris's Outstanding Issues
+# Redesign the Monthly Open Services Report Email
 
-## Issue 1: Task completion should require time logging (#11)
-**Problem**: When marking a task done, the dialog only asks for an optional note. Chris wants a mandatory time log prompt.
+## Problem
+The current "Open Services Report" email sent on the 1st of each month is a flat table dump of all open services with no summary, no grouping by PM, no totals, and no goal-tracking context. Chris wants:
+1. **Summary header** -- total number of open services and their total dollar value
+2. **Grouped by PM** -- services organized under each Project Manager
+3. **Two versions** -- individual PM version (just their services) + admin/leadership version (full team)
+4. **Goal nudge/applause** -- compare each PM's open service value to their `monthly_goal` and include encouraging or motivating language
 
-**Fix in** `src/components/projects/CompleteActionItemDialog.tsx`:
-- Add time entry fields: hours (required), description, and billable toggle
-- Make the hours field mandatory -- can't click "Mark Done" without entering time
-- On submit, insert a row into `time_entries` table (project_id, hours, description, date) alongside the existing completion logic
-- Import and use `useAuth` to get profile info for the time entry
+## Solution
 
-**Fix in** `src/hooks/useActionItems.ts`:
-- Update `useCompleteActionItem` mutation to accept optional `time_entry` data (hours, description, billable)
-- After updating the action item status, insert into `time_entries` if time data is provided
+### 1. Create new edge function: `send-open-services-report`
 
----
+A new Supabase Edge Function that:
+- Queries all services with status `not_started` or `in_progress` (the "open" services expected to be completed this month)
+- Joins with `projects` (for project number, address, name, assigned_pm_id) and `profiles` (for PM name, email, monthly_goal)
+- Groups services by PM
+- For each PM, calculates:
+  - Total service count
+  - Total dollar value (sum of `fixed_price` or `total_amount`)
+  - Comparison to `monthly_goal` -- percentage of goal, with motivational messaging
+- Sends **two types of emails** via the existing `gmail-send` function:
+  - **PM email**: just that PM's services with their goal progress
+  - **Admin email** (to Chris and Manny): full team breakdown with all PMs, totals, and goal comparisons
 
-## Issue 2: Proposal email fails on first send (#9)
-**Problem**: First send silently fails; resend works but arrives twice.
+### 2. Email template design
 
-**Fix in** `supabase/functions/gmail-send/index.ts`:
-- Investigate and add retry/error handling
-- Add idempotency check (e.g., store a message hash to prevent duplicate sends)
+**Subject**: `Monthly Open Services Report -- March 2026`
 
-**Fix in** `src/hooks/useProposals.ts` (`useSendProposal`):
-- Add a guard: check `sent_at` before sending to prevent double-sends
-- Add proper error surfacing with toast notifications if the edge function returns an error
+**Header section**:
+- Total open services: XX
+- Total value: $XX,XXX.XX
 
-**Fix in** `src/components/proposals/SendProposalDialog.tsx`:
-- Disable the send button immediately on click to prevent double-clicks
-- Surface errors from the Gmail send function clearly
+**Per-PM section** (repeated for each PM):
+- PM Name
+- Monthly Goal: $XX,XXX | Open Services Value: $XX,XXX | Progress: XX%
+- Motivational badge: "On track", "Keep pushing", "Needs attention" based on thresholds
+- Table of their services: Project#, Address, Service, Amount, Status
 
----
+**Footer**: link to the app's Reports page
 
-## Issue 3: PIS applicant picker broken after clearing data (#13, #14)
-**Problem**: After deleting existing applicant info in a PIS, the contact picker dropdown doesn't work.
+### 3. Goal comparison logic
 
-**Fix in** `src/components/projects/EditPISDialog.tsx`:
-- Debug the `SectionAutoFill` component -- the picker search input likely loses focus or the `open` state resets when values are cleared
-- Ensure clearing a field properly re-enables the search picker
-- Also ensure proposal contacts are included in search results (not just CRM clients/contacts)
+| Open Value vs Goal | Message |
+|----|-----|
+| >= 100% | "Fully loaded -- great pipeline this month!" |
+| 70-99% | "On track -- solid workload ahead" |
+| 40-69% | "Room to grow -- consider picking up capacity" |
+| < 40% | "Light month -- check with leadership on upcoming assignments" |
 
-**Fix in** `src/hooks/usePISAutoFill.ts`:
-- Add proposal contacts as a data source -- query `proposal_contacts` for the project's linked proposal
-- Accept a `proposalId` parameter to scope the contact search
+### 4. Admin recipients
 
----
+Query profiles with role `admin` or `manager` to get leadership email addresses. Each admin gets the full-team version.
 
-## Issue 4: Service billing dates not showing in project services (#16)
-**Problem**: Chris wants to see when each service was billed (sent date) and paid (paid date) in the project's services table.
+### 5. Scheduling
 
-**Fix in** `src/hooks/useProjectDetail.ts` (`useProjectServices`):
-- Already fetching `billing_requests` -- extend to also join/fetch related `invoices` to get `sent_date` and `paid_date`
-- Map these dates into the `MockService` type
-
-**Fix in** `src/components/projects/projectMockData.ts`:
-- Add `sentDate` and `paidDate` fields to the `MockService` interface
-
-**Fix in** `src/components/projects/ProjectExpandedTabs.tsx` (or wherever the services table is rendered):
-- Add "Sent" and "Paid" date columns to the services table
+This function will be designed to be called via a cron job or manual trigger on the 1st of each month. It can also be invoked manually from the app if needed.
 
 ---
 
-## Issue 5: Billing request not appearing in Billing section (#17)
-**Problem**: Services sent to billing from a project don't show up on the main Billing page.
+## Technical Details
 
-**Investigation needed**: Check the `useBillingRequests` hook and the Billing page query to ensure it includes billing requests created from project detail. The query may have a filter that excludes them (e.g., missing status or company_id).
+### Files to create
+- `supabase/functions/send-open-services-report/index.ts` -- the edge function
 
-**Fix in** `src/hooks/useBillingRequests.ts`:
-- Verify the query fetches all billing requests regardless of how they were created
-- Check if auto-created invoices are being linked properly
+### Files to modify
+- None required for the core email. Optionally, a "Send Report Now" button could be added to the Reports page later.
 
----
+### Edge function logic (pseudocode)
 
-## Issue 6: Proposal shows as project before client signs (#17 - new issue)
-**Problem**: Proposal 030226-1 appears as a project even though the client hasn't signed.
+```text
+1. Query services WHERE status IN ('not_started', 'in_progress')
+2. Join projects (project_number, name, address, assigned_pm_id, status='open')
+3. Join profiles for PM info (name, email, monthly_goal)
+4. Group by PM
+5. For each PM:
+   a. Calculate totalServices, totalValue
+   b. Compare totalValue to monthly_goal
+   c. Pick motivational message
+6. Build PM-specific HTML email, send via gmail-send
+7. Build admin/team HTML email with all PMs, send to admins
+8. Return summary of emails sent
+```
 
-**Root cause**: The `useSignProposalInternal` function (line 668-702 of `useProposals.ts`) creates the project at internal sign time, not after the client counter-signs. This is by design for the current workflow (internal sign -> send -> client signs), but it means the project exists before client approval.
-
-**Fix options**:
-- **Option A**: Don't create the project until client signs. Move project creation logic into the client signing flow in `ClientProposal.tsx`.
-- **Option B**: Keep the current flow but add a project status like "pending_client_signature" that hides it from the main projects list until the client signs. Show a visual indicator.
-- **Option C**: Add a filter to the projects list to exclude projects whose linked proposal hasn't been client-signed yet.
-
-**Recommendation**: Option C is simplest -- filter the projects query in `useProjects` to exclude projects where the linked proposal exists but `client_signed_at` is null and status is not "executed". This keeps the project record ready but hidden from Chris until the client actually signs.
-
----
-
-## Technical Summary
-
-| File | Changes |
-|------|---------|
-| `src/components/projects/CompleteActionItemDialog.tsx` | Add mandatory time entry fields |
-| `src/hooks/useActionItems.ts` | Accept time entry data on completion |
-| `supabase/functions/gmail-send/index.ts` | Add error handling, idempotency |
-| `src/hooks/useProposals.ts` | Add send guard, fix project visibility |
-| `src/components/proposals/SendProposalDialog.tsx` | Prevent double-send |
-| `src/components/projects/EditPISDialog.tsx` | Fix picker after clearing fields |
-| `src/hooks/usePISAutoFill.ts` | Include proposal contacts in search |
-| `src/hooks/useProjectDetail.ts` | Add sent/paid dates to services |
-| `src/components/projects/ProjectExpandedTabs.tsx` | Add date columns to services table |
-| `src/hooks/useBillingRequests.ts` | Verify billing request visibility |
-| `src/hooks/useProjects.ts` | Filter out unsigned proposal projects |
+### Data flow
+- Uses existing `gmail-send` edge function for delivery
+- Uses existing `profiles.monthly_goal` field for goal comparison
+- Queries `services`, `projects`, `profiles` tables (all have RLS but function uses service role key)
 
