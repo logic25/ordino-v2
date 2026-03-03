@@ -201,14 +201,16 @@ export default function ProjectDetail() {
         .eq("project_id", project!.id);
       const svcIds = (svcs || []).map(s => s.id);
 
-      if (appIds.length === 0 && svcIds.length === 0) {
-        return [] as MockTimeEntry[];
-      }
-
-      // Build OR filter: application_id in appIds OR service_id in svcIds
+      // Build OR filter: application_id in appIds OR service_id in svcIds OR metadata->>project_id = projectId
       const filters: string[] = [];
       if (appIds.length > 0) filters.push(`application_id.in.(${appIds.join(",")})`);
       if (svcIds.length > 0) filters.push(`service_id.in.(${svcIds.join(",")})`);
+      // Also catch entries linked via metadata (e.g. from action item completion)
+      filters.push(`metadata->>project_id.eq.${project!.id}`);
+
+      if (filters.length === 0) {
+        return [] as MockTimeEntry[];
+      }
 
       const { data, error } = await supabase
         .from("activities")

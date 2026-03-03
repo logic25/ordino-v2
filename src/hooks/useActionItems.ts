@@ -209,6 +209,30 @@ export function useCompleteActionItem() {
       // Insert time entry if provided
       if (input.time_entry && profile?.company_id && profile?.id) {
         const durationMinutes = Math.round(input.time_entry.hours * 60);
+
+        // Find a service_id or application_id for this project so the time entry
+        // shows up in the project's Time tab (which filters by those IDs)
+        let serviceId: string | null = null;
+        let applicationId: string | null = null;
+
+        const { data: svcs } = await supabase
+          .from("services")
+          .select("id")
+          .eq("project_id", input.project_id)
+          .limit(1);
+        if (svcs && svcs.length > 0) {
+          serviceId = svcs[0].id;
+        } else {
+          const { data: apps } = await supabase
+            .from("dob_applications")
+            .select("id")
+            .eq("project_id", input.project_id)
+            .limit(1);
+          if (apps && apps.length > 0) {
+            applicationId = apps[0].id;
+          }
+        }
+
         await supabase.from("activities").insert({
           company_id: profile.company_id,
           user_id: profile.id,
@@ -217,6 +241,8 @@ export function useCompleteActionItem() {
           duration_minutes: durationMinutes,
           billable: input.time_entry.billable,
           activity_date: new Date().toISOString().split("T")[0],
+          service_id: serviceId,
+          application_id: applicationId,
           metadata: { action_item_id: input.id, project_id: input.project_id },
         } as any);
       }
@@ -224,6 +250,9 @@ export function useCompleteActionItem() {
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["action-items", vars.project_id] });
       qc.invalidateQueries({ queryKey: ["my-action-items"] });
+      qc.invalidateQueries({ queryKey: ["project-time-entries", vars.project_id] });
+      qc.invalidateQueries({ queryKey: ["time-entries"] });
+      qc.invalidateQueries({ queryKey: ["time-summary"] });
     },
   });
 }

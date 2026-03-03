@@ -49,7 +49,7 @@ export function useBillingRequests(status?: string) {
           *,
           projects (id, name, project_number),
           created_by_profile:profiles!billing_requests_created_by_fkey (id, first_name, last_name),
-          invoices (id, sent_at, paid_at)
+          invoices!billing_requests_invoice_id_fkey (id, sent_at, paid_at)
         `)
         .order("created_at", { ascending: false });
 
@@ -97,6 +97,48 @@ export function useCreateBillingRequest() {
 
       if (brError) throw brError;
 
+      // Update service statuses to "billed" for fully-billed services
+      try {
+        const { data: projectServices } = await supabase
+          .from("services")
+          .select("id, name, total_amount, fixed_price, billed_amount")
+          .eq("project_id", input.project_id);
+
+        // Get all billing requests for this project (including the one we just created)
+        const { data: allBillingReqs } = await supabase
+          .from("billing_requests")
+          .select("services")
+          .eq("project_id", input.project_id)
+          .neq("status", "cancelled");
+
+        // Build total billed per service name
+        const totalBilledMap: Record<string, number> = {};
+        for (const br of allBillingReqs || []) {
+          for (const item of (br.services as any[]) || []) {
+            const key = item.name || "";
+            totalBilledMap[key] = (totalBilledMap[key] || 0) + (Number(item.amount) || Number(item.billed_amount) || 0);
+          }
+        }
+
+        for (const svc of projectServices || []) {
+          const contractAmt = Number((svc as any).total_amount ?? (svc as any).fixed_price ?? 0);
+          const totalBilled = totalBilledMap[(svc as any).name] || 0;
+          if (contractAmt > 0 && totalBilled >= contractAmt) {
+            await supabase.from("services").update({ 
+              status: "billed",
+              billed_at: new Date().toISOString(),
+              billed_amount: totalBilled,
+            } as any).eq("id", svc.id);
+          } else if (totalBilled > 0) {
+            // Partially billed — update billed_amount but keep status
+            await supabase.from("services").update({
+              billed_amount: totalBilled,
+            } as any).eq("id", svc.id);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to update service statuses:", err);
+      }
       // Create in-app notifications for admin/accounting users
       try {
         const { data: adminUsers } = await supabase
