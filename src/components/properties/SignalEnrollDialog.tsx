@@ -64,7 +64,7 @@ export function SignalEnrollDialog({
         subscribed_at: status === "active" || status === "trial" ? new Date().toISOString() : null,
       });
       toast({
-        title: existing ? "Signal subscription updated" : "Property enrolled in Signal",
+        title: existing ? "CitiSignal subscription updated" : "Property enrolled in CitiSignal",
         description: `${propertyAddress} is now set to "${status}".`,
       });
       onOpenChange(false);
@@ -81,7 +81,7 @@ export function SignalEnrollDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{existing ? "Manage Signal Subscription" : "Enroll in Signal"}</DialogTitle>
+          <DialogTitle>{existing ? "Manage CitiSignal Subscription" : "Enroll in CitiSignal"}</DialogTitle>
           <DialogDescription>
             {propertyAddress}
           </DialogDescription>

@@ -120,7 +120,7 @@ export function PropertyTable({
               <TableHead>Block / Lot</TableHead>
               <TableHead>BIN</TableHead>
               <TableHead>Owner</TableHead>
-              <TableHead>Signal</TableHead>
+              <TableHead>CitiSignal</TableHead>
               <TableHead>Projects</TableHead>
               <TableHead className="w-[70px]"></TableHead>
             </TableRow>
@@ -245,7 +245,7 @@ export function PropertyTable({
                               {!property.signalSubscription && (
                                 <DropdownMenuItem onClick={() => setEnrollPropertyId(property.id)}>
                                   <Radio className="mr-2 h-4 w-4" />
-                                  Enroll in Signal
+                                  Enroll in CitiSignal
                                 </DropdownMenuItem>
                               )}
                               <DropdownMenuSeparator />
