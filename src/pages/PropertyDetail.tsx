@@ -78,8 +78,21 @@ export default function PropertyDetail() {
     enabled: !!id,
   });
 
+  // CitiSignal enrollment checks
+  const isSubscriptionActive = subscription?.status === "active" || subscription?.status === "trial";
+  const isSubscriptionInactive = subscription?.status === "prospect" || subscription?.status === "expired";
+
   // Import DOB data (mock)
   const handleImportDOBData = useCallback(() => {
+    if (!isSubscriptionActive && !isSubscriptionInactive) {
+      setEnrollOpen(true);
+      toast({
+        title: "CitiSignal enrollment required",
+        description: "Enroll this property in CitiSignal to access CO tracking tools.",
+        variant: "destructive",
+      });
+      return;
+    }
     setCoImporting(true);
     setTimeout(() => {
       setCoApps(MOCK_CO_APPLICATIONS);
@@ -92,7 +105,7 @@ export default function PropertyDetail() {
         description: `Imported ${MOCK_CO_APPLICATIONS.length} applications and ${MOCK_CO_VIOLATIONS.length} violations for Block ${property?.block || "—"}, Lot ${property?.lot || "—"}`,
       });
     }, 2000);
-  }, [property, toast]);
+  }, [property, toast, isSubscriptionActive, isSubscriptionInactive]);
 
   const handleUpdateApp = useCallback((jobNum: string, updates: Partial<COApplication>) => {
     setCoApps(prev => prev.map(a => a.jobNum === jobNum ? { ...a, ...updates } : a));
@@ -174,6 +187,28 @@ export default function PropertyDetail() {
   const openCoApps = coApps.filter(a => a.status !== "Signed Off").length;
   const activeCoViols = coViolations.filter(v => v.status === "Active" || v.status === "In Resolution").length;
 
+  // CitiSignal enrollment gate component
+  const CitiSignalGate = () => (
+    <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+      <div className="rounded-full bg-blue-500/10 p-4">
+        <Radio className="h-8 w-8 text-blue-600" />
+      </div>
+      <div>
+        <h3 className="text-lg font-semibold">CitiSignal Monitoring Required</h3>
+        <p className="text-sm text-muted-foreground mt-1 max-w-md">
+          CitiSignal monitoring is required for CO work. Enroll this property to access CO tracking tools, 
+          violation monitoring, and application management.
+        </p>
+        <p className="text-xs text-muted-foreground mt-2">
+          CitiSignal monitoring is included as part of your CO project fee.
+        </p>
+      </div>
+      <Button onClick={() => setEnrollOpen(true)} className="gap-1.5">
+        <Radio className="h-4 w-4" /> Enroll in CitiSignal
+      </Button>
+    </div>
+  );
+
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
@@ -244,7 +279,7 @@ export default function PropertyDetail() {
           </Card>
           <Card>
             <CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">Signal Status</div>
+              <div className="text-xs text-muted-foreground">CitiSignal Status</div>
               <div className="mt-1">
                 <SignalStatusBadge status={subscription?.status || null} />
               </div>
@@ -272,12 +307,23 @@ export default function PropertyDetail() {
         {coImported && lastSynced && (
           <div className="flex items-center gap-3 rounded-lg border border-blue-500/30 bg-blue-500/5 px-4 py-2.5 text-sm">
             <Radio className="h-4 w-4 text-blue-600 shrink-0" />
-            <span>NYC Open Data imported · Last synced: {lastSynced}</span>
+            <span>CitiSignal · NYC Open Data imported · Last synced: {lastSynced}</span>
             <div className="flex gap-1.5 ml-auto">
               <Badge variant="outline" className="bg-muted text-muted-foreground text-[10px]">DOB Job Filings</Badge>
               <Badge variant="outline" className="bg-blue-500/10 text-blue-700 border-blue-500/20 text-[10px]">DOB NOW Build</Badge>
               <Badge variant="outline" className="bg-red-500/10 text-red-700 border-red-500/20 text-[10px]">DOB Violations</Badge>
             </div>
+          </div>
+        )}
+
+        {/* Inactive subscription warning */}
+        {isSubscriptionInactive && coImported && (
+          <div className="flex items-center gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-4 py-2.5 text-sm">
+            <AlertTriangle className="h-4 w-4 text-yellow-600 shrink-0" />
+            <span>CitiSignal subscription is inactive. Activate to enable real-time monitoring.</span>
+            <Button variant="outline" size="sm" className="ml-auto" onClick={() => setEnrollOpen(true)}>
+              Activate
+            </Button>
           </div>
         )}
 
@@ -289,36 +335,32 @@ export default function PropertyDetail() {
                 <Building2 className="h-3.5 w-3.5" /> Overview
               </TabsTrigger>
               <TabsTrigger value="signal" className="gap-1.5 data-[state=active]:bg-background">
-                <Radio className="h-3.5 w-3.5" /> Signal
+                <Radio className="h-3.5 w-3.5" /> CitiSignal
                 {openViolations > 0 && (
                   <Badge variant="outline" className="ml-1 bg-red-500/10 text-red-600 border-red-500/20 text-xs h-5 px-1.5">
                     {openViolations}
                   </Badge>
                 )}
               </TabsTrigger>
-              {coImported && (
-                <>
-                  <TabsTrigger value="co_summary" className="gap-1.5 data-[state=active]:bg-background">
-                    <ClipboardList className="h-3.5 w-3.5" /> CO Summary
-                  </TabsTrigger>
-                  <TabsTrigger value="co_applications" className="gap-1.5 data-[state=active]:bg-background">
-                    <FolderKanban className="h-3.5 w-3.5" /> Applications
-                    {openCoApps > 0 && (
-                      <Badge variant="outline" className="ml-1 bg-orange-500/10 text-orange-600 border-orange-500/20 text-xs h-5 px-1.5">
-                        {openCoApps}
-                      </Badge>
-                    )}
-                  </TabsTrigger>
-                  <TabsTrigger value="co_violations" className="gap-1.5 data-[state=active]:bg-background">
-                    <AlertTriangle className="h-3.5 w-3.5" /> Violations
-                    {activeCoViols > 0 && (
-                      <Badge variant="outline" className="ml-1 bg-red-500/10 text-red-600 border-red-500/20 text-xs h-5 px-1.5">
-                        {activeCoViols}
-                      </Badge>
-                    )}
-                  </TabsTrigger>
-                </>
-              )}
+              <TabsTrigger value="co_summary" className="gap-1.5 data-[state=active]:bg-background">
+                <ClipboardList className="h-3.5 w-3.5" /> CO Summary
+              </TabsTrigger>
+              <TabsTrigger value="co_applications" className="gap-1.5 data-[state=active]:bg-background">
+                <FolderKanban className="h-3.5 w-3.5" /> Applications
+                {coImported && openCoApps > 0 && (
+                  <Badge variant="outline" className="ml-1 bg-orange-500/10 text-orange-600 border-orange-500/20 text-xs h-5 px-1.5">
+                    {openCoApps}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="co_violations" className="gap-1.5 data-[state=active]:bg-background">
+                <AlertTriangle className="h-3.5 w-3.5" /> Violations
+                {coImported && activeCoViols > 0 && (
+                  <Badge variant="outline" className="ml-1 bg-red-500/10 text-red-600 border-red-500/20 text-xs h-5 px-1.5">
+                    {activeCoViols}
+                  </Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="projects" className="gap-1.5 data-[state=active]:bg-background">
                 <Briefcase className="h-3.5 w-3.5" /> Projects ({projects.length})
               </TabsTrigger>
@@ -372,7 +414,7 @@ export default function PropertyDetail() {
                         </span>
                       </div>
                       <div className="flex justify-between border-b border-border/50 pb-2">
-                        <span className="text-sm text-muted-foreground">External Applications (Signal)</span>
+                        <span className="text-sm text-muted-foreground">External Applications (CitiSignal)</span>
                         <span className="text-sm font-medium">{signalApps.length}</span>
                       </div>
                       <div className="flex justify-between border-b border-border/50 pb-2">
@@ -384,17 +426,17 @@ export default function PropertyDetail() {
                 </div>
               </TabsContent>
 
-              {/* Signal Tab */}
+              {/* CitiSignal Tab */}
               <TabsContent value="signal" className="mt-0 p-6 space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-semibold">Signal Monitoring</h3>
+                    <h3 className="font-semibold">CitiSignal Monitoring</h3>
                     <p className="text-sm text-muted-foreground">
                       Violations, external applications, and monitoring status
                     </p>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => setEnrollOpen(true)}>
-                    {subscription ? "Manage Subscription" : "Enroll in Signal"}
+                    {subscription ? "Manage Subscription" : "Enroll in CitiSignal"}
                   </Button>
                 </div>
 
@@ -403,7 +445,7 @@ export default function PropertyDetail() {
                     <Shield className="h-5 w-5 mt-0.5 shrink-0" />
                     <div>
                       <p className="font-medium">Not Monitored</p>
-                      <p>Enroll this property in Signal to automatically track DOB violations and external applications.</p>
+                      <p>Enroll this property in CitiSignal to automatically track DOB violations and external applications.</p>
                     </div>
                   </div>
                 )}
@@ -497,7 +539,7 @@ export default function PropertyDetail() {
                             </div>
                           </div>
                           <Badge variant="outline" className="gap-1 bg-blue-500/10 text-blue-600 border-blue-500/20">
-                            <Radio className="h-3 w-3" /> Signal
+                            <Radio className="h-3 w-3" /> CitiSignal
                           </Badge>
                         </div>
                       ))}
@@ -508,14 +550,25 @@ export default function PropertyDetail() {
                 {!subscription && violations.length === 0 && signalApps.length === 0 && (
                   <div className="flex flex-col items-center justify-center py-8 text-center">
                     <Radio className="h-10 w-10 text-muted-foreground/50 mb-3" />
-                    <p className="text-muted-foreground">No Signal data yet. Enroll to start monitoring.</p>
+                    <p className="text-muted-foreground">No CitiSignal data yet. Enroll to start monitoring.</p>
                   </div>
                 )}
               </TabsContent>
 
               {/* CO Summary Tab */}
-              {coImported && (
-                <TabsContent value="co_summary" className="mt-0 p-6">
+              <TabsContent value="co_summary" className="mt-0 p-6">
+                {!isSubscriptionActive && !isSubscriptionInactive ? (
+                  <CitiSignalGate />
+                ) : !coImported ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
+                    <Download className="h-8 w-8 text-muted-foreground/50" />
+                    <p className="text-muted-foreground">Import DOB data to view the CO Summary dashboard.</p>
+                    <Button variant="outline" onClick={handleImportDOBData} disabled={coImporting}>
+                      {coImporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                      Import DOB Data
+                    </Button>
+                  </div>
+                ) : (
                   <COSummaryView
                     applications={coApps}
                     violations={coViolations}
@@ -525,29 +578,51 @@ export default function PropertyDetail() {
                     onFilterWorkType={handleFilterWorkType}
                     lastSynced={lastSynced}
                   />
-                </TabsContent>
-              )}
+                )}
+              </TabsContent>
 
               {/* CO Applications Tab */}
-              {coImported && (
-                <TabsContent value="co_applications" className="mt-0 p-6">
+              <TabsContent value="co_applications" className="mt-0 p-6">
+                {!isSubscriptionActive && !isSubscriptionInactive ? (
+                  <CitiSignalGate />
+                ) : !coImported ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
+                    <Download className="h-8 w-8 text-muted-foreground/50" />
+                    <p className="text-muted-foreground">Import DOB data to view applications.</p>
+                    <Button variant="outline" onClick={handleImportDOBData} disabled={coImporting}>
+                      {coImporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                      Import DOB Data
+                    </Button>
+                  </div>
+                ) : (
                   <COApplicationsView
                     applications={coApps}
                     onUpdateApp={handleUpdateApp}
                     initialWorkTypeFilter={coWorkTypeFilter}
                   />
-                </TabsContent>
-              )}
+                )}
+              </TabsContent>
 
               {/* CO Violations Tab */}
-              {coImported && (
-                <TabsContent value="co_violations" className="mt-0 p-6">
+              <TabsContent value="co_violations" className="mt-0 p-6">
+                {!isSubscriptionActive && !isSubscriptionInactive ? (
+                  <CitiSignalGate />
+                ) : !coImported ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
+                    <Download className="h-8 w-8 text-muted-foreground/50" />
+                    <p className="text-muted-foreground">Import DOB data to view violations.</p>
+                    <Button variant="outline" onClick={handleImportDOBData} disabled={coImporting}>
+                      {coImporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                      Import DOB Data
+                    </Button>
+                  </div>
+                ) : (
                   <COViolationsView
                     violations={coViolations}
                     onUpdateViolation={handleUpdateViolation}
                   />
-                </TabsContent>
-              )}
+                )}
+              </TabsContent>
 
               {/* Projects Tab */}
               <TabsContent value="projects" className="mt-0 p-6">

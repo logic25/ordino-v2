@@ -53,7 +53,7 @@ export function SignalSettings() {
           },
         } as any,
       });
-      toast({ title: "Signal settings saved", description: "Your monitoring preferences have been updated." });
+      toast({ title: "CitiSignal settings saved", description: "Your monitoring preferences have been updated." });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
@@ -90,7 +90,7 @@ export function SignalSettings() {
             <Radio className="h-5 w-5" /> Monitoring Preferences
           </CardTitle>
           <CardDescription>
-            Configure how Signal monitors your properties
+            Configure how CitiSignal monitors your properties
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -98,7 +98,7 @@ export function SignalSettings() {
             <div className="space-y-0.5">
               <Label>Auto-enroll new properties</Label>
               <p className="text-xs text-muted-foreground">
-                Automatically create a Signal subscription when a new property is added
+                Automatically create a CitiSignal subscription when a new property is added
               </p>
             </div>
             <Switch checked={autoEnroll} onCheckedChange={setAutoEnroll} />
@@ -119,7 +119,7 @@ export function SignalSettings() {
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              How often Signal checks for new violations and external applications
+              How often CitiSignal checks for new violations and external applications
             </p>
           </div>
         </CardContent>
@@ -132,7 +132,7 @@ export function SignalSettings() {
             <Bell className="h-5 w-5" /> Notification Rules
           </CardTitle>
           <CardDescription>
-            Control when and who gets notified about Signal events
+            Control when and who gets notified about CitiSignal events
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -209,7 +209,7 @@ export function SignalSettings() {
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={updateSettings.isPending} className="gap-2">
           {updateSettings.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          Save Signal Settings
+          Save CitiSignal Settings
         </Button>
       </div>
     </div>

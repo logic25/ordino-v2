@@ -25,7 +25,7 @@ export function SignalSection({ propertyId, propertyAddress, subscription }: Sig
       <div className="flex items-center justify-between">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
           <Radio className="h-3.5 w-3.5" />
-          Signal
+          CitiSignal
         </p>
         <div className="flex items-center gap-2">
           <SignalStatusBadge status={subscription?.status || null} showIcon={false} />
@@ -38,7 +38,7 @@ export function SignalSection({ propertyId, propertyAddress, subscription }: Sig
       {!subscription && (
         <div className="text-sm text-muted-foreground bg-muted/50 rounded-md p-3 flex items-start gap-2">
           <Shield className="h-4 w-4 mt-0.5 shrink-0" />
-          <span>This property is not monitored by Signal. Enroll to track violations and external applications.</span>
+          <span>This property is not monitored by CitiSignal. Enroll to track violations and external applications.</span>
         </div>
       )}
 
@@ -103,7 +103,7 @@ export function SignalSection({ propertyId, propertyAddress, subscription }: Sig
                 </div>
                 <Badge variant="outline" className="gap-1 bg-blue-500/10 text-blue-600 border-blue-500/20">
                   <Radio className="h-3 w-3" />
-                  Signal
+                  CitiSignal
                 </Badge>
               </div>
             ))}
