@@ -82,6 +82,15 @@ export function COSummaryView({
     return exp <= sixMonths && s.status === "Signed Off";
   });
 
+  // Inspections older than 18 months (need re-inspection)
+  const expiredInspections = signOffs.filter(s => {
+    if (!s.date || s.status !== "Signed Off") return false;
+    const signDate = new Date(s.date);
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - 18);
+    return signDate < cutoff;
+  });
+
   // TCO-specific
   const tcoSignOffs = signOffs.filter(s => s.tcoRequired);
   const tcoComplete = tcoSignOffs.filter(s => s.status === "Signed Off").length;
@@ -128,6 +137,7 @@ export function COSummaryView({
     if (activeViols > 0) auto.push({ id: "viols", text: `Resolve ${activeViols} active violations`, priority: "High" });
     if (tcoPending.length > 0) auto.push({ id: "tco", text: `Obtain ${tcoPending.length} pending sign-offs for TCO eligibility`, priority: "High" });
     if (expiringSignOffs.length > 0) auto.push({ id: "expiring", text: `Renew ${expiringSignOffs.length} sign-offs expiring within 6 months`, priority: "High" });
+    if (expiredInspections.length > 0) auto.push({ id: "reinspect", text: `Re-inspect ${expiredInspections.length} sign-offs with inspections older than 18 months`, priority: "High" });
     setNextSteps(auto);
     setReportOpen(true);
   };
@@ -261,6 +271,11 @@ export function COSummaryView({
             {expiringSignOffs.length > 0 && (
               <p className="text-xs text-orange-600 mt-1 flex items-center gap-1">
                 <CalendarClock className="h-3 w-3" /> {expiringSignOffs.length} expiring soon
+              </p>
+            )}
+            {expiredInspections.length > 0 && (
+              <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" /> {expiredInspections.length} inspection{expiredInspections.length > 1 ? "s" : ""} &gt;18 mo
               </p>
             )}
           </div>
@@ -536,6 +551,12 @@ export function COSummaryView({
                   <strong>{expiringSignOffs.length} sign-offs</strong> are expiring within 6 months and must be renewed.
                 </p>
               )}
+              {expiredInspections.length > 0 && (
+                <p className="flex items-center gap-1.5 text-red-700">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  <strong>{expiredInspections.length} sign-offs</strong> have construction inspections older than 18 months — re-inspection required before close-out.
+                </p>
+              )}
               {needsFDNY > 0 && (
                 <p className="flex items-center gap-1.5 text-orange-700">
                   <AlertTriangle className="h-3.5 w-3.5" />
@@ -598,9 +619,10 @@ export function COSummaryView({
               </div>
             )}
 
-            {/* Sign-Offs Table with Expiration */}
+            {/* Sign-Offs Table with Expiration & 18-month Inspection Validity */}
             <div className="space-y-2">
               <h4 className="font-semibold">{reportType === "TCO" ? "TCO " : ""}Required Sign-Offs</h4>
+              <p className="text-xs text-muted-foreground">Construction inspections are valid for 18 months. Expired inspections must be re-done before sign-off.</p>
               <div className="rounded-lg border overflow-hidden">
                 <Table>
                   <TableHeader>
@@ -610,14 +632,27 @@ export function COSummaryView({
                       <TableHead>Status</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Expires</TableHead>
+                      <TableHead>Inspection Valid</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {displaySignOffs.map((so) => {
                       const isExpiring = so.expirationDate && so.status === "Signed Off" && new Date(so.expirationDate) <= new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000);
+                      // 18-month inspection validity: if signed off, check if the sign-off date is older than 18 months
+                      const inspectionExpired = so.date && so.status === "Signed Off" && (() => {
+                        const signDate = new Date(so.date);
+                        const eighteenMonthsAgo = new Date();
+                        eighteenMonthsAgo.setMonth(eighteenMonthsAgo.getMonth() - 18);
+                        return signDate < eighteenMonthsAgo;
+                      })();
                       return (
-                        <TableRow key={so.name}>
-                          <TableCell className="font-medium">{so.name}</TableCell>
+                        <TableRow key={so.name} className={inspectionExpired ? "bg-red-500/5" : ""}>
+                          <TableCell className="font-medium">
+                            {so.name}
+                            {so.tcoRequired && (
+                              <Badge variant="outline" className="ml-1.5 text-[9px] px-1 py-0 bg-blue-500/10 text-blue-700 border-blue-500/20">TCO</Badge>
+                            )}
+                          </TableCell>
                           <TableCell>
                             <Badge variant="outline" className="text-[10px]">
                               {so.category || "general"}
@@ -632,12 +667,40 @@ export function COSummaryView({
                               </span>
                             ) : "—"}
                           </TableCell>
+                          <TableCell>
+                            {so.status === "Signed Off" ? (
+                              inspectionExpired ? (
+                                <span className="text-red-600 font-medium text-xs flex items-center gap-1">
+                                  <AlertTriangle className="h-3 w-3" /> Expired — re-inspect
+                                </span>
+                              ) : (
+                                <span className="text-green-600 text-xs">✓ Valid</span>
+                              )
+                            ) : (
+                              <span className="text-xs text-muted-foreground">N/A</span>
+                            )}
+                          </TableCell>
                         </TableRow>
                       );
                     })}
                   </TableBody>
                 </Table>
               </div>
+              {(() => {
+                const expiredInspections = displaySignOffs.filter(so => {
+                  if (!so.date || so.status !== "Signed Off") return false;
+                  const signDate = new Date(so.date);
+                  const cutoff = new Date();
+                  cutoff.setMonth(cutoff.getMonth() - 18);
+                  return signDate < cutoff;
+                });
+                return expiredInspections.length > 0 ? (
+                  <p className="text-sm font-medium text-red-700 flex items-center gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    {expiredInspections.length} sign-off{expiredInspections.length > 1 ? "s have" : " has"} inspection{expiredInspections.length > 1 ? "s" : ""} older than 18 months — re-inspection required.
+                  </p>
+                ) : null;
+              })()}
             </div>
 
             {/* Work Type Summary */}
@@ -678,6 +741,105 @@ export function COSummaryView({
                   </TableBody>
                 </Table>
               </div>
+            </div>
+
+            {/* ===== FULL APPLICATION DETAIL ===== */}
+            <div className="space-y-2">
+              <h4 className="font-semibold">All Open Applications ({applications.filter(a => a.status !== "Signed Off").length})</h4>
+              <p className="text-xs text-muted-foreground">Every open application with BIS open items, action required, and current status.</p>
+              <div className="space-y-3">
+                {applications
+                  .filter(a => a.status !== "Signed Off")
+                  .sort((a, b) => {
+                    const pOrder = { High: 0, Medium: 1, Low: 2 };
+                    return (pOrder[a.priority] ?? 2) - (pOrder[b.priority] ?? 2);
+                  })
+                  .map((app) => {
+                    const openBis = app.bisOpenItems?.filter(i => !i.resolved) || [];
+                    return (
+                      <div key={app.jobNum} className="rounded-lg border p-3 space-y-2">
+                        <div className="flex items-center justify-between flex-wrap gap-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-sm font-bold">#{app.jobNum}</span>
+                            <Badge variant="outline" className={WORK_TYPE_COLORS[app.workType]}>{app.workType}</Badge>
+                            <Badge variant="outline" className={STATUS_COLORS[app.status]}>{app.status}</Badge>
+                            <Badge variant="outline" className={PRIORITY_COLORS[app.priority]}>{app.priority}</Badge>
+                          </div>
+                          {app.source === "DOB_NOW_BUILD" && (
+                            <Badge variant="outline" className="bg-blue-500/10 text-blue-700 border-blue-500/20 text-[10px]">DOB NOW</Badge>
+                          )}
+                        </div>
+                        <p className="text-sm">{app.desc}</p>
+                        <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                          <span>Tenant: <span className="text-foreground">{app.tenant || "—"}</span></span>
+                          <span>Floor: <span className="text-foreground">{app.floor}</span></span>
+                          <span>Filed: <span className="text-foreground">{format(new Date(app.fileDate), "MM/dd/yyyy")}</span></span>
+                        </div>
+                        <div className="rounded-md bg-muted/30 p-2 text-xs">
+                          <span className="font-medium">Action Required:</span> {app.action}
+                        </div>
+                        {openBis.length > 0 && (
+                          <div className="space-y-1.5 pl-3 border-l-2 border-purple-500/30">
+                            <p className="text-xs font-medium text-purple-700 flex items-center gap-1">
+                              <AlertTriangle className="h-3 w-3" /> {openBis.length} Open BIS Item{openBis.length > 1 ? "s" : ""}
+                            </p>
+                            {openBis.map(item => (
+                              <div key={item.id} className="rounded-md bg-purple-500/5 border border-purple-500/10 p-2 text-xs space-y-0.5">
+                                <p className="font-medium">{item.description}</p>
+                                <div className="flex flex-wrap gap-x-3 text-muted-foreground">
+                                  <span>From: <span className="text-foreground">{item.receivedFrom || "—"}</span></span>
+                                  <span>Received: <span className="text-foreground">{item.receivedDate ? format(new Date(item.receivedDate), "MM/dd/yyyy") : "—"}</span></span>
+                                </div>
+                                {item.notes && <p className="text-muted-foreground italic">{item.notes}</p>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+
+            {/* ===== FULL VIOLATIONS DETAIL ===== */}
+            <div className="space-y-2">
+              <h4 className="font-semibold">All Active Violations ({violations.filter(v => v.status !== "Resolved" && v.status !== "Dismissed").length})</h4>
+              <div className="rounded-lg border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead>Violation #</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Filed</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Priority</TableHead>
+                      <TableHead>Penalty</TableHead>
+                      <TableHead className="max-w-[200px]">Resolution Plan</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {violations
+                      .filter(v => v.status !== "Resolved" && v.status !== "Dismissed")
+                      .map(v => (
+                        <TableRow key={v.violationNum}>
+                          <TableCell className="font-mono text-xs">{v.violationNum}</TableCell>
+                          <TableCell className="text-xs">{v.type}</TableCell>
+                          <TableCell className="text-xs">{format(new Date(v.fileDate), "MM/dd/yyyy")}</TableCell>
+                          <TableCell><Badge variant="outline" className={STATUS_COLORS[v.status]}>{v.status}</Badge></TableCell>
+                          <TableCell><Badge variant="outline" className={PRIORITY_COLORS[v.priority]}>{v.priority}</Badge></TableCell>
+                          <TableCell className="text-sm">{v.penalty ? `$${v.penalty.toLocaleString()}` : "—"}</TableCell>
+                          <TableCell className="text-xs max-w-[200px]">{v.resolutionPlan || <span className="text-red-600 font-medium">No plan — needs attention</span>}</TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </div>
+              {(() => {
+                const totalPenalties = violations.filter(v => v.status !== "Resolved" && v.status !== "Dismissed").reduce((s, v) => s + (v.penalty || 0), 0);
+                return totalPenalties > 0 ? (
+                  <p className="text-sm font-medium text-red-700">Total outstanding penalties: ${totalPenalties.toLocaleString()}</p>
+                ) : null;
+              })()}
             </div>
 
             {/* Recommended Next Steps */}
