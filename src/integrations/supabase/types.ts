@@ -6734,7 +6734,10 @@ export type Database = {
         Row: {
           actual_hours: number | null
           application_id: string
+          assigned_to: string | null
+          assigned_to_name: string | null
           billed_amount: number | null
+          billed_at: string | null
           billing_milestones: Json | null
           billing_type: string | null
           change_order_id: string | null
@@ -6745,15 +6748,19 @@ export type Database = {
           deposit_amount: number | null
           deposit_paid: boolean | null
           description: string | null
+          disciplines: string[] | null
           due_date: string | null
+          estimated_bill_date: string | null
           estimated_hours: number | null
           fixed_price: number | null
           hourly_rate: number | null
           id: string
+          job_description: string | null
           metadata: Json | null
           name: string
           needs_dob_filing: boolean
           notes: string | null
+          parent_service_id: string | null
           project_id: string | null
           qb_invoice_id: string | null
           status: Database["public"]["Enums"]["service_status"] | null
@@ -6763,7 +6770,10 @@ export type Database = {
         Insert: {
           actual_hours?: number | null
           application_id: string
+          assigned_to?: string | null
+          assigned_to_name?: string | null
           billed_amount?: number | null
+          billed_at?: string | null
           billing_milestones?: Json | null
           billing_type?: string | null
           change_order_id?: string | null
@@ -6774,15 +6784,19 @@ export type Database = {
           deposit_amount?: number | null
           deposit_paid?: boolean | null
           description?: string | null
+          disciplines?: string[] | null
           due_date?: string | null
+          estimated_bill_date?: string | null
           estimated_hours?: number | null
           fixed_price?: number | null
           hourly_rate?: number | null
           id?: string
+          job_description?: string | null
           metadata?: Json | null
           name: string
           needs_dob_filing?: boolean
           notes?: string | null
+          parent_service_id?: string | null
           project_id?: string | null
           qb_invoice_id?: string | null
           status?: Database["public"]["Enums"]["service_status"] | null
@@ -6792,7 +6806,10 @@ export type Database = {
         Update: {
           actual_hours?: number | null
           application_id?: string
+          assigned_to?: string | null
+          assigned_to_name?: string | null
           billed_amount?: number | null
+          billed_at?: string | null
           billing_milestones?: Json | null
           billing_type?: string | null
           change_order_id?: string | null
@@ -6803,15 +6820,19 @@ export type Database = {
           deposit_amount?: number | null
           deposit_paid?: boolean | null
           description?: string | null
+          disciplines?: string[] | null
           due_date?: string | null
+          estimated_bill_date?: string | null
           estimated_hours?: number | null
           fixed_price?: number | null
           hourly_rate?: number | null
           id?: string
+          job_description?: string | null
           metadata?: Json | null
           name?: string
           needs_dob_filing?: boolean
           notes?: string | null
+          parent_service_id?: string | null
           project_id?: string | null
           qb_invoice_id?: string | null
           status?: Database["public"]["Enums"]["service_status"] | null
@@ -6827,6 +6848,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "services_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "services_change_order_id_fkey"
             columns: ["change_order_id"]
             isOneToOne: false
@@ -6838,6 +6866,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "services_parent_service_id_fkey"
+            columns: ["parent_service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
             referencedColumns: ["id"]
           },
           {
