@@ -45,6 +45,8 @@ export interface MockService {
   sentDate?: string | null;
   paidDate?: string | null;
   changeOrderId?: string | null;
+  depositAmount?: number;
+  depositPaid?: boolean;
 }
 
 export type EngineerDiscipline = "structural" | "mechanical" | "plumbing" | "sprinkler" | "electrical" | "civil" | "environmental" | "other";

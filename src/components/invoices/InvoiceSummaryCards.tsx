@@ -8,10 +8,10 @@ interface InvoiceSummaryCardsProps {
   totals: Record<InvoiceStatus, number>;
   activeFilter: BillingTab;
   onFilterChange: (filter: BillingTab) => void;
-  retainerSummary?: { totalBalance: number; activeCount: number };
+  depositSummary?: { totalBalance: number; activeCount: number };
 }
 
-export function InvoiceSummaryCards({ counts, totals, activeFilter, onFilterChange, retainerSummary }: InvoiceSummaryCardsProps) {
+export function InvoiceSummaryCards({ counts, totals, activeFilter, onFilterChange, depositSummary }: InvoiceSummaryCardsProps) {
   const cards: {
     key: BillingTab;
     label: string;
@@ -62,14 +62,14 @@ export function InvoiceSummaryCards({ counts, totals, activeFilter, onFilterChan
     },
   ];
 
-  // Add retainer card if data provided
-  if (retainerSummary) {
+  // Add deposit card if data provided
+  if (depositSummary) {
     cards.push({
-      key: "retainers",
-      label: "Retainers",
+      key: "deposits",
+      label: "Deposits",
       icon: Wallet,
-      amount: retainerSummary.totalBalance,
-      subtitle: `${retainerSummary.activeCount} clients`,
+      amount: depositSummary.totalBalance,
+      subtitle: `${depositSummary.activeCount} clients`,
       colorClass: "text-primary",
     });
   }

@@ -721,7 +721,7 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
               </div>
               {Number(invoice.retainer_applied) > 0 && (
                 <div className="flex justify-between text-success">
-                  <span>Retainer Applied</span>
+                  <span>Deposit Applied</span>
                   <span className="tabular-nums" data-clarity-mask="true">-${Number(invoice.retainer_applied).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
                 </div>
               )}

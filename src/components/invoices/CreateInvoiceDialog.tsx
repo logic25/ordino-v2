@@ -167,13 +167,13 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
 
           <Separator />
 
-          {/* Retainer */}
+          {/* Deposit */}
           {activeRetainer && activeRetainer.current_balance > 0 && (
             <div className="rounded-lg border p-3 space-y-3 bg-muted/30">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Wallet className="h-4 w-4 text-primary" />
-                  <Label className="text-sm font-medium">Apply Retainer</Label>
+                  <Label className="text-sm font-medium">Apply Deposit</Label>
                   <Badge variant="secondary" className="text-[10px]">
                     Balance: ${Number(activeRetainer.current_balance).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                   </Badge>
@@ -214,7 +214,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
               </div>
               {retainerAppliedAmount > 0 && (
                 <div className="text-sm text-emerald-600 dark:text-emerald-400">
-                  Retainer: <span className="font-mono font-medium">-${retainerAppliedAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                  Deposit: <span className="font-mono font-medium">-${retainerAppliedAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
                 </div>
               )}
               <div className="text-lg font-bold">

@@ -132,7 +132,7 @@ export function InvoicePDF({ invoice, companyName, settings }: InvoicePDFProps) 
           </View>
           {Number(invoice.retainer_applied) > 0 && (
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Retainer Applied</Text>
+              <Text style={styles.totalLabel}>Deposit Applied</Text>
               <Text style={styles.totalValue}>-{fmt(Number(invoice.retainer_applied))}</Text>
             </View>
           )}

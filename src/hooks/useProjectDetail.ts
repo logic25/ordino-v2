@@ -75,6 +75,8 @@ export function useProjectServices(projectId: string | undefined) {
         allottedHours: svc.estimated_hours || 0,
         parentServiceId: svc.parent_service_id || undefined,
         changeOrderId: svc.change_order_id || null,
+        depositAmount: Number(svc.deposit_amount ?? 0),
+        depositPaid: svc.deposit_paid ?? false,
       }));
     },
     enabled: !!projectId,
