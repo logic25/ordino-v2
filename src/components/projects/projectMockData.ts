@@ -44,6 +44,7 @@ export interface MockService {
   parentServiceId?: string;
   sentDate?: string | null;
   paidDate?: string | null;
+  changeOrderId?: string | null;
 }
 
 export type EngineerDiscipline = "structural" | "mechanical" | "plumbing" | "sprinkler" | "electrical" | "civil" | "environmental" | "other";
