@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { FileText, Send, AlertTriangle, CheckCircle, Clock, Wallet } from "lucide-react";
 import type { InvoiceStatus, InvoiceCounts } from "@/hooks/useInvoices";
 import type { BillingTab } from "@/components/invoices/InvoiceFilterTabs";
@@ -10,6 +11,15 @@ interface InvoiceSummaryCardsProps {
   onFilterChange: (filter: BillingTab) => void;
   depositSummary?: { totalBalance: number; activeCount: number };
 }
+
+const cardTooltips: Record<string, string> = {
+  draft: "Invoices being prepared or awaiting review before sending",
+  sent: "Invoices that have been delivered to clients and are awaiting payment",
+  overdue: "Invoices past their due date that haven't been paid yet",
+  paid: "Invoices that have been fully paid this month",
+  needs_review: "Invoices flagged for review — open the invoice detail and change status to 'Needs Review' to flag one",
+  deposits: "Client deposit balances available to apply toward future invoices",
+};
 
 export function InvoiceSummaryCards({ counts, totals, activeFilter, onFilterChange, depositSummary }: InvoiceSummaryCardsProps) {
   const cards: {
@@ -62,7 +72,6 @@ export function InvoiceSummaryCards({ counts, totals, activeFilter, onFilterChan
     },
   ];
 
-  // Add deposit card if data provided
   if (depositSummary) {
     cards.push({
       key: "deposits",
@@ -75,33 +84,41 @@ export function InvoiceSummaryCards({ counts, totals, activeFilter, onFilterChan
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
-      {cards.map((card) => {
-        const Icon = card.icon;
-        const isActive = activeFilter === card.key;
-        return (
-          <Card
-            key={card.key}
-            className={`cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${
-              isActive ? "ring-2 ring-accent border-accent" : ""
-            }`}
-            onClick={() => onFilterChange(isActive ? "all" : card.key)}
-          >
-            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-              <CardTitle className={`text-sm font-medium ${card.colorClass}`}>
-                {card.label}
-              </CardTitle>
-              <Icon className={`h-4 w-4 ${card.colorClass}`} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" data-clarity-mask="true">
-                ${card.amount.toLocaleString("en-US", { minimumFractionDigits: 0 })}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">{card.subtitle}</p>
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
+    <TooltipProvider delayDuration={300}>
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+        {cards.map((card) => {
+          const Icon = card.icon;
+          const isActive = activeFilter === card.key;
+          return (
+            <Tooltip key={card.key}>
+              <TooltipTrigger asChild>
+                <Card
+                  className={`cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${
+                    isActive ? "ring-2 ring-accent border-accent" : ""
+                  }`}
+                  onClick={() => onFilterChange(isActive ? "all" : card.key)}
+                >
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                    <CardTitle className={`text-sm font-medium ${card.colorClass}`}>
+                      {card.label}
+                    </CardTitle>
+                    <Icon className={`h-4 w-4 ${card.colorClass}`} />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold" data-clarity-mask="true">
+                      ${card.amount.toLocaleString("en-US", { minimumFractionDigits: 0 })}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">{card.subtitle}</p>
+                  </CardContent>
+                </Card>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[220px] text-center">
+                <p className="text-xs">{cardTooltips[card.key] || card.label}</p>
+              </TooltipContent>
+            </Tooltip>
+          );
+        })}
+      </div>
+    </TooltipProvider>
   );
 }
