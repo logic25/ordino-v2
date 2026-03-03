@@ -185,6 +185,7 @@ export function useUpdateActionItemStatus() {
 }
 
 export function useCompleteActionItem() {
+  const { profile } = useAuth();
   const qc = useQueryClient();
 
   return useMutation({
@@ -193,6 +194,7 @@ export function useCompleteActionItem() {
       project_id: string;
       completion_note?: string;
       completion_attachments?: { name: string; storage_path: string }[];
+      time_entry?: { hours: number; description: string; billable: boolean };
     }) => {
       const { error } = await supabase
         .from("project_action_items")
@@ -203,6 +205,21 @@ export function useCompleteActionItem() {
         } as any)
         .eq("id", input.id);
       if (error) throw error;
+
+      // Insert time entry if provided
+      if (input.time_entry && profile?.company_id && profile?.id) {
+        const durationMinutes = Math.round(input.time_entry.hours * 60);
+        await supabase.from("activities").insert({
+          company_id: profile.company_id,
+          user_id: profile.id,
+          activity_type: "task",
+          description: input.time_entry.description,
+          duration_minutes: durationMinutes,
+          billable: input.time_entry.billable,
+          activity_date: new Date().toISOString().split("T")[0],
+          metadata: { action_item_id: input.id, project_id: input.project_id },
+        } as any);
+      }
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["action-items", vars.project_id] });

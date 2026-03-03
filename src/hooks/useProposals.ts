@@ -517,6 +517,11 @@ export function useSendProposal() {
         .single();
       if (pErr || !proposal) throw pErr || new Error("Proposal not found");
 
+      // Guard: prevent duplicate sends
+      if ((proposal as any).sent_at) {
+        throw new Error("This proposal has already been sent. Refresh the page if you need to resend.");
+      }
+
       // 2. Fetch bill_to contact
       const { data: contacts } = await supabase
         .from("proposal_contacts")

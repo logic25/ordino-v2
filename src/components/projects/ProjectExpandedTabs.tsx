@@ -190,6 +190,8 @@ function ServicesTab({ services }: { services: MockService[] }) {
             <TableHead className="text-xs uppercase tracking-wider">Est. Bill Date</TableHead>
             <TableHead className="text-xs uppercase tracking-wider text-right">Price</TableHead>
             <TableHead className="text-xs uppercase tracking-wider text-right">Cost</TableHead>
+            <TableHead className="text-xs uppercase tracking-wider">Sent</TableHead>
+            <TableHead className="text-xs uppercase tracking-wider">Paid</TableHead>
             <TableHead className="text-xs uppercase tracking-wider">Action</TableHead>
           </TableRow>
         </TableHeader>
@@ -232,9 +234,11 @@ function ServicesTab({ services }: { services: MockService[] }) {
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{svc.estimatedBillDate || "—"}</TableCell>
                   <TableCell className="text-sm text-right tabular-nums font-medium" data-clarity-mask="true">{formatCurrency(svc.totalAmount)}</TableCell>
-                   <TableCell className="text-sm text-right tabular-nums text-muted-foreground" data-clarity-mask="true">
+                  <TableCell className="text-sm text-right tabular-nums text-muted-foreground" data-clarity-mask="true">
                     {svc.costAmount > 0 ? formatCurrency(svc.costAmount) : "—"}
                   </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{svc.sentDate || "—"}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{svc.paidDate || "—"}</TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     {svc.needsDobFiling ? (
                       <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={handleStartDobNow}>
@@ -248,7 +252,7 @@ function ServicesTab({ services }: { services: MockService[] }) {
                 {isExpanded && (
                   <TableRow key={`${svc.id}-detail`} className="hover:bg-transparent">
                     <TableCell />
-                    <TableCell colSpan={9} className="p-0">
+                    <TableCell colSpan={11} className="p-0">
                       <ServiceDetail service={svc} />
                     </TableCell>
                   </TableRow>

@@ -21,20 +21,25 @@ export function useProjectServices(projectId: string | undefined) {
           .order("created_at", { ascending: true }),
         supabase
           .from("billing_requests")
-          .select("services")
+          .select("services, invoices(id, sent_at, paid_at)")
           .eq("project_id", projectId)
           .in("status", ["pending", "invoiced"]),
       ]);
 
       if (error) throw error;
 
-      // Build a map of service name -> total billed from billing_requests
+      // Build maps of service name -> total billed and sent/paid dates from billing_requests
       const billedMap: Record<string, number> = {};
+      const sentDateMap: Record<string, string | null> = {};
+      const paidDateMap: Record<string, string | null> = {};
       for (const br of billingReqs || []) {
         const items = (br.services as any[]) || [];
+        const invoice = (br as any).invoices;
         for (const item of items) {
           const key = item.name || "";
           billedMap[key] = (billedMap[key] || 0) + (Number(item.amount) || Number(item.billed_amount) || 0);
+          if (invoice?.sent_at && !sentDateMap[key]) sentDateMap[key] = invoice.sent_at;
+          if (invoice?.paid_at && !paidDateMap[key]) paidDateMap[key] = invoice.paid_at;
         }
       }
 
@@ -53,6 +58,12 @@ export function useProjectServices(projectId: string | undefined) {
           : null,
         billedAt: svc.billed_at
           ? format(new Date(svc.billed_at), "MM/dd/yyyy")
+          : null,
+        sentDate: sentDateMap[svc.name]
+          ? format(new Date(sentDateMap[svc.name]!), "MM/dd/yyyy")
+          : null,
+        paidDate: paidDateMap[svc.name]
+          ? format(new Date(paidDateMap[svc.name]!), "MM/dd/yyyy")
           : null,
         scopeOfWork: svc.description || "",
         jobDescription: svc.job_description || undefined,
