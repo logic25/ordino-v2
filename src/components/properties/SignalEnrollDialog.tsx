@@ -19,7 +19,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
-import { useEnrollProperty, type SignalSubscription } from "@/hooks/useSignalSubscriptions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useEnrollProperty, useDeleteSignalSubscription, type SignalSubscription } from "@/hooks/useSignalSubscriptions";
 import { useToast } from "@/hooks/use-toast";
 
 interface SignalEnrollDialogProps {
@@ -42,6 +53,7 @@ export function SignalEnrollDialog({
   const [ownerPhone, setOwnerPhone] = useState(existing?.owner_phone || "");
   const [notes, setNotes] = useState(existing?.notes || "");
   const enroll = useEnrollProperty();
+  const deleteSubscription = useDeleteSignalSubscription();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -134,14 +146,59 @@ export function SignalEnrollDialog({
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={enroll.isPending}>
-            {enroll.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {existing ? "Update" : "Enroll"}
-          </Button>
+        <DialogFooter className="flex-row justify-between sm:justify-between">
+          {existing && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" disabled={deleteSubscription.isPending}>
+                  {deleteSubscription.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Cancel Subscription
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Cancel CitiSignal Subscription?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will remove CitiSignal monitoring for {propertyAddress}. 
+                    You will lose access to real-time DOB tracking, violation alerts, and CO progress monitoring for this property.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Keep Subscription</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={async () => {
+                      try {
+                        await deleteSubscription.mutateAsync(existing.id);
+                        toast({
+                          title: "Subscription cancelled",
+                          description: `CitiSignal monitoring removed for ${propertyAddress}.`,
+                        });
+                        onOpenChange(false);
+                      } catch (error: any) {
+                        toast({
+                          title: "Error",
+                          description: error.message || "Failed to cancel subscription.",
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                  >
+                    Cancel Subscription
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          <div className="flex gap-2 ml-auto">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
+            <Button onClick={handleSubmit} disabled={enroll.isPending}>
+              {enroll.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {existing ? "Update" : "Enroll"}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
