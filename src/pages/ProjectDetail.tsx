@@ -1816,61 +1816,55 @@ function ServicesFull({ services: initialServices, project, contacts, allService
               .map((svc, i) => renderServiceRow(svc, i, false));
           })()}
         </TableBody>
-      </Table>
-      </div>
-        </SortableContext>
-      </DndContext>
-
-      {/* Billed Services — collapsed by default */}
-      {billedServices.length > 0 && (
-        <Collapsible open={showBilled} onOpenChange={setShowBilled}>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground h-8 px-6 w-full justify-start border-t rounded-none">
-              {showBilled ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-              Billed Services ({billedServices.length})
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="overflow-x-auto">
-            <Table>
+        {/* Billed Services — same table for column alignment */}
+        {billedServices.length > 0 && (
+          <>
+            <TableBody>
+              <TableRow className="hover:bg-transparent border-b-0">
+                <TableCell colSpan={12} className="p-0">
+                  <Collapsible open={showBilled} onOpenChange={setShowBilled}>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground h-8 px-6 w-full justify-start rounded-none bg-amber-50/60 dark:bg-amber-950/20">
+                        {showBilled ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                        Billed Services ({billedServices.length})
+                      </Button>
+                    </CollapsibleTrigger>
+                  </Collapsible>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+            {showBilled && (
               <TableBody>
                 {billedServices.filter(s => !s.parentServiceId).map((svc) => (
                   <TableRow key={svc.id} className="opacity-70">
                     <TableCell className="pl-6 w-[44px]" />
                     <TableCell className="w-[36px]" />
                     <TableCell className="w-[28px]" />
-                    {/* Service */}
                     <TableCell><span className="font-medium">{svc.name}</span></TableCell>
-                    {/* Status */}
                     <TableCell>
                       <Badge className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0">
                         Billed{svc.billedAt ? ` · ${svc.billedAt}` : ""}
                       </Badge>
                     </TableCell>
-                    {/* Work Types */}
                     <TableCell className="text-muted-foreground">—</TableCell>
-                    {/* Est. Bill Date */}
                     <TableCell />
-                    {/* Price */}
                     <TableCell className="text-right tabular-nums font-medium">{formatCurrency(svc.totalAmount)}</TableCell>
-                    {/* Cost */}
                     <TableCell className="text-right tabular-nums text-muted-foreground">{formatCurrency(svc.costAmount)}</TableCell>
-                    {/* Billed */}
                     <TableCell className="text-right tabular-nums text-emerald-600 dark:text-emerald-400 font-medium">{formatCurrency(svc.billedAmount)}</TableCell>
-                    {/* Margin */}
                     <TableCell className="text-right tabular-nums">
                       {(() => { const m = svc.totalAmount - svc.costAmount; return <span className={m >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}>{formatCurrency(m)}</span>; })()}
                     </TableCell>
-                    {/* Action */}
                     <TableCell />
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-      )}
+            )}
+          </>
+        )}
+      </Table>
+      </div>
+        </SortableContext>
+      </DndContext>
 
       <div className="px-6 py-4 bg-muted/20 border-t flex items-center gap-8 text-sm flex-wrap">
         <span><span className="text-muted-foreground">Contract:</span> <span className="font-semibold">{formatCurrency(total)}</span></span>
