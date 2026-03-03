@@ -1835,18 +1835,33 @@ function ServicesFull({ services: initialServices, project, contacts, allService
             <Table>
               <TableBody>
                 {billedServices.filter(s => !s.parentServiceId).map((svc) => (
-                  <TableRow key={svc.id} className="opacity-60">
+                  <TableRow key={svc.id} className="opacity-70">
                     <TableCell className="pl-6 w-[44px]" />
                     <TableCell className="w-[36px]" />
                     <TableCell className="w-[28px]" />
+                    {/* Service */}
                     <TableCell><span className="font-medium">{svc.name}</span></TableCell>
-                    <TableCell><Badge variant="secondary" className="text-[10px]">Billed</Badge></TableCell>
+                    {/* Status */}
+                    <TableCell>
+                      <Badge className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0">
+                        Billed{svc.billedAt ? ` · ${svc.billedAt}` : ""}
+                      </Badge>
+                    </TableCell>
+                    {/* Work Types */}
+                    <TableCell className="text-muted-foreground">—</TableCell>
+                    {/* Est. Bill Date */}
                     <TableCell />
-                    <TableCell />
-                    <TableCell className="text-sm text-muted-foreground">{svc.billedAt || "—"}</TableCell>
+                    {/* Price */}
                     <TableCell className="text-right tabular-nums font-medium">{formatCurrency(svc.totalAmount)}</TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">{formatCurrency(svc.billedAmount)}</TableCell>
-                    <TableCell />
+                    {/* Cost */}
+                    <TableCell className="text-right tabular-nums text-muted-foreground">{formatCurrency(svc.costAmount)}</TableCell>
+                    {/* Billed */}
+                    <TableCell className="text-right tabular-nums text-emerald-600 dark:text-emerald-400 font-medium">{formatCurrency(svc.billedAmount)}</TableCell>
+                    {/* Margin */}
+                    <TableCell className="text-right tabular-nums">
+                      {(() => { const m = svc.totalAmount - svc.costAmount; return <span className={m >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}>{formatCurrency(m)}</span>; })()}
+                    </TableCell>
+                    {/* Action */}
                     <TableCell />
                   </TableRow>
                 ))}
