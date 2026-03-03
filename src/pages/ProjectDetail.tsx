@@ -1843,7 +1843,7 @@ function ServicesFull({ services: initialServices, project, contacts, allService
                     <TableCell><span className="font-medium">{svc.name}</span></TableCell>
                     <TableCell>
                       <Badge className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0">
-                        Billed{svc.billedAt ? ` · ${svc.billedAt}` : ""}
+                        Billed{(svc.billedAt || svc.sentDate) ? ` · ${svc.billedAt || svc.sentDate}` : ""}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">—</TableCell>

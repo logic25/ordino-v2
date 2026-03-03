@@ -50,9 +50,10 @@ export function useProjectServices(projectId: string | undefined) {
         const billed = billedMap[svc.name] || Number((svc as any).billed_amount ?? 0) || 0;
         if (totalAmt > 0 && billed >= totalAmt && !['billed', 'dropped'].includes(svc.status || '')) {
           reconcilePromises.push(
-            Promise.resolve(supabase.from("services").update({ status: "billed" }).eq("id", svc.id))
+            Promise.resolve(supabase.from("services").update({ status: "billed", billed_at: new Date().toISOString() }).eq("id", svc.id))
           );
           (svc as any).status = 'billed';
+          (svc as any).billed_at = new Date().toISOString();
         }
       }
       if (reconcilePromises.length > 0) {
