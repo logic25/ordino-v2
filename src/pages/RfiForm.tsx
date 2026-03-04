@@ -891,7 +891,10 @@ export default function RfiForm() {
             )}
             {/* Uploaded files list */}
             {((responses[key] as { name: string; path: string }[]) || []).map((file, idx) => {
-              const publicUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/rfi-attachments/${file.path}`;
+              const getSignedUrl = async () => {
+                const { data } = await supabase.storage.from("rfi-attachments").createSignedUrl(file.path, 3600);
+                return data?.signedUrl || "";
+              };
               const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
               return (
                 <div key={idx} className="flex items-center gap-3 p-3 rounded-lg border border-stone-200 bg-white">
@@ -899,7 +902,10 @@ export default function RfiForm() {
                   <span className="text-sm text-stone-700 truncate flex-1">{file.name}</span>
                   <button
                     type="button"
-                    onClick={() => setPreviewFile({ name: file.name, url: publicUrl })}
+                    onClick={async () => {
+                      const url = await getSignedUrl();
+                      if (url) setPreviewFile({ name: file.name, url });
+                    }}
                     className="text-amber-600 hover:text-amber-800 transition-colors"
                     title="Preview"
                   >
@@ -1165,11 +1171,15 @@ export default function RfiForm() {
                             displayVal = (
                               <div className="space-y-0.5">
                                 {(val as { name: string; path: string }[]).map((file, fIdx) => {
-                                  const publicUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/rfi-attachments/${file.path}`;
-                                  return (
+                                   const handlePreview = async (e: React.MouseEvent) => {
+                                     e.stopPropagation();
+                                     const { data } = await supabase.storage.from("rfi-attachments").createSignedUrl(file.path, 3600);
+                                     if (data?.signedUrl) setPreviewFile({ name: file.name, url: data.signedUrl });
+                                   };
+                                   return (
                                     <button
                                       key={fIdx}
-                                      onClick={(e) => { e.stopPropagation(); setPreviewFile({ name: file.name, url: publicUrl }); }}
+                                      onClick={handlePreview}
                                       className="flex items-center gap-1.5 text-sm text-amber-700 hover:text-amber-900 underline"
                                     >
                                       <Eye className="h-3 w-3 shrink-0" />

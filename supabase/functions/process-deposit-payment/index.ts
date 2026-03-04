@@ -66,6 +66,21 @@ Deno.serve(async (req) => {
     const clientId = proposal.client_id;
     const depositAmount = Number(amount);
 
+    // Validate amount against proposal's required deposit
+    const expectedDeposit = Number(proposal.deposit_required || 0);
+    if (expectedDeposit > 0 && depositAmount < expectedDeposit * 0.99) {
+      return new Response(
+        JSON.stringify({ error: `Amount must be at least $${expectedDeposit.toFixed(2)}` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (depositAmount <= 0) {
+      return new Response(
+        JSON.stringify({ error: "Amount must be greater than zero" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // 2. Create client_retainers record
     const { data: retainer, error: retErr } = await supabase
       .from("client_retainers")

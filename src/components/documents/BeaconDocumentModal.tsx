@@ -140,18 +140,11 @@ export function BeaconDocumentModal({
           : editContent;
 
       const blob = new Blob([fullContent], { type: "text/markdown" });
-      const formData = new FormData();
-      formData.append("file", blob, `${sourceFile}.md`);
-      formData.append("folder", metadata.category || "filing_guides");
+      const file = new File([blob], `${sourceFile}.md`, { type: "text/markdown" });
 
-      const BEACON_API_URL =
-        import.meta.env.VITE_BEACON_API_URL ||
-        "https://beaconrag.up.railway.app";
-      const res = await fetch(`${BEACON_API_URL}/api/ingest`, {
-        method: "POST",
-        body: formData,
-      });
-      if (!res.ok) throw new Error("Save failed");
+      // Use the Beacon proxy edge function for ingestion
+      const { syncDocumentToBeacon } = await import("@/services/beaconApi");
+      await syncDocumentToBeacon(file, file.name, metadata.category || "filing_guides");
 
       setBody(editContent);
       setIsEditing(false);
