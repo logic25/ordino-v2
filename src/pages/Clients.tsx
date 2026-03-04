@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ClientDialog } from "@/components/clients/ClientDialog";
 import { MergeClientsDialog } from "@/components/clients/MergeClientsDialog";
+import { DuplicateDetectionBanner } from "@/components/clients/DuplicateDetectionBanner";
 import { ClientTable } from "@/components/clients/ClientTable";
 import {
   useClients,
@@ -222,6 +223,8 @@ export default function Clients() {
             </div>
           </CardContent>
         </Card>
+
+        <DuplicateDetectionBanner clients={clients} />
 
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
