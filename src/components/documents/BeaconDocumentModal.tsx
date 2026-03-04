@@ -15,86 +15,35 @@ interface Props {
   sourceFile: string;
 }
 
-const KNOWN_META_KEYS = ['title', 'category', 'type', 'date_issued', 'jurisdiction', 'department', 'status', 'tags', 'source_type', 'version', 'effective_date', 'bulletin_number', 'subject', 'issuer', 'supersedes', 'applies_to'];
+function parseFrontmatter(content: string): { metadata: Record<string, string>; body: string } {
+  if (!content) return { metadata: {}, body: "" };
 
-function parseInlineMetadata(metaStr: string): Record<string, string> {
+  const trimmed = content.trimStart();
+
+  // Must start with ---
+  if (!trimmed.startsWith("---")) return { metadata: {}, body: content };
+
+  // Find closing --- (search after the opening line)
+  const afterOpener = trimmed.substring(3);
+  const closingIdx = afterOpener.indexOf("\n---");
+  if (closingIdx === -1) return { metadata: {}, body: content };
+
+  const frontmatterBlock = afterOpener.substring(0, closingIdx).trim();
+  const body = afterOpener.substring(closingIdx + 4).trim();
+
   const metadata: Record<string, string> = {};
-  const keyPositions: { key: string; start: number; valueStart: number }[] = [];
-  
-  for (const key of KNOWN_META_KEYS) {
-    const pattern = new RegExp(`(?:^|\\s)${key}\\s*:\\s*`, 'g');
-    let match;
-    while ((match = pattern.exec(metaStr)) !== null) {
-      const actualStart = match[0][0] === ' ' || match[0][0] === '\n' ? match.index + 1 : match.index;
-      keyPositions.push({ key, start: actualStart, valueStart: match.index + match[0].length });
-    }
-  }
-
-  keyPositions.sort((a, b) => a.start - b.start);
-
-  for (let i = 0; i < keyPositions.length; i++) {
-    const valueEnd = i + 1 < keyPositions.length ? keyPositions[i + 1].start : metaStr.length;
-    const value = metaStr.substring(keyPositions[i].valueStart, valueEnd).trim();
-    if (value && value !== 'null') metadata[keyPositions[i].key] = value;
-  }
-
-  return metadata;
-}
-
-function parseMetaLines(block: string): Record<string, string> {
-  const metadata: Record<string, string> = {};
-  for (const line of block.split('\n')) {
-    const colonIdx = line.indexOf(':');
+  for (const line of frontmatterBlock.split("\n")) {
+    const colonIdx = line.indexOf(":");
     if (colonIdx > 0) {
       const key = line.substring(0, colonIdx).trim();
       const value = line.substring(colonIdx + 1).trim();
-      if (value && value !== 'null') metadata[key] = value;
-    }
-  }
-  return metadata;
-}
-
-function parseFrontmatter(content: string): { metadata: Record<string, string>; body: string } {
-  if (!content) return { metadata: {}, body: content };
-
-  const trimmed = content.trim();
-
-  // Format 1: Standard YAML frontmatter with --- delimiters (newline-separated)
-  const multiMatch = trimmed.match(/^---[ \t]*\n([\s\S]*?)\n---[ \t]*\n([\s\S]*)$/);
-  if (multiMatch) {
-    return { metadata: parseMetaLines(multiMatch[1]), body: multiMatch[2].trim() };
-  }
-
-  // Format 2: Single-line with --- delimiters: --- key: val key: val --- body
-  if (trimmed.startsWith('---')) {
-    const afterOpener = trimmed.substring(3).trimStart();
-    const closingMatch = afterOpener.match(/\s---\s/);
-    if (closingMatch && closingMatch.index != null) {
-      const metaStr = afterOpener.substring(0, closingMatch.index).trim();
-      const body = afterOpener.substring(closingMatch.index + closingMatch[0].length).trim();
-      return { metadata: parseInlineMetadata(metaStr), body };
+      if (value && value !== "null") {
+        metadata[key] = value;
+      }
     }
   }
 
-  // Format 3: No --- delimiters — metadata keys run directly into body content
-  // Body starts at first markdown heading (# )
-  const headingMatch = trimmed.match(/(?:^|\s)(#{1,3}\s)/);
-  if (headingMatch && headingMatch.index != null) {
-    const splitAt = headingMatch.index + (headingMatch[0][0] === ' ' || headingMatch[0][0] === '\n' ? 1 : 0);
-    const possibleMeta = trimmed.substring(0, splitAt).trim();
-    const body = trimmed.substring(splitAt).trim();
-
-    const hasMetaKeys = KNOWN_META_KEYS.some(key => {
-      const pattern = new RegExp(`(?:^|\\s)${key}\\s*:`);
-      return pattern.test(possibleMeta);
-    });
-
-    if (hasMetaKeys) {
-      return { metadata: parseInlineMetadata(possibleMeta), body };
-    }
-  }
-
-  return { metadata: {}, body: content };
+  return { metadata, body };
 }
 
 const BEACON_API_URL = import.meta.env.VITE_BEACON_API_URL || 'https://beaconrag.up.railway.app';

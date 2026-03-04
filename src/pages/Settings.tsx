@@ -39,7 +39,7 @@ function BeaconSettingsSection() {
           <div className="flex items-center justify-between p-3 border rounded-lg">
             <div>
               <p className="text-sm font-medium">Connection Status</p>
-              <p className="text-xs text-muted-foreground font-mono">https://beaconrag.up.railway.app</p>
+            <p className="text-xs text-muted-foreground font-mono">https://beaconrag.up.railway.app</p>
             </div>
             <Badge className="bg-[hsl(142,71%,45%)] text-white text-[10px]">Connected</Badge>
           </div>
