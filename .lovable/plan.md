@@ -1,47 +1,42 @@
 
 
-## Analysis of Edit Project Dialog
+## Contact Autocomplete on Client-Facing PIS Form
 
-You raise great points. Here's a breakdown of each concern and a proposed redesign:
+**What you asked for:** When a client (e.g., a homeowner) fills out the PIS after signing a proposal, they should be able to start typing a name like "Matt Miller" or "StudioLab" in contact sections (GC, SIA, TPP, Owner, Applicant) and get suggestions from your company's contacts database, with auto-fill of the remaining fields.
 
-### 1. Tooltips — Not needed
-The dialog fields are self-explanatory. Adding tooltips would add visual clutter without value. No action here.
-
-### 2. Client, Building Owner, GC, Architect — Remove from Edit Project
-These fields are redundant in the Edit Project dialog because:
-- **Client & Building Owner** are already set at the **Proposal** level and flow into the project automatically. They should be displayed read-only on the project detail page (already shown in the Quick Reference Bar and PIS), not editable here.
-- **GC & Architect** are captured through the **PIS (Project Information Sheet)** and the **RFI form**, which is the correct workflow — those details come from the client intake process, not from internal project editing.
-
-**Plan:** Remove the Client, Building Owner, General Contractor, and Architect/Engineer sections from the Edit Project dialog entirely. These are managed through proposals and PIS.
-
-### 3. Complexity Tier — Auto-assign, not manually selected
-Nobody will manually pick a complexity tier. Instead:
-- **Auto-calculate** the tier based on project data that already exists: project type, square footage (from PIS), and service mix.
-- Display it as a **read-only badge** on the project detail page header, next to the status.
-- Remove the dropdown from the Edit Project dialog.
-
-### 4. Construction Timeline — Simplify to "Expected Completion"
-Four date fields (Expected Start, Estimated Completion, Actual Start, Actual Completion) are overkill. Most jobs don't track all four.
-
-**Plan:**
-- Replace the entire Construction Timeline section with a single **"Expected Completion Date"** field in the Edit Project dialog.
-- When set, the system logs a timeline event and can surface follow-up reminders as the date approaches (e.g., 2 weeks before, on the date, 1 week overdue).
-- For small jobs (research, DOB visits), the field stays blank — no pressure to fill it.
+**Key challenge:** The PIS form is a public page accessed via token — no authentication. The `client_contacts` table is behind RLS. We need a secure way to expose contact search to unauthenticated users who have a valid PIS token.
 
 ---
 
-### Summary of changes
+### Plan
 
-**Edit Project dialog (ProjectDialog.tsx):**
-- Remove: Client selector, Building Owner selector, GC section (4 fields), Architect section (4 fields), Complexity Tier dropdown, Construction Timeline (4 date fields)
-- Keep: Property, Project Name, Project Type, Status, Floor Number, Unit/Apt, Tenant Name, Client Reference #, PM, Senior PM, Notable toggle, Notes
-- Add: Single "Expected Completion Date" field (replaces 4 timeline fields)
+**1. Create an edge function `pis-contact-search`**
+- Accepts `token` (PIS access token) and `query` (search string, min 2 chars)
+- Validates the token against `rfi_requests` to get the `company_id`
+- Searches `client_contacts` and `clients` filtered to that company
+- Returns name, email, phone, company_name, address, license info — limited to 10 results
+- No sensitive data exposed; scoped to the company that owns the PIS
 
-**ProjectDetail.tsx:**
-- Show complexity tier as an auto-calculated read-only badge (future iteration — can be deferred)
+**2. Add a `usePISContactSuggestions` hook**
+- Called from `RfiForm.tsx` with the token and a search query
+- Debounces input (300ms) and calls the edge function
+- Returns typed suggestions matching the `usePISAutoFill` field mapping structure
 
-**useProjects.ts (ProjectFormInput type):**
-- Remove the corresponding fields from the form input type to keep it clean
+**3. Add inline autocomplete to contact sections in `RfiForm.tsx`**
+- For sections with `contactRole` (Applicant, Owner, GC, SIA, TPP): add a search input at the top of each section
+- When user types 2+ characters, show a dropdown of matching contacts
+- On selection, auto-fill all fields in that section (name, company, phone, email, address, license info)
+- Reuse the same field-mapping logic from `usePISAutoFill`'s `SECTION_FIELD_MAP`, adapted for the client-facing field key format (`sectionId_fieldId`)
+- Visual: small search bar with a "Search contacts..." placeholder, dropdown below with name + company
 
-This dramatically simplifies the dialog from ~25 fields to ~12, focusing on what someone actually fills in when creating or editing a project.
+**4. No database changes needed** — the edge function uses the service role key to bypass RLS, scoped to the company via the validated token.
+
+---
+
+### Technical Details
+
+- Edge function path: `supabase/functions/pis-contact-search/index.ts`
+- Query logic: `WHERE company_id = <company_id> AND (name ILIKE '%query%' OR email ILIKE '%query%' OR company_name ILIKE '%query%')`
+- Field mapping for client-facing keys uses the format `{sectionId}_{fieldId}` (e.g., `contractors_inspections_gc_name`)
+- The autocomplete component will be a lightweight inline dropdown (no external dependencies), similar to the existing `SectionAutoFill` in `EditPISDialog`
 
