@@ -3,9 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building2, Plus, Search, Loader2, UserPlus, Contact, Download, Users } from "lucide-react";
+import { Building2, Plus, Search, Loader2, UserPlus, Contact, Download, Users, Merge } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ClientDialog } from "@/components/clients/ClientDialog";
+import { MergeClientsDialog } from "@/components/clients/MergeClientsDialog";
 import { ClientTable } from "@/components/clients/ClientTable";
 import {
   useClients,
@@ -67,6 +69,9 @@ export default function Clients() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [mergeMode, setMergeMode] = useState(false);
+  const [selectedForMerge, setSelectedForMerge] = useState<Set<string>>(new Set());
+  const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const { data: clients = [], isLoading } = useClients();
@@ -158,18 +163,41 @@ export default function Clients() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleExportCsv} disabled={filteredClients.length === 0}>
-              <Download className="h-4 w-4 mr-2" />
-              Export CSV
-            </Button>
-            <Button
-              size="sm"
-              className="bg-accent text-accent-foreground hover:bg-accent/90"
-              onClick={handleOpenCreate}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Company
-            </Button>
+            {mergeMode ? (
+              <>
+                <Button variant="outline" size="sm" onClick={() => { setMergeMode(false); setSelectedForMerge(new Set()); }}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  disabled={selectedForMerge.size < 2}
+                  onClick={() => setMergeDialogOpen(true)}
+                >
+                  <Merge className="h-4 w-4 mr-2" />
+                  Merge ({selectedForMerge.size})
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" size="sm" onClick={() => setMergeMode(true)} disabled={filteredClients.length < 2}>
+                  <Merge className="h-4 w-4 mr-2" />
+                  Merge Duplicates
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleExportCsv} disabled={filteredClients.length === 0}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export CSV
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-accent text-accent-foreground hover:bg-accent/90"
+                  onClick={handleOpenCreate}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Company
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
@@ -248,6 +276,16 @@ export default function Clients() {
                 onDelete={handleDelete}
                 onView={(client) => navigate(`/clients/${client.id}`)}
                 isDeleting={deleteClient.isPending}
+                mergeMode={mergeMode}
+                selectedForMerge={selectedForMerge}
+                onToggleMerge={(id) => {
+                  setSelectedForMerge((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(id)) next.delete(id);
+                    else next.add(id);
+                    return next;
+                  });
+                }}
               />
             )}
           </CardContent>
@@ -261,6 +299,18 @@ export default function Clients() {
         client={editingClient}
         isLoading={createClient.isPending || updateClient.isPending}
       />
+
+      {mergeDialogOpen && (
+        <MergeClientsDialog
+          open={mergeDialogOpen}
+          onOpenChange={setMergeDialogOpen}
+          clients={clients.filter((c) => selectedForMerge.has(c.id))}
+          onComplete={() => {
+            setMergeMode(false);
+            setSelectedForMerge(new Set());
+          }}
+        />
+      )}
     </AppLayout>
   );
 }

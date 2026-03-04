@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { MoreHorizontal, Edit, Trash2, Loader2, Eye, ChevronRight, ChevronDown, User, Pencil } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,6 +49,9 @@ interface ClientTableProps {
   onDelete: (id: string) => void;
   onView: (client: Client) => void;
   isDeleting?: boolean;
+  mergeMode?: boolean;
+  selectedForMerge?: Set<string>;
+  onToggleMerge?: (id: string) => void;
 }
 
 function ContactRows({ clientId }: { clientId: string }) {
@@ -130,6 +134,9 @@ export function ClientTable({
   onDelete,
   onView,
   isDeleting,
+  mergeMode,
+  selectedForMerge,
+  onToggleMerge,
 }: ClientTableProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -163,6 +170,7 @@ export function ClientTable({
       <Table>
         <TableHeader>
           <TableRow>
+            {mergeMode && <TableHead className="w-[40px]" />}
             <TableHead>Name</TableHead>
             <TableHead>Type</TableHead>
             <TableHead>Email</TableHead>
@@ -179,8 +187,16 @@ export function ClientTable({
               <Fragment key={client.id}>
                 <TableRow
                   className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => toggleExpand(client.id)}
+                  onClick={() => mergeMode ? onToggleMerge?.(client.id) : toggleExpand(client.id)}
                 >
+                  {mergeMode && (
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selectedForMerge?.has(client.id) || false}
+                        onCheckedChange={() => onToggleMerge?.(client.id)}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
                       <button
