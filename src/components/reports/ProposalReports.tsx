@@ -6,7 +6,12 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Legend, CartesianGrid, LineChart, Line, ComposedChart } from "recharts";
-import { Users, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Users, TrendingUp, TrendingDown, Minus, CalendarIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { format, startOfYear, endOfYear, endOfMonth, subYears } from "date-fns";
 
 const COLORS = [
   "hsl(var(--primary))",
@@ -204,14 +209,33 @@ function useFilteredProposalData(selectedUser: string, selectedYear: string) {
   });
 }
 
+/** Inline date picker button */
+function DatePickerButton({ date, onChange }: { date: Date; onChange: (d: Date | undefined) => void }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="h-7 text-xs gap-1 px-2 font-normal">
+          <CalendarIcon className="h-3 w-3" />
+          {format(date, "MM/dd/yyyy")}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar mode="single" selected={date} onSelect={onChange} initialFocus className={cn("p-3 pointer-events-auto")} />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export default function ProposalReports() {
   const currentYear = new Date().getFullYear();
+  const now = new Date();
   const [selectedYear, setSelectedYear] = useState(String(currentYear));
-  const [compareYear, setCompareYear] = useState<string>("none");
   const [selectedUser, setSelectedUser] = useState("all");
+  const [periodA, setPeriodA] = useState<{ from: Date; to: Date }>({ from: startOfYear(now), to: endOfMonth(now) });
+  const [periodB, setPeriodB] = useState<{ from: Date; to: Date } | null>(null);
+  const [showCompare, setShowCompare] = useState(false);
   const { data: teamMembers } = useTeamMembers();
   const { data, isLoading } = useFilteredProposalData(selectedUser, selectedYear);
-  const { data: compareData } = useFilteredProposalData(selectedUser, compareYear !== "none" ? compareYear : selectedYear);
 
   const years: string[] = useMemo(() => {
     if (!data?.proposals) return [String(currentYear)];
@@ -280,34 +304,32 @@ export default function ProposalReports() {
     return { ...t, rate: t.total > 0 ? Math.round((t.converted / t.total) * 100) : 0 };
   }, [conversionData]);
 
-  // Compare year conversion data
-  const compareConversionData = useMemo(() => {
-    if (compareYear === "none" || !compareData?.proposals) return null;
-    const yearProposals = compareData.proposals.filter(
-      (p: any) => String(new Date(p.created_at).getFullYear()) === compareYear
-    );
-    return MONTHS.map((month, idx) => {
-      const mp = yearProposals.filter((p: any) => new Date(p.created_at).getMonth() === idx);
-      const total = mp.length;
-      const converted = mp.filter((p: any) => p.status === "executed").length;
-      const totalValue = mp.reduce((s: number, p: any) => s + (p.total_amount || 0), 0);
-      const convertedValue = mp.filter((p: any) => p.status === "executed").reduce((s: number, p: any) => s + (p.total_amount || 0), 0);
-      const rate = total > 0 ? Math.round((converted / total) * 100) : 0;
-      const mCOs = compareData.coMonthly?.[idx];
-      const coCount = mCOs?.count || 0;
-      const coValue = mCOs?.value || 0;
-      return { month, total, converted, rate, totalValue, convertedValue, coCount, coValue };
+  // Period comparison helper — aggregate proposals + COs in a date range
+  const aggregatePeriod = (proposals: any[], coMonthly: any[], range: { from: Date; to: Date }) => {
+    const inRange = proposals.filter((p: any) => {
+      const d = new Date(p.created_at);
+      return d >= range.from && d <= range.to;
     });
-  }, [compareData, compareYear]);
+    const total = inRange.length;
+    const converted = inRange.filter((p: any) => p.status === "executed").length;
+    const totalValue = inRange.reduce((s: number, p: any) => s + (p.total_amount || 0), 0);
+    const convertedValue = inRange.filter((p: any) => p.status === "executed").reduce((s: number, p: any) => s + (p.total_amount || 0), 0);
+    const rate = total > 0 ? Math.round((converted / total) * 100) : 0;
+    // COs — sum from coMonthly where month falls in range
+    let coCount = 0, coValue = 0;
+    coMonthly?.forEach((m: any) => { coCount += m.count || 0; coValue += m.value || 0; });
+    return { total, converted, rate, totalValue, convertedValue, coCount, coValue };
+  };
 
-  const compareConversionTotals = useMemo(() => {
-    if (!compareConversionData) return null;
-    const t = compareConversionData.reduce(
-      (acc, r) => ({ total: acc.total + r.total, converted: acc.converted + r.converted, totalValue: acc.totalValue + r.totalValue, convertedValue: acc.convertedValue + r.convertedValue, coCount: acc.coCount + r.coCount, coValue: acc.coValue + r.coValue }),
-      { total: 0, converted: 0, totalValue: 0, convertedValue: 0, coCount: 0, coValue: 0 }
-    );
-    return { ...t, rate: t.total > 0 ? Math.round((t.converted / t.total) * 100) : 0 };
-  }, [compareConversionData]);
+  const periodASummary = useMemo(() => {
+    if (!data?.proposals) return null;
+    return aggregatePeriod(data.proposals, data.coMonthly || [], periodA);
+  }, [data, periodA]);
+
+  const periodBSummary = useMemo(() => {
+    if (!showCompare || !periodB || !data?.proposals) return null;
+    return aggregatePeriod(data.proposals, data.coMonthly || [], periodB);
+  }, [data, periodB, showCompare]);
 
   // Source pie
   const sourceData = useMemo(() => {
@@ -443,24 +465,10 @@ export default function ProposalReports() {
         </CardContent>
       </Card>
 
-      {/* Conversion Table with CO columns + period comparison */}
+      {/* Conversion Table — monthly breakdown */}
       <Card>
-        <CardHeader className="pb-2 flex flex-row items-center justify-between">
+        <CardHeader className="pb-2">
           <CardTitle className="text-base">Monthly Conversion — {selectedYear}</CardTitle>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Compare:</span>
-            <Select value={compareYear} onValueChange={setCompareYear}>
-              <SelectTrigger className="w-[100px] h-7 text-xs">
-                <SelectValue placeholder="None" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {years.filter(y => y !== selectedYear).map((y) => (
-                  <SelectItem key={y} value={y}>{y}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-auto">
@@ -478,34 +486,20 @@ export default function ProposalReports() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {conversionData.map((row, idx) => (
-                  <>
-                    <TableRow key={row.month} className={row.total === 0 && row.coCount === 0 ? "text-muted-foreground" : ""}>
-                      <TableCell className="font-medium">{row.month}</TableCell>
-                      <TableCell className="text-right">{row.total}</TableCell>
-                      <TableCell className="text-right">{row.converted}</TableCell>
-                      <TableCell className="text-right">{row.rate}%</TableCell>
-                      <TableCell className="text-right">{fmt(row.convertedValue)}</TableCell>
-                      <TableCell className="text-right">{fmt(row.totalValue)}</TableCell>
-                      <TableCell className="text-right border-l border-border">{row.coCount}</TableCell>
-                      <TableCell className="text-right">{fmt(row.coValue)}</TableCell>
-                    </TableRow>
-                    {compareConversionData && (
-                      <TableRow key={`${row.month}-cmp`} className="text-xs text-muted-foreground bg-muted/30">
-                        <TableCell className="py-1 pl-6 font-normal italic">{compareYear}</TableCell>
-                        <TableCell className="text-right py-1">{compareConversionData[idx].total}</TableCell>
-                        <TableCell className="text-right py-1">{compareConversionData[idx].converted}</TableCell>
-                        <TableCell className="text-right py-1">{compareConversionData[idx].rate}%</TableCell>
-                        <TableCell className="text-right py-1">{fmt(compareConversionData[idx].convertedValue)}</TableCell>
-                        <TableCell className="text-right py-1">{fmt(compareConversionData[idx].totalValue)}</TableCell>
-                        <TableCell className="text-right py-1 border-l border-border">{compareConversionData[idx].coCount}</TableCell>
-                        <TableCell className="text-right py-1">{fmt(compareConversionData[idx].coValue)}</TableCell>
-                      </TableRow>
-                    )}
-                  </>
+                {conversionData.map((row) => (
+                  <TableRow key={row.month} className={row.total === 0 && row.coCount === 0 ? "text-muted-foreground" : ""}>
+                    <TableCell className="font-medium">{row.month}</TableCell>
+                    <TableCell className="text-right">{row.total}</TableCell>
+                    <TableCell className="text-right">{row.converted}</TableCell>
+                    <TableCell className="text-right">{row.rate}%</TableCell>
+                    <TableCell className="text-right">{fmt(row.convertedValue)}</TableCell>
+                    <TableCell className="text-right">{fmt(row.totalValue)}</TableCell>
+                    <TableCell className="text-right border-l border-border">{row.coCount}</TableCell>
+                    <TableCell className="text-right">{fmt(row.coValue)}</TableCell>
+                  </TableRow>
                 ))}
                 <TableRow className="font-bold border-t-2">
-                  <TableCell>{selectedYear} Total</TableCell>
+                  <TableCell>Total</TableCell>
                   <TableCell className="text-right">{conversionTotals.total}</TableCell>
                   <TableCell className="text-right">{conversionTotals.converted}</TableCell>
                   <TableCell className="text-right">{conversionTotals.rate}%</TableCell>
@@ -514,21 +508,93 @@ export default function ProposalReports() {
                   <TableCell className="text-right border-l border-border">{conversionTotals.coCount}</TableCell>
                   <TableCell className="text-right">{fmt(conversionTotals.coValue)}</TableCell>
                 </TableRow>
-                {compareConversionTotals && (
-                  <TableRow className="font-bold text-muted-foreground bg-muted/30">
-                    <TableCell>{compareYear} Total</TableCell>
-                    <TableCell className="text-right">{compareConversionTotals.total}</TableCell>
-                    <TableCell className="text-right">{compareConversionTotals.converted}</TableCell>
-                    <TableCell className="text-right">{compareConversionTotals.rate}%</TableCell>
-                    <TableCell className="text-right">{fmt(compareConversionTotals.convertedValue)}</TableCell>
-                    <TableCell className="text-right">{fmt(compareConversionTotals.totalValue)}</TableCell>
-                    <TableCell className="text-right border-l border-border">{compareConversionTotals.coCount}</TableCell>
-                    <TableCell className="text-right">{fmt(compareConversionTotals.coValue)}</TableCell>
-                  </TableRow>
-                )}
               </TableBody>
             </Table>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Period Comparison — QB-style date pickers */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Period Comparison</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-end gap-4">
+            {/* Period A */}
+            <div className="space-y-1">
+              <span className="text-xs font-medium text-muted-foreground">Period A</span>
+              <div className="flex items-center gap-1">
+                <DatePickerButton date={periodA.from} onChange={(d) => d && setPeriodA(prev => ({ ...prev, from: d }))} />
+                <span className="text-xs text-muted-foreground">to</span>
+                <DatePickerButton date={periodA.to} onChange={(d) => d && setPeriodA(prev => ({ ...prev, to: d }))} />
+              </div>
+            </div>
+            {/* Period B toggle */}
+            {!showCompare ? (
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setShowCompare(true); setPeriodB({ from: startOfYear(subYears(now, 1)), to: endOfYear(subYears(now, 1)) }); }}>
+                + Compare Period
+              </Button>
+            ) : (
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">Period B</span>
+                  <button className="text-xs text-destructive hover:underline" onClick={() => { setShowCompare(false); setPeriodB(null); }}>Remove</button>
+                </div>
+                <div className="flex items-center gap-1">
+                  <DatePickerButton date={periodB?.from ?? now} onChange={(d) => d && setPeriodB(prev => prev ? { ...prev, from: d } : { from: d, to: endOfYear(d) })} />
+                  <span className="text-xs text-muted-foreground">to</span>
+                  <DatePickerButton date={periodB?.to ?? now} onChange={(d) => d && setPeriodB(prev => prev ? { ...prev, to: d } : { from: startOfYear(d), to: d })} />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Comparison Table */}
+          {periodASummary && (
+            <div className="overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Metric</TableHead>
+                    <TableHead className="text-right">Period A</TableHead>
+                    {periodBSummary && <TableHead className="text-right">Period B</TableHead>}
+                    {periodBSummary && <TableHead className="text-right">Change</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {[
+                    { label: "Proposals Sent", a: periodASummary.total, b: periodBSummary?.total, isCurrency: false },
+                    { label: "Proposals Won", a: periodASummary.converted, b: periodBSummary?.converted, isCurrency: false },
+                    { label: "Win Rate", a: periodASummary.rate, b: periodBSummary?.rate, isCurrency: false, suffix: "%" },
+                    { label: "Won Value", a: periodASummary.convertedValue, b: periodBSummary?.convertedValue, isCurrency: true },
+                    { label: "Total Value", a: periodASummary.totalValue, b: periodBSummary?.totalValue, isCurrency: true },
+                    { label: "Change Orders", a: periodASummary.coCount, b: periodBSummary?.coCount, isCurrency: false },
+                    { label: "CO Value", a: periodASummary.coValue, b: periodBSummary?.coValue, isCurrency: true },
+                  ].map((row) => {
+                    const delta = row.b != null ? row.a - row.b : null;
+                    const pctChange = row.b != null && row.b > 0 ? Math.round(((row.a - row.b) / row.b) * 100) : null;
+                    return (
+                      <TableRow key={row.label}>
+                        <TableCell className="font-medium">{row.label}</TableCell>
+                        <TableCell className="text-right">{row.isCurrency ? fmt(row.a) : `${row.a}${row.suffix || ""}`}</TableCell>
+                        {periodBSummary && (
+                          <TableCell className="text-right text-muted-foreground">
+                            {row.isCurrency ? fmt(row.b ?? 0) : `${row.b ?? 0}${row.suffix || ""}`}
+                          </TableCell>
+                        )}
+                        {periodBSummary && (
+                          <TableCell className={cn("text-right font-medium", delta != null && delta > 0 ? "text-green-600" : delta != null && delta < 0 ? "text-destructive" : "text-muted-foreground")}>
+                            {pctChange != null ? `${pctChange > 0 ? "+" : ""}${pctChange}%` : "—"}
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
