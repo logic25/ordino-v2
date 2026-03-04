@@ -1,8 +1,11 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState, useMemo } from "react";
 import { formatPhoneNumber, formatTaxId } from "@/lib/formatters";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useClients } from "@/hooks/useClients";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -107,6 +110,20 @@ export function ClientDialog({
     }
   }, [client, form, defaultName]);
 
+  // Duplicate detection
+  const { data: allClients = [] } = useClients();
+  const watchedName = form.watch("name");
+  const duplicateMatches = useMemo(() => {
+    if (!watchedName || watchedName.length < 3) return [];
+    const q = watchedName.toLowerCase().trim();
+    return allClients.filter((c) => {
+      if (isEditing && c.id === client?.id) return false;
+      const name = c.name?.toLowerCase().trim() || "";
+      // Exact or high similarity match
+      return name === q || name.includes(q) || q.includes(name);
+    }).slice(0, 3);
+  }, [watchedName, allClients, isEditing, client?.id]);
+
   const handleSubmit = async (data: FormData) => {
     track("clients", isEditing ? "create_completed" : "create_completed", { is_edit: isEditing });
     try {
@@ -172,6 +189,17 @@ export function ClientDialog({
               </Select>
             </div>
           </div>
+
+          {duplicateMatches.length > 0 && !isEditing && (
+            <Alert className="border-yellow-500/50 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 [&>svg]:text-yellow-600">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                Possible duplicate{duplicateMatches.length > 1 ? "s" : ""} found:{" "}
+                <strong>{duplicateMatches.map((c) => c.name).join(", ")}</strong>.{" "}
+                Consider using the existing record instead.
+              </AlertDescription>
+            </Alert>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="address">Address</Label>
