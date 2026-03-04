@@ -15,41 +15,86 @@ interface Props {
   sourceFile: string;
 }
 
-function parseFrontmatter(content: string): { metadata: Record<string, string>; body: string } {
-  if (!content || !content.trimStart().startsWith('---')) return { metadata: {}, body: content };
+const KNOWN_META_KEYS = ['title', 'category', 'type', 'date_issued', 'jurisdiction', 'department', 'status', 'tags', 'source_type', 'version', 'effective_date', 'bulletin_number', 'subject', 'issuer', 'supersedes', 'applies_to'];
 
-  // Remove any leading whitespace/BOM
-  const trimmed = content.trimStart();
-  
-  // Find the closing --- (search after the opening ---)
-  const firstNewline = trimmed.indexOf('\n');
-  if (firstNewline === -1) return { metadata: {}, body: content };
-  
-  const afterOpening = trimmed.substring(firstNewline + 1);
-  const closingIdx = afterOpening.indexOf('\n---');
-  if (closingIdx === -1) return { metadata: {}, body: content };
-
-  const frontmatterBlock = afterOpening.substring(0, closingIdx).trim();
-  // Skip past closing --- and any following newlines
-  let bodyStart = closingIdx + 4; // length of '\n---'
-  while (bodyStart < afterOpening.length && (afterOpening[bodyStart] === '\n' || afterOpening[bodyStart] === '\r')) {
-    bodyStart++;
-  }
-  const body = afterOpening.substring(bodyStart);
-
+function parseInlineMetadata(metaStr: string): Record<string, string> {
   const metadata: Record<string, string> = {};
-  for (const line of frontmatterBlock.split('\n')) {
+  const keyPositions: { key: string; start: number; valueStart: number }[] = [];
+  
+  for (const key of KNOWN_META_KEYS) {
+    const pattern = new RegExp(`(?:^|\\s)${key}\\s*:\\s*`, 'g');
+    let match;
+    while ((match = pattern.exec(metaStr)) !== null) {
+      const actualStart = match[0][0] === ' ' || match[0][0] === '\n' ? match.index + 1 : match.index;
+      keyPositions.push({ key, start: actualStart, valueStart: match.index + match[0].length });
+    }
+  }
+
+  keyPositions.sort((a, b) => a.start - b.start);
+
+  for (let i = 0; i < keyPositions.length; i++) {
+    const valueEnd = i + 1 < keyPositions.length ? keyPositions[i + 1].start : metaStr.length;
+    const value = metaStr.substring(keyPositions[i].valueStart, valueEnd).trim();
+    if (value && value !== 'null') metadata[keyPositions[i].key] = value;
+  }
+
+  return metadata;
+}
+
+function parseMetaLines(block: string): Record<string, string> {
+  const metadata: Record<string, string> = {};
+  for (const line of block.split('\n')) {
     const colonIdx = line.indexOf(':');
     if (colonIdx > 0) {
       const key = line.substring(0, colonIdx).trim();
       const value = line.substring(colonIdx + 1).trim();
-      if (value && value !== 'null') {
-        metadata[key] = value;
-      }
+      if (value && value !== 'null') metadata[key] = value;
+    }
+  }
+  return metadata;
+}
+
+function parseFrontmatter(content: string): { metadata: Record<string, string>; body: string } {
+  if (!content) return { metadata: {}, body: content };
+
+  const trimmed = content.trim();
+
+  // Format 1: Standard YAML frontmatter with --- delimiters (newline-separated)
+  const multiMatch = trimmed.match(/^---[ \t]*\n([\s\S]*?)\n---[ \t]*\n([\s\S]*)$/);
+  if (multiMatch) {
+    return { metadata: parseMetaLines(multiMatch[1]), body: multiMatch[2].trim() };
+  }
+
+  // Format 2: Single-line with --- delimiters: --- key: val key: val --- body
+  if (trimmed.startsWith('---')) {
+    const afterOpener = trimmed.substring(3).trimStart();
+    const closingMatch = afterOpener.match(/\s---\s/);
+    if (closingMatch && closingMatch.index != null) {
+      const metaStr = afterOpener.substring(0, closingMatch.index).trim();
+      const body = afterOpener.substring(closingMatch.index + closingMatch[0].length).trim();
+      return { metadata: parseInlineMetadata(metaStr), body };
     }
   }
 
-  return { metadata, body };
+  // Format 3: No --- delimiters — metadata keys run directly into body content
+  // Body starts at first markdown heading (# )
+  const headingMatch = trimmed.match(/(?:^|\s)(#{1,3}\s)/);
+  if (headingMatch && headingMatch.index != null) {
+    const splitAt = headingMatch.index + (headingMatch[0][0] === ' ' || headingMatch[0][0] === '\n' ? 1 : 0);
+    const possibleMeta = trimmed.substring(0, splitAt).trim();
+    const body = trimmed.substring(splitAt).trim();
+
+    const hasMetaKeys = KNOWN_META_KEYS.some(key => {
+      const pattern = new RegExp(`(?:^|\\s)${key}\\s*:`);
+      return pattern.test(possibleMeta);
+    });
+
+    if (hasMetaKeys) {
+      return { metadata: parseInlineMetadata(possibleMeta), body };
+    }
+  }
+
+  return { metadata: {}, body: content };
 }
 
 const BEACON_API_URL = import.meta.env.VITE_BEACON_API_URL || 'https://beaconrag.up.railway.app';
@@ -71,7 +116,7 @@ export function BeaconDocumentModal({ open, onClose, sourceFile }: Props) {
   const [editContent, setEditContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  const { metadata, body } = data ? parseFrontmatter(data.content) : { metadata: {}, body: "" };
+  const { metadata, body } = data ? parseFrontmatter(data.content) : { metadata: {} as Record<string, string>, body: "" };
 
   useEffect(() => {
     if (!open || !sourceFile) return;
@@ -100,7 +145,7 @@ export function BeaconDocumentModal({ open, onClose, sourceFile }: Props) {
       const blob = new Blob([fullContent], { type: 'text/markdown' });
       const formData = new FormData();
       formData.append('file', blob, `${sourceFile}.md`);
-      formData.append('folder', metadata.category || 'processes');
+      formData.append('folder', metadata.category || 'filing_guides');
 
       const res = await fetch(`${BEACON_API_URL}/api/ingest`, { method: 'POST', body: formData });
       if (!res.ok) throw new Error('Failed to save');
@@ -131,22 +176,22 @@ export function BeaconDocumentModal({ open, onClose, sourceFile }: Props) {
                   <Badge variant="outline" className="text-[10px]">v{data.version}</Badge>
                 )}
                 {data.is_current === "false" && (
-                  <Badge className="bg-amber-500 text-white text-[10px]">Superseded</Badge>
+                  <Badge variant="secondary" className="text-[10px] bg-amber-100 text-amber-800">Superseded</Badge>
                 )}
               </>
             )}
           </DialogTitle>
           {data?.superseded_by && (
-            <p className="text-xs text-amber-600">Replaced by: {data.superseded_by}</p>
+            <p className="text-xs text-warning">Replaced by: {data.superseded_by}</p>
           )}
           {data?.supersedes && (
             <p className="text-xs text-muted-foreground">Replaces: {data.supersedes}</p>
           )}
           {data && Object.keys(metadata).length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              {metadata.category && <Badge variant="outline" className="text-[10px]">{metadata.category}</Badge>}
-              {metadata.type && <Badge variant="outline" className="text-[10px]">{metadata.type}</Badge>}
-              {metadata.status === "active" && <Badge className="text-[10px] bg-green-100 text-green-800 border-0">Active</Badge>}
+              {metadata.category && <Badge variant="outline" className="text-[10px]">{metadata.category.replace(/_/g, ' ')}</Badge>}
+              {metadata.type && <Badge variant="outline" className="text-[10px]">{metadata.type.replace(/_/g, ' ')}</Badge>}
+              {metadata.status === "active" && <Badge variant="secondary" className="text-[10px] bg-success/10 text-success">Active</Badge>}
               {metadata.date_issued && <span className="text-[10px] text-muted-foreground">Issued: {metadata.date_issued}</span>}
               {metadata.jurisdiction && <span className="text-[10px] text-muted-foreground">{metadata.jurisdiction}</span>}
             </div>
