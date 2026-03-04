@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { isPasswordLeaked } from "@/lib/checkLeakedPassword";
 
 const authSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -158,6 +159,17 @@ export default function Auth() {
   const onUpdatePassword = async (data: NewPasswordFormData) => {
     setIsLoading(true);
     try {
+      // Check against known breached passwords
+      const leaked = await isPasswordLeaked(data.password);
+      if (leaked) {
+        toast({
+          title: "Password compromised",
+          description: "This password has appeared in a known data breach. Please choose a different password.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Check if we have an active session first
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) {
