@@ -22,9 +22,8 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
     }
 
@@ -173,7 +172,7 @@ Stress-test this idea and return a JSON array with 1 structured suggestion.`;
       const totalTokens = usage.total_tokens || (promptTokens + completionTokens);
       // Gemini Flash pricing: $0.075/1M input, $0.30/1M output
       const estimatedCost = (promptTokens * 0.075 + completionTokens * 0.30) / 1_000_000;
-      const userId = claimsData?.claims?.sub;
+      const userId = user.id;
       const { data: prof } = await sbAdmin.from("profiles").select("id").eq("user_id", userId).maybeSingle();
       await sbAdmin.from("ai_usage_logs").insert({
         company_id,
