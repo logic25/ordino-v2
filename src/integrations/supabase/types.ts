@@ -7328,6 +7328,10 @@ export type Database = {
         Args: { target_company_id: string }
         Returns: boolean
       }
+      merge_clients: {
+        Args: { duplicate_ids: string[]; primary_id: string }
+        Returns: undefined
+      }
       seed_document_folders: {
         Args: { target_company_id: string }
         Returns: undefined

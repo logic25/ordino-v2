@@ -43,40 +43,12 @@ export function MergeClientsDialog({
     if (!primaryId || duplicates.length === 0) return;
     setMerging(true);
     try {
-      for (const dup of duplicates) {
-        // Move contacts to primary
-        await supabase
-          .from("client_contacts")
-          .update({ client_id: primaryId })
-          .eq("client_id", dup.id);
-
-        // Move proposals
-        await supabase
-          .from("proposals")
-          .update({ client_id: primaryId })
-          .eq("client_id", dup.id);
-
-        // Move projects
-        await supabase
-          .from("projects")
-          .update({ client_id: primaryId })
-          .eq("client_id", dup.id);
-
-        // Move invoices
-        await supabase
-          .from("invoices")
-          .update({ client_id: primaryId })
-          .eq("client_id", dup.id);
-
-        // Move calendar events
-        await supabase
-          .from("calendar_events")
-          .update({ client_id: primaryId })
-          .eq("client_id", dup.id);
-
-        // Delete the duplicate
-        await supabase.from("clients").delete().eq("id", dup.id);
-      }
+      const dupIds = duplicates.map((d) => d.id);
+      const { error } = await supabase.rpc("merge_clients", {
+        primary_id: primaryId,
+        duplicate_ids: dupIds,
+      });
+      if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       queryClient.invalidateQueries({ queryKey: ["client-contacts"] });
