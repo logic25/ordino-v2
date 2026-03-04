@@ -18,34 +18,12 @@ function normalize(s: string | null | undefined): string {
 
 function findDuplicateGroups(clients: Client[]): DuplicateGroup[] {
   const groups: DuplicateGroup[] = [];
-  const usedIds = new Set<string>();
 
-  // 1. Group by exact email match
-  const emailMap = new Map<string, Client[]>();
-  for (const c of clients) {
-    const email = normalize(c.email);
-    if (!email) continue;
-    if (!emailMap.has(email)) emailMap.set(email, []);
-    emailMap.get(email)!.push(c);
-  }
-  for (const [email, group] of emailMap) {
-    if (group.length >= 2) {
-      groups.push({
-        key: `email-${email}`,
-        reason: `Same email: ${group[0].email}`,
-        clients: group,
-      });
-      group.forEach((c) => usedIds.add(c.id));
-    }
-  }
-
-  // 2. Group by similar name (not already grouped)
-  const remaining = clients.filter((c) => !usedIds.has(c.id));
+  // 1. Group by similar company name
   const nameMap = new Map<string, Client[]>();
-  for (const c of remaining) {
+  for (const c of clients) {
     const name = normalize(c.name);
     if (!name) continue;
-    // Find existing group with similar name
     let matched = false;
     for (const [key, group] of nameMap) {
       if (name === key || name.includes(key) || key.includes(name)) {
@@ -62,13 +40,13 @@ function findDuplicateGroups(clients: Client[]): DuplicateGroup[] {
     if (group.length >= 2) {
       groups.push({
         key: `name-${group[0].id}`,
-        reason: `Similar name`,
+        reason: `Similar company name`,
         clients: group,
       });
     }
   }
 
-  // 3. Group by exact phone match (not already grouped)
+  // 2. Group by exact phone match (not already grouped)
   const allGroupedIds = new Set(groups.flatMap((g) => g.clients.map((c) => c.id)));
   const phoneRemaining = clients.filter((c) => !allGroupedIds.has(c.id));
   const phoneMap = new Map<string, Client[]>();
