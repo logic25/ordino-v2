@@ -33,8 +33,9 @@ export function KnowledgeBaseView() {
   const { data, isLoading, isError } = useBeaconKnowledge();
   const upload = useUploadToBeaconKB();
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [targetFolder, setTargetFolder] = useState("");
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const folderNames = useMemo(() => {
@@ -59,17 +60,28 @@ export function KnowledgeBaseView() {
   }, [data]);
 
   const handleUpload = async () => {
-    if (!selectedFile || !targetFolder) return;
-    try {
-      const result = await upload.mutateAsync({ file: selectedFile, folder: targetFolder });
-      toast({ title: "Uploaded to Knowledge Base", description: `${result.chunks_created || 0} chunks created` });
-      setUploadOpen(false);
-      setSelectedFile(null);
-      setTargetFolder("");
-      if (fileRef.current) fileRef.current.value = "";
-    } catch (err: any) {
-      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    if (selectedFiles.length === 0 || !targetFolder) return;
+    setUploadProgress({ done: 0, total: selectedFiles.length });
+    let successCount = 0;
+    let totalChunks = 0;
+    for (const file of selectedFiles) {
+      try {
+        const result = await upload.mutateAsync({ file, folder: targetFolder });
+        totalChunks += result.chunks_created || 0;
+        successCount++;
+        setUploadProgress({ done: successCount, total: selectedFiles.length });
+      } catch (err: any) {
+        toast({ title: `Failed: ${file.name}`, description: err.message, variant: "destructive" });
+      }
     }
+    if (successCount > 0) {
+      toast({ title: "Uploaded to Knowledge Base", description: `${successCount} file(s), ${totalChunks} chunks created` });
+    }
+    setUploadOpen(false);
+    setSelectedFiles([]);
+    setTargetFolder("");
+    setUploadProgress(null);
+    if (fileRef.current) fileRef.current.value = "";
   };
 
   if (isLoading) {
@@ -175,14 +187,17 @@ export function KnowledgeBaseView() {
       {/* Upload dialog */}
       <Dialog open={uploadOpen} onOpenChange={(open) => {
         setUploadOpen(open);
-        if (!open) { setSelectedFile(null); setTargetFolder(""); if (fileRef.current) fileRef.current.value = ""; }
+        if (!open) { setSelectedFiles([]); setTargetFolder(""); setUploadProgress(null); if (fileRef.current) fileRef.current.value = ""; }
       }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Upload to Knowledge Base</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>File (PDF, MD, or TXT)</Label>
-              <Input ref={fileRef} type="file" accept=".pdf,.md,.txt" className="mt-1" onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} />
+              <Label>Files (PDF, MD, or TXT — select multiple)</Label>
+              <Input ref={fileRef} type="file" accept=".pdf,.md,.txt" multiple className="mt-1" onChange={(e) => setSelectedFiles(Array.from(e.target.files || []))} />
+              {selectedFiles.length > 1 && (
+                <p className="text-xs text-muted-foreground mt-1">{selectedFiles.length} files selected</p>
+              )}
             </div>
             <div>
               <Label>Target Folder</Label>
@@ -198,12 +213,20 @@ export function KnowledgeBaseView() {
                 <p className="text-xs text-muted-foreground mt-1">Source type: {FOLDER_TO_SOURCE_TYPE[targetFolder]}</p>
               )}
             </div>
+            {uploadProgress && (
+              <div className="space-y-1">
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full bg-primary transition-all" style={{ width: `${(uploadProgress.done / uploadProgress.total) * 100}%` }} />
+                </div>
+                <p className="text-xs text-muted-foreground">{uploadProgress.done} / {uploadProgress.total} files uploaded</p>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setUploadOpen(false)}>Cancel</Button>
-            <Button onClick={handleUpload} disabled={!selectedFile || !targetFolder || upload.isPending}>
-              {upload.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
-              Upload
+            <Button onClick={handleUpload} disabled={selectedFiles.length === 0 || !targetFolder || !!uploadProgress}>
+              {uploadProgress ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+              Upload {selectedFiles.length > 1 ? `${selectedFiles.length} Files` : ""}
             </Button>
           </DialogFooter>
         </DialogContent>
