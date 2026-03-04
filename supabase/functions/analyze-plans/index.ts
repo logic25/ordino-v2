@@ -13,6 +13,20 @@ serve(async (req) => {
   }
 
   try {
+    // JWT verification
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const supabaseAuth = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(authHeader.replace("Bearer ", ""));
+    if (claimsError || !claimsData?.claims) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const userId = claimsData.claims.sub;
+
     const { file_urls } = await req.json();
 
     if (!file_urls || !Array.isArray(file_urls) || file_urls.length === 0) {
@@ -127,17 +141,18 @@ Examples:
     const data = await response.json();
     const jobDescription = data.choices?.[0]?.message?.content?.trim() || "";
 
-    // Log usage
+    // Log usage with authenticated user info
     try {
       const sbAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      // Look up company_id from profile
+      const { data: profile } = await sbAdmin.from("profiles").select("company_id").eq("user_id", userId).single();
       const usage = data.usage || {};
       const promptTokens = usage.prompt_tokens || 0;
       const completionTokens = usage.completion_tokens || 0;
-      // Gemini 2.5 Flash pricing
       const estimatedCost = (promptTokens * 0.075 + completionTokens * 0.30) / 1_000_000;
       await sbAdmin.from("ai_usage_logs").insert({
-        company_id: null,
-        user_id: null,
+        company_id: profile?.company_id || null,
+        user_id: userId,
         feature: "plan_analysis",
         model: AI_MODEL,
         prompt_tokens: promptTokens,
