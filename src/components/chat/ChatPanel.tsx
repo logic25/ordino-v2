@@ -133,20 +133,18 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
         metadata: {},
       });
 
-      // Call Beacon's /api/chat endpoint
+      // Call Beacon via edge function proxy
       const displayName = profile?.display_name || profile?.first_name || user?.user_metadata?.full_name || "User";
-      const res = await fetch("https://beaconrag.up.railway.app/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const { data, error: fnError } = await supabase.functions.invoke("beacon-proxy?action=chat", {
+        body: {
           message: text,
           user_id: email,
           user_name: displayName,
           space_id: "ordino-chat",
-        }),
+        },
       });
 
-      const data = await res.json();
+      if (fnError) throw fnError;
 
       // Save bot response to widget_messages
       if (data.response) {
