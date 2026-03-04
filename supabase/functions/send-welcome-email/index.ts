@@ -31,11 +31,13 @@ function createMimeMessage({
   from,
   subject,
   body,
+  attachments,
 }: {
   to: string;
   from: string;
   subject: string;
   body: string;
+  attachments?: { filename: string; mimeType: string; base64Data: string }[];
 }) {
   const boundary = `boundary_${Date.now()}_${Math.random().toString(36).slice(2)}`;
   const altBoundary = `alt_${boundary}`;
@@ -65,8 +67,25 @@ function createMimeMessage({
     "",
     body,
     `--${altBoundary}--`,
-    `--${boundary}--`,
   ];
+
+  // Add attachments
+  if (attachments && attachments.length > 0) {
+    for (const att of attachments) {
+      parts.push(`--${boundary}`);
+      parts.push(`Content-Type: ${att.mimeType}; name="${att.filename}"`);
+      parts.push("Content-Transfer-Encoding: base64");
+      parts.push(`Content-Disposition: attachment; filename="${att.filename}"`);
+      parts.push("");
+      // Split base64 into 76-char lines for MIME compliance
+      const b64 = att.base64Data;
+      for (let i = 0; i < b64.length; i += 76) {
+        parts.push(b64.slice(i, i + 76));
+      }
+    }
+  }
+
+  parts.push(`--${boundary}--`);
 
   const message = parts.join("\r\n");
   return btoa(unescape(encodeURIComponent(message)))
@@ -86,6 +105,7 @@ function buildWelcomeEmailHtml({
   pisLink,
   companyEmail,
   companyPhone,
+  hasProposalAttachment,
 }: {
   clientName: string;
   companyName: string;
@@ -97,6 +117,7 @@ function buildWelcomeEmailHtml({
   pisLink: string | null;
   companyEmail: string;
   companyPhone: string;
+  hasProposalAttachment: boolean;
 }) {
   const footerParts = [
     companyEmail ? `<a href="mailto:${companyEmail}" style="color:#64748b;">${companyEmail}</a>` : null,
@@ -113,6 +134,10 @@ function buildWelcomeEmailHtml({
       <p style="margin:0 0 24px;font-size:13px;color:#64748b;text-align:center;line-height:1.5;">
         Please fill this out to the best of your abilities so we can begin work on your behalf.
       </p>`
+    : "";
+
+  const attachmentNote = hasProposalAttachment
+    ? `<p style="margin:0 0 20px;font-size:14px;color:#64748b;line-height:1.6;">📎 A copy of your fully executed proposal is attached to this email for your records.</p>`
     : "";
 
   return `<!DOCTYPE html>
@@ -132,6 +157,8 @@ function buildWelcomeEmailHtml({
       <p style="margin:0 0 20px;font-size:15px;color:#334155;line-height:1.6;">
         Thank you for choosing <strong>${companyName}</strong>. We're excited to get started on <strong>${projectTitle}</strong>${propertyAddress ? ` at <strong>${propertyAddress}</strong>` : ""}.
       </p>
+
+      ${attachmentNote}
 
       <!-- PM Contact Card -->
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:24px;">
@@ -229,7 +256,6 @@ Deno.serve(async (req) => {
     const pm = (proposal as any).assigned_pm;
     const pmName = pm ? [pm.first_name, pm.last_name].filter(Boolean).join(" ") : companyName;
     
-    // Get PM's profile for email/phone
     let pmEmail = companyEmail;
     let pmPhone = companyPhone;
     if (pm?.id) {
@@ -251,12 +277,38 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if ((rfi as any)?.access_token) {
-      // Use the proposal's origin or a default
       const baseUrl = Deno.env.get("SITE_URL") || `https://${Deno.env.get("SUPABASE_URL")?.replace("https://", "").replace(".supabase.co", "")}-preview--lovable.app`;
       pisLink = `${baseUrl}/rfi/${(rfi as any).access_token}`;
     }
 
-    // Find a Gmail connection to send from - use PM's connection or any company admin
+    // Try to fetch the signed proposal from storage to attach
+    let proposalAttachment: { filename: string; mimeType: string; base64Data: string } | null = null;
+    try {
+      const storagePath = `proposals/${proposal_id}/signed_proposal.html`;
+      const { data: fileData, error: fileErr } = await supabaseAdmin.storage
+        .from("documents")
+        .download(storagePath);
+      
+      if (fileData && !fileErr) {
+        const arrayBuffer = await fileData.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        const base64 = btoa(binary);
+        const proposalNum = (proposal as any).proposal_number || "draft";
+        proposalAttachment = {
+          filename: `Proposal_${proposalNum}_Executed.html`,
+          mimeType: "text/html",
+          base64Data: base64,
+        };
+      }
+    } catch (attachErr) {
+      console.error("Could not attach signed proposal:", attachErr);
+    }
+
+    // Find a Gmail connection to send from
     let gmailConnection: any = null;
 
     if (pm?.id) {
@@ -268,7 +320,6 @@ Deno.serve(async (req) => {
       if (pmConn) gmailConnection = pmConn;
     }
 
-    // Fallback: find any Gmail connection in the company
     if (!gmailConnection) {
       const { data: anyConn } = await supabaseAdmin
         .from("gmail_connections")
@@ -310,7 +361,7 @@ Deno.serve(async (req) => {
         .eq("id", gmailConnection.id);
     }
 
-    // Resolve client name: proposal.client_name → primary contact → "Valued Client"
+    // Resolve client name
     let clientName = (proposal as any).client_name;
     if (!clientName && (proposal as any).client_id) {
       const { data: primaryContact } = await supabaseAdmin
@@ -326,12 +377,10 @@ Deno.serve(async (req) => {
     if (!clientName) clientName = "Valued Client";
 
     const propertyAddress = (proposal as any).properties?.address || "";
-    // Use proposal title but strip address suffix to avoid duplication in the email body
     let projectTitle = (proposal as any).title || "Your Project";
     const titleIncludesAddress = propertyAddress && projectTitle.includes(propertyAddress);
 
     const subject = `Welcome to ${companyName} — ${projectTitle}`;
-    // In body, only show "at <address>" if the title doesn't already contain it
     const bodyPropertyAddress = titleIncludesAddress ? "" : propertyAddress;
 
     const htmlBody = buildWelcomeEmailHtml({
@@ -345,13 +394,17 @@ Deno.serve(async (req) => {
       pisLink,
       companyEmail,
       companyPhone,
+      hasProposalAttachment: !!proposalAttachment,
     });
+
+    const attachments = proposalAttachment ? [proposalAttachment] : [];
 
     const raw = createMimeMessage({
       to: clientEmail,
       from: gmailConnection.email_address,
       subject,
       body: htmlBody,
+      attachments,
     });
 
     const sendRes = await fetch(
@@ -376,7 +429,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, message_id: sendData.id }),
+      JSON.stringify({ success: true, message_id: sendData.id, has_attachment: !!proposalAttachment }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
