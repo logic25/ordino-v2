@@ -460,14 +460,15 @@ function PartyInfoSection({ form, clients }: { form: any; clients: any[] }) {
   const handleSelectClient = async (client: any, prefix: string) => {
     const opts = { shouldDirty: true };
     form.setValue(`${prefix}_company`, client.name, opts);
-    // Try to get primary contact for this client
-    const { data: contacts } = await supabase
+    // Try to get primary contact, then fall back to any contact for this client
+    const { data: primaryContacts } = await supabase
       .from("client_contacts")
       .select("name, first_name, last_name, email, phone, license_type, license_number")
       .eq("client_id", client.id)
-      .eq("is_primary", true)
+      .order("is_primary", { ascending: false })
+      .order("sort_order", { ascending: true })
       .limit(1);
-    const contact = contacts?.[0];
+    const contact = primaryContacts?.[0];
     if (contact) {
       const contactName = [contact.first_name, contact.last_name].filter(Boolean).join(" ") || contact.name;
       form.setValue(`${prefix}_name`, contactName, opts);
@@ -824,6 +825,26 @@ export function ProposalDialog({
           }
           if (!form.getValues("architect_phone") && applicant.phone) {
             form.setValue("architect_phone", applicant.phone, opts);
+          }
+          // Look up license info from CRM contact if applicant has a client_id
+          if (applicant.client_id && (!form.getValues("architect_license_type") || !form.getValues("architect_license_number"))) {
+            supabase
+              .from("client_contacts")
+              .select("license_type, license_number")
+              .eq("client_id", applicant.client_id)
+              .eq("is_primary", true)
+              .limit(1)
+              .then(({ data: crmContacts }) => {
+                const crm = crmContacts?.[0];
+                if (crm) {
+                  if (crm.license_type && !form.getValues("architect_license_type")) {
+                    form.setValue("architect_license_type", crm.license_type, opts);
+                  }
+                  if (crm.license_number && !form.getValues("architect_license_number")) {
+                    form.setValue("architect_license_number", crm.license_number, opts);
+                  }
+                }
+              });
           }
         }
       }
