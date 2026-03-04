@@ -29,7 +29,11 @@ function humanize(slug: string): string {
     .join(" ");
 }
 
-export function KnowledgeBaseView() {
+interface KnowledgeBaseViewProps {
+  activeFolder?: string | null;
+}
+
+export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: KnowledgeBaseViewProps) {
   const { toast } = useToast();
   const { data, isLoading, isError } = useBeaconKnowledge();
   const upload = useUploadToBeaconKB();
@@ -49,7 +53,25 @@ export function KnowledgeBaseView() {
     return Array.from(merged).sort();
   }, [data]);
 
+  // Map display folder name to slug for filtering
+  const DISPLAY_TO_SLUG: Record<string, string> = {
+    "Filing Guides": "filing_guides",
+    "Service Notices": "service_notices",
+    "Buildings Bulletins": "buildings_bulletins",
+    "Policy Memos": "policy_memos",
+    "Codes": "codes",
+    "Determinations": "determinations",
+    "Company SOPs": "company_sops",
+    "Objections": "objections",
+  };
 
+  const resolvedActiveFolder = externalActiveFolder
+    ? DISPLAY_TO_SLUG[externalActiveFolder] || externalActiveFolder.toLowerCase().replace(/\s+/g, '_')
+    : null;
+
+  const visibleFolders = resolvedActiveFolder
+    ? folderNames.filter((f) => f === resolvedActiveFolder)
+    : folderNames;
 
   const handleUpload = async () => {
     if (selectedFiles.length === 0 || !targetFolder) return;
@@ -133,7 +155,7 @@ export function KnowledgeBaseView() {
       <Card>
         <CardContent className="p-4">
           <Accordion type="multiple" className="w-full">
-            {folderNames.map((folder) => {
+            {visibleFolders.map((folder) => {
               const files = data?.folders[folder] || [];
               return (
                 <AccordionItem key={folder} value={folder}>
