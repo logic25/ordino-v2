@@ -329,7 +329,7 @@ export default function Documents() {
             )}
 
             {isBeaconFolder ? (
-              <KnowledgeBaseView />
+              <KnowledgeBaseView activeFolder={selectedFolder?.name || null} />
             ) : (
               <>
                 {/* Filters */}
