@@ -39,7 +39,7 @@ function BeaconSettingsSection() {
           <div className="flex items-center justify-between p-3 border rounded-lg">
             <div>
               <p className="text-sm font-medium">Connection Status</p>
-              <p className="text-xs text-muted-foreground font-mono">https://beacon.railway.app</p>
+              <p className="text-xs text-muted-foreground font-mono">https://beaconrag.up.railway.app</p>
             </div>
             <Badge className="bg-[hsl(142,71%,45%)] text-white text-[10px]">Connected</Badge>
           </div>
@@ -53,7 +53,7 @@ function BeaconSettingsSection() {
           <Button
             variant="outline"
             className="w-full"
-            onClick={() => window.open("https://beacon.railway.app/dashboard", "_blank")}
+            onClick={() => window.open("https://beaconrag.up.railway.app/dashboard", "_blank")}
           >
             <ExternalLink className="h-4 w-4 mr-2" /> Open Beacon Dashboard
           </Button>

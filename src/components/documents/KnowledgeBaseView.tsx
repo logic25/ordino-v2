@@ -19,6 +19,7 @@ import {
 import { useBeaconKnowledge, useUploadToBeaconKB } from "@/hooks/useBeaconKnowledge";
 import { FOLDER_TO_SOURCE_TYPE } from "@/services/beaconApi";
 import { useToast } from "@/hooks/use-toast";
+import { BeaconDocumentModal } from "./BeaconDocumentModal";
 
 function humanize(slug: string): string {
   if (slug === "_root") return "Root";
@@ -37,6 +38,7 @@ export function KnowledgeBaseView() {
   const [targetFolder, setTargetFolder] = useState("");
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [viewingFile, setViewingFile] = useState<string | null>(null);
 
   const folderNames = useMemo(() => {
     const apiFolders = data ? Object.keys(data.folders) : [];
@@ -170,7 +172,11 @@ export function KnowledgeBaseView() {
                   <AccordionContent>
                     <div className="grid gap-1 pl-6">
                       {files.sort().map((filename) => (
-                        <div key={filename} className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 text-sm">
+                        <div
+                          key={filename}
+                          className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 text-sm cursor-pointer"
+                          onClick={() => setViewingFile(filename)}
+                        >
                           <File className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                           <span className="truncate">{filename}</span>
                         </div>
@@ -231,6 +237,12 @@ export function KnowledgeBaseView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <BeaconDocumentModal
+        open={!!viewingFile}
+        onClose={() => setViewingFile(null)}
+        sourceFile={viewingFile || ""}
+      />
     </div>
   );
 }

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { useAuth } from "@/hooks/useAuth";
 import { askBeacon, checkBeaconHealth, type BeaconSource } from "@/services/beaconApi";
+import { BeaconDocumentModal } from "../documents/BeaconDocumentModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useRef, useEffect, useCallback } from "react";
 
@@ -61,10 +61,9 @@ function RelevanceBar({ score }: { score: number }) {
   );
 }
 
-function SourcesList({ sources }: { sources: BeaconSource[] }) {
+function SourcesList({ sources, onViewDocument }: { sources: BeaconSource[]; onViewDocument: (title: string) => void }) {
   const [expanded, setExpanded] = useState(false);
   const [expandedIdx, setExpandedIdx] = useState<Set<number>>(new Set());
-  const navigate = useNavigate();
   if (!sources.length) return null;
 
   const toggleSource = (idx: number) => {
@@ -107,7 +106,7 @@ function SourcesList({ sources }: { sources: BeaconSource[] }) {
                       </div>
                     )}
                     <button
-                      onClick={() => navigate(`/documents?search=${encodeURIComponent(title)}`)}
+                      onClick={() => onViewDocument(s.title)}
                       className="flex items-center gap-0.5 text-[#f59e0b] hover:underline"
                     >
                       <ExternalLink className="h-2.5 w-2.5" /> View Document
@@ -137,6 +136,7 @@ export function BeaconChatWidget() {
   const { user, profile } = useAuth();
   const [showDebug, setShowDebug] = useState(false);
   const [beaconOnline, setBeaconOnline] = useState(true);
+  const [viewingFile, setViewingFile] = useState<string | null>(null);
 
   useEffect(() => {
     const check = () => checkBeaconHealth().then(setBeaconOnline);
@@ -387,7 +387,7 @@ export function BeaconChatWidget() {
                           </span>
                         )}
                       </div>
-                      {msg.sources && <SourcesList sources={msg.sources} />}
+                      {msg.sources && <SourcesList sources={msg.sources} onViewDocument={setViewingFile} />}
                     </div>
                   ) : (
                     <p className="text-sm">{msg.text}</p>
@@ -455,6 +455,11 @@ export function BeaconChatWidget() {
           </Button>
         </form>
       </div>
+      <BeaconDocumentModal
+        open={!!viewingFile}
+        onClose={() => setViewingFile(null)}
+        sourceFile={viewingFile || ""}
+      />
     </div>,
     document.body
   );
