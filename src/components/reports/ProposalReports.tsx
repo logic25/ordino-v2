@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Legend, CartesianGrid, LineChart, Line } from "recharts";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Legend, CartesianGrid, LineChart, Line, ComposedChart } from "recharts";
 import { Users, TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 const COLORS = [
@@ -42,11 +42,12 @@ function useFilteredProposalData(selectedUser: string, selectedYear: string) {
     queryKey: ["filtered-proposal-data", session?.user?.id, selectedUser, selectedYear],
     enabled: !!session?.user?.id,
     queryFn: async () => {
-      const [{ data: rawProposals }, { data: changeOrders }, { data: projects }, { data: clients }] = await Promise.all([
+      const [{ data: rawProposals }, { data: changeOrders }, { data: projects }, { data: clients }, { data: profiles }] = await Promise.all([
         supabase.from("proposals").select("id, status, total_amount, follow_up_count, created_at, lead_source, sales_person_id"),
-        supabase.from("change_orders").select("id, project_id, amount, status, created_at"),
+        supabase.from("change_orders").select("id, project_id, amount, status, created_at, created_by"),
         supabase.from("projects").select("id, client_id, assigned_pm_id"),
         supabase.from("clients").select("id, name, client_type"),
+        supabase.from("profiles").select("id, display_name"),
       ]);
 
       // Filter proposals by user
@@ -94,11 +95,55 @@ function useFilteredProposalData(selectedUser: string, selectedYear: string) {
       // === CO metrics ===
       const totalCOs = cos.length;
       const approvedCOs = cos.filter((c: any) => c.status === "approved").length;
+      const pendingCOs = cos.filter((c: any) => c.status === "pending").length;
+      const rejectedCOs = cos.filter((c: any) => c.status === "rejected").length;
       const totalCOValue = cos.reduce((s: number, c: any) => s + (c.amount || 0), 0);
+      const avgCOSize = totalCOs > 0 ? Math.round(totalCOValue / totalCOs) : 0;
+      const approvalRate = totalCOs > 0 ? Math.round((approvedCOs / totalCOs) * 100) : 0;
       const projectsWithCOs = new Set(cos.map((c: any) => c.project_id));
       const coProjectCount = projectsWithCOs.size;
       const totalProjectCount = filteredProjs.length;
       const coProjectRate = totalProjectCount > 0 ? Math.round((coProjectCount / totalProjectCount) * 100) : 0;
+
+      // Profile map
+      const profileMap: Record<string, string> = {};
+      (profiles || []).forEach((p: any) => { profileMap[p.id] = p.display_name || "Unknown"; });
+
+      // CO by creator (who writes them)
+      const byCreator: Record<string, { name: string; count: number; value: number; approved: number }> = {};
+      cos.forEach((co: any) => {
+        const creatorId = co.created_by || "unknown";
+        if (!byCreator[creatorId]) byCreator[creatorId] = { name: profileMap[creatorId] || "Unknown", count: 0, value: 0, approved: 0 };
+        byCreator[creatorId].count++;
+        byCreator[creatorId].value += co.amount || 0;
+        if (co.status === "approved") byCreator[creatorId].approved++;
+      });
+      const coByCreator = Object.values(byCreator).sort((a, b) => b.count - a.count);
+
+      // CO by PM (who gets them — based on project assignment)
+      const byPM: Record<string, { name: string; count: number; value: number }> = {};
+      cos.forEach((co: any) => {
+        const proj = filteredProjs.find((p: any) => p.id === co.project_id);
+        const pmId = proj?.assigned_pm_id;
+        if (!pmId) return;
+        if (!byPM[pmId]) byPM[pmId] = { name: profileMap[pmId] || "Unknown", count: 0, value: 0 };
+        byPM[pmId].count++;
+        byPM[pmId].value += co.amount || 0;
+      });
+      const coByPM = Object.values(byPM).sort((a, b) => b.value - a.value);
+
+      // Monthly CO trend
+      const coMonthly = MONTHS.map((month, idx) => {
+        const mCOs = cos.filter((c: any) => new Date(c.created_at).getMonth() === idx && String(new Date(c.created_at).getFullYear()) === selectedYear);
+        const count = mCOs.length;
+        const value = mCOs.reduce((s: number, c: any) => s + (c.amount || 0), 0);
+        const avg = count > 0 ? Math.round(value / count) : 0;
+        return { month, count, value, avg };
+      });
+
+      // CO status breakdown
+      const coStatusCounts: Record<string, number> = {};
+      cos.forEach((c: any) => { coStatusCounts[c.status || "unknown"] = (coStatusCounts[c.status || "unknown"] || 0) + 1; });
 
       // CO by client
       const byClient: Record<string, { name: string; type: string; coCount: number; coValue: number; projectCount: number }> = {};
@@ -140,12 +185,20 @@ function useFilteredProposalData(selectedUser: string, selectedYear: string) {
         total: proposals.length,
         totalCOs,
         approvedCOs,
+        pendingCOs,
+        rejectedCOs,
         totalCOValue,
+        avgCOSize,
+        approvalRate,
         coProjectCount,
         totalProjectCount,
         coProjectRate,
         clientCOData,
         typeCOData,
+        coByCreator,
+        coByPM,
+        coMonthly,
+        coStatusCounts,
       };
     },
   });
@@ -467,7 +520,7 @@ export default function ProposalReports() {
         <h2 className="text-lg font-semibold text-foreground">Change Order Analytics</h2>
 
         {/* CO Summary Cards */}
-        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-6">
           <Card>
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground">Total COs</p>
@@ -483,6 +536,19 @@ export default function ProposalReports() {
           </Card>
           <Card>
             <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Avg CO Size</p>
+              <p className="text-2xl font-bold">{fmt(data.avgCOSize)}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Approval Rate</p>
+              <p className="text-2xl font-bold">{data.approvalRate}%</p>
+              <p className="text-xs text-muted-foreground">{data.pendingCOs} pending · {data.rejectedCOs} rejected</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
               <p className="text-xs text-muted-foreground">Projects w/ COs</p>
               <p className="text-2xl font-bold">{data.coProjectCount} <span className="text-sm font-normal text-muted-foreground">/ {data.totalProjectCount}</span></p>
               <p className="text-xs text-muted-foreground">{data.coProjectRate}% of projects</p>
@@ -492,6 +558,102 @@ export default function ProposalReports() {
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground">Avg COs per Project</p>
               <p className="text-2xl font-bold">{data.coProjectCount > 0 ? (data.totalCOs / data.coProjectCount).toFixed(1) : "—"}</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Monthly CO Trend */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Monthly Change Orders — {selectedYear}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={240}>
+              <ComposedChart data={data.coMonthly}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                <YAxis yAxisId="count" orientation="left" tick={{ fontSize: 11 }} />
+                <YAxis yAxisId="value" orientation="right" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                <Tooltip formatter={(v: number, name: string) => name === "Avg Size" || name === "Value" ? fmt(v) : v} />
+                <Legend />
+                <Bar yAxisId="count" dataKey="count" name="Count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Line yAxisId="value" type="monotone" dataKey="avg" name="Avg Size" stroke="hsl(142, 76%, 36%)" strokeWidth={2} dot={{ r: 3 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Who Writes + Who Gets COs */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Who Writes COs
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {data.coByCreator.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead className="text-right">COs</TableHead>
+                      <TableHead className="text-right">Approved</TableHead>
+                      <TableHead className="text-right">Value</TableHead>
+                      <TableHead className="text-right">Avg Size</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.coByCreator.map((c: any) => (
+                      <TableRow key={c.name}>
+                        <TableCell className="font-medium">{c.name}</TableCell>
+                        <TableCell className="text-right">{c.count}</TableCell>
+                        <TableCell className="text-right">{c.approved}</TableCell>
+                        <TableCell className="text-right">{fmt(c.value)}</TableCell>
+                        <TableCell className="text-right">{c.count > 0 ? fmt(Math.round(c.value / c.count)) : "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-6">No change order data</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                COs by Project Manager
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {data.coByPM.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>PM</TableHead>
+                      <TableHead className="text-right">COs</TableHead>
+                      <TableHead className="text-right">Total Value</TableHead>
+                      <TableHead className="text-right">Avg Size</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.coByPM.map((pm: any) => (
+                      <TableRow key={pm.name}>
+                        <TableCell className="font-medium">{pm.name}</TableCell>
+                        <TableCell className="text-right">{pm.count}</TableCell>
+                        <TableCell className="text-right">{fmt(pm.value)}</TableCell>
+                        <TableCell className="text-right">{pm.count > 0 ? fmt(Math.round(pm.value / pm.count)) : "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-6">No change order data</p>
+              )}
             </CardContent>
           </Card>
         </div>
