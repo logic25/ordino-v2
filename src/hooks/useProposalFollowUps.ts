@@ -159,7 +159,7 @@ export function useMarkProposalApproved() {
             .single();
 
           if (application) {
-            const servicesData = items.map((item: any) => ({
+            const servicesData = items.filter((item: any) => !item.is_optional).map((item: any) => ({
               company_id: profile.company_id,
               application_id: application.id,
               project_id: projectId,

@@ -22,7 +22,7 @@ export function useTimeEntries(dateRange?: { from: string; to: string }) {
         .from("activities")
         .select(`
           *,
-          services(id, name),
+          services(id, name, dob_applications:dob_applications!services_application_id_fkey(id, job_number, properties(address))),
           dob_applications(id, job_number, property_id,
             properties(address)
           )
