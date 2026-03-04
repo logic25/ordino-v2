@@ -16,18 +16,40 @@ interface Props {
 }
 
 function parseFrontmatter(content: string): { metadata: Record<string, string>; body: string } {
-  const match = content.match(/^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/);
-  if (!match) return { metadata: {}, body: content };
+  if (!content || !content.trimStart().startsWith('---')) return { metadata: {}, body: content };
+
+  // Remove any leading whitespace/BOM
+  const trimmed = content.trimStart();
+  
+  // Find the closing --- (search after the opening ---)
+  const firstNewline = trimmed.indexOf('\n');
+  if (firstNewline === -1) return { metadata: {}, body: content };
+  
+  const afterOpening = trimmed.substring(firstNewline + 1);
+  const closingIdx = afterOpening.indexOf('\n---');
+  if (closingIdx === -1) return { metadata: {}, body: content };
+
+  const frontmatterBlock = afterOpening.substring(0, closingIdx).trim();
+  // Skip past closing --- and any following newlines
+  let bodyStart = closingIdx + 4; // length of '\n---'
+  while (bodyStart < afterOpening.length && (afterOpening[bodyStart] === '\n' || afterOpening[bodyStart] === '\r')) {
+    bodyStart++;
+  }
+  const body = afterOpening.substring(bodyStart);
+
   const metadata: Record<string, string> = {};
-  for (const line of match[1].split('\n')) {
+  for (const line of frontmatterBlock.split('\n')) {
     const colonIdx = line.indexOf(':');
     if (colonIdx > 0) {
       const key = line.substring(0, colonIdx).trim();
       const value = line.substring(colonIdx + 1).trim();
-      metadata[key] = value;
+      if (value && value !== 'null') {
+        metadata[key] = value;
+      }
     }
   }
-  return { metadata, body: match[2] };
+
+  return { metadata, body };
 }
 
 const BEACON_API_URL = import.meta.env.VITE_BEACON_API_URL || 'https://beaconrag.up.railway.app';
