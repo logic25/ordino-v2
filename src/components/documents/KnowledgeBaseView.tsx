@@ -52,11 +52,9 @@ export function KnowledgeBaseView() {
   const fileTypeBreakdown = useMemo(() => {
     if (!data) return {};
     const types: Record<string, number> = {};
-    for (const files of Object.values(data.folders)) {
-      for (const f of files) {
-        const ext = f.includes(".") ? f.split(".").pop()!.toUpperCase() : "OTHER";
-        types[ext] = (types[ext] || 0) + 1;
-      }
+    for (const [folder, files] of Object.entries(data.folders)) {
+      const label = folder === "_root" ? "Uncategorized" : folder.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      types[label] = (types[label] || 0) + files.length;
     }
     return types;
   }, [data]);
