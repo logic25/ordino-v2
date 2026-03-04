@@ -69,7 +69,7 @@ function useFilteredProposalData(selectedUser: string, selectedYear: string) {
 
       // Client map
       const clientMap: Record<string, { name: string; type: string }> = {};
-      (clients || []).forEach((c: any) => { clientMap[c.id] = { name: c.name, type: c.client_type || "Uncategorized" }; });
+      (clients || []).forEach((c: any) => { clientMap[c.id] = { name: c.name, type: c.client_type || "Not Set" }; });
 
       const projClientMap: Record<string, string> = {};
       filteredProjs.forEach((p: any) => { if (p.client_id) projClientMap[p.id] = p.client_id; });
@@ -207,9 +207,11 @@ function useFilteredProposalData(selectedUser: string, selectedYear: string) {
 export default function ProposalReports() {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(String(currentYear));
+  const [compareYear, setCompareYear] = useState<string>("none");
   const [selectedUser, setSelectedUser] = useState("all");
   const { data: teamMembers } = useTeamMembers();
   const { data, isLoading } = useFilteredProposalData(selectedUser, selectedYear);
+  const { data: compareData } = useFilteredProposalData(selectedUser, compareYear !== "none" ? compareYear : selectedYear);
 
   const years: string[] = useMemo(() => {
     if (!data?.proposals) return [String(currentYear)];
@@ -262,17 +264,50 @@ export default function ProposalReports() {
       const totalValue = mp.reduce((s: number, p: any) => s + (p.total_amount || 0), 0);
       const convertedValue = mp.filter((p: any) => p.status === "executed").reduce((s: number, p: any) => s + (p.total_amount || 0), 0);
       const rate = total > 0 ? Math.round((converted / total) * 100) : 0;
-      return { month, total, converted, rate, totalValue, convertedValue };
+      // CO columns
+      const mCOs = data.coMonthly?.[idx];
+      const coCount = mCOs?.count || 0;
+      const coValue = mCOs?.value || 0;
+      return { month, total, converted, rate, totalValue, convertedValue, coCount, coValue };
     });
   }, [data, selectedYear]);
 
   const conversionTotals = useMemo(() => {
     const t = conversionData.reduce(
-      (acc, r) => ({ total: acc.total + r.total, converted: acc.converted + r.converted, totalValue: acc.totalValue + r.totalValue, convertedValue: acc.convertedValue + r.convertedValue }),
-      { total: 0, converted: 0, totalValue: 0, convertedValue: 0 }
+      (acc, r) => ({ total: acc.total + r.total, converted: acc.converted + r.converted, totalValue: acc.totalValue + r.totalValue, convertedValue: acc.convertedValue + r.convertedValue, coCount: acc.coCount + r.coCount, coValue: acc.coValue + r.coValue }),
+      { total: 0, converted: 0, totalValue: 0, convertedValue: 0, coCount: 0, coValue: 0 }
     );
     return { ...t, rate: t.total > 0 ? Math.round((t.converted / t.total) * 100) : 0 };
   }, [conversionData]);
+
+  // Compare year conversion data
+  const compareConversionData = useMemo(() => {
+    if (compareYear === "none" || !compareData?.proposals) return null;
+    const yearProposals = compareData.proposals.filter(
+      (p: any) => String(new Date(p.created_at).getFullYear()) === compareYear
+    );
+    return MONTHS.map((month, idx) => {
+      const mp = yearProposals.filter((p: any) => new Date(p.created_at).getMonth() === idx);
+      const total = mp.length;
+      const converted = mp.filter((p: any) => p.status === "executed").length;
+      const totalValue = mp.reduce((s: number, p: any) => s + (p.total_amount || 0), 0);
+      const convertedValue = mp.filter((p: any) => p.status === "executed").reduce((s: number, p: any) => s + (p.total_amount || 0), 0);
+      const rate = total > 0 ? Math.round((converted / total) * 100) : 0;
+      const mCOs = compareData.coMonthly?.[idx];
+      const coCount = mCOs?.count || 0;
+      const coValue = mCOs?.value || 0;
+      return { month, total, converted, rate, totalValue, convertedValue, coCount, coValue };
+    });
+  }, [compareData, compareYear]);
+
+  const compareConversionTotals = useMemo(() => {
+    if (!compareConversionData) return null;
+    const t = compareConversionData.reduce(
+      (acc, r) => ({ total: acc.total + r.total, converted: acc.converted + r.converted, totalValue: acc.totalValue + r.totalValue, convertedValue: acc.convertedValue + r.convertedValue, coCount: acc.coCount + r.coCount, coValue: acc.coValue + r.coValue }),
+      { total: 0, converted: 0, totalValue: 0, convertedValue: 0, coCount: 0, coValue: 0 }
+    );
+    return { ...t, rate: t.total > 0 ? Math.round((t.converted / t.total) * 100) : 0 };
+  }, [compareConversionData]);
 
   // Source pie
   const sourceData = useMemo(() => {
@@ -408,10 +443,24 @@ export default function ProposalReports() {
         </CardContent>
       </Card>
 
-      {/* Conversion Table */}
+      {/* Conversion Table with CO columns + period comparison */}
       <Card>
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-2 flex flex-row items-center justify-between">
           <CardTitle className="text-base">Monthly Conversion — {selectedYear}</CardTitle>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Compare:</span>
+            <Select value={compareYear} onValueChange={setCompareYear}>
+              <SelectTrigger className="w-[100px] h-7 text-xs">
+                <SelectValue placeholder="None" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {years.filter(y => y !== selectedYear).map((y) => (
+                  <SelectItem key={y} value={y}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-auto">
@@ -424,27 +473,59 @@ export default function ProposalReports() {
                   <TableHead className="text-right">Rate</TableHead>
                   <TableHead className="text-right">Won $</TableHead>
                   <TableHead className="text-right">Total $</TableHead>
+                  <TableHead className="text-right border-l border-border">COs</TableHead>
+                  <TableHead className="text-right">CO $</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {conversionData.map((row) => (
-                  <TableRow key={row.month} className={row.total === 0 ? "text-muted-foreground" : ""}>
-                    <TableCell className="font-medium">{row.month}</TableCell>
-                    <TableCell className="text-right">{row.total}</TableCell>
-                    <TableCell className="text-right">{row.converted}</TableCell>
-                    <TableCell className="text-right">{row.rate}%</TableCell>
-                    <TableCell className="text-right">{fmt(row.convertedValue)}</TableCell>
-                    <TableCell className="text-right">{fmt(row.totalValue)}</TableCell>
-                  </TableRow>
+                {conversionData.map((row, idx) => (
+                  <>
+                    <TableRow key={row.month} className={row.total === 0 && row.coCount === 0 ? "text-muted-foreground" : ""}>
+                      <TableCell className="font-medium">{row.month}</TableCell>
+                      <TableCell className="text-right">{row.total}</TableCell>
+                      <TableCell className="text-right">{row.converted}</TableCell>
+                      <TableCell className="text-right">{row.rate}%</TableCell>
+                      <TableCell className="text-right">{fmt(row.convertedValue)}</TableCell>
+                      <TableCell className="text-right">{fmt(row.totalValue)}</TableCell>
+                      <TableCell className="text-right border-l border-border">{row.coCount}</TableCell>
+                      <TableCell className="text-right">{fmt(row.coValue)}</TableCell>
+                    </TableRow>
+                    {compareConversionData && (
+                      <TableRow key={`${row.month}-cmp`} className="text-xs text-muted-foreground bg-muted/30">
+                        <TableCell className="py-1 pl-6 font-normal italic">{compareYear}</TableCell>
+                        <TableCell className="text-right py-1">{compareConversionData[idx].total}</TableCell>
+                        <TableCell className="text-right py-1">{compareConversionData[idx].converted}</TableCell>
+                        <TableCell className="text-right py-1">{compareConversionData[idx].rate}%</TableCell>
+                        <TableCell className="text-right py-1">{fmt(compareConversionData[idx].convertedValue)}</TableCell>
+                        <TableCell className="text-right py-1">{fmt(compareConversionData[idx].totalValue)}</TableCell>
+                        <TableCell className="text-right py-1 border-l border-border">{compareConversionData[idx].coCount}</TableCell>
+                        <TableCell className="text-right py-1">{fmt(compareConversionData[idx].coValue)}</TableCell>
+                      </TableRow>
+                    )}
+                  </>
                 ))}
                 <TableRow className="font-bold border-t-2">
-                  <TableCell>Total</TableCell>
+                  <TableCell>{selectedYear} Total</TableCell>
                   <TableCell className="text-right">{conversionTotals.total}</TableCell>
                   <TableCell className="text-right">{conversionTotals.converted}</TableCell>
                   <TableCell className="text-right">{conversionTotals.rate}%</TableCell>
                   <TableCell className="text-right">{fmt(conversionTotals.convertedValue)}</TableCell>
                   <TableCell className="text-right">{fmt(conversionTotals.totalValue)}</TableCell>
+                  <TableCell className="text-right border-l border-border">{conversionTotals.coCount}</TableCell>
+                  <TableCell className="text-right">{fmt(conversionTotals.coValue)}</TableCell>
                 </TableRow>
+                {compareConversionTotals && (
+                  <TableRow className="font-bold text-muted-foreground bg-muted/30">
+                    <TableCell>{compareYear} Total</TableCell>
+                    <TableCell className="text-right">{compareConversionTotals.total}</TableCell>
+                    <TableCell className="text-right">{compareConversionTotals.converted}</TableCell>
+                    <TableCell className="text-right">{compareConversionTotals.rate}%</TableCell>
+                    <TableCell className="text-right">{fmt(compareConversionTotals.convertedValue)}</TableCell>
+                    <TableCell className="text-right">{fmt(compareConversionTotals.totalValue)}</TableCell>
+                    <TableCell className="text-right border-l border-border">{compareConversionTotals.coCount}</TableCell>
+                    <TableCell className="text-right">{fmt(compareConversionTotals.coValue)}</TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
