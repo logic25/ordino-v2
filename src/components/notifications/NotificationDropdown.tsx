@@ -22,6 +22,10 @@ const typeIcons: Record<string, typeof FolderKanban> = {
   pis_overdue: AlertTriangle,
   readiness_complete: Check,
   billing_submitted: Receipt,
+  action_item_assigned: FolderKanban,
+  completion_approaching: AlertTriangle,
+  completion_due: AlertTriangle,
+  completion_overdue: AlertTriangle,
 };
 
 export function NotificationDropdown() {
