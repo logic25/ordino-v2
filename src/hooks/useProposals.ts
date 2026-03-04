@@ -711,7 +711,7 @@ export function useSignProposalInternal() {
       // Create services from proposal items, linked to the project
       const items = (proposal as any).items || [];
       if (items.length > 0) {
-        const servicesToInsert = items.map((item: any) => ({
+        const servicesToInsert = items.filter((item: any) => !item.is_optional).map((item: any) => ({
           company_id: profile.company_id,
           application_id: (project as any).id, // Still requires application_id due to NOT NULL — we'll create a placeholder
           project_id: (project as any).id,

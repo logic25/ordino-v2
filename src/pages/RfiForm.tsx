@@ -245,6 +245,9 @@ export default function RfiForm() {
     return allOptions.filter(t => !takenByOthers.has(t) || mySelected.includes(t));
   };
 
+  // Proposal work types for merging into picker options
+  const proposalWorkTypes: string[] = rfiData?.proposalWorkTypes || [];
+
   const sections = useMemo(() => {
     const baseSections = rfi?.sections || [];
     const resolved = baseSections.length > 0 ? baseSections : DEFAULT_PIS_SECTIONS;
@@ -263,10 +266,27 @@ export default function RfiForm() {
         if (optionOverrides[field.id]) {
           return { ...field, options: optionOverrides[field.id] };
         }
+        // Merge proposal work types into work_type_picker options
+        if (field.type === "work_type_picker" && proposalWorkTypes.length > 0) {
+          const baseOpts = field.options || [];
+          const merged = [...baseOpts];
+          for (const wt of proposalWorkTypes) {
+            if (!merged.includes(wt)) {
+              // Insert before "Other" if present, otherwise append
+              const otherIdx = merged.indexOf("Other");
+              if (otherIdx >= 0) {
+                merged.splice(otherIdx, 0, wt);
+              } else {
+                merged.push(wt);
+              }
+            }
+          }
+          return { ...field, options: merged };
+        }
         return field;
       }),
     }));
-  }, [rfi]);
+  }, [rfi, proposalWorkTypes]);
   const totalSteps = sections.length;
   const isReviewStep = currentStep === totalSteps; // review is one past the last section
   const progress = totalSteps > 0 ? Math.max(0, ((Math.min(currentStep + 1, totalSteps)) / totalSteps) * 100) : 0;

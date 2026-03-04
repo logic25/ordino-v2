@@ -155,6 +155,22 @@ export function ChangeOrderDetailSheet({
     },
   });
 
+  const pendingSendSignatureRef = useRef<string | null>(null);
+
+  // Deferred send handler — resolves handleSend reference issue since it's defined after early return
+  const handleSendRef = useRef<((sigData: string) => void) | null>(null);
+
+  useEffect(() => {
+    if (co && pendingSendSignatureRef.current && co.internal_signed_at) {
+      const sigData = pendingSendSignatureRef.current;
+      pendingSendSignatureRef.current = null;
+      // Defer to next tick so handleSend is available
+      requestAnimationFrame(() => {
+        handleSendRef.current?.(sigData);
+      });
+    }
+  }, [co?.internal_signed_at]);
+
   if (!co) return null;
 
   const signerName = signerProfile
@@ -177,8 +193,6 @@ export function ChangeOrderDetailSheet({
   const canReject = co.status !== "rejected" && co.status !== "voided" && co.status !== "approved";
   const canDelete = isDraft;
 
-  const pendingSendSignatureRef = useRef<string | null>(null);
-
   const handleSign = async (signatureData: string) => {
     try {
       const shouldSend = sendAfterSign;
@@ -195,15 +209,6 @@ export function ChangeOrderDetailSheet({
       toast({ title: "Error", description: e.message, variant: "destructive" });
     }
   };
-
-  // Effect to trigger send after sign completes and query refreshes
-  useEffect(() => {
-    if (pendingSendSignatureRef.current && co.internal_signed_at) {
-      const sigData = pendingSendSignatureRef.current;
-      pendingSendSignatureRef.current = null;
-      handleSend(sigData);
-    }
-  }, [co.internal_signed_at]);
 
   const handleSend = async (pendingSignatureData?: string) => {
     try {
@@ -319,6 +324,9 @@ export function ChangeOrderDetailSheet({
       toast({ title: "Error sending CO", description: e.message, variant: "destructive" });
     }
   };
+
+  // Keep ref in sync for the pre-return useEffect
+  handleSendRef.current = handleSend;
 
   const handleApprove = async () => {
     try {

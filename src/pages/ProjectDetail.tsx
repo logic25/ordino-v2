@@ -550,7 +550,9 @@ export default function ProjectDetail() {
             setSelectedCOId(newCO.id);
             setCoAutoSign(true);
             // Wait for query to refetch so selectedCO resolves
-            await queryClient.invalidateQueries({ queryKey: ["change-orders", project.id] });
+            await queryClient.refetchQueries({ queryKey: ["change-orders", project.id] });
+            // Small delay to ensure React re-renders with new data
+            await new Promise(resolve => setTimeout(resolve, 100));
             setCoSheetOpen(true);
           }
         }}
