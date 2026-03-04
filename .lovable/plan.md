@@ -1,42 +1,94 @@
 
 
-## Contact Autocomplete on Client-Facing PIS Form
+## Fix: BeaconDocumentModal Frontmatter Parsing & Markdown Rendering
 
-**What you asked for:** When a client (e.g., a homeowner) fills out the PIS after signing a proposal, they should be able to start typing a name like "Matt Miller" or "StudioLab" in contact sections (GC, SIA, TPP, Owner, Applicant) and get suggestions from your company's contacts database, with auto-fill of the remaining fields.
+### Root Cause
 
-**Key challenge:** The PIS form is a public page accessed via token — no authentication. The `client_contacts` table is behind RLS. We need a secure way to expose contact search to unauthenticated users who have a valid PIS token.
+The Beacon API returns content where the YAML frontmatter is **all on one single line**:
 
----
+```text
+--- title: After Hours Work Permit (AHV) Guide category: processes type: procedure date_issued: 2025-01-01 ... --- # After Hours Work Permit (AHV) Guide ## Overview ...
+```
 
-### Plan
+The current `parseFrontmatter` function searches for `\n---` (newline before closing `---`), which never matches because the closing `---` is on the **same line**, preceded by a space. As a result, the parser returns the entire raw content as the body, and ReactMarkdown receives frontmatter text mixed in.
 
-**1. Create an edge function `pis-contact-search`**
-- Accepts `token` (PIS access token) and `query` (search string, min 2 chars)
-- Validates the token against `rfi_requests` to get the `company_id`
-- Searches `client_contacts` and `clients` filtered to that company
-- Returns name, email, phone, company_name, address, license info — limited to 10 results
-- No sensitive data exposed; scoped to the company that owns the PIS
+### Fix (single file change)
 
-**2. Add a `usePISContactSuggestions` hook**
-- Called from `RfiForm.tsx` with the token and a search query
-- Debounces input (300ms) and calls the edge function
-- Returns typed suggestions matching the `usePISAutoFill` field mapping structure
+**File:** `src/components/documents/BeaconDocumentModal.tsx`
 
-**3. Add inline autocomplete to contact sections in `RfiForm.tsx`**
-- For sections with `contactRole` (Applicant, Owner, GC, SIA, TPP): add a search input at the top of each section
-- When user types 2+ characters, show a dropdown of matching contacts
-- On selection, auto-fill all fields in that section (name, company, phone, email, address, license info)
-- Reuse the same field-mapping logic from `usePISAutoFill`'s `SECTION_FIELD_MAP`, adapted for the client-facing field key format (`sectionId_fieldId`)
-- Visual: small search bar with a "Search contacts..." placeholder, dropdown below with name + company
+Replace the `parseFrontmatter` function with one that handles both formats:
 
-**4. No database changes needed** — the edge function uses the service role key to bypass RLS, scoped to the company via the validated token.
+1. **Multi-line format** (standard YAML): `---\nkey: val\n---\nbody`
+2. **Single-line format** (what the API returns): `--- key: val key: val --- body`
 
----
+New parsing logic:
+```typescript
+function parseFrontmatter(content: string): { metadata: Record<string, string>; body: string } {
+  if (!content) return { metadata: {}, body: "" };
+  const trimmed = content.trimStart();
+  if (!trimmed.startsWith("---")) return { metadata: {}, body: content };
 
-### Technical Details
+  const afterOpener = trimmed.substring(3);
 
-- Edge function path: `supabase/functions/pis-contact-search/index.ts`
-- Query logic: `WHERE company_id = <company_id> AND (name ILIKE '%query%' OR email ILIKE '%query%' OR company_name ILIKE '%query%')`
-- Field mapping for client-facing keys uses the format `{sectionId}_{fieldId}` (e.g., `contractors_inspections_gc_name`)
-- The autocomplete component will be a lightweight inline dropdown (no external dependencies), similar to the existing `SectionAutoFill` in `EditPISDialog`
+  // Try multi-line: \n---
+  let closingIdx = afterOpener.indexOf("\n---");
+  let body: string;
+  let frontmatterBlock: string;
+
+  if (closingIdx !== -1) {
+    frontmatterBlock = afterOpener.substring(0, closingIdx).trim();
+    body = afterOpener.substring(closingIdx + 4).trim();
+  } else {
+    // Single-line: " key: val key: val --- body"
+    const inlineClose = afterOpener.indexOf(" ---");
+    if (inlineClose === -1) return { metadata: {}, body: content };
+    frontmatterBlock = afterOpener.substring(0, inlineClose).trim();
+    body = afterOpener.substring(inlineClose + 4).trim();
+  }
+
+  // Parse key-value pairs from the frontmatter block
+  // For single-line, keys are space-separated: "title: X category: Y"
+  // Use known keys to split
+  const KNOWN_KEYS = [
+    "title", "category", "type", "date_issued", "jurisdiction",
+    "department", "status", "tags", "supersedes", "superseded_by",
+    "notice_number", "bulletin_number", "memo_number",
+  ];
+  const metadata: Record<string, string> = {};
+
+  if (frontmatterBlock.includes("\n")) {
+    // Multi-line: standard line-by-line parsing
+    for (const line of frontmatterBlock.split("\n")) {
+      const colonIdx = line.indexOf(":");
+      if (colonIdx > 0) {
+        const key = line.substring(0, colonIdx).trim();
+        const value = line.substring(colonIdx + 1).trim();
+        if (value && value !== "null") metadata[key] = value;
+      }
+    }
+  } else {
+    // Single-line: use known keys to split
+    // Build regex like /(title|category|type|...)\s*:/g
+    const keyPattern = new RegExp(
+      `(?:^|\\s)(${KNOWN_KEYS.join("|")})\\s*:`, "g"
+    );
+    const matches = [...frontmatterBlock.matchAll(keyPattern)];
+    for (let i = 0; i < matches.length; i++) {
+      const key = matches[i][1];
+      const valueStart = matches[i].index! + matches[i][0].length;
+      const valueEnd = i + 1 < matches.length ? matches[i + 1].index! : frontmatterBlock.length;
+      const value = frontmatterBlock.substring(valueStart, valueEnd).trim();
+      if (value && value !== "null") metadata[key] = value;
+    }
+  }
+
+  return { metadata, body };
+}
+```
+
+This handles the single-line format by:
+1. Detecting the closing ` --- ` (space-delimited) on the same line
+2. Using known key names to split the single-line frontmatter string into key-value pairs
+
+No other files need changes. ReactMarkdown and `@tailwindcss/typography` are already installed and configured.
 
