@@ -326,7 +326,7 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                     {disciplines.length > 0 && (
                       <div style={{ marginTop: 8, padding: "8px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }}>
                         <div style={{ fontSize: "8.5pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: slate, marginBottom: 6 }}>
-                          Disciplines Included
+                          Work Types Included
                           {disciplineFee > 0 && <span style={{ fontWeight: 400, marginLeft: 8 }}>({fmt(disciplineFee)} each)</span>}
                         </div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -383,7 +383,7 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                         {disciplines.length > 0 && (
                           <div style={{ marginTop: 6, padding: "6px 10px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }}>
                             <div style={{ fontSize: "8pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: slate, marginBottom: 4 }}>
-                              Disciplines
+                              Work Types
                               {disciplineFee > 0 && <span style={{ fontWeight: 400, marginLeft: 6 }}>({fmt(disciplineFee)} each)</span>}
                             </div>
                             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
