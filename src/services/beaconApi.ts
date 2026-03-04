@@ -107,11 +107,9 @@ export async function fetchBeaconKnowledgeList(): Promise<BeaconKnowledgeData> {
 export async function fetchBeaconFileContent(sourceFile: string): Promise<{
   source_file: string;
   content: string;
-  chunks: number;
-  version?: number;
-  is_current?: string;
-  supersedes?: string;
-  superseded_by?: string;
+  chunks_count: number;
+  source_type: string;
+  folder: string;
 }> {
   const res = await fetch(
     `${BEACON_API_URL}/api/knowledge/file-content?source_file=${encodeURIComponent(sourceFile)}`,
