@@ -5014,6 +5014,9 @@ export type Database = {
           client_reference_number: string | null
           company_id: string
           completion_date: string | null
+          completion_reminder_2w_sent: boolean
+          completion_reminder_due_sent: boolean
+          completion_reminder_overdue_sent: boolean
           created_at: string | null
           created_by: string | null
           estimated_construction_completion: string | null
@@ -5071,6 +5074,9 @@ export type Database = {
           client_reference_number?: string | null
           company_id: string
           completion_date?: string | null
+          completion_reminder_2w_sent?: boolean
+          completion_reminder_due_sent?: boolean
+          completion_reminder_overdue_sent?: boolean
           created_at?: string | null
           created_by?: string | null
           estimated_construction_completion?: string | null
@@ -5128,6 +5134,9 @@ export type Database = {
           client_reference_number?: string | null
           company_id?: string
           completion_date?: string | null
+          completion_reminder_2w_sent?: boolean
+          completion_reminder_due_sent?: boolean
+          completion_reminder_overdue_sent?: boolean
           created_at?: string | null
           created_by?: string | null
           estimated_construction_completion?: string | null
