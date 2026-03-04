@@ -33,9 +33,13 @@ export function useCreateRfpContent() {
 
   return useMutation({
     mutationFn: async (input: Omit<RfpContentInsert, "company_id">) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
       const { data: profile } = await supabase
         .from("profiles")
         .select("company_id")
+        .eq("user_id", user.id)
         .single();
 
       if (!profile?.company_id) throw new Error("No company found");
