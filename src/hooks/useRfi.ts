@@ -340,11 +340,15 @@ export function useRfiByToken(token: string | null) {
       // CRM contact takes top priority for applicant fields
       const crmName = crmPrimary ? `${crmPrimary.first_name || ""} ${crmPrimary.last_name || ""}`.trim() : null;
 
-      // Extract non-optional proposal items for work-type auto-fill
+      // Extract work-type disciplines from non-optional proposal items
       const proposalItems: any[] = prop.items || [];
-      const proposalWorkTypes = proposalItems
-        .filter((item: any) => !item.is_optional)
-        .map((item: any) => item.name);
+      const proposalWorkTypes = [
+        ...new Set(
+          proposalItems
+            .filter((item: any) => !item.is_optional)
+            .flatMap((item: any) => item.disciplines || [])
+        ),
+      ] as string[];
 
       const projectName = projects?.name || prop.title || null;
 
