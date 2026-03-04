@@ -233,10 +233,10 @@ export function useCompleteActionItem() {
           }
         }
 
-        await supabase.from("activities").insert({
+        const { error: timeErr } = await supabase.from("activities").insert({
           company_id: profile.company_id,
           user_id: profile.id,
-          activity_type: "task",
+          activity_type: "time_log",
           description: input.time_entry.description,
           duration_minutes: durationMinutes,
           billable: input.time_entry.billable,
@@ -245,6 +245,7 @@ export function useCompleteActionItem() {
           application_id: applicationId,
           metadata: { action_item_id: input.id, project_id: input.project_id },
         } as any);
+        if (timeErr) console.error("Failed to insert time entry:", timeErr);
       }
     },
     onSuccess: (_, vars) => {

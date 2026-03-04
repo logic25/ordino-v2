@@ -533,7 +533,7 @@ export default function Proposals() {
       setSignDialogOpen(false);
       setSigningProposal(null);
 
-      // Fetch full proposal and open send dialog
+      // Fetch full proposal and open preview (for signed HTML capture)
       const { supabase } = await import("@/integrations/supabase/client");
       const { data: fullProposal, error } = await supabase
         .from("proposals")
@@ -547,7 +547,6 @@ export default function Proposals() {
         // Generate and upload signed HTML in background — deferred until preview modal renders
         const projectId = (result as any)?.project?.id;
         if (projectId) {
-          // Wait for React to render the preview modal so the DOM element exists
           setTimeout(async () => {
             try {
               const htmlContent = document.getElementById("proposal-preview-content")?.innerHTML;
@@ -564,7 +563,16 @@ export default function Proposals() {
             } catch (uploadErr) {
               console.error("Background signed proposal upload failed:", uploadErr);
             }
-          }, 1500); // Delay to allow modal DOM to render
+          }, 1500);
+        }
+
+        // Auto-send the proposal email to the client
+        try {
+          await sendProposal.mutateAsync(proposalId);
+          toast({ title: "Proposal signed & sent!", description: "The proposal has been emailed to the client." });
+        } catch (sendErr: any) {
+          console.error("Auto-send after sign failed:", sendErr);
+          toast({ title: "Proposal signed", description: "Signed successfully but email send failed. You can resend from the proposal menu.", variant: "destructive" });
         }
       } else {
         toast({ title: "Proposal signed!", description: "Open the proposal to send to client." });
