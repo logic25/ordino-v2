@@ -153,6 +153,7 @@ export default function RfiForm() {
   const property = isDemo ? demoProperty : rfiData?.property;
   const projectData = isDemo ? { building_owner_name: "ABC Realty Corp", gc_company_name: null, gc_contact_name: null, gc_phone: null, gc_email: null, architect_company_name: null, architect_contact_name: null, architect_phone: null, architect_email: null } : rfiData?.project;
   const existingPlanNames: string[] = isDemo ? ["Floor_Plan_12A.pdf", "MEP_Layout.dwg"] : (rfiData?.existingPlanNames || []);
+  const projectName: string | null = isDemo ? "Demo Project" : (rfiData?.projectName || null);
 
   const [currentStep, setCurrentStep] = useState(-1); // -1 = welcome screen
   const [responses, setResponses] = useState<Record<string, any>>({});
@@ -1036,6 +1037,10 @@ export default function RfiForm() {
           <h1 className="text-4xl md:text-5xl font-bold text-stone-800 mb-4 leading-tight">
             {rfi.title}
           </h1>
+
+          {projectName && (
+            <p className="text-lg text-stone-500 font-medium -mt-2 mb-4">{projectName}</p>
+          )}
 
           {property && (
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-stone-200 mb-6 shadow-sm">
