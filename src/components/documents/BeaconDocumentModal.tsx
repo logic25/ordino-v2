@@ -17,29 +17,54 @@ interface Props {
 
 function parseFrontmatter(content: string): { metadata: Record<string, string>; body: string } {
   if (!content) return { metadata: {}, body: "" };
-
   const trimmed = content.trimStart();
-
-  // Must start with ---
   if (!trimmed.startsWith("---")) return { metadata: {}, body: content };
 
-  // Find closing --- (search after the opening line)
   const afterOpener = trimmed.substring(3);
-  const closingIdx = afterOpener.indexOf("\n---");
-  if (closingIdx === -1) return { metadata: {}, body: content };
 
-  const frontmatterBlock = afterOpener.substring(0, closingIdx).trim();
-  const body = afterOpener.substring(closingIdx + 4).trim();
+  // Try multi-line: \n---
+  let closingIdx = afterOpener.indexOf("\n---");
+  let body: string;
+  let frontmatterBlock: string;
 
+  if (closingIdx !== -1) {
+    frontmatterBlock = afterOpener.substring(0, closingIdx).trim();
+    body = afterOpener.substring(closingIdx + 4).trim();
+  } else {
+    // Single-line: " key: val key: val --- body"
+    const inlineClose = afterOpener.indexOf(" ---");
+    if (inlineClose === -1) return { metadata: {}, body: content };
+    frontmatterBlock = afterOpener.substring(0, inlineClose).trim();
+    body = afterOpener.substring(inlineClose + 4).trim();
+  }
+
+  const KNOWN_KEYS = [
+    "title", "category", "type", "date_issued", "jurisdiction",
+    "department", "status", "tags", "supersedes", "superseded_by",
+    "notice_number", "bulletin_number", "memo_number",
+  ];
   const metadata: Record<string, string> = {};
-  for (const line of frontmatterBlock.split("\n")) {
-    const colonIdx = line.indexOf(":");
-    if (colonIdx > 0) {
-      const key = line.substring(0, colonIdx).trim();
-      const value = line.substring(colonIdx + 1).trim();
-      if (value && value !== "null") {
-        metadata[key] = value;
+
+  if (frontmatterBlock.includes("\n")) {
+    for (const line of frontmatterBlock.split("\n")) {
+      const colonIdx = line.indexOf(":");
+      if (colonIdx > 0) {
+        const key = line.substring(0, colonIdx).trim();
+        const value = line.substring(colonIdx + 1).trim();
+        if (value && value !== "null") metadata[key] = value;
       }
+    }
+  } else {
+    const keyPattern = new RegExp(
+      `(?:^|\\s)(${KNOWN_KEYS.join("|")})\\s*:`, "g"
+    );
+    const matches = [...frontmatterBlock.matchAll(keyPattern)];
+    for (let i = 0; i < matches.length; i++) {
+      const key = matches[i][1];
+      const valueStart = matches[i].index! + matches[i][0].length;
+      const valueEnd = i + 1 < matches.length ? matches[i + 1].index! : frontmatterBlock.length;
+      const value = frontmatterBlock.substring(valueStart, valueEnd).trim();
+      if (value && value !== "null") metadata[key] = value;
     }
   }
 
