@@ -254,7 +254,7 @@ function ServiceLineItem({
             <p className="text-xs text-muted-foreground truncate px-2 mt-0.5">
               {isOptional && <span className="text-accent font-medium mr-1">Optional ·</span>}
               {(form.watch(`items.${index}.disciplines`) || []).length > 0 && (
-                <span className="font-medium mr-1">{(form.watch(`items.${index}.disciplines`) || []).length} disciplines ·</span>
+                <span className="font-medium mr-1">{(form.watch(`items.${index}.disciplines`) || []).length} work types ·</span>
               )}
               {currentDesc}
             </p>
@@ -312,7 +312,7 @@ function ServiceLineItem({
             return (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">Work Types / Disciplines</Label>
+                  <Label className="text-xs text-muted-foreground">Work Types</Label>
                   {selectedDisciplines.length > 0 && (
                     <span className="text-xs text-muted-foreground">
                       {selectedDisciplines.length} selected{disciplineFee > 0 ? ` · ${formatCurrency(disciplineFee)}/work type` : ""}
