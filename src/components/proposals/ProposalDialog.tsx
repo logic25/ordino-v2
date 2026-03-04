@@ -463,7 +463,7 @@ function PartyInfoSection({ form, clients }: { form: any; clients: any[] }) {
     // Try to get primary contact for this client
     const { data: contacts } = await supabase
       .from("client_contacts")
-      .select("name, first_name, last_name, email, phone")
+      .select("name, first_name, last_name, email, phone, license_type, license_number")
       .eq("client_id", client.id)
       .eq("is_primary", true)
       .limit(1);
@@ -472,7 +472,12 @@ function PartyInfoSection({ form, clients }: { form: any; clients: any[] }) {
       const contactName = [contact.first_name, contact.last_name].filter(Boolean).join(" ") || contact.name;
       form.setValue(`${prefix}_name`, contactName, opts);
       if (contact.email) form.setValue(`${prefix}_email`, contact.email, opts);
-      if (contact.phone) form.setValue(`${prefix}_phone`, contact.phone, opts);
+      if (contact.phone) form.setValue(`${prefix}_phone`, formatPhoneNumber(contact.phone), opts);
+      // Auto-fill license info for architect
+      if (prefix === "architect") {
+        if (contact.license_type) form.setValue("architect_license_type", contact.license_type, opts);
+        if (contact.license_number) form.setValue("architect_license_number", contact.license_number, opts);
+      }
     }
   };
 
