@@ -110,6 +110,23 @@ export async function fetchBeaconKnowledgeList(): Promise<BeaconKnowledgeData> {
   };
 }
 
+export async function fetchBeaconFileContent(sourceFile: string): Promise<{
+  source_file: string;
+  content: string;
+  chunks: number;
+  version?: number;
+  is_current?: string;
+  supersedes?: string;
+  superseded_by?: string;
+}> {
+  const res = await fetch(
+    `${BEACON_API_URL}/api/knowledge/file-content?source_file=${encodeURIComponent(sourceFile)}`,
+    { signal: AbortSignal.timeout(15000) }
+  );
+  if (!res.ok) throw new Error(`Failed to fetch document: ${res.status}`);
+  return res.json();
+}
+
 export async function checkBeaconHealth(): Promise<boolean> {
   try {
     const res = await fetch(`${BEACON_API_URL}/`, { signal: AbortSignal.timeout(5000) });
