@@ -24,7 +24,9 @@ export function WeeklyTimesheet({ weekStart }: WeeklyTimesheetProps) {
     for (const entry of (entries ?? []) as any[]) {
       const projectLabel =
         entry.dob_applications?.properties?.address ??
+        (entry.services as any)?.dob_applications?.properties?.address ??
         entry.dob_applications?.job_number ??
+        entry.description ??
         "Unassigned";
 
       const projectKey = entry.application_id ?? "unassigned";

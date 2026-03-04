@@ -287,7 +287,7 @@ export function useRfiByToken(token: string | null) {
       if (!token) return null;
       const { data, error } = await supabase
         .from("rfi_requests" as any)
-        .select("*, properties(*, owner_name), projects(building_owner_name, unit_number, client_id, clients!projects_client_id_fkey(name), gc_company_name, gc_contact_name, gc_phone, gc_email, architect_company_name, architect_contact_name, architect_phone, architect_email, architect_license_type, architect_license_number, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email), proposals(architect_name, architect_company, architect_phone, architect_email, architect_license_type, architect_license_number, gc_name, gc_company, gc_phone, gc_email, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email, job_description, unit_number, proposal_contacts(name, email, phone, company_name, role))")
+        .select("*, properties(*, owner_name), projects(building_owner_name, unit_number, client_id, clients!projects_client_id_fkey(name), gc_company_name, gc_contact_name, gc_phone, gc_email, architect_company_name, architect_contact_name, architect_phone, architect_email, architect_license_type, architect_license_number, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email), proposals(architect_name, architect_company, architect_phone, architect_email, architect_license_type, architect_license_number, gc_name, gc_company, gc_phone, gc_email, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email, job_description, unit_number, proposal_contacts(name, email, phone, company_name, role), items:proposal_items(name, is_optional))")
         .eq("access_token", token)
         .maybeSingle();
       if (error) throw error;
@@ -340,10 +340,18 @@ export function useRfiByToken(token: string | null) {
       // CRM contact takes top priority for applicant fields
       const crmName = crmPrimary ? `${crmPrimary.first_name || ""} ${crmPrimary.last_name || ""}`.trim() : null;
 
+      // Extract non-optional proposal items for work-type auto-fill
+      const proposalItems: any[] = prop.items || [];
+      const proposalWorkTypes = proposalItems
+        .filter((item: any) => !item.is_optional)
+        .map((item: any) => item.name);
+
       return {
         rfi: rfi as RfiRequest,
         property: properties as { address: string; borough: string | null; block: string | null; lot: string | null } | null,
         existingPlanNames,
+        proposalWorkTypes,
+        applicantContact: applicantContact || null,
         project: {
           building_owner_name: ownerName,
           job_description: prop.job_description || null,

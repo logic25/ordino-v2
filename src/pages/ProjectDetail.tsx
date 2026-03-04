@@ -549,6 +549,8 @@ export default function ProjectDetail() {
             // Open the detail sheet with auto-sign flow
             setSelectedCOId(newCO.id);
             setCoAutoSign(true);
+            // Wait for query to refetch so selectedCO resolves
+            await queryClient.invalidateQueries({ queryKey: ["change-orders", project.id] });
             setCoSheetOpen(true);
           }
         }}

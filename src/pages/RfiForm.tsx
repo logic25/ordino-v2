@@ -246,7 +246,25 @@ export default function RfiForm() {
 
   const sections = useMemo(() => {
     const baseSections = rfi?.sections || [];
-    return baseSections.length > 0 ? baseSections : DEFAULT_PIS_SECTIONS;
+    const resolved = baseSections.length > 0 ? baseSections : DEFAULT_PIS_SECTIONS;
+
+    // Sanitize: ensure gc_known, sia_known, tpp_known always have correct options
+    // (saved templates may have lost the "No" option)
+    const optionOverrides: Record<string, string[]> = {
+      gc_known: ["Yes", "No"],
+      tpp_known: ["Yes — Same as Applicant", "Yes", "No"],
+      sia_known: ["Yes", "No"],
+    };
+
+    return resolved.map(section => ({
+      ...section,
+      fields: section.fields.map(field => {
+        if (optionOverrides[field.id]) {
+          return { ...field, options: optionOverrides[field.id] };
+        }
+        return field;
+      }),
+    }));
   }, [rfi]);
   const totalSteps = sections.length;
   const isReviewStep = currentStep === totalSteps; // review is one past the last section
@@ -278,6 +296,28 @@ export default function RfiForm() {
     if (projectData) {
       setIfEmpty("building_and_scope_job_description", (projectData as any).job_description);
       setIfEmpty("building_and_scope_apt_numbers", (projectData as any).unit_number);
+    }
+
+    // Auto-fill work types from proposal items (Bug 2)
+    const proposalWorkTypes = rfiData?.proposalWorkTypes;
+    if (proposalWorkTypes && proposalWorkTypes.length > 0) {
+      const workTypesKey = "building_and_scope_work_types_selected";
+      if (!newResponses[workTypesKey] || (Array.isArray(newResponses[workTypesKey]) && newResponses[workTypesKey].length === 0)) {
+        newResponses[workTypesKey] = proposalWorkTypes;
+        changed = true;
+      }
+    }
+
+    // Auto-fill applicant from proposal applicant contact (Bug 3 safety net)
+    const applicantContact = rfiData?.applicantContact;
+    if (applicantContact) {
+      const contactName = applicantContact.name || "";
+      const parts = contactName.trim().split(/\s+/);
+      setIfEmpty("applicant_and_owner_applicant_first_name", parts[0] || null);
+      setIfEmpty("applicant_and_owner_applicant_last_name", parts.length > 1 ? parts.slice(1).join(" ") : null);
+      setIfEmpty("applicant_and_owner_applicant_email", applicantContact.email);
+      setIfEmpty("applicant_and_owner_applicant_phone", applicantContact.phone);
+      setIfEmpty("applicant_and_owner_applicant_business_name", applicantContact.company_name);
     }
 
     // Applicant (architect/engineer) from project
@@ -335,7 +375,7 @@ export default function RfiForm() {
       setResponses(newResponses);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [property, rfi, projectData]);
+  }, [property, rfi, projectData, rfiData?.proposalWorkTypes, rfiData?.applicantContact]);
 
   // Auto-fill TPP fields when "Same as Applicant" is selected
   useEffect(() => {
