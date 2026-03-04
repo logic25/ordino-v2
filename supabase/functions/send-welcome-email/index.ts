@@ -284,12 +284,31 @@ Deno.serve(async (req) => {
     // Try to fetch the signed proposal from storage to attach
     let proposalAttachment: { filename: string; mimeType: string; base64Data: string } | null = null;
     try {
-      const storagePath = `proposals/${proposal_id}/signed_proposal.html`;
-      const { data: fileData, error: fileErr } = await supabaseAdmin.storage
+      // Try PDF first (preferred), fall back to HTML
+      const proposalNum = (proposal as any).proposal_number || "draft";
+      let fileData: Blob | null = null;
+      let mimeType = "application/pdf";
+      let ext = "pdf";
+
+      const { data: pdfData, error: pdfErr } = await supabaseAdmin.storage
         .from("documents")
-        .download(storagePath);
+        .download(`proposals/${proposal_id}/signed_proposal.pdf`);
       
-      if (fileData && !fileErr) {
+      if (pdfData && !pdfErr) {
+        fileData = pdfData;
+      } else {
+        // Fallback to HTML
+        const { data: htmlData, error: htmlErr } = await supabaseAdmin.storage
+          .from("documents")
+          .download(`proposals/${proposal_id}/signed_proposal.html`);
+        if (htmlData && !htmlErr) {
+          fileData = htmlData;
+          mimeType = "text/html";
+          ext = "html";
+        }
+      }
+
+      if (fileData) {
         const arrayBuffer = await fileData.arrayBuffer();
         const bytes = new Uint8Array(arrayBuffer);
         let binary = "";
@@ -297,10 +316,9 @@ Deno.serve(async (req) => {
           binary += String.fromCharCode(bytes[i]);
         }
         const base64 = btoa(binary);
-        const proposalNum = (proposal as any).proposal_number || "draft";
         proposalAttachment = {
-          filename: `Proposal_${proposalNum}_Executed.html`,
-          mimeType: "text/html",
+          filename: `Proposal_${proposalNum}_Executed.${ext}`,
+          mimeType,
           base64Data: base64,
         };
       }

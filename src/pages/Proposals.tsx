@@ -544,24 +544,35 @@ export default function Proposals() {
       if (fullProposal && !error) {
         setPreviewProposal(fullProposal as any);
 
-        // Generate and upload signed HTML in background — deferred until preview modal renders
+        // Generate and upload signed proposal as PDF — deferred until preview modal renders
         const projectId = (result as any)?.project?.id;
         if (projectId) {
           setTimeout(async () => {
             try {
-              const htmlContent = document.getElementById("proposal-preview-content")?.innerHTML;
-              if (htmlContent) {
-                const htmlBlob = new Blob([`<!DOCTYPE html><html><head><meta charset="utf-8"><style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');body{font-family:'Inter',system-ui,sans-serif;color:#1a1a1a;max-width:720px;margin:0 auto;font-size:10pt;line-height:1.55;}</style></head><body>${htmlContent}</body></html>`], { type: "text/html" });
-                const storagePath = `proposals/${proposalId}/signed_proposal.html`;
-                await supabase.storage.from("documents").upload(storagePath, htmlBlob, { upsert: true, contentType: "text/html" });
+              const el = document.getElementById("proposal-preview-content");
+              if (el) {
+                const html2canvas = (await import("html2canvas")).default;
+                const { jsPDF } = await import("jspdf");
+                
+                const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+                const imgData = canvas.toDataURL("image/jpeg", 0.95);
+                
+                const pdfWidth = 210; // A4 mm
+                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                const pdf = new jsPDF({ unit: "mm", format: [pdfWidth, pdfHeight] });
+                pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+                
+                const pdfBlob = pdf.output("blob");
+                const storagePath = `proposals/${proposalId}/signed_proposal.pdf`;
+                await supabase.storage.from("documents").upload(storagePath, pdfBlob, { upsert: true, contentType: "application/pdf" });
                 await (supabase.from("universal_documents") as any)
-                  .update({ storage_path: storagePath, mime_type: "text/html", filename: `Proposal_${fullProposal.proposal_number}_signed.html` })
+                  .update({ storage_path: storagePath, mime_type: "application/pdf", filename: `Proposal_${fullProposal.proposal_number}_Executed.pdf` })
                   .eq("project_id", projectId)
                   .eq("category", "contract")
                   .like("title", "%Signed Proposal%");
               }
             } catch (uploadErr) {
-              console.error("Background signed proposal upload failed:", uploadErr);
+              console.error("Background signed proposal PDF upload failed:", uploadErr);
             }
           }, 1500);
         }
