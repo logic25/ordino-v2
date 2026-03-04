@@ -14,7 +14,7 @@ import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from "@/components/ui/accordion";
 import {
-  Brain, FileText, FolderOpen, Upload, Loader2, AlertCircle, File,
+  FileText, FolderOpen, Upload, Loader2, AlertCircle, File,
 } from "lucide-react";
 import { useBeaconKnowledge, useUploadToBeaconKB } from "@/hooks/useBeaconKnowledge";
 import { FOLDER_TO_SOURCE_TYPE } from "@/services/beaconApi";
@@ -49,15 +49,7 @@ export function KnowledgeBaseView() {
     return Array.from(merged).sort();
   }, [data]);
 
-  const fileTypeBreakdown = useMemo(() => {
-    if (!data) return {};
-    const types: Record<string, number> = {};
-    for (const [folder, files] of Object.entries(data.folders)) {
-      const label = folder === "_root" ? "Uncategorized" : folder.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-      types[label] = (types[label] || 0) + files.length;
-    }
-    return types;
-  }, [data]);
+
 
   const handleUpload = async () => {
     if (selectedFiles.length === 0 || !targetFolder) return;
@@ -105,7 +97,7 @@ export function KnowledgeBaseView() {
   return (
     <div className="space-y-4">
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
             <div className="h-9 w-9 rounded-md bg-[hsl(var(--chart-4))]/10 flex items-center justify-center">
@@ -125,21 +117,6 @@ export function KnowledgeBaseView() {
             <div>
               <p className="text-2xl font-bold">{data.folder_count}</p>
               <p className="text-xs text-muted-foreground">Folders</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-9 w-9 rounded-md bg-[hsl(var(--chart-1))]/10 flex items-center justify-center">
-              <Brain className="h-5 w-5 text-[hsl(var(--chart-1))]" />
-            </div>
-            <div>
-              <div className="flex flex-wrap gap-1">
-                {Object.entries(fileTypeBreakdown).map(([ext, count]) => (
-                  <Badge key={ext} variant="outline" className="text-[10px]">{ext} ({count})</Badge>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">File Types</p>
             </div>
           </CardContent>
         </Card>

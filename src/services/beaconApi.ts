@@ -60,19 +60,13 @@ export async function syncDocumentToBeacon(
 }
 
 export const FOLDER_TO_SOURCE_TYPE: Record<string, string> = {
-  processes: "procedure",
-  dob_notices: "service_notice",
-  zoning: "zoning",
-  building_code: "building_code",
-  building_code_1968: "building_code",
-  building_code_2022: "building_code",
-  mdl: "multiple_dwelling_law",
-  rcny: "rule",
-  hmc: "housing_maintenance_code",
-  energy_code: "building_code",
-  communication: "communication",
-  historical: "historical_determination",
-  case_studies: "historical_determination",
+  filing_guides: "procedure",
+  service_notices: "service_notice",
+  buildings_bulletins: "technical_bulletin",
+  policy_memos: "policy_memo",
+  codes: "building_code",
+  determinations: "historical_determination",
+  company_sops: "communication",
   objections: "reference",
 };
 
