@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { Client } from "@/hooks/useClients";
 
+interface ClientStats {
+  contacts: number;
+  proposals: number;
+  projects: number;
+  invoices: number;
+}
+
 interface MergeClientsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -33,8 +40,50 @@ export function MergeClientsDialog({
 }: MergeClientsDialogProps) {
   const [primaryId, setPrimaryId] = useState<string>(clients[0]?.id || "");
   const [merging, setMerging] = useState(false);
+  const [stats, setStats] = useState<Record<string, ClientStats>>({});
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Fetch linked data counts for each client
+  useEffect(() => {
+    if (!open || clients.length === 0) return;
+    const ids = clients.map((c) => c.id);
+
+    async function fetchStats() {
+      const [contacts, proposals, projects, invoices] = await Promise.all([
+        supabase.from("client_contacts").select("client_id").in("client_id", ids),
+        supabase.from("proposals").select("client_id").in("client_id", ids),
+        supabase.from("projects").select("client_id").in("client_id", ids),
+        supabase.from("invoices").select("client_id").in("client_id", ids),
+      ]);
+
+      const counts: Record<string, ClientStats> = {};
+      for (const id of ids) {
+        counts[id] = {
+          contacts: (contacts.data || []).filter((r) => r.client_id === id).length,
+          proposals: (proposals.data || []).filter((r) => r.client_id === id).length,
+          projects: (projects.data || []).filter((r) => r.client_id === id).length,
+          invoices: (invoices.data || []).filter((r) => r.client_id === id).length,
+        };
+      }
+      setStats(counts);
+
+      // Auto-select the one with the most data
+      let bestId = ids[0];
+      let bestScore = 0;
+      for (const id of ids) {
+        const s = counts[id];
+        const score = s.contacts + s.proposals * 2 + s.projects * 3 + s.invoices * 2;
+        if (score > bestScore) {
+          bestScore = score;
+          bestId = id;
+        }
+      }
+      setPrimaryId(bestId);
+    }
+
+    fetchStats();
+  }, [open, clients]);
 
   const primary = clients.find((c) => c.id === primaryId);
   const duplicates = clients.filter((c) => c.id !== primaryId);
@@ -67,6 +116,18 @@ export function MergeClientsDialog({
       setMerging(false);
     }
   };
+
+  function renderStats(clientId: string) {
+    const s = stats[clientId];
+    if (!s) return null;
+    const parts: string[] = [];
+    if (s.projects > 0) parts.push(`${s.projects} project${s.projects > 1 ? "s" : ""}`);
+    if (s.proposals > 0) parts.push(`${s.proposals} proposal${s.proposals > 1 ? "s" : ""}`);
+    if (s.invoices > 0) parts.push(`${s.invoices} invoice${s.invoices > 1 ? "s" : ""}`);
+    if (s.contacts > 0) parts.push(`${s.contacts} contact${s.contacts > 1 ? "s" : ""}`);
+    if (parts.length === 0) return <span className="text-muted-foreground/60 italic">No linked data</span>;
+    return <span className="text-foreground/70">{parts.join(" · ")}</span>;
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -108,7 +169,10 @@ export function MergeClientsDialog({
                     )}
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5">
-                    {[c.email, c.phone, (c as any).client_type].filter(Boolean).join(" · ") || "No details"}
+                    {[c.email, c.phone, (c as any).client_type].filter(Boolean).join(" · ") || "—"}
+                  </div>
+                  <div className="text-xs mt-0.5">
+                    {renderStats(c.id)}
                   </div>
                 </div>
               </div>
