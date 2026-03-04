@@ -1,4 +1,18 @@
+import { supabase } from "@/integrations/supabase/client";
+
 const BEACON_API_URL = import.meta.env.VITE_BEACON_API_URL || 'https://beaconrag.up.railway.app';
+
+async function getAuthHeaders(isFormData = false): Promise<Record<string, string>> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const headers: Record<string, string> = {};
+  if (!isFormData) {
+    headers["Content-Type"] = "application/json";
+  }
+  if (session?.access_token) {
+    headers["Authorization"] = `Bearer ${session.access_token}`;
+  }
+  return headers;
+}
 
 export interface BeaconSource {
   title: string;
@@ -20,9 +34,10 @@ export async function askBeacon(
   userId: string,
   userName: string
 ): Promise<BeaconChatResponse> {
+  const headers = await getAuthHeaders();
   const res = await fetch(`${BEACON_API_URL}/api/chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({
       message,
       user_id: userId,
@@ -43,12 +58,14 @@ export async function syncDocumentToBeacon(
   filename: string,
   folderName: string
 ): Promise<{ success: boolean; chunks_created: number }> {
+  const headers = await getAuthHeaders(true);
   const formData = new FormData();
   formData.append("file", file, filename);
   formData.append("folder", folderName);
 
   const response = await fetch(`${BEACON_API_URL}/api/ingest`, {
     method: "POST",
+    headers,
     body: formData,
   });
 
@@ -77,7 +94,9 @@ export interface BeaconKnowledgeData {
 }
 
 export async function fetchBeaconKnowledgeList(): Promise<BeaconKnowledgeData> {
+  const headers = await getAuthHeaders();
   const res = await fetch(`${BEACON_API_URL}/api/knowledge/list`, {
+    headers,
     signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`Beacon API error: ${res.status}`);
@@ -111,9 +130,10 @@ export async function fetchBeaconFileContent(sourceFile: string): Promise<{
   source_type: string;
   folder: string;
 }> {
+  const headers = await getAuthHeaders();
   const res = await fetch(
     `${BEACON_API_URL}/api/knowledge/file-content?source_file=${encodeURIComponent(sourceFile)}`,
-    { signal: AbortSignal.timeout(15000) }
+    { headers, signal: AbortSignal.timeout(15000) }
   );
   if (!res.ok) throw new Error(`Failed to fetch document: ${res.status}`);
   return res.json();
