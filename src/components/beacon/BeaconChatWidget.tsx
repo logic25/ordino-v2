@@ -130,8 +130,9 @@ export function BeaconChatWidget() {
   const [loading, setLoading] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [historyCount, setHistoryCount] = useState(0);
-  const lastMessageRef = useRef<HTMLDivElement>(null);
+  const lastBotRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const prevCountRef = useRef(0);
   const isAdmin = useIsAdmin();
   const { user, profile } = useAuth();
   const [showDebug, setShowDebug] = useState(false);
@@ -177,13 +178,21 @@ export function BeaconChatWidget() {
     })();
   }, [open, historyLoaded, user?.email]);
 
-  // Scroll to bottom on history load or new messages
+  // Scroll to the top of the latest bot response, or bottom for user messages
   useEffect(() => {
-    if (messages.length > 0) {
+    if (messages.length === 0) return;
+    const newCount = messages.length;
+    const lastMsg = messages[newCount - 1];
+    if (newCount > prevCountRef.current && lastMsg?.role === "beacon" && lastBotRef.current) {
+      setTimeout(() => {
+        lastBotRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
+    } else if (newCount > prevCountRef.current) {
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
       }, 50);
     }
+    prevCountRef.current = newCount;
   }, [messages]);
 
   const userId = user?.email || user?.id || "anonymous";
@@ -352,7 +361,11 @@ export function BeaconChatWidget() {
                   <div className="flex-1 h-px bg-border" />
                 </div>
               )}
-              <div className={cn("flex gap-2", msg.role === "user" ? "justify-end" : "")}>
+              {/* Attach ref to the last beacon message for scroll-to-top behavior */}
+              <div
+                ref={msg.role === "beacon" && i === messages.length - 1 ? lastBotRef : undefined}
+                className={cn("flex gap-2", msg.role === "user" ? "justify-end" : "")}
+              >
                 {msg.role === "beacon" && (
                   <div className="w-6 h-6 rounded-full bg-[#f59e0b] flex items-center justify-center shrink-0 mt-1">
                     <Brain className="h-3 w-3 text-white" />
