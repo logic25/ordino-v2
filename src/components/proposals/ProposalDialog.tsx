@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
+import { formatPhoneNumber } from "@/lib/formatters";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -479,21 +480,21 @@ function PartyInfoSection({ form, clients }: { form: any; clients: any[] }) {
     { key: "architect", label: "Architect / Engineer", clientPool: clients, fields: [
       { name: "architect_company", label: "Company", placeholder: "Firm name", isCompany: true },
       { name: "architect_name", label: "Contact Name", placeholder: "Full name" },
-      { name: "architect_phone", label: "Phone", placeholder: "(555) 000-0000" },
+      { name: "architect_phone", label: "Phone", placeholder: "(555) 000-0000", isPhone: true },
       { name: "architect_email", label: "Email", placeholder: "email@firm.com" },
-      { name: "architect_license_type", label: "License Type", placeholder: "RA / PE" },
+      { name: "architect_license_type", label: "License Type", placeholder: "Select…", isLicenseType: true },
       { name: "architect_license_number", label: "License #", placeholder: "License number" },
     ]},
     { key: "gc", label: "General Contractor", clientPool: clients, fields: [
       { name: "gc_company", label: "Company", placeholder: "Company name", isCompany: true },
       { name: "gc_name", label: "Contact Name", placeholder: "Full name" },
-      { name: "gc_phone", label: "Phone", placeholder: "(555) 000-0000" },
+      { name: "gc_phone", label: "Phone", placeholder: "(555) 000-0000", isPhone: true },
       { name: "gc_email", label: "Email", placeholder: "email@company.com" },
     ]},
     { key: "sia", label: "Special Inspector (SIA)", clientPool: clients, fields: [
       { name: "sia_company", label: "Company", placeholder: "Inspection firm", isCompany: true },
       { name: "sia_name", label: "Contact Name", placeholder: "Full name" },
-      { name: "sia_phone", label: "Phone", placeholder: "(555) 000-0000" },
+      { name: "sia_phone", label: "Phone", placeholder: "(555) 000-0000", isPhone: true },
       { name: "sia_email", label: "Email", placeholder: "email@company.com" },
     ]},
     { key: "tpp", label: "Third Party Provider (TPP)", clientPool: clients, fields: [
@@ -533,6 +534,29 @@ function PartyInfoSection({ form, clients }: { form: any; clients: any[] }) {
                           onSelect={(client) => handleSelectClient(client, party.key)}
                           clients={(party as any).clientPool || clients}
                           placeholder={field.placeholder}
+                        />
+                      ) : (field as any).isLicenseType ? (
+                        <Select
+                          value={form.watch(field.name) || ""}
+                          onValueChange={(v) => form.setValue(field.name, v, { shouldDirty: true })}
+                        >
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue placeholder="Select…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="RA">RA (Registered Architect)</SelectItem>
+                            <SelectItem value="PE">PE (Professional Engineer)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (field as any).isPhone ? (
+                        <Input
+                          className="h-8 text-sm"
+                          placeholder={field.placeholder}
+                          value={form.watch(field.name) || ""}
+                          onChange={(e) => {
+                            const formatted = formatPhoneNumber(e.target.value);
+                            form.setValue(field.name, formatted, { shouldDirty: true });
+                          }}
                         />
                       ) : (
                         <Input className="h-8 text-sm" placeholder={field.placeholder} {...form.register(field.name)} />
