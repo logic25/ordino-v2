@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
 Deno.serve(async (req) => {
@@ -16,13 +16,51 @@ Deno.serve(async (req) => {
     const lovableApiKey = Deno.env.get("LOVABLE_API_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Optional: process rules for a specific company, otherwise all
+    // --- Authentication: JWT for users, shared secret for cron ---
     let companyFilter: string | null = null;
-    try {
-      const body = await req.json();
-      companyFilter = body.company_id || null;
-    } catch {
-      // No body is fine for cron
+    const cronSecret = req.headers.get("x-cron-secret");
+    const expectedCronSecret = Deno.env.get("CRON_SECRET");
+    const authHeader = req.headers.get("Authorization");
+
+    if (cronSecret && expectedCronSecret && cronSecret === expectedCronSecret) {
+      // Cron caller — process all companies (no body needed)
+      try {
+        const body = await req.json();
+        companyFilter = body.company_id || null;
+      } catch {
+        // No body is fine for cron
+      }
+    } else if (authHeader?.startsWith("Bearer ")) {
+      // User caller — verify JWT and scope to their company
+      const supabaseAuth = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(authHeader.replace("Bearer ", ""));
+      if (claimsError || !claimsData?.claims) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const userId = claimsData.claims.sub;
+      // Look up user's company_id and scope processing to it
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("user_id", userId)
+        .single();
+      if (!profile?.company_id) {
+        return new Response(JSON.stringify({ error: "No company found for user" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      companyFilter = profile.company_id;
+    } else {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Fetch all enabled rules
