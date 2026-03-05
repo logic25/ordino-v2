@@ -47,6 +47,7 @@ interface PropertyWithApplications extends Property {
   projects?: Project[];
   signalSubscription?: SignalSubscription | null;
   violationCounts?: { open: number; total: number };
+  bbl_verified?: boolean | null;
 }
 
 interface PropertyTableProps {
