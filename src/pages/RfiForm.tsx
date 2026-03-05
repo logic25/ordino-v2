@@ -259,8 +259,8 @@ export default function RfiForm() {
       gc_same_as: { id: "gc_known", label: "Do you know who the General Contractor is?", type: "select", options: ["Yes", "No"], width: "full" },
       tpp_known: { label: "Do you know who the TPP Applicant is?", type: "select", options: ["Yes — Same as Applicant", "Yes", "No"], width: "full" },
       tpp_same_as: { id: "tpp_known", label: "Do you know who the TPP Applicant is?", type: "select", options: ["Yes — Same as Applicant", "Yes", "No"], width: "full" },
-      sia_known: { label: "Do you know who the Special Inspector is?", type: "select", options: ["Yes", "No"], width: "full" },
-      sia_same_as: { id: "sia_known", label: "Do you know who the Special Inspector is?", type: "select", options: ["Yes", "No"], width: "full" },
+      sia_known: { label: "Do you know who the Special Inspector is?", type: "select", options: ["Yes — Same as Applicant", "Yes", "No"], width: "full" },
+      sia_same_as: { id: "sia_known", label: "Do you know who the Special Inspector is?", type: "select", options: ["Yes — Same as Applicant", "Yes", "No"], width: "full" },
     };
 
     return resolved.map(section => ({
