@@ -39,7 +39,7 @@ function useCompanyInfo() {
   });
 }
 
-export function ProposalPreviewModal({ proposal, open, onOpenChange, onSend }: ProposalPreviewModalProps) {
+export function ProposalPreviewModal({ proposal, open, onOpenChange, onSend, onSign }: ProposalPreviewModalProps) {
   const { data: company } = useCompanyInfo();
   const { data: contacts = [] } = useProposalContacts(proposal?.id);
   const [linkCopied, setLinkCopied] = useState(false);
