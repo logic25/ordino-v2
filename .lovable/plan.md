@@ -1,38 +1,22 @@
 
 
-## Service Status Lifecycle: Remove "Complete", Keep "Paid"
+## Issues and Plan
 
-**Current state:** The `service_status` enum has 5 values: `not_started → in_progress → complete → billed → paid`
+### 1. "Complete PIS" link goes to "All Done" screen instead of the form
 
-**Desired state:** `not_started → in_progress → billed → paid`
-- "Complete" is unnecessary — once work is done, the next step is billing, so services go straight from In Progress to Billed.
-- "Paid" stays as the final status, tracked when the associated invoice is marked paid.
+The RFI form checks if `rfi.status === "submitted"` and shows the "All Done" screen. When a reminder is sent, the PIS was already submitted, so clicking the link shows the completion screen instead of the form.
 
-### Changes
+**Fix:** When the URL includes a `reminder=true` query parameter (added by the reminder email link), automatically enter edit mode instead of showing the "All Done" screen. This way:
+- First-time visitors see the normal form flow
+- Reminder recipients go straight to editing their responses
 
-**1. Database migration — remove "complete" from the enum**
-- Create a new enum without `complete`, migrate the column, drop old enum
-- Update any services currently set to `complete` → `billed`
+**Changes:**
+- **`src/pages/ProjectDetail.tsx`**: Append `&reminder=true` to the PIS URL in the reminder email
+- **`src/pages/RfiForm.tsx`**: Check for `reminder` search param; if present and status is `submitted`, auto-set `editingAfterSubmit = true` so it skips the "All Done" screen and goes directly to the form
 
-**2. Update `auto_advance_project_phase()` function**
-- Currently checks for `status IN ('completed', 'billed')` to advance project phase to closeout
-- Update to check `status IN ('billed', 'paid')`
+### 2. Custom domain for PIS links
 
-**3. Update reconciliation logic in `useProjectDetail.ts`**
-- Currently jumps from `not_started` to `in_progress` (partial billing) and to `billed` (full billing)
-- Add: when the associated invoice is `paid`, auto-set service status to `paid`
-- No other changes needed since "complete" was never enforced in reconciliation
+The PIS URL currently uses `window.location.origin`, which resolves to the Lovable preview/published domain (e.g., `ordinov3.lovable.app`). To remove the "lovable" branding from URLs, you need to connect a custom domain to this project.
 
-**4. Update `serviceStatusStyles` in `projectMockData.ts`**
-- Remove `complete` entry
-- Add `paid` entry with a green/success style
-
-**5. Update `useServiceDurationReports.ts`**
-- Currently filters completed services as `["complete", "billed", "paid"]`
-- Update to `["billed", "paid"]`
-
-**6. Update service status dropdown in `ProjectExpandedTabs.tsx`**
-- Remove "Complete" option from any manual status selector
-- Add "Paid" if not already present
-- Ensure "Dropped" remains available as a manual override
+You can do this in **Project Settings -> Domains** by connecting your own domain (e.g., `app.greenlightexpediting.com`). Once connected, `window.location.origin` will automatically resolve to your custom domain, and all PIS links will use it. No code changes needed -- it's purely a domain configuration step.
 
