@@ -297,6 +297,7 @@ export function useNYCPropertyLookup() {
           }) || null;
 
           if (match) {
+            const aka_addresses = await fetchAkaAddresses(match.bin);
             return {
               bin: match.bin || undefined,
               block: match.block || undefined,
@@ -305,6 +306,7 @@ export function useNYCPropertyLookup() {
               zip_code: match.zipcode || undefined,
               owner_name: match.ownername || undefined,
               address: match.address || address,
+              aka_addresses: aka_addresses.length > 0 ? aka_addresses : undefined,
             };
           }
         }
