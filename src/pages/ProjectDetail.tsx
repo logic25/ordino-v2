@@ -1699,8 +1699,8 @@ function ServicesFull({ services: initialServices, project, contacts, allService
                             <SelectContent>
                               <SelectItem value="not_started">Not Started</SelectItem>
                               <SelectItem value="in_progress">In Progress</SelectItem>
-                              <SelectItem value="complete">Complete</SelectItem>
                               <SelectItem value="billed">Billed</SelectItem>
+                              <SelectItem value="paid">Paid</SelectItem>
                               <SelectItem value="dropped">Dropped</SelectItem>
                             </SelectContent>
                           </Select>
