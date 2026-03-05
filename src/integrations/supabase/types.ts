@@ -3210,42 +3210,61 @@ export type Database = {
       }
       feature_requests: {
         Row: {
+          admin_notes: string | null
+          assigned_to: string | null
           category: string | null
           company_id: string
           created_at: string | null
           description: string | null
           id: string
           priority: string | null
+          resolved_at: string | null
           status: string | null
           title: string
+          updated_at: string | null
           upvotes: number | null
           user_id: string
         }
         Insert: {
+          admin_notes?: string | null
+          assigned_to?: string | null
           category?: string | null
           company_id: string
           created_at?: string | null
           description?: string | null
           id?: string
           priority?: string | null
+          resolved_at?: string | null
           status?: string | null
           title: string
+          updated_at?: string | null
           upvotes?: number | null
           user_id: string
         }
         Update: {
+          admin_notes?: string | null
+          assigned_to?: string | null
           category?: string | null
           company_id?: string
           created_at?: string | null
           description?: string | null
           id?: string
           priority?: string | null
+          resolved_at?: string | null
           status?: string | null
           title?: string
+          updated_at?: string | null
           upvotes?: number | null
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "feature_requests_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "feature_requests_company_id_fkey"
             columns: ["company_id"]
