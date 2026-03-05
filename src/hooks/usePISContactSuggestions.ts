@@ -48,10 +48,7 @@ export function mapContactToFields(
     if (contact.phone) fields[`${sectionId}_owner_phone`] = (contact.phone || "").replace(/\D/g, "");
     if (contact.address) fields[`${sectionId}_owner_address`] = contact.address;
   } else if (subSection === "applicant") {
-    const firstName = contact.first_name || contact.name?.split(" ")[0] || "";
-    const lastName = contact.last_name || contact.name?.split(" ").slice(1).join(" ") || "";
-    if (firstName) fields[`${sectionId}_applicant_first_name`] = firstName;
-    if (lastName) fields[`${sectionId}_applicant_last_name`] = lastName;
+    if (contact.name) fields[`${sectionId}_applicant_first_name`] = contact.name;
     if (contact.company_name) fields[`${sectionId}_applicant_business_name`] = contact.company_name;
     if (contact.phone) fields[`${sectionId}_applicant_phone`] = (contact.phone || "").replace(/\D/g, "");
     if (contact.email) fields[`${sectionId}_applicant_email`] = contact.email;

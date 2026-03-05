@@ -86,8 +86,7 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
     fields: [
       { id: "filing_type", label: "Filing Type", type: "select", options: ["Plan Exam", "Pro-Cert", "TBD"], width: "half" },
       { id: "applicant_heading", label: "Applicant (Architect / Engineer)", type: "heading", repeatableGroup: true, maxRepeatGroup: 5 },
-      { id: "applicant_first_name", label: "First Name", type: "text", required: true, width: "half" },
-      { id: "applicant_last_name", label: "Last Name", type: "text", width: "half" },
+      { id: "applicant_first_name", label: "Full Name", type: "text", required: true, width: "half" },
       { id: "applicant_business_name", label: "Business Name", type: "text", width: "full" },
       { id: "applicant_business_address", label: "Business Address", type: "text", width: "full" },
       { id: "applicant_phone", label: "Phone", type: "phone", width: "half" },
@@ -307,7 +306,7 @@ export function useRfiByToken(token: string | null) {
       if (projects?.client_id) {
         const { data: contacts } = await supabase
           .from("client_contacts")
-          .select("first_name, last_name, email, phone, name")
+          .select("first_name, last_name, email, phone, name, company_name, address_1, city, state, zip")
           .eq("client_id", projects.client_id)
           .order("is_primary", { ascending: false })
           .order("sort_order", { ascending: true });
@@ -339,6 +338,7 @@ export function useRfiByToken(token: string | null) {
 
       // CRM contact takes top priority for applicant fields
       const crmName = crmPrimary ? `${crmPrimary.first_name || ""} ${crmPrimary.last_name || ""}`.trim() : null;
+      const crmAddress = crmPrimary ? [crmPrimary.address_1, crmPrimary.city, crmPrimary.state, crmPrimary.zip].filter(Boolean).join(", ") : null;
 
       // Extract work-type disciplines from non-optional proposal items
       const proposalItems: any[] = prop.items || [];
@@ -374,6 +374,7 @@ export function useRfiByToken(token: string | null) {
           architect_email: crmPrimary?.email || projects?.architect_email || applicantContact?.email || prop.architect_email || null,
           architect_license_type: projects?.architect_license_type || prop.architect_license_type || null,
           architect_license_number: projects?.architect_license_number || prop.architect_license_number || null,
+          architect_address: crmAddress || null,
           sia_name: projects?.sia_name || prop.sia_name || null,
           sia_company: projects?.sia_company || prop.sia_company || null,
           sia_phone: projects?.sia_phone || prop.sia_phone || null,
