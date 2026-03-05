@@ -399,23 +399,8 @@ export default function Auth() {
                   onClick={async () => {
                     setIsLoading(true);
                     try {
-                      const { error } = await supabase.auth.signInWithOAuth({
-                        provider: "google",
-                        options: {
-                          redirectTo: `${window.location.origin}/auth/callback`,
-                          scopes: [
-                            "https://www.googleapis.com/auth/gmail.readonly",
-                            "https://www.googleapis.com/auth/gmail.send",
-                            "https://www.googleapis.com/auth/calendar",
-                            "https://www.googleapis.com/auth/chat.spaces.readonly",
-                            "https://www.googleapis.com/auth/chat.messages",
-                            "https://www.googleapis.com/auth/chat.memberships.readonly",
-                          ].join(" "),
-                          queryParams: {
-                            prompt: "consent",
-                            access_type: "offline",
-                          },
-                        },
+                      const { error } = await lovable.auth.signInWithOAuth("google", {
+                        redirect_uri: `${window.location.origin}/auth/callback`,
                       });
                       if (error) {
                         toast({
