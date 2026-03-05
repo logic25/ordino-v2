@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import { WORK_TYPE_DISCIPLINES } from "@/hooks/useCompanySettings";
 import { formatPhoneNumber } from "@/lib/formatters";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
