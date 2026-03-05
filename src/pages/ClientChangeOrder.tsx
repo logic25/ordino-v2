@@ -345,10 +345,16 @@ export default function ClientChangeOrderPage() {
                   onClick={async () => {
                     setDepositPaying(true);
                     try {
-                      await (supabase as any)
-                        .from("change_orders")
-                        .update({ deposit_paid_at: new Date().toISOString() })
-                        .eq("public_token", token);
+                      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+                      const res = await fetch(
+                        `https://${projectId}.supabase.co/functions/v1/public-co?token=${encodeURIComponent(token!)}`,
+                        {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ action: "deposit" }),
+                        }
+                      );
+                      if (!res.ok) throw new Error("Deposit failed");
                       setDepositPaid(true);
                       toast({ title: paymentMethod === "check" ? "Check payment noted!" : "Deposit received!", description: `Payment of ${fmt(Math.abs(co.amount) * co.deposit_percentage / 100)} ${paymentMethod === "check" ? "will be processed upon receipt." : "processed."}` });
                     } catch {
