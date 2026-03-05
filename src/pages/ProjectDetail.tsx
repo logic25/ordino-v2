@@ -677,7 +677,11 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
   const [showAiDraft, setShowAiDraft] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
+  const [showReminderDialog, setShowReminderDialog] = useState(false);
+  const [reminderEmail, setReminderEmail] = useState("");
+  const [sendingReminder, setSendingReminder] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const addItem = useAddChecklistItem();
   const updateItem = useUpdateChecklistItem();
   const deleteItem = useDeleteChecklistItem();
@@ -685,6 +689,90 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
   const { data: pendingDrafts = [] } = useChecklistFollowupDrafts(projectId);
   const approveDraft = useApproveDraft();
   const dismissDraft = useDismissDraft();
+
+  // Fetch RFI record for reminder sending
+  const { data: rfiRecord } = useQuery({
+    queryKey: ["rfi-reminder-data", projectId],
+    queryFn: async () => {
+      const { data } = await (supabase.from("rfi_requests" as any) as any)
+        .select("id, recipient_name, recipient_email, access_token, last_reminder_sent_at")
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data as { id: string; recipient_name: string | null; recipient_email: string | null; access_token: string; last_reminder_sent_at: string | null } | null;
+    },
+    enabled: !!projectId,
+  });
+
+  const handleSendPISReminder = async () => {
+    if (!rfiRecord?.access_token || !reminderEmail) return;
+    const now = new Date();
+
+    // 1-per-day cooldown check
+    if (rfiRecord.last_reminder_sent_at) {
+      const lastSent = new Date(rfiRecord.last_reminder_sent_at);
+      const hoursSince = (now.getTime() - lastSent.getTime()) / (1000 * 60 * 60);
+      if (hoursSince < 24) {
+        const hoursLeft = Math.ceil(24 - hoursSince);
+        toast({
+          title: "Reminder already sent today",
+          description: `A reminder was sent ${Math.floor(hoursSince)}h ago. You can send another in ~${hoursLeft}h.`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    setSendingReminder(true);
+    try {
+      const pisUrl = `${window.location.origin}/rfi/${rfiRecord.access_token}`;
+      const recipientName = rfiRecord.recipient_name || "there";
+      const subject = `Reminder: Project Information Sheet — ${projectName || "Your Project"}`;
+      const htmlBody = `
+        <p>Hi ${recipientName},</p>
+        <p>This is a friendly reminder to complete the <strong>Project Information Sheet</strong> for <strong>${projectName || "your project"}</strong>${propertyAddress ? ` at ${propertyAddress}` : ""}.</p>
+        <p>The form is partially complete. Please click the link below to finish filling it out:</p>
+        <p><a href="${pisUrl}" style="display:inline-block;padding:10px 20px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">Complete PIS →</a></p>
+        <p>If you've already submitted this, please disregard this message.</p>
+        <p>Thank you,<br/>${companyData?.name || "Our Team"}</p>
+      `;
+
+      const { error: sendErr } = await supabase.functions.invoke("gmail-send", {
+        body: { to: reminderEmail, subject, html_body: htmlBody },
+      });
+      if (sendErr) throw sendErr;
+
+      // Update last_reminder_sent_at on the RFI record
+      await (supabase.from("rfi_requests" as any) as any)
+        .update({ last_reminder_sent_at: now.toISOString() })
+        .eq("id", rfiRecord.id);
+
+      // Log to timeline
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: profile } = await supabase.from("profiles").select("id, company_id").eq("user_id", user!.id).single();
+      if (profile) {
+        await supabase.from("project_timeline_events").insert({
+          company_id: profile.company_id,
+          project_id: projectId,
+          event_type: "pis_reminder_sent",
+          description: `PIS reminder sent to ${reminderEmail}`,
+          actor_id: profile.id,
+          metadata: { recipient_email: reminderEmail, rfi_id: rfiRecord.id },
+        });
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["rfi-reminder-data", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["timeline-events", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["project-timeline", projectId] });
+      setShowReminderDialog(false);
+      toast({ title: "Reminder sent ✓", description: `PIS reminder sent to ${reminderEmail}.` });
+    } catch (err: any) {
+      toast({ title: "Failed to send reminder", description: err.message || "Check your Gmail connection.", variant: "destructive" });
+    } finally {
+      setSendingReminder(false);
+    }
+  };
 
   const getDaysWaiting = (requestedDate: string | null) => {
     if (!requestedDate) return 0;
