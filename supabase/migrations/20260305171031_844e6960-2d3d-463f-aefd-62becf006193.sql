@@ -1,0 +1,1 @@
+UPDATE public.properties SET block = '1266', lot = '1', bin = '1085860' WHERE id = 'b1b2c3d4-2222-4000-8000-000000000002';
