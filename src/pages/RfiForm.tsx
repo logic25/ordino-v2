@@ -252,12 +252,15 @@ export default function RfiForm() {
     const baseSections = rfi?.sections || [];
     const resolved = baseSections.length > 0 ? baseSections : DEFAULT_PIS_SECTIONS;
 
-    // Sanitize: ensure gc_known, sia_known, tpp_known always have correct label, type, and options
-    // (saved templates may have lost the "No" option or changed labels/types)
+    // Sanitize: ensure gc/tpp/sia disclosure fields always have correct label, type, and options
+    // Saved templates may use gc_same_as (checkbox) or gc_known (select) — normalize to select with Yes/No
     const fieldOverrides: Record<string, Partial<RfiFieldConfig>> = {
       gc_known: { label: "Do you know who the General Contractor is?", type: "select", options: ["Yes", "No"], width: "full" },
+      gc_same_as: { id: "gc_known", label: "Do you know who the General Contractor is?", type: "select", options: ["Yes", "No"], width: "full" },
       tpp_known: { label: "Do you know who the TPP Applicant is?", type: "select", options: ["Yes — Same as Applicant", "Yes", "No"], width: "full" },
+      tpp_same_as: { id: "tpp_known", label: "Do you know who the TPP Applicant is?", type: "select", options: ["Yes — Same as Applicant", "Yes", "No"], width: "full" },
       sia_known: { label: "Do you know who the Special Inspector is?", type: "select", options: ["Yes", "No"], width: "full" },
+      sia_same_as: { id: "sia_known", label: "Do you know who the Special Inspector is?", type: "select", options: ["Yes", "No"], width: "full" },
     };
 
     return resolved.map(section => ({
@@ -322,10 +325,12 @@ export default function RfiForm() {
     // Auto-fill work types from proposal items (Bug 2)
     const proposalWorkTypes = rfiData?.proposalWorkTypes;
     if (proposalWorkTypes && proposalWorkTypes.length > 0) {
-      const workTypesKey = "building_and_scope_work_types_selected";
-      if (!newResponses[workTypesKey] || (Array.isArray(newResponses[workTypesKey]) && newResponses[workTypesKey].length === 0)) {
-        newResponses[workTypesKey] = proposalWorkTypes;
-        changed = true;
+      // Handle both field ID patterns: "work_types_selected" (default template) and "work_types" (saved templates)
+      for (const workTypesKey of ["building_and_scope_work_types_selected", "building_and_scope_work_types"]) {
+        if (!newResponses[workTypesKey] || (Array.isArray(newResponses[workTypesKey]) && newResponses[workTypesKey].length === 0)) {
+          newResponses[workTypesKey] = proposalWorkTypes;
+          changed = true;
+        }
       }
       // Also pre-select the same work types for the first applicant
       const applicantWtKey = "applicant_and_owner_applicant_work_types";
@@ -339,6 +344,7 @@ export default function RfiForm() {
     const applicantContact = rfiData?.applicantContact;
     if (applicantContact) {
       setIfEmpty("applicant_and_owner_applicant_first_name", applicantContact.name);
+      setIfEmpty("applicant_and_owner_applicant_name", applicantContact.name);
       setIfEmpty("applicant_and_owner_applicant_email", applicantContact.email);
       setIfEmpty("applicant_and_owner_applicant_phone", applicantContact.phone);
       setIfEmpty("applicant_and_owner_applicant_business_name", applicantContact.company_name);
@@ -348,6 +354,7 @@ export default function RfiForm() {
     if (projectData) {
       const architectName = projectData.architect_contact_name || "";
       setIfEmpty("applicant_and_owner_applicant_first_name", architectName || null);
+      setIfEmpty("applicant_and_owner_applicant_name", architectName || null);
       setIfEmpty("applicant_and_owner_applicant_business_name", projectData.architect_company_name);
       setIfEmpty("applicant_and_owner_applicant_business_address", (projectData as any).architect_address);
       setIfEmpty("applicant_and_owner_applicant_phone", projectData.architect_phone);
@@ -614,8 +621,11 @@ export default function RfiForm() {
   // Fields that should only show when the "known" select is "Yes"
   const knownGroupFields: Record<string, string[]> = {
     "contractors_inspections_gc_known": ["gc_name", "gc_company", "gc_phone", "gc_email", "gc_address", "gc_dob_tracking", "gc_hic_lic"],
+    "contractors_inspections_gc_same_as": ["gc_name", "gc_company", "gc_phone", "gc_email", "gc_address", "gc_dob_tracking", "gc_hic_lic"],
     "contractors_inspections_tpp_known": ["tpp_name", "tpp_email", "rent_controlled", "rent_stabilized", "units_occupied"],
+    "contractors_inspections_tpp_same_as": ["tpp_name", "tpp_email", "rent_controlled", "rent_stabilized", "units_occupied"],
     "contractors_inspections_sia_known": ["sia_name", "sia_company", "sia_phone", "sia_email", "sia_number", "sia_nys_lic"],
+    "contractors_inspections_sia_same_as": ["sia_name", "sia_company", "sia_phone", "sia_email", "sia_number", "sia_nys_lic"],
   };
 
   // Fields that should only show for Corporation/Partnership ownership
