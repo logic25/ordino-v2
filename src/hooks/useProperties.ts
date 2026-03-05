@@ -84,6 +84,7 @@ export function useCreateProperty() {
           owner_name: property.owner_name || null,
           owner_contact: property.owner_contact || null,
           notes: property.notes || null,
+          aka_addresses: property.aka_addresses || [],
           company_id: profile.company_id,
         })
         .select()
