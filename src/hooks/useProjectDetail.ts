@@ -44,6 +44,7 @@ export function useProjectServices(projectId: string | undefined) {
       }
 
       // Reconcile: if a service is fully billed but status is still not_started/in_progress, fix it
+      // Also advance to in_progress when partially billed
       const reconcilePromises: Promise<any>[] = [];
       for (const svc of data || []) {
         const totalAmt = Number(svc.total_amount ?? svc.fixed_price ?? 0) || 0;
@@ -54,6 +55,12 @@ export function useProjectServices(projectId: string | undefined) {
           );
           (svc as any).status = 'billed';
           (svc as any).billed_at = new Date().toISOString();
+        } else if (totalAmt > 0 && billed > 0 && billed < totalAmt && svc.status === 'not_started') {
+          // Partially billed — advance to in_progress
+          reconcilePromises.push(
+            Promise.resolve(supabase.from("services").update({ status: "in_progress" }).eq("id", svc.id))
+          );
+          (svc as any).status = 'in_progress';
         }
       }
       if (reconcilePromises.length > 0) {
