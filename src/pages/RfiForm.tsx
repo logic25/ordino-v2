@@ -161,7 +161,8 @@ export default function RfiForm() {
   const [repeatCounts, setRepeatCounts] = useState<Record<string, number>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [editingAfterSubmit, setEditingAfterSubmit] = useState(false);
+  const isReminder = new URLSearchParams(window.location.search).get("reminder") === "true";
+  const [editingAfterSubmit, setEditingAfterSubmit] = useState(isReminder);
   const [direction, setDirection] = useState<"forward" | "back">("forward");
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const [previewFile, setPreviewFile] = useState<{ name: string; url: string } | null>(null);
