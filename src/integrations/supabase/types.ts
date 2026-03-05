@@ -6014,6 +6014,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           id: string
+          last_reminder_sent_at: string | null
           project_id: string | null
           property_id: string | null
           proposal_id: string | null
@@ -6035,6 +6036,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           id?: string
+          last_reminder_sent_at?: string | null
           project_id?: string | null
           property_id?: string | null
           proposal_id?: string | null
@@ -6056,6 +6058,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           id?: string
+          last_reminder_sent_at?: string | null
           project_id?: string | null
           property_id?: string | null
           proposal_id?: string | null
