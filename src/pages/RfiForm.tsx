@@ -252,12 +252,8 @@ export default function RfiForm() {
   // Proposal work types for merging into picker options
   const proposalWorkTypes: string[] = rfiData?.proposalWorkTypes || [];
 
-  // Valid DOB work types — only these should appear in the PIS work type picker
-  const VALID_DOB_WORK_TYPES = new Set([
-    "Architectural", "Structural", "Mechanical", "Plumbing",
-    "Sprinkler", "Fire Alarm", "Fire Suppression", "Standpipe",
-    "Fuel Burning", "Boiler", "Fuel Storage", "Curb Cut", "Other",
-  ]);
+  // Valid work types — use the canonical list from company settings
+  const VALID_WORK_TYPES = new Set([...WORK_TYPE_DISCIPLINES, "Other"]);
 
   const sections = useMemo(() => {
     const baseSections = rfi?.sections || [];

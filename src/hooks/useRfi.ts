@@ -75,7 +75,7 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
       { id: "sq_ft", label: "Area (sq ft)", type: "number", width: "half" },
       { id: "scope_heading", label: "Scope of Work & Cost Breakdown", type: "heading" },
       { id: "job_description", label: "Job Description", type: "textarea", required: true, width: "full", placeholder: "Describe the work in detail..." },
-      { id: "work_types", label: "Select Applicable Work Types", type: "work_type_picker", width: "full", options: ["Architectural", "Structural", "Mechanical", "Plumbing", "Sprinkler", "Fire Alarm", "Fire Suppression", "Standpipe", "Fuel Burning", "Boiler", "Fuel Storage", "Curb Cut", "Other"] },
+      { id: "work_types", label: "Select Applicable Work Types", type: "work_type_picker", width: "full", options: [...WORK_TYPE_DISCIPLINES, "Other"] },
       { id: "filing_type", label: "Filing Type", type: "select", options: ["Plan Exam", "Pro-Cert", "TBD"], width: "half" },
       { id: "directive_14", label: "Directive 14?", type: "select", options: ["Yes", "No"], width: "half" },
       { id: "plans_upload", label: "Upload Plans / Drawings", type: "file_upload", width: "full", accept: ".pdf,.dwg,.dxf,.jpg,.jpeg,.png", maxFiles: 10, placeholder: "PDF, DWG, DXF, JPG, or PNG files" },
