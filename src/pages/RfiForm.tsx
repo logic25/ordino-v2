@@ -327,6 +327,12 @@ export default function RfiForm() {
         newResponses[workTypesKey] = proposalWorkTypes;
         changed = true;
       }
+      // Also pre-select the same work types for the first applicant
+      const applicantWtKey = "applicant_and_owner_applicant_work_types";
+      if (!newResponses[applicantWtKey] || (Array.isArray(newResponses[applicantWtKey]) && newResponses[applicantWtKey].length === 0)) {
+        newResponses[applicantWtKey] = [...proposalWorkTypes];
+        changed = true;
+      }
     }
 
     // Auto-fill applicant from proposal applicant contact (Bug 3 safety net)
