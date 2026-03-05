@@ -12,6 +12,7 @@ interface ProposalPreviewModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSend?: (id: string) => void;
+  onSign?: (proposal: ProposalWithRelations) => void;
 }
 
 function useCompanyInfo() {
