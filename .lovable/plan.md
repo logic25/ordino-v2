@@ -1,38 +1,39 @@
 
 
-## Service Status Lifecycle: Remove "Complete", Keep "Paid"
+## Analysis
 
-**Current state:** The `service_status` enum has 5 values: `not_started → in_progress → complete → billed → paid`
+I queried the database and confirmed the public PIS responses **are saved correctly**:
+- `building_and_scope_directive_14: "Yes"` 
+- `building_and_scope_work_types_selected: ["General Construction"]`
+- `building_and_scope_work_types_cost_general_construction: 324232`
+- No `filing_type` stored (field was missing from the old template — now patched)
 
-**Desired state:** `not_started → in_progress → billed → paid`
-- "Complete" is unnecessary — once work is done, the next step is billing, so services go straight from In Progress to Billed.
-- "Paid" stays as the final status, tracked when the associated invoice is marked paid.
+The submit experience ("All Done" screen with Edit Responses button) is correct behavior. The page shouldn't close — it confirms submission and allows edits.
 
-### Changes
+### Why data isn't populating on the internal Edit PIS
 
-**1. Database migration — remove "complete" from the enum**
-- Create a new enum without `complete`, migrate the column, drop old enum
-- Update any services currently set to `complete` → `billed`
+The root cause is a **section ID mismatch** between the two forms:
 
-**2. Update `auto_advance_project_phase()` function**
-- Currently checks for `status IN ('completed', 'billed')` to advance project phase to closeout
-- Update to check `status IN ('billed', 'paid')`
+| Public PIS (RfiForm) | Edit PIS (EditPISDialog) |
+|---|---|
+| `building_and_scope` | `building_scope` |
+| `applicant_and_owner` | `applicant` / `owner` |
+| `contractors_inspections` | `gc` / `tpp` / `sia` |
 
-**3. Update reconciliation logic in `useProjectDetail.ts`**
-- Currently jumps from `not_started` to `in_progress` (partial billing) and to `billed` (full billing)
-- Add: when the associated invoice is `paid`, auto-set service status to `paid`
-- No other changes needed since "complete" was never enforced in reconciliation
+The Edit PIS mapping has a fallback that searches for keys ending with `_fieldId`, which should catch most fields. However:
 
-**4. Update `serviceStatusStyles` in `projectMockData.ts`**
-- Remove `complete` entry
-- Add `paid` entry with a green/success style
+1. **Cost field mismatch**: The public form stores **per-work-type costs** (e.g., `building_and_scope_work_types_cost_general_construction: 324232`). The Edit PIS has a single `estimated_job_cost` field. These keys don't match at all, so the cost never populates.
 
-**5. Update `useServiceDurationReports.ts`**
-- Currently filters completed services as `["complete", "billed", "paid"]`
-- Update to `["billed", "paid"]`
+2. **Fragile fallback**: The `endsWith` fallback could match the wrong key if multiple keys share the same suffix.
 
-**6. Update service status dropdown in `ProjectExpandedTabs.tsx`**
-- Remove "Complete" option from any manual status selector
-- Add "Paid" if not already present
-- Ensure "Dropped" remains available as a manual override
+## Plan
+
+### Step 1: Map per-work-type costs to estimated_job_cost
+In `EditPISDialog.tsx`, after the standard field mapping loop, add logic to sum all `_work_types_cost_` response keys into the `estimated_job_cost` field if it wasn't already set.
+
+### Step 2: Verify D14 and other fields populate via fallback
+The fallback logic at lines 498-505 should already handle directive_14 and other mismatched section IDs. I'll add a dedicated mapping step that explicitly checks the known public-form key patterns (`building_and_scope_*`, `applicant_and_owner_*`, `contractors_inspections_*`) to make the mapping robust rather than relying on `endsWith`.
+
+### Step 3: Confirm submit UX
+No code change needed — the "All Done" screen is the intended behavior. The page stays open so the client can review or edit.
 
