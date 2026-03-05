@@ -122,7 +122,9 @@ export default function Properties() {
   const handleBackfillBBL = async () => {
     setIsBackfilling(true);
     try {
-      const { data, error } = await supabase.functions.invoke("backfill-property-bbl");
+      const { data, error } = await supabase.functions.invoke("backfill-property-bbl", {
+        body: { force: true },
+      });
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["properties"] });
       toast({
