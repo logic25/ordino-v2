@@ -1,0 +1,1 @@
+UPDATE public.properties SET bbl_verified = true WHERE id IN ('e3d1a282-36f0-4305-b80f-cc057f547bb0', 'cd3863ee-cefd-49c9-9fa7-58c062049bfa', 'b1b2c3d4-2222-4000-8000-000000000002');
