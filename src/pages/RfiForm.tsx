@@ -166,6 +166,8 @@ export default function RfiForm() {
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const [previewFile, setPreviewFile] = useState<{ name: string; url: string } | null>(null);
   const [ownerVerified, setOwnerVerified] = useState<boolean | null>(null); // null = not yet decided
+  const nycLookup = useNYCPropertyLookup();
+  const bblLookedUpRef = useRef(false);
 
   // File upload handler
   const handleFileUpload = async (key: string, files: FileList | null, accept?: string, maxFiles?: number) => {
