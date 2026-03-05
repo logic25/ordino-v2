@@ -258,6 +258,7 @@ export function useNYCPropertyLookup() {
                   console.warn(`[NYC Lookup] GeoSearch BBL ${bbl} failed PLUTO verification for "${address}". Skipping.`);
                 } else {
                   console.log("[NYC Lookup] Verified result:", { borough, block, lot, bin, zip_code });
+                  const aka_addresses = await fetchAkaAddresses(bin);
                   return {
                     bin,
                     block: block || undefined,
@@ -266,6 +267,7 @@ export function useNYCPropertyLookup() {
                     zip_code,
                     owner_name: verification.owner_name,
                     address: props?.name || address,
+                    aka_addresses: aka_addresses.length > 0 ? aka_addresses : undefined,
                   };
                 }
               }
