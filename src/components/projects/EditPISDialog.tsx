@@ -10,13 +10,14 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
-import { Save, AlertTriangle, UserPlus, CheckCircle2, Loader2, Copy, Search, Building2, User, Zap, ShieldAlert, ShieldCheck as ShieldCheckIcon, Link } from "lucide-react";
+import { Save, AlertTriangle, UserPlus, CheckCircle2, Loader2, Copy, Search, Building2, User, Zap, ShieldAlert, ShieldCheck as ShieldCheckIcon, Link, ArrowLeft, ChevronRight } from "lucide-react";
 import { formatPhoneNumber } from "@/lib/formatters";
 import { useClients } from "@/hooks/useClients";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { MockPISStatus } from "./projectMockData";
 import { usePISContactOptions, getPriorSectionFields } from "@/hooks/usePISAutoFill";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface PisFieldDef {
   id: string;
@@ -32,7 +33,7 @@ interface PisSection {
   id: string;
   title: string;
   description?: string;
-  contactRole?: string; // If set, we check if this person is in the CRM
+  contactRole?: string;
   fields: PisFieldDef[];
 }
 
@@ -85,8 +86,6 @@ const PIS_SECTIONS: PisSection[] = [
       { id: "owner_address", label: "Address", type: "text", width: "full" },
       { id: "owner_email", label: "Email", type: "email", width: "half" },
       { id: "owner_phone", label: "Phone", type: "phone", width: "half" },
-      // corp_officer_name and corp_officer_title rendered conditionally based on ownership_type
-
     ],
   },
   {
@@ -143,20 +142,16 @@ const PIS_SECTIONS: PisSection[] = [
   },
 ];
 
-// Export set of optional field IDs for readiness calculation
-// Includes fields marked optional + file uploads + conditional corp officer fields
 export const OPTIONAL_PIS_FIELD_IDS = new Set([
   ...PIS_SECTIONS.flatMap(s => s.fields.filter(f => f.optional).map(f => f.id)),
-  "plans_upload",           // file upload — not a data field
-  "applicant_work_types",   // depends on work_types selection
-  "corp_officer_name",      // conditional on ownership type
-  "corp_officer_title",     // conditional on ownership type
+  "plans_upload",
+  "applicant_work_types",
+  "corp_officer_name",
+  "corp_officer_title",
 ]);
 
-// The entire "notes" section is excluded from readiness
 export const EXCLUDED_PIS_SECTION_IDS = new Set(["notes"]);
 
-// Corporate officer fields shown conditionally
 const CORP_OFFICER_FIELDS: PisFieldDef[] = [
   { id: "corp_officer_name", label: "Corporate Officer Name", type: "text", width: "half" },
   { id: "corp_officer_title", label: "Corporate Officer Title", type: "text", width: "half" },
@@ -167,25 +162,31 @@ const CORP_OWNERSHIP_TYPES = ["Corporation", "Condo/Co-op", "Non-profit"];
 interface SectionAutoFillProps {
   sectionId: string;
   sectionTitle: string;
-  getOptions: (sectionId: string, query: string) => { id: string; label: string; sublabel?: string; source: string; fields: Record<string, string> }[];
+  getOptions: (sectionId: string, query: string) => { id: string; label: string; sublabel?: string; source: string; fields: Record<string, string>; clientId?: string }[];
+  getContactsForClient: (clientId: string, sectionId: string) => { id: string; label: string; sublabel?: string; source: string; fields: Record<string, string> }[];
   priorResponses: Record<string, any> | null;
   onApply: (fields: Record<string, string>) => void;
 }
 
-function SectionAutoFill({ sectionId, sectionTitle, getOptions, priorResponses, onApply }: SectionAutoFillProps) {
+function SectionAutoFill({ sectionId, sectionTitle, getOptions, getContactsForClient, priorResponses, onApply }: SectionAutoFillProps) {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [drillDownClient, setDrillDownClient] = useState<{ id: string; name: string; fields: Record<string, string> } | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setDrillDownClient(null);
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
   const results = getOptions(sectionId, search);
+  const drillDownContacts = drillDownClient ? getContactsForClient(drillDownClient.id, sectionId) : [];
   const priorFields = priorResponses ? getPriorSectionFields(priorResponses, sectionId) : null;
 
   return (
@@ -206,13 +207,66 @@ function SectionAutoFill({ sectionId, sectionTitle, getOptions, priorResponses, 
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <Input
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
+            onChange={(e) => { setSearch(e.target.value); setOpen(true); setDrillDownClient(null); }}
             onFocus={() => setOpen(true)}
             placeholder={`Search contacts for ${sectionTitle}...`}
             className="h-7 text-xs pl-7"
           />
         </div>
-        {open && results.length > 0 && (
+        {open && drillDownClient && (
+          <div className="absolute left-0 right-0 top-full mt-1 z-[9999] rounded-md border bg-popover shadow-lg max-h-[220px] overflow-y-auto">
+            {/* Back button */}
+            <button
+              type="button"
+              className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-accent text-left transition-colors border-b text-muted-foreground"
+              onClick={() => setDrillDownClient(null)}
+            >
+              <ArrowLeft className="h-3 w-3" /> Back to search
+            </button>
+            {/* Use company info only */}
+            <button
+              type="button"
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent text-left transition-colors border-b"
+              onClick={() => {
+                onApply(drillDownClient.fields);
+                setSearch("");
+                setOpen(false);
+                setDrillDownClient(null);
+              }}
+            >
+              <Building2 className="h-3 w-3 text-muted-foreground shrink-0" />
+              <div className="min-w-0">
+                <div className="truncate font-medium">{drillDownClient.name}</div>
+                <div className="text-[10px] text-muted-foreground">Use company info only</div>
+              </div>
+            </button>
+            {/* Contacts at this company */}
+            {drillDownContacts.length > 0 ? (
+              drillDownContacts.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-accent text-left transition-colors"
+                  onClick={() => {
+                    onApply(r.fields);
+                    setSearch("");
+                    setOpen(false);
+                    setDrillDownClient(null);
+                  }}
+                >
+                  <User className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <div className="min-w-0">
+                    <div className="truncate">{r.label}</div>
+                    {r.sublabel && <div className="text-[10px] text-muted-foreground truncate">{r.sublabel}</div>}
+                  </div>
+                </button>
+              ))
+            ) : (
+              <div className="px-3 py-2 text-xs text-muted-foreground">No contacts found for this company</div>
+            )}
+          </div>
+        )}
+        {open && !drillDownClient && results.length > 0 && (
           <div className="absolute left-0 right-0 top-full mt-1 z-[9999] rounded-md border bg-popover shadow-lg max-h-[180px] overflow-y-auto">
             {results.map((r) => (
               <button
@@ -220,9 +274,15 @@ function SectionAutoFill({ sectionId, sectionTitle, getOptions, priorResponses, 
                 type="button"
                 className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-accent text-left transition-colors"
                 onClick={() => {
-                  onApply(r.fields);
-                  setSearch("");
-                  setOpen(false);
+                  if (r.source === "client" && r.clientId) {
+                    // Drill down into company contacts
+                    setDrillDownClient({ id: r.clientId, name: r.label, fields: r.fields });
+                  } else {
+                    // Direct contact selection
+                    onApply(r.fields);
+                    setSearch("");
+                    setOpen(false);
+                  }
                 }}
               >
                 {r.source === "client" ? (
@@ -230,10 +290,13 @@ function SectionAutoFill({ sectionId, sectionTitle, getOptions, priorResponses, 
                 ) : (
                   <User className="h-3 w-3 text-muted-foreground shrink-0" />
                 )}
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="truncate">{r.label}</div>
                   {r.sublabel && <div className="text-[10px] text-muted-foreground truncate">{r.sublabel}</div>}
                 </div>
+                {r.source === "client" && r.clientId && (
+                  <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                )}
               </button>
             ))}
           </div>
@@ -250,7 +313,6 @@ function GCComplianceBanner({ gcName, gcCompany, gcDobTracking, clients }: {
   const searchVal = (gcCompany || gcName || "").trim().toLowerCase();
   if (!searchVal) return null;
 
-  // Match by name or DOB tracking number
   const match = clients.find(c => {
     if (c.name.toLowerCase().includes(searchVal) || searchVal.includes(c.name.toLowerCase())) return true;
     if (gcDobTracking && c.dob_tracking && c.dob_tracking === gcDobTracking) return true;
@@ -316,10 +378,12 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
     enabled: !!projectId && open,
   });
 
-  const { getOptionsForSection, sectionFieldMap } = usePISContactOptions(projectProposalId);
+  const { getOptionsForSection, getContactsForClient, sectionFieldMap } = usePISContactOptions(projectProposalId);
   const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [addedToCRM, setAddedToCRM] = useState<Set<string>>(new Set());
+  const [isDirty, setIsDirty] = useState(false);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
 
   // Load existing RFI responses
   const { data: rfiData } = useQuery({
@@ -340,10 +404,8 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
   const { data: priorPIS } = useQuery({
     queryKey: ["prior-pis", projectId],
     queryFn: async () => {
-      // Get this project's property_id
       const { data: proj } = await supabase.from("projects").select("property_id").eq("id", projectId).single();
       if (!proj?.property_id) return null;
-      // Find other projects at same property
       const { data: otherProjects } = await supabase
         .from("projects")
         .select("id, name")
@@ -352,7 +414,6 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
         .order("created_at", { ascending: false })
         .limit(5);
       if (!otherProjects || otherProjects.length === 0) return null;
-      // Get latest RFI from those projects
       const { data: priorRfi } = await (supabase.from("rfi_requests") as any)
         .select("id, responses, project_id")
         .in("project_id", otherProjects.map(p => p.id))
@@ -374,14 +435,12 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
     for (const section of PIS_SECTIONS) {
       for (const field of section.fields) {
         if (field.type === "heading") continue;
-        // Skip scope-specific fields
         if (["job_description", "filing_type", "client_reference_number"].includes(field.id)) continue;
         const prefixedKey = `${section.id}_${field.id}`;
         const val = resp[prefixedKey] ?? resp[field.id];
         if (val && !values[field.id]) {
           mapped[field.id] = String(val);
         }
-        // Also try any key ending with field id
         for (const [key, v] of Object.entries(resp)) {
           if (key.endsWith(`_${field.id}`) && v && !values[field.id] && !mapped[field.id]) {
             mapped[field.id] = String(v);
@@ -390,6 +449,7 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
       }
     }
     setValues(prev => ({ ...prev, ...mapped }));
+    setIsDirty(true);
     toast({ title: "Pre-filled", description: `Data cloned from "${priorPIS.projectName}". Review and save.` });
   };
 
@@ -428,15 +488,12 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
         const flatVal = resp[field.id];
         const prefixedKey = `${section.id}_${field.id}`;
         const prefixedVal = resp[prefixedKey];
-        // Also try _selected suffix (work_types stored as work_types_selected)
         const selectedKey = `${section.id}_${field.id}_selected`;
         const selectedVal = resp[selectedKey];
         const val = prefixedVal ?? selectedVal ?? flatVal;
         if (val !== undefined && val !== null) {
-          // Arrays (checkbox_group / work_type_picker) → comma-separated string
           mapped[field.id] = Array.isArray(val) ? val.join(",") : String(val);
         }
-        // Fallback: try any key ending with field id
         if (!mapped[field.id]) {
           for (const [key, v] of Object.entries(resp)) {
             if (key.endsWith(`_${field.id}`) && v) {
@@ -447,26 +504,33 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
         }
       }
     }
-    // Pre-fill job_description from proposal if not already filled
     if (!mapped["job_description"] && projectAutoFill?.jobDesc) {
       mapped["job_description"] = projectAutoFill.jobDesc;
     }
-    // Auto-fill filing_type from project record
     if (!mapped["filing_type"] && projectAutoFill?.filingType) {
       mapped["filing_type"] = projectAutoFill.filingType;
     }
-    // Auto-fill work_types from proposal disciplines
     if (!mapped["work_types"] && projectAutoFill?.workTypes?.length) {
       mapped["work_types"] = projectAutoFill.workTypes.join(",");
     }
-    // Load same_as flags
     if (resp["tpp_same_as"]) mapped["tpp_same_as"] = String(resp["tpp_same_as"]);
     if (resp["sia_same_as"]) mapped["sia_same_as"] = String(resp["sia_same_as"]);
     setValues(mapped);
+    setIsDirty(false);
+    setInitialLoadDone(true);
   }, [rfiData, projectAutoFill]);
+
+  // Reset dirty state when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setIsDirty(false);
+      setInitialLoadDone(false);
+    }
+  }, [open]);
 
   const updateValue = (key: string, value: string) => {
     setValues((prev) => ({ ...prev, [key]: value }));
+    if (initialLoadDone) setIsDirty(true);
   };
 
   // Fetch client contacts for CRM check
@@ -481,15 +545,12 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
     staleTime: 5 * 60 * 1000,
   });
 
-  // Check if a contact name exists in the CRM (clients OR client_contacts)
   const isContactInCRM = (nameFieldId: string): boolean => {
     const name = values[nameFieldId]?.trim();
     if (!name) return true;
     if (addedToCRM.has(nameFieldId)) return true;
     const lowerName = name.toLowerCase();
-    // Check company names (clients table)
     if (clients.some((c) => c.name.toLowerCase().includes(lowerName))) return true;
-    // Check individual contact names (client_contacts table)
     if (allContacts.some((c) =>
       c.name?.toLowerCase().includes(lowerName) ||
       `${c.first_name || ""} ${c.last_name || ""}`.trim().toLowerCase().includes(lowerName)
@@ -497,11 +558,9 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
     return false;
   };
 
-  // Count filled fields (exclude optional and notes section)
   const allFields = PIS_SECTIONS
     .filter(s => !EXCLUDED_PIS_SECTION_IDS.has(s.id))
     .flatMap((s) => s.fields.filter((f) => f.type !== "heading" && !f.optional));
-  // Also count corp officer fields if visible
   const showCorpOfficer = CORP_OWNERSHIP_TYPES.includes(values["ownership_type"] || "");
   const corpOfficerFilled = showCorpOfficer ? CORP_OFFICER_FIELDS.filter(f => values[f.id]?.trim()).length : 0;
   const corpOfficerTotal = showCorpOfficer ? CORP_OFFICER_FIELDS.length : 0;
@@ -513,7 +572,6 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
     const filled = fields.filter((f) => values[f.id]?.trim()).length;
     let total = fields.length;
     let filledExtra = 0;
-    // Add corp officer fields for owner section
     if (section.id === "owner" && showCorpOfficer) {
       total += CORP_OFFICER_FIELDS.length;
       filledExtra = CORP_OFFICER_FIELDS.filter(f => values[f.id]?.trim()).length;
@@ -536,26 +594,22 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
     }
     setSaving(true);
     try {
-      // Merge values back into the existing responses object
       const updatedResponses = { ...(rfiData.responses || {}) };
       for (const section of PIS_SECTIONS) {
         for (const field of section.fields) {
           if (field.type === "heading") continue;
           const val = values[field.id];
           if (val !== undefined) {
-            // checkbox_group fields stored as arrays for RFI compat
             const storeVal = field.type === "checkbox_group" ? val.split(",").filter(Boolean) : val;
             const prefixedKey = `${section.id}_${field.id}`;
             updatedResponses[prefixedKey] = storeVal;
             updatedResponses[field.id] = storeVal;
-            // Also store _selected variant for work_types compat
             if (field.type === "checkbox_group") {
               updatedResponses[`${prefixedKey}_selected`] = storeVal;
             }
           }
         }
       }
-      // Persist same_as flags
       if (values["tpp_same_as"]) updatedResponses["tpp_same_as"] = values["tpp_same_as"];
       if (values["sia_same_as"]) updatedResponses["sia_same_as"] = values["sia_same_as"];
       const { error } = await (supabase.from("rfi_requests") as any)
@@ -564,6 +618,7 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["rfi-responses", projectId] });
       queryClient.invalidateQueries({ queryKey: ["project-pis-status", projectId] });
+      setIsDirty(false);
       toast({ title: "PIS Saved", description: `${filledCount}/${totalFieldCount} fields completed.` });
       onOpenChange(false);
     } catch (err: any) {
@@ -643,6 +698,8 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
     );
   };
 
+  const saveButtonRef = useRef<HTMLButtonElement>(null);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[680px] max-h-[85vh] overflow-y-auto">
@@ -653,6 +710,24 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
             {pisStatus.sentDate && ` · Sent ${pisStatus.sentDate}`}
           </DialogDescription>
         </DialogHeader>
+
+        {/* Unsaved changes banner */}
+        {isDirty && (
+          <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertDescription className="text-amber-800 dark:text-amber-200 text-sm flex items-center justify-between">
+              <span>You have unsaved changes — scroll down and click <strong>Save PIS</strong>.</span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="ml-3 h-7 text-xs gap-1 border-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 shrink-0"
+                onClick={() => saveButtonRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}
+              >
+                <Save className="h-3 w-3" /> Jump to Save
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {priorPIS && (
           <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 text-sm">
@@ -696,9 +771,11 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
                       sectionId={section.id}
                       sectionTitle={section.contactRole}
                       getOptions={getOptionsForSection}
+                      getContactsForClient={getContactsForClient}
                       priorResponses={priorPIS?.responses || null}
                       onApply={(fields) => {
                         setValues(prev => ({ ...prev, ...fields }));
+                        setIsDirty(true);
                         toast({ title: "Auto-filled", description: `${section.contactRole} details populated.` });
                       }}
                     />
@@ -720,8 +797,10 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
                                   sia_email: values["applicant_email"] || "",
                                 };
                             setValues(prev => ({ ...prev, [flagKey]: "true", ...mapping }));
+                            setIsDirty(true);
                           } else {
                             setValues(prev => ({ ...prev, [flagKey]: "" }));
+                            setIsDirty(true);
                           }
                         }}
                       />
@@ -731,10 +810,8 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
                   )}
                   <div className="grid grid-cols-2 gap-3 pb-2">
                     {section.fields.map((field) => renderField(field))}
-                    {/* Conditional corporate officer fields */}
                     {section.id === "owner" && showCorpOfficer && CORP_OFFICER_FIELDS.map(f => renderField(f))}
                   </div>
-                  {/* GC Compliance Banner */}
                   {section.id === "gc" && <GCComplianceBanner gcName={values["gc_name"]} gcCompany={values["gc_company"]} gcDobTracking={values["gc_dob_tracking"]} clients={clients} />}
                   {section.contactRole && hasContactName && !contactInCRM && (
                     <div className="flex items-center gap-2 mt-2 p-2 rounded-md bg-destructive/10 border border-destructive/20">
@@ -758,12 +835,10 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
                             if (!profile?.company_id) throw new Error("No company found. Please complete your profile setup first.");
 
                             const contactName = values[contactNameField!];
-                            // Extract related fields from this section
                             const emailField = section.fields.find(f => f.id.endsWith("_email"));
                             const phoneField = section.fields.find(f => f.id.endsWith("_phone"));
                             const companyField = section.fields.find(f => f.id.endsWith("_company") || f.id.endsWith("_business_name"));
 
-                            // Create client (company) record
                             const { data: newClient, error: clientErr } = await supabase
                               .from("clients")
                               .insert({
@@ -777,7 +852,6 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
                               .single();
                             if (clientErr) throw clientErr;
 
-                            // Create contact under that client
                             const nameParts = contactName.split(" ");
                             await supabase.from("client_contacts").insert({
                               client_id: newClient.id,
@@ -812,7 +886,12 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving} className="gap-1.5">
+          <Button
+            ref={saveButtonRef}
+            onClick={handleSave}
+            disabled={saving}
+            className={`gap-1.5 ${isDirty ? "animate-pulse ring-2 ring-amber-400 ring-offset-2" : ""}`}
+          >
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save PIS
           </Button>
         </DialogFooter>
