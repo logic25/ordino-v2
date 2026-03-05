@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   PenLine, Send, CheckCheck, XCircle, ShieldCheck, AlertTriangle,
-  Pencil, GitBranch, Clock, MoreVertical, FileDown,
+  Pencil, GitBranch, Clock, MoreVertical, FileDown, Eye,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { ChangeOrder } from "@/hooks/useChangeOrders";
