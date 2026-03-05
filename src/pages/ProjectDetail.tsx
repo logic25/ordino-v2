@@ -40,7 +40,7 @@ import {
   Phone, Circle, Upload, Search, Plus, AlertTriangle, Trash2,
   ArrowUpRight, ArrowDownLeft, ClipboardList, FileImage,
   FileSpreadsheet, Download, Sparkles, Eye, ShieldCheck, PenLine,
-  GripVertical, ArrowUp, ArrowDown, UserPlus,
+  GripVertical, ArrowUp, ArrowDown, UserPlus, ArrowUpDown,
 } from "lucide-react";
 import { useProjects, useUpdateProject, ProjectWithRelations } from "@/hooks/useProjects";
 import { useSendProposal } from "@/hooks/useProposals";
@@ -2461,6 +2461,13 @@ function TimelineFull({ milestones, projectId }: { milestones: MockMilestone[]; 
 function DocumentsFull({ documents, projectId, companyId, proposal }: { documents: MockDocument[]; projectId?: string; companyId?: string; proposal?: any }) {
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
+  const [sortKey, setSortKey] = useState<"type" | "size" | "date" | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const toggleSort = (key: "type" | "size" | "date") => {
+    if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  };
   const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string; isPdf?: boolean; isImage?: boolean; isHtml?: boolean } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -2558,10 +2565,40 @@ function DocumentsFull({ documents, projectId, companyId, proposal }: { document
     }
   };
 
+  const parseSizeBytes = (s: string): number => {
+    if (!s || s === "—") return 0;
+    const match = s.match(/([\d.]+)\s*(KB|MB|GB|B)/i);
+    if (!match) return 0;
+    const val = parseFloat(match[1]);
+    const unit = match[2].toUpperCase();
+    if (unit === "GB") return val * 1e9;
+    if (unit === "MB") return val * 1e6;
+    if (unit === "KB") return val * 1e3;
+    return val;
+  };
+
+  const parseDocDate = (d: string): number => {
+    if (!d || d === "—") return 0;
+    return new Date(d).getTime() || 0;
+  };
+
   const filtered = documents.filter(d => {
     const matchSearch = !search || d.name.toLowerCase().includes(search.toLowerCase());
     const matchCat = catFilter === "all" || d.category === catFilter;
     return matchSearch && matchCat;
+  }).sort((a, b) => {
+    if (!sortKey) return 0;
+    let cmp = 0;
+    if (sortKey === "type") {
+      const extA = (a.filename || a.name).split(".").pop()?.toLowerCase() || "";
+      const extB = (b.filename || b.name).split(".").pop()?.toLowerCase() || "";
+      cmp = extA.localeCompare(extB);
+    } else if (sortKey === "size") {
+      cmp = parseSizeBytes(a.size) - parseSizeBytes(b.size);
+    } else if (sortKey === "date") {
+      cmp = parseDocDate(a.uploadedDate) - parseDocDate(b.uploadedDate);
+    }
+    return sortDir === "desc" ? -cmp : cmp;
   });
 
   return (
@@ -2601,10 +2638,22 @@ function DocumentsFull({ documents, projectId, companyId, proposal }: { document
             <TableRow>
               <TableHead>Document</TableHead>
               <TableHead>Category</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Size</TableHead>
+              <TableHead>
+                <button className="flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort("type")}>
+                  Type <ArrowUpDown className="h-3 w-3" />
+                </button>
+              </TableHead>
+              <TableHead>
+                <button className="flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort("size")}>
+                  Size <ArrowUpDown className="h-3 w-3" />
+                </button>
+              </TableHead>
               <TableHead>Uploaded By</TableHead>
-              <TableHead>Date</TableHead>
+              <TableHead>
+                <button className="flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort("date")}>
+                  Date <ArrowUpDown className="h-3 w-3" />
+                </button>
+              </TableHead>
               <TableHead className="w-[140px]" />
             </TableRow>
           </TableHeader>
