@@ -48,14 +48,67 @@ function parseAddress(raw: string): { street: string; boroCode: string | null } 
   return { street, boroCode: detectedBoroCode };
 }
 
+function extractStreetName(address: string): string {
+  return address.trim().toUpperCase().replace(/^\d+[-\d]*\s+/, "").trim();
+}
+
+function normalizeStreet(street: string): string {
+  return street
+    .toUpperCase()
+    .replace(/\bAVENUE\b/g, "AVE")
+    .replace(/\bSTREET\b/g, "ST")
+    .replace(/\bBOULEVARD\b/g, "BLVD")
+    .replace(/\bDRIVE\b/g, "DR")
+    .replace(/\bROAD\b/g, "RD")
+    .replace(/\bPLACE\b/g, "PL")
+    .replace(/\bCOURT\b/g, "CT")
+    .replace(/\bLANE\b/g, "LN")
+    .replace(/\bTERRACE\b/g, "TER")
+    .replace(/\bPARKWAY\b/g, "PKWY")
+    .replace(/[.,\s]+/g, " ")
+    .trim();
+}
+
+function streetNamesMatch(inputAddr: string, returnedAddr: string): boolean {
+  const a = normalizeStreet(extractStreetName(inputAddr));
+  const b = normalizeStreet(extractStreetName(returnedAddr));
+  if (!a || !b) return false;
+  if (a === b) return true;
+  return a.includes(b) || b.includes(a);
+}
+
+async function verifyBBLWithPLUTO(
+  boroCode: string,
+  paddedBlock: string,
+  paddedLot: string,
+  inputAddress: string
+): Promise<{ verified: boolean; owner_name?: string }> {
+  try {
+    const plutoUrl = `https://data.cityofnewyork.us/resource/64uk-42ks.json?borocode=${boroCode}&block=${paddedBlock}&lot=${paddedLot}&$select=address,ownername&$limit=1`;
+    const resp = await fetch(plutoUrl);
+    if (!resp.ok) return { verified: false };
+    const data = await resp.json();
+    if (!data?.length) return { verified: false };
+    const plutoAddress = data[0].address || "";
+    const owner_name = data[0].ownername || undefined;
+
+    if (plutoAddress && !streetNamesMatch(inputAddress, plutoAddress)) {
+      console.log(`[Backfill Verify] Street mismatch: input="${extractStreetName(inputAddress)}", PLUTO="${plutoAddress}". Rejecting.`);
+      return { verified: false };
+    }
+    return { verified: true, owner_name };
+  } catch {
+    return { verified: false };
+  }
+}
+
 async function lookupAddress(address: string) {
   if (address.trim().length < 5) return null;
 
-  // Extract house number from input for verification
   const inputHouseMatch = address.trim().match(/^(\d+[-\d]*)/);
   const inputHouseNum = inputHouseMatch ? inputHouseMatch[1] : null;
 
-  // Strategy 1: NYC GeoSearch API (most reliable)
+  // Strategy 1: NYC GeoSearch API → cross-verify with PLUTO
   try {
     const geoUrl = `https://geosearch.planninglabs.nyc/v2/search?text=${encodeURIComponent(address)}&size=1`;
     const geoResp = await fetch(geoUrl);
@@ -66,39 +119,38 @@ async function lookupAddress(address: string) {
         const props = feature.properties;
         const returnedHouseNum = props?.housenumber;
 
-        // Reject if house number doesn't match (prevents wrong address data)
         if (inputHouseNum && returnedHouseNum && inputHouseNum !== returnedHouseNum) {
-          console.log(`[Backfill] House number mismatch for "${address}": input="${inputHouseNum}", returned="${returnedHouseNum}". Skipping GeoSearch.`);
+          console.log(`[Backfill] House number mismatch for "${address}": input="${inputHouseNum}", returned="${returnedHouseNum}".`);
         } else {
-          const pad = props?.addendum?.pad;
-          const bbl = pad?.bbl || "";
-          const boroCode = bbl.substring(0, 1);
-          const block = bbl.substring(1, 6).replace(/^0+/, "") || null;
-          const lot = bbl.substring(6, 10).replace(/^0+/, "") || null;
-          const bin = pad?.bin || null;
-          const borough = BOROUGH_CODES[boroCode] || props?.borough || null;
-          const zip_code = props?.postalcode || null;
+          const geoLabel = props?.name || props?.label || "";
+          if (geoLabel && !streetNamesMatch(address, geoLabel)) {
+            console.log(`[Backfill] Street mismatch: input="${extractStreetName(address)}", geo="${geoLabel}".`);
+          } else {
+            const pad = props?.addendum?.pad;
+            const bbl = pad?.bbl || "";
+            const boroCode = bbl.substring(0, 1);
+            const paddedBlock = bbl.substring(1, 6);
+            const paddedLot = bbl.substring(6, 10);
+            const block = paddedBlock.replace(/^0+/, "") || null;
+            const lot = paddedLot.replace(/^0+/, "") || null;
+            const bin = pad?.bin || null;
+            const borough = BOROUGH_CODES[boroCode] || props?.borough || null;
+            const zip_code = props?.postalcode || null;
 
-          // Enrich with PLUTO for owner name
-          let owner_name: string | null = null;
-          if (bbl) {
-            try {
-              const plutoUrl = `https://data.cityofnewyork.us/resource/64uk-42ks.json?borocode=${boroCode}&block=${bbl.substring(1, 6)}&lot=${bbl.substring(6, 10)}&$select=ownername&$limit=1`;
-              const plutoResp = await fetch(plutoUrl);
-              if (plutoResp.ok) {
-                const plutoData = await plutoResp.json();
-                if (plutoData?.[0]?.ownername) owner_name = plutoData[0].ownername;
-              }
-            } catch { /* optional */ }
+            // Cross-verify with PLUTO
+            const verification = await verifyBBLWithPLUTO(boroCode, paddedBlock, paddedLot, address);
+            if (!verification.verified) {
+              console.log(`[Backfill] BBL ${bbl} failed PLUTO verification for "${address}". Skipping GeoSearch result.`);
+            } else {
+              return { bin, block, lot, borough, zip_code, owner_name: verification.owner_name || null };
+            }
           }
-
-          return { bin, block, lot, borough, zip_code, owner_name };
         }
       }
     }
   } catch { /* fall through to PLUTO */ }
 
-  // Strategy 2: PLUTO direct (fallback)
+  // Strategy 2: PLUTO direct (fallback) with house number verification
   const { street, boroCode } = parseAddress(address);
   if (street.length < 3) return null;
   const boroFilter = boroCode ? ` AND borocode='${boroCode}'` : "";
@@ -107,12 +159,21 @@ async function lookupAddress(address: string) {
   if (response.ok) {
     const data = await response.json();
     if (data?.length > 0) {
-      const p = data[0];
-      return {
-        bin: p.bin || null, block: p.block || null, lot: p.lot || null,
-        borough: BOROUGH_CODES[p.borocode] || p.borough || null,
-        zip_code: p.zipcode || null, owner_name: p.ownername || null,
-      };
+      // Find best match by house number
+      const match = inputHouseNum
+        ? data.find((p: any) => {
+            const plutoHouse = (p.address || "").match(/^(\d+)/)?.[1];
+            return plutoHouse === inputHouseNum;
+          })
+        : data[0];
+
+      if (match) {
+        return {
+          bin: match.bin || null, block: match.block || null, lot: match.lot || null,
+          borough: BOROUGH_CODES[match.borocode] || match.borough || null,
+          zip_code: match.zipcode || null, owner_name: match.ownername || null,
+        };
+      }
     }
   }
 
@@ -144,7 +205,6 @@ Deno.serve(async (req) => {
         const lookupData = await lookupAddress(prop.address);
         if (lookupData) {
           const updates: Record<string, string> = {};
-          // Fill any missing field, even if some fields already have data
           if (!prop.borough && lookupData.borough) updates.borough = lookupData.borough;
           if (!prop.block && lookupData.block) updates.block = lookupData.block;
           if (!prop.lot && lookupData.lot) updates.lot = lookupData.lot;
@@ -161,7 +221,7 @@ Deno.serve(async (req) => {
         } else {
           results.push({ id: prop.id, address: prop.address, status: "not_found" });
         }
-        // Rate limit: small delay between lookups
+        // Rate limit
         await new Promise((r) => setTimeout(r, 300));
       } catch (e) {
         results.push({ id: prop.id, address: prop.address, status: `error: ${e.message}` });
