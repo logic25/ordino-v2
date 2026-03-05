@@ -142,12 +142,16 @@ export function PropertyTable({
                 const projectCount = property.projects?.length || 0;
                 const hasSignal = !!property.signalSubscription;
                 const hasChildren = applicationCount > 0 || projectCount > 0 || hasSignal;
+                const missingBBL = !property.borough || !property.block || !property.lot;
 
                 return (
                   <Collapsible key={property.id} asChild open={isExpanded}>
                     <>
                       <TableRow
-                        className="hover:bg-accent/5 cursor-pointer"
+                        className={cn(
+                          "hover:bg-accent/5 cursor-pointer",
+                          missingBBL && "bg-red-500/5 border-l-2 border-l-red-500"
+                        )}
                         onClick={() => navigate(`/properties/${property.id}`)}
                       >
                         <TableCell className="p-2">
