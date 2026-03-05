@@ -397,23 +397,22 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
   const { data: projectAutoFill } = useQuery({
     queryKey: ["pis-auto-fill", projectId],
     queryFn: async () => {
-      const { data: project } = await supabase
-        .from("projects")
-        .select("proposal_id, filing_type, estimated_value")
+      const { data: project } = await (supabase
+        .from("projects") as any)
+        .select("proposal_id, filing_type")
         .eq("id", projectId)
         .single();
-      if (!project?.proposal_id) return { jobDesc: null, filingType: project?.filing_type || null, estimatedValue: project?.estimated_value || null, workTypes: [] as string[] };
+      if (!project?.proposal_id) return { jobDesc: null, filingType: project?.filing_type || null, workTypes: [] as string[] };
       const { data: proposal } = await (supabase.from("proposals") as any)
         .select("job_description, items:proposal_items(disciplines, is_optional)")
         .eq("id", project.proposal_id)
         .single();
       const jobDesc = (proposal?.job_description as string) || null;
-      // Extract disciplines from non-optional proposal items
       const items: any[] = proposal?.items || [];
       const workTypes = [...new Set(
         items.filter((i: any) => !i.is_optional).flatMap((i: any) => i.disciplines || [])
       )] as string[];
-      return { jobDesc, filingType: project?.filing_type || null, estimatedValue: project?.estimated_value || null, workTypes };
+      return { jobDesc, filingType: project?.filing_type || null, workTypes };
     },
     enabled: !!projectId && open,
   });
