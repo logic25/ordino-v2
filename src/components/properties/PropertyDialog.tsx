@@ -100,6 +100,7 @@ export function PropertyDialog({
         notes: property.notes || "",
       });
       setAddressToLookup(property.address || "");
+      setHasAutoLooked(true); // Don't auto-lookup when editing
     } else {
       form.reset({
         address: "",
@@ -113,6 +114,7 @@ export function PropertyDialog({
         notes: "",
       });
       setAddressToLookup("");
+      setHasAutoLooked(false);
     }
   }, [property, form]);
 
