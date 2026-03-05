@@ -71,6 +71,7 @@ export function PropertyDialog({
   const { track } = useTelemetry();
   const [addressToLookup, setAddressToLookup] = useState("");
   const [hasAutoLooked, setHasAutoLooked] = useState(false);
+  const [pendingAkas, setPendingAkas] = useState<string[]>([]);
 
   const form = useForm<PropertyFormData>({
     resolver: zodResolver(propertySchema),
