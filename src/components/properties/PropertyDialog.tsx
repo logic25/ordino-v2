@@ -26,6 +26,7 @@ import type { Property, PropertyFormInput } from "@/hooks/useProperties";
 import { useNYCPropertyLookup } from "@/hooks/useNYCPropertyLookup";
 import { useToast } from "@/hooks/use-toast";
 import { useTelemetry } from "@/hooks/useTelemetry";
+import { AddressAutocomplete } from "@/components/shared/AddressAutocomplete";
 
 const propertySchema = z.object({
   address: z.string().min(5, "Address must be at least 5 characters"),
