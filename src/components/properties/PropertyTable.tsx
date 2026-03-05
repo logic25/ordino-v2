@@ -32,7 +32,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { MoreHorizontal, Pencil, Trash2, Building2, MapPin, ChevronDown, ChevronRight, FolderKanban, FileText, Briefcase, Radio } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Building2, MapPin, ChevronDown, ChevronRight, FolderKanban, FileText, Briefcase, Radio, AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { Property } from "@/hooks/useProperties";
 import type { ApplicationWithProperty } from "@/hooks/useApplications";
 import type { Project } from "@/hooks/useProjects";
@@ -142,12 +143,16 @@ export function PropertyTable({
                 const projectCount = property.projects?.length || 0;
                 const hasSignal = !!property.signalSubscription;
                 const hasChildren = applicationCount > 0 || projectCount > 0 || hasSignal;
+                const missingBBL = !property.borough || !property.block || !property.lot;
 
                 return (
                   <Collapsible key={property.id} asChild open={isExpanded}>
                     <>
                       <TableRow
-                        className="hover:bg-accent/5 cursor-pointer"
+                        className={cn(
+                          "hover:bg-accent/5 cursor-pointer",
+                          missingBBL && "bg-red-500/5 border-l-2 border-l-red-500"
+                        )}
                         onClick={() => navigate(`/properties/${property.id}`)}
                       >
                         <TableCell className="p-2">
@@ -170,12 +175,18 @@ export function PropertyTable({
                         </TableCell>
                         <TableCell>
                           <div className="flex items-start gap-2">
-                            <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                            {missingBBL ? (
+                              <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                            ) : (
+                              <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                            )}
                             <div>
                               <p className="font-medium">{property.address}</p>
-                              {property.zip_code && (
+                              {missingBBL ? (
+                                <p className="text-xs text-red-500 font-medium">Missing BBL data — click Edit to fix</p>
+                              ) : property.zip_code ? (
                                 <p className="text-sm text-muted-foreground">{property.zip_code}</p>
-                              )}
+                              ) : null}
                             </div>
                           </div>
                         </TableCell>

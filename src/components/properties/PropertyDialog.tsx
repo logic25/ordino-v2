@@ -26,6 +26,7 @@ import type { Property, PropertyFormInput } from "@/hooks/useProperties";
 import { useNYCPropertyLookup } from "@/hooks/useNYCPropertyLookup";
 import { useToast } from "@/hooks/use-toast";
 import { useTelemetry } from "@/hooks/useTelemetry";
+import { AddressAutocomplete } from "@/components/shared/AddressAutocomplete";
 
 const propertySchema = z.object({
   address: z.string().min(5, "Address must be at least 5 characters"),
@@ -174,21 +175,20 @@ export function PropertyDialog({
           <div className="space-y-2">
             <Label htmlFor="address">Address *</Label>
             <div className="flex gap-2">
-              <Input
-                id="address"
-                placeholder="350 Fifth Avenue, New York, NY"
-                className="flex-1"
-                {...form.register("address")}
-                onBlur={(e) => {
-                  const val = e.target.value;
-                  const borough = form.getValues("borough");
-                  const block = form.getValues("block");
-                  if (val.length >= 5 && !borough && !block && !hasAutoLooked && !isLookingUp) {
+              <div className="flex-1">
+                <AddressAutocomplete
+                  id="address"
+                  value={form.watch("address") || ""}
+                  onChange={(val) => form.setValue("address", val, { shouldDirty: true })}
+                  onSelect={(result) => {
+                    form.setValue("address", result.label, { shouldDirty: true });
+                    // Auto-trigger lookup with selected address
                     setHasAutoLooked(true);
-                    handleAddressLookup();
-                  }
-                }}
-              />
+                    setTimeout(() => handleAddressLookup(), 100);
+                  }}
+                  placeholder="Start typing an NYC address…"
+                />
+              </div>
               <Button
                 type="button"
                 variant="outline"
@@ -211,7 +211,7 @@ export function PropertyDialog({
               </p>
             )}
             <p className="text-xs text-muted-foreground">
-              Enter a NYC address and click Lookup to auto-fill property details from NYC Open Data
+              Type to see suggestions, then click Lookup to auto-fill BBL data from NYC Open Data
             </p>
           </div>
 

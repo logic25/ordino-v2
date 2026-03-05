@@ -605,6 +605,8 @@ export function ProposalDialog({
   const [contacts, setContacts] = useState<ProposalContactInput[]>([]);
   const [propertyOpen, setPropertyOpen] = useState(false);
   const [propertySearch, setPropertySearch] = useState("");
+  const [geoSuggestions, setGeoSuggestions] = useState<Array<{ label: string; borough: string; zip: string }>>([]);
+  const geoDebounceRef = useRef<ReturnType<typeof setTimeout>>();
   const createProperty = useCreateProperty();
   const updateProperty = useUpdateProperty();
   const { lookupByAddress } = useNYCPropertyLookup();
@@ -1002,46 +1004,114 @@ export function ProposalDialog({
                       </PopoverTrigger>
                       <PopoverContent className="w-[500px] p-0" align="start">
                         <Command shouldFilter={true}>
-                          <CommandInput placeholder="Type an address…" value={propertySearch} onValueChange={setPropertySearch} />
+                          <CommandInput placeholder="Type an address…" value={propertySearch} onValueChange={(val) => {
+                            setPropertySearch(val);
+                            // Fetch NYC GeoSearch suggestions
+                            if (geoDebounceRef.current) clearTimeout(geoDebounceRef.current);
+                            if (val.length >= 3) {
+                              geoDebounceRef.current = setTimeout(async () => {
+                                try {
+                                  const resp = await fetch(`https://geosearch.planninglabs.nyc/v2/autocomplete?text=${encodeURIComponent(val)}`);
+                                  if (resp.ok) {
+                                    const data = await resp.json();
+                                    setGeoSuggestions((data?.features || []).slice(0, 4).map((f: any) => ({
+                                      label: f.properties?.label || f.properties?.name || "",
+                                      borough: f.properties?.borough || "",
+                                      zip: f.properties?.postalcode || "",
+                                    })));
+                                  }
+                                } catch { /* silent */ }
+                              }, 250);
+                            } else {
+                              setGeoSuggestions([]);
+                            }
+                          }} />
                           <CommandList>
                             <CommandEmpty className="p-0">
-                              <button
-                                type="button"
-                                className="w-full px-4 py-3 text-sm text-left hover:bg-muted flex items-center gap-2"
-                                onClick={async () => {
-                                  if (!propertySearch.trim()) return;
-                                  try {
-                                    const newProp = await createProperty.mutateAsync({ address: propertySearch.trim() });
-                                    form.setValue("property_id", newProp.id);
-                                    setPropertySearch("");
-                                    setPropertyOpen(false);
-                                    toast({ title: "Property created", description: `Looking up NYC data for "${newProp.address}"…` });
+                              {geoSuggestions.length > 0 ? (
+                                <div className="border-b">
+                                  <p className="px-3 py-1.5 text-xs font-medium text-muted-foreground">NYC Address Suggestions</p>
+                                  {geoSuggestions.map((s, i) => (
+                                    <button
+                                      key={i}
+                                      type="button"
+                                      className="w-full px-4 py-2.5 text-sm text-left hover:bg-muted flex items-center gap-2"
+                                      onClick={async () => {
+                                        try {
+                                          const newProp = await createProperty.mutateAsync({ address: s.label });
+                                          form.setValue("property_id", newProp.id);
+                                          setPropertySearch("");
+                                          setPropertyOpen(false);
+                                          setGeoSuggestions([]);
+                                          toast({ title: "Property created", description: `Looking up NYC data for "${s.label}"…` });
 
-                                    const nycData = await lookupByAddress(propertySearch.trim());
-                                    if (nycData) {
-                                      const updates: Record<string, any> = {};
-                                      if (nycData.borough) updates.borough = nycData.borough;
-                                      if (nycData.block) updates.block = nycData.block;
-                                      if (nycData.lot) updates.lot = nycData.lot;
-                                      if (nycData.bin) updates.bin = nycData.bin;
-                                      if (nycData.zip_code) updates.zip_code = nycData.zip_code;
-                                      if (nycData.owner_name) updates.owner_name = nycData.owner_name;
-                                      if (Object.keys(updates).length > 0) {
-                                        await updateProperty.mutateAsync({ id: newProp.id, address: newProp.address, ...updates });
-                                        const bbl = [nycData.borough, nycData.block ? `Block ${nycData.block}` : null, nycData.lot ? `Lot ${nycData.lot}` : null].filter(Boolean).join(" · ");
-                                        toast({ title: "✓ NYC Data Found", description: bbl || "Property enriched from NYC Open Data." });
+                                          const nycData = await lookupByAddress(s.label);
+                                          if (nycData) {
+                                            const updates: Record<string, any> = {};
+                                            if (nycData.borough) updates.borough = nycData.borough;
+                                            if (nycData.block) updates.block = nycData.block;
+                                            if (nycData.lot) updates.lot = nycData.lot;
+                                            if (nycData.bin) updates.bin = nycData.bin;
+                                            if (nycData.zip_code) updates.zip_code = nycData.zip_code;
+                                            if (nycData.owner_name) updates.owner_name = nycData.owner_name;
+                                            if (Object.keys(updates).length > 0) {
+                                              await updateProperty.mutateAsync({ id: newProp.id, address: newProp.address, ...updates });
+                                              const bbl = [nycData.borough, nycData.block ? `Block ${nycData.block}` : null, nycData.lot ? `Lot ${nycData.lot}` : null].filter(Boolean).join(" · ");
+                                              toast({ title: "✓ NYC Data Found", description: bbl || "Property enriched." });
+                                            }
+                                          }
+                                        } catch (e: any) {
+                                          toast({ title: "Error", description: e.message, variant: "destructive" });
+                                        }
+                                      }}
+                                    >
+                                      <Plus className="h-4 w-4 shrink-0" />
+                                      <div className="min-w-0">
+                                        <div className="truncate">{s.label}</div>
+                                        {s.borough && <div className="text-xs text-muted-foreground">{s.borough}{s.zip ? ` · ${s.zip}` : ""}</div>}
+                                      </div>
+                                    </button>
+                                  ))}
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="w-full px-4 py-3 text-sm text-left hover:bg-muted flex items-center gap-2"
+                                  onClick={async () => {
+                                    if (!propertySearch.trim()) return;
+                                    try {
+                                      const newProp = await createProperty.mutateAsync({ address: propertySearch.trim() });
+                                      form.setValue("property_id", newProp.id);
+                                      setPropertySearch("");
+                                      setPropertyOpen(false);
+                                      toast({ title: "Property created", description: `Looking up NYC data for "${newProp.address}"…` });
+
+                                      const nycData = await lookupByAddress(propertySearch.trim());
+                                      if (nycData) {
+                                        const updates: Record<string, any> = {};
+                                        if (nycData.borough) updates.borough = nycData.borough;
+                                        if (nycData.block) updates.block = nycData.block;
+                                        if (nycData.lot) updates.lot = nycData.lot;
+                                        if (nycData.bin) updates.bin = nycData.bin;
+                                        if (nycData.zip_code) updates.zip_code = nycData.zip_code;
+                                        if (nycData.owner_name) updates.owner_name = nycData.owner_name;
+                                        if (Object.keys(updates).length > 0) {
+                                          await updateProperty.mutateAsync({ id: newProp.id, address: newProp.address, ...updates });
+                                          const bbl = [nycData.borough, nycData.block ? `Block ${nycData.block}` : null, nycData.lot ? `Lot ${nycData.lot}` : null].filter(Boolean).join(" · ");
+                                          toast({ title: "✓ NYC Data Found", description: bbl || "Property enriched from NYC Open Data." });
+                                        }
+                                      } else {
+                                        toast({ title: "No NYC data found", description: "BBL could not be determined — you can edit the property later to add details manually.", variant: "destructive" });
                                       }
-                                    } else {
-                                      toast({ title: "No NYC data found", description: "BBL could not be determined — you can edit the property later to add details manually.", variant: "destructive" });
+                                    } catch (e: any) {
+                                      toast({ title: "Error", description: e.message, variant: "destructive" });
                                     }
-                                  } catch (e: any) {
-                                    toast({ title: "Error", description: e.message, variant: "destructive" });
-                                  }
-                                }}
-                              >
-                                <Plus className="h-4 w-4" />
-                                Add "{propertySearch}" as new property
-                              </button>
+                                  }}
+                                >
+                                  <Plus className="h-4 w-4" />
+                                  Add "{propertySearch}" as new property
+                                </button>
+                              )}
                             </CommandEmpty>
                             <CommandGroup>
                               {properties.map((p) => (
@@ -1049,6 +1119,7 @@ export function ProposalDialog({
                                   form.setValue("property_id", p.id);
                                   setPropertySearch("");
                                   setPropertyOpen(false);
+                                  setGeoSuggestions([]);
                                 }}>
                                   <Check className={cn("mr-2 h-4 w-4", form.watch("property_id") === p.id ? "opacity-100" : "opacity-0")} />
                                   <span className="truncate">{p.address}</span>
