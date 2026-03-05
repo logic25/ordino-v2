@@ -484,6 +484,12 @@ export default function RfiForm() {
       setIfDiff("contractors_inspections_sia_email", email);
       setIfDiff("contractors_inspections_sia_phone", phone);
       setIfDiff("contractors_inspections_sia_company", company);
+      // Also copy license fields
+      const licNumber = responses["applicant_and_owner_applicant_nys_lic"] || "";
+      const licType = responses["applicant_and_owner_applicant_lic_type"] || "";
+      setIfDiff("contractors_inspections_sia_number", licNumber);
+      setIfDiff("contractors_inspections_sia_nys_lic", licNumber);
+      if (licType) setIfDiff("contractors_inspections_sia_lic_type", licType);
       if (changed) setResponses(newResponses);
     }
   }, [
@@ -492,6 +498,8 @@ export default function RfiForm() {
     responses["applicant_and_owner_applicant_email"],
     responses["applicant_and_owner_applicant_phone"],
     responses["applicant_and_owner_applicant_business_name"],
+    responses["applicant_and_owner_applicant_nys_lic"],
+    responses["applicant_and_owner_applicant_lic_type"],
   ]);
 
   const getRepeatCount = (sectionId: string) => repeatCounts[sectionId] || 1;
