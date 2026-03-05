@@ -22,6 +22,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useRfiByToken, DEFAULT_PIS_SECTIONS, type RfiRequest, type RfiSectionConfig, type RfiFieldConfig } from "@/hooks/useRfi";
 import { usePISContactSuggestions, mapContactToFields } from "@/hooks/usePISContactSuggestions";
+import { useNYCPropertyLookup } from "@/hooks/useNYCPropertyLookup";
 import {
   CheckCircle2,
   ChevronLeft,
@@ -165,6 +166,8 @@ export default function RfiForm() {
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const [previewFile, setPreviewFile] = useState<{ name: string; url: string } | null>(null);
   const [ownerVerified, setOwnerVerified] = useState<boolean | null>(null); // null = not yet decided
+  const nycLookup = useNYCPropertyLookup();
+  const bblLookedUpRef = useRef(false);
 
   // File upload handler
   const handleFileUpload = async (key: string, files: FileList | null, accept?: string, maxFiles?: number) => {
@@ -405,6 +408,38 @@ export default function RfiForm() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [property, rfi, projectData, rfiData?.proposalWorkTypes, rfiData?.applicantContact]);
+
+  // Auto-lookup BBL from NYC open data when property is missing it
+  useEffect(() => {
+    if (isDemo || bblLookedUpRef.current) return;
+    const address = property?.address;
+    if (!address) return;
+    // Only look up if borough/block/lot are all missing
+    if (property.borough || property.block || property.lot) return;
+    bblLookedUpRef.current = true;
+
+    (async () => {
+      const result = await nycLookup.lookupByAddress(address);
+      if (!result) return;
+      setResponses((prev) => {
+        const updated = { ...prev };
+        if (result.borough && !updated["building_and_scope_borough"]) updated["building_and_scope_borough"] = result.borough;
+        if (result.block && !updated["building_and_scope_block"]) updated["building_and_scope_block"] = result.block;
+        if (result.lot && !updated["building_and_scope_lot"]) updated["building_and_scope_lot"] = result.lot;
+        return updated;
+      });
+
+      // Backfill the property record in the database so future forms are pre-filled
+      const propId = rfiData?.propertyId;
+      if (propId) {
+        await supabase.from("properties").update({
+          borough: result.borough || null,
+          block: result.block || null,
+          lot: result.lot || null,
+        }).eq("id", propId);
+      }
+    })();
+  }, [property, isDemo, rfiData?.propertyId]);
 
   // Auto-fill TPP fields when "Same as Applicant" is selected
   useEffect(() => {
