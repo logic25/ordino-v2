@@ -1,38 +1,39 @@
 
 
-## Service Status Lifecycle: Remove "Complete", Keep "Paid"
+## Plan: Backfill Existing Properties & Auto-Lookup for New Ones
 
-**Current state:** The `service_status` enum has 5 values: `not_started → in_progress → complete → billed → paid`
+### Current State
+There are **11 properties** in the database missing Borough/Block/Lot data. The Property Dialog already has a manual "Lookup" button, but it's not triggered automatically.
 
-**Desired state:** `not_started → in_progress → billed → paid`
-- "Complete" is unnecessary — once work is done, the next step is billing, so services go straight from In Progress to Billed.
-- "Paid" stays as the final status, tracked when the associated invoice is marked paid.
+### Part 1: One-Time Backfill via Edge Function
 
-### Changes
+Create a new edge function `backfill-property-bbl` that:
+1. Queries all properties where `borough IS NULL OR block IS NULL OR lot IS NULL`
+2. For each, calls the NYC PLUTO Open Data API (same logic as `useNYCPropertyLookup`)
+3. Updates the property record with found BBL/BIN/zip/owner data
+4. Returns a summary of what was filled vs. not found
 
-**1. Database migration — remove "complete" from the enum**
-- Create a new enum without `complete`, migrate the column, drop old enum
-- Update any services currently set to `complete` → `billed`
+Then add a "Backfill Missing Data" button on the Properties page (admin-only) to trigger it.
 
-**2. Update `auto_advance_project_phase()` function**
-- Currently checks for `status IN ('completed', 'billed')` to advance project phase to closeout
-- Update to check `status IN ('billed', 'paid')`
+**File:** `supabase/functions/backfill-property-bbl/index.ts`
 
-**3. Update reconciliation logic in `useProjectDetail.ts`**
-- Currently jumps from `not_started` to `in_progress` (partial billing) and to `billed` (full billing)
-- Add: when the associated invoice is `paid`, auto-set service status to `paid`
-- No other changes needed since "complete" was never enforced in reconciliation
+### Part 2: Auto-Lookup on New Property Creation
 
-**4. Update `serviceStatusStyles` in `projectMockData.ts`**
-- Remove `complete` entry
-- Add `paid` entry with a green/success style
+Modify `PropertyDialog.tsx` so that when a user types/pastes an address and tabs out (blur event), the NYC lookup fires automatically — no need to click the Lookup button manually. The button remains as a fallback.
 
-**5. Update `useServiceDurationReports.ts`**
-- Currently filters completed services as `["complete", "billed", "paid"]`
-- Update to `["billed", "paid"]`
+**File:** `src/components/properties/PropertyDialog.tsx` — add `onBlur` handler on the address input that triggers `handleAddressLookup` if BBL fields are still empty.
 
-**6. Update service status dropdown in `ProjectExpandedTabs.tsx`**
-- Remove "Complete" option from any manual status selector
-- Add "Paid" if not already present
-- Ensure "Dropped" remains available as a manual override
+### Part 3: Auto-Lookup on Property Save (safety net)
+
+In `useCreateProperty` hook, after creating the property, if BBL is missing, trigger a client-side lookup and update. This ensures even if the user skips the dialog lookup, the data gets filled on save.
+
+**File:** `src/hooks/useProperties.ts` — in `useCreateProperty.mutationFn`, after insert, if `borough/block/lot` are null, call NYC API and update the record.
+
+### Summary of Changes
+| File | Change |
+|------|--------|
+| `supabase/functions/backfill-property-bbl/index.ts` | New edge function to backfill all existing properties |
+| `src/pages/Properties.tsx` | Add "Backfill BBL Data" button for admin |
+| `src/components/properties/PropertyDialog.tsx` | Auto-trigger lookup on address blur |
+| `src/hooks/useProperties.ts` | Post-save auto-lookup safety net |
 
