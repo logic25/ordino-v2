@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building2, Plus, Search, Loader2 } from "lucide-react";
+import { Building2, Plus, Search, Loader2, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PropertyDialog, PropertyFormData } from "@/components/properties/PropertyDialog";
@@ -20,6 +20,8 @@ import { useProjects } from "@/hooks/useProjects";
 import { useSignalSubscriptions } from "@/hooks/useSignalSubscriptions";
 import { useSignalViolationCounts } from "@/hooks/useSignalViolations";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function Properties() {
   const navigate = useNavigate();
@@ -27,7 +29,9 @@ export default function Properties() {
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [signalFilter, setSignalFilter] = useState("all");
+  const [isBackfilling, setIsBackfilling] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: properties = [], isLoading: propertiesLoading } = useProperties();
   const { data: applications = [], isLoading: applicationsLoading } = useApplications();
@@ -115,6 +119,23 @@ export default function Properties() {
     navigate(`/proposals?property=${propertyId}`);
   };
 
+  const handleBackfillBBL = async () => {
+    setIsBackfilling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("backfill-property-bbl");
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["properties"] });
+      toast({
+        title: "Backfill complete",
+        description: `${data.updated} of ${data.total} properties updated. ${data.notFound} not found.`,
+      });
+    } catch (err: any) {
+      toast({ title: "Backfill failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsBackfilling(false);
+    }
+  };
+
   // Signal filter counts
   const signalCounts = useMemo(() => {
     let active = 0, prospects = 0, notMonitored = 0;
@@ -137,14 +158,29 @@ export default function Properties() {
               Buildings and addresses with DOB applications
             </p>
           </div>
-          <Button
-            size="sm"
-            className="bg-accent text-accent-foreground hover:bg-accent/90"
-            onClick={handleOpenCreate}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Property
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleBackfillBBL}
+              disabled={isBackfilling}
+            >
+              {isBackfilling ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Backfill BBL Data
+            </Button>
+            <Button
+              size="sm"
+              className="bg-accent text-accent-foreground hover:bg-accent/90"
+              onClick={handleOpenCreate}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Property
+            </Button>
+          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">

@@ -69,6 +69,7 @@ export function PropertyDialog({
   const { toast } = useToast();
   const { track } = useTelemetry();
   const [addressToLookup, setAddressToLookup] = useState("");
+  const [hasAutoLooked, setHasAutoLooked] = useState(false);
 
   const form = useForm<PropertyFormData>({
     resolver: zodResolver(propertySchema),
@@ -99,6 +100,7 @@ export function PropertyDialog({
         notes: property.notes || "",
       });
       setAddressToLookup(property.address || "");
+      setHasAutoLooked(true); // Don't auto-lookup when editing
     } else {
       form.reset({
         address: "",
@@ -112,6 +114,7 @@ export function PropertyDialog({
         notes: "",
       });
       setAddressToLookup("");
+      setHasAutoLooked(false);
     }
   }, [property, form]);
 
@@ -176,6 +179,15 @@ export function PropertyDialog({
                 placeholder="350 Fifth Avenue, New York, NY"
                 className="flex-1"
                 {...form.register("address")}
+                onBlur={(e) => {
+                  const val = e.target.value;
+                  const borough = form.getValues("borough");
+                  const block = form.getValues("block");
+                  if (val.length >= 5 && !borough && !block && !hasAutoLooked && !isLookingUp) {
+                    setHasAutoLooked(true);
+                    handleAddressLookup();
+                  }
+                }}
               />
               <Button
                 type="button"
