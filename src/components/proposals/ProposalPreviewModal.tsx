@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Send, X, Printer, Link2, Copy, CheckCircle2 } from "lucide-react";
+import { Send, X, Printer, Link2, Copy, CheckCircle2, PenLine } from "lucide-react";
 import type { ProposalWithRelations } from "@/hooks/useProposals";
 import { useProposalContacts } from "@/hooks/useProposalContacts";
 import { useQuery } from "@tanstack/react-query";
