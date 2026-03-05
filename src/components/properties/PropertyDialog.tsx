@@ -156,8 +156,9 @@ export function PropertyDialog({
 
   const handleSubmit = async (data: PropertyFormData) => {
     track("properties", isEditing ? "create_completed" : "create_completed", { is_edit: isEditing });
-    await onSubmit(data);
+    await onSubmit({ ...data, aka_addresses: pendingAkas.length > 0 ? pendingAkas : undefined });
     form.reset();
+    setPendingAkas([]);
   };
 
   return (
