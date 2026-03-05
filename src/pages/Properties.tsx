@@ -81,12 +81,12 @@ export default function Properties() {
       return true;
     });
 
-    // Sort: properties missing BBL data to top
+    // Sort: properties with BBL issues to top
     return filtered.sort((a, b) => {
-      const aMissing = !a.borough || !a.block || !a.lot;
-      const bMissing = !b.borough || !b.block || !b.lot;
-      if (aMissing && !bMissing) return -1;
-      if (!aMissing && bMissing) return 1;
+      const aIssue = !a.borough || !a.block || !a.lot || a.bbl_verified === false;
+      const bIssue = !b.borough || !b.block || !b.lot || b.bbl_verified === false;
+      if (aIssue && !bIssue) return -1;
+      if (!aIssue && bIssue) return 1;
       return 0;
     });
   }, [propertiesWithAll, searchQuery, signalFilter]);

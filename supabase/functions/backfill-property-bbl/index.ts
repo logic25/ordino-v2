@@ -249,10 +249,9 @@ Deno.serve(async (req) => {
       try {
         const lookupData = await lookupAddress(prop.address);
         if (lookupData) {
-          const updates: Record<string, string> = {};
+          const updates: Record<string, any> = { bbl_verified: true };
 
           if (forceOverwrite) {
-            // Overwrite all fields with fresh lookup data
             if (lookupData.borough) updates.borough = lookupData.borough;
             if (lookupData.block) updates.block = lookupData.block;
             if (lookupData.lot) updates.lot = lookupData.lot;
@@ -260,7 +259,6 @@ Deno.serve(async (req) => {
             if (lookupData.zip_code) updates.zip_code = lookupData.zip_code;
             if (lookupData.owner_name) updates.owner_name = lookupData.owner_name;
           } else {
-            // Only fill missing fields
             if (!prop.borough && lookupData.borough) updates.borough = lookupData.borough;
             if (!prop.block && lookupData.block) updates.block = lookupData.block;
             if (!prop.lot && lookupData.lot) updates.lot = lookupData.lot;
@@ -269,13 +267,11 @@ Deno.serve(async (req) => {
             if (!prop.owner_name && lookupData.owner_name) updates.owner_name = lookupData.owner_name;
           }
 
-          if (Object.keys(updates).length > 0) {
-            await supabase.from("properties").update(updates).eq("id", prop.id);
-            results.push({ id: prop.id, address: prop.address, status: "updated", details: JSON.stringify(updates) });
-          } else {
-            results.push({ id: prop.id, address: prop.address, status: "already_complete" });
-          }
+          await supabase.from("properties").update(updates).eq("id", prop.id);
+          results.push({ id: prop.id, address: prop.address, status: "updated", details: JSON.stringify(updates) });
         } else {
+          // Mark as unverified so UI can flag it
+          await supabase.from("properties").update({ bbl_verified: false }).eq("id", prop.id);
           results.push({ id: prop.id, address: prop.address, status: "not_found" });
         }
         await new Promise((r) => setTimeout(r, 300));

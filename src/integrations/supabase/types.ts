@@ -5272,6 +5272,7 @@ export type Database = {
       properties: {
         Row: {
           address: string
+          bbl_verified: boolean | null
           bin: string | null
           block: string | null
           borough: string | null
@@ -5288,6 +5289,7 @@ export type Database = {
         }
         Insert: {
           address: string
+          bbl_verified?: boolean | null
           bin?: string | null
           block?: string | null
           borough?: string | null
@@ -5304,6 +5306,7 @@ export type Database = {
         }
         Update: {
           address?: string
+          bbl_verified?: boolean | null
           bin?: string | null
           block?: string | null
           borough?: string | null
