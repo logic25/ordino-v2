@@ -75,6 +75,7 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
       { id: "scope_heading", label: "Scope of Work & Cost Breakdown", type: "heading" },
       { id: "job_description", label: "Job Description", type: "textarea", required: true, width: "full", placeholder: "Describe the work in detail..." },
       { id: "work_types", label: "Select Applicable Work Types", type: "work_type_picker", width: "full", options: ["Architectural", "Structural", "Mechanical", "Plumbing", "Sprinkler", "Fire Alarm", "Fire Suppression", "Standpipe", "Fuel Burning", "Boiler", "Fuel Storage", "Curb Cut", "Other"] },
+      { id: "filing_type", label: "Filing Type", type: "select", options: ["Plan Exam", "Pro-Cert", "TBD"], width: "half" },
       { id: "directive_14", label: "Directive 14?", type: "select", options: ["Yes", "No"], width: "half" },
       { id: "plans_upload", label: "Upload Plans / Drawings", type: "file_upload", width: "full", accept: ".pdf,.dwg,.dxf,.jpg,.jpeg,.png", maxFiles: 10, placeholder: "PDF, DWG, DXF, JPG, or PNG files" },
     ],
@@ -84,7 +85,6 @@ export const DEFAULT_PIS_SECTIONS: RfiSectionConfig[] = [
     title: "Applicant & Building Owner",
     description: "Licensed professional and building owner details",
     fields: [
-      { id: "filing_type", label: "Filing Type", type: "select", options: ["Plan Exam", "Pro-Cert", "TBD"], width: "half" },
       { id: "applicant_heading", label: "Applicant (Architect / Engineer)", type: "heading", repeatableGroup: true, maxRepeatGroup: 5 },
       { id: "applicant_first_name", label: "Full Name", type: "text", required: true, width: "half" },
       { id: "applicant_business_name", label: "Business Name", type: "text", width: "full" },

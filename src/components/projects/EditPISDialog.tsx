@@ -51,6 +51,7 @@ const PIS_SECTIONS: PisSection[] = [
       { id: "sq_ft", label: "Area (sq ft)", type: "number", width: "half", optional: true },
       { id: "job_description", label: "Job Description", type: "textarea", width: "full", placeholder: "Describe the scope of work..." },
       { id: "work_types", label: "Work Types", type: "checkbox_group", width: "full", options: ["Architectural", "Structural", "Mechanical", "Plumbing", "Sprinkler", "Fire Alarm", "Fire Suppression", "Standpipe", "Fuel Burning", "Boiler", "Fuel Storage", "Curb Cut", "Other"], optional: true },
+      { id: "estimated_job_cost", label: "Estimated Job Cost ($)", type: "number", width: "half", optional: true, placeholder: "e.g. 50000" },
       { id: "filing_type", label: "Filing Type", type: "select", options: ["Plan Exam", "Pro-Cert", "TBD"], width: "half" },
       { id: "directive_14", label: "Directive 14?", type: "select", options: ["Yes", "No"], width: "half" },
     ],
@@ -392,21 +393,26 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
     toast({ title: "Pre-filled", description: `Data cloned from "${priorPIS.projectName}". Review and save.` });
   };
 
-  // Fetch proposal job_description if project was created from a proposal
-  const { data: proposalJobDesc } = useQuery({
-    queryKey: ["proposal-job-desc", projectId],
+  // Fetch proposal job_description and project filing_type + proposal disciplines
+  const { data: projectAutoFill } = useQuery({
+    queryKey: ["pis-auto-fill", projectId],
     queryFn: async () => {
-      const { data: project } = await supabase
-        .from("projects")
-        .select("proposal_id")
+      const { data: project } = await (supabase
+        .from("projects") as any)
+        .select("proposal_id, filing_type")
         .eq("id", projectId)
         .single();
-      if (!project?.proposal_id) return null;
+      if (!project?.proposal_id) return { jobDesc: null, filingType: project?.filing_type || null, workTypes: [] as string[] };
       const { data: proposal } = await (supabase.from("proposals") as any)
-        .select("job_description")
+        .select("job_description, items:proposal_items(disciplines, is_optional)")
         .eq("id", project.proposal_id)
         .single();
-      return (proposal?.job_description as string) || null;
+      const jobDesc = (proposal?.job_description as string) || null;
+      const items: any[] = proposal?.items || [];
+      const workTypes = [...new Set(
+        items.filter((i: any) => !i.is_optional).flatMap((i: any) => i.disciplines || [])
+      )] as string[];
+      return { jobDesc, filingType: project?.filing_type || null, workTypes };
     },
     enabled: !!projectId && open,
   });
@@ -442,14 +448,22 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
       }
     }
     // Pre-fill job_description from proposal if not already filled
-    if (!mapped["job_description"] && proposalJobDesc) {
-      mapped["job_description"] = proposalJobDesc;
+    if (!mapped["job_description"] && projectAutoFill?.jobDesc) {
+      mapped["job_description"] = projectAutoFill.jobDesc;
+    }
+    // Auto-fill filing_type from project record
+    if (!mapped["filing_type"] && projectAutoFill?.filingType) {
+      mapped["filing_type"] = projectAutoFill.filingType;
+    }
+    // Auto-fill work_types from proposal disciplines
+    if (!mapped["work_types"] && projectAutoFill?.workTypes?.length) {
+      mapped["work_types"] = projectAutoFill.workTypes.join(",");
     }
     // Load same_as flags
     if (resp["tpp_same_as"]) mapped["tpp_same_as"] = String(resp["tpp_same_as"]);
     if (resp["sia_same_as"]) mapped["sia_same_as"] = String(resp["sia_same_as"]);
     setValues(mapped);
-  }, [rfiData, proposalJobDesc]);
+  }, [rfiData, projectAutoFill]);
 
   const updateValue = (key: string, value: string) => {
     setValues((prev) => ({ ...prev, [key]: value }));
