@@ -305,7 +305,7 @@ export default function RfiForm() {
           const baseOpts = field.options || [];
           const merged = [...baseOpts];
           for (const wt of proposalWorkTypes) {
-            if (!VALID_DOB_WORK_TYPES.has(wt)) continue; // Skip non-DOB disciplines
+            if (!VALID_WORK_TYPES.has(wt)) continue; // Skip non-standard disciplines
             if (!merged.includes(wt)) {
               const otherIdx = merged.indexOf("Other");
               if (otherIdx >= 0) {
