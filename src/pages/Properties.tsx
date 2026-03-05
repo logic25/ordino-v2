@@ -158,14 +158,29 @@ export default function Properties() {
               Buildings and addresses with DOB applications
             </p>
           </div>
-          <Button
-            size="sm"
-            className="bg-accent text-accent-foreground hover:bg-accent/90"
-            onClick={handleOpenCreate}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Property
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleBackfillBBL}
+              disabled={isBackfilling}
+            >
+              {isBackfilling ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Backfill BBL Data
+            </Button>
+            <Button
+              size="sm"
+              className="bg-accent text-accent-foreground hover:bg-accent/90"
+              onClick={handleOpenCreate}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Property
+            </Button>
+          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
