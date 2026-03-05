@@ -7340,6 +7340,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_public_token: {
+        Args: { target_company_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           required_role: Database["public"]["Enums"]["user_role"]
