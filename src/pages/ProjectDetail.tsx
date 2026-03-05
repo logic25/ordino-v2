@@ -412,6 +412,7 @@ export default function ProjectDetail() {
           propertyAddress={project.properties?.address || ""}
           ownerName={(project as any).building_owner_name || primaryContact?.name}
           contactEmail={primaryContact?.email}
+          contacts={contacts}
         />
 
         {/* Main Tabbed Content */}
