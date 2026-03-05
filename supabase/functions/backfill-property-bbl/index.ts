@@ -300,6 +300,11 @@ Deno.serve(async (req) => {
             if (!prop.owner_name && lookupData.owner_name) updates.owner_name = lookupData.owner_name;
           }
 
+          // Fetch AKA addresses from PAD using BIN
+          const resolvedBin = lookupData.bin || prop.bin;
+          const akas = await fetchAkaAddresses(resolvedBin);
+          if (akas.length > 0) updates.aka_addresses = akas;
+
           await supabase.from("properties").update(updates).eq("id", prop.id);
           results.push({ id: prop.id, address: prop.address, status: "updated", details: JSON.stringify(updates) });
         } else {
