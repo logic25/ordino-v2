@@ -53,8 +53,28 @@ async function lookupAddress(address: string) {
   if (street.length < 3) return null;
 
   const boroFilter = boroCode ? ` AND borocode='${boroCode}'` : "";
+  const houseMatch = street.match(/^(\d+[-\d]*)\s+(.+)$/);
 
-  // Strategy 1: PLUTO
+  // Strategy 1a: PLUTO with house number + street name as separate fields
+  if (houseMatch) {
+    const houseNum = houseMatch[1];
+    const streetName = houseMatch[2];
+    const plutoSplitUrl = `https://data.cityofnewyork.us/resource/64uk-42ks.json?$where=address='${encodeURIComponent(houseNum)}' AND upper(stname) like '%25${encodeURIComponent(streetName.split(/\s+/)[0])}%25'${encodeURIComponent(boroFilter)}&$limit=5`;
+    const splitResp = await fetch(plutoSplitUrl);
+    if (splitResp.ok) {
+      const splitData = await splitResp.json();
+      if (splitData?.length > 0) {
+        const p = splitData[0];
+        return {
+          bin: p.bin || null, block: p.block || null, lot: p.lot || null,
+          borough: BOROUGH_CODES[p.borocode] || p.borough || null,
+          zip_code: p.zipcode || null, owner_name: p.ownername || null,
+        };
+      }
+    }
+  }
+
+  // Strategy 1b: PLUTO with full address string
   const plutoUrl = `https://data.cityofnewyork.us/resource/64uk-42ks.json?$where=upper(address) like '%25${encodeURIComponent(street)}%25'${encodeURIComponent(boroFilter)}&$limit=5`;
   const response = await fetch(plutoUrl);
   if (response.ok) {
@@ -62,12 +82,9 @@ async function lookupAddress(address: string) {
     if (data?.length > 0) {
       const p = data[0];
       return {
-        bin: p.bin || null,
-        block: p.block || null,
-        lot: p.lot || null,
+        bin: p.bin || null, block: p.block || null, lot: p.lot || null,
         borough: BOROUGH_CODES[p.borocode] || p.borough || null,
-        zip_code: p.zipcode || null,
-        owner_name: p.ownername || null,
+        zip_code: p.zipcode || null, owner_name: p.ownername || null,
       };
     }
   }
