@@ -732,7 +732,7 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
       const pisUrl = `${window.location.origin}/rfi?token=${rfiRecord.access_token}`;
       const recipientName = rfiRecord.recipient_name || "there";
       const subject = `Reminder: Project Information Sheet — ${projectName || "Your Project"}`;
-      const htmlBody = `
+      const innerBody = `
         <p>Hi ${recipientName},</p>
         <p>This is a friendly reminder to complete the <strong>Project Information Sheet</strong> for <strong>${projectName || "your project"}</strong>${propertyAddress ? ` at ${propertyAddress}` : ""}.</p>
         <p>The form is partially complete. Please click the link below to finish filling it out:</p>
@@ -740,6 +740,7 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
         <p>If you've already submitted this, please disregard this message.</p>
         <p>Thank you,<br/>${companyData?.name || "Our Team"}</p>
       `;
+      const htmlBody = wrapEmailForSending(innerBody, companyData?.settings?.company_logo_url);
 
       const { error: sendErr } = await supabase.functions.invoke("gmail-send", {
         body: { to: reminderEmail, subject, html_body: htmlBody },
