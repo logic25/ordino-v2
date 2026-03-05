@@ -238,9 +238,16 @@ export function ChangeOrderDetailSheet({
         .limit(1);
 
       if (!contacts || contacts.length === 0 || !(contacts[0] as any).email) {
+        // Look up client name for a better error message
+        const { data: clientData } = await supabase
+          .from("clients")
+          .select("name")
+          .eq("id", clientId)
+          .maybeSingle();
+        const clientName = (clientData as any)?.name || "this client";
         toast({
           title: "No client email found",
-          description: "Add a contact with an email address to this client before sending.",
+          description: `Add a contact with an email address to "${clientName}" (Companies → ${clientName} → Contacts) before sending.`,
           variant: "destructive",
         });
         return;
