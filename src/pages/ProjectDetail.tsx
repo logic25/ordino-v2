@@ -663,9 +663,10 @@ function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWi
 
 // ======== READINESS CHECKLIST ========
 
-function ReadinessChecklist({ items, pisStatus, projectId, projectName, propertyAddress, ownerName, contactEmail }: {
+function ReadinessChecklist({ items, pisStatus, projectId, projectName, propertyAddress, ownerName, contactEmail, contacts = [] }: {
   items: ChecklistItem[]; pisStatus: MockPISStatus; projectId: string;
   projectName?: string; propertyAddress?: string; ownerName?: string; contactEmail?: string;
+  contacts?: Array<{ id?: string; name: string; email?: string; phone?: string; [key: string]: any }>;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [showReceived, setShowReceived] = useState(false);
