@@ -412,6 +412,7 @@ export default function ProjectDetail() {
           propertyAddress={project.properties?.address || ""}
           ownerName={(project as any).building_owner_name || primaryContact?.name}
           contactEmail={primaryContact?.email}
+          contacts={contacts}
         />
 
         {/* Main Tabbed Content */}
@@ -662,9 +663,10 @@ function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWi
 
 // ======== READINESS CHECKLIST ========
 
-function ReadinessChecklist({ items, pisStatus, projectId, projectName, propertyAddress, ownerName, contactEmail }: {
+function ReadinessChecklist({ items, pisStatus, projectId, projectName, propertyAddress, ownerName, contactEmail, contacts = [] }: {
   items: ChecklistItem[]; pisStatus: MockPISStatus; projectId: string;
   projectName?: string; propertyAddress?: string; ownerName?: string; contactEmail?: string;
+  contacts?: Array<{ id?: string; name: string; email?: string; phone?: string; [key: string]: any }>;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [showReceived, setShowReceived] = useState(false);
@@ -726,7 +728,7 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
 
     setSendingReminder(true);
     try {
-      const pisUrl = `${window.location.origin}/rfi/${rfiRecord.access_token}`;
+      const pisUrl = `${window.location.origin}/rfi?token=${rfiRecord.access_token}`;
       const recipientName = rfiRecord.recipient_name || "there";
       const subject = `Reminder: Project Information Sheet — ${projectName || "Your Project"}`;
       const htmlBody = `
@@ -1187,6 +1189,18 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
+          {/* Show current recipient */}
+          {rfiRecord?.recipient_name && (
+            <div className="flex items-center gap-2 p-2.5 rounded-md bg-muted/50 border">
+              <User className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div className="text-sm">
+                <span className="font-medium">{rfiRecord.recipient_name}</span>
+                {rfiRecord.recipient_email && (
+                  <span className="text-muted-foreground ml-1.5">({rfiRecord.recipient_email})</span>
+                )}
+              </div>
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label htmlFor="reminder-email" className="text-sm">Recipient Email</Label>
             <Input
@@ -1196,16 +1210,41 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
               onChange={(e) => setReminderEmail(e.target.value)}
               placeholder="client@example.com"
             />
-            {rfiRecord?.recipient_email && reminderEmail !== rfiRecord.recipient_email && (
-              <button
-                type="button"
-                className="text-xs text-primary hover:underline"
-                onClick={() => setReminderEmail(rfiRecord.recipient_email!)}
-              >
-                Reset to original: {rfiRecord.recipient_email}
-              </button>
-            )}
           </div>
+          {/* Quick-pick from project contacts */}
+          {contacts.length > 0 && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Or pick a contact</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {contacts
+                  .filter((c: any) => c.email)
+                  .slice(0, 6)
+                  .map((c: any) => (
+                    <button
+                      key={c.id || c.email}
+                      type="button"
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                        reminderEmail === c.email
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-muted/50 hover:bg-muted border-border"
+                      }`}
+                      onClick={() => setReminderEmail(c.email)}
+                    >
+                      {c.name || c.email}
+                    </button>
+                  ))}
+              </div>
+            </div>
+          )}
+          {rfiRecord?.recipient_email && reminderEmail !== rfiRecord.recipient_email && (
+            <button
+              type="button"
+              className="text-xs text-primary hover:underline"
+              onClick={() => setReminderEmail(rfiRecord.recipient_email!)}
+            >
+              Reset to original: {rfiRecord.recipient_email}
+            </button>
+          )}
         </div>
         <div className="flex justify-end gap-2 mt-2">
           <Button variant="outline" onClick={() => setShowReminderDialog(false)}>Cancel</Button>
