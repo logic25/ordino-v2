@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import { WORK_TYPE_DISCIPLINES } from "@/hooks/useCompanySettings";
 import { formatPhoneNumber } from "@/lib/formatters";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -252,12 +253,8 @@ export default function RfiForm() {
   // Proposal work types for merging into picker options
   const proposalWorkTypes: string[] = rfiData?.proposalWorkTypes || [];
 
-  // Valid DOB work types — only these should appear in the PIS work type picker
-  const VALID_DOB_WORK_TYPES = new Set([
-    "Architectural", "Structural", "Mechanical", "Plumbing",
-    "Sprinkler", "Fire Alarm", "Fire Suppression", "Standpipe",
-    "Fuel Burning", "Boiler", "Fuel Storage", "Curb Cut", "Other",
-  ]);
+  // Valid work types — use the canonical list from company settings
+  const VALID_WORK_TYPES = new Set([...WORK_TYPE_DISCIPLINES, "Other"]);
 
   const sections = useMemo(() => {
     const baseSections = rfi?.sections || [];
@@ -308,7 +305,7 @@ export default function RfiForm() {
           const baseOpts = field.options || [];
           const merged = [...baseOpts];
           for (const wt of proposalWorkTypes) {
-            if (!VALID_DOB_WORK_TYPES.has(wt)) continue; // Skip non-DOB disciplines
+            if (!VALID_WORK_TYPES.has(wt)) continue; // Skip non-standard disciplines
             if (!merged.includes(wt)) {
               const otherIdx = merged.indexOf("Other");
               if (otherIdx >= 0) {
