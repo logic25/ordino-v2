@@ -86,6 +86,7 @@ export function useCreateProperty() {
           notes: property.notes || null,
           aka_addresses: property.aka_addresses || [],
           company_id: profile.company_id,
+          bbl_verified: !!(property.borough && property.block && property.lot),
         })
         .select()
         .single();
@@ -116,6 +117,7 @@ export function useCreateProperty() {
               if (!data.zip_code && p.zipcode) updates.zip_code = p.zipcode;
               if (!data.owner_name && p.ownername) updates.owner_name = p.ownername;
               if (Object.keys(updates).length > 0) {
+                (updates as Record<string, unknown>).bbl_verified = true;
                 await supabase.from("properties").update(updates).eq("id", data.id);
               }
             }
