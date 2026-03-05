@@ -10,7 +10,6 @@ export interface NYCPropertyData {
   address?: string;
 }
 
-// NYC Borough codes mapping
 const BOROUGH_CODES: Record<string, string> = {
   "1": "Manhattan",
   "2": "Bronx",
@@ -28,12 +27,17 @@ const BOROUGH_NAME_TO_CODE: Record<string, string> = {
   "staten island": "5",
 };
 
-// Patterns to strip city/state/zip from end of address
 const STRIP_PATTERNS = [
   /,?\s*(new\s*york|nyc|ny|manhattan|bronx|the\s+bronx|brooklyn|queens|staten\s*island)\s*(,?\s*(ny|new\s*york))?\s*\d{0,5}\s*$/i,
   /,?\s*(ny|new\s*york)\s*\d{0,5}\s*$/i,
   /\s+\d{5}(-\d{4})?\s*$/,
 ];
+
+const SPELLED_NUMBERS: Record<string, string> = {
+  FIRST: "1", SECOND: "2", THIRD: "3", FOURTH: "4", FIFTH: "5",
+  SIXTH: "6", SEVENTH: "7", EIGHTH: "8", NINTH: "9", TENTH: "10",
+  ELEVENTH: "11", TWELFTH: "12", THIRTEENTH: "13",
+};
 
 function parseAddress(raw: string): { street: string; boroCode: string | null } {
   let detectedBoroCode: string | null = null;
@@ -54,51 +58,83 @@ function parseAddress(raw: string): { street: string; boroCode: string | null } 
   return { street, boroCode: detectedBoroCode };
 }
 
-/**
- * Extract the street name (without house number) from an address string.
- * e.g. "1136 OGDEN AVENUE" → "OGDEN AVENUE"
- */
+/** Remove house number from address: "1136 OGDEN AVE" → "OGDEN AVE" */
 function extractStreetName(address: string): string {
   return address.trim().toUpperCase().replace(/^\d+[-\d]*\s+/, "").trim();
 }
 
 /**
- * Normalize common street suffixes for comparison.
+ * Aggressively normalize a street name for comparison.
+ * Handles: suffixes, ordinals, spelled numbers, directionals, common typos.
  */
 function normalizeStreet(street: string): string {
-  return street
-    .toUpperCase()
-    .replace(/\bAVENUE\b/g, "AVE")
-    .replace(/\bSTREET\b/g, "ST")
-    .replace(/\bBOULEVARD\b/g, "BLVD")
-    .replace(/\bDRIVE\b/g, "DR")
-    .replace(/\bROAD\b/g, "RD")
-    .replace(/\bPLACE\b/g, "PL")
-    .replace(/\bCOURT\b/g, "CT")
-    .replace(/\bLANE\b/g, "LN")
-    .replace(/\bTERRACE\b/g, "TER")
-    .replace(/\bPARKWAY\b/g, "PKWY")
-    .replace(/[.,\s]+/g, " ")
-    .trim();
+  let s = street.toUpperCase().trim();
+
+  // Directional expansions (normalize to full form)
+  s = s.replace(/\bN\.?\b/g, "NORTH");
+  s = s.replace(/\bS\.?\b/g, "SOUTH");
+  s = s.replace(/\bE\.?\b/g, "EAST");
+  s = s.replace(/\bW\.?\b/g, "WEST");
+
+  // Suffix normalization (both directions → abbreviation)
+  s = s.replace(/\bAVENUE\b/g, "AVE");
+  s = s.replace(/\bSTREET\b/g, "ST");
+  s = s.replace(/\bBOULEVARD\b/g, "BLVD");
+  s = s.replace(/\bBVLD\b/g, "BLVD"); // common typo
+  s = s.replace(/\bDRIVE\b/g, "DR");
+  s = s.replace(/\bROAD\b/g, "RD");
+  s = s.replace(/\bPLACE\b/g, "PL");
+  s = s.replace(/\bCOURT\b/g, "CT");
+  s = s.replace(/\bLANE\b/g, "LN");
+  s = s.replace(/\bTERRACE\b/g, "TER");
+  s = s.replace(/\bPARKWAY\b/g, "PKWY");
+  s = s.replace(/\bPLAZA\b/g, "PLZ");
+  s = s.replace(/\bCIRCLE\b/g, "CIR");
+  s = s.replace(/\bEXPRESSWAY\b/g, "EXPY");
+  s = s.replace(/\bTURNPIKE\b/g, "TPKE");
+  s = s.replace(/\bHIGHWAY\b/g, "HWY");
+  s = s.replace(/\bCENTER\b/g, "CTR");
+  s = s.replace(/\bCENTRE\b/g, "CTR");
+
+  // Spelled-out numbers → digits: "SEVENTH" → "7"
+  for (const [word, num] of Object.entries(SPELLED_NUMBERS)) {
+    s = s.replace(new RegExp(`\\b${word}\\b`, "g"), num);
+  }
+
+  // Ordinals → plain digits: "33RD" → "33", "5TH" → "5", "1ST" → "1", "2ND" → "2"
+  s = s.replace(/\b(\d+)(?:ST|ND|RD|TH)\b/g, "$1");
+
+  // "OF THE" filler words
+  s = s.replace(/\bOF\s+THE\b/g, "");
+  s = s.replace(/\bOF\b/g, "");
+
+  // Collapse whitespace/punctuation
+  s = s.replace(/[.,#\-\s]+/g, " ").trim();
+
+  return s;
 }
 
-/**
- * Check if two street names refer to the same street.
- */
-function streetNamesMatch(inputStreet: string, returnedStreet: string): boolean {
-  const a = normalizeStreet(extractStreetName(inputStreet));
-  const b = normalizeStreet(extractStreetName(returnedStreet));
+/** Check if two addresses refer to the same street */
+function streetNamesMatch(inputAddr: string, returnedAddr: string): boolean {
+  const a = normalizeStreet(extractStreetName(inputAddr));
+  const b = normalizeStreet(extractStreetName(returnedAddr));
   if (!a || !b) return false;
-  // Exact match after normalization
   if (a === b) return true;
-  // Check if one contains the other (handles "OGDEN AVE" vs "OGDEN AVE EAST")
-  return a.includes(b) || b.includes(a);
+  // Check containment for partial matches
+  if (a.includes(b) || b.includes(a)) return true;
+  // Extract core words (drop suffix) and compare
+  const aWords = a.split(" ");
+  const bWords = b.split(" ");
+  const aCoreSet = new Set(aWords.slice(0, -1).length > 0 ? aWords.slice(0, -1) : aWords);
+  const bCoreSet = new Set(bWords.slice(0, -1).length > 0 ? bWords.slice(0, -1) : bWords);
+  // Check if core words overlap
+  for (const w of aCoreSet) {
+    if (bCoreSet.has(w)) return true;
+  }
+  return false;
 }
 
-/**
- * Cross-verify a GeoSearch BBL result against PLUTO to confirm accuracy.
- * Returns the PLUTO record if verified, null if mismatch or not found.
- */
+/** Cross-verify GeoSearch BBL against PLUTO */
 async function verifyBBLWithPLUTO(
   boroCode: string,
   paddedBlock: string,
@@ -118,10 +154,9 @@ async function verifyBBLWithPLUTO(
     const plutoAddress = data[0].address || "";
     const owner_name = data[0].ownername || undefined;
 
-    // Verify the PLUTO address street matches our input street
     if (plutoAddress && !streetNamesMatch(inputAddress, plutoAddress)) {
       console.warn(
-        `[NYC Verify] Street mismatch! Input="${extractStreetName(inputAddress)}", PLUTO="${plutoAddress}". Rejecting BBL.`
+        `[NYC Verify] Street mismatch! Input="${extractStreetName(inputAddress)}" → "${normalizeStreet(extractStreetName(inputAddress))}", PLUTO="${plutoAddress}" → "${normalizeStreet(extractStreetName(plutoAddress))}". Rejecting BBL.`
       );
       return { verified: false, plutoAddress };
     }
@@ -129,7 +164,6 @@ async function verifyBBLWithPLUTO(
     console.log("[NYC Verify] PLUTO confirmed BBL. PLUTO address:", plutoAddress);
     return { verified: true, owner_name, plutoAddress };
   } catch {
-    // If PLUTO is down, we can't verify — treat as unverified
     console.warn("[NYC Verify] PLUTO verification failed, skipping");
     return { verified: false };
   }
@@ -154,7 +188,7 @@ export function useNYCPropertyLookup() {
       const inputHouseMatch = address.trim().match(/^(\d+[-\d]*)/);
       const inputHouseNum = inputHouseMatch ? inputHouseMatch[1] : null;
 
-      // Strategy 1: NYC GeoSearch API → then cross-verify with PLUTO
+      // Strategy 1: NYC GeoSearch → cross-verify with PLUTO
       try {
         const geoUrl = `https://geosearch.planninglabs.nyc/v2/search?text=${encodeURIComponent(address)}&size=1`;
         console.log("[NYC Lookup] GeoSearch query:", geoUrl);
@@ -166,18 +200,12 @@ export function useNYCPropertyLookup() {
             const props = feature.properties;
             const returnedHouseNum = props?.housenumber;
 
-            // Reject if house number doesn't match
             if (inputHouseNum && returnedHouseNum && inputHouseNum !== returnedHouseNum) {
-              console.warn(
-                `[NYC Lookup] House number mismatch: input="${inputHouseNum}", returned="${returnedHouseNum}". Skipping.`
-              );
+              console.warn(`[NYC Lookup] House number mismatch: input="${inputHouseNum}", returned="${returnedHouseNum}". Skipping.`);
             } else {
-              // Also verify street name from GeoSearch result
               const geoLabel = props?.name || props?.label || "";
               if (geoLabel && !streetNamesMatch(address, geoLabel)) {
-                console.warn(
-                  `[NYC Lookup] Street name mismatch: input="${extractStreetName(address)}", geo="${geoLabel}". Skipping.`
-                );
+                console.warn(`[NYC Lookup] Street mismatch: input="${normalizeStreet(extractStreetName(address))}", geo="${normalizeStreet(extractStreetName(geoLabel))}". Skipping.`);
               } else {
                 const pad = props?.addendum?.pad;
                 const bbl = pad?.bbl || "";
@@ -190,15 +218,12 @@ export function useNYCPropertyLookup() {
                 const borough = BOROUGH_CODES[boroCode] || props?.borough || undefined;
                 const zip_code = props?.postalcode || undefined;
 
-                // Cross-verify BBL with PLUTO
                 const verification = await verifyBBLWithPLUTO(boroCode, paddedBlock, paddedLot, address);
 
                 if (!verification.verified) {
-                  console.warn(
-                    `[NYC Lookup] GeoSearch BBL ${bbl} failed PLUTO cross-verification for "${address}". Skipping.`
-                  );
+                  console.warn(`[NYC Lookup] GeoSearch BBL ${bbl} failed PLUTO verification for "${address}". Skipping.`);
                 } else {
-                  console.log("[NYC Lookup] GeoSearch + PLUTO verified:", { borough, block, lot, bin, zip_code });
+                  console.log("[NYC Lookup] Verified result:", { borough, block, lot, bin, zip_code });
                   return {
                     bin,
                     block: block || undefined,
@@ -229,7 +254,6 @@ export function useNYCPropertyLookup() {
       if (response.ok) {
         const data = await response.json();
         if (data && data.length > 0) {
-          // Find the best match by checking house number
           const match = data.find((p: any) => {
             if (!inputHouseNum) return true;
             const plutoHouse = (p.address || "").match(/^(\d+)/)?.[1];
