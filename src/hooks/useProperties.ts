@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 
-export type Property = Tables<"properties"> & { bbl_verified?: boolean | null };
+export type Property = Tables<"properties">;
 export type PropertyInsert = TablesInsert<"properties">;
 export type PropertyUpdate = TablesUpdate<"properties">;
 
