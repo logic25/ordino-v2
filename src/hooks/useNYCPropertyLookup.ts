@@ -170,6 +170,39 @@ async function verifyBBLWithPLUTO(
   }
 }
 
+/** Fetch AKA addresses from NYC PAD dataset using BIN */
+async function fetchAkaAddresses(bin: string | undefined): Promise<string[]> {
+  if (!bin) return [];
+  try {
+    const padUrl = `https://data.cityofnewyork.us/resource/bc8t-ecyu.json?bin=${bin}&$select=stname,lhnd,hhnd&$limit=50`;
+    const resp = await fetch(padUrl);
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    if (!data?.length) return [];
+    const seen = new Set<string>();
+    const akas: string[] = [];
+    for (const row of data) {
+      const street = (row.stname || "").trim();
+      if (!street) continue;
+      const low = (row.lhnd || "").trim();
+      const high = (row.hhnd || "").trim();
+      const label = low && high && low !== high
+        ? `${low}-${high} ${street}`
+        : low
+        ? `${low} ${street}`
+        : street;
+      const key = label.toUpperCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        akas.push(label.toUpperCase());
+      }
+    }
+    return akas;
+  } catch {
+    return [];
+  }
+}
+
 export function useNYCPropertyLookup() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
