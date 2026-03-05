@@ -82,9 +82,37 @@ export function useNYCPropertyLookup() {
       // Build borough filter clause if we detected one
       const boroFilter = boroCode ? ` AND borocode='${boroCode}'` : "";
 
-      // Strategy 1: PLUTO with full cleaned street + borough filter
+      // Extract house number + street name for separate field queries
+      const houseMatch = street.match(/^(\d+[-\d]*)\s+(.+)$/);
+
+      // Strategy 1a: PLUTO with house number + street name as separate fields
+      if (houseMatch) {
+        const houseNum = houseMatch[1];
+        const streetName = houseMatch[2];
+        const plutoSplitUrl = `https://data.cityofnewyork.us/resource/64uk-42ks.json?$where=address='${encodeURIComponent(houseNum)}' AND upper(stname) like '%25${encodeURIComponent(streetName.split(/\s+/)[0])}%25'${encodeURIComponent(boroFilter)}&$limit=5`;
+        console.log("[NYC Lookup] PLUTO split query:", plutoSplitUrl);
+
+        const splitResponse = await fetch(plutoSplitUrl);
+        if (splitResponse.ok) {
+          const splitData = await splitResponse.json();
+          if (splitData && splitData.length > 0) {
+            const property = splitData[0];
+            return {
+              bin: property.bin || undefined,
+              block: property.block || undefined,
+              lot: property.lot || undefined,
+              borough: BOROUGH_CODES[property.borocode] || property.borough || undefined,
+              zip_code: property.zipcode || undefined,
+              owner_name: property.ownername || undefined,
+              address: property.address || address,
+            };
+          }
+        }
+      }
+
+      // Strategy 1b: PLUTO with full cleaned street (fallback)
       const plutoUrl = `https://data.cityofnewyork.us/resource/64uk-42ks.json?$where=upper(address) like '%25${encodeURIComponent(street)}%25'${encodeURIComponent(boroFilter)}&$limit=5`;
-      console.log("[NYC Lookup] PLUTO query:", plutoUrl);
+      console.log("[NYC Lookup] PLUTO full query:", plutoUrl);
 
       const response = await fetch(plutoUrl);
       if (!response.ok) throw new Error("Failed to fetch property data");
