@@ -29,7 +29,9 @@ export default function Properties() {
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [signalFilter, setSignalFilter] = useState("all");
+  const [isBackfilling, setIsBackfilling] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: properties = [], isLoading: propertiesLoading } = useProperties();
   const { data: applications = [], isLoading: applicationsLoading } = useApplications();
