@@ -22,6 +22,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useRfiByToken, DEFAULT_PIS_SECTIONS, type RfiRequest, type RfiSectionConfig, type RfiFieldConfig } from "@/hooks/useRfi";
 import { usePISContactSuggestions, mapContactToFields } from "@/hooks/usePISContactSuggestions";
+import { useNYCPropertyLookup } from "@/hooks/useNYCPropertyLookup";
 import {
   CheckCircle2,
   ChevronLeft,
