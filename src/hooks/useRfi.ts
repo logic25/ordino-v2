@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { WORK_TYPE_DISCIPLINES } from "@/hooks/useCompanySettings";
 
 export interface RfiFieldConfig {
   id: string;
