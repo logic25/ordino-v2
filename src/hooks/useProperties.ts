@@ -150,6 +150,8 @@ export function useUpdateProperty() {
           owner_name: updates.owner_name || null,
           owner_contact: updates.owner_contact || null,
           notes: updates.notes || null,
+          // Auto-verify when BBL data is present
+          bbl_verified: !!(updates.borough && updates.block && updates.lot),
           ...(updates.aka_addresses ? { aka_addresses: updates.aka_addresses } : {}),
         })
         .eq("id", id)
