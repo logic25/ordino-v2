@@ -8,6 +8,7 @@ export interface NYCPropertyData {
   zip_code?: string;
   owner_name?: string;
   address?: string;
+  aka_addresses?: string[];
 }
 
 const BOROUGH_CODES: Record<string, string> = {
