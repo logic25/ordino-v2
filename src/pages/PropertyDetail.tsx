@@ -251,6 +251,16 @@ export default function PropertyDetail() {
                   </span>
                 )}
               </div>
+              {property.aka_addresses && (property.aka_addresses as string[]).length > 0 && (
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <span className="text-xs text-muted-foreground font-medium">AKA:</span>
+                  {(property.aka_addresses as string[]).map((aka, i) => (
+                    <Badge key={i} variant="outline" className="text-xs font-normal">
+                      {aka}
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
