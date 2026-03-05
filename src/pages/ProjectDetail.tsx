@@ -40,7 +40,7 @@ import {
   Phone, Circle, Upload, Search, Plus, AlertTriangle, Trash2,
   ArrowUpRight, ArrowDownLeft, ClipboardList, FileImage,
   FileSpreadsheet, Download, Sparkles, Eye, ShieldCheck, PenLine,
-  GripVertical, ArrowUp, ArrowDown, UserPlus,
+  GripVertical, ArrowUp, ArrowDown, UserPlus, ArrowUpDown,
 } from "lucide-react";
 import { useProjects, useUpdateProject, ProjectWithRelations } from "@/hooks/useProjects";
 import { useSendProposal } from "@/hooks/useProposals";
