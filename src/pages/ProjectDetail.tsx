@@ -2638,10 +2638,22 @@ function DocumentsFull({ documents, projectId, companyId, proposal }: { document
             <TableRow>
               <TableHead>Document</TableHead>
               <TableHead>Category</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Size</TableHead>
+              <TableHead>
+                <button className="flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort("type")}>
+                  Type <ArrowUpDown className="h-3 w-3" />
+                </button>
+              </TableHead>
+              <TableHead>
+                <button className="flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort("size")}>
+                  Size <ArrowUpDown className="h-3 w-3" />
+                </button>
+              </TableHead>
               <TableHead>Uploaded By</TableHead>
-              <TableHead>Date</TableHead>
+              <TableHead>
+                <button className="flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort("date")}>
+                  Date <ArrowUpDown className="h-3 w-3" />
+                </button>
+              </TableHead>
               <TableHead className="w-[140px]" />
             </TableRow>
           </TableHeader>
