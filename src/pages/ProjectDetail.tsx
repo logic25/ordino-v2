@@ -711,20 +711,20 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
     if (!rfiRecord?.access_token || !reminderEmail) return;
     const now = new Date();
 
-    // 1-per-day cooldown check
-    if (rfiRecord.last_reminder_sent_at) {
-      const lastSent = new Date(rfiRecord.last_reminder_sent_at);
-      const hoursSince = (now.getTime() - lastSent.getTime()) / (1000 * 60 * 60);
-      if (hoursSince < 24) {
-        const hoursLeft = Math.ceil(24 - hoursSince);
-        toast({
-          title: "Reminder already sent today",
-          description: `A reminder was sent ${Math.floor(hoursSince)}h ago. You can send another in ~${hoursLeft}h.`,
-          variant: "destructive",
-        });
-        return;
-      }
-    }
+    // 1-per-day cooldown check (temporarily disabled for testing)
+    // if (rfiRecord.last_reminder_sent_at) {
+    //   const lastSent = new Date(rfiRecord.last_reminder_sent_at);
+    //   const hoursSince = (now.getTime() - lastSent.getTime()) / (1000 * 60 * 60);
+    //   if (hoursSince < 24) {
+    //     const hoursLeft = Math.ceil(24 - hoursSince);
+    //     toast({
+    //       title: "Reminder already sent today",
+    //       description: `A reminder was sent ${Math.floor(hoursSince)}h ago. You can send another in ~${hoursLeft}h.`,
+    //       variant: "destructive",
+    //     });
+    //     return;
+    //   }
+    // }
 
     setSendingReminder(true);
     try {
