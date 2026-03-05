@@ -497,7 +497,7 @@ export function ChangeOrderDetailSheet({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="right" className="!w-full !sm:max-w-[480px] !max-w-[480px] overflow-y-auto p-0">
           {/* Header */}
-          <SheetHeader className="px-6 pt-6 pb-4 border-b">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b pr-12">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 mb-1">
