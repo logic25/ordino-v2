@@ -628,6 +628,17 @@ export function ChangeOrderDetailSheet({
                   <DropdownMenuItem onClick={handleDownloadPdf} className="gap-2">
                     <FileDown className="h-3.5 w-3.5" /> Download PDF
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={async () => {
+                    try {
+                      const blob = await generatePdfBlob();
+                      const url = URL.createObjectURL(blob);
+                      window.open(url, "_blank");
+                    } catch (e: any) {
+                      toast({ title: "Preview error", description: e.message, variant: "destructive" });
+                    }
+                  }} className="gap-2">
+                    <Eye className="h-3.5 w-3.5" /> Preview PDF
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
