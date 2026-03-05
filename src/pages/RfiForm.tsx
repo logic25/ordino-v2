@@ -252,19 +252,19 @@ export default function RfiForm() {
     const baseSections = rfi?.sections || [];
     const resolved = baseSections.length > 0 ? baseSections : DEFAULT_PIS_SECTIONS;
 
-    // Sanitize: ensure gc_known, sia_known, tpp_known always have correct options
-    // (saved templates may have lost the "No" option)
-    const optionOverrides: Record<string, string[]> = {
-      gc_known: ["Yes", "No"],
-      tpp_known: ["Yes — Same as Applicant", "Yes", "No"],
-      sia_known: ["Yes", "No"],
+    // Sanitize: ensure gc_known, sia_known, tpp_known always have correct label, type, and options
+    // (saved templates may have lost the "No" option or changed labels/types)
+    const fieldOverrides: Record<string, Partial<RfiFieldConfig>> = {
+      gc_known: { label: "Do you know who the General Contractor is?", type: "select", options: ["Yes", "No"], width: "full" },
+      tpp_known: { label: "Do you know who the TPP Applicant is?", type: "select", options: ["Yes — Same as Applicant", "Yes", "No"], width: "full" },
+      sia_known: { label: "Do you know who the Special Inspector is?", type: "select", options: ["Yes", "No"], width: "full" },
     };
 
     return resolved.map(section => ({
       ...section,
       fields: section.fields.map(field => {
-        if (optionOverrides[field.id]) {
-          return { ...field, options: optionOverrides[field.id] };
+        if (fieldOverrides[field.id]) {
+          return { ...field, ...fieldOverrides[field.id] };
         }
         // Merge proposal work types into work_type_picker options
         if (field.type === "work_type_picker" && proposalWorkTypes.length > 0) {
