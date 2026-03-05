@@ -338,10 +338,7 @@ export default function RfiForm() {
     // Auto-fill applicant from proposal applicant contact (Bug 3 safety net)
     const applicantContact = rfiData?.applicantContact;
     if (applicantContact) {
-      const contactName = applicantContact.name || "";
-      const parts = contactName.trim().split(/\s+/);
-      setIfEmpty("applicant_and_owner_applicant_first_name", parts[0] || null);
-      setIfEmpty("applicant_and_owner_applicant_last_name", parts.length > 1 ? parts.slice(1).join(" ") : null);
+      setIfEmpty("applicant_and_owner_applicant_first_name", applicantContact.name);
       setIfEmpty("applicant_and_owner_applicant_email", applicantContact.email);
       setIfEmpty("applicant_and_owner_applicant_phone", applicantContact.phone);
       setIfEmpty("applicant_and_owner_applicant_business_name", applicantContact.company_name);
@@ -349,12 +346,10 @@ export default function RfiForm() {
 
     // Applicant (architect/engineer) from project
     if (projectData) {
-      // Split architect name into first/last for new fields
       const architectName = projectData.architect_contact_name || "";
-      const nameParts = architectName.trim().split(/\s+/);
-      setIfEmpty("applicant_and_owner_applicant_first_name", nameParts[0] || null);
-      setIfEmpty("applicant_and_owner_applicant_last_name", nameParts.length > 1 ? nameParts.slice(1).join(" ") : null);
+      setIfEmpty("applicant_and_owner_applicant_first_name", architectName || null);
       setIfEmpty("applicant_and_owner_applicant_business_name", projectData.architect_company_name);
+      setIfEmpty("applicant_and_owner_applicant_business_address", (projectData as any).architect_address);
       setIfEmpty("applicant_and_owner_applicant_phone", projectData.architect_phone);
       setIfEmpty("applicant_and_owner_applicant_email", projectData.architect_email);
       setIfEmpty("applicant_and_owner_applicant_lic_type", (projectData as any).architect_license_type);
@@ -408,9 +403,7 @@ export default function RfiForm() {
   useEffect(() => {
     const tppKnown = responses["contractors_inspections_tpp_known"];
     if (tppKnown === "Yes — Same as Applicant") {
-      const firstName = responses["applicant_and_owner_applicant_first_name"] || "";
-      const lastName = responses["applicant_and_owner_applicant_last_name"] || "";
-      const fullName = [firstName, lastName].filter(Boolean).join(" ");
+      const fullName = responses["applicant_and_owner_applicant_first_name"] || "";
       const email = responses["applicant_and_owner_applicant_email"] || "";
       
       const newResponses = { ...responses };
@@ -428,7 +421,6 @@ export default function RfiForm() {
   }, [
     responses["contractors_inspections_tpp_known"],
     responses["applicant_and_owner_applicant_first_name"],
-    responses["applicant_and_owner_applicant_last_name"],
     responses["applicant_and_owner_applicant_email"],
   ]);
 
