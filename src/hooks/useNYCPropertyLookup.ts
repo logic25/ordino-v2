@@ -132,10 +132,10 @@ export function useNYCPropertyLookup() {
       }
 
       // Strategy 2: PAD dataset with house number + street name + borough
-      const houseMatch = street.match(/^(\d+[-\d]*)\s+(.+)$/);
-      if (houseMatch) {
-        const houseNum = houseMatch[1];
-        const streetName = houseMatch[2];
+      const padHouseMatch = street.match(/^(\d+[-\d]*)\s+(.+)$/);
+      if (padHouseMatch) {
+        const houseNum = padHouseMatch[1];
+        const streetName = padHouseMatch[2];
         const padBoroFilter = boroCode ? ` AND boro='${boroCode}'` : "";
 
         const padUrl = `https://data.cityofnewyork.us/resource/bc93-7baw.json?$where=lhnd='${encodeURIComponent(houseNum)}' AND upper(stname) like '%25${encodeURIComponent(streetName.substring(0, 20))}%25'${encodeURIComponent(padBoroFilter)}&$limit=5`;
