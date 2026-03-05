@@ -431,6 +431,34 @@ export default function RfiForm() {
     responses["applicant_and_owner_applicant_email"],
   ]);
 
+  // Auto-fill SIA fields when "Same as Applicant" is selected
+  useEffect(() => {
+    const siaKnown = responses["contractors_inspections_sia_known"];
+    if (siaKnown === "Yes — Same as Applicant") {
+      const fullName = responses["applicant_and_owner_applicant_first_name"] || "";
+      const email = responses["applicant_and_owner_applicant_email"] || "";
+      const phone = responses["applicant_and_owner_applicant_phone"] || "";
+      const company = responses["applicant_and_owner_applicant_business_name"] || "";
+      
+      const newResponses = { ...responses };
+      let changed = false;
+      const setIfDiff = (k: string, v: string) => {
+        if (newResponses[k] !== v) { newResponses[k] = v; changed = true; }
+      };
+      setIfDiff("contractors_inspections_sia_name", fullName);
+      setIfDiff("contractors_inspections_sia_email", email);
+      setIfDiff("contractors_inspections_sia_phone", phone);
+      setIfDiff("contractors_inspections_sia_company", company);
+      if (changed) setResponses(newResponses);
+    }
+  }, [
+    responses["contractors_inspections_sia_known"],
+    responses["applicant_and_owner_applicant_first_name"],
+    responses["applicant_and_owner_applicant_email"],
+    responses["applicant_and_owner_applicant_phone"],
+    responses["applicant_and_owner_applicant_business_name"],
+  ]);
+
   const getRepeatCount = (sectionId: string) => repeatCounts[sectionId] || 1;
 
   const addRepeat = (sectionId: string, max: number) => {
