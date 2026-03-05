@@ -252,9 +252,39 @@ export default function RfiForm() {
   // Proposal work types for merging into picker options
   const proposalWorkTypes: string[] = rfiData?.proposalWorkTypes || [];
 
+  // Valid DOB work types — only these should appear in the PIS work type picker
+  const VALID_DOB_WORK_TYPES = new Set([
+    "Architectural", "Structural", "Mechanical", "Plumbing",
+    "Sprinkler", "Fire Alarm", "Fire Suppression", "Standpipe",
+    "Fuel Burning", "Boiler", "Fuel Storage", "Curb Cut", "Other",
+  ]);
+
   const sections = useMemo(() => {
     const baseSections = rfi?.sections || [];
     const resolved = baseSections.length > 0 ? baseSections : DEFAULT_PIS_SECTIONS;
+
+    // Patch: ensure filing_type and directive_14 exist in building_and_scope (backcompat for older templates)
+    const patched = resolved.map(section => {
+      if (section.id !== "building_and_scope") return section;
+      const fieldIds = new Set(section.fields.map(f => f.id));
+      const missingFields: RfiFieldConfig[] = [];
+      if (!fieldIds.has("filing_type")) {
+        missingFields.push({ id: "filing_type", label: "Filing Type", type: "select", options: ["Plan Exam", "Pro-Cert", "TBD"], width: "half" });
+      }
+      if (!fieldIds.has("directive_14")) {
+        missingFields.push({ id: "directive_14", label: "Directive 14?", type: "select", options: ["Yes", "No"], width: "half" });
+      }
+      if (missingFields.length === 0) return section;
+      // Insert before plans_upload if present, otherwise append
+      const uploadIdx = section.fields.findIndex(f => f.id === "plans_upload");
+      const fields = [...section.fields];
+      if (uploadIdx >= 0) {
+        fields.splice(uploadIdx, 0, ...missingFields);
+      } else {
+        fields.push(...missingFields);
+      }
+      return { ...section, fields };
+    });
 
     // Sanitize: ensure gc/tpp/sia disclosure fields always have correct label, type, and options
     // Saved templates may use gc_same_as (checkbox) or gc_known (select) — normalize to select with Yes/No
@@ -267,19 +297,19 @@ export default function RfiForm() {
       sia_same_as: { id: "sia_known", label: "Do you know who the Special Inspector is?", type: "select", options: ["Yes — Same as Applicant", "Yes", "No"], width: "full" },
     };
 
-    return resolved.map(section => ({
+    return patched.map(section => ({
       ...section,
       fields: section.fields.map(field => {
         if (fieldOverrides[field.id]) {
           return { ...field, ...fieldOverrides[field.id] };
         }
-        // Merge proposal work types into work_type_picker options
+        // Merge proposal work types into work_type_picker options (only valid DOB types)
         if (field.type === "work_type_picker" && proposalWorkTypes.length > 0) {
           const baseOpts = field.options || [];
           const merged = [...baseOpts];
           for (const wt of proposalWorkTypes) {
+            if (!VALID_DOB_WORK_TYPES.has(wt)) continue; // Skip non-DOB disciplines
             if (!merged.includes(wt)) {
-              // Insert before "Other" if present, otherwise append
               const otherIdx = merged.indexOf("Other");
               if (otherIdx >= 0) {
                 merged.splice(otherIdx, 0, wt);
