@@ -367,7 +367,7 @@ export function useRfiByToken(token: string | null) {
 
       return {
         rfi: rfi as RfiRequest,
-        property: properties as { address: string; borough: string | null; block: string | null; lot: string | null } | null,
+        property: resolvedProperty as { address: string; borough: string | null; block: string | null; lot: string | null } | null,
         existingPlanNames,
         proposalWorkTypes,
         projectName,
