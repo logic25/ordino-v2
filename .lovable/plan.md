@@ -1,38 +1,57 @@
 
 
-## Service Status Lifecycle: Remove "Complete", Keep "Paid"
+## Fix: PIS Contact Selection — Company → Contact Drill-Down + Unsaved Changes Indicator
 
-**Current state:** The `service_status` enum has 5 values: `not_started → in_progress → complete → billed → paid`
+### Problem
+When searching for a company in the PIS auto-fill, selecting a client (company) only fills the business name. The user expects to **first find a company, then pick a specific contact person at that company** to populate all fields (name, email, phone, address, license info).
 
-**Desired state:** `not_started → in_progress → billed → paid`
-- "Complete" is unnecessary — once work is done, the next step is billing, so services go straight from In Progress to Billed.
-- "Paid" stays as the final status, tracked when the associated invoice is marked paid.
+### Solution
 
-### Changes
+**1. Two-step contact picker in `usePISAutoFill.ts`**
 
-**1. Database migration — remove "complete" from the enum**
-- Create a new enum without `complete`, migrate the column, drop old enum
-- Update any services currently set to `complete` → `billed`
+Change `getOptionsForSection` behavior:
+- When user types a search query, show **both** companies (Building2 icon) and individual contacts as today
+- When user **selects a company**, instead of immediately applying fields, filter the contact list to show only contacts at that company (`client_contacts.client_id = selected_client.id` OR `client_contacts.company_name` matches). The company itself also remains an option ("Use company info only")
+- When user selects a **contact** (either directly or after drilling into a company), apply all fields (name, company, email, phone, address, license)
 
-**2. Update `auto_advance_project_phase()` function**
-- Currently checks for `status IN ('completed', 'billed')` to advance project phase to closeout
-- Update to check `status IN ('billed', 'paid')`
+**Implementation:**
+- Add a `selectedClientId` state to `SectionAutoFill` component in `EditPISDialog.tsx`
+- When a client-type result is clicked, set `selectedClientId` and re-query contacts filtered by `client_id`
+- Show a "← Back to search" link and the filtered contacts list
+- Add the company itself as an "Apply company info" option at the top
 
-**3. Update reconciliation logic in `useProjectDetail.ts`**
-- Currently jumps from `not_started` to `in_progress` (partial billing) and to `billed` (full billing)
-- Add: when the associated invoice is `paid`, auto-set service status to `paid`
-- No other changes needed since "complete" was never enforced in reconciliation
+**2. Fix client field mapping in `usePISAutoFill.ts`**
 
-**4. Update `serviceStatusStyles` in `projectMockData.ts`**
-- Remove `complete` entry
-- Add `paid` entry with a green/success style
+Even for the "apply company only" case, include `nameField` so the name field isn't left blank:
+```typescript
+fields: {
+  [mapping.nameField]: c.name,  // ADD THIS
+  ...(mapping.companyField ? { [mapping.companyField]: c.name } : {}),
+  // ... rest unchanged
+}
+```
 
-**5. Update `useServiceDurationReports.ts`**
-- Currently filters completed services as `["complete", "billed", "paid"]`
-- Update to `["billed", "paid"]`
+**3. Add contacts-by-client query to `usePISAutoFill.ts`**
 
-**6. Update service status dropdown in `ProjectExpandedTabs.tsx`**
-- Remove "Complete" option from any manual status selector
-- Add "Paid" if not already present
-- Ensure "Dropped" remains available as a manual override
+Add a new query function or expand the existing hook to support filtering contacts by `client_id`:
+```typescript
+const getContactsForClient = (clientId: string) => {
+  return contacts.filter(c => c.client_id === clientId);
+};
+```
+
+This requires adding `client_id` to the contacts query select list.
+
+**4. Unsaved changes indicator in `EditPISDialog.tsx`**
+
+- Add `isDirty` state, set to `true` when `setValues` is called after initial load
+- Show a sticky amber banner at the top: "You have unsaved changes — scroll down and click Save PIS"
+- Pulse/highlight the Save button when dirty
+
+### Files to modify
+
+| File | Change |
+|------|--------|
+| `src/hooks/usePISAutoFill.ts` | Add `client_id` to contacts query; add `nameField` to client mapping; export `getContactsForClient` helper |
+| `src/components/projects/EditPISDialog.tsx` | Add two-step drill-down UI to `SectionAutoFill`; add `isDirty` state + banner + highlighted Save button |
 
