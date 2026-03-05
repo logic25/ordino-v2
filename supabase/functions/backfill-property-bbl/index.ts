@@ -51,6 +51,10 @@ function parseAddress(raw: string): { street: string; boroCode: string | null } 
 async function lookupAddress(address: string) {
   if (address.trim().length < 5) return null;
 
+  // Extract house number from input for verification
+  const inputHouseMatch = address.trim().match(/^(\d+[-\d]*)/);
+  const inputHouseNum = inputHouseMatch ? inputHouseMatch[1] : null;
+
   // Strategy 1: NYC GeoSearch API (most reliable)
   try {
     const geoUrl = `https://geosearch.planninglabs.nyc/v2/search?text=${encodeURIComponent(address)}&size=1`;
@@ -60,29 +64,36 @@ async function lookupAddress(address: string) {
       const feature = geoData?.features?.[0];
       if (feature) {
         const props = feature.properties;
-        const pad = props?.addendum?.pad;
-        const bbl = pad?.bbl || "";
-        const boroCode = bbl.substring(0, 1);
-        const block = bbl.substring(1, 6).replace(/^0+/, "") || null;
-        const lot = bbl.substring(6, 10).replace(/^0+/, "") || null;
-        const bin = pad?.bin || null;
-        const borough = BOROUGH_CODES[boroCode] || props?.borough || null;
-        const zip_code = props?.postalcode || null;
+        const returnedHouseNum = props?.housenumber;
 
-        // Enrich with PLUTO for owner name
-        let owner_name: string | null = null;
-        if (bbl) {
-          try {
-            const plutoUrl = `https://data.cityofnewyork.us/resource/64uk-42ks.json?borocode=${boroCode}&block=${bbl.substring(1, 6)}&lot=${bbl.substring(6, 10)}&$select=ownername&$limit=1`;
-            const plutoResp = await fetch(plutoUrl);
-            if (plutoResp.ok) {
-              const plutoData = await plutoResp.json();
-              if (plutoData?.[0]?.ownername) owner_name = plutoData[0].ownername;
-            }
-          } catch { /* optional */ }
+        // Reject if house number doesn't match (prevents wrong address data)
+        if (inputHouseNum && returnedHouseNum && inputHouseNum !== returnedHouseNum) {
+          console.log(`[Backfill] House number mismatch for "${address}": input="${inputHouseNum}", returned="${returnedHouseNum}". Skipping GeoSearch.`);
+        } else {
+          const pad = props?.addendum?.pad;
+          const bbl = pad?.bbl || "";
+          const boroCode = bbl.substring(0, 1);
+          const block = bbl.substring(1, 6).replace(/^0+/, "") || null;
+          const lot = bbl.substring(6, 10).replace(/^0+/, "") || null;
+          const bin = pad?.bin || null;
+          const borough = BOROUGH_CODES[boroCode] || props?.borough || null;
+          const zip_code = props?.postalcode || null;
+
+          // Enrich with PLUTO for owner name
+          let owner_name: string | null = null;
+          if (bbl) {
+            try {
+              const plutoUrl = `https://data.cityofnewyork.us/resource/64uk-42ks.json?borocode=${boroCode}&block=${bbl.substring(1, 6)}&lot=${bbl.substring(6, 10)}&$select=ownername&$limit=1`;
+              const plutoResp = await fetch(plutoUrl);
+              if (plutoResp.ok) {
+                const plutoData = await plutoResp.json();
+                if (plutoData?.[0]?.ownername) owner_name = plutoData[0].ownername;
+              }
+            } catch { /* optional */ }
+          }
+
+          return { bin, block, lot, borough, zip_code, owner_name };
         }
-
-        return { bin, block, lot, borough, zip_code, owner_name };
       }
     }
   } catch { /* fall through to PLUTO */ }

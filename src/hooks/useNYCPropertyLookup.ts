@@ -78,6 +78,10 @@ export function useNYCPropertyLookup() {
         return null;
       }
 
+      // Extract house number from input for verification
+      const inputHouseMatch = address.trim().match(/^(\d+[-\d]*)/);
+      const inputHouseNum = inputHouseMatch ? inputHouseMatch[1] : null;
+
       // Strategy 1: NYC GeoSearch API (most reliable for address → BBL/BIN)
       try {
         const geoUrl = `https://geosearch.planninglabs.nyc/v2/search?text=${encodeURIComponent(address)}&size=1`;
@@ -88,43 +92,52 @@ export function useNYCPropertyLookup() {
           const feature = geoData?.features?.[0];
           if (feature) {
             const props = feature.properties;
-            const pad = props?.addendum?.pad;
-            const bbl = pad?.bbl || "";
-            // Parse BBL: first digit = boro, next 5 = block, last 4 = lot
-            const boroCode = bbl.substring(0, 1);
-            const block = bbl.substring(1, 6).replace(/^0+/, "");
-            const lot = bbl.substring(6, 10).replace(/^0+/, "");
-            const bin = pad?.bin || undefined;
-            const borough = BOROUGH_CODES[boroCode] || props?.borough || undefined;
-            const zip_code = props?.postalcode || undefined;
 
-            // Enrich with PLUTO for owner name
-            let owner_name: string | undefined;
-            if (bbl) {
-              try {
-                const plutoUrl = `https://data.cityofnewyork.us/resource/64uk-42ks.json?borocode=${boroCode}&block=${bbl.substring(1, 6)}&lot=${bbl.substring(6, 10)}&$select=ownername&$limit=1`;
-                const plutoResp = await fetch(plutoUrl);
-                if (plutoResp.ok) {
-                  const plutoData = await plutoResp.json();
-                  if (plutoData?.[0]?.ownername) {
-                    owner_name = plutoData[0].ownername;
+            // Verify the returned address matches our input
+            const returnedHouseNum = props?.housenumber;
+            const matchType = props?.match_type;
+            
+            // Reject if house number doesn't match (fallback/fuzzy match to wrong address)
+            if (inputHouseNum && returnedHouseNum && inputHouseNum !== returnedHouseNum) {
+              console.warn(`[NYC Lookup] GeoSearch house number mismatch: input="${inputHouseNum}", returned="${returnedHouseNum}" (match_type=${matchType}). Skipping.`);
+            } else {
+              const pad = props?.addendum?.pad;
+              const bbl = pad?.bbl || "";
+              const boroCode = bbl.substring(0, 1);
+              const block = bbl.substring(1, 6).replace(/^0+/, "");
+              const lot = bbl.substring(6, 10).replace(/^0+/, "");
+              const bin = pad?.bin || undefined;
+              const borough = BOROUGH_CODES[boroCode] || props?.borough || undefined;
+              const zip_code = props?.postalcode || undefined;
+
+              // Enrich with PLUTO for owner name
+              let owner_name: string | undefined;
+              if (bbl) {
+                try {
+                  const plutoUrl = `https://data.cityofnewyork.us/resource/64uk-42ks.json?borocode=${boroCode}&block=${bbl.substring(1, 6)}&lot=${bbl.substring(6, 10)}&$select=ownername&$limit=1`;
+                  const plutoResp = await fetch(plutoUrl);
+                  if (plutoResp.ok) {
+                    const plutoData = await plutoResp.json();
+                    if (plutoData?.[0]?.ownername) {
+                      owner_name = plutoData[0].ownername;
+                    }
                   }
+                } catch {
+                  // Owner enrichment is optional
                 }
-              } catch {
-                // Owner enrichment is optional
               }
-            }
 
-            console.log("[NYC Lookup] GeoSearch found:", { borough, block, lot, bin, zip_code, owner_name });
-            return {
-              bin,
-              block: block || undefined,
-              lot: lot || undefined,
-              borough,
-              zip_code,
-              owner_name,
-              address: props?.name || address,
-            };
+              console.log("[NYC Lookup] GeoSearch verified match:", { borough, block, lot, bin, zip_code, owner_name, matchType });
+              return {
+                bin,
+                block: block || undefined,
+                lot: lot || undefined,
+                borough,
+                zip_code,
+                owner_name,
+                address: props?.name || address,
+              };
+            }
           }
         }
       } catch (geoErr) {
