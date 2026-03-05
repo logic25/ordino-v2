@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useProjectChecklist, useAddChecklistItem, useUpdateChecklistItem, useDeleteChecklistItem, type ChecklistItem } from "@/hooks/useProjectChecklist";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { wrapEmailForSending } from "@/components/rfps/buildPartnerEmailTemplate";
 import { useChecklistFollowupDrafts, useApproveDraft, useDismissDraft } from "@/hooks/useChecklistFollowupDrafts";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
