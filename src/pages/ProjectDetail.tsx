@@ -970,7 +970,15 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
                   <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={() => setShowEditPIS(true)}>
                     <Pencil className="h-3.5 w-3.5" /> Edit PIS
                   </Button>
-                  <Button variant="outline" size="sm" className="shrink-0 gap-1.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 gap-1.5"
+                    onClick={() => {
+                      setReminderEmail(rfiRecord?.recipient_email || contactEmail || "");
+                      setShowReminderDialog(true);
+                    }}
+                  >
                     <Send className="h-3.5 w-3.5" /> Send Reminder
                   </Button>
                 </div>
