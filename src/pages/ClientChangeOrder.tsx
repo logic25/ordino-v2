@@ -245,6 +245,20 @@ export default function ClientChangeOrderPage() {
 
   return (
     <div className="min-h-screen bg-[#f1f5f9] print:bg-white">
+      <style>{`
+        @media print {
+          @page { margin: 0.4in; size: letter; }
+          body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .co-header-banner { background: ${charcoal} !important; color: #fff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .co-header-banner * { color: #fff !important; }
+          .co-header-banner .co-amber-label { color: ${amber} !important; }
+          .co-accent-bar { background: ${amber} !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .co-total-box { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .co-reason-box { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .co-info-card { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .co-sig-card { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
+      `}</style>
       <div className="max-w-[720px] mx-auto py-6 px-4 print:max-w-none print:p-0">
         {/* Already signed confirmation */}
         {alreadySigned && (
@@ -392,131 +406,164 @@ export default function ClientChangeOrderPage() {
         {/* CO Document */}
         <div className="bg-white shadow-md rounded-lg overflow-hidden print:shadow-none print:rounded-none">
           {/* Header */}
-          <div style={{ background: charcoal, color: "#fff", padding: "24px 32px" }} className="print:bg-white print:text-black">
+          <div className="co-header-banner" style={{ background: charcoal, color: "#fff", padding: "28px 36px" }}>
             <div className="flex justify-between items-start">
               <div>
                 {company?.logo_url && (
-                  <img src={company.logo_url} alt="Logo" className="h-10 mb-2" style={{ objectFit: "contain" }} />
+                  <img src={company.logo_url} alt="Logo" className="h-10 mb-3" style={{ objectFit: "contain" }} />
                 )}
-                <h1 className="text-lg font-bold">{company?.name || "Company"}</h1>
-                {company?.address && <p className="text-xs opacity-80">{company.address}</p>}
-                {company?.phone && <p className="text-xs opacity-80">P: {company.phone}</p>}
-                {company?.email && <p className="text-xs opacity-80">{company.email}</p>}
+                <h1 className="text-lg font-bold tracking-tight">{company?.name || "Company"}</h1>
+                {company?.address && <p className="text-xs co-header-opacity" style={{ opacity: 0.8 }}>{company.address}</p>}
+                {company?.phone && <p className="text-xs co-header-opacity" style={{ opacity: 0.8 }}>Tel: {company.phone}</p>}
+                {company?.email && <p className="text-xs co-header-opacity" style={{ opacity: 0.8 }}>{company.email}</p>}
               </div>
               <div className="text-right">
-                <h2 className="text-xl font-extrabold tracking-wide">CHANGE ORDER</h2>
-                <p className="text-sm mt-1 opacity-80">{co.co_number}</p>
-                <p className="text-xs opacity-60 mt-1">Date: {fmtDate(co.created_at)}</p>
+                <p className="text-[10px] font-bold tracking-[2px] uppercase" style={{ color: amber }}>Change Order</p>
+                <p className="text-xl font-extrabold mt-1">{co.co_number}</p>
+                <p className="text-xs co-header-opacity mt-2" style={{ opacity: 0.7 }}>{fmtDate(co.created_at)}</p>
+                {co.requested_by && <p className="text-xs co-header-opacity" style={{ opacity: 0.7 }}>Requested by: {co.requested_by}</p>}
               </div>
             </div>
           </div>
 
+          {/* Amber accent bar */}
+          <div className="co-accent-bar" style={{ height: 4, background: amber }} />
+
           {/* Body */}
-          <div style={{ padding: "24px 32px" }}>
-            {/* Project / Client Row */}
-            <div className="grid grid-cols-2 gap-8 mb-6">
-              <div>
-                <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: slate }}>Project</div>
-                {projectNumber && <div className="text-sm font-semibold">{projectNumber}</div>}
-                {projectAddress && <div className="text-sm" style={{ color: slate }}>{projectAddress}</div>}
+          <div style={{ padding: "28px 36px" }}>
+            {/* Project / Client info cards */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="co-info-card rounded-md p-4" style={{ background: "#f8f9fa", border: "1px solid #e2e8f0" }}>
+                <div className="text-[10px] font-bold uppercase tracking-[1.2px] mb-2" style={{ color: slate }}>Project Details</div>
+                {projectNumber && (
+                  <div className="text-sm mb-0.5"><span className="font-bold">Project:</span> {projectNumber}</div>
+                )}
+                {projectAddress && (
+                  <div className="text-sm"><span className="font-bold">Address:</span> {projectAddress}</div>
+                )}
               </div>
-              <div>
-                <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: slate }}>Client</div>
-                <div className="text-sm font-semibold">{clientInfo?.name || "—"}</div>
+              <div className="co-info-card rounded-md p-4" style={{ background: "#f8f9fa", border: "1px solid #e2e8f0" }}>
+                <div className="text-[10px] font-bold uppercase tracking-[1.2px] mb-2" style={{ color: slate }}>Client</div>
+                <div className="text-sm font-bold">{clientInfo?.name || "—"}</div>
               </div>
             </div>
 
-            {/* Title & Description */}
-            <div className="mb-6">
-              <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: slate }}>Description</div>
+            {/* Section heading with amber bar */}
+            <div className="flex items-center gap-3 mb-4 mt-2">
+              <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
               <h3 className="text-base font-bold" style={{ color: charcoal }}>{co.title}</h3>
-              {co.description && <p className="text-sm mt-1" style={{ color: slate }}>{co.description}</p>}
             </div>
 
             {/* Line Items */}
-            <div className="mb-6">
-              <div className="border rounded-lg overflow-hidden">
-                <div className="grid grid-cols-[1fr_auto] bg-muted/50 px-4 py-2 text-xs font-bold uppercase tracking-wider" style={{ color: slate }}>
-                  <span>Service</span>
-                  <span>Amount</span>
-                </div>
-                {lineItems.map((item: any, i: number) => (
-                  <div key={i} className="grid grid-cols-[1fr_auto] px-4 py-3 border-t">
-                    <div>
-                      <div className="text-sm font-semibold" style={{ color: charcoal }}>{item.name}</div>
-                      {item.description && <div className="text-xs mt-0.5" style={{ color: slate }}>{item.description}</div>}
-                    </div>
-                    <div className="text-sm font-semibold text-right" style={{ color: charcoal }}>
+            <div className="mb-5">
+              {lineItems.map((item: any, i: number) => (
+                <div key={i} className="py-3" style={{ borderBottom: i < lineItems.length - 1 ? "0.5px solid #e2e8f0" : "none" }}>
+                  <div className="flex justify-between items-baseline">
+                    <div className="text-sm font-bold" style={{ color: charcoal }}>{item.name}</div>
+                    <div className="text-sm font-bold" style={{ color: charcoal }}>
                       {isCredit ? `-${fmt(Math.abs(item.amount))}` : fmt(item.amount)}
                     </div>
                   </div>
-                ))}
-              </div>
+                  {item.description && <div className="text-xs mt-1" style={{ color: slate, lineHeight: 1.5 }}>{item.description}</div>}
+                </div>
+              ))}
             </div>
 
-            {/* Total */}
-            <div className="flex justify-end mb-6">
-              <div className="flex items-center gap-4 px-4 py-2 rounded-lg" style={{ background: isCredit ? "#fef2f2" : "#f0fdf4" }}>
-                <span className="text-sm font-bold">{isCredit ? "Total Credit:" : "Total:"}</span>
-                <span className="text-lg font-extrabold" style={{ color: isCredit ? "#dc2626" : "#16a34a" }}>
-                  {isCredit ? `-${fmt(Math.abs(co.amount))}` : fmt(co.amount)}
+            {/* Total bar */}
+            <div className="co-total-box flex justify-between items-center rounded-md px-5 py-3 mt-5" style={{ background: charcoal }}>
+              <span className="text-sm font-bold uppercase tracking-wider text-white">
+                {isCredit ? "Total Credit" : "Total"}
+              </span>
+              <span className="text-lg font-extrabold text-white">
+                {isCredit ? `-${fmt(Math.abs(co.amount))}` : fmt(co.amount)}
+              </span>
+            </div>
+
+            {/* Deposit callout */}
+            {co.deposit_percentage > 0 && (
+              <div className="co-total-box flex justify-between items-center rounded-md px-5 py-2.5 mt-2.5" style={{ background: "#fffbeb", border: "1px solid #fde68a" }}>
+                <span className="text-sm font-bold" style={{ color: "#92400e" }}>
+                  Deposit Due Upon Signing ({co.deposit_percentage}%)
                 </span>
-              </div>
-            </div>
-
-            {/* Reason */}
-            {co.reason && (
-              <div className="mb-6 p-4 rounded-lg" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: slate }}>Reason for Change</div>
-                <p className="text-sm" style={{ color: charcoal }}>{co.reason}</p>
+                <span className="text-base font-bold" style={{ color: "#92400e" }}>
+                  {fmt(Math.abs(co.amount) * co.deposit_percentage / 100)}
+                </span>
               </div>
             )}
 
             {/* Terms Reference */}
-            <div className="my-6 text-xs italic" style={{ color: slate }}>
+            <div className="my-5 text-xs italic" style={{ color: slate, lineHeight: 1.5 }}>
               By signing this Change Order, you acknowledge that all terms and conditions of the original proposal/contract remain in full effect. This Change Order modifies only the scope and fees described above.
             </div>
 
-            {/* Signatures */}
-            <div className="grid grid-cols-2 gap-8 mt-4">
-              {/* Internal Signature */}
-              <div>
-                <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: slate }}>
-                  {company?.name || "Company"}
+            {/* Reason */}
+            {co.reason && (
+              <div className="mb-5">
+                <div className="flex items-center gap-3 mb-3 mt-6">
+                  <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
+                  <h4 className="text-sm font-bold" style={{ color: charcoal }}>Reason for Change</h4>
                 </div>
-                {co.internal_signature_data ? (
-                  <img src={co.internal_signature_data} alt="Internal signature" className="h-12 object-contain mb-1" />
-                ) : (
-                  <div className="h-12 border-b-2 border-gray-800 mb-1" />
-                )}
-                {co.internal_signed_at && (
-                  <>
-                    <div className="text-xs font-medium" style={{ color: charcoal }}>
-                      By: {co.internal_signer_name || "—"}
-                    </div>
-                    <div className="text-xs" style={{ color: slate }}>Signed {fmtDate(co.internal_signed_at)}</div>
-                  </>
-                )}
+                <p className="text-sm co-reason-box" style={{ color: "#475569", lineHeight: 1.55 }}>{co.reason}</p>
+              </div>
+            )}
+
+            {/* Signature Section */}
+            <div className="mt-8">
+              <p className="text-xs font-bold mb-1" style={{ color: slate }}>Please sign the designated space provided below and return a copy</p>
+              <div className="flex items-center gap-3 mb-4">
+                <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
+                <h4 className="text-sm font-bold" style={{ color: charcoal }}>Agreed to and accepted by</h4>
               </div>
 
-              {/* Client Signature */}
-              <div>
-                <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: slate }}>
-                  {clientInfo?.name || "Client"}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Internal Signature */}
+                <div className="co-sig-card rounded-md p-4" style={{ background: "#f8f9fa", border: "1px solid #e2e8f0" }}>
+                  <div className="text-sm font-bold mb-5" style={{ color: charcoal }}>
+                    {company?.name || "Company"}
+                  </div>
+                  {co.internal_signature_data ? (
+                    <img src={co.internal_signature_data} alt="Internal signature" className="h-7 object-contain mb-1" />
+                  ) : (
+                    <div className="h-7 border-b-2 mb-1" style={{ borderColor: charcoal }} />
+                  )}
+                  {co.internal_signed_at && (
+                    <>
+                      <div className="text-xs mt-1" style={{ color: slate }}>
+                        By: {co.internal_signer_name || "—"}
+                      </div>
+                      <div className="text-xs" style={{ color: slate }}>Date: {fmtDate(co.internal_signed_at)}</div>
+                    </>
+                  )}
                 </div>
-                {(co.client_signature_data || savedSignatureData) ? (
-                  <>
-                    <img src={co.client_signature_data || savedSignatureData!} alt="Client signature" className="h-12 object-contain mb-1" />
-                    <div className="text-xs font-medium" style={{ color: charcoal }}>
-                      By: {co.client_signer_name || clientName}
-                    </div>
-                    <div className="text-xs" style={{ color: slate }}>Signed {fmtDate(co.client_signed_at || new Date().toISOString())}</div>
-                  </>
-                ) : (
-                  <div className="h-12 border-b-2 border-gray-800 mb-1" />
-                )}
+
+                {/* Client Signature */}
+                <div className="co-sig-card rounded-md p-4" style={{ background: "#f8f9fa", border: "1px solid #e2e8f0" }}>
+                  <div className="text-sm font-bold mb-5" style={{ color: charcoal }}>
+                    {clientInfo?.name || "Client"}
+                  </div>
+                  {(co.client_signature_data || savedSignatureData) ? (
+                    <>
+                      <img src={co.client_signature_data || savedSignatureData!} alt="Client signature" className="h-7 object-contain mb-1" />
+                      <div className="text-xs mt-1" style={{ color: slate }}>
+                        By: {co.client_signer_name || clientName}
+                      </div>
+                      <div className="text-xs" style={{ color: slate }}>Date: {fmtDate(co.client_signed_at || new Date().toISOString())}</div>
+                    </>
+                  ) : (
+                    <div className="h-7 border-b-2 mb-1" style={{ borderColor: charcoal }} />
+                  )}
+                </div>
               </div>
             </div>
+          </div>
+
+          {/* Footer */}
+          <div className="px-9 pb-5 pt-3" style={{ borderTop: "0.5px solid #e2e8f0" }}>
+            <p className="text-center text-[10px]" style={{ color: slate }}>
+              {company?.address || ""}
+              {company?.phone ? `  ·  Tel: ${company.phone}` : ""}
+              {company?.email ? `  ·  ${company.email}` : ""}
+            </p>
           </div>
         </div>
 
