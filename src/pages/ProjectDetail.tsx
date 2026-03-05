@@ -2461,6 +2461,13 @@ function TimelineFull({ milestones, projectId }: { milestones: MockMilestone[]; 
 function DocumentsFull({ documents, projectId, companyId, proposal }: { documents: MockDocument[]; projectId?: string; companyId?: string; proposal?: any }) {
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
+  const [sortKey, setSortKey] = useState<"type" | "size" | "date" | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const toggleSort = (key: "type" | "size" | "date") => {
+    if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  };
   const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string; isPdf?: boolean; isImage?: boolean; isHtml?: boolean } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
