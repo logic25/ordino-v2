@@ -220,7 +220,7 @@ export function BugReports() {
     const updates: Record<string, any> = {
       status: editStatus,
       admin_notes: editNotes || null,
-      assigned_to: editAssignee || null,
+      assigned_to: editAssignee === "__unassigned__" ? null : (editAssignee || null),
     };
     if (editStatus === "resolved" && selectedBug.status !== "resolved") {
       updates.resolved_at = new Date().toISOString();
