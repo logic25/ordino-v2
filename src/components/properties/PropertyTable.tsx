@@ -33,6 +33,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { MoreHorizontal, Pencil, Trash2, Building2, MapPin, ChevronDown, ChevronRight, FolderKanban, FileText, Briefcase, Radio, AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { Property } from "@/hooks/useProperties";
 import type { ApplicationWithProperty } from "@/hooks/useApplications";
 import type { Project } from "@/hooks/useProjects";
