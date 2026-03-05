@@ -605,6 +605,8 @@ export function ProposalDialog({
   const [contacts, setContacts] = useState<ProposalContactInput[]>([]);
   const [propertyOpen, setPropertyOpen] = useState(false);
   const [propertySearch, setPropertySearch] = useState("");
+  const [geoSuggestions, setGeoSuggestions] = useState<Array<{ label: string; borough: string; zip: string }>>([]);
+  const geoDebounceRef = useRef<ReturnType<typeof setTimeout>>();
   const createProperty = useCreateProperty();
   const updateProperty = useUpdateProperty();
   const { lookupByAddress } = useNYCPropertyLookup();
