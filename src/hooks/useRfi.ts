@@ -286,13 +286,26 @@ export function useRfiByToken(token: string | null) {
       if (!token) return null;
       const { data, error } = await supabase
         .from("rfi_requests" as any)
-        .select("*, properties(*, owner_name), projects(name, building_owner_name, unit_number, client_id, clients!projects_client_id_fkey(name, address), gc_company_name, gc_contact_name, gc_phone, gc_email, architect_company_name, architect_contact_name, architect_phone, architect_email, architect_license_type, architect_license_number, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email), proposals(title, architect_name, architect_company, architect_phone, architect_email, architect_license_type, architect_license_number, gc_name, gc_company, gc_phone, gc_email, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email, job_description, unit_number, proposal_contacts(name, email, phone, company_name, role), items:proposal_items(name, is_optional, disciplines))")
+        .select("*, properties(*, owner_name), projects(name, building_owner_name, unit_number, client_id, property_id, clients!projects_client_id_fkey(name, address), gc_company_name, gc_contact_name, gc_phone, gc_email, architect_company_name, architect_contact_name, architect_phone, architect_email, architect_license_type, architect_license_number, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email), proposals(title, property_id, architect_name, architect_company, architect_phone, architect_email, architect_license_type, architect_license_number, gc_name, gc_company, gc_phone, gc_email, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email, job_description, unit_number, proposal_contacts(name, email, phone, company_name, role), items:proposal_items(name, is_optional, disciplines))")
         .eq("access_token", token)
         .maybeSingle();
       if (error) throw error;
       if (!data) return null;
-      const { properties, projects, proposals, ...rfi } = data as any;
-      const ownerName = projects?.building_owner_name || properties?.owner_name || projects?.clients?.name || null;
+      const { properties: directProperties, projects, proposals, ...rfi } = data as any;
+      
+      // Resolve property: direct link > project's property > proposal's property
+      let resolvedProperty = directProperties;
+      if (!resolvedProperty && (projects?.property_id || proposals?.property_id)) {
+        const propId = projects?.property_id || proposals?.property_id;
+        const { data: propData } = await supabase
+          .from("properties")
+          .select("address, borough, block, lot, owner_name")
+          .eq("id", propId)
+          .maybeSingle();
+        resolvedProperty = propData;
+      }
+      
+      const ownerName = projects?.building_owner_name || resolvedProperty?.owner_name || projects?.clients?.name || null;
 
       // Merge party info: project fields take priority, then proposal fields as fallback
       const prop = proposals || {};
@@ -354,7 +367,7 @@ export function useRfiByToken(token: string | null) {
 
       return {
         rfi: rfi as RfiRequest,
-        property: properties as { address: string; borough: string | null; block: string | null; lot: string | null } | null,
+        property: resolvedProperty as { address: string; borough: string | null; block: string | null; lot: string | null } | null,
         existingPlanNames,
         proposalWorkTypes,
         projectName,

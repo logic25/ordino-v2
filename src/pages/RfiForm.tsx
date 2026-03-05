@@ -259,8 +259,8 @@ export default function RfiForm() {
       gc_same_as: { id: "gc_known", label: "Do you know who the General Contractor is?", type: "select", options: ["Yes", "No"], width: "full" },
       tpp_known: { label: "Do you know who the TPP Applicant is?", type: "select", options: ["Yes — Same as Applicant", "Yes", "No"], width: "full" },
       tpp_same_as: { id: "tpp_known", label: "Do you know who the TPP Applicant is?", type: "select", options: ["Yes — Same as Applicant", "Yes", "No"], width: "full" },
-      sia_known: { label: "Do you know who the Special Inspector is?", type: "select", options: ["Yes", "No"], width: "full" },
-      sia_same_as: { id: "sia_known", label: "Do you know who the Special Inspector is?", type: "select", options: ["Yes", "No"], width: "full" },
+      sia_known: { label: "Do you know who the Special Inspector is?", type: "select", options: ["Yes — Same as Applicant", "Yes", "No"], width: "full" },
+      sia_same_as: { id: "sia_known", label: "Do you know who the Special Inspector is?", type: "select", options: ["Yes — Same as Applicant", "Yes", "No"], width: "full" },
     };
 
     return resolved.map(section => ({
@@ -429,6 +429,34 @@ export default function RfiForm() {
     responses["contractors_inspections_tpp_known"],
     responses["applicant_and_owner_applicant_first_name"],
     responses["applicant_and_owner_applicant_email"],
+  ]);
+
+  // Auto-fill SIA fields when "Same as Applicant" is selected
+  useEffect(() => {
+    const siaKnown = responses["contractors_inspections_sia_known"];
+    if (siaKnown === "Yes — Same as Applicant") {
+      const fullName = responses["applicant_and_owner_applicant_first_name"] || "";
+      const email = responses["applicant_and_owner_applicant_email"] || "";
+      const phone = responses["applicant_and_owner_applicant_phone"] || "";
+      const company = responses["applicant_and_owner_applicant_business_name"] || "";
+      
+      const newResponses = { ...responses };
+      let changed = false;
+      const setIfDiff = (k: string, v: string) => {
+        if (newResponses[k] !== v) { newResponses[k] = v; changed = true; }
+      };
+      setIfDiff("contractors_inspections_sia_name", fullName);
+      setIfDiff("contractors_inspections_sia_email", email);
+      setIfDiff("contractors_inspections_sia_phone", phone);
+      setIfDiff("contractors_inspections_sia_company", company);
+      if (changed) setResponses(newResponses);
+    }
+  }, [
+    responses["contractors_inspections_sia_known"],
+    responses["applicant_and_owner_applicant_first_name"],
+    responses["applicant_and_owner_applicant_email"],
+    responses["applicant_and_owner_applicant_phone"],
+    responses["applicant_and_owner_applicant_business_name"],
   ]);
 
   const getRepeatCount = (sectionId: string) => repeatCounts[sectionId] || 1;
@@ -1183,13 +1211,30 @@ export default function RfiForm() {
                             return (
                               <div key={key} className="col-span-full py-1">
                                 <p className="text-xs text-stone-400 mb-1">{field.label}</p>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {selected.map((opt) => (
-                                    <span key={opt} className="inline-flex px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-xs text-amber-800">
-                                      {opt === "Other" && otherLabel ? otherLabel : opt}
-                                    </span>
-                                  ))}
+                                <div className="flex flex-wrap gap-1.5 mb-2">
+                                  {selected.map((opt) => {
+                                    const costKey = `${key}_cost_${opt.toLowerCase().replace(/\s+/g, '_')}`;
+                                    const cost = responses[costKey];
+                                    const label = opt === "Other" && otherLabel ? otherLabel : opt;
+                                    return (
+                                      <span key={opt} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                                        {label}
+                                        {cost ? <span className="font-semibold">${Number(cost).toLocaleString()}</span> : null}
+                                      </span>
+                                    );
+                                  })}
                                 </div>
+                                {(() => {
+                                  const totalCost = selected.reduce((sum, opt) => {
+                                    const costKey = `${key}_cost_${opt.toLowerCase().replace(/\s+/g, '_')}`;
+                                    return sum + (Number(responses[costKey]) || 0);
+                                  }, 0);
+                                  return totalCost > 0 ? (
+                                    <p className="text-sm font-semibold text-stone-700">
+                                      Total Estimated Cost: ${totalCost.toLocaleString()}
+                                    </p>
+                                  ) : null;
+                                })()}
                               </div>
                             );
                           }

@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   PenLine, Send, CheckCheck, XCircle, ShieldCheck, AlertTriangle,
-  Pencil, GitBranch, Clock, MoreVertical, FileDown,
+  Pencil, GitBranch, Clock, MoreVertical, FileDown, Eye,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { ChangeOrder } from "@/hooks/useChangeOrders";
@@ -238,9 +238,16 @@ export function ChangeOrderDetailSheet({
         .limit(1);
 
       if (!contacts || contacts.length === 0 || !(contacts[0] as any).email) {
+        // Look up client name for a better error message
+        const { data: clientData } = await supabase
+          .from("clients")
+          .select("name")
+          .eq("id", clientId)
+          .maybeSingle();
+        const clientName = (clientData as any)?.name || "this client";
         toast({
           title: "No client email found",
-          description: "Add a contact with an email address to this client before sending.",
+          description: `Add a contact with an email address to "${clientName}" (Companies → ${clientName} → Contacts) before sending.`,
           variant: "destructive",
         });
         return;
@@ -627,6 +634,17 @@ export function ChangeOrderDetailSheet({
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={handleDownloadPdf} className="gap-2">
                     <FileDown className="h-3.5 w-3.5" /> Download PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={async () => {
+                    try {
+                      const blob = await generatePdfBlob();
+                      const url = URL.createObjectURL(blob);
+                      window.open(url, "_blank");
+                    } catch (e: any) {
+                      toast({ title: "Preview error", description: e.message, variant: "destructive" });
+                    }
+                  }} className="gap-2">
+                    <Eye className="h-3.5 w-3.5" /> Preview PDF
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
