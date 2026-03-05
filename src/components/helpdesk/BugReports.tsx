@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bug, CheckCircle2, Plus, Clock, Filter, ArrowUpDown, X, Loader2 } from "lucide-react";
+import { Bug, CheckCircle2, Plus, Clock, Filter, ArrowUpDown, Loader2, Upload, Video, Sparkles, X, Image as ImageIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -50,6 +50,11 @@ const statusIcon = (status: string) => {
 const priorityVariant = (p: string) =>
   p === "critical" || p === "high" ? "destructive" as const : "secondary" as const;
 
+function toLoomEmbed(url: string): string | null {
+  const match = url.match(/loom\.com\/share\/([a-zA-Z0-9]+)/);
+  return match ? `https://www.loom.com/embed/${match[1]}` : null;
+}
+
 export function BugReports() {
   const { profile } = useAuth();
   const { toast } = useToast();
@@ -57,6 +62,7 @@ export function BugReports() {
   const { data: profiles = [] } = useCompanyProfiles();
   const { data: userRoles = [] } = useUserRoles();
   const isAdmin = userRoles.some((r: any) => r.role === "admin");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState("all");
@@ -70,12 +76,16 @@ export function BugReports() {
   const [expected, setExpected] = useState("");
   const [actual, setActual] = useState("");
   const [priority, setPriority] = useState("medium");
+  const [loomUrl, setLoomUrl] = useState("");
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   // Detail sheet
   const [selectedBug, setSelectedBug] = useState<any>(null);
   const [editNotes, setEditNotes] = useState("");
   const [editStatus, setEditStatus] = useState("");
   const [editAssignee, setEditAssignee] = useState("");
+  const [aiSuggestion, setAiSuggestion] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
 
   const { data: reports = [], isLoading } = useQuery({
     queryKey: ["bug-reports", profile?.company_id],
@@ -108,11 +118,26 @@ export function BugReports() {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
+  const uploadFiles = async (bugId: string, files: File[]): Promise<Array<{url: string; name: string; type: string}>> => {
+    const results: Array<{url: string; name: string; type: string}> = [];
+    for (const file of files) {
+      const path = `${profile!.company_id}/${bugId}/${Date.now()}-${file.name}`;
+      const { error } = await supabase.storage.from("bug-attachments").upload(path, file);
+      if (!error) {
+        const { data: urlData } = supabase.storage.from("bug-attachments").getPublicUrl(path);
+        results.push({ url: urlData.publicUrl, name: file.name, type: file.type });
+      }
+    }
+    return results;
+  };
+
   const submitBug = useMutation({
     mutationFn: async () => {
       if (!profile?.company_id || !profile?.id) throw new Error("No company");
       const description = `**Page:** ${page}\n**Action:** ${action}\n**Expected:** ${expected}\n**Actual:** ${actual}`;
-      const { error } = await supabase.from("feature_requests").insert({
+      
+      // Insert bug first to get ID
+      const { data: inserted, error } = await supabase.from("feature_requests").insert({
         company_id: profile.company_id,
         user_id: profile.id,
         title: `[${page}] ${action.slice(0, 80)}`,
@@ -120,10 +145,17 @@ export function BugReports() {
         category: "bug_report",
         priority,
         status: "open",
-      });
+        loom_url: loomUrl || null,
+      }).select("id").single();
       if (error) throw error;
 
-      // Fire email alert (best-effort, don't block on failure)
+      // Upload files if any
+      if (pendingFiles.length > 0 && inserted) {
+        const attachments = await uploadFiles(inserted.id, pendingFiles);
+        await supabase.from("feature_requests").update({ attachments }).eq("id", inserted.id);
+      }
+
+      // Fire email alert (best-effort)
       supabase.functions.invoke("send-bug-alert", {
         body: {
           bug_title: `[${page}] ${action.slice(0, 80)}`,
@@ -139,6 +171,7 @@ export function BugReports() {
       queryClient.invalidateQueries({ queryKey: ["bug-reports"] });
       setShowForm(false);
       setPage(""); setAction(""); setExpected(""); setActual(""); setPriority("medium");
+      setLoomUrl(""); setPendingFiles([]);
     },
     onError: (err: any) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -179,6 +212,7 @@ export function BugReports() {
     setEditNotes(bug.admin_notes || "");
     setEditStatus(bug.status || "open");
     setEditAssignee(bug.assigned_to || "");
+    setAiSuggestion("");
   };
 
   const saveDetail = () => {
@@ -199,10 +233,47 @@ export function BugReports() {
     });
   };
 
+  const suggestFix = async () => {
+    if (!selectedBug) return;
+    setAiLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ask-ordino", {
+        body: {
+          question: `You are a bug triage assistant. Analyze this bug report and suggest a clear, actionable fix.\n\nTitle: ${selectedBug.title}\nDescription: ${selectedBug.description}\nPriority: ${selectedBug.priority}\n\nProvide a concise fix suggestion with specific steps.`,
+          conversationHistory: [],
+        },
+      });
+      if (error) throw error;
+      setAiSuggestion(data.answer || "No suggestion generated.");
+    } catch {
+      toast({ title: "AI suggestion failed", variant: "destructive" });
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const approveFix = () => {
+    if (!selectedBug || !aiSuggestion) return;
+    updateBug.mutate({
+      id: selectedBug.id,
+      updates: {
+        status: "in_progress",
+        admin_notes: `AI Suggested Fix:\n${aiSuggestion}\n\n${editNotes ? `Notes:\n${editNotes}` : ""}`,
+      },
+    }, { onSuccess: () => setSelectedBug(null) });
+  };
+
   const getAssigneeName = (id: string | null) => {
     if (!id) return "—";
     const p = profiles.find((pr) => pr.id === id);
     return p ? p.display_name || `${p.first_name} ${p.last_name}` : "—";
+  };
+
+  const getAttachments = (bug: any): Array<{url: string; name: string; type: string}> => {
+    if (!bug.attachments) return [];
+    try {
+      return Array.isArray(bug.attachments) ? bug.attachments : JSON.parse(bug.attachments);
+    } catch { return []; }
   };
 
   return (
@@ -279,8 +350,58 @@ export function BugReports() {
               <Label>What actually happened?</Label>
               <Textarea value={actual} onChange={(e) => setActual(e.target.value)} placeholder="Actual behavior..." rows={2} />
             </div>
+
+            {/* Screenshots upload */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1"><ImageIcon className="h-3.5 w-3.5" /> Screenshots</Label>
+              <div
+                className="border-2 border-dashed rounded-md p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
+                  setPendingFiles((prev) => [...prev, ...files]);
+                }}
+              >
+                <Upload className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Click or drag screenshots here</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files) setPendingFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
+                  }}
+                />
+              </div>
+              {pendingFiles.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {pendingFiles.map((f, i) => (
+                    <div key={i} className="relative group">
+                      <img src={URL.createObjectURL(f)} alt={f.name} className="h-16 w-16 object-cover rounded border" />
+                      <button
+                        className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => setPendingFiles((prev) => prev.filter((_, j) => j !== i))}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Loom URL */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1"><Video className="h-3.5 w-3.5" /> Loom / Video Link (optional)</Label>
+              <Input value={loomUrl} onChange={(e) => setLoomUrl(e.target.value)} placeholder="https://www.loom.com/share/..." />
+            </div>
+
             <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => setShowForm(false)}>Cancel</Button>
+              <Button variant="outline" size="sm" onClick={() => { setShowForm(false); setPendingFiles([]); setLoomUrl(""); }}>Cancel</Button>
               <Button size="sm" disabled={!page || !action || !expected || !actual || submitBug.isPending} onClick={() => submitBug.mutate()}>
                 {submitBug.isPending ? "Submitting..." : "Submit Bug Report"}
               </Button>
@@ -336,23 +457,36 @@ export function BugReports() {
                 <TableHead>Title</TableHead>
                 <TableHead className="w-24">Priority</TableHead>
                 <TableHead className="w-32">Assigned To</TableHead>
+                <TableHead className="w-16">Media</TableHead>
                 <TableHead className="w-24">Date</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((bug: any) => (
-                <TableRow key={bug.id} className="cursor-pointer" onClick={() => openDetail(bug)}>
-                  <TableCell>{statusIcon(bug.status)}</TableCell>
-                  <TableCell>
-                    <span className="font-medium text-sm">{bug.title}</span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={priorityVariant(bug.priority)} className="text-xs">{bug.priority}</Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{getAssigneeName(bug.assigned_to)}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{format(new Date(bug.created_at), "MMM d")}</TableCell>
-                </TableRow>
-              ))}
+              {filtered.map((bug: any) => {
+                const attachments = getAttachments(bug);
+                const hasMedia = attachments.length > 0 || !!bug.loom_url;
+                return (
+                  <TableRow key={bug.id} className="cursor-pointer" onClick={() => openDetail(bug)}>
+                    <TableCell>{statusIcon(bug.status)}</TableCell>
+                    <TableCell>
+                      <span className="font-medium text-sm">{bug.title}</span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={priorityVariant(bug.priority)} className="text-xs">{bug.priority}</Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{getAssigneeName(bug.assigned_to)}</TableCell>
+                    <TableCell>
+                      {hasMedia && (
+                        <div className="flex gap-1">
+                          {attachments.length > 0 && <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />}
+                          {bug.loom_url && <Video className="h-3.5 w-3.5 text-muted-foreground" />}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{format(new Date(bug.created_at), "MMM d")}</TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
@@ -378,6 +512,40 @@ export function BugReports() {
                   </div>
                 </div>
 
+                {/* Attachments */}
+                {getAttachments(selectedBug).length > 0 && (
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Screenshots</Label>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {getAttachments(selectedBug).map((att, i) => (
+                        <a key={i} href={att.url} target="_blank" rel="noopener noreferrer">
+                          <img src={att.url} alt={att.name} className="h-24 w-auto rounded border hover:ring-2 ring-primary transition-all" />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Loom embed */}
+                {selectedBug.loom_url && (
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Video</Label>
+                    {toLoomEmbed(selectedBug.loom_url) ? (
+                      <div className="mt-1 rounded-md overflow-hidden border aspect-video">
+                        <iframe
+                          src={toLoomEmbed(selectedBug.loom_url)!}
+                          className="w-full h-full"
+                          allowFullScreen
+                        />
+                      </div>
+                    ) : (
+                      <a href={selectedBug.loom_url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary underline mt-1 block">
+                        {selectedBug.loom_url}
+                      </a>
+                    )}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-xs text-muted-foreground">Priority</Label>
@@ -392,50 +560,77 @@ export function BugReports() {
                 </div>
 
                 {isAdmin && (
-                  <>
-                    <div className="border-t pt-4 space-y-4">
-                      <h4 className="font-semibold text-sm">Management</h4>
-                      <div className="space-y-2">
-                        <Label>Status</Label>
-                        <Select value={editStatus} onValueChange={setEditStatus}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="open">Open</SelectItem>
-                            <SelectItem value="in_progress">In Progress</SelectItem>
-                            <SelectItem value="resolved">Resolved</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Assign To</Label>
-                        <Select value={editAssignee} onValueChange={setEditAssignee}>
-                          <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="">Unassigned</SelectItem>
-                            {profiles.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.display_name || `${p.first_name} ${p.last_name}`}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Admin Notes</Label>
-                        <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Internal notes or resolution summary..." rows={3} />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={saveDetail} disabled={updateBug.isPending}>
-                          {updateBug.isPending ? "Saving..." : "Save Changes"}
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => {
-                          if (confirm("Delete this bug report?")) deleteBug.mutate(selectedBug.id);
-                        }}>
-                          Delete
-                        </Button>
-                      </div>
+                  <div className="border-t pt-4 space-y-4">
+                    <h4 className="font-semibold text-sm">Management</h4>
+                    <div className="space-y-2">
+                      <Label>Status</Label>
+                      <Select value={editStatus} onValueChange={setEditStatus}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="open">Open</SelectItem>
+                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="resolved">Resolved</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                  </>
+                    <div className="space-y-2">
+                      <Label>Assign To</Label>
+                      <Select value={editAssignee} onValueChange={setEditAssignee}>
+                        <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Unassigned</SelectItem>
+                          {profiles.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.display_name || `${p.first_name} ${p.last_name}`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Admin Notes</Label>
+                      <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Internal notes or resolution summary..." rows={3} />
+                    </div>
+
+                    {/* AI Suggest Fix */}
+                    <div className="border rounded-md p-3 space-y-2 bg-muted/30">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold flex items-center gap-1">
+                          <Sparkles className="h-3.5 w-3.5 text-amber-500" /> AI Auto-Fix
+                        </Label>
+                        <Button size="sm" variant="outline" onClick={suggestFix} disabled={aiLoading}>
+                          {aiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
+                          Suggest Fix
+                        </Button>
+                      </div>
+                      {aiSuggestion && (
+                        <>
+                          <div className="text-sm whitespace-pre-line bg-background rounded p-2 border max-h-48 overflow-y-auto">
+                            {aiSuggestion}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={approveFix} disabled={updateBug.isPending}>
+                              Approve & Apply
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => setAiSuggestion("")}>
+                              Dismiss
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={saveDetail} disabled={updateBug.isPending}>
+                        {updateBug.isPending ? "Saving..." : "Save Changes"}
+                      </Button>
+                      <Button size="sm" variant="destructive" onClick={() => {
+                        if (confirm("Delete this bug report?")) deleteBug.mutate(selectedBug.id);
+                      }}>
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
                 )}
 
                 {selectedBug.admin_notes && !isAdmin && (
