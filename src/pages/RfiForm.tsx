@@ -1183,13 +1183,30 @@ export default function RfiForm() {
                             return (
                               <div key={key} className="col-span-full py-1">
                                 <p className="text-xs text-stone-400 mb-1">{field.label}</p>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {selected.map((opt) => (
-                                    <span key={opt} className="inline-flex px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-xs text-amber-800">
-                                      {opt === "Other" && otherLabel ? otherLabel : opt}
-                                    </span>
-                                  ))}
+                                <div className="flex flex-wrap gap-1.5 mb-2">
+                                  {selected.map((opt) => {
+                                    const costKey = `${key}_cost_${opt.toLowerCase().replace(/\s+/g, '_')}`;
+                                    const cost = responses[costKey];
+                                    const label = opt === "Other" && otherLabel ? otherLabel : opt;
+                                    return (
+                                      <span key={opt} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                                        {label}
+                                        {cost ? <span className="font-semibold">${Number(cost).toLocaleString()}</span> : null}
+                                      </span>
+                                    );
+                                  })}
                                 </div>
+                                {(() => {
+                                  const totalCost = selected.reduce((sum, opt) => {
+                                    const costKey = `${key}_cost_${opt.toLowerCase().replace(/\s+/g, '_')}`;
+                                    return sum + (Number(responses[costKey]) || 0);
+                                  }, 0);
+                                  return totalCost > 0 ? (
+                                    <p className="text-sm font-semibold text-stone-700">
+                                      Total Estimated Cost: ${totalCost.toLocaleString()}
+                                    </p>
+                                  ) : null;
+                                })()}
                               </div>
                             );
                           }
