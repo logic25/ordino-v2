@@ -119,6 +119,23 @@ export default function Properties() {
     navigate(`/proposals?property=${propertyId}`);
   };
 
+  const handleBackfillBBL = async () => {
+    setIsBackfilling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("backfill-property-bbl");
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["properties"] });
+      toast({
+        title: "Backfill complete",
+        description: `${data.updated} of ${data.total} properties updated. ${data.notFound} not found.`,
+      });
+    } catch (err: any) {
+      toast({ title: "Backfill failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsBackfilling(false);
+    }
+  };
+
   // Signal filter counts
   const signalCounts = useMemo(() => {
     let active = 0, prospects = 0, notMonitored = 0;
