@@ -37,12 +37,6 @@ export default function ClientChangeOrderPage() {
     queryKey: ["public-co", token],
     queryFn: async () => {
       if (!token) throw new Error("No token");
-      const { data, error } = await supabase.functions.invoke("public-co", {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-        body: undefined,
-      });
-      // functions.invoke doesn't support query params, so we use the full URL
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       const res = await fetch(
         `https://${projectId}.supabase.co/functions/v1/public-co?token=${encodeURIComponent(token)}`,
