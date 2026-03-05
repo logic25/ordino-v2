@@ -26,6 +26,7 @@ const typeIcons: Record<string, typeof FolderKanban> = {
   completion_approaching: AlertTriangle,
   completion_due: AlertTriangle,
   completion_overdue: AlertTriangle,
+  bug_reported: AlertTriangle,
 };
 
 export function NotificationDropdown() {
