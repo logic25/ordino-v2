@@ -448,14 +448,22 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
       }
     }
     // Pre-fill job_description from proposal if not already filled
-    if (!mapped["job_description"] && proposalJobDesc) {
-      mapped["job_description"] = proposalJobDesc;
+    if (!mapped["job_description"] && projectAutoFill?.jobDesc) {
+      mapped["job_description"] = projectAutoFill.jobDesc;
+    }
+    // Auto-fill filing_type from project record
+    if (!mapped["filing_type"] && projectAutoFill?.filingType) {
+      mapped["filing_type"] = projectAutoFill.filingType;
+    }
+    // Auto-fill work_types from proposal disciplines
+    if (!mapped["work_types"] && projectAutoFill?.workTypes?.length) {
+      mapped["work_types"] = projectAutoFill.workTypes.join(",");
     }
     // Load same_as flags
     if (resp["tpp_same_as"]) mapped["tpp_same_as"] = String(resp["tpp_same_as"]);
     if (resp["sia_same_as"]) mapped["sia_same_as"] = String(resp["sia_same_as"]);
     setValues(mapped);
-  }, [rfiData, proposalJobDesc]);
+  }, [rfiData, projectAutoFill]);
 
   const updateValue = (key: string, value: string) => {
     setValues((prev) => ({ ...prev, [key]: value }));
