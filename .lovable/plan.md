@@ -1,75 +1,38 @@
 
 
-## Enrich Bug Tracker with Management UI + Notifications
+## Service Status Lifecycle: Remove "Complete", Keep "Paid"
 
-### What we're solving
-Right now, when Chris (or anyone) submits a bug report, nobody gets alerted. The bug list is also view-only with no way to manage status, assign, or comment. This plan adds full management capabilities plus both in-app and email notifications.
+**Current state:** The `service_status` enum has 5 values: `not_started → in_progress → complete → billed → paid`
 
----
+**Desired state:** `not_started → in_progress → billed → paid`
+- "Complete" is unnecessary — once work is done, the next step is billing, so services go straight from In Progress to Billed.
+- "Paid" stays as the final status, tracked when the associated invoice is marked paid.
 
-### 1. Database Migration
+### Changes
 
-**Add columns to `feature_requests`:**
-- `updated_at` (timestamptz, default now)
-- `resolved_at` (timestamptz, nullable)
-- `assigned_to` (uuid, FK to profiles.id, nullable)
-- `admin_notes` (text, nullable)
+**1. Database migration — remove "complete" from the enum**
+- Create a new enum without `complete`, migrate the column, drop old enum
+- Update any services currently set to `complete` → `billed`
 
-**Add an RLS policy** so admins can update any bug in their company (currently only the reporter can update their own).
+**2. Update `auto_advance_project_phase()` function**
+- Currently checks for `status IN ('completed', 'billed')` to advance project phase to closeout
+- Update to check `status IN ('billed', 'paid')`
 
-**Add a trigger function** `notify_bug_report_activity()` that fires on INSERT and UPDATE:
-- **On INSERT**: inserts a notification row for every active profile in the same company (except the reporter), with type `bug_reported`, title like "New Bug: [title]", and link to `/help`
-- **On status change to resolved**: notifies the original reporter
+**3. Update reconciliation logic in `useProjectDetail.ts`**
+- Currently jumps from `not_started` to `in_progress` (partial billing) and to `billed` (full billing)
+- Add: when the associated invoice is `paid`, auto-set service status to `paid`
+- No other changes needed since "complete" was never enforced in reconciliation
 
-**Enable realtime** on `feature_requests` so the list updates live.
+**4. Update `serviceStatusStyles` in `projectMockData.ts`**
+- Remove `complete` entry
+- Add `paid` entry with a green/success style
 
----
+**5. Update `useServiceDurationReports.ts`**
+- Currently filters completed services as `["complete", "billed", "paid"]`
+- Update to `["billed", "paid"]`
 
-### 2. Email Alerts via Edge Function
-
-**Create `supabase/functions/send-bug-alert/index.ts`:**
-- Called by the trigger via `pg_net` (or called client-side after mutation)
-- Looks up all company profiles with Gmail connections
-- Sends a brief email via the existing `gmail-send` function pattern: subject "Bug Report: [title]", body with page/priority/description
-- Simpler approach: call it client-side from `BugReports.tsx` after successful submit, passing the bug details — the edge function emails all company admins
-
----
-
-### 3. Rebuild `BugReports.tsx` UI
-
-**Summary stats bar** at top: Open | In Progress | Resolved | Critical counts
-
-**Filter toolbar:**
-- Status filter: All / Open / In Progress / Resolved
-- Priority filter: All / Critical / High / Medium / Low
-- Sort: Newest / Oldest / Priority
-
-**Table layout** replacing cards:
-- Columns: Status icon, Title, Priority badge, Assigned To, Date, Actions
-- Click row to expand detail panel
-
-**Management actions (admin only):**
-- Change status dropdown: open → in_progress → resolved (sets `resolved_at` on resolve)
-- Assign to team member (dropdown of company profiles)
-- Admin notes textarea
-- Delete bug
-
-**Reporter actions:**
-- Edit own bugs (title, description, priority)
-
----
-
-### 4. In-App Notification Wiring
-
-The database trigger handles inserting into the `notifications` table automatically. The existing `NotificationDropdown` component + realtime subscription will pick them up — no frontend changes needed for the bell icon.
-
-Add `bug_reported` to the `typeIcons` map in `NotificationDropdown.tsx` with the `Bug` icon.
-
----
-
-### Files changed
-- **New migration**: Add columns, RLS policy, trigger function
-- **New edge function**: `supabase/functions/send-bug-alert/index.ts`
-- **`src/components/helpdesk/BugReports.tsx`**: Full rebuild with table, filters, management
-- **`src/components/notifications/NotificationDropdown.tsx`**: Add bug icon to type map
+**6. Update service status dropdown in `ProjectExpandedTabs.tsx`**
+- Remove "Complete" option from any manual status selector
+- Add "Paid" if not already present
+- Ensure "Dropped" remains available as a manual override
 
