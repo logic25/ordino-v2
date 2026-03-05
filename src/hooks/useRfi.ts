@@ -286,7 +286,7 @@ export function useRfiByToken(token: string | null) {
       if (!token) return null;
       const { data, error } = await supabase
         .from("rfi_requests" as any)
-        .select("*, properties(*, owner_name), projects(name, building_owner_name, unit_number, client_id, clients!projects_client_id_fkey(name), gc_company_name, gc_contact_name, gc_phone, gc_email, architect_company_name, architect_contact_name, architect_phone, architect_email, architect_license_type, architect_license_number, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email), proposals(title, architect_name, architect_company, architect_phone, architect_email, architect_license_type, architect_license_number, gc_name, gc_company, gc_phone, gc_email, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email, job_description, unit_number, proposal_contacts(name, email, phone, company_name, role), items:proposal_items(name, is_optional, disciplines))")
+        .select("*, properties(*, owner_name), projects(name, building_owner_name, unit_number, client_id, clients!projects_client_id_fkey(name, address), gc_company_name, gc_contact_name, gc_phone, gc_email, architect_company_name, architect_contact_name, architect_phone, architect_email, architect_license_type, architect_license_number, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email), proposals(title, architect_name, architect_company, architect_phone, architect_email, architect_license_type, architect_license_number, gc_name, gc_company, gc_phone, gc_email, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email, job_description, unit_number, proposal_contacts(name, email, phone, company_name, role), items:proposal_items(name, is_optional, disciplines))")
         .eq("access_token", token)
         .maybeSingle();
       if (error) throw error;
@@ -374,7 +374,7 @@ export function useRfiByToken(token: string | null) {
           architect_email: crmPrimary?.email || projects?.architect_email || applicantContact?.email || prop.architect_email || null,
           architect_license_type: projects?.architect_license_type || prop.architect_license_type || null,
           architect_license_number: projects?.architect_license_number || prop.architect_license_number || null,
-          architect_address: crmAddress || null,
+          architect_address: crmAddress || projects?.clients?.address || null,
           sia_name: projects?.sia_name || prop.sia_name || null,
           sia_company: projects?.sia_company || prop.sia_company || null,
           sia_phone: projects?.sia_phone || prop.sia_phone || null,
