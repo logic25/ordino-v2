@@ -139,6 +139,7 @@ export function PropertyDialog({
       if (data.bin) form.setValue("bin", data.bin);
       if (data.zip_code) form.setValue("zip_code", data.zip_code);
       if (data.owner_name) form.setValue("owner_name", data.owner_name);
+      setPendingAkas(data.aka_addresses || []);
       
       toast({
         title: "Property found",
