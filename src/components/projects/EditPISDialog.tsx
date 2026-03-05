@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { WORK_TYPE_DISCIPLINES } from "@/hooks/useCompanySettings";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
