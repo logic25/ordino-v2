@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Send, X, Printer, Link2, Copy, CheckCircle2 } from "lucide-react";
+import { Send, X, Printer, Link2, Copy, CheckCircle2, PenLine } from "lucide-react";
 import type { ProposalWithRelations } from "@/hooks/useProposals";
 import { useProposalContacts } from "@/hooks/useProposalContacts";
 import { useQuery } from "@tanstack/react-query";
@@ -12,6 +12,7 @@ interface ProposalPreviewModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSend?: (id: string) => void;
+  onSign?: (proposal: ProposalWithRelations) => void;
 }
 
 function useCompanyInfo() {
@@ -38,7 +39,7 @@ function useCompanyInfo() {
   });
 }
 
-export function ProposalPreviewModal({ proposal, open, onOpenChange, onSend }: ProposalPreviewModalProps) {
+export function ProposalPreviewModal({ proposal, open, onOpenChange, onSend, onSign }: ProposalPreviewModalProps) {
   const { data: company } = useCompanyInfo();
   const { data: contacts = [] } = useProposalContacts(proposal?.id);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -159,11 +160,20 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
             <Button variant="outline" size="sm" onClick={handlePrint}>
               <Printer className="h-4 w-4 mr-1.5" /> Print / PDF
             </Button>
-            {onSend && (proposal.status === "draft" || !proposal.status) && (
-              <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90"
-                onClick={() => { onSend(proposal.id); onOpenChange(false); }}>
-                <Send className="h-3.5 w-3.5 mr-1.5" /> Send
-              </Button>
+            {proposal.status === "draft" || !proposal.status ? (
+              onSign && (
+                <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90"
+                  onClick={() => { onSign(proposal); onOpenChange(false); }}>
+                  <PenLine className="h-3.5 w-3.5 mr-1.5" /> Sign & Send
+                </Button>
+              )
+            ) : (
+              onSend && (
+                <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90"
+                  onClick={() => { onSend(proposal.id); onOpenChange(false); }}>
+                  <Send className="h-3.5 w-3.5 mr-1.5" /> Resend
+                </Button>
+              )
             )}
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenChange(false)}>
               <X className="h-4 w-4" />
