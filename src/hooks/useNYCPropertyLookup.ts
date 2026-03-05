@@ -71,114 +71,88 @@ export function useNYCPropertyLookup() {
     setError(null);
 
     try {
-      const { street, boroCode } = parseAddress(address);
-      console.log("[NYC Lookup] Parsed:", { street, boroCode, original: address });
+      console.log("[NYC Lookup] Looking up:", address);
 
-      if (street.length < 3) {
+      if (address.trim().length < 5) {
         setError("Address too short for lookup");
         return null;
       }
 
-      // Build borough filter clause if we detected one
-      const boroFilter = boroCode ? ` AND borocode='${boroCode}'` : "";
+      // Strategy 1: NYC GeoSearch API (most reliable for address → BBL/BIN)
+      try {
+        const geoUrl = `https://geosearch.planninglabs.nyc/v2/search?text=${encodeURIComponent(address)}&size=1`;
+        console.log("[NYC Lookup] GeoSearch query:", geoUrl);
+        const geoResponse = await fetch(geoUrl);
+        if (geoResponse.ok) {
+          const geoData = await geoResponse.json();
+          const feature = geoData?.features?.[0];
+          if (feature) {
+            const props = feature.properties;
+            const pad = props?.addendum?.pad;
+            const bbl = pad?.bbl || "";
+            // Parse BBL: first digit = boro, next 5 = block, last 4 = lot
+            const boroCode = bbl.substring(0, 1);
+            const block = bbl.substring(1, 6).replace(/^0+/, "");
+            const lot = bbl.substring(6, 10).replace(/^0+/, "");
+            const bin = pad?.bin || undefined;
+            const borough = BOROUGH_CODES[boroCode] || props?.borough || undefined;
+            const zip_code = props?.postalcode || undefined;
 
-      // Extract house number + street name for separate field queries
-      const houseMatch = street.match(/^(\d+[-\d]*)\s+(.+)$/);
+            // Enrich with PLUTO for owner name
+            let owner_name: string | undefined;
+            if (bbl) {
+              try {
+                const plutoUrl = `https://data.cityofnewyork.us/resource/64uk-42ks.json?borocode=${boroCode}&block=${bbl.substring(1, 6)}&lot=${bbl.substring(6, 10)}&$select=ownername&$limit=1`;
+                const plutoResp = await fetch(plutoUrl);
+                if (plutoResp.ok) {
+                  const plutoData = await plutoResp.json();
+                  if (plutoData?.[0]?.ownername) {
+                    owner_name = plutoData[0].ownername;
+                  }
+                }
+              } catch {
+                // Owner enrichment is optional
+              }
+            }
 
-      // Strategy 1a: PLUTO with house number + street name as separate fields
-      if (houseMatch) {
-        const houseNum = houseMatch[1];
-        const streetName = houseMatch[2];
-        const plutoSplitUrl = `https://data.cityofnewyork.us/resource/64uk-42ks.json?$where=address='${encodeURIComponent(houseNum)}' AND upper(stname) like '%25${encodeURIComponent(streetName.split(/\s+/)[0])}%25'${encodeURIComponent(boroFilter)}&$limit=5`;
-        console.log("[NYC Lookup] PLUTO split query:", plutoSplitUrl);
-
-        const splitResponse = await fetch(plutoSplitUrl);
-        if (splitResponse.ok) {
-          const splitData = await splitResponse.json();
-          if (splitData && splitData.length > 0) {
-            const property = splitData[0];
+            console.log("[NYC Lookup] GeoSearch found:", { borough, block, lot, bin, zip_code, owner_name });
             return {
-              bin: property.bin || undefined,
-              block: property.block || undefined,
-              lot: property.lot || undefined,
-              borough: BOROUGH_CODES[property.borocode] || property.borough || undefined,
-              zip_code: property.zipcode || undefined,
-              owner_name: property.ownername || undefined,
-              address: property.address || address,
+              bin,
+              block: block || undefined,
+              lot: lot || undefined,
+              borough,
+              zip_code,
+              owner_name,
+              address: props?.name || address,
             };
           }
         }
+      } catch (geoErr) {
+        console.warn("[NYC Lookup] GeoSearch failed, falling back to PLUTO:", geoErr);
       }
 
-      // Strategy 1b: PLUTO with full cleaned street (fallback)
+      // Strategy 2: PLUTO direct address search (fallback)
+      const { street, boroCode } = parseAddress(address);
+      if (street.length < 3) return null;
+
+      const boroFilter = boroCode ? ` AND borocode='${boroCode}'` : "";
       const plutoUrl = `https://data.cityofnewyork.us/resource/64uk-42ks.json?$where=upper(address) like '%25${encodeURIComponent(street)}%25'${encodeURIComponent(boroFilter)}&$limit=5`;
-      console.log("[NYC Lookup] PLUTO full query:", plutoUrl);
+      console.log("[NYC Lookup] PLUTO fallback query:", plutoUrl);
 
       const response = await fetch(plutoUrl);
-      if (!response.ok) throw new Error("Failed to fetch property data");
-
-      const data = await response.json();
-      if (data && data.length > 0) {
-        const property = data[0];
-        return {
-          bin: property.bin || undefined,
-          block: property.block || undefined,
-          lot: property.lot || undefined,
-          borough: BOROUGH_CODES[property.borocode] || property.borough || undefined,
-          zip_code: property.zipcode || undefined,
-          owner_name: property.ownername || undefined,
-          address: property.address || address,
-        };
-      }
-
-      // Strategy 2: PAD dataset with house number + street name + borough
-      const padHouseMatch = street.match(/^(\d+[-\d]*)\s+(.+)$/);
-      if (padHouseMatch) {
-        const houseNum = padHouseMatch[1];
-        const streetName = padHouseMatch[2];
-        const padBoroFilter = boroCode ? ` AND boro='${boroCode}'` : "";
-
-        const padUrl = `https://data.cityofnewyork.us/resource/bc93-7baw.json?$where=lhnd='${encodeURIComponent(houseNum)}' AND upper(stname) like '%25${encodeURIComponent(streetName.substring(0, 20))}%25'${encodeURIComponent(padBoroFilter)}&$limit=5`;
-        console.log("[NYC Lookup] PAD query:", padUrl);
-
-        const padResponse = await fetch(padUrl);
-        if (padResponse.ok) {
-          const padData = await padResponse.json();
-          if (padData && padData.length > 0) {
-            const prop = padData[0];
-            return {
-              bin: prop.bin || undefined,
-              block: prop.block || undefined,
-              lot: prop.lot || undefined,
-              borough: BOROUGH_CODES[prop.boro] || undefined,
-              zip_code: prop.zipcode || undefined,
-              address: address,
-            };
-          }
-        }
-
-        // Strategy 3: PLUTO with just house number + short street name + borough
-        const shortStreet = streetName.split(/\s+(AVE|AVENUE|ST|STREET|BLVD|BOULEVARD|PL|PLACE|DR|DRIVE|RD|ROAD|CT|COURT|WAY|LN|LANE|TER|TERRACE)/i)[0];
-        if (shortStreet && shortStreet !== streetName) {
-          const pluto2Url = `https://data.cityofnewyork.us/resource/64uk-42ks.json?$where=upper(address) like '%25${encodeURIComponent(houseNum + " " + shortStreet)}%25'${encodeURIComponent(boroFilter)}&$limit=5`;
-          console.log("[NYC Lookup] PLUTO fallback:", pluto2Url);
-
-          const pluto2Response = await fetch(pluto2Url);
-          if (pluto2Response.ok) {
-            const pluto2Data = await pluto2Response.json();
-            if (pluto2Data && pluto2Data.length > 0) {
-              const property = pluto2Data[0];
-              return {
-                bin: property.bin || undefined,
-                block: property.block || undefined,
-                lot: property.lot || undefined,
-                borough: BOROUGH_CODES[property.borocode] || property.borough || undefined,
-                zip_code: property.zipcode || undefined,
-                owner_name: property.ownername || undefined,
-                address: property.address || address,
-              };
-            }
-          }
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.length > 0) {
+          const property = data[0];
+          return {
+            bin: property.bin || undefined,
+            block: property.block || undefined,
+            lot: property.lot || undefined,
+            borough: BOROUGH_CODES[property.borocode] || property.borough || undefined,
+            zip_code: property.zipcode || undefined,
+            owner_name: property.ownername || undefined,
+            address: property.address || address,
+          };
         }
       }
 

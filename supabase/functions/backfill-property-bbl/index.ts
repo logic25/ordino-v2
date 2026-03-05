@@ -49,32 +49,48 @@ function parseAddress(raw: string): { street: string; boroCode: string | null } 
 }
 
 async function lookupAddress(address: string) {
-  const { street, boroCode } = parseAddress(address);
-  if (street.length < 3) return null;
+  if (address.trim().length < 5) return null;
 
-  const boroFilter = boroCode ? ` AND borocode='${boroCode}'` : "";
-  const houseMatch = street.match(/^(\d+[-\d]*)\s+(.+)$/);
+  // Strategy 1: NYC GeoSearch API (most reliable)
+  try {
+    const geoUrl = `https://geosearch.planninglabs.nyc/v2/search?text=${encodeURIComponent(address)}&size=1`;
+    const geoResp = await fetch(geoUrl);
+    if (geoResp.ok) {
+      const geoData = await geoResp.json();
+      const feature = geoData?.features?.[0];
+      if (feature) {
+        const props = feature.properties;
+        const pad = props?.addendum?.pad;
+        const bbl = pad?.bbl || "";
+        const boroCode = bbl.substring(0, 1);
+        const block = bbl.substring(1, 6).replace(/^0+/, "") || null;
+        const lot = bbl.substring(6, 10).replace(/^0+/, "") || null;
+        const bin = pad?.bin || null;
+        const borough = BOROUGH_CODES[boroCode] || props?.borough || null;
+        const zip_code = props?.postalcode || null;
 
-  // Strategy 1a: PLUTO with house number + street name as separate fields
-  if (houseMatch) {
-    const houseNum = houseMatch[1];
-    const streetName = houseMatch[2];
-    const plutoSplitUrl = `https://data.cityofnewyork.us/resource/64uk-42ks.json?$where=address='${encodeURIComponent(houseNum)}' AND upper(stname) like '%25${encodeURIComponent(streetName.split(/\s+/)[0])}%25'${encodeURIComponent(boroFilter)}&$limit=5`;
-    const splitResp = await fetch(plutoSplitUrl);
-    if (splitResp.ok) {
-      const splitData = await splitResp.json();
-      if (splitData?.length > 0) {
-        const p = splitData[0];
-        return {
-          bin: p.bin || null, block: p.block || null, lot: p.lot || null,
-          borough: BOROUGH_CODES[p.borocode] || p.borough || null,
-          zip_code: p.zipcode || null, owner_name: p.ownername || null,
-        };
+        // Enrich with PLUTO for owner name
+        let owner_name: string | null = null;
+        if (bbl) {
+          try {
+            const plutoUrl = `https://data.cityofnewyork.us/resource/64uk-42ks.json?borocode=${boroCode}&block=${bbl.substring(1, 6)}&lot=${bbl.substring(6, 10)}&$select=ownername&$limit=1`;
+            const plutoResp = await fetch(plutoUrl);
+            if (plutoResp.ok) {
+              const plutoData = await plutoResp.json();
+              if (plutoData?.[0]?.ownername) owner_name = plutoData[0].ownername;
+            }
+          } catch { /* optional */ }
+        }
+
+        return { bin, block, lot, borough, zip_code, owner_name };
       }
     }
-  }
+  } catch { /* fall through to PLUTO */ }
 
-  // Strategy 1b: PLUTO with full address string
+  // Strategy 2: PLUTO direct (fallback)
+  const { street, boroCode } = parseAddress(address);
+  if (street.length < 3) return null;
+  const boroFilter = boroCode ? ` AND borocode='${boroCode}'` : "";
   const plutoUrl = `https://data.cityofnewyork.us/resource/64uk-42ks.json?$where=upper(address) like '%25${encodeURIComponent(street)}%25'${encodeURIComponent(boroFilter)}&$limit=5`;
   const response = await fetch(plutoUrl);
   if (response.ok) {
@@ -86,30 +102,6 @@ async function lookupAddress(address: string) {
         borough: BOROUGH_CODES[p.borocode] || p.borough || null,
         zip_code: p.zipcode || null, owner_name: p.ownername || null,
       };
-    }
-  }
-
-  // Strategy 2: PAD
-  const houseMatch = street.match(/^(\d+[-\d]*)\s+(.+)$/);
-  if (houseMatch) {
-    const houseNum = houseMatch[1];
-    const streetName = houseMatch[2];
-    const padBoroFilter = boroCode ? ` AND boro='${boroCode}'` : "";
-    const padUrl = `https://data.cityofnewyork.us/resource/bc93-7baw.json?$where=lhnd='${encodeURIComponent(houseNum)}' AND upper(stname) like '%25${encodeURIComponent(streetName.substring(0, 20))}%25'${encodeURIComponent(padBoroFilter)}&$limit=5`;
-    const padResponse = await fetch(padUrl);
-    if (padResponse.ok) {
-      const padData = await padResponse.json();
-      if (padData?.length > 0) {
-        const p = padData[0];
-        return {
-          bin: p.bin || null,
-          block: p.block || null,
-          lot: p.lot || null,
-          borough: BOROUGH_CODES[p.boro] || null,
-          zip_code: p.zipcode || null,
-          owner_name: null,
-        };
-      }
     }
   }
 
