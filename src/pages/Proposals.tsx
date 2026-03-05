@@ -1132,6 +1132,7 @@ export default function Proposals() {
         open={!!previewProposal}
         onOpenChange={(open) => { if (!open) setPreviewProposal(null); }}
         onSend={handleOpenSend}
+        onSign={handleOpenSign}
       />
 
       <SendProposalDialog
