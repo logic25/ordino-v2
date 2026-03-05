@@ -299,6 +299,27 @@ export default function RfiForm() {
   const progress = totalSteps > 0 ? Math.max(0, ((Math.min(currentStep + 1, totalSteps)) / totalSteps) * 100) : 0;
   const currentSection = currentStep >= 0 && currentStep < totalSteps ? sections[currentStep] : null;
 
+  // Seed responses from previously saved/submitted RFI data
+  const responsesSeeded = useRef(false);
+  useEffect(() => {
+    if (!rfi || responsesSeeded.current) return;
+    const saved = rfi.responses;
+    if (saved && typeof saved === "object" && Object.keys(saved).length > 0) {
+      setResponses(prev => {
+        // Only seed if local state is still empty (haven't started editing)
+        if (Object.keys(prev).length === 0) {
+          return { ...saved };
+        }
+        return prev;
+      });
+      responsesSeeded.current = true;
+      // If coming from reminder link, jump to step 0
+      if (isReminder && currentStep === -1) {
+        setCurrentStep(0);
+      }
+    }
+  }, [rfi]);
+
   // Pre-populate property data + project data (applicant, owner, GC) when loaded
   useEffect(() => {
     if (!rfi) return;
@@ -1111,6 +1132,10 @@ export default function RfiForm() {
           <Button
             variant="outline"
             onClick={() => {
+              // Restore saved responses if local state is empty
+              if (rfi.responses && typeof rfi.responses === "object" && Object.keys(rfi.responses).length > 0 && Object.keys(responses).length === 0) {
+                setResponses({ ...rfi.responses });
+              }
               setEditingAfterSubmit(true);
               setSubmitted(false);
               setCurrentStep(0);
