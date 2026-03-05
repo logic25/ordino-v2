@@ -86,6 +86,7 @@ export function useCreateProperty() {
           notes: property.notes || null,
           aka_addresses: property.aka_addresses || [],
           company_id: profile.company_id,
+          bbl_verified: !!(property.borough && property.block && property.lot),
         })
         .select()
         .single();
