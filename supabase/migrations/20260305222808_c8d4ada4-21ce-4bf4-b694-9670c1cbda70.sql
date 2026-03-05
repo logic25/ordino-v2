@@ -1,0 +1,1 @@
+ALTER TABLE public.rfi_requests ADD COLUMN IF NOT EXISTS last_reminder_sent_at timestamptz DEFAULT NULL;
