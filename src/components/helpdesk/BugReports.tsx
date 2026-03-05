@@ -55,8 +55,8 @@ export function BugReports() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: profiles = [] } = useCompanyProfiles();
-  const { roles } = useUserRoles();
-  const isAdmin = roles.includes("admin");
+  const { data: userRoles = [] } = useUserRoles();
+  const isAdmin = userRoles.some((r: any) => r.role === "admin");
 
   // Filters
   const [statusFilter, setStatusFilter] = useState("all");
