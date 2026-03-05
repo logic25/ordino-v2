@@ -179,6 +179,15 @@ export function PropertyDialog({
                 placeholder="350 Fifth Avenue, New York, NY"
                 className="flex-1"
                 {...form.register("address")}
+                onBlur={(e) => {
+                  const val = e.target.value;
+                  const borough = form.getValues("borough");
+                  const block = form.getValues("block");
+                  if (val.length >= 5 && !borough && !block && !hasAutoLooked && !isLookingUp) {
+                    setHasAutoLooked(true);
+                    handleAddressLookup();
+                  }
+                }}
               />
               <Button
                 type="button"
