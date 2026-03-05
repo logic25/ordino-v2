@@ -119,11 +119,10 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Fetch properties missing BBL data
+    // Fetch ALL properties to ensure complete data
     const { data: properties, error } = await supabase
       .from("properties")
-      .select("id, address, borough, block, lot")
-      .or("borough.is.null,block.is.null,lot.is.null");
+      .select("id, address, borough, block, lot, bin, zip_code, owner_name");
 
     if (error) throw error;
 
@@ -134,18 +133,19 @@ Deno.serve(async (req) => {
         const lookupData = await lookupAddress(prop.address);
         if (lookupData) {
           const updates: Record<string, string> = {};
+          // Fill any missing field, even if some fields already have data
           if (!prop.borough && lookupData.borough) updates.borough = lookupData.borough;
           if (!prop.block && lookupData.block) updates.block = lookupData.block;
           if (!prop.lot && lookupData.lot) updates.lot = lookupData.lot;
-          if (lookupData.bin) updates.bin = lookupData.bin;
-          if (lookupData.zip_code) updates.zip_code = lookupData.zip_code;
-          if (lookupData.owner_name) updates.owner_name = lookupData.owner_name;
+          if (!prop.bin && lookupData.bin) updates.bin = lookupData.bin;
+          if (!prop.zip_code && lookupData.zip_code) updates.zip_code = lookupData.zip_code;
+          if (!prop.owner_name && lookupData.owner_name) updates.owner_name = lookupData.owner_name;
 
           if (Object.keys(updates).length > 0) {
             await supabase.from("properties").update(updates).eq("id", prop.id);
             results.push({ id: prop.id, address: prop.address, status: "updated" });
           } else {
-            results.push({ id: prop.id, address: prop.address, status: "no_new_data" });
+            results.push({ id: prop.id, address: prop.address, status: "already_complete" });
           }
         } else {
           results.push({ id: prop.id, address: prop.address, status: "not_found" });
