@@ -143,8 +143,8 @@ export function PropertyTable({
                 const projectCount = property.projects?.length || 0;
                 const hasSignal = !!property.signalSubscription;
                 const hasChildren = applicationCount > 0 || projectCount > 0 || hasSignal;
-                const missingBBL = !property.borough || !property.block || !property.lot;
-                const bblIssue = missingBBL || property.bbl_verified === false;
+                const missingBBL = !property.block && !property.lot;
+                const bblIssue = property.bbl_verified === false && missingBBL;
 
                 return (
                   <Collapsible key={property.id} asChild open={isExpanded}>

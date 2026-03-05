@@ -117,6 +117,7 @@ export function useCreateProperty() {
               if (!data.zip_code && p.zipcode) updates.zip_code = p.zipcode;
               if (!data.owner_name && p.ownername) updates.owner_name = p.ownername;
               if (Object.keys(updates).length > 0) {
+                (updates as Record<string, unknown>).bbl_verified = true;
                 await supabase.from("properties").update(updates).eq("id", data.id);
               }
             }
