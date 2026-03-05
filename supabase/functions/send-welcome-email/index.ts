@@ -281,49 +281,53 @@ Deno.serve(async (req) => {
       pisLink = `${baseUrl}/rfi/${(rfi as any).access_token}`;
     }
 
-    // Try to fetch the signed proposal from storage to attach
+    // Only attach the proposal if it's fully executed (both parties signed)
     let proposalAttachment: { filename: string; mimeType: string; base64Data: string } | null = null;
-    try {
-      // Try PDF first (preferred), fall back to HTML
-      const proposalNum = (proposal as any).proposal_number || "draft";
-      let fileData: Blob | null = null;
-      let mimeType = "application/pdf";
-      let ext = "pdf";
+    const isFullyExecuted = !!(proposal as any).signed_at && !!(proposal as any).client_signed_at;
 
-      const { data: pdfData, error: pdfErr } = await supabaseAdmin.storage
-        .from("documents")
-        .download(`proposals/${proposal_id}/signed_proposal.pdf`);
-      
-      if (pdfData && !pdfErr) {
-        fileData = pdfData;
-      } else {
-        // Fallback to HTML
-        const { data: htmlData, error: htmlErr } = await supabaseAdmin.storage
+    if (isFullyExecuted) {
+      try {
+        const proposalNum = (proposal as any).proposal_number || "draft";
+        let fileData: Blob | null = null;
+        let mimeType = "application/pdf";
+        let ext = "pdf";
+
+        const { data: pdfData, error: pdfErr } = await supabaseAdmin.storage
           .from("documents")
-          .download(`proposals/${proposal_id}/signed_proposal.html`);
-        if (htmlData && !htmlErr) {
-          fileData = htmlData;
-          mimeType = "text/html";
-          ext = "html";
+          .download(`proposals/${proposal_id}/signed_proposal.pdf`);
+        
+        if (pdfData && !pdfErr) {
+          fileData = pdfData;
+        } else {
+          const { data: htmlData, error: htmlErr } = await supabaseAdmin.storage
+            .from("documents")
+            .download(`proposals/${proposal_id}/signed_proposal.html`);
+          if (htmlData && !htmlErr) {
+            fileData = htmlData;
+            mimeType = "text/html";
+            ext = "html";
+          }
         }
-      }
 
-      if (fileData) {
-        const arrayBuffer = await fileData.arrayBuffer();
-        const bytes = new Uint8Array(arrayBuffer);
-        let binary = "";
-        for (let i = 0; i < bytes.length; i++) {
-          binary += String.fromCharCode(bytes[i]);
+        if (fileData) {
+          const arrayBuffer = await fileData.arrayBuffer();
+          const bytes = new Uint8Array(arrayBuffer);
+          let binary = "";
+          for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          const base64 = btoa(binary);
+          proposalAttachment = {
+            filename: `Proposal_${proposalNum}_Executed.${ext}`,
+            mimeType,
+            base64Data: base64,
+          };
         }
-        const base64 = btoa(binary);
-        proposalAttachment = {
-          filename: `Proposal_${proposalNum}_Executed.${ext}`,
-          mimeType,
-          base64Data: base64,
-        };
+      } catch (attachErr) {
+        console.error("Could not attach signed proposal:", attachErr);
       }
-    } catch (attachErr) {
-      console.error("Could not attach signed proposal:", attachErr);
+    } else {
+      console.log("Skipping proposal attachment — not fully executed (signed_at:", (proposal as any).signed_at, "client_signed_at:", (proposal as any).client_signed_at, ")");
     }
 
     // Find a Gmail connection to send from
