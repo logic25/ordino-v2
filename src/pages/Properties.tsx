@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building2, Plus, Search, Loader2 } from "lucide-react";
+import { Building2, Plus, Search, Loader2, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PropertyDialog, PropertyFormData } from "@/components/properties/PropertyDialog";
@@ -20,6 +20,8 @@ import { useProjects } from "@/hooks/useProjects";
 import { useSignalSubscriptions } from "@/hooks/useSignalSubscriptions";
 import { useSignalViolationCounts } from "@/hooks/useSignalViolations";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function Properties() {
   const navigate = useNavigate();
