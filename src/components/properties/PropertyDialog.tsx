@@ -30,7 +30,7 @@ import { AddressAutocomplete } from "@/components/shared/AddressAutocomplete";
 
 const propertySchema = z.object({
   address: z.string().min(5, "Address must be at least 5 characters"),
-  borough: z.string().optional().transform(v => v || null),
+  borough: z.string().min(1, "Borough is required"),
   block: z.string().optional().transform(v => v || null),
   lot: z.string().optional().transform(v => v || null),
   bin: z.string().optional().transform(v => v || null),
