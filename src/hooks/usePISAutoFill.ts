@@ -8,6 +8,7 @@ interface ContactOption {
   sublabel?: string;
   source: "client" | "contact";
   fields: Record<string, string>;
+  clientId?: string; // For drill-down: the client_id to filter contacts
 }
 
 // Maps PIS section IDs to the field prefixes and which fields to auto-fill
@@ -37,7 +38,7 @@ export function usePISContactOptions(proposalId?: string | null) {
     queryFn: async () => {
       const { data } = await supabase
         .from("client_contacts")
-        .select("id, name, first_name, last_name, email, phone, mobile, company_name, title, address_1, city, state, zip")
+        .select("id, name, first_name, last_name, email, phone, mobile, company_name, title, address_1, city, state, zip, client_id, license_type, license_number, specialty")
         .order("name");
       return data || [];
     },
@@ -59,6 +60,33 @@ export function usePISContactOptions(proposalId?: string | null) {
     enabled: !!proposalId,
   });
 
+  // Get contacts filtered by client_id for drill-down
+  const getContactsForClient = useMemo(() => {
+    return (clientId: string, sectionId: string): ContactOption[] => {
+      const mapping = SECTION_FIELD_MAP[sectionId];
+      if (!mapping) return [];
+
+      return contacts
+        .filter(c => c.client_id === clientId)
+        .map(c => {
+          const fullAddress = [c.address_1, c.city, c.state, c.zip].filter(Boolean).join(", ");
+          return {
+            id: `contact-${c.id}`,
+            label: c.name,
+            sublabel: c.title || c.specialty || undefined,
+            source: "contact" as const,
+            fields: {
+              [mapping.nameField]: c.name,
+              ...(mapping.companyField && c.company_name ? { [mapping.companyField]: c.company_name } : {}),
+              ...(mapping.emailField && c.email ? { [mapping.emailField]: c.email } : {}),
+              ...(mapping.phoneField && (c.phone || c.mobile) ? { [mapping.phoneField]: c.phone || c.mobile || "" } : {}),
+              ...(mapping.addressField && fullAddress ? { [mapping.addressField]: fullAddress } : {}),
+            },
+          };
+        });
+    };
+  }, [contacts]);
+
   // Build options per section
   const getOptionsForSection = useMemo(() => {
     return (sectionId: string, query: string): ContactOption[] => {
@@ -75,7 +103,9 @@ export function usePISContactOptions(proposalId?: string | null) {
           label: c.name,
           sublabel: c.client_type || undefined,
           source: "client" as const,
+          clientId: c.id, // Enable drill-down
           fields: {
+            [mapping.nameField]: c.name,
             ...(mapping.companyField ? { [mapping.companyField]: c.name } : {}),
             ...(mapping.emailField && c.email ? { [mapping.emailField]: c.email } : {}),
             ...(mapping.phoneField && c.phone ? { [mapping.phoneField]: c.phone } : {}),
@@ -124,7 +154,7 @@ export function usePISContactOptions(proposalId?: string | null) {
     };
   }, [clients, contacts, proposalContacts]);
 
-  return { getOptionsForSection, sectionFieldMap: SECTION_FIELD_MAP };
+  return { getOptionsForSection, getContactsForClient, sectionFieldMap: SECTION_FIELD_MAP };
 }
 
 /** Extract section-level fields from prior PIS responses */
