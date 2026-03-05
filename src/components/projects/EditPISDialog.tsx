@@ -514,6 +514,40 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
     if (!mapped["work_types"] && projectAutoFill?.workTypes?.length) {
       mapped["work_types"] = projectAutoFill.workTypes.join(",");
     }
+
+    // Aggregate per-work-type costs from public PIS into estimated_job_cost
+    if (!mapped["estimated_job_cost"]) {
+      let costSum = 0;
+      let foundCost = false;
+      for (const [key, v] of Object.entries(resp)) {
+        if (key.includes("_work_types_cost_") && v) {
+          const num = Number(v);
+          if (!isNaN(num)) { costSum += num; foundCost = true; }
+        }
+      }
+      if (foundCost) {
+        mapped["estimated_job_cost"] = String(costSum);
+      }
+    }
+
+    // Map public-form prefixed keys that the endsWith fallback may miss
+    const publicPrefixMap: Record<string, string> = {
+      "building_and_scope": "building_scope",
+      "applicant_and_owner": "applicant",
+      "contractors_inspections": "gc",
+    };
+    for (const [pubPrefix] of Object.entries(publicPrefixMap)) {
+      for (const [key, v] of Object.entries(resp)) {
+        if (!key.startsWith(`${pubPrefix}_`) || !v) continue;
+        const fieldId = key.slice(pubPrefix.length + 1);
+        // Skip compound keys (cost breakdowns, _selected suffixes already handled)
+        if (fieldId.includes("_cost_") || fieldId.endsWith("_selected")) continue;
+        if (!mapped[fieldId]) {
+          mapped[fieldId] = Array.isArray(v) ? v.join(",") : String(v);
+        }
+      }
+    }
+
     if (resp["tpp_same_as"]) mapped["tpp_same_as"] = String(resp["tpp_same_as"]);
     if (resp["sia_same_as"]) mapped["sia_same_as"] = String(resp["sia_same_as"]);
     setValues(mapped);
