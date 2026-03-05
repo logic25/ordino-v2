@@ -456,18 +456,21 @@ export function ChangeOrderDetailSheet({
       if (uploadError) throw uploadError;
 
       // Save record in universal_documents table
-      await supabase
+      const { error: docError } = await supabase
         .from("universal_documents" as any)
         .insert({
           company_id: co.company_id,
           project_id: co.project_id,
-          name: fileName,
+          title: `${co.co_number} – ${co.title}`,
+          filename: fileName,
           storage_path: filePath,
           mime_type: "application/pdf",
           size_bytes: blob.size,
           uploaded_by: profile?.id ?? null,
           category: "change_order",
         });
+
+      if (docError) throw docError;
 
       toast({ title: "PDF saved", description: `${fileName} saved to project documents.` });
     } catch (e: any) {
@@ -483,7 +486,7 @@ export function ChangeOrderDetailSheet({
       .select("id")
       .eq("project_id", co.project_id)
       .eq("category", "change_order")
-      .ilike("filename" as any, `%${co.co_number.replace("#", "")}%`)
+      .ilike("filename", `%${co.co_number.replace("#", "")}%`)
       .limit(1)
       .then(({ data }) => {
         if (!data || data.length === 0) {
