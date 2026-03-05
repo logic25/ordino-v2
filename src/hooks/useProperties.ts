@@ -50,6 +50,7 @@ export interface PropertyFormInput {
   owner_name?: string | null;
   owner_contact?: string | null;
   notes?: string | null;
+  aka_addresses?: string[] | null;
 }
 
 export function useCreateProperty() {
@@ -83,6 +84,7 @@ export function useCreateProperty() {
           owner_name: property.owner_name || null,
           owner_contact: property.owner_contact || null,
           notes: property.notes || null,
+          aka_addresses: property.aka_addresses || [],
           company_id: profile.company_id,
         })
         .select()
@@ -148,6 +150,7 @@ export function useUpdateProperty() {
           owner_name: updates.owner_name || null,
           owner_contact: updates.owner_contact || null,
           notes: updates.notes || null,
+          ...(updates.aka_addresses ? { aka_addresses: updates.aka_addresses } : {}),
         })
         .eq("id", id)
         .select()

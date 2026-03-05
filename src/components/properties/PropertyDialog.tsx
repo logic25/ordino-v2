@@ -71,6 +71,7 @@ export function PropertyDialog({
   const { track } = useTelemetry();
   const [addressToLookup, setAddressToLookup] = useState("");
   const [hasAutoLooked, setHasAutoLooked] = useState(false);
+  const [pendingAkas, setPendingAkas] = useState<string[]>([]);
 
   const form = useForm<PropertyFormData>({
     resolver: zodResolver(propertySchema),
@@ -138,6 +139,7 @@ export function PropertyDialog({
       if (data.bin) form.setValue("bin", data.bin);
       if (data.zip_code) form.setValue("zip_code", data.zip_code);
       if (data.owner_name) form.setValue("owner_name", data.owner_name);
+      setPendingAkas(data.aka_addresses || []);
       
       toast({
         title: "Property found",
@@ -154,8 +156,9 @@ export function PropertyDialog({
 
   const handleSubmit = async (data: PropertyFormData) => {
     track("properties", isEditing ? "create_completed" : "create_completed", { is_edit: isEditing });
-    await onSubmit(data);
+    await onSubmit({ ...data, aka_addresses: pendingAkas.length > 0 ? pendingAkas : undefined });
     form.reset();
+    setPendingAkas([]);
   };
 
   return (

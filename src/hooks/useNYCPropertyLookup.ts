@@ -8,6 +8,7 @@ export interface NYCPropertyData {
   zip_code?: string;
   owner_name?: string;
   address?: string;
+  aka_addresses?: string[];
 }
 
 const BOROUGH_CODES: Record<string, string> = {
@@ -169,6 +170,39 @@ async function verifyBBLWithPLUTO(
   }
 }
 
+/** Fetch AKA addresses from NYC PAD dataset using BIN */
+async function fetchAkaAddresses(bin: string | undefined): Promise<string[]> {
+  if (!bin) return [];
+  try {
+    const padUrl = `https://data.cityofnewyork.us/resource/bc8t-ecyu.json?bin=${bin}&$select=stname,lhnd,hhnd&$limit=50`;
+    const resp = await fetch(padUrl);
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    if (!data?.length) return [];
+    const seen = new Set<string>();
+    const akas: string[] = [];
+    for (const row of data) {
+      const street = (row.stname || "").trim();
+      if (!street) continue;
+      const low = (row.lhnd || "").trim();
+      const high = (row.hhnd || "").trim();
+      const label = low && high && low !== high
+        ? `${low}-${high} ${street}`
+        : low
+        ? `${low} ${street}`
+        : street;
+      const key = label.toUpperCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        akas.push(label.toUpperCase());
+      }
+    }
+    return akas;
+  } catch {
+    return [];
+  }
+}
+
 export function useNYCPropertyLookup() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -224,6 +258,7 @@ export function useNYCPropertyLookup() {
                   console.warn(`[NYC Lookup] GeoSearch BBL ${bbl} failed PLUTO verification for "${address}". Skipping.`);
                 } else {
                   console.log("[NYC Lookup] Verified result:", { borough, block, lot, bin, zip_code });
+                  const aka_addresses = await fetchAkaAddresses(bin);
                   return {
                     bin,
                     block: block || undefined,
@@ -232,6 +267,7 @@ export function useNYCPropertyLookup() {
                     zip_code,
                     owner_name: verification.owner_name,
                     address: props?.name || address,
+                    aka_addresses: aka_addresses.length > 0 ? aka_addresses : undefined,
                   };
                 }
               }
@@ -261,6 +297,7 @@ export function useNYCPropertyLookup() {
           }) || null;
 
           if (match) {
+            const aka_addresses = await fetchAkaAddresses(match.bin);
             return {
               bin: match.bin || undefined,
               block: match.block || undefined,
@@ -269,6 +306,7 @@ export function useNYCPropertyLookup() {
               zip_code: match.zipcode || undefined,
               owner_name: match.ownername || undefined,
               address: match.address || address,
+              aka_addresses: aka_addresses.length > 0 ? aka_addresses : undefined,
             };
           }
         }
