@@ -578,7 +578,7 @@ export function BugReports() {
                       <Select value={editAssignee} onValueChange={setEditAssignee}>
                         <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Unassigned</SelectItem>
+                          <SelectItem value="__unassigned__">Unassigned</SelectItem>
                           {profiles.map((p) => (
                             <SelectItem key={p.id} value={p.id}>
                               {p.display_name || `${p.first_name} ${p.last_name}`}
