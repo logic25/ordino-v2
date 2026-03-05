@@ -729,7 +729,7 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
 
     setSendingReminder(true);
     try {
-      const pisUrl = `${window.location.origin}/rfi?token=${rfiRecord.access_token}`;
+      const pisUrl = `${window.location.origin}/rfi?token=${rfiRecord.access_token}&reminder=true`;
       const recipientName = rfiRecord.recipient_name || "there";
       const subject = `Reminder: Project Information Sheet — ${projectName || "Your Project"}`;
       const innerBody = `
