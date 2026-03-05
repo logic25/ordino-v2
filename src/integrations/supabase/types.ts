@@ -3212,11 +3212,13 @@ export type Database = {
         Row: {
           admin_notes: string | null
           assigned_to: string | null
+          attachments: Json | null
           category: string | null
           company_id: string
           created_at: string | null
           description: string | null
           id: string
+          loom_url: string | null
           priority: string | null
           resolved_at: string | null
           status: string | null
@@ -3228,11 +3230,13 @@ export type Database = {
         Insert: {
           admin_notes?: string | null
           assigned_to?: string | null
+          attachments?: Json | null
           category?: string | null
           company_id: string
           created_at?: string | null
           description?: string | null
           id?: string
+          loom_url?: string | null
           priority?: string | null
           resolved_at?: string | null
           status?: string | null
@@ -3244,11 +3248,13 @@ export type Database = {
         Update: {
           admin_notes?: string | null
           assigned_to?: string | null
+          attachments?: Json | null
           category?: string | null
           company_id?: string
           created_at?: string | null
           description?: string | null
           id?: string
+          loom_url?: string | null
           priority?: string | null
           resolved_at?: string | null
           status?: string | null
