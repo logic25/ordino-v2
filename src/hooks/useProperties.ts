@@ -89,6 +89,40 @@ export function useCreateProperty() {
         .single();
 
       if (error) throw error;
+
+      // Safety net: if BBL is missing after save, try NYC lookup
+      if (!data.borough || !data.block || !data.lot) {
+        try {
+          const { lookupByAddress } = await import("@/hooks/useNYCPropertyLookup").then(m => {
+            // We can't use the hook here, so call the API directly
+            return { lookupByAddress: null };
+          });
+          // Use fetch directly to NYC Open Data API
+          const address = data.address.trim().toUpperCase();
+          const plutoUrl = `https://data.cityofnewyork.us/resource/64uk-42ks.json?$where=upper(address) like '%25${encodeURIComponent(address)}%25'&$limit=5`;
+          const response = await fetch(plutoUrl);
+          if (response.ok) {
+            const results = await response.json();
+            if (results?.length > 0) {
+              const p = results[0];
+              const BORO: Record<string, string> = { "1": "Manhattan", "2": "Bronx", "3": "Brooklyn", "4": "Queens", "5": "Staten Island" };
+              const updates: Record<string, string> = {};
+              if (!data.borough && p.borocode) updates.borough = BORO[p.borocode] || p.borough;
+              if (!data.block && p.block) updates.block = p.block;
+              if (!data.lot && p.lot) updates.lot = p.lot;
+              if (!data.bin && p.bin) updates.bin = p.bin;
+              if (!data.zip_code && p.zipcode) updates.zip_code = p.zipcode;
+              if (!data.owner_name && p.ownername) updates.owner_name = p.ownername;
+              if (Object.keys(updates).length > 0) {
+                await supabase.from("properties").update(updates).eq("id", data.id);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn("Post-save BBL lookup failed:", e);
+        }
+      }
+
       return data;
     },
     onSuccess: () => {
