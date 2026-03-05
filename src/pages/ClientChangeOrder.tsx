@@ -70,17 +70,23 @@ export default function ClientChangeOrderPage() {
       if (!canvasRef.current || !token) throw new Error("Missing data");
       const sigData = canvasRef.current.toDataURL("image/png");
       setSavedSignatureData(sigData);
-      const { error } = await (supabase as any)
-        .from("change_orders")
-        .update({
-          client_signature_data: sigData,
-          client_signer_name: clientName,
-          client_signed_at: new Date().toISOString(),
-          status: "approved",
-          approved_at: new Date().toISOString(),
-        })
-        .eq("public_token", token);
-      if (error) throw error;
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/public-co?token=${encodeURIComponent(token)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "sign",
+            client_signature_data: sigData,
+            client_signer_name: clientName,
+          }),
+        }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Sign failed" }));
+        throw new Error(err.error || "Sign failed");
+      }
     },
     onSuccess: async () => {
       setSigned(true);
