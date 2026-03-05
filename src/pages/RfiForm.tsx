@@ -1132,6 +1132,10 @@ export default function RfiForm() {
           <Button
             variant="outline"
             onClick={() => {
+              // Restore saved responses if local state is empty
+              if (rfi.responses && typeof rfi.responses === "object" && Object.keys(rfi.responses).length > 0 && Object.keys(responses).length === 0) {
+                setResponses({ ...rfi.responses });
+              }
               setEditingAfterSubmit(true);
               setSubmitted(false);
               setCurrentStep(0);
