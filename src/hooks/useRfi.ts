@@ -295,8 +295,10 @@ export function useRfiByToken(token: string | null) {
       
       // Resolve property: direct link > project's property > proposal's property
       let resolvedProperty = directProperties;
+      let resolvedPropertyId: string | null = rfi.property_id || null;
       if (!resolvedProperty && (projects?.property_id || proposals?.property_id)) {
         const propId = projects?.property_id || proposals?.property_id;
+        resolvedPropertyId = propId;
         const { data: propData } = await supabase
           .from("properties")
           .select("address, borough, block, lot, owner_name")
