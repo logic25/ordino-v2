@@ -268,17 +268,31 @@ Deno.serve(async (req) => {
       if ((pmProfile as any)?.phone) pmPhone = (pmProfile as any).phone;
     }
 
-    // Get PIS link
+    // Get PIS link — check by proposal_id first, then by project_id
     let pisLink: string | null = null;
-    const { data: rfi } = await supabaseAdmin
+    let rfiToken: string | null = null;
+
+    const { data: rfiByProposal } = await supabaseAdmin
       .from("rfi_requests")
       .select("access_token")
       .eq("proposal_id", proposal_id)
       .maybeSingle();
+    rfiToken = (rfiByProposal as any)?.access_token || null;
 
-    if ((rfi as any)?.access_token) {
-      const baseUrl = Deno.env.get("SITE_URL") || `https://${Deno.env.get("SUPABASE_URL")?.replace("https://", "").replace(".supabase.co", "")}-preview--lovable.app`;
-      pisLink = `${baseUrl}/rfi/${(rfi as any).access_token}`;
+    if (!rfiToken && (proposal as any).project_id) {
+      const { data: rfiByProject } = await supabaseAdmin
+        .from("rfi_requests")
+        .select("access_token")
+        .eq("project_id", (proposal as any).project_id)
+        .maybeSingle();
+      rfiToken = (rfiByProject as any)?.access_token || null;
+    }
+
+    if (rfiToken) {
+      const siteUrl = Deno.env.get("SITE_URL");
+      const supabaseRef = Deno.env.get("SUPABASE_URL")?.replace("https://", "").replace(".supabase.co", "") || "";
+      const baseUrl = siteUrl || `https://id-preview--${supabaseRef}.lovable.app`;
+      pisLink = `${baseUrl}/rfi/${rfiToken}`;
     }
 
     // Only attach the proposal if it's fully executed (both parties signed)
