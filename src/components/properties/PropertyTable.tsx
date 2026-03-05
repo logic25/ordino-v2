@@ -144,6 +144,7 @@ export function PropertyTable({
                 const hasSignal = !!property.signalSubscription;
                 const hasChildren = applicationCount > 0 || projectCount > 0 || hasSignal;
                 const missingBBL = !property.borough || !property.block || !property.lot;
+                const bblIssue = missingBBL || property.bbl_verified === false;
 
                 return (
                   <Collapsible key={property.id} asChild open={isExpanded}>
@@ -151,7 +152,7 @@ export function PropertyTable({
                       <TableRow
                         className={cn(
                           "hover:bg-accent/5 cursor-pointer",
-                          missingBBL && "bg-red-500/5 border-l-2 border-l-red-500"
+                          bblIssue && "bg-destructive/5 border-l-2 border-l-destructive"
                         )}
                         onClick={() => navigate(`/properties/${property.id}`)}
                       >
@@ -175,15 +176,17 @@ export function PropertyTable({
                         </TableCell>
                         <TableCell>
                           <div className="flex items-start gap-2">
-                            {missingBBL ? (
-                              <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                            {bblIssue ? (
+                              <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
                             ) : (
                               <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                             )}
                             <div>
                               <p className="font-medium">{property.address}</p>
                               {missingBBL ? (
-                                <p className="text-xs text-red-500 font-medium">Missing BBL data — click Edit to fix</p>
+                                <p className="text-xs text-destructive font-medium">Missing BBL data — click Edit to fix</p>
+                              ) : property.bbl_verified === false ? (
+                                <p className="text-xs text-destructive font-medium">BBL could not be verified — click Edit to review</p>
                               ) : property.zip_code ? (
                                 <p className="text-sm text-muted-foreground">{property.zip_code}</p>
                               ) : null}
