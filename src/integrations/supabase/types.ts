@@ -7383,9 +7383,9 @@ export type Database = {
       service_status:
         | "not_started"
         | "in_progress"
-        | "complete"
         | "billed"
         | "paid"
+        | "dropped"
       user_role: "admin" | "manager" | "pm" | "accounting"
     }
     CompositeTypes: {
@@ -7559,9 +7559,9 @@ export const Constants = {
       service_status: [
         "not_started",
         "in_progress",
-        "complete",
         "billed",
         "paid",
+        "dropped",
       ],
       user_role: ["admin", "manager", "pm", "accounting"],
     },

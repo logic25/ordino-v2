@@ -43,22 +43,30 @@ export function useProjectServices(projectId: string | undefined) {
         }
       }
 
-      // Reconcile: if a service is fully billed but status is still not_started/in_progress, fix it
-      // Also advance to in_progress when partially billed
+      // Reconcile: auto-advance service status based on billing/payment state
       const reconcilePromises: Promise<any>[] = [];
       for (const svc of data || []) {
         const totalAmt = Number(svc.total_amount ?? svc.fixed_price ?? 0) || 0;
         const billed = billedMap[svc.name] || Number((svc as any).billed_amount ?? 0) || 0;
-        if (totalAmt > 0 && billed >= totalAmt && !['billed', 'dropped'].includes(svc.status || '')) {
+        const isPaid = !!paidDateMap[svc.name];
+
+        if (isPaid && svc.status !== 'paid' && svc.status !== 'dropped') {
+          // Invoice paid → mark service paid
           reconcilePromises.push(
-            Promise.resolve(supabase.from("services").update({ status: "billed", billed_at: new Date().toISOString() }).eq("id", svc.id))
+            Promise.resolve(supabase.from("services").update({ status: "paid" as any, billed_at: (svc as any).billed_at || new Date().toISOString() }).eq("id", svc.id))
+          );
+          (svc as any).status = 'paid';
+        } else if (totalAmt > 0 && billed >= totalAmt && !['billed', 'paid', 'dropped'].includes(svc.status || '')) {
+          // Fully billed → mark billed
+          reconcilePromises.push(
+            Promise.resolve(supabase.from("services").update({ status: "billed" as any, billed_at: new Date().toISOString() }).eq("id", svc.id))
           );
           (svc as any).status = 'billed';
           (svc as any).billed_at = new Date().toISOString();
         } else if (totalAmt > 0 && billed > 0 && billed < totalAmt && svc.status === 'not_started') {
-          // Partially billed — advance to in_progress
+          // Partially billed → in_progress
           reconcilePromises.push(
-            Promise.resolve(supabase.from("services").update({ status: "in_progress" }).eq("id", svc.id))
+            Promise.resolve(supabase.from("services").update({ status: "in_progress" as any }).eq("id", svc.id))
           );
           (svc as any).status = 'in_progress';
         }

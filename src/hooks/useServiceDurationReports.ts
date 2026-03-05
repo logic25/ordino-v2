@@ -69,7 +69,7 @@ export function useServiceDurationReports() {
       const projectMap = new Map((projects || []).map((p: any) => [p.id, p]));
       const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
 
-      const completedStatuses = ["complete", "billed", "paid"];
+      const completedStatuses = ["billed", "paid"];
       const completed = allServices.filter(
         (s: any) => completedStatuses.includes(s.status) && s.completed_date && s.created_at
       );
