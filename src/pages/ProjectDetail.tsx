@@ -1172,6 +1172,51 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
     </Collapsible>
     <EditPISDialog open={showEditPIS} onOpenChange={setShowEditPIS} pisStatus={pisStatus} projectId={projectId} />
 
+    {/* PIS Reminder Dialog */}
+    <Dialog open={showReminderDialog} onOpenChange={setShowReminderDialog}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Send PIS Reminder</DialogTitle>
+          <DialogDescription>
+            Send a reminder to complete the Project Information Sheet.
+            {rfiRecord?.last_reminder_sent_at && (
+              <span className="block mt-1 text-xs">
+                Last reminder: {format(new Date(rfiRecord.last_reminder_sent_at), "MMM d, yyyy 'at' h:mm a")}
+              </span>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="reminder-email" className="text-sm">Recipient Email</Label>
+            <Input
+              id="reminder-email"
+              type="email"
+              value={reminderEmail}
+              onChange={(e) => setReminderEmail(e.target.value)}
+              placeholder="client@example.com"
+            />
+            {rfiRecord?.recipient_email && reminderEmail !== rfiRecord.recipient_email && (
+              <button
+                type="button"
+                className="text-xs text-primary hover:underline"
+                onClick={() => setReminderEmail(rfiRecord.recipient_email!)}
+              >
+                Reset to original: {rfiRecord.recipient_email}
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-2">
+          <Button variant="outline" onClick={() => setShowReminderDialog(false)}>Cancel</Button>
+          <Button onClick={handleSendPISReminder} disabled={sendingReminder || !reminderEmail} className="gap-1.5">
+            {sendingReminder ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+            Send Reminder
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+
     {/* AI Draft Dialog */}
     <Dialog open={showAiDraft} onOpenChange={setShowAiDraft}>
       <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
