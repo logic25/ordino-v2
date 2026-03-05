@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { WORK_TYPE_DISCIPLINES } from "@/hooks/useCompanySettings";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,7 +52,7 @@ const PIS_SECTIONS: PisSection[] = [
       { id: "apt_numbers", label: "Apt #(s)", type: "text", width: "half", optional: true },
       { id: "sq_ft", label: "Area (sq ft)", type: "number", width: "half", optional: true },
       { id: "job_description", label: "Job Description", type: "textarea", width: "full", placeholder: "Describe the scope of work..." },
-      { id: "work_types", label: "Work Types", type: "checkbox_group", width: "full", options: ["Architectural", "Structural", "Mechanical", "Plumbing", "Sprinkler", "Fire Alarm", "Fire Suppression", "Standpipe", "Fuel Burning", "Boiler", "Fuel Storage", "Curb Cut", "Other"], optional: true },
+      { id: "work_types", label: "Work Types", type: "checkbox_group", width: "full", options: [...WORK_TYPE_DISCIPLINES, "Other"], optional: true },
       { id: "estimated_job_cost", label: "Estimated Job Cost ($)", type: "number", width: "half", optional: true, placeholder: "e.g. 50000" },
       { id: "filing_type", label: "Filing Type", type: "select", options: ["Plan Exam", "Pro-Cert", "TBD"], width: "half" },
       { id: "directive_14", label: "Directive 14?", type: "select", options: ["Yes", "No"], width: "half" },
