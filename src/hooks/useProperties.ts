@@ -50,6 +50,7 @@ export interface PropertyFormInput {
   owner_name?: string | null;
   owner_contact?: string | null;
   notes?: string | null;
+  aka_addresses?: string[] | null;
 }
 
 export function useCreateProperty() {
