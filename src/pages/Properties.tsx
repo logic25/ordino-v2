@@ -63,22 +63,33 @@ export default function Properties() {
   }, [properties, applications, projects, subscriptionMap, violationCounts]);
 
   // Apply search + signal filter
-  const filteredProperties = propertiesWithAll.filter((p) => {
-    const query = searchQuery.toLowerCase();
-    const matchesSearch =
-      p.address.toLowerCase().includes(query) ||
-      p.bin?.toLowerCase().includes(query) ||
-      p.block?.toLowerCase().includes(query) ||
-      p.lot?.toLowerCase().includes(query) ||
-      p.owner_name?.toLowerCase().includes(query);
+  const filteredProperties = useMemo(() => {
+    const filtered = propertiesWithAll.filter((p) => {
+      const query = searchQuery.toLowerCase();
+      const matchesSearch =
+        p.address.toLowerCase().includes(query) ||
+        p.bin?.toLowerCase().includes(query) ||
+        p.block?.toLowerCase().includes(query) ||
+        p.lot?.toLowerCase().includes(query) ||
+        p.owner_name?.toLowerCase().includes(query);
 
-    if (!matchesSearch) return false;
+      if (!matchesSearch) return false;
 
-    if (signalFilter === "active") return p.signalSubscription?.status === "active" || p.signalSubscription?.status === "trial";
-    if (signalFilter === "prospects") return p.signalSubscription?.status === "prospect";
-    if (signalFilter === "not_monitored") return !p.signalSubscription;
-    return true;
-  });
+      if (signalFilter === "active") return p.signalSubscription?.status === "active" || p.signalSubscription?.status === "trial";
+      if (signalFilter === "prospects") return p.signalSubscription?.status === "prospect";
+      if (signalFilter === "not_monitored") return !p.signalSubscription;
+      return true;
+    });
+
+    // Sort: properties missing BBL data to top
+    return filtered.sort((a, b) => {
+      const aMissing = !a.borough || !a.block || !a.lot;
+      const bMissing = !b.borough || !b.block || !b.lot;
+      if (aMissing && !bMissing) return -1;
+      if (!aMissing && bMissing) return 1;
+      return 0;
+    });
+  }, [propertiesWithAll, searchQuery, signalFilter]);
 
   const handleOpenCreate = () => {
     setEditingProperty(null);

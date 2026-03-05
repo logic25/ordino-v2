@@ -174,12 +174,18 @@ export function PropertyTable({
                         </TableCell>
                         <TableCell>
                           <div className="flex items-start gap-2">
-                            <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                            {missingBBL ? (
+                              <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                            ) : (
+                              <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                            )}
                             <div>
                               <p className="font-medium">{property.address}</p>
-                              {property.zip_code && (
+                              {missingBBL ? (
+                                <p className="text-xs text-red-500 font-medium">Missing BBL data — click Edit to fix</p>
+                              ) : property.zip_code ? (
                                 <p className="text-sm text-muted-foreground">{property.zip_code}</p>
-                              )}
+                              ) : null}
                             </div>
                           </div>
                         </TableCell>
