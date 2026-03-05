@@ -289,10 +289,7 @@ Deno.serve(async (req) => {
     }
 
     if (rfiToken) {
-      const siteUrl = Deno.env.get("SITE_URL");
-      const supabaseRef = Deno.env.get("SUPABASE_URL")?.replace("https://", "").replace(".supabase.co", "") || "";
-      const baseUrl = siteUrl || `https://id-preview--${supabaseRef}.lovable.app`;
-      pisLink = `${baseUrl}/rfi/${rfiToken}`;
+      pisLink = `https://ordinov3.lovable.app/rfi/${rfiToken}`;
     }
 
     // Only attach the proposal if it's fully executed (both parties signed)
