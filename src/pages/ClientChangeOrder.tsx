@@ -32,60 +32,28 @@ export default function ClientChangeOrderPage() {
   const [depositPaid, setDepositPaid] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"card" | "ach" | "check">("card");
 
-  // Fetch CO by public token (no joins — anon can only read change_orders)
-  const { data: co, isLoading, error } = useQuery({
+  // Fetch CO + company + project via edge function (no anon RLS needed)
+  const { data: coBundle, isLoading, error } = useQuery({
     queryKey: ["public-co", token],
     queryFn: async () => {
       if (!token) throw new Error("No token");
-      const { data, error } = await (supabase as any)
-        .from("change_orders")
-        .select("*")
-        .eq("public_token", token)
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) throw new Error("Change order not found");
-      return data as any;
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/public-co?token=${encodeURIComponent(token)}`,
+        { method: "GET", headers: { "Content-Type": "application/json" } }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Request failed" }));
+        throw new Error(err.error || "Request failed");
+      }
+      return await res.json();
     },
     enabled: !!token,
   });
 
-  // Fetch company info (graceful — returns null if RLS blocks)
-  const { data: company } = useQuery({
-    queryKey: ["public-co-company", co?.company_id],
-    queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("companies")
-        .select("name, address, phone, email, website, logo_url, settings")
-        .eq("id", co.company_id)
-        .maybeSingle();
-      if (!data) return null;
-      const s = (data.settings || {}) as any;
-      return {
-        name: data.name,
-        address: s.company_address?.trim() || data.address || "",
-        phone: s.company_phone?.trim() || data.phone || "",
-        email: s.company_email?.trim() || data.email || "",
-        logo_url: s.company_logo_url?.trim() || data.logo_url || "",
-      };
-    },
-    enabled: !!co?.company_id,
-    retry: false,
-  });
-
-  // Fetch project + client info (graceful)
-  const { data: projectData } = useQuery({
-    queryKey: ["public-co-project", co?.project_id],
-    queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("projects")
-        .select("project_number, property_id, properties(address, borough), client_id, clients!projects_client_id_fkey(name)")
-        .eq("id", co.project_id)
-        .maybeSingle();
-      return data as any;
-    },
-    enabled: !!co?.project_id,
-    retry: false,
-  });
+  const co = coBundle?.co as any;
+  const company = coBundle?.company as any;
+  const projectData = coBundle?.project as any;
 
   const project = projectData || null;
   const clientInfo = projectData?.clients || null;
@@ -96,17 +64,23 @@ export default function ClientChangeOrderPage() {
       if (!canvasRef.current || !token) throw new Error("Missing data");
       const sigData = canvasRef.current.toDataURL("image/png");
       setSavedSignatureData(sigData);
-      const { error } = await (supabase as any)
-        .from("change_orders")
-        .update({
-          client_signature_data: sigData,
-          client_signer_name: clientName,
-          client_signed_at: new Date().toISOString(),
-          status: "approved",
-          approved_at: new Date().toISOString(),
-        })
-        .eq("public_token", token);
-      if (error) throw error;
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/public-co?token=${encodeURIComponent(token)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "sign",
+            client_signature_data: sigData,
+            client_signer_name: clientName,
+          }),
+        }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Sign failed" }));
+        throw new Error(err.error || "Sign failed");
+      }
     },
     onSuccess: async () => {
       setSigned(true);
@@ -365,10 +339,16 @@ export default function ClientChangeOrderPage() {
                   onClick={async () => {
                     setDepositPaying(true);
                     try {
-                      await (supabase as any)
-                        .from("change_orders")
-                        .update({ deposit_paid_at: new Date().toISOString() })
-                        .eq("public_token", token);
+                      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+                      const res = await fetch(
+                        `https://${projectId}.supabase.co/functions/v1/public-co?token=${encodeURIComponent(token!)}`,
+                        {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ action: "deposit" }),
+                        }
+                      );
+                      if (!res.ok) throw new Error("Deposit failed");
                       setDepositPaid(true);
                       toast({ title: paymentMethod === "check" ? "Check payment noted!" : "Deposit received!", description: `Payment of ${fmt(Math.abs(co.amount) * co.deposit_percentage / 100)} ${paymentMethod === "check" ? "will be processed upon receipt." : "processed."}` });
                     } catch {
