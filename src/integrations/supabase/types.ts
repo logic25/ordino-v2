@@ -2478,6 +2478,50 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_roles: {
+        Row: {
+          color: string | null
+          company_id: string
+          created_at: string | null
+          description: string | null
+          icon: string | null
+          id: string
+          is_system: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          color?: string | null
+          company_id: string
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_system?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          color?: string | null
+          company_id?: string
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_system?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_roles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       discovered_rfps: {
         Row: {
           assigned_to: string | null
@@ -6721,7 +6765,7 @@ export type Database = {
           enabled: boolean | null
           id: string
           resource: string
-          role: Database["public"]["Enums"]["app_role"]
+          role: string
         }
         Insert: {
           can_create?: boolean | null
@@ -6733,7 +6777,7 @@ export type Database = {
           enabled?: boolean | null
           id?: string
           resource: string
-          role: Database["public"]["Enums"]["app_role"]
+          role: string
         }
         Update: {
           can_create?: boolean | null
@@ -6745,7 +6789,7 @@ export type Database = {
           enabled?: boolean | null
           id?: string
           resource?: string
-          role?: Database["public"]["Enums"]["app_role"]
+          role?: string
         }
         Relationships: [
           {
@@ -7310,21 +7354,21 @@ export type Database = {
           company_id: string
           created_at: string
           id: string
-          role: Database["public"]["Enums"]["app_role"]
+          role: string
           user_id: string
         }
         Insert: {
           company_id: string
           created_at?: string
           id?: string
-          role: Database["public"]["Enums"]["app_role"]
+          role: string
           user_id: string
         }
         Update: {
           company_id?: string
           created_at?: string
           id?: string
-          role?: Database["public"]["Enums"]["app_role"]
+          role?: string
           user_id?: string
         }
         Relationships: [
@@ -7382,16 +7426,10 @@ export type Database = {
         }
         Returns: string
       }
-      get_user_app_roles: {
-        Args: { _user_id: string }
-        Returns: Database["public"]["Enums"]["app_role"][]
-      }
+      get_user_app_roles: { Args: { _user_id: string }; Returns: string[] }
       get_user_company_id: { Args: never; Returns: string }
       has_app_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
+        Args: { _role: string; _user_id: string }
         Returns: boolean
       }
       has_public_token: {
@@ -7425,7 +7463,15 @@ export type Database = {
         Args: { target_company_id: string }
         Returns: undefined
       }
+      seed_permissions_for_role: {
+        Args: { role_name: string; target_company_id: string }
+        Returns: undefined
+      }
       seed_role_permissions: {
+        Args: { target_company_id: string }
+        Returns: undefined
+      }
+      seed_system_roles: {
         Args: { target_company_id: string }
         Returns: undefined
       }

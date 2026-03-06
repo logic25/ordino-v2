@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
-import { useUserRoles, type AppRole } from "./useUserRoles";
+import { useUserRoles } from "./useUserRoles";
 
 export type ResourceKey =
   | "dashboard" | "projects" | "properties" | "proposals" | "invoices"
@@ -11,7 +11,7 @@ export type ResourceKey =
 export interface RolePermission {
   id: string;
   company_id: string;
-  role: AppRole;
+  role: string;
   resource: string;
   enabled: boolean;
   can_list: boolean;
@@ -93,7 +93,6 @@ export function usePermissions() {
 
   function getPermission(resource: ResourceKey): RolePermission | undefined {
     if (!permissions) return undefined;
-    // Check all user roles and return the most permissive
     for (const role of userRoles) {
       const perm = permissions.find((p) => p.role === role && p.resource === resource);
       if (perm?.enabled) return perm;
