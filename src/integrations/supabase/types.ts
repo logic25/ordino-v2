@@ -7506,6 +7506,10 @@ export type Database = {
         }
         Returns: string
       }
+      get_rfi_plan_filenames: {
+        Args: { _access_token: string }
+        Returns: string[]
+      }
       get_user_app_roles: { Args: { _user_id: string }; Returns: string[] }
       get_user_company_id: { Args: never; Returns: string }
       has_app_role: {
