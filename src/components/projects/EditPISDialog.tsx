@@ -371,10 +371,32 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
 
   const { getOptionsForSection, getContactsForClient, sectionFieldMap } = usePISContactOptions(projectProposalId);
   const [values, setValues] = useState<Record<string, string>>({});
-  const [saving, setSaving] = useState(false);
-  const [addedToCRM, setAddedToCRM] = useState<Set<string>>(new Set());
-  const [isDirty, setIsDirty] = useState(false);
-  const [initialLoadDone, setInitialLoadDone] = useState(false);
+   const [saving, setSaving] = useState(false);
+   const [addedToCRM, setAddedToCRM] = useState<Set<string>>(new Set());
+   const [isDirty, setIsDirty] = useState(false);
+   const [initialLoadDone, setInitialLoadDone] = useState(false);
+   const [inlineAutoField, setInlineAutoField] = useState<string | null>(null);
+   const inlineAutoRef = useRef<HTMLDivElement>(null);
+
+   // Name fields that should show inline contact autocomplete
+   const NAME_FIELD_TO_SECTION: Record<string, string> = {
+     applicant_name: "applicant",
+     owner_name: "owner",
+     gc_name: "gc",
+     sia_name: "sia",
+     tpp_name: "tpp",
+   };
+
+   // Close inline autocomplete on outside click
+   useEffect(() => {
+     const handler = (e: MouseEvent) => {
+       if (inlineAutoRef.current && !inlineAutoRef.current.contains(e.target as Node)) {
+         setInlineAutoField(null);
+       }
+     };
+     document.addEventListener("mousedown", handler);
+     return () => document.removeEventListener("mousedown", handler);
+   }, []);
 
   // Load existing RFI responses
   const { data: rfiData } = useQuery({
