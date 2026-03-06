@@ -174,7 +174,7 @@ export function BugReports() {
       toast({ title: "Bug report submitted", description: "Team members have been notified." });
       queryClient.invalidateQueries({ queryKey: ["bug-reports"] });
       setShowForm(false);
-      setPage(""); setAction(""); setExpected(""); setActual(""); setPriority("medium");
+      setPage(""); setAction(""); setExpected(""); setActual(""); setPriority("medium"); setTranscript("");
       setLoomUrl(""); setPendingFiles([]);
     },
     onError: (err: any) => {
