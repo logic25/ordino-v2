@@ -260,10 +260,9 @@ export function WhatsNew() {
   const [addOpen, setAddOpen] = useState(false);
 
   const groups = groupByMonth(entries || []);
-  const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
-
-  // Auto-collapse all but first month when data loads
-  const firstMonth = groups[0]?.[0];
+  const firstMonth = groups[0]?.[0] || "";
+  // By default, non-first months are collapsed. Toggling adds/removes from set to flip.
+  const [toggledMonths, setToggledMonths] = useState<Set<string>>(new Set());
 
   const toggleMonth = (label: string) => {
     setCollapsedMonths((prev) => {
