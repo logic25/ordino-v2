@@ -317,17 +317,20 @@ export function useRfiByToken(token: string | null) {
       const proposalContacts: any[] = prop.proposal_contacts || [];
       const applicantContact = proposalContacts.find((c: any) => c.role === "applicant");
 
-      // Fetch latest CRM contacts for live sync
-      let crmPrimary: any = null;
+      // Fetch latest CRM contacts for live sync — only use contacts with an
+      // "applicant" or architect-related role/specialty, NOT the client's primary
+      // contact (who is typically the homeowner, not the licensed professional).
+      let crmApplicant: any = null;
       if (projects?.client_id) {
         const { data: contacts } = await supabase
           .from("client_contacts")
-          .select("first_name, last_name, email, phone, name, company_name, address_1, city, state, zip")
+          .select("first_name, last_name, email, phone, name, company_name, address_1, city, state, zip, license_type, specialty")
           .eq("client_id", projects.client_id)
           .order("is_primary", { ascending: false })
           .order("sort_order", { ascending: true });
         if (contacts && contacts.length > 0) {
-          crmPrimary = contacts[0];
+          // Find a contact that looks like a licensed professional (RA/PE)
+          crmApplicant = contacts.find((c: any) => c.license_type === "RA" || c.license_type === "PE") || null;
         }
       }
 
