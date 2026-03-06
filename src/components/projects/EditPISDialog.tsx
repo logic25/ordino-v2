@@ -540,6 +540,20 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
 
     if (resp["tpp_same_as"]) mapped["tpp_same_as"] = String(resp["tpp_same_as"]);
     if (resp["sia_same_as"]) mapped["sia_same_as"] = String(resp["sia_same_as"]);
+
+    // Auto-detect SIA "Same as Applicant" from public form response or matching fields
+    const siaKnown = resp["contractors_inspections_sia_known"];
+    if (typeof siaKnown === "string" && siaKnown.toLowerCase().includes("same as applicant")) {
+      mapped["sia_same_as"] = "true";
+    } else if (
+      !mapped["sia_same_as"] &&
+      mapped["sia_name"] && mapped["applicant_name"] &&
+      mapped["sia_name"] === mapped["applicant_name"] &&
+      mapped["sia_email"] === mapped["applicant_email"]
+    ) {
+      mapped["sia_same_as"] = "true";
+    }
+
     setValues(mapped);
     setIsDirty(false);
     setInitialLoadDone(true);
