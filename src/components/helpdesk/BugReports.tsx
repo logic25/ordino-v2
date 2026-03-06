@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bug, CheckCircle2, Plus, Clock, Filter, ArrowUpDown, Loader2, Upload, Video, Sparkles, X, Image as ImageIcon } from "lucide-react";
+import { Bug, CheckCircle2, Plus, Clock, Filter, ArrowUpDown, Loader2, Upload, Video, Sparkles, X, Image as ImageIcon, Copy } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -77,6 +77,7 @@ export function BugReports() {
   const [actual, setActual] = useState("");
   const [priority, setPriority] = useState("medium");
   const [loomUrl, setLoomUrl] = useState("");
+  const [transcript, setTranscript] = useState("");
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   // Detail sheet
@@ -134,7 +135,10 @@ export function BugReports() {
   const submitBug = useMutation({
     mutationFn: async () => {
       if (!profile?.company_id || !profile?.id) throw new Error("No company");
-      const description = `**Page:** ${page}\n**Action:** ${action}\n**Expected:** ${expected}\n**Actual:** ${actual}`;
+      let description = `**Page:** ${page}\n**Action:** ${action}\n**Expected:** ${expected}\n**Actual:** ${actual}`;
+      if (transcript.trim()) {
+        description += `\n\n**Transcript / Context:**\n${transcript.trim()}`;
+      }
       
       // Insert bug first to get ID
       const { data: inserted, error } = await supabase.from("feature_requests").insert({
@@ -170,7 +174,7 @@ export function BugReports() {
       toast({ title: "Bug report submitted", description: "Team members have been notified." });
       queryClient.invalidateQueries({ queryKey: ["bug-reports"] });
       setShowForm(false);
-      setPage(""); setAction(""); setExpected(""); setActual(""); setPriority("medium");
+      setPage(""); setAction(""); setExpected(""); setActual(""); setPriority("medium"); setTranscript("");
       setLoomUrl(""); setPendingFiles([]);
     },
     onError: (err: any) => {
@@ -237,9 +241,14 @@ export function BugReports() {
     if (!selectedBug) return;
     setAiLoading(true);
     try {
+      const attachments = getAttachments(selectedBug);
+      const screenshotInfo = attachments.length > 0 ? `\nScreenshots: ${attachments.map(a => a.url).join(", ")}` : "";
+      const loomInfo = selectedBug.loom_url ? `\nLoom Video: ${selectedBug.loom_url}` : "";
+      const notesInfo = editNotes ? `\nAdmin Notes: ${editNotes}` : "";
+      
       const { data, error } = await supabase.functions.invoke("ask-ordino", {
         body: {
-          question: `You are a bug triage assistant. Analyze this bug report and suggest a clear, actionable fix.\n\nTitle: ${selectedBug.title}\nDescription: ${selectedBug.description}\nPriority: ${selectedBug.priority}\n\nProvide a concise fix suggestion with specific steps.`,
+          question: `You are a bug triage assistant. Analyze this bug report and suggest a clear, actionable fix.\n\nTitle: ${selectedBug.title}\nDescription: ${selectedBug.description}\nPriority: ${selectedBug.priority}${screenshotInfo}${loomInfo}${notesInfo}\n\nProvide a concise fix suggestion with specific steps.`,
           conversationHistory: [],
         },
       });
@@ -250,6 +259,24 @@ export function BugReports() {
     } finally {
       setAiLoading(false);
     }
+  };
+
+  const copyForLovable = () => {
+    if (!selectedBug) return;
+    const attachments = getAttachments(selectedBug);
+    const parts = [
+      `**Bug Report: ${selectedBug.title}**`,
+      `Priority: ${selectedBug.priority}`,
+      "",
+      selectedBug.description,
+    ];
+    if (selectedBug.loom_url) parts.push("", `Loom: ${selectedBug.loom_url}`);
+    if (attachments.length > 0) parts.push("", `Screenshots:\n${attachments.map(a => `- ${a.url}`).join("\n")}`);
+    if (editNotes) parts.push("", `Admin Notes: ${editNotes}`);
+    parts.push("", "Please analyze this bug and suggest a fix.");
+
+    navigator.clipboard.writeText(parts.join("\n"));
+    toast({ title: "Copied to clipboard", description: "Paste into Lovable chat to get a fix." });
   };
 
   const approveFix = () => {
@@ -400,8 +427,19 @@ export function BugReports() {
               <Input value={loomUrl} onChange={(e) => setLoomUrl(e.target.value)} placeholder="https://www.loom.com/share/..." />
             </div>
 
+            {/* Transcript / Additional Context */}
+            <div className="space-y-2">
+              <Label>Transcript / Additional Context (optional)</Label>
+              <Textarea
+                value={transcript}
+                onChange={(e) => setTranscript(e.target.value)}
+                placeholder="Paste Loom transcript or any additional context here..."
+                rows={3}
+              />
+            </div>
+
             <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => { setShowForm(false); setPendingFiles([]); setLoomUrl(""); }}>Cancel</Button>
+              <Button variant="outline" size="sm" onClick={() => { setShowForm(false); setPendingFiles([]); setLoomUrl(""); setTranscript(""); }}>Cancel</Button>
               <Button size="sm" disabled={!page || !action || !expected || !actual || submitBug.isPending} onClick={() => submitBug.mutate()}>
                 {submitBug.isPending ? "Submitting..." : "Submit Bug Report"}
               </Button>
@@ -557,6 +595,15 @@ export function BugReports() {
                     <Label className="text-xs text-muted-foreground">Reported</Label>
                     <p className="mt-1 text-sm">{format(new Date(selectedBug.created_at), "MMM d, yyyy")}</p>
                   </div>
+                </div>
+
+                {/* Copy for Lovable — visible to everyone */}
+                <div className="border-t pt-4">
+                  <Button size="sm" variant="outline" className="w-full" onClick={copyForLovable}>
+                    <Copy className="h-3.5 w-3.5 mr-2" />
+                    Copy for Lovable
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-1 text-center">Copy formatted bug report to paste into Lovable chat</p>
                 </div>
 
                 {isAdmin && (
