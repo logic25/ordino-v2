@@ -1,38 +1,36 @@
 
 
-## Service Status Lifecycle: Remove "Complete", Keep "Paid"
+## DOB NOW Filing Agent — Implementation Complete
 
-**Current state:** The `service_status` enum has 5 values: `not_started → in_progress → complete → billed → paid`
+### What was built (4 pieces):
 
-**Desired state:** `not_started → in_progress → billed → paid`
-- "Complete" is unnecessary — once work is done, the next step is billing, so services go straight from In Progress to Billed.
-- "Paid" stays as the final status, tracked when the associated invoice is marked paid.
+**1. Database: `filing_runs` table** ✅
+- Table with `id`, `company_id`, `project_id`, `service_id`, `status`, `progress_log` (jsonb), `payload_snapshot`, `agent_session_id`, timestamps, `error_message`, `created_by`
+- RLS: company-scoped read/insert/update for authenticated users
+- Realtime enabled for live progress subscriptions
+- `updated_at` trigger
 
-### Changes
+**2. Edge Function: `filing-payload`** ✅
+- Accepts `project_id` + optional `service_id` via query params
+- Dual auth: JWT for browser, service-role key for agent
+- Returns structured JSON: `location`, `applicant_owner`, `filing_details`, `stakeholders`, `contacts`
+- Pulls from projects, properties, PIS responses, contacts, services
 
-**1. Database migration — remove "complete" from the enum**
-- Create a new enum without `complete`, migrate the column, drop old enum
-- Update any services currently set to `complete` → `billed`
+**3. Edge Function: `filing-status`** ✅
+- POST endpoint for agent to report progress
+- Auth: service-role key, `x-agent-secret` header, or JWT
+- Appends to `progress_log` array, updates `status`, sets `started_at`/`completed_at`
 
-**2. Update `auto_advance_project_phase()` function**
-- Currently checks for `status IN ('completed', 'billed')` to advance project phase to closeout
-- Update to check `status IN ('billed', 'paid')`
+**4. UI: Agent Launcher in DobNowFilingPrepSheet** ✅
+- "Launch Filing Agent" button alongside existing manual submit
+- Creates `filing_runs` record with `queued` status + payload snapshot
+- Realtime subscription shows live progress feed
+- Status indicators: queued → running → completed/failed/review_needed
+- Progress log with timestamped steps and status icons
+- Retry/Done actions on terminal states
 
-**3. Update reconciliation logic in `useProjectDetail.ts`**
-- Currently jumps from `not_started` to `in_progress` (partial billing) and to `billed` (full billing)
-- Add: when the associated invoice is `paid`, auto-set service status to `paid`
-- No other changes needed since "complete" was never enforced in reconciliation
-
-**4. Update `serviceStatusStyles` in `projectMockData.ts`**
-- Remove `complete` entry
-- Add `paid` entry with a green/success style
-
-**5. Update `useServiceDurationReports.ts`**
-- Currently filters completed services as `["complete", "billed", "paid"]`
-- Update to `["billed", "paid"]`
-
-**6. Update service status dropdown in `ProjectExpandedTabs.tsx`**
-- Remove "Complete" option from any manual status selector
-- Add "Paid" if not already present
-- Ensure "Dropped" remains available as a manual override
-
+### External agent service (not built here):
+- Python + Claude Agent SDK + Playwright MCP
+- GET `/filing-payload?project_id=X&service_id=Y` with service-role key
+- POST `/filing-status` with `{ filing_run_id, status, step, error_message, agent_session_id }`
+- `DOB_AGENT_SECRET` header auth supported
