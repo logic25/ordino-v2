@@ -427,8 +427,19 @@ export function BugReports() {
               <Input value={loomUrl} onChange={(e) => setLoomUrl(e.target.value)} placeholder="https://www.loom.com/share/..." />
             </div>
 
+            {/* Transcript / Additional Context */}
+            <div className="space-y-2">
+              <Label>Transcript / Additional Context (optional)</Label>
+              <Textarea
+                value={transcript}
+                onChange={(e) => setTranscript(e.target.value)}
+                placeholder="Paste Loom transcript or any additional context here..."
+                rows={3}
+              />
+            </div>
+
             <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => { setShowForm(false); setPendingFiles([]); setLoomUrl(""); }}>Cancel</Button>
+              <Button variant="outline" size="sm" onClick={() => { setShowForm(false); setPendingFiles([]); setLoomUrl(""); setTranscript(""); }}>Cancel</Button>
               <Button size="sm" disabled={!page || !action || !expected || !actual || submitBug.isPending} onClick={() => submitBug.mutate()}>
                 {submitBug.isPending ? "Submitting..." : "Submit Bug Report"}
               </Button>
