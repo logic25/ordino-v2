@@ -14,7 +14,7 @@ import {
   Copy, CheckCircle2, AlertTriangle, MapPin, Building2,
   User, Phone, Mail, ExternalLink, ClipboardList, Save,
   Plus, Trash2, Settings, Download, Type, ChevronDown, ChevronRight,
-  ArrowLeft, Loader2,
+  ArrowLeft, Loader2, Bot, Circle, XCircle, Eye,
 } from "lucide-react";
 import type { MockService, MockContact } from "./projectMockData";
 import { engineerDisciplineLabels } from "./projectMockData";
@@ -81,7 +81,13 @@ function getPISArrayValue(responses: Record<string, any> | null, sectionPrefix: 
 }
 
 // ---- Submit flow steps ----
-type SubmitStep = "idle" | "confirm" | "submitting" | "success";
+type SubmitStep = "idle" | "confirm" | "submitting" | "success" | "agent";
+
+interface FilingRunProgress {
+  step: string;
+  status: string;
+  timestamp: string;
+}
 
 // ---- Component ----
 
@@ -117,8 +123,33 @@ export function DobNowFilingPrepSheet({
   const [filedAt, setFiledAt] = useState<Date | null>(null);
   const [filerName, setFilerName] = useState<string | null>(null);
   const [checklistWarning, setChecklistWarning] = useState(false);
+  const [agentRunId, setAgentRunId] = useState<string | null>(null);
+  const [agentStatus, setAgentStatus] = useState<string | null>(null);
+  const [agentProgress, setAgentProgress] = useState<FilingRunProgress[]>([]);
+  const [agentError, setAgentError] = useState<string | null>(null);
+  const [launchingAgent, setLaunchingAgent] = useState(false);
 
-  // Load checklist from company settings defaults
+  // Realtime subscription for agent progress
+  useEffect(() => {
+    if (!agentRunId) return;
+    const channel = supabase
+      .channel(`filing-run-${agentRunId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "filing_runs", filter: `id=eq.${agentRunId}` },
+        (payload: any) => {
+          const row = payload.new;
+          setAgentStatus(row.status);
+          setAgentProgress(Array.isArray(row.progress_log) ? row.progress_log : []);
+          if (row.error_message) setAgentError(row.error_message);
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [agentRunId]);
+
+
+
   useEffect(() => {
     if (companyData && !checklistInitialized) {
       const saved = companyData.settings?.filing_checklist_defaults;
@@ -271,6 +302,56 @@ export function DobNowFilingPrepSheet({
         { label: "Job Description", value: cleanedJobDesc || null },
       ],
     };
+  };
+
+  // Launch filing agent
+  const handleLaunchAgent = async () => {
+    if (!currentUser || !checklistComplete) {
+      if (!checklistComplete) {
+        setChecklistWarning(true);
+        toast({ title: "Checklist incomplete", description: "Complete all required checklist items before launching the agent.", variant: "destructive" });
+      }
+      return;
+    }
+    setLaunchingAgent(true);
+    try {
+      const payload = buildPayload();
+      const { data: run, error } = await (supabase.from("filing_runs") as any).insert({
+        company_id: currentUser.company_id,
+        project_id: project.id,
+        service_id: service.id,
+        status: "queued",
+        payload_snapshot: payload,
+        created_by: currentUser.id,
+      }).select("id").single();
+
+      if (error || !run) {
+        toast({ title: "Error", description: "Failed to create filing run.", variant: "destructive" });
+        return;
+      }
+
+      setAgentRunId(run.id);
+      setAgentStatus("queued");
+      setAgentProgress([]);
+      setAgentError(null);
+      setSubmitStep("agent");
+
+      (supabase.from("filing_audit_log" as any).insert({
+        company_id: currentUser.company_id,
+        project_id: project.id,
+        service_id: service.id,
+        initiated_by: currentUser.id,
+        filing_type: service.name,
+        work_types: workTypes,
+        property_address: property?.address || null,
+        method: "agent",
+        payload_snapshot: payload,
+      }) as any).then(() => {});
+
+      toast({ title: "Agent queued", description: "The filing agent will start processing shortly." });
+    } finally {
+      setLaunchingAgent(false);
+    }
   };
 
   const handleSubmitClick = () => {
@@ -564,9 +645,24 @@ export function DobNowFilingPrepSheet({
           {/* Submit Flow */}
           <div>
             {submitStep === "idle" && (
-              <Button className="w-full gap-2" onClick={handleSubmitClick}>
-                <ExternalLink className="h-4 w-4" /> Submit to DOB NOW
-              </Button>
+              <div className="space-y-2">
+                <Button className="w-full gap-2" onClick={handleSubmitClick}>
+                  <ExternalLink className="h-4 w-4" /> Submit to DOB NOW (Manual)
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2 border-primary/30 hover:bg-primary/5"
+                  onClick={handleLaunchAgent}
+                  disabled={launchingAgent}
+                >
+                  {launchingAgent ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Bot className="h-4 w-4" />
+                  )}
+                  Launch Filing Agent
+                </Button>
+              </div>
             )}
 
             {submitStep === "confirm" && (
@@ -635,6 +731,120 @@ export function DobNowFilingPrepSheet({
                 <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground" onClick={() => setSubmitStep("idle")}>
                   Submit Again
                 </Button>
+              </div>
+            )}
+
+            {/* Agent Progress View */}
+            {submitStep === "agent" && (
+              <div className="space-y-3">
+                {/* Status Header */}
+                <div className={`flex items-center gap-3 p-3 rounded-lg border text-sm ${
+                  agentStatus === "completed"
+                    ? "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800"
+                    : agentStatus === "failed"
+                    ? "bg-destructive/10 border-destructive/30"
+                    : agentStatus === "review_needed"
+                    ? "bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800"
+                    : "bg-primary/5 border-primary/20"
+                }`}>
+                  {agentStatus === "queued" && (
+                    <>
+                      <Circle className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium text-muted-foreground">Agent queued — waiting to start...</span>
+                    </>
+                  )}
+                  {agentStatus === "running" && (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      <span className="font-medium text-primary">Agent is filling forms on DOB NOW...</span>
+                    </>
+                  )}
+                  {agentStatus === "completed" && (
+                    <>
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      <span className="font-medium text-emerald-700 dark:text-emerald-300">Filing completed successfully</span>
+                    </>
+                  )}
+                  {agentStatus === "failed" && (
+                    <>
+                      <XCircle className="h-4 w-4 text-destructive" />
+                      <span className="font-medium text-destructive">Filing failed</span>
+                    </>
+                  )}
+                  {agentStatus === "review_needed" && (
+                    <>
+                      <Eye className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                      <span className="font-medium text-amber-700 dark:text-amber-300">Review needed before submission</span>
+                    </>
+                  )}
+                </div>
+
+                {/* Error Message */}
+                {agentError && (
+                  <div className="p-3 rounded-lg border border-destructive/30 bg-destructive/5 text-sm text-destructive">
+                    {agentError}
+                  </div>
+                )}
+
+                {/* Progress Log */}
+                {agentProgress.length > 0 && (
+                  <div className="p-3 rounded-lg border bg-background">
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Progress</h4>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                      {agentProgress.map((entry, i) => (
+                        <div key={i} className="flex items-center gap-2 text-xs">
+                          {entry.status === "success" ? (
+                            <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
+                          ) : entry.status === "error" ? (
+                            <XCircle className="h-3 w-3 text-destructive shrink-0" />
+                          ) : (
+                            <Loader2 className="h-3 w-3 animate-spin text-primary shrink-0" />
+                          )}
+                          <span className="text-muted-foreground">{entry.step}</span>
+                          <span className="ml-auto text-[10px] text-muted-foreground/50">
+                            {new Date(entry.timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex items-center gap-2">
+                  {(agentStatus === "failed" || agentStatus === "review_needed") && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => {
+                        setAgentRunId(null);
+                        setAgentStatus(null);
+                        setAgentProgress([]);
+                        setAgentError(null);
+                        setSubmitStep("idle");
+                      }}
+                    >
+                      <ArrowLeft className="h-3.5 w-3.5" /> Try Again
+                    </Button>
+                  )}
+                  {agentStatus === "completed" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs text-muted-foreground"
+                      onClick={() => {
+                        setAgentRunId(null);
+                        setAgentStatus(null);
+                        setAgentProgress([]);
+                        setAgentError(null);
+                        setSubmitStep("idle");
+                      }}
+                    >
+                      Done
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
           </div>

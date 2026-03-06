@@ -1,72 +1,36 @@
 
 
-## DOB NOW Filing Agent — What Ordino (Lovable) Needs to Build
+## DOB NOW Filing Agent — Implementation Complete
 
-The architecture is clear: Ordino is the **data source and UI**, while a separate Python service (Claude Agent SDK + Playwright MCP) handles the actual browser automation on DOB NOW. Here's what we build inside Lovable to support that flow.
+### What was built (4 pieces):
 
-### Architecture
+**1. Database: `filing_runs` table** ✅
+- Table with `id`, `company_id`, `project_id`, `service_id`, `status`, `progress_log` (jsonb), `payload_snapshot`, `agent_session_id`, timestamps, `error_message`, `created_by`
+- RLS: company-scoped read/insert/update for authenticated users
+- Realtime enabled for live progress subscriptions
+- `updated_at` trigger
 
-```text
-┌─────────────────────────────────┐        ┌─────────────────────────────┐
-│  ORDINO (Lovable)               │        │  Agent Service (External)   │
-│                                 │        │  Python + Claude Agent SDK  │
-│  Filing Prep Sheet UI           │        │  + Playwright MCP           │
-│    └─ "Launch Agent" button     │        │                             │
-│                                 │  HTTP  │  1. Fetches payload from    │
-│  Edge Function: filing-payload  │◄───────│     /filing-payload         │
-│    → project, property, PIS,    │        │  2. Opens DOB NOW           │
-│      contacts, services data    │        │  3. Reads page via MCP      │
-│                                 │        │  4. Fills forms             │
-│  Edge Function: filing-status   │◄───────│  5. POSTs status updates    │
-│    → receives progress updates  │        │     to /filing-status       │
-│    → writes to filing_runs      │        │                             │
-│                                 │        │                             │
-│  UI: live progress feed         │        │                             │
-│    → polls/subscribes to        │        │                             │
-│      filing_runs table          │        │                             │
-└─────────────────────────────────┘        └─────────────────────────────┘
-```
+**2. Edge Function: `filing-payload`** ✅
+- Accepts `project_id` + optional `service_id` via query params
+- Dual auth: JWT for browser, service-role key for agent
+- Returns structured JSON: `location`, `applicant_owner`, `filing_details`, `stakeholders`, `contacts`
+- Pulls from projects, properties, PIS responses, contacts, services
 
-### What We Build (4 pieces)
+**3. Edge Function: `filing-status`** ✅
+- POST endpoint for agent to report progress
+- Auth: service-role key, `x-agent-secret` header, or JWT
+- Appends to `progress_log` array, updates `status`, sets `started_at`/`completed_at`
 
-**1. Database: `filing_runs` table**
-- `id`, `company_id`, `project_id`, `service_id`, `status` (queued/running/completed/failed/review_needed), `progress_log` (jsonb array of step messages), `payload_snapshot` (jsonb), `agent_session_id`, `started_at`, `completed_at`, `error_message`, `created_by`
-- Enable realtime so the UI can subscribe to progress updates
-- RLS: company-scoped read/write for internal users, plus a policy for the agent service to write via service role key
+**4. UI: Agent Launcher in DobNowFilingPrepSheet** ✅
+- "Launch Filing Agent" button alongside existing manual submit
+- Creates `filing_runs` record with `queued` status + payload snapshot
+- Realtime subscription shows live progress feed
+- Status indicators: queued → running → completed/failed/review_needed
+- Progress log with timestamped steps and status icons
+- Retry/Done actions on terminal states
 
-**2. Edge Function: `filing-payload`**
-- Authenticated endpoint (JWT or service-role key for the agent)
-- Accepts `project_id` + `service_id`
-- Returns a structured JSON payload organized by DOB NOW form sections:
-  - **Location**: address, borough, block, lot, BIN (from `properties`)
-  - **Applicant/Owner**: names, license info, addresses (from project contacts + PIS responses)
-  - **Filing Details**: work types, job description, filing type, estimated cost, square footage (from `services` + PIS)
-  - **Stakeholders**: GC, architect, SIA, TPP (from `projects` fields synced by PIS)
-- Reuses the same data-gathering logic already in `DobNowFilingPrepSheet.tsx` but server-side
-
-**3. Edge Function: `filing-status`**
-- Accepts POSTs from the agent service (authenticated via a shared secret or service role key)
-- Writes progress updates to `filing_runs` table: `{ step: "Filling Borough field", status: "success", timestamp }`
-- Handles terminal states: completed, failed, review_needed
-
-**4. UI Updates to `DobNowFilingPrepSheet.tsx`**
-- Add "Launch Agent" button (next to existing "Confirm & Open DOB NOW")
-- Creates a `filing_runs` record with status `queued` and the payload snapshot
-- Subscribes to realtime changes on that row
-- Shows a live progress feed: step-by-step messages as they arrive
-- Final state shows success confirmation or error with retry option
-- Agent service URL configured via a secret (`DOB_AGENT_URL`)
-
-### What the External Agent Service Does (not built in Lovable)
-- Python service using Claude Agent SDK
-- Calls `GET /filing-payload?project_id=X&service_id=Y` to get structured data
-- Uses Playwright MCP to open DOB NOW, read forms, fill fields
-- Posts progress updates to `POST /filing-status` as it works
-- Handles dynamic form logic (work type changes available fields, borough affects BIN lookup)
-
-### Implementation Order
-1. Create `filing_runs` table + realtime
-2. Build `filing-payload` edge function
-3. Build `filing-status` edge function
-4. Update Filing Prep Sheet UI with agent launcher + progress feed
-
+### External agent service (not built here):
+- Python + Claude Agent SDK + Playwright MCP
+- GET `/filing-payload?project_id=X&service_id=Y` with service-role key
+- POST `/filing-status` with `{ filing_run_id, status, step, error_message, agent_session_id }`
+- `DOB_AGENT_SECRET` header auth supported

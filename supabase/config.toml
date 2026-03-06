@@ -95,3 +95,9 @@ verify_jwt = false
 
 [functions.backfill-property-bbl]
 verify_jwt = false
+
+[functions.filing-payload]
+verify_jwt = false
+
+[functions.filing-status]
+verify_jwt = false
