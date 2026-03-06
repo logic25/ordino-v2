@@ -265,7 +265,7 @@ export function WhatsNew() {
   const [toggledMonths, setToggledMonths] = useState<Set<string>>(new Set());
 
   const toggleMonth = (label: string) => {
-    setCollapsedMonths((prev) => {
+    setToggledMonths((prev) => {
       const next = new Set(prev);
       if (next.has(label)) next.delete(label);
       else next.add(label);
@@ -298,10 +298,10 @@ export function WhatsNew() {
       )}
 
       {groups.map(([month, monthEntries]) => {
-        const isCollapsed = month !== firstMonth && collapsedMonths.has(month) || (month !== firstMonth && !collapsedMonths.has(month) && !collapsedMonths.has("__init"));
-        // Simple: first month always open, rest collapsed by default
-        const collapsed = month !== firstMonth;
-        const isOpen = month === firstMonth || collapsedMonths.has(month);
+        // First month open by default, others collapsed. Toggle flips.
+        const defaultOpen = month === firstMonth;
+        const toggled = toggledMonths.has(month);
+        const isOpen = defaultOpen ? !toggled : toggled;
 
         return (
           <div key={month} className="space-y-2">
