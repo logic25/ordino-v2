@@ -354,7 +354,7 @@ export function DobNowFilingPrepSheet({
     }
   };
 
-
+  const handleSubmitClick = () => {
     if (!checklistComplete) {
       setChecklistWarning(true);
       toast({ title: "Checklist incomplete", description: "Complete all required checklist items before submitting.", variant: "destructive" });
