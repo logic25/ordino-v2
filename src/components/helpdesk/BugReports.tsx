@@ -547,12 +547,13 @@ export function BugReports() {
                   <Label className="text-xs text-muted-foreground">Description</Label>
                   <div className="mt-1 space-y-3 text-sm bg-muted/50 rounded-md p-4">
                     {(() => {
-                      const desc = selectedBug.description || "";
+                      // Normalize: replace literal \n with real newlines
+                      const raw = (selectedBug.description || "").replace(/\\n/g, "\n");
                       // Parse structured fields like **Label:** Value
                       const fieldRegex = /\*\*(.+?):\*\*\s*([\s\S]*?)(?=\n\*\*|\n\n|$)/g;
                       const fields: { label: string; value: string }[] = [];
                       let match;
-                      while ((match = fieldRegex.exec(desc)) !== null) {
+                      while ((match = fieldRegex.exec(raw)) !== null) {
                         fields.push({ label: match[1].trim(), value: match[2].trim() });
                       }
                       if (fields.length > 0) {
@@ -564,7 +565,7 @@ export function BugReports() {
                         ));
                       }
                       // Fallback: plain text
-                      return <p className="text-foreground whitespace-pre-line leading-relaxed">{desc}</p>;
+                      return <p className="text-foreground whitespace-pre-line leading-relaxed">{raw}</p>;
                     })()}
                   </div>
                 </div>
