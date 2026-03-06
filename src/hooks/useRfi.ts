@@ -402,11 +402,11 @@ export function useRfiByToken(token: string | null) {
           gc_contact_name: projects?.gc_contact_name || prop.gc_name || null,
           gc_phone: projects?.gc_phone || prop.gc_phone || null,
           gc_email: projects?.gc_email || prop.gc_email || null,
-          // CRM primary contact > project fields > proposal contact > proposal fields
+          // CRM licensed professional > project fields > proposal contact > proposal fields
           architect_company_name: projects?.architect_company_name || applicantContact?.company_name || prop.architect_company || null,
           architect_contact_name: crmName || projects?.architect_contact_name || applicantContact?.name || prop.architect_name || null,
-          architect_phone: crmPrimary?.phone || projects?.architect_phone || applicantContact?.phone || prop.architect_phone || null,
-          architect_email: crmPrimary?.email || projects?.architect_email || applicantContact?.email || prop.architect_email || null,
+          architect_phone: crmApplicant?.phone || projects?.architect_phone || applicantContact?.phone || prop.architect_phone || null,
+          architect_email: crmApplicant?.email || projects?.architect_email || applicantContact?.email || prop.architect_email || null,
           architect_license_type: projects?.architect_license_type || prop.architect_license_type || null,
           architect_license_number: projects?.architect_license_number || prop.architect_license_number || null,
           architect_address: architectCompanyAddress || crmAddress || projects?.clients?.address || null,
