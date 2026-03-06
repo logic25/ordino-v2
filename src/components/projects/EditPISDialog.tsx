@@ -371,10 +371,32 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
 
   const { getOptionsForSection, getContactsForClient, sectionFieldMap } = usePISContactOptions(projectProposalId);
   const [values, setValues] = useState<Record<string, string>>({});
-  const [saving, setSaving] = useState(false);
-  const [addedToCRM, setAddedToCRM] = useState<Set<string>>(new Set());
-  const [isDirty, setIsDirty] = useState(false);
-  const [initialLoadDone, setInitialLoadDone] = useState(false);
+   const [saving, setSaving] = useState(false);
+   const [addedToCRM, setAddedToCRM] = useState<Set<string>>(new Set());
+   const [isDirty, setIsDirty] = useState(false);
+   const [initialLoadDone, setInitialLoadDone] = useState(false);
+   const [inlineAutoField, setInlineAutoField] = useState<string | null>(null);
+   const inlineAutoRef = useRef<HTMLDivElement>(null);
+
+   // Name fields that should show inline contact autocomplete
+   const NAME_FIELD_TO_SECTION: Record<string, string> = {
+     applicant_name: "applicant",
+     owner_name: "owner",
+     gc_name: "gc",
+     sia_name: "sia",
+     tpp_name: "tpp",
+   };
+
+   // Close inline autocomplete on outside click
+   useEffect(() => {
+     const handler = (e: MouseEvent) => {
+       if (inlineAutoRef.current && !inlineAutoRef.current.contains(e.target as Node)) {
+         setInlineAutoField(null);
+       }
+     };
+     document.addEventListener("mousedown", handler);
+     return () => document.removeEventListener("mousedown", handler);
+   }, []);
 
   // Load existing RFI responses
   const { data: rfiData } = useQuery({
@@ -734,6 +756,63 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
               ))}
             </SelectContent>
           </Select>
+        ) : NAME_FIELD_TO_SECTION[key] ? (
+          <div className="relative" ref={inlineAutoField === key ? inlineAutoRef : undefined}>
+            <Input
+              id={key}
+              type="text"
+              value={values[key] || ""}
+              onChange={(e) => {
+                updateValue(key, e.target.value);
+                if (e.target.value.length >= 2) {
+                  setInlineAutoField(key);
+                } else {
+                  setInlineAutoField(null);
+                }
+              }}
+              onFocus={() => {
+                if ((values[key] || "").length >= 2) setInlineAutoField(key);
+              }}
+              placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
+              className="h-9"
+              autoComplete="off"
+            />
+            {inlineAutoField === key && (() => {
+              const sectionId = NAME_FIELD_TO_SECTION[key];
+              const opts = getOptionsForSection(sectionId, values[key] || "");
+              if (opts.length === 0) return null;
+              return (
+                <div className="absolute left-0 right-0 top-full mt-1 z-[9999] rounded-md border bg-popover shadow-lg max-h-[180px] overflow-y-auto">
+                  {opts.slice(0, 8).map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-accent text-left transition-colors"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setValues(prev => ({ ...prev, ...opt.fields }));
+                        setIsDirty(true);
+                        setInlineAutoField(null);
+                        toast({ title: "Auto-filled", description: `${opt.label} details populated.` });
+                      }}
+                    >
+                      {opt.source === "client" ? (
+                        <Building2 className="h-3 w-3 text-muted-foreground shrink-0" />
+                      ) : (
+                        <User className="h-3 w-3 text-muted-foreground shrink-0" />
+                      )}
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">{opt.label}</div>
+                        {opt.sublabel && (
+                          <div className="text-[10px] text-muted-foreground truncate">{opt.sublabel}</div>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
         ) : (
           <Input
             id={key}
