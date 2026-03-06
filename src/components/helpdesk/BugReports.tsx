@@ -77,6 +77,7 @@ export function BugReports() {
   const [actual, setActual] = useState("");
   const [priority, setPriority] = useState("medium");
   const [loomUrl, setLoomUrl] = useState("");
+  const [transcript, setTranscript] = useState("");
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   // Detail sheet
