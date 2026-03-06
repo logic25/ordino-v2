@@ -81,7 +81,13 @@ function getPISArrayValue(responses: Record<string, any> | null, sectionPrefix: 
 }
 
 // ---- Submit flow steps ----
-type SubmitStep = "idle" | "confirm" | "submitting" | "success";
+type SubmitStep = "idle" | "confirm" | "submitting" | "success" | "agent";
+
+interface FilingRunProgress {
+  step: string;
+  status: string;
+  timestamp: string;
+}
 
 // ---- Component ----
 
