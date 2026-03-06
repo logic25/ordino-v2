@@ -7382,10 +7382,7 @@ export type Database = {
         }
         Returns: string
       }
-      get_user_app_roles: {
-        Args: { _user_id: string }
-        Returns: Database["public"]["Enums"]["app_role"][]
-      }
+      get_user_app_roles: { Args: { _user_id: string }; Returns: string[] }
       get_user_company_id: { Args: never; Returns: string }
       has_app_role: {
         Args: {
