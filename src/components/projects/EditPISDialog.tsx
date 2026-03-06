@@ -131,16 +131,6 @@ const PIS_SECTIONS: PisSection[] = [
       { id: "sia_nys_lic", label: "NYS License #", type: "text", width: "half" },
     ],
   },
-  {
-    id: "notes",
-    title: "Insurance & Special Notes",
-    description: "Additional project information",
-    fields: [
-      { id: "insurance_certs", label: "Insurance Certificates", type: "textarea", width: "full", placeholder: "GC cert on file, Architect cert pending, etc.", optional: true },
-      { id: "site_contact", label: "Site Contact & Access", type: "text", width: "full", placeholder: "Contact name — availability", optional: true },
-      { id: "special_notes", label: "Special Notes / Instructions", type: "textarea", width: "full", placeholder: "Any special instructions...", optional: true },
-    ],
-  },
 ];
 
 export const OPTIONAL_PIS_FIELD_IDS = new Set([
