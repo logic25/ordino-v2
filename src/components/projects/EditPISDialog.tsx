@@ -131,16 +131,6 @@ const PIS_SECTIONS: PisSection[] = [
       { id: "sia_nys_lic", label: "NYS License #", type: "text", width: "half" },
     ],
   },
-  {
-    id: "notes",
-    title: "Insurance & Special Notes",
-    description: "Additional project information",
-    fields: [
-      { id: "insurance_certs", label: "Insurance Certificates", type: "textarea", width: "full", placeholder: "GC cert on file, Architect cert pending, etc.", optional: true },
-      { id: "site_contact", label: "Site Contact & Access", type: "text", width: "full", placeholder: "Contact name — availability", optional: true },
-      { id: "special_notes", label: "Special Notes / Instructions", type: "textarea", width: "full", placeholder: "Any special instructions...", optional: true },
-    ],
-  },
 ];
 
 export const OPTIONAL_PIS_FIELD_IDS = new Set([
@@ -550,6 +540,20 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
 
     if (resp["tpp_same_as"]) mapped["tpp_same_as"] = String(resp["tpp_same_as"]);
     if (resp["sia_same_as"]) mapped["sia_same_as"] = String(resp["sia_same_as"]);
+
+    // Auto-detect SIA "Same as Applicant" from public form response or matching fields
+    const siaKnown = resp["contractors_inspections_sia_known"];
+    if (typeof siaKnown === "string" && siaKnown.toLowerCase().includes("same as applicant")) {
+      mapped["sia_same_as"] = "true";
+    } else if (
+      !mapped["sia_same_as"] &&
+      mapped["sia_name"] && mapped["applicant_name"] &&
+      mapped["sia_name"] === mapped["applicant_name"] &&
+      mapped["sia_email"] === mapped["applicant_email"]
+    ) {
+      mapped["sia_same_as"] = "true";
+    }
+
     setValues(mapped);
     setIsDirty(false);
     setInitialLoadDone(true);
