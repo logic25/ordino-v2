@@ -237,24 +237,33 @@ export function ChangeOrderDetailSheet({
         .not("email", "is", null)
         .limit(1);
 
-      if (!contacts || contacts.length === 0 || !(contacts[0] as any).email) {
-        // Look up client name for a better error message
+      let contactEmail = "";
+      let contactName = "";
+
+      if (contacts && contacts.length > 0 && (contacts[0] as any).email) {
+        contactEmail = (contacts[0] as any).email;
+        contactName = (contacts[0] as any).name || "";
+      } else {
+        // Fallback: use the client's own email
         const { data: clientData } = await supabase
           .from("clients")
-          .select("name")
+          .select("name, email")
           .eq("id", clientId)
           .maybeSingle();
-        const clientName = (clientData as any)?.name || "this client";
-        toast({
-          title: "No client email found",
-          description: `Add a contact with an email address to "${clientName}" (Companies → ${clientName} → Contacts) before sending.`,
-          variant: "destructive",
-        });
-        return;
-      }
 
-      const contactEmail = (contacts[0] as any).email;
-      const contactName = (contacts[0] as any).name || "";
+        if (clientData?.email) {
+          contactEmail = clientData.email;
+          contactName = clientData.name || "";
+        } else {
+          const clientName = clientData?.name || "this client";
+          toast({
+            title: "No client email found",
+            description: `Add an email address to "${clientName}" or one of its contacts before sending.`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
 
       // Fetch the public_token for the signing link
       const { data: coTokenData } = await (supabase as any)
