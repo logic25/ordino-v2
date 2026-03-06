@@ -331,6 +331,21 @@ export function useRfiByToken(token: string | null) {
         }
       }
 
+      // Look up architect company address from clients table
+      let architectCompanyAddress: string | null = null;
+      const architectCompanyName = projects?.architect_company_name || applicantContact?.company_name || prop.architect_company;
+      if (architectCompanyName) {
+        const { data: archClient } = await supabase
+          .from("clients")
+          .select("address")
+          .ilike("name", architectCompanyName)
+          .limit(1)
+          .maybeSingle();
+        if (archClient?.address) {
+          architectCompanyAddress = archClient.address;
+        }
+      }
+
       // Fetch existing plan filenames linked to this proposal, project, or property
       let existingPlanNames: string[] = [];
       const lookupIds: { col: string; val: string }[] = [];
@@ -391,7 +406,7 @@ export function useRfiByToken(token: string | null) {
           architect_email: crmPrimary?.email || projects?.architect_email || applicantContact?.email || prop.architect_email || null,
           architect_license_type: projects?.architect_license_type || prop.architect_license_type || null,
           architect_license_number: projects?.architect_license_number || prop.architect_license_number || null,
-          architect_address: crmAddress || projects?.clients?.address || null,
+          architect_address: architectCompanyAddress || crmAddress || projects?.clients?.address || null,
           sia_name: projects?.sia_name || prop.sia_name || null,
           sia_company: projects?.sia_company || prop.sia_company || null,
           sia_phone: projects?.sia_phone || prop.sia_phone || null,
