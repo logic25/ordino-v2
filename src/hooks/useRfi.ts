@@ -349,26 +349,11 @@ export function useRfiByToken(token: string | null) {
         }
       }
 
-      // Fetch existing plan filenames linked to this proposal, project, or property
-      let existingPlanNames: string[] = [];
-      const lookupIds: { col: string; val: string }[] = [];
-      if (rfi.proposal_id) lookupIds.push({ col: "proposal_id", val: rfi.proposal_id });
-      if (rfi.project_id) lookupIds.push({ col: "project_id", val: rfi.project_id });
-      if (rfi.property_id) lookupIds.push({ col: "property_id", val: rfi.property_id });
-
-      for (const { col, val } of lookupIds) {
-        if (existingPlanNames.length > 0) break;
-        const { data: planDocs } = await (supabase
-          .from("universal_documents") as any)
-          .select("filename")
-          .eq(col, val)
-          .eq("category", "Plans");
-        if (planDocs && planDocs.length > 0) {
-          const names = planDocs.map((d: any) => d.filename).filter(Boolean);
-          // Deduplicate filenames
-          existingPlanNames = [...new Set(names)] as string[];
-        }
-      }
+      // Fetch existing plan filenames via secure RPC (bypasses RLS for unauthenticated users)
+      const { data: planNames } = await supabase.rpc('get_rfi_plan_filenames' as any, {
+        _access_token: token,
+      });
+      let existingPlanNames: string[] = (planNames as string[]) || [];
 
       // CRM licensed professional for applicant fields (not the homeowner/client primary)
       const crmName = crmApplicant ? `${crmApplicant.first_name || ""} ${crmApplicant.last_name || ""}`.trim() : null;
