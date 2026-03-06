@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTelemetry } from "@/hooks/useTelemetry";
 import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Settings as SettingsIcon, User, Building, Package, ChevronLeft, FileText, Receipt, Zap, Users, ListChecks, ShieldCheck, Radio, Bell } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { User, Building, Package, ChevronLeft, FileText, Receipt, Zap, Users, ListChecks, ShieldCheck, Radio, Bell, AlertTriangle } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ServiceCatalogSettings } from "@/components/settings/ServiceCatalogSettings";
 import { RfiTemplateSettings } from "@/components/settings/RfiTemplateSettings";
@@ -24,11 +26,11 @@ import { ReportSettings } from "@/components/settings/ReportSettings";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { Mail, Brain, ExternalLink, BarChart3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 function BeaconSettingsSection() {
   return (
     <div className="space-y-6">
-      {/* Connection Status */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
@@ -59,8 +61,6 @@ function BeaconSettingsSection() {
           </Button>
         </CardContent>
       </Card>
-
-      {/* Quick Stats */}
       <Card>
         <CardHeader><CardTitle className="text-base">Quick Stats</CardTitle></CardHeader>
         <CardContent>
@@ -84,26 +84,112 @@ function BeaconSettingsSection() {
   );
 }
 
+// ── Delete Account Dialog ──────────────────────────────
+function DeleteAccountDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const [confirmText, setConfirmText] = useState("");
+  const confirmed = confirmText === "DELETE";
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); setConfirmText(""); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-destructive">
+            <AlertTriangle className="h-5 w-5" />
+            Delete Account
+          </DialogTitle>
+          <DialogDescription>
+            This action is <strong>permanent and irreversible</strong>. All company data, projects, clients, invoices, and user accounts will be permanently deleted.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <p className="text-sm text-muted-foreground">
+            Type <span className="font-mono font-bold text-destructive">DELETE</span> to confirm.
+          </p>
+          <Input
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder="Type DELETE to confirm"
+            className="font-mono"
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button
+            variant="destructive"
+            disabled={!confirmed}
+            onClick={() => {
+              toast.error("Account deletion is not yet implemented. Contact support.");
+              onOpenChange(false);
+            }}
+          >
+            Permanently Delete
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists" | "roles" | "partner_templates" | "signal" | "instruction_templates" | "notifications" | "beacon" | "billing_notifications" | "reports";
 
-const settingsSections = [
-  { id: "profile" as const, title: "Profile", description: "Your personal information, hourly rate, and signature", icon: User },
-  { id: "notifications" as const, title: "Notifications", description: "Control which alerts you receive and how often", icon: Bell },
-  { id: "company" as const, title: "Company", description: "Organization name, address, logo, and contact info", icon: Building },
-  { id: "team" as const, title: "Team & Users", description: "View team members, roles, proposals, and project assignments", icon: Users },
-  { id: "proposals" as const, title: "Proposals & Services", description: "Service catalog and default terms", icon: Package },
-  { id: "lists" as const, title: "Lists & Lookups", description: "Company types, review categories, and lead sources", icon: ListChecks },
-  { id: "rfi_templates" as const, title: "RFI Templates", description: "Configure client questionnaire forms", icon: FileText },
-  { id: "instruction_templates" as const, title: "Instruction Templates", description: "Reusable email templates for DOB instructions", icon: Mail },
-  { id: "invoices" as const, title: "Invoices & Billing", description: "Payment terms, collections timeline, and client billing rules", icon: Receipt },
-  { id: "automation" as const, title: "Automation Rules", description: "Configure auto-reminders, escalations, and collection workflows", icon: Zap },
-  { id: "billing_notifications" as const, title: "Billing Notifications", description: "Control who gets notified when services are sent to billing", icon: Receipt },
-  { id: "partner_templates" as const, title: "Partner Outreach Templates", description: "Email templates for RFP partner notifications", icon: Mail },
-  { id: "signal" as const, title: "Signal Monitoring", description: "Configure property monitoring preferences and notification rules", icon: Radio },
-  { id: "reports" as const, title: "Automated Reports", description: "Configure frequency and settings for the Open Services Report", icon: BarChart3, adminOnly: true },
-  { id: "roles" as const, title: "Roles & Permissions", description: "Configure what each role can access across the system", icon: ShieldCheck, adminOnly: true },
-  { id: "beacon" as const, title: "Beacon AI", description: "Connection status, bot identity, and link to Beacon dashboard", icon: Brain, adminOnly: true },
+interface SettingsSectionDef {
+  id: SettingsSection;
+  title: string;
+  description: string;
+  icon: any;
+  adminOnly?: boolean;
+}
+
+interface SettingsGroup {
+  label: string;
+  sections: SettingsSectionDef[];
+}
+
+const settingsGroups: SettingsGroup[] = [
+  {
+    label: "Personal",
+    sections: [
+      { id: "profile", title: "Profile", description: "Your name, phone, hourly rate, and signature", icon: User },
+      { id: "notifications", title: "Notifications", description: "Control which alerts you receive and how often", icon: Bell },
+    ],
+  },
+  {
+    label: "Organization",
+    sections: [
+      { id: "company", title: "Company", description: "Organization name, address, logo, and contact info", icon: Building },
+      { id: "team", title: "Team & Users", description: "Members, roles, performance, and project assignments", icon: Users },
+      { id: "roles", title: "Roles & Permissions", description: "Configure what each role can access", icon: ShieldCheck, adminOnly: true },
+    ],
+  },
+  {
+    label: "Workflows & Templates",
+    sections: [
+      { id: "proposals", title: "Proposals & Services", description: "Service catalog and default terms", icon: Package },
+      { id: "invoices", title: "Invoices & Billing", description: "Payment terms, collections, and client billing rules", icon: Receipt },
+      { id: "rfi_templates", title: "RFI Templates", description: "Configure client questionnaire forms", icon: FileText },
+      { id: "instruction_templates", title: "Instruction Templates", description: "Reusable email templates for DOB instructions", icon: Mail },
+      { id: "partner_templates", title: "Partner Outreach Templates", description: "Email templates for RFP partner notifications", icon: Mail },
+      { id: "lists", title: "Lists & Lookups", description: "Company types, review categories, and lead sources", icon: ListChecks },
+    ],
+  },
+  {
+    label: "Automation & Monitoring",
+    sections: [
+      { id: "automation", title: "Automation Rules", description: "Auto-reminders, escalations, and collection workflows", icon: Zap },
+      { id: "billing_notifications", title: "Billing Notifications", description: "Who gets notified when services are sent to billing", icon: Receipt },
+      { id: "signal", title: "Signal Monitoring", description: "Property monitoring preferences and notification rules", icon: Radio },
+    ],
+  },
+  {
+    label: "System",
+    sections: [
+      { id: "reports", title: "Automated Reports", description: "Frequency and settings for the Open Services Report", icon: BarChart3, adminOnly: true },
+      { id: "beacon", title: "Beacon AI", description: "Connection status, bot identity, and Beacon dashboard", icon: Brain, adminOnly: true },
+    ],
+  },
 ];
+
+const allSections = settingsGroups.flatMap((g) => g.sections);
 
 export default function Settings() {
   const [searchParams] = useSearchParams();
