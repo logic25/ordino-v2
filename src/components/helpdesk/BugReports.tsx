@@ -241,9 +241,14 @@ export function BugReports() {
     if (!selectedBug) return;
     setAiLoading(true);
     try {
+      const attachments = getAttachments(selectedBug);
+      const screenshotInfo = attachments.length > 0 ? `\nScreenshots: ${attachments.map(a => a.url).join(", ")}` : "";
+      const loomInfo = selectedBug.loom_url ? `\nLoom Video: ${selectedBug.loom_url}` : "";
+      const notesInfo = editNotes ? `\nAdmin Notes: ${editNotes}` : "";
+      
       const { data, error } = await supabase.functions.invoke("ask-ordino", {
         body: {
-          question: `You are a bug triage assistant. Analyze this bug report and suggest a clear, actionable fix.\n\nTitle: ${selectedBug.title}\nDescription: ${selectedBug.description}\nPriority: ${selectedBug.priority}\n\nProvide a concise fix suggestion with specific steps.`,
+          question: `You are a bug triage assistant. Analyze this bug report and suggest a clear, actionable fix.\n\nTitle: ${selectedBug.title}\nDescription: ${selectedBug.description}\nPriority: ${selectedBug.priority}${screenshotInfo}${loomInfo}${notesInfo}\n\nProvide a concise fix suggestion with specific steps.`,
           conversationHistory: [],
         },
       });
@@ -254,6 +259,24 @@ export function BugReports() {
     } finally {
       setAiLoading(false);
     }
+  };
+
+  const copyForLovable = () => {
+    if (!selectedBug) return;
+    const attachments = getAttachments(selectedBug);
+    const parts = [
+      `**Bug Report: ${selectedBug.title}**`,
+      `Priority: ${selectedBug.priority}`,
+      "",
+      selectedBug.description,
+    ];
+    if (selectedBug.loom_url) parts.push("", `Loom: ${selectedBug.loom_url}`);
+    if (attachments.length > 0) parts.push("", `Screenshots:\n${attachments.map(a => `- ${a.url}`).join("\n")}`);
+    if (editNotes) parts.push("", `Admin Notes: ${editNotes}`);
+    parts.push("", "Please analyze this bug and suggest a fix.");
+
+    navigator.clipboard.writeText(parts.join("\n"));
+    toast({ title: "Copied to clipboard", description: "Paste into Lovable chat to get a fix." });
   };
 
   const approveFix = () => {
