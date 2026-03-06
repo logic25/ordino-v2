@@ -370,9 +370,9 @@ export function useRfiByToken(token: string | null) {
         }
       }
 
-      // CRM contact takes top priority for applicant fields
-      const crmName = crmPrimary ? `${crmPrimary.first_name || ""} ${crmPrimary.last_name || ""}`.trim() : null;
-      const crmAddress = crmPrimary ? [crmPrimary.address_1, crmPrimary.city, crmPrimary.state, crmPrimary.zip].filter(Boolean).join(", ") : null;
+      // CRM licensed professional for applicant fields (not the homeowner/client primary)
+      const crmName = crmApplicant ? `${crmApplicant.first_name || ""} ${crmApplicant.last_name || ""}`.trim() : null;
+      const crmAddress = crmApplicant ? [crmApplicant.address_1, crmApplicant.city, crmApplicant.state, crmApplicant.zip].filter(Boolean).join(", ") : null;
 
       // Extract work-type disciplines from non-optional proposal items
       const proposalItems: any[] = prop.items || [];
