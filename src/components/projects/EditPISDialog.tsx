@@ -450,10 +450,10 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
     queryFn: async () => {
       const { data: project } = await (supabase
         .from("projects") as any)
-        .select("proposal_id, filing_type")
+        .select("proposal_id, filing_type, architect_company_name")
         .eq("id", projectId)
         .single();
-      if (!project?.proposal_id) return { jobDesc: null, filingType: project?.filing_type || null, workTypes: [] as string[] };
+      if (!project?.proposal_id) return { jobDesc: null, filingType: project?.filing_type || null, workTypes: [] as string[], architectAddress: null };
       const { data: proposal } = await (supabase.from("proposals") as any)
         .select("job_description, items:proposal_items(disciplines, is_optional)")
         .eq("id", project.proposal_id)
@@ -463,7 +463,20 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
       const workTypes = [...new Set(
         items.filter((i: any) => !i.is_optional).flatMap((i: any) => i.disciplines || [])
       )] as string[];
-      return { jobDesc, filingType: project?.filing_type || null, workTypes };
+
+      // Look up architect company address from clients table
+      let architectAddress: string | null = null;
+      if (project.architect_company_name) {
+        const { data: archClient } = await supabase
+          .from("clients")
+          .select("address")
+          .ilike("name", project.architect_company_name)
+          .limit(1)
+          .maybeSingle();
+        if (archClient?.address) architectAddress = archClient.address;
+      }
+
+      return { jobDesc, filingType: project?.filing_type || null, workTypes, architectAddress };
     },
     enabled: !!projectId && open,
   });
