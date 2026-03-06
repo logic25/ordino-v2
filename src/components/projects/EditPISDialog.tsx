@@ -518,6 +518,11 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
       mapped["work_types"] = projectAutoFill.workTypes.join(",");
     }
 
+    // Fill applicant business address from architect company in CRM
+    if (!mapped["applicant_business_address"] && projectAutoFill?.architectAddress) {
+      mapped["applicant_business_address"] = projectAutoFill.architectAddress;
+    }
+
     // Aggregate per-work-type costs from public PIS into estimated_job_cost
     if (!mapped["estimated_job_cost"]) {
       let costSum = 0;
