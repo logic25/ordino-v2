@@ -331,6 +331,21 @@ export function useRfiByToken(token: string | null) {
         }
       }
 
+      // Look up architect company address from clients table
+      let architectCompanyAddress: string | null = null;
+      const architectCompanyName = projects?.architect_company_name || applicantContact?.company_name || prop.architect_company;
+      if (architectCompanyName) {
+        const { data: archClient } = await supabase
+          .from("clients")
+          .select("address")
+          .ilike("name", architectCompanyName)
+          .limit(1)
+          .maybeSingle();
+        if (archClient?.address) {
+          architectCompanyAddress = archClient.address;
+        }
+      }
+
       // Fetch existing plan filenames linked to this proposal, project, or property
       let existingPlanNames: string[] = [];
       const lookupIds: { col: string; val: string }[] = [];
