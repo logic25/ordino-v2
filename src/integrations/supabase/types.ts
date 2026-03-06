@@ -1517,6 +1517,57 @@ export type Database = {
           },
         ]
       }
+      changelog_entries: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          date: string
+          description: string
+          id: string
+          loom_url: string | null
+          tag: string
+          title: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          description?: string
+          id?: string
+          loom_url?: string | null
+          tag?: string
+          title: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          description?: string
+          id?: string
+          loom_url?: string | null
+          tag?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "changelog_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "changelog_entries_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_space_nicknames: {
         Row: {
           created_at: string
