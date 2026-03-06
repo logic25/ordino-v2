@@ -947,6 +947,36 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
                   <div className="grid grid-cols-2 gap-3 pb-2">
                     {section.fields.map((field) => renderField(field))}
                     {section.id === "owner" && showCorpOfficer && CORP_OFFICER_FIELDS.map(f => renderField(f))}
+                    {/* Show per-work-type cost breakdown from client PIS responses */}
+                    {section.id === "building_scope" && (() => {
+                      const resp = rfiData?.responses || {};
+                      const costEntries: { label: string; amount: number }[] = [];
+                      for (const [k, v] of Object.entries(resp)) {
+                        if (k.includes("_work_types_cost_") && v) {
+                          const num = Number(v);
+                          if (!isNaN(num) && num > 0) {
+                            const label = k.split("_cost_").pop()?.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) || k;
+                            costEntries.push({ label, amount: num });
+                          }
+                        }
+                      }
+                      if (costEntries.length === 0) return null;
+                      return (
+                        <div className="col-span-2 mt-1 p-3 rounded-lg border bg-muted/30 space-y-1.5">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Client-Submitted Cost Breakdown</p>
+                          {costEntries.map(({ label, amount }) => (
+                            <div key={label} className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">{label}</span>
+                              <span className="font-medium">${amount.toLocaleString()}</span>
+                            </div>
+                          ))}
+                          <div className="flex justify-between text-sm pt-1 border-t">
+                            <span className="font-medium">Total</span>
+                            <span className="font-bold">${costEntries.reduce((s, e) => s + e.amount, 0).toLocaleString()}</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                   {section.id === "gc" && <GCComplianceBanner gcName={values["gc_name"]} gcCompany={values["gc_company"]} gcDobTracking={values["gc_dob_tracking"]} clients={clients} />}
                   {section.contactRole && hasContactName && !contactInCRM && (
