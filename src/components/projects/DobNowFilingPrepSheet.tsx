@@ -123,6 +123,11 @@ export function DobNowFilingPrepSheet({
   const [filedAt, setFiledAt] = useState<Date | null>(null);
   const [filerName, setFilerName] = useState<string | null>(null);
   const [checklistWarning, setChecklistWarning] = useState(false);
+  const [agentRunId, setAgentRunId] = useState<string | null>(null);
+  const [agentStatus, setAgentStatus] = useState<string | null>(null);
+  const [agentProgress, setAgentProgress] = useState<FilingRunProgress[]>([]);
+  const [agentError, setAgentError] = useState<string | null>(null);
+  const [launchingAgent, setLaunchingAgent] = useState(false);
 
   // Load checklist from company settings defaults
   useEffect(() => {
