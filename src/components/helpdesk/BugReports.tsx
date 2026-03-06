@@ -597,6 +597,15 @@ export function BugReports() {
                   </div>
                 </div>
 
+                {/* Copy for Lovable — visible to everyone */}
+                <div className="border-t pt-4">
+                  <Button size="sm" variant="outline" className="w-full" onClick={copyForLovable}>
+                    <Copy className="h-3.5 w-3.5 mr-2" />
+                    Copy for Lovable
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-1 text-center">Copy formatted bug report to paste into Lovable chat</p>
+                </div>
+
                 {isAdmin && (
                   <div className="border-t pt-4 space-y-4">
                     <h4 className="font-semibold text-sm">Management</h4>
