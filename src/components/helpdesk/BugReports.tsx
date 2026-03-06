@@ -546,7 +546,17 @@ export function BugReports() {
                 <div>
                   <Label className="text-xs text-muted-foreground">Description</Label>
                   <div className="mt-1 text-sm whitespace-pre-line bg-muted/50 rounded-md p-3">
-                    {selectedBug.description}
+                    {selectedBug.description.split('\n').map((line: string, i: number) => (
+                      <span key={i}>
+                        {line.split(/(\*\*.*?\*\*)/).map((part: string, j: number) => {
+                          if (part.startsWith('**') && part.endsWith('**')) {
+                            return <strong key={j} className="font-semibold">{part.slice(2, -2)}</strong>;
+                          }
+                          return <span key={j}>{part}</span>;
+                        })}
+                        {i < selectedBug.description.split('\n').length - 1 && <br />}
+                      </span>
+                    ))}
                   </div>
                 </div>
 
