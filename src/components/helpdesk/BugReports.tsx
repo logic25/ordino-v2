@@ -545,18 +545,27 @@ export function BugReports() {
                 {/* Description */}
                 <div>
                   <Label className="text-xs text-muted-foreground">Description</Label>
-                  <div className="mt-1 text-sm whitespace-pre-line bg-muted/50 rounded-md p-3">
-                    {selectedBug.description.split('\n').map((line: string, i: number) => (
-                      <span key={i}>
-                        {line.split(/(\*\*.*?\*\*)/).map((part: string, j: number) => {
-                          if (part.startsWith('**') && part.endsWith('**')) {
-                            return <strong key={j} className="font-semibold">{part.slice(2, -2)}</strong>;
-                          }
-                          return <span key={j}>{part}</span>;
-                        })}
-                        {i < selectedBug.description.split('\n').length - 1 && <br />}
-                      </span>
-                    ))}
+                  <div className="mt-1 space-y-3 text-sm bg-muted/50 rounded-md p-4">
+                    {(() => {
+                      const desc = selectedBug.description || "";
+                      // Parse structured fields like **Label:** Value
+                      const fieldRegex = /\*\*(.+?):\*\*\s*([\s\S]*?)(?=\n\*\*|\n\n|$)/g;
+                      const fields: { label: string; value: string }[] = [];
+                      let match;
+                      while ((match = fieldRegex.exec(desc)) !== null) {
+                        fields.push({ label: match[1].trim(), value: match[2].trim() });
+                      }
+                      if (fields.length > 0) {
+                        return fields.map((f, i) => (
+                          <div key={i} className="space-y-0.5">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{f.label}</p>
+                            <p className="text-foreground whitespace-pre-line leading-relaxed">{f.value}</p>
+                          </div>
+                        ));
+                      }
+                      // Fallback: plain text
+                      return <p className="text-foreground whitespace-pre-line leading-relaxed">{desc}</p>;
+                    })()}
                   </div>
                 </div>
 
