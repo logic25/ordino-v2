@@ -135,7 +135,10 @@ export function BugReports() {
   const submitBug = useMutation({
     mutationFn: async () => {
       if (!profile?.company_id || !profile?.id) throw new Error("No company");
-      const description = `**Page:** ${page}\n**Action:** ${action}\n**Expected:** ${expected}\n**Actual:** ${actual}`;
+      let description = `**Page:** ${page}\n**Action:** ${action}\n**Expected:** ${expected}\n**Actual:** ${actual}`;
+      if (transcript.trim()) {
+        description += `\n\n**Transcript / Context:**\n${transcript.trim()}`;
+      }
       
       // Insert bug first to get ID
       const { data: inserted, error } = await supabase.from("feature_requests").insert({
