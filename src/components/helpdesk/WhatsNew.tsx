@@ -1,18 +1,19 @@
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, ExternalLink, Video, Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight, ExternalLink, Video, Plus, Pencil, Trash2, Loader2, Sparkles, X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/hooks/useAuth";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface ChangelogEntry {
   id: string;
@@ -22,6 +23,14 @@ interface ChangelogEntry {
   tag: string;
   loom_url?: string | null;
   company_id: string;
+}
+
+interface GeneratedEntry {
+  title: string;
+  description: string;
+  tag: string;
+  date: string;
+  selected: boolean;
 }
 
 const TAG_STYLES: Record<string, string> = {
@@ -58,6 +67,8 @@ function useChangelogEntries() {
     },
   });
 }
+
+// ── Manual Entry Dialog ──────────────────────────────
 
 interface EntryFormData {
   date: string;
@@ -157,6 +168,215 @@ function EntryDialog({ open, onOpenChange, entry, companyId }: {
   );
 }
 
+// ── AI Generate Dialog ──────────────────────────────
+
+function AIGenerateDialog({ open, onOpenChange, companyId }: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  companyId: string;
+}) {
+  const qc = useQueryClient();
+  const { session } = useAuth();
+  const [mode, setMode] = useState<"quick" | "paste">("quick");
+  const [summary, setSummary] = useState("");
+  const [generated, setGenerated] = useState<GeneratedEntry[]>([]);
+  const [step, setStep] = useState<"input" | "review">("input");
+
+  const generate = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("generate-changelog", {
+        body: { summary },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return (data.entries || []).map((e: any) => ({ ...e, selected: true }));
+    },
+    onSuccess: (entries) => {
+      setGenerated(entries);
+      setStep("review");
+    },
+    onError: (e: any) => toast.error(e.message || "Failed to generate entries"),
+  });
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const selected = generated.filter((e) => e.selected);
+      if (selected.length === 0) throw new Error("No entries selected");
+
+      const rows = selected.map((e) => ({
+        company_id: companyId,
+        date: e.date,
+        title: e.title,
+        description: e.description,
+        tag: e.tag,
+        created_by: session?.user?.id || null,
+      }));
+
+      const { error } = await supabase.from("changelog_entries").insert(rows as any);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["changelog-entries"] });
+      toast.success(`${generated.filter((e) => e.selected).length} entries added`);
+      onOpenChange(false);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const toggleEntry = (idx: number) => {
+    setGenerated((prev) => prev.map((e, i) => i === idx ? { ...e, selected: !e.selected } : e));
+  };
+
+  const updateEntry = (idx: number, field: keyof GeneratedEntry, value: string) => {
+    setGenerated((prev) => prev.map((e, i) => i === idx ? { ...e, [field]: value } : e));
+  };
+
+  const resetToInput = () => {
+    setStep("input");
+    setGenerated([]);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            AI Changelog Generator
+          </DialogTitle>
+          <DialogDescription>
+            Describe what you worked on and AI will create polished changelog entries.
+          </DialogDescription>
+        </DialogHeader>
+
+        {step === "input" && (
+          <div className="space-y-4">
+            <Tabs value={mode} onValueChange={(v) => setMode(v as "quick" | "paste")}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="quick">Quick Summary</TabsTrigger>
+                <TabsTrigger value="paste">Paste Recap</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="quick" className="space-y-2 mt-3">
+                <Label>What did you work on?</Label>
+                <Textarea
+                  value={summary}
+                  onChange={(e) => setSummary(e.target.value)}
+                  placeholder="e.g. Made the changelog dynamic so entries come from the database. Fixed bug reports leaking into feature requests tab. Added AI-powered suggest fix for bugs."
+                  rows={4}
+                />
+              </TabsContent>
+
+              <TabsContent value="paste" className="space-y-2 mt-3">
+                <Label>Paste your session recap or bullet list</Label>
+                <Textarea
+                  value={summary}
+                  onChange={(e) => setSummary(e.target.value)}
+                  placeholder={"- Dynamic changelog with admin CRUD\n- Bug report filter fix\n- AI suggest fix for bug reports\n- Loom embed in bug detail sheet"}
+                  rows={6}
+                  className="font-mono text-xs"
+                />
+              </TabsContent>
+            </Tabs>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button
+                onClick={() => generate.mutate()}
+                disabled={!summary.trim() || generate.isPending}
+              >
+                {generate.isPending ? (
+                  <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Generating…</>
+                ) : (
+                  <><Sparkles className="h-4 w-4 mr-1" /> Generate Entries</>
+                )}
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+
+        {step === "review" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                {generated.length} {generated.length === 1 ? "entry" : "entries"} generated — review and edit before saving.
+              </p>
+              <Button variant="ghost" size="sm" onClick={resetToInput}>
+                ← Back
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              {generated.map((entry, idx) => (
+                <div
+                  key={idx}
+                  className={cn(
+                    "border rounded-lg p-3 space-y-2 transition-opacity",
+                    !entry.selected && "opacity-40"
+                  )}
+                >
+                  <div className="flex items-start gap-2">
+                    <button
+                      onClick={() => toggleEntry(idx)}
+                      className={cn(
+                        "mt-0.5 shrink-0 h-5 w-5 rounded border flex items-center justify-center transition-colors",
+                        entry.selected ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/30"
+                      )}
+                    >
+                      {entry.selected && <Check className="h-3 w-3" />}
+                    </button>
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={entry.title}
+                          onChange={(e) => updateEntry(idx, "title", e.target.value)}
+                          className="h-8 text-sm font-medium"
+                        />
+                        <Select value={entry.tag} onValueChange={(v) => updateEntry(idx, "tag", v)}>
+                          <SelectTrigger className="w-32 h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="feature">Feature</SelectItem>
+                            <SelectItem value="improvement">Improvement</SelectItem>
+                            <SelectItem value="fix">Fix</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Textarea
+                        value={entry.description}
+                        onChange={(e) => updateEntry(idx, "description", e.target.value)}
+                        rows={2}
+                        className="text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button
+                onClick={() => save.mutate()}
+                disabled={!generated.some((e) => e.selected) || save.isPending}
+              >
+                {save.isPending ? (
+                  <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Saving…</>
+                ) : (
+                  <>Save {generated.filter((e) => e.selected).length} {generated.filter((e) => e.selected).length === 1 ? "Entry" : "Entries"}</>
+                )}
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Entry Row ──────────────────────────────
+
 function EntryRow({ entry, isAdmin }: { entry: ChangelogEntry; isAdmin: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -190,7 +410,7 @@ function EntryRow({ entry, isAdmin }: { entry: ChangelogEntry; isAdmin: boolean 
                 {entry.tag}
               </Badge>
               {entry.loom_url && (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-rose-500/10 text-rose-600 border-rose-300 gap-1">
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-destructive/10 text-destructive border-destructive/30 gap-1">
                   <Video className="h-2.5 w-2.5" /> Loom
                 </Badge>
               )}
@@ -254,14 +474,16 @@ function EntryRow({ entry, isAdmin }: { entry: ChangelogEntry; isAdmin: boolean 
   );
 }
 
+// ── Main Component ──────────────────────────────
+
 export function WhatsNew() {
   const { data: entries, isLoading } = useChangelogEntries();
   const { isAdmin } = usePermissions();
   const [addOpen, setAddOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
 
   const groups = groupByMonth(entries || []);
   const firstMonth = groups[0]?.[0] || "";
-  // By default, non-first months are collapsed. Toggling adds/removes from set to flip.
   const [toggledMonths, setToggledMonths] = useState<Set<string>>(new Set());
 
   const toggleMonth = (label: string) => {
@@ -286,7 +508,10 @@ export function WhatsNew() {
   return (
     <div className="space-y-4">
       {isAdmin && (
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <Button size="sm" variant="outline" onClick={() => setAiOpen(true)}>
+            <Sparkles className="h-4 w-4 mr-1" /> AI Generate
+          </Button>
           <Button size="sm" onClick={() => setAddOpen(true)}>
             <Plus className="h-4 w-4 mr-1" /> Add Entry
           </Button>
@@ -298,7 +523,6 @@ export function WhatsNew() {
       )}
 
       {groups.map(([month, monthEntries]) => {
-        // First month open by default, others collapsed. Toggle flips.
         const defaultOpen = month === firstMonth;
         const toggled = toggledMonths.has(month);
         const isOpen = defaultOpen ? !toggled : toggled;
@@ -330,6 +554,9 @@ export function WhatsNew() {
 
       {addOpen && companyId && (
         <EntryDialog open={addOpen} onOpenChange={setAddOpen} companyId={companyId} />
+      )}
+      {aiOpen && companyId && (
+        <AIGenerateDialog open={aiOpen} onOpenChange={setAiOpen} companyId={companyId} />
       )}
     </div>
   );
