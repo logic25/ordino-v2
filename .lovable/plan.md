@@ -1,38 +1,32 @@
 
 
-## Service Status Lifecycle: Remove "Complete", Keep "Paid"
+## Improve Bug Report → Fix Workflow
 
-**Current state:** The `service_status` enum has 5 values: `not_started → in_progress → complete → billed → paid`
+### Problem
+The bug reporting AI can't see Loom videos and can't apply code changes. The workflow has friction — users must manually copy bug details to bring them to Lovable chat.
 
-**Desired state:** `not_started → in_progress → billed → paid`
-- "Complete" is unnecessary — once work is done, the next step is billing, so services go straight from In Progress to Billed.
-- "Paid" stays as the final status, tracked when the associated invoice is marked paid.
+### Proposed Improvements
 
-### Changes
+**1. Add "Copy for Lovable" button to bug detail sheet**
+- One-click button that copies a formatted bug report (description + Loom link + screenshot URLs) to clipboard
+- Format it as a clean prompt ready to paste into Lovable chat
+- Minimal change — add a button + clipboard logic in `BugReports.tsx`
 
-**1. Database migration — remove "complete" from the enum**
-- Create a new enum without `complete`, migrate the column, drop old enum
-- Update any services currently set to `complete` → `billed`
+**2. Add optional Loom transcript field**
+- Add a "Transcript / Additional Context" textarea below the Loom URL input
+- Users can paste the Loom transcript (Loom provides auto-generated transcripts)
+- This text gets included in the bug description and sent to the AI's "Suggest Fix"
+- Stored in a `transcript` or appended to the description field
 
-**2. Update `auto_advance_project_phase()` function**
-- Currently checks for `status IN ('completed', 'billed')` to advance project phase to closeout
-- Update to check `status IN ('billed', 'paid')`
+**3. Improve "Suggest Fix" to include all available context**
+- Pass Loom URL, transcript text, screenshot URLs, and admin notes to the `ask-ordino` call
+- The AI will have much richer context for triage suggestions
 
-**3. Update reconciliation logic in `useProjectDetail.ts`**
-- Currently jumps from `not_started` to `in_progress` (partial billing) and to `billed` (full billing)
-- Add: when the associated invoice is `paid`, auto-set service status to `paid`
-- No other changes needed since "complete" was never enforced in reconciliation
+### Files to modify
+- `src/components/helpdesk/BugReports.tsx` — add transcript field to form, "Copy for Lovable" button to detail sheet, enrich suggestFix payload
 
-**4. Update `serviceStatusStyles` in `projectMockData.ts`**
-- Remove `complete` entry
-- Add `paid` entry with a green/success style
-
-**5. Update `useServiceDurationReports.ts`**
-- Currently filters completed services as `["complete", "billed", "paid"]`
-- Update to `["billed", "paid"]`
-
-**6. Update service status dropdown in `ProjectExpandedTabs.tsx`**
-- Remove "Complete" option from any manual status selector
-- Add "Paid" if not already present
-- Ensure "Dropped" remains available as a manual override
+### What this does NOT do
+- Auto-apply code changes (not possible — Lovable editor is external)
+- Auto-transcribe Loom videos (requires Loom API access)
+- Create a staging environment (not needed for this workflow)
 
