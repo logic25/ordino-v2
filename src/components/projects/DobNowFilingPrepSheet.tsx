@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,7 @@ import {
   Copy, CheckCircle2, AlertTriangle, MapPin, Building2,
   User, Phone, Mail, ExternalLink, ClipboardList, Save,
   Plus, Trash2, Settings, Download, Type, ChevronDown, ChevronRight,
-  ArrowLeft, Loader2,
+  ArrowLeft, Loader2, Bot, Circle, XCircle, Eye,
 } from "lucide-react";
 import type { MockService, MockContact } from "./projectMockData";
 import { engineerDisciplineLabels } from "./projectMockData";
