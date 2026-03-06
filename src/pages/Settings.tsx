@@ -196,12 +196,13 @@ export default function Settings() {
   const { track } = useTelemetry();
   const [activeSection, setActiveSection] = useState<SettingsSection>(() => {
     const section = searchParams.get("section");
-    if (section && settingsSections.some((s) => s.id === section)) {
+    if (section && allSections.some((s) => s.id === section)) {
       return section as SettingsSection;
     }
     return "main";
   });
   const isAdmin = useIsAdmin();
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const renderContent = () => {
     switch (activeSection) {
@@ -224,47 +225,69 @@ export default function Settings() {
       default:
         return (
           <>
-            <div className="grid gap-4" data-tour="settings-sections">
-              {settingsSections
-                .filter((section) => !(section as any).adminOnly || isAdmin)
-                .map((section) => (
-                <Card
-                  key={section.id}
-                  className="card-hover cursor-pointer"
-                  onClick={() => {
-                    track("settings", "tab_viewed", { tab: section.id });
-                    setActiveSection(section.id);
-                  }}
-                >
-                  <CardContent className="flex items-center gap-4 p-6">
-                    <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
-                      <section.icon className="h-6 w-6 text-muted-foreground" />
+            <div className="space-y-8" data-tour="settings-sections">
+              {settingsGroups.map((group) => {
+                const visibleSections = group.sections.filter((s) => !s.adminOnly || isAdmin);
+                if (visibleSections.length === 0) return null;
+                return (
+                  <div key={group.label} className="space-y-3">
+                    <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
+                      {group.label}
+                    </h2>
+                    <div className="grid gap-2">
+                      {visibleSections.map((section) => (
+                        <Card
+                          key={section.id}
+                          className="card-hover cursor-pointer"
+                          onClick={() => {
+                            track("settings", "tab_viewed", { tab: section.id });
+                            setActiveSection(section.id);
+                          }}
+                        >
+                          <CardContent className="flex items-center gap-4 p-4">
+                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                              <section.icon className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-medium text-sm">{section.title}</h3>
+                              <p className="text-xs text-muted-foreground truncate">{section.description}</p>
+                            </div>
+                            <ChevronLeft className="h-4 w-4 text-muted-foreground rotate-180 shrink-0" />
+                          </CardContent>
+                        </Card>
+                      ))}
                     </div>
-                    <div className="flex-1">
-                      <h3 className="font-medium">{section.title}</h3>
-                      <p className="text-sm text-muted-foreground">{section.description}</p>
-                    </div>
-                    <Button variant="ghost" size="sm">Configure</Button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {isAdmin && (
+              <>
+                <Separator />
+                <Card className="border-destructive/30">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm text-destructive flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4" />
+                      Danger Zone
+                    </CardTitle>
+                    <CardDescription className="text-xs">Irreversible and destructive actions</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
+                      Delete Account
+                    </Button>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
-            <Separator />
-            <Card className="border-destructive/50">
-              <CardHeader>
-                <CardTitle className="text-destructive">Danger Zone</CardTitle>
-                <CardDescription>Irreversible and destructive actions</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button variant="destructive" size="sm">Delete Account</Button>
-              </CardContent>
-            </Card>
+                <DeleteAccountDialog open={deleteOpen} onOpenChange={setDeleteOpen} />
+              </>
+            )}
           </>
         );
     }
   };
 
-  const currentSection = settingsSections.find((s) => s.id === activeSection);
+  const currentSection = allSections.find((s) => s.id === activeSection);
 
   return (
     <AppLayout>
