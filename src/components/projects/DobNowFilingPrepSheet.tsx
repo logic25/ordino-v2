@@ -129,7 +129,78 @@ export function DobNowFilingPrepSheet({
   const [agentError, setAgentError] = useState<string | null>(null);
   const [launchingAgent, setLaunchingAgent] = useState(false);
 
-  // Load checklist from company settings defaults
+  // Realtime subscription for agent progress
+  useEffect(() => {
+    if (!agentRunId) return;
+    const channel = supabase
+      .channel(`filing-run-${agentRunId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "filing_runs", filter: `id=eq.${agentRunId}` },
+        (payload: any) => {
+          const row = payload.new;
+          setAgentStatus(row.status);
+          setAgentProgress(Array.isArray(row.progress_log) ? row.progress_log : []);
+          if (row.error_message) setAgentError(row.error_message);
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [agentRunId]);
+
+  // Launch filing agent
+  const handleLaunchAgent = useCallback(async () => {
+    if (!currentUser || !checklistComplete) {
+      if (!checklistComplete) {
+        setChecklistWarning(true);
+        toast({ title: "Checklist incomplete", description: "Complete all required checklist items before launching the agent.", variant: "destructive" });
+      }
+      return;
+    }
+    setLaunchingAgent(true);
+    try {
+      const payload = buildPayload();
+      // Create filing_runs record
+      const { data: run, error } = await (supabase.from("filing_runs") as any).insert({
+        company_id: currentUser.company_id,
+        project_id: project.id,
+        service_id: service.id,
+        status: "queued",
+        payload_snapshot: payload,
+        created_by: currentUser.id,
+      }).select("id").single();
+
+      if (error || !run) {
+        toast({ title: "Error", description: "Failed to create filing run.", variant: "destructive" });
+        return;
+      }
+
+      setAgentRunId(run.id);
+      setAgentStatus("queued");
+      setAgentProgress([]);
+      setAgentError(null);
+      setSubmitStep("agent");
+
+      // Audit log
+      (supabase.from("filing_audit_log" as any).insert({
+        company_id: currentUser.company_id,
+        project_id: project.id,
+        service_id: service.id,
+        initiated_by: currentUser.id,
+        filing_type: service.name,
+        work_types: workTypes,
+        property_address: property?.address || null,
+        method: "agent",
+        payload_snapshot: payload,
+      }) as any).then(() => {});
+
+      toast({ title: "Agent queued", description: "The filing agent will start processing shortly." });
+    } finally {
+      setLaunchingAgent(false);
+    }
+  }, [currentUser, checklistComplete, project.id, service.id, service.name, workTypes, property?.address, toast]);
+
+
   useEffect(() => {
     if (companyData && !checklistInitialized) {
       const saved = companyData.settings?.filing_checklist_defaults;
