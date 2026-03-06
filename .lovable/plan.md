@@ -1,38 +1,19 @@
 
 
-## Service Status Lifecycle: Remove "Complete", Keep "Paid"
+## Make "What's New" Database-Driven with Admin CRUD
 
-**Current state:** The `service_status` enum has 5 values: `not_started → in_progress → complete → billed → paid`
+### Database
+- Create `changelog_entries` table: `id`, `company_id`, `date`, `title`, `description`, `tag` (feature/improvement/fix), `loom_url`, `created_by`, `created_at`
+- RLS: authenticated company members can SELECT; admins can INSERT/UPDATE/DELETE
+- Seed migration with the 12 existing hardcoded entries so nothing is lost
 
-**Desired state:** `not_started → in_progress → billed → paid`
-- "Complete" is unnecessary — once work is done, the next step is billing, so services go straight from In Progress to Billed.
-- "Paid" stays as the final status, tracked when the associated invoice is marked paid.
+### UI Changes (`WhatsNew.tsx`)
+1. Replace static `CHANGELOG` array with a Supabase query to `changelog_entries` ordered by `date desc`
+2. Add "Add Entry" button (admin-only) opening a dialog with: date, title, description, tag dropdown, optional Loom URL
+3. Add inline edit/delete actions on each row (admin-only)
+4. Keep existing month-grouping, collapse/expand, and tag badge rendering unchanged
 
-### Changes
-
-**1. Database migration — remove "complete" from the enum**
-- Create a new enum without `complete`, migrate the column, drop old enum
-- Update any services currently set to `complete` → `billed`
-
-**2. Update `auto_advance_project_phase()` function**
-- Currently checks for `status IN ('completed', 'billed')` to advance project phase to closeout
-- Update to check `status IN ('billed', 'paid')`
-
-**3. Update reconciliation logic in `useProjectDetail.ts`**
-- Currently jumps from `not_started` to `in_progress` (partial billing) and to `billed` (full billing)
-- Add: when the associated invoice is `paid`, auto-set service status to `paid`
-- No other changes needed since "complete" was never enforced in reconciliation
-
-**4. Update `serviceStatusStyles` in `projectMockData.ts`**
-- Remove `complete` entry
-- Add `paid` entry with a green/success style
-
-**5. Update `useServiceDurationReports.ts`**
-- Currently filters completed services as `["complete", "billed", "paid"]`
-- Update to `["billed", "paid"]`
-
-**6. Update service status dropdown in `ProjectExpandedTabs.tsx`**
-- Remove "Complete" option from any manual status selector
-- Add "Paid" if not already present
-- Ensure "Dropped" remains available as a manual override
+### Files
+- **New migration** — create table, RLS policies, seed data
+- **`src/components/helpdesk/WhatsNew.tsx`** — swap data source, add admin CRUD UI
 
