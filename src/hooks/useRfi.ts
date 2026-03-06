@@ -317,17 +317,20 @@ export function useRfiByToken(token: string | null) {
       const proposalContacts: any[] = prop.proposal_contacts || [];
       const applicantContact = proposalContacts.find((c: any) => c.role === "applicant");
 
-      // Fetch latest CRM contacts for live sync
-      let crmPrimary: any = null;
+      // Fetch latest CRM contacts for live sync — only use contacts with an
+      // "applicant" or architect-related role/specialty, NOT the client's primary
+      // contact (who is typically the homeowner, not the licensed professional).
+      let crmApplicant: any = null;
       if (projects?.client_id) {
         const { data: contacts } = await supabase
           .from("client_contacts")
-          .select("first_name, last_name, email, phone, name, company_name, address_1, city, state, zip")
+          .select("first_name, last_name, email, phone, name, company_name, address_1, city, state, zip, license_type, specialty")
           .eq("client_id", projects.client_id)
           .order("is_primary", { ascending: false })
           .order("sort_order", { ascending: true });
         if (contacts && contacts.length > 0) {
-          crmPrimary = contacts[0];
+          // Find a contact that looks like a licensed professional (RA/PE)
+          crmApplicant = contacts.find((c: any) => c.license_type === "RA" || c.license_type === "PE") || null;
         }
       }
 
@@ -367,9 +370,9 @@ export function useRfiByToken(token: string | null) {
         }
       }
 
-      // CRM contact takes top priority for applicant fields
-      const crmName = crmPrimary ? `${crmPrimary.first_name || ""} ${crmPrimary.last_name || ""}`.trim() : null;
-      const crmAddress = crmPrimary ? [crmPrimary.address_1, crmPrimary.city, crmPrimary.state, crmPrimary.zip].filter(Boolean).join(", ") : null;
+      // CRM licensed professional for applicant fields (not the homeowner/client primary)
+      const crmName = crmApplicant ? `${crmApplicant.first_name || ""} ${crmApplicant.last_name || ""}`.trim() : null;
+      const crmAddress = crmApplicant ? [crmApplicant.address_1, crmApplicant.city, crmApplicant.state, crmApplicant.zip].filter(Boolean).join(", ") : null;
 
       // Extract work-type disciplines from non-optional proposal items
       const proposalItems: any[] = prop.items || [];
@@ -399,11 +402,11 @@ export function useRfiByToken(token: string | null) {
           gc_contact_name: projects?.gc_contact_name || prop.gc_name || null,
           gc_phone: projects?.gc_phone || prop.gc_phone || null,
           gc_email: projects?.gc_email || prop.gc_email || null,
-          // CRM primary contact > project fields > proposal contact > proposal fields
+          // CRM licensed professional > project fields > proposal contact > proposal fields
           architect_company_name: projects?.architect_company_name || applicantContact?.company_name || prop.architect_company || null,
           architect_contact_name: crmName || projects?.architect_contact_name || applicantContact?.name || prop.architect_name || null,
-          architect_phone: crmPrimary?.phone || projects?.architect_phone || applicantContact?.phone || prop.architect_phone || null,
-          architect_email: crmPrimary?.email || projects?.architect_email || applicantContact?.email || prop.architect_email || null,
+          architect_phone: crmApplicant?.phone || projects?.architect_phone || applicantContact?.phone || prop.architect_phone || null,
+          architect_email: crmApplicant?.email || projects?.architect_email || applicantContact?.email || prop.architect_email || null,
           architect_license_type: projects?.architect_license_type || prop.architect_license_type || null,
           architect_license_number: projects?.architect_license_number || prop.architect_license_number || null,
           architect_address: architectCompanyAddress || crmAddress || projects?.clients?.address || null,

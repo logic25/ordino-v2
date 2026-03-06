@@ -289,7 +289,7 @@ Deno.serve(async (req) => {
     }
 
     if (rfiToken) {
-      pisLink = `https://ordinov3.lovable.app/rfi/${rfiToken}`;
+      pisLink = `https://ordinov3.lovable.app/rfi?token=${rfiToken}`;
     }
 
     // Only attach the proposal if it's fully executed (both parties signed)
