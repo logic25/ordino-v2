@@ -5220,6 +5220,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           estimated_construction_completion: string | null
+          estimated_job_cost: number | null
           expected_construction_start: string | null
           filing_type: string | null
           floor_number: string | null
@@ -5280,6 +5281,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           estimated_construction_completion?: string | null
+          estimated_job_cost?: number | null
           expected_construction_start?: string | null
           filing_type?: string | null
           floor_number?: string | null
@@ -5340,6 +5342,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           estimated_construction_completion?: string | null
+          estimated_job_cost?: number | null
           expected_construction_start?: string | null
           filing_type?: string | null
           floor_number?: string | null
