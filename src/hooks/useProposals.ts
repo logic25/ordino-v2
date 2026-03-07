@@ -806,11 +806,17 @@ export function useSignProposalInternal() {
 
             // Create if not found
             if (!contactId) {
+              // Split name into first/last for proper CRM records
+              const nameParts = (pc.name || "").trim().split(/\s+/);
+              const firstName = nameParts[0] || "";
+              const lastName = nameParts.slice(1).join(" ") || "";
               const { data: newContact } = await supabase
                 .from("client_contacts")
                 .insert({
                   company_id: profile.company_id,
                   name: pc.name,
+                  first_name: firstName || null,
+                  last_name: lastName || null,
                   email: pc.email || null,
                   phone: pc.phone || null,
                   company_name: pc.company_name || null,

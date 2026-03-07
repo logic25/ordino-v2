@@ -1,0 +1,1 @@
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS estimated_job_cost numeric DEFAULT NULL;
