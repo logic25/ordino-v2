@@ -650,9 +650,23 @@ export default function RfiForm() {
     if (!token) return;
     setSubmitting(true);
     try {
+      // Aggregate per-work-type costs into estimated_job_cost so the DB trigger can sync it to the project
+      const finalResponses = { ...responses };
+      let costSum = 0;
+      let foundCost = false;
+      for (const [key, v] of Object.entries(finalResponses)) {
+        if (key.includes("_work_types_cost_") && v) {
+          const num = Number(v);
+          if (!isNaN(num)) { costSum += num; foundCost = true; }
+        }
+      }
+      if (foundCost) {
+        finalResponses["building_and_scope_estimated_job_cost"] = String(costSum);
+      }
+
       await (supabase.from("rfi_requests" as any) as any)
         .update({
-          responses,
+          responses: finalResponses,
           status: "submitted",
           submitted_at: new Date().toISOString(),
         })
