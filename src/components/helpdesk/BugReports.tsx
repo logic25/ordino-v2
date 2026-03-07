@@ -656,34 +656,6 @@ export function BugReports() {
                       <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Internal notes or resolution summary..." rows={3} />
                     </div>
 
-                    {/* AI Suggest Fix */}
-                    <div className="border rounded-md p-3 space-y-2 bg-muted/30">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-xs font-semibold flex items-center gap-1">
-                          <Sparkles className="h-3.5 w-3.5 text-amber-500" /> AI Auto-Fix
-                        </Label>
-                        <Button size="sm" variant="outline" onClick={suggestFix} disabled={aiLoading}>
-                          {aiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
-                          Suggest Fix
-                        </Button>
-                      </div>
-                      {aiSuggestion && (
-                        <>
-                          <div className="text-sm whitespace-pre-line bg-background rounded p-2 border max-h-48 overflow-y-auto">
-                            {aiSuggestion}
-                          </div>
-                          <div className="flex gap-2">
-                            <Button size="sm" onClick={approveFix} disabled={updateBug.isPending}>
-                              Approve & Apply
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => setAiSuggestion("")}>
-                              Dismiss
-                            </Button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-
                     <div className="flex gap-2">
                       <Button size="sm" onClick={saveDetail} disabled={updateBug.isPending}>
                         {updateBug.isPending ? "Saving..." : "Save Changes"}
