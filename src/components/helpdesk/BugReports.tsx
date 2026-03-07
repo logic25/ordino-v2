@@ -214,7 +214,6 @@ export function BugReports() {
     setEditNotes(bug.admin_notes || "");
     setEditStatus(bug.status || "open");
     setEditAssignee(bug.assigned_to || "");
-    setAiSuggestion("");
   };
 
   const saveDetail = () => {
