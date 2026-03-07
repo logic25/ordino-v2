@@ -234,30 +234,6 @@ export function BugReports() {
     });
   };
 
-  const suggestFix = async () => {
-    if (!selectedBug) return;
-    setAiLoading(true);
-    try {
-      const attachments = getAttachments(selectedBug);
-      const screenshotInfo = attachments.length > 0 ? `\nScreenshots: ${attachments.map(a => a.url).join(", ")}` : "";
-      const loomInfo = selectedBug.loom_url ? `\nLoom Video: ${selectedBug.loom_url}` : "";
-      const notesInfo = editNotes ? `\nAdmin Notes: ${editNotes}` : "";
-      
-      const { data, error } = await supabase.functions.invoke("ask-ordino", {
-        body: {
-          question: `You are a bug triage assistant. Analyze this bug report and suggest a clear, actionable fix.\n\nTitle: ${selectedBug.title}\nDescription: ${selectedBug.description}\nPriority: ${selectedBug.priority}${screenshotInfo}${loomInfo}${notesInfo}\n\nProvide a concise fix suggestion with specific steps.`,
-          conversationHistory: [],
-        },
-      });
-      if (error) throw error;
-      setAiSuggestion(data.answer || "No suggestion generated.");
-    } catch {
-      toast({ title: "AI suggestion failed", variant: "destructive" });
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
   const copyForLovable = () => {
     if (!selectedBug) return;
     const attachments = getAttachments(selectedBug);
@@ -274,17 +250,6 @@ export function BugReports() {
 
     navigator.clipboard.writeText(parts.join("\n"));
     toast({ title: "Copied to clipboard", description: "Paste into Lovable chat to get a fix." });
-  };
-
-  const approveFix = () => {
-    if (!selectedBug || !aiSuggestion) return;
-    updateBug.mutate({
-      id: selectedBug.id,
-      updates: {
-        status: "in_progress",
-        admin_notes: `AI Suggested Fix:\n${aiSuggestion}\n\n${editNotes ? `Notes:\n${editNotes}` : ""}`,
-      },
-    }, { onSuccess: () => setSelectedBug(null) });
   };
 
   const getAssigneeName = (id: string | null) => {
