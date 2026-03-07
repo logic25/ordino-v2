@@ -1,17 +1,36 @@
 
 
-## Remove AI Suggest Fix from Bug Reports
+## DOB NOW Filing Agent — Implementation Complete
 
-Remove the "AI Auto-Fix / Suggest Fix" feature from the bug report detail sheet since "Copy for Lovable" is the more effective workflow (it has full codebase access).
+### What was built (4 pieces):
 
-### Changes — `src/components/helpdesk/BugReports.tsx`
+**1. Database: `filing_runs` table** ✅
+- Table with `id`, `company_id`, `project_id`, `service_id`, `status`, `progress_log` (jsonb), `payload_snapshot`, `agent_session_id`, timestamps, `error_message`, `created_by`
+- RLS: company-scoped read/insert/update for authenticated users
+- Realtime enabled for live progress subscriptions
+- `updated_at` trigger
 
-1. **Remove state variables** (lines 88-89): `aiSuggestion`, `aiLoading`
-2. **Remove `setAiSuggestion("")`** from `openDetail` (line 219)
-3. **Remove `suggestFix` function** (lines 240-261)
-4. **Remove `approveFix` function** (lines 282-290)
-5. **Remove the entire AI Suggest Fix UI block** (lines 662-688) — the bordered card with the Suggest Fix button, suggestion display, and Approve/Dismiss buttons
-6. **Clean up unused imports** if `Sparkles` and `Loader2` are no longer referenced elsewhere in the file
+**2. Edge Function: `filing-payload`** ✅
+- Accepts `project_id` + optional `service_id` via query params
+- Dual auth: JWT for browser, service-role key for agent
+- Returns structured JSON: `location`, `applicant_owner`, `filing_details`, `stakeholders`, `contacts`
+- Pulls from projects, properties, PIS responses, contacts, services
 
-No other files need changes. The "Copy for Lovable" button remains untouched.
+**3. Edge Function: `filing-status`** ✅
+- POST endpoint for agent to report progress
+- Auth: service-role key, `x-agent-secret` header, or JWT
+- Appends to `progress_log` array, updates `status`, sets `started_at`/`completed_at`
 
+**4. UI: Agent Launcher in DobNowFilingPrepSheet** ✅
+- "Launch Filing Agent" button alongside existing manual submit
+- Creates `filing_runs` record with `queued` status + payload snapshot
+- Realtime subscription shows live progress feed
+- Status indicators: queued → running → completed/failed/review_needed
+- Progress log with timestamped steps and status icons
+- Retry/Done actions on terminal states
+
+### External agent service (not built here):
+- Python + Claude Agent SDK + Playwright MCP
+- GET `/filing-payload?project_id=X&service_id=Y` with service-role key
+- POST `/filing-status` with `{ filing_run_id, status, step, error_message, agent_session_id }`
+- `DOB_AGENT_SECRET` header auth supported

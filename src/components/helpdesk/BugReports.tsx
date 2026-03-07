@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bug, CheckCircle2, Plus, Clock, Filter, ArrowUpDown, Loader2, Upload, Video, Sparkles, X, Image as ImageIcon, Copy } from "lucide-react";
+import { Bug, CheckCircle2, Plus, Clock, Filter, ArrowUpDown, Loader2, Upload, Video, X, Image as ImageIcon, Copy } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -85,8 +85,6 @@ export function BugReports() {
   const [editNotes, setEditNotes] = useState("");
   const [editStatus, setEditStatus] = useState("");
   const [editAssignee, setEditAssignee] = useState("");
-  const [aiSuggestion, setAiSuggestion] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
 
   const { data: reports = [], isLoading } = useQuery({
     queryKey: ["bug-reports", profile?.company_id],
@@ -216,7 +214,6 @@ export function BugReports() {
     setEditNotes(bug.admin_notes || "");
     setEditStatus(bug.status || "open");
     setEditAssignee(bug.assigned_to || "");
-    setAiSuggestion("");
   };
 
   const saveDetail = () => {
@@ -237,30 +234,6 @@ export function BugReports() {
     });
   };
 
-  const suggestFix = async () => {
-    if (!selectedBug) return;
-    setAiLoading(true);
-    try {
-      const attachments = getAttachments(selectedBug);
-      const screenshotInfo = attachments.length > 0 ? `\nScreenshots: ${attachments.map(a => a.url).join(", ")}` : "";
-      const loomInfo = selectedBug.loom_url ? `\nLoom Video: ${selectedBug.loom_url}` : "";
-      const notesInfo = editNotes ? `\nAdmin Notes: ${editNotes}` : "";
-      
-      const { data, error } = await supabase.functions.invoke("ask-ordino", {
-        body: {
-          question: `You are a bug triage assistant. Analyze this bug report and suggest a clear, actionable fix.\n\nTitle: ${selectedBug.title}\nDescription: ${selectedBug.description}\nPriority: ${selectedBug.priority}${screenshotInfo}${loomInfo}${notesInfo}\n\nProvide a concise fix suggestion with specific steps.`,
-          conversationHistory: [],
-        },
-      });
-      if (error) throw error;
-      setAiSuggestion(data.answer || "No suggestion generated.");
-    } catch {
-      toast({ title: "AI suggestion failed", variant: "destructive" });
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
   const copyForLovable = () => {
     if (!selectedBug) return;
     const attachments = getAttachments(selectedBug);
@@ -277,17 +250,6 @@ export function BugReports() {
 
     navigator.clipboard.writeText(parts.join("\n"));
     toast({ title: "Copied to clipboard", description: "Paste into Lovable chat to get a fix." });
-  };
-
-  const approveFix = () => {
-    if (!selectedBug || !aiSuggestion) return;
-    updateBug.mutate({
-      id: selectedBug.id,
-      updates: {
-        status: "in_progress",
-        admin_notes: `AI Suggested Fix:\n${aiSuggestion}\n\n${editNotes ? `Notes:\n${editNotes}` : ""}`,
-      },
-    }, { onSuccess: () => setSelectedBug(null) });
   };
 
   const getAssigneeName = (id: string | null) => {
@@ -657,34 +619,6 @@ export function BugReports() {
                     <div className="space-y-2">
                       <Label>Admin Notes</Label>
                       <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Internal notes or resolution summary..." rows={3} />
-                    </div>
-
-                    {/* AI Suggest Fix */}
-                    <div className="border rounded-md p-3 space-y-2 bg-muted/30">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-xs font-semibold flex items-center gap-1">
-                          <Sparkles className="h-3.5 w-3.5 text-amber-500" /> AI Auto-Fix
-                        </Label>
-                        <Button size="sm" variant="outline" onClick={suggestFix} disabled={aiLoading}>
-                          {aiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
-                          Suggest Fix
-                        </Button>
-                      </div>
-                      {aiSuggestion && (
-                        <>
-                          <div className="text-sm whitespace-pre-line bg-background rounded p-2 border max-h-48 overflow-y-auto">
-                            {aiSuggestion}
-                          </div>
-                          <div className="flex gap-2">
-                            <Button size="sm" onClick={approveFix} disabled={updateBug.isPending}>
-                              Approve & Apply
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => setAiSuggestion("")}>
-                              Dismiss
-                            </Button>
-                          </div>
-                        </>
-                      )}
                     </div>
 
                     <div className="flex gap-2">
