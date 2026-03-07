@@ -85,8 +85,6 @@ export function BugReports() {
   const [editNotes, setEditNotes] = useState("");
   const [editStatus, setEditStatus] = useState("");
   const [editAssignee, setEditAssignee] = useState("");
-  const [aiSuggestion, setAiSuggestion] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
 
   const { data: reports = [], isLoading } = useQuery({
     queryKey: ["bug-reports", profile?.company_id],
