@@ -634,10 +634,7 @@ export default function RfiForm() {
     setCurrentStep(0);
     // Mark as viewed (skip in demo mode)
     if (rfi && token && !isDemo) {
-      (supabase.from("rfi_requests" as any) as any)
-        .update({ viewed_at: new Date().toISOString(), status: "viewed" })
-        .eq("access_token", token)
-        .then(() => {});
+      supabase.rpc("track_rfi_view" as any, { _token: token }).then(() => {});
     }
   };
 
