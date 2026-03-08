@@ -138,14 +138,18 @@ Deno.serve(async (req) => {
     }
 
     // ── NEW BUG notification: email admins/managers ──
-    const { data: adminProfiles } = await supabase
+    const { data: newBugAdminProfiles } = await supabase
       .from("profiles")
-      .select("id, email, display_name")
+      .select("id, user_id")
       .eq("company_id", company_id)
       .eq("is_active", true)
       .in("role", ["admin", "manager"]);
 
-    const adminEmails = (adminProfiles || []).filter((p: any) => p.email).map((p: any) => p.email);
+    const adminEmails: string[] = [];
+    for (const p of newBugAdminProfiles || []) {
+      const { data: { user } } = await supabase.auth.admin.getUserById(p.user_id);
+      if (user?.email) adminEmails.push(user.email);
+    }
 
     if (adminEmails.length === 0) {
       return new Response(JSON.stringify({ ok: true, sent: 0, reason: "no_admin_emails" }), {
