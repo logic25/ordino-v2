@@ -166,34 +166,62 @@ Deno.serve(async (req) => {
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-    const supabaseUser = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
 
-    const {
-      data: { user },
-    } = await supabaseUser.auth.getUser();
-    if (!user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // Check if this is a service-role call (from other edge functions)
+    const token = authHeader.replace("Bearer ", "");
+    const isServiceRole = token === supabaseServiceKey;
+
+    let profileId: string;
+
+    if (isServiceRole) {
+      // Service-role call: read body first to get user_id
+      const reqBody = await req.json();
+      const { to, cc, bcc, subject, html_body, reply_to_email_id, attachments, user_id: bodyUserId } = reqBody;
+
+      if (!bodyUserId) {
+        return new Response(JSON.stringify({ error: "user_id required for service-role calls" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // bodyUserId is the profiles.id (not auth user id)
+      profileId = bodyUserId;
+
+      // Store parsed body for later use
+      (req as any)._parsedBody = { to, cc, bcc, subject, html_body, reply_to_email_id, attachments };
+    } else {
+      const supabaseUser = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: authHeader } },
       });
+
+      const {
+        data: { user },
+      } = await supabaseUser.auth.getUser();
+      if (!user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("id, company_id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!profile) {
+        return new Response(JSON.stringify({ error: "Profile not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      profileId = profile.id;
     }
 
-    const { data: profile } = await supabaseAdmin
-      .from("profiles")
-      .select("id, company_id")
-      .eq("user_id", user.id)
-      .single();
-
-    if (!profile) {
-      return new Response(JSON.stringify({ error: "Profile not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const reqBody = await req.json();
+    const reqBody = isServiceRole ? (req as any)._parsedBody : await req.json();
     const { to, cc, bcc, subject, html_body, reply_to_email_id, attachments } = reqBody;
 
     if (!to || !subject || !html_body) {
@@ -207,7 +235,7 @@ Deno.serve(async (req) => {
     const { data: connection } = await supabaseAdmin
       .from("gmail_connections")
       .select("*")
-      .eq("user_id", profile.id)
+      .eq("user_id", profileId)
       .single();
 
     if (!connection) {
