@@ -747,6 +747,41 @@ export function BugReports() {
                     <p className="mt-1 text-sm whitespace-pre-line">{selectedBug.admin_notes}</p>
                   </div>
                 )}
+
+                {/* Activity Timeline */}
+                {activityLogs.length > 0 && (
+                  <div className="border-t pt-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <History className="h-4 w-4 text-muted-foreground" />
+                      <h4 className="font-semibold text-sm">Activity Log</h4>
+                      <Badge variant="secondary" className="text-xs">{activityLogs.length}</Badge>
+                    </div>
+                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                      {activityLogs.map((log: any) => (
+                        <div key={log.id} className="flex gap-3 text-sm">
+                          <div className="flex flex-col items-center">
+                            <div className={cn(
+                              "h-2 w-2 rounded-full mt-1.5 shrink-0",
+                              log.action_type === "status_change" ? "bg-primary" :
+                              log.action_type === "assignment_change" ? "bg-blue-500" :
+                              "bg-muted-foreground"
+                            )} />
+                            <div className="w-px flex-1 bg-border mt-1" />
+                          </div>
+                          <div className="pb-3 min-w-0">
+                            <p className="text-foreground leading-snug">{getActivityDescription(log)}</p>
+                            {log.note && (
+                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">"{log.note.substring(0, 120)}"</p>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {format(new Date(log.created_at), "MMM d, yyyy 'at' h:mm a")}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}
