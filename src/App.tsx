@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,6 +7,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute, SetupRoute, PublicRoute } from "@/components/routing/RouteGuards";
 import { WalkthroughProvider } from "@/components/walkthrough/WalkthroughProvider";
+import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 // Pages
 import Auth from "./pages/Auth";
@@ -110,20 +113,38 @@ function AppRoutes() {
   );
 }
 
+function SentryFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="max-w-md w-full text-center">
+        <CardHeader>
+          <CardTitle>Something went wrong</CardTitle>
+          <CardDescription>We've been notified and are looking into it.</CardDescription>
+        </CardHeader>
+        <CardFooter className="justify-center">
+          <Button onClick={() => window.location.reload()}>Reload Page</Button>
+        </CardFooter>
+      </Card>
+    </div>
+  );
+}
+
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <WalkthroughProvider>
-            <AppRoutes />
-          </WalkthroughProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <Sentry.ErrorBoundary fallback={<SentryFallback />}>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <WalkthroughProvider>
+              <AppRoutes />
+            </WalkthroughProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </Sentry.ErrorBoundary>
 );
 
 export default App;
