@@ -1,11 +1,11 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bug, CheckCircle2, Plus, Clock, Filter, ArrowUpDown, Loader2, Upload, Video, X, Image as ImageIcon, Copy } from "lucide-react";
+import { Bug, CheckCircle2, Plus, Clock, Filter, ArrowUpDown, Loader2, Upload, Video, X, Image as ImageIcon, Copy, History } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +17,8 @@ import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 
 const PAGES = [
   "Dashboard", "Projects", "Properties", "Proposals", "Invoices / Billing",
@@ -85,6 +87,37 @@ export function BugReports() {
   const [editNotes, setEditNotes] = useState("");
   const [editStatus, setEditStatus] = useState("");
   const [editAssignee, setEditAssignee] = useState("");
+
+  // Activity log query
+  const { data: activityLogs = [] } = useQuery({
+    queryKey: ["bug-activity", selectedBug?.id],
+    queryFn: async () => {
+      if (!selectedBug?.id) return [];
+      const { data } = await supabase
+        .from("bug_activity_logs")
+        .select("*")
+        .eq("bug_id", selectedBug.id)
+        .order("created_at", { ascending: false });
+      return data || [];
+    },
+    enabled: !!selectedBug?.id,
+  });
+
+  const getActivityDescription = (log: any) => {
+    const userName = profiles.find((p) => p.id === log.user_id)?.display_name || "Someone";
+    switch (log.action_type) {
+      case "status_change":
+        return `${userName} changed status from "${log.old_value}" to "${log.new_value}"`;
+      case "assignment_change":
+        return `${userName} reassigned from ${log.old_value} to ${log.new_value}`;
+      case "notes_updated":
+        return `${userName} updated admin notes`;
+      case "email_reply":
+        return `${userName} replied via email`;
+      default:
+        return `${userName} made a change`;
+    }
+  };
 
   const { data: reports = [], isLoading } = useQuery({
     queryKey: ["bug-reports", profile?.company_id],
@@ -216,8 +249,8 @@ export function BugReports() {
     setEditAssignee(bug.assigned_to || "");
   };
 
-  const saveDetail = () => {
-    if (!selectedBug) return;
+  const saveDetail = async () => {
+    if (!selectedBug || !profile) return;
     const updates: Record<string, any> = {
       status: editStatus,
       admin_notes: editNotes || null,
@@ -229,6 +262,32 @@ export function BugReports() {
     if (editStatus !== "resolved") {
       updates.resolved_at = null;
     }
+
+    // Build activity log entries
+    const activities: Array<{ bug_id: string; company_id: string; user_id: string; action_type: string; field_changed?: string; old_value?: string; new_value?: string; note?: string }> = [];
+    const bugId = selectedBug.id;
+    const companyId = selectedBug.company_id;
+
+    if (editStatus !== selectedBug.status) {
+      activities.push({ bug_id: bugId, company_id: companyId, user_id: profile.id, action_type: "status_change", field_changed: "status", old_value: selectedBug.status, new_value: editStatus });
+    }
+    const newAssignee = editAssignee === "__unassigned__" ? null : (editAssignee || null);
+    if (newAssignee !== (selectedBug.assigned_to || null)) {
+      const oldName = getAssigneeName(selectedBug.assigned_to) || "Unassigned";
+      const newName = getAssigneeName(newAssignee) || "Unassigned";
+      activities.push({ bug_id: bugId, company_id: companyId, user_id: profile.id, action_type: "assignment_change", field_changed: "assigned_to", old_value: oldName, new_value: newName });
+    }
+    if ((editNotes || "") !== (selectedBug.admin_notes || "")) {
+      activities.push({ bug_id: bugId, company_id: companyId, user_id: profile.id, action_type: "notes_updated", note: editNotes || undefined });
+    }
+
+    // Insert activity logs (best-effort)
+    if (activities.length > 0) {
+      supabase.from("bug_activity_logs").insert(activities).then(() => {
+        queryClient.invalidateQueries({ queryKey: ["bug-activity", bugId] });
+      });
+    }
+
     const isNewlyResolved = editStatus === "resolved" && selectedBug.status !== "resolved";
     const isReopened = editStatus === "open" && selectedBug.status === "resolved";
     const isMovedToInProgress = editStatus === "in_progress" && selectedBug.status === "open";
@@ -686,6 +745,41 @@ export function BugReports() {
                   <div className="border-t pt-4">
                     <Label className="text-xs text-muted-foreground">Resolution Notes</Label>
                     <p className="mt-1 text-sm whitespace-pre-line">{selectedBug.admin_notes}</p>
+                  </div>
+                )}
+
+                {/* Activity Timeline */}
+                {activityLogs.length > 0 && (
+                  <div className="border-t pt-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <History className="h-4 w-4 text-muted-foreground" />
+                      <h4 className="font-semibold text-sm">Activity Log</h4>
+                      <Badge variant="secondary" className="text-xs">{activityLogs.length}</Badge>
+                    </div>
+                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                      {activityLogs.map((log: any) => (
+                        <div key={log.id} className="flex gap-3 text-sm">
+                          <div className="flex flex-col items-center">
+                            <div className={cn(
+                              "h-2 w-2 rounded-full mt-1.5 shrink-0",
+                              log.action_type === "status_change" ? "bg-primary" :
+                              log.action_type === "assignment_change" ? "bg-blue-500" :
+                              "bg-muted-foreground"
+                            )} />
+                            <div className="w-px flex-1 bg-border mt-1" />
+                          </div>
+                          <div className="pb-3 min-w-0">
+                            <p className="text-foreground leading-snug">{getActivityDescription(log)}</p>
+                            {log.note && (
+                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">"{log.note.substring(0, 120)}"</p>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {format(new Date(log.created_at), "MMM d, yyyy 'at' h:mm a")}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
