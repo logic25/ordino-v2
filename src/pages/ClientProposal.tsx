@@ -37,82 +37,47 @@ export default function ClientProposalPage() {
   const [receiptData, setReceiptData] = useState<DepositReceiptData | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
-  // Fetch proposal by public token
+  // Fetch proposal by public token via secure RPC
   const { data: proposal, isLoading, error } = useQuery({
     queryKey: ["public-proposal", token],
     queryFn: async () => {
       if (!token) throw new Error("No token");
-      const { data, error } = await supabase
-        .from("proposals")
-        .select(`
-          *,
-          properties (id, address, borough),
-          items:proposal_items(*),
-          milestones:proposal_milestones(*),
-          internal_signer:profiles!proposals_internal_signed_by_fkey(first_name, last_name)
-        `)
-        .eq("public_token", token)
-        .maybeSingle();
+      const { data, error } = await supabase.rpc("get_public_proposal" as any, { _token: token });
       if (error) throw error;
       if (!data) throw new Error("Proposal not found");
-      return data as any;
+      const d = data as any;
+      // Reshape to match expected structure
+      return {
+        ...d,
+        properties: d.properties || null,
+        items: d.items || [],
+        milestones: d.milestones || [],
+        internal_signer: d.internal_signer || null,
+      } as any;
     },
     enabled: !!token,
   });
 
-  // Fetch company info
-  const { data: company, isLoading: isCompanyLoading } = useQuery({
-    queryKey: ["public-company", proposal?.company_id],
-    queryFn: async () => {
-      if (!proposal?.company_id) return null;
-      const { data } = await supabase
-        .from("companies")
-        .select("name, address, phone, email, website, logo_url, settings")
-        .eq("id", proposal.company_id)
-        .single();
-      if (!data) return null;
-      const s = (data.settings || {}) as any;
-      return {
-        name: data.name,
-        address: s.company_address?.trim() || data.address || "",
-        phone: s.company_phone?.trim() || data.phone || "",
-        fax: s.company_fax?.trim() || "",
-        email: s.company_email?.trim() || data.email || "",
-        website: s.company_website?.trim() || data.website || "",
-        logo_url: s.company_logo_url?.trim() || data.logo_url || "",
-      };
-    },
-    enabled: !!proposal?.company_id,
-  });
+  // Company comes bundled in the RPC response
+  const company = proposal?.company ? (() => {
+    const c = proposal.company;
+    const s = (c.settings || {}) as any;
+    return {
+      name: c.name,
+      address: s.company_address?.trim() || c.address || "",
+      phone: s.company_phone?.trim() || c.phone || "",
+      fax: s.company_fax?.trim() || "",
+      email: s.company_email?.trim() || c.email || "",
+      website: s.company_website?.trim() || c.website || "",
+      logo_url: s.company_logo_url?.trim() || c.logo_url || "",
+    };
+  })() : null;
 
-  // Fetch proposal contacts
-  const { data: contacts = [] } = useQuery({
-    queryKey: ["public-proposal-contacts", proposal?.id],
-    queryFn: async () => {
-      if (!proposal?.id) return [];
-      const { data } = await supabase
-        .from("proposal_contacts")
-        .select("*")
-        .eq("proposal_id", proposal.id);
-      return data || [];
-    },
-    enabled: !!proposal?.id,
-  });
+  // Contacts come bundled in the RPC response
+  const contacts = proposal?.contacts || [];
 
-  // Fetch linked RFI token
-  const { data: rfiToken } = useQuery({
-    queryKey: ["public-rfi-token", proposal?.id],
-    queryFn: async () => {
-      if (!proposal?.id) return null;
-      const { data } = await supabase
-        .from("rfi_requests")
-        .select("access_token")
-        .eq("proposal_id", proposal.id)
-        .maybeSingle();
-      return (data as any)?.access_token || null;
-    },
-    enabled: !!proposal?.id,
-  });
+  // RFI token comes bundled in the RPC response
+  const rfiToken = proposal?.rfi_token || null;
 
   // Sign mutation
   const signMutation = useMutation({
