@@ -3369,6 +3369,7 @@ export type Database = {
           admin_notes: string | null
           assigned_to: string | null
           attachments: Json | null
+          beacon_feedback_id: number | null
           category: string | null
           company_id: string
           created_at: string | null
@@ -3377,6 +3378,7 @@ export type Database = {
           loom_url: string | null
           priority: string | null
           resolved_at: string | null
+          source: string
           status: string | null
           title: string
           updated_at: string | null
@@ -3387,6 +3389,7 @@ export type Database = {
           admin_notes?: string | null
           assigned_to?: string | null
           attachments?: Json | null
+          beacon_feedback_id?: number | null
           category?: string | null
           company_id: string
           created_at?: string | null
@@ -3395,6 +3398,7 @@ export type Database = {
           loom_url?: string | null
           priority?: string | null
           resolved_at?: string | null
+          source?: string
           status?: string | null
           title: string
           updated_at?: string | null
@@ -3405,6 +3409,7 @@ export type Database = {
           admin_notes?: string | null
           assigned_to?: string | null
           attachments?: Json | null
+          beacon_feedback_id?: number | null
           category?: string | null
           company_id?: string
           created_at?: string | null
@@ -3413,6 +3418,7 @@ export type Database = {
           loom_url?: string | null
           priority?: string | null
           resolved_at?: string | null
+          source?: string
           status?: string | null
           title?: string
           updated_at?: string | null
@@ -3425,6 +3431,13 @@ export type Database = {
             columns: ["assigned_to"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feature_requests_beacon_feedback_id_fkey"
+            columns: ["beacon_feedback_id"]
+            isOneToOne: false
+            referencedRelation: "beacon_feedback"
             referencedColumns: ["id"]
           },
           {
