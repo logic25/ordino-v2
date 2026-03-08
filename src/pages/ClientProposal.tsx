@@ -155,14 +155,7 @@ export default function ClientProposalPage() {
     setViewTracked(true);
     const trackView = async () => {
       try {
-        // Set viewed_at and status
-        await supabase
-          .from("proposals")
-          .update({
-            viewed_at: new Date().toISOString(),
-            status: "viewed",
-          } as any)
-          .eq("id", proposal.id);
+        await supabase.rpc("track_proposal_view" as any, { _token: token });
 
         // Log to proposal_follow_ups
         await supabase.from("proposal_follow_ups").insert({
