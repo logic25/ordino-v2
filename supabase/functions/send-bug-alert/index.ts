@@ -47,26 +47,36 @@ Deno.serve(async (req) => {
       // Collect all recipients: reporter + admins/managers
       const recipients: string[] = [];
 
-      if (reporter_user_id) {
-        const { data: reporter } = await supabase
+      // Helper to get email from auth via profile's user_id
+      const getEmailByProfileId = async (profileId: string): Promise<string | null> => {
+        const { data: prof } = await supabase
           .from("profiles")
-          .select("email, display_name")
-          .eq("id", reporter_user_id)
+          .select("user_id")
+          .eq("id", profileId)
           .single();
-        if (reporter?.email) recipients.push(reporter.email);
+        if (!prof?.user_id) return null;
+        const { data: { user } } = await supabase.auth.admin.getUserById(prof.user_id);
+        return user?.email || null;
+      };
+
+      if (reporter_user_id) {
+        const email = await getEmailByProfileId(reporter_user_id);
+        if (email) recipients.push(email);
       }
 
       // Always include admins/managers
       const { data: adminProfiles } = await supabase
         .from("profiles")
-        .select("email")
+        .select("id, user_id")
         .eq("company_id", company_id)
         .eq("is_active", true)
         .in("role", ["admin", "manager"]);
 
       for (const p of adminProfiles || []) {
-        if (p.email && !recipients.includes(p.email)) {
-          recipients.push(p.email);
+        const { data: { user } } = await supabase.auth.admin.getUserById(p.user_id);
+        const email = user?.email;
+        if (email && !recipients.includes(email)) {
+          recipients.push(email);
         }
       }
 
