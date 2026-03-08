@@ -40,62 +40,91 @@ Deno.serve(async (req) => {
 
     const sender = connections[0];
 
-    // ── RESOLVED notification: email the reporter ──
+    // ── RESOLVED notification: email the reporter + all admins/managers ──
     if (action === "resolved") {
       const { reporter_user_id, admin_notes } = body;
-      if (!reporter_user_id) {
-        return new Response(JSON.stringify({ ok: true, sent: 0, reason: "no_reporter_id" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+
+      // Collect all recipients: reporter + admins/managers
+      const recipients: string[] = [];
+
+      if (reporter_user_id) {
+        const { data: reporter } = await supabase
+          .from("profiles")
+          .select("email, display_name")
+          .eq("id", reporter_user_id)
+          .single();
+        if (reporter?.email) recipients.push(reporter.email);
       }
 
-      const { data: reporter } = await supabase
+      // Always include admins/managers
+      const { data: adminProfiles } = await supabase
         .from("profiles")
-        .select("email, display_name")
-        .eq("id", reporter_user_id)
-        .single();
+        .select("email")
+        .eq("company_id", company_id)
+        .eq("is_active", true)
+        .in("role", ["admin", "manager"]);
 
-      if (!reporter?.email) {
-        return new Response(JSON.stringify({ ok: true, sent: 0, reason: "no_reporter_email" }), {
+      for (const p of adminProfiles || []) {
+        if (p.email && !recipients.includes(p.email)) {
+          recipients.push(p.email);
+        }
+      }
+
+      if (recipients.length === 0) {
+        return new Response(JSON.stringify({ ok: true, sent: 0, reason: "no_recipients" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
       const resolvedHtml = `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #16a34a;">✅ Bug Resolved</h2>
-          <p>Hi ${reporter.display_name || "there"},</p>
-          <p>The bug you reported has been resolved:</p>
-          <div style="background: #f0fdf4; border-left: 4px solid #16a34a; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
-            <strong>${bug_title}</strong>
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb;">
+          <div style="background: #16a34a; padding: 24px 32px;">
+            <h2 style="color: #ffffff; margin: 0; font-size: 20px;">✅ Bug Resolved</h2>
           </div>
-          ${admin_notes ? `<div style="margin: 16px 0;"><strong>Resolution notes:</strong><div style="background: #f9f9f9; padding: 12px; border-radius: 6px; margin-top: 4px; white-space: pre-line;">${admin_notes}</div></div>` : ""}
-          <p style="color: #888; font-size: 12px; margin-top: 16px;">
-            View details in the <a href="https://ordinov3.lovable.app/help">Ordino Help Center</a>.
-          </p>
+          <div style="padding: 24px 32px;">
+            <p style="color: #374151; font-size: 15px; line-height: 1.6;">The following bug has been resolved:</p>
+            <div style="background: #f0fdf4; border-left: 4px solid #16a34a; padding: 14px 18px; margin: 16px 0; border-radius: 4px;">
+              <strong style="color: #15803d; font-size: 15px;">${bug_title}</strong>
+              ${bug_description ? `<p style="color: #4b5563; font-size: 13px; margin: 8px 0 0 0;">${bug_description.substring(0, 200)}</p>` : ""}
+            </div>
+            ${admin_notes ? `
+              <div style="margin: 20px 0;">
+                <strong style="color: #374151; font-size: 14px;">Resolution Notes</strong>
+                <div style="background: #f9fafb; padding: 14px; border-radius: 6px; margin-top: 6px; white-space: pre-line; color: #4b5563; font-size: 14px; line-height: 1.5; border: 1px solid #e5e7eb;">${admin_notes}</div>
+              </div>
+            ` : ""}
+            <div style="margin-top: 24px; text-align: center;">
+              <a href="https://ordinov3.lovable.app/help" style="display: inline-block; background: #16a34a; color: #ffffff; text-decoration: none; padding: 10px 24px; border-radius: 6px; font-size: 14px; font-weight: 600;">View in Help Center</a>
+            </div>
+          </div>
+          <div style="background: #f9fafb; padding: 16px 32px; border-top: 1px solid #e5e7eb;">
+            <p style="color: #9ca3af; font-size: 12px; margin: 0; text-align: center;">Ordino • Bug Tracker Notification</p>
+          </div>
         </div>
       `;
 
-      try {
-        const res = await fetch(`${supabaseUrl}/functions/v1/gmail-send`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
-          body: JSON.stringify({
-            user_id: sender.user_id,
-            to: reporter.email,
-            subject: `✅ Bug Resolved: ${bug_title}`,
-            html_body: resolvedHtml,
-          }),
-        });
-        return new Response(JSON.stringify({ ok: true, sent: res.ok ? 1 : 0 }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      } catch (e) {
-        console.error("Failed to send resolved email:", e);
-        return new Response(JSON.stringify({ ok: true, sent: 0, reason: "send_failed" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      let sentCount = 0;
+      for (const email of recipients) {
+        try {
+          const res = await fetch(`${supabaseUrl}/functions/v1/gmail-send`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
+            body: JSON.stringify({
+              user_id: sender.user_id,
+              to: email,
+              subject: `✅ Bug Resolved: ${bug_title}`,
+              html_body: resolvedHtml,
+            }),
+          });
+          if (res.ok) sentCount++;
+        } catch (e) {
+          console.error(`Failed to send resolved email to ${email}:`, e);
+        }
       }
+
+      return new Response(JSON.stringify({ ok: true, sent: sentCount }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // ── NEW BUG notification: email admins/managers ──
