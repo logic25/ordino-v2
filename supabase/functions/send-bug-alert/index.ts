@@ -85,6 +85,16 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      const formatDesc = (desc: string | undefined) => {
+        if (!desc) return "";
+        return desc
+          .replace(/\*\*([^*]+):\*\*/g, "<strong>$1:</strong>")
+          .replace(/\\n/g, "\n")
+          .split("\n")
+          .filter((l: string) => l.trim())
+          .map((l: string) => `<div style="color: #4b5563; font-size: 13px; line-height: 1.6;">${l.trim()}</div>`)
+          .join("");
+      };
 
       const resolvedHtml = `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb;">
@@ -95,7 +105,7 @@ Deno.serve(async (req) => {
             <p style="color: #374151; font-size: 15px; line-height: 1.6;">The following bug has been resolved:</p>
             <div style="background: #f0fdf4; border-left: 4px solid #16a34a; padding: 14px 18px; margin: 16px 0; border-radius: 4px;">
               <strong style="color: #15803d; font-size: 15px;">${bug_title}</strong>
-              ${bug_description ? `<p style="color: #4b5563; font-size: 13px; margin: 8px 0 0 0;">${bug_description.substring(0, 200)}</p>` : ""}
+              ${bug_description ? `<div style="margin-top: 10px;">${formatDesc(bug_description)}</div>` : ""}
             </div>
             ${admin_notes ? `
               <div style="margin: 20px 0;">
