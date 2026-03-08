@@ -85,6 +85,16 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      const formatDesc = (desc: string | undefined) => {
+        if (!desc) return "";
+        return desc
+          .replace(/\*\*([^*]+):\*\*/g, "<strong>$1:</strong>")
+          .replace(/\\n/g, "\n")
+          .split("\n")
+          .filter((l: string) => l.trim())
+          .map((l: string) => `<div style="color: #4b5563; font-size: 13px; line-height: 1.6;">${l.trim()}</div>`)
+          .join("");
+      };
 
       const resolvedHtml = `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb;">
@@ -95,7 +105,7 @@ Deno.serve(async (req) => {
             <p style="color: #374151; font-size: 15px; line-height: 1.6;">The following bug has been resolved:</p>
             <div style="background: #f0fdf4; border-left: 4px solid #16a34a; padding: 14px 18px; margin: 16px 0; border-radius: 4px;">
               <strong style="color: #15803d; font-size: 15px;">${bug_title}</strong>
-              ${bug_description ? `<p style="color: #4b5563; font-size: 13px; margin: 8px 0 0 0;">${bug_description.substring(0, 200)}</p>` : ""}
+              ${bug_description ? `<div style="margin-top: 10px;">${formatDesc(bug_description)}</div>` : ""}
             </div>
             ${admin_notes ? `
               <div style="margin: 20px 0;">
@@ -138,7 +148,7 @@ Deno.serve(async (req) => {
     }
 
     // ── REOPENED notification: email the reporter + all admins/managers ──
-    if (action === "reopened") {
+    if (action === "reopened" || action === "in_progress") {
       const { reopened_by_name } = body;
 
       const recipients: string[] = [];
@@ -176,19 +186,43 @@ Deno.serve(async (req) => {
         });
       }
 
-      const reopenedHtml = `
+      // Parse structured description into readable lines
+      const formatDescription = (desc: string | undefined) => {
+        if (!desc) return "";
+        return desc
+          .replace(/\*\*([^*]+):\*\*/g, "<strong>$1:</strong>")
+          .replace(/\\n/g, "\n")
+          .split("\n")
+          .filter((l: string) => l.trim())
+          .map((l: string) => `<div style="color: #4b5563; font-size: 13px; line-height: 1.6;">${l.trim()}</div>`)
+          .join("");
+      };
+
+      const isReopened = action === "reopened";
+      const headerBg = isReopened ? "#ea580c" : "#2563eb";
+      const headerIcon = isReopened ? "🔄" : "🔧";
+      const headerText = isReopened ? "Bug Reopened" : "Bug In Progress";
+      const cardBg = isReopened ? "#fff7ed" : "#eff6ff";
+      const cardBorder = isReopened ? "#ea580c" : "#2563eb";
+      const titleColor = isReopened ? "#c2410c" : "#1d4ed8";
+      const byLine = isReopened
+        ? (reopened_by_name ? ` by <strong>${reopened_by_name}</strong>` : "")
+        : "";
+      const statusLabel = isReopened ? "reopened" : "moved to In Progress";
+
+      const statusHtml = `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb;">
-          <div style="background: #ea580c; padding: 24px 32px;">
-            <h2 style="color: #ffffff; margin: 0; font-size: 20px;">🔄 Bug Reopened</h2>
+          <div style="background: ${headerBg}; padding: 24px 32px;">
+            <h2 style="color: #ffffff; margin: 0; font-size: 20px;">${headerIcon} ${headerText}</h2>
           </div>
           <div style="padding: 24px 32px;">
-            <p style="color: #374151; font-size: 15px; line-height: 1.6;">The following bug has been reopened${reopened_by_name ? ` by <strong>${reopened_by_name}</strong>` : ""}:</p>
-            <div style="background: #fff7ed; border-left: 4px solid #ea580c; padding: 14px 18px; margin: 16px 0; border-radius: 4px;">
-              <strong style="color: #c2410c; font-size: 15px;">${bug_title}</strong>
-              ${bug_description ? `<p style="color: #4b5563; font-size: 13px; margin: 8px 0 0 0;">${bug_description.substring(0, 200)}</p>` : ""}
+            <p style="color: #374151; font-size: 15px; line-height: 1.6;">The following bug has been ${statusLabel}${byLine}:</p>
+            <div style="background: ${cardBg}; border-left: 4px solid ${cardBorder}; padding: 14px 18px; margin: 16px 0; border-radius: 4px;">
+              <strong style="color: ${titleColor}; font-size: 15px;">${bug_title}</strong>
+              ${bug_description ? `<div style="margin-top: 10px;">${formatDescription(bug_description)}</div>` : ""}
             </div>
             <div style="margin-top: 24px; text-align: center;">
-              <a href="https://ordinov3.lovable.app/help" style="display: inline-block; background: #ea580c; color: #ffffff; text-decoration: none; padding: 10px 24px; border-radius: 6px; font-size: 14px; font-weight: 600;">View in Help Center</a>
+              <a href="https://ordinov3.lovable.app/help" style="display: inline-block; background: ${headerBg}; color: #ffffff; text-decoration: none; padding: 10px 24px; border-radius: 6px; font-size: 14px; font-weight: 600;">View in Help Center</a>
             </div>
           </div>
           <div style="background: #f9fafb; padding: 16px 32px; border-top: 1px solid #e5e7eb;">
@@ -196,6 +230,9 @@ Deno.serve(async (req) => {
           </div>
         </div>
       `;
+
+      const subjectIcon = isReopened ? "🔄" : "🔧";
+      const subjectLabel = isReopened ? "Bug Reopened" : "Bug In Progress";
 
       let sentCount = 0;
       for (const email of recipients) {
@@ -206,13 +243,13 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               user_id: sender.user_id,
               to: email,
-              subject: `🔄 Bug Reopened: ${bug_title}`,
-              html_body: reopenedHtml,
+              subject: `${subjectIcon} ${subjectLabel}: ${bug_title}`,
+              html_body: statusHtml,
             }),
           });
           if (res.ok) sentCount++;
         } catch (e) {
-          console.error(`Failed to send reopened email to ${email}:`, e);
+          console.error(`Failed to send ${action} email to ${email}:`, e);
         }
       }
 
