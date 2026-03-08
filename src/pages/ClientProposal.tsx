@@ -84,17 +84,29 @@ export default function ClientProposalPage() {
     mutationFn: async () => {
       if (!canvasRef.current || !token) throw new Error("Missing data");
       const sigData = canvasRef.current.toDataURL("image/png");
-      const { error } = await supabase
-        .from("proposals")
-        .update({
-          client_signature_data: sigData,
-          client_signed_name: clientName,
-          client_signed_title: clientTitle,
-          client_signed_at: new Date().toISOString(),
-          status: "executed",
-        } as any)
-        .eq("public_token", token);
+      const { data, error } = await supabase.rpc("sign_proposal" as any, {
+        _token: token,
+        _signer_name: clientName,
+        _signer_title: clientTitle,
+        _signature_data: sigData,
+      });
       if (error) throw error;
+      if (!(data as any)?.success) throw new Error("Failed to sign");
+
+      // Notify PM that client has signed
+      const result = data as any;
+      if (result.assigned_pm_id && result.company_id) {
+        const propertyAddress = proposal?.properties?.address || "the property";
+        await supabase.from("notifications").insert({
+          company_id: result.company_id,
+          user_id: result.assigned_pm_id,
+          type: "pis_submitted",
+          title: `Client signed: ${result.title || result.proposal_number}`,
+          body: `${clientName || "The client"} has counter-signed the proposal for ${propertyAddress}. The proposal is now fully executed.`,
+          link: result.converted_project_id ? `/projects/${result.converted_project_id}` : `/proposals`,
+          project_id: result.converted_project_id || null,
+        } as any).catch(() => {});
+      }
 
       // Notify PM that client has signed
       if (proposal?.assigned_pm_id && proposal?.company_id) {
