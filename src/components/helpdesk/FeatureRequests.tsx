@@ -59,6 +59,7 @@ export function FeatureRequests() {
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState<"all" | "beacon" | "manual">("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [selectedRequest, setSelectedRequest] = useState<any>(null);
 
   const createMutation = useMutation({
     mutationFn: async () => {
