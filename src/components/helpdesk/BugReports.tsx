@@ -218,8 +218,8 @@ export function BugReports() {
     setEditAssignee(bug.assigned_to || "");
   };
 
-  const saveDetail = () => {
-    if (!selectedBug) return;
+  const saveDetail = async () => {
+    if (!selectedBug || !profile) return;
     const updates: Record<string, any> = {
       status: editStatus,
       admin_notes: editNotes || null,
@@ -231,6 +231,32 @@ export function BugReports() {
     if (editStatus !== "resolved") {
       updates.resolved_at = null;
     }
+
+    // Build activity log entries
+    const activities: Array<{ bug_id: string; company_id: string; user_id: string; action_type: string; field_changed?: string; old_value?: string; new_value?: string; note?: string }> = [];
+    const bugId = selectedBug.id;
+    const companyId = selectedBug.company_id;
+
+    if (editStatus !== selectedBug.status) {
+      activities.push({ bug_id: bugId, company_id: companyId, user_id: profile.id, action_type: "status_change", field_changed: "status", old_value: selectedBug.status, new_value: editStatus });
+    }
+    const newAssignee = editAssignee === "__unassigned__" ? null : (editAssignee || null);
+    if (newAssignee !== (selectedBug.assigned_to || null)) {
+      const oldName = getAssigneeName(selectedBug.assigned_to) || "Unassigned";
+      const newName = getAssigneeName(newAssignee) || "Unassigned";
+      activities.push({ bug_id: bugId, company_id: companyId, user_id: profile.id, action_type: "assignment_change", field_changed: "assigned_to", old_value: oldName, new_value: newName });
+    }
+    if ((editNotes || "") !== (selectedBug.admin_notes || "")) {
+      activities.push({ bug_id: bugId, company_id: companyId, user_id: profile.id, action_type: "notes_updated", note: editNotes || undefined });
+    }
+
+    // Insert activity logs (best-effort)
+    if (activities.length > 0) {
+      supabase.from("bug_activity_logs").insert(activities).then(() => {
+        queryClient.invalidateQueries({ queryKey: ["bug-activity", bugId] });
+      });
+    }
+
     const isNewlyResolved = editStatus === "resolved" && selectedBug.status !== "resolved";
     const isReopened = editStatus === "open" && selectedBug.status === "resolved";
     const isMovedToInProgress = editStatus === "in_progress" && selectedBug.status === "open";
