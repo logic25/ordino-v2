@@ -17,6 +17,8 @@ import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 
 const PAGES = [
   "Dashboard", "Projects", "Properties", "Proposals", "Invoices / Billing",
