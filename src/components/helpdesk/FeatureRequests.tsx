@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,11 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, ThumbsUp, Loader2 } from "lucide-react";
+import { Plus, ThumbsUp, Loader2, Rocket, Bot, Search, Filter } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useUserRoles } from "@/hooks/useUserRoles";
 import { format } from "date-fns";
 
 function useFeatureRequests() {
@@ -33,19 +34,31 @@ const STATUS_STYLES: Record<string, string> = {
   submitted: "bg-muted text-muted-foreground",
   under_review: "bg-blue-500/10 text-blue-700 border-blue-300",
   planned: "bg-primary/10 text-primary border-primary/30",
+  approved: "bg-emerald-500/10 text-emerald-700 border-emerald-300",
   completed: "bg-green-500/10 text-green-700 border-green-300",
+  rejected: "bg-red-500/10 text-red-700 border-red-300",
+};
+
+const SOURCE_STYLES: Record<string, { label: string; className: string }> = {
+  beacon: { label: "Beacon", className: "bg-purple-500/10 text-purple-600 border-purple-500/20" },
+  manual: { label: "Manual", className: "bg-muted text-muted-foreground" },
 };
 
 export function FeatureRequests() {
   const { data: requests, isLoading } = useFeatureRequests();
-  const { session, profile } = useAuth();
+  const { session } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: userRoles = [] } = useUserRoles();
+  const isAdmin = userRoles.some((r: any) => r.role === "admin");
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("general");
   const [priority, setPriority] = useState("medium");
+  const [search, setSearch] = useState("");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "beacon" | "manual">("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -57,7 +70,8 @@ export function FeatureRequests() {
         description,
         category,
         priority,
-      });
+        source: "manual",
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -87,9 +101,85 @@ export function FeatureRequests() {
     },
   });
 
+  const promoteToRoadmapMutation = useMutation({
+    mutationFn: async (req: any) => {
+      const { data: prof } = await supabase.from("profiles").select("company_id, id").eq("user_id", session!.user.id).single();
+      // Create roadmap item linked to the feature request
+      const { error: roadmapError } = await supabase.from("roadmap_items").insert({
+        company_id: prof!.company_id,
+        title: req.title,
+        description: req.description || "",
+        category: req.category || "general",
+        priority: req.priority || "medium",
+        status: "planned",
+        feature_request_id: req.id,
+        created_by: prof!.id,
+      });
+      if (roadmapError) throw roadmapError;
+
+      // Update the feature request status to approved
+      const { error: updateError } = await supabase
+        .from("feature_requests")
+        .update({ status: "approved" })
+        .eq("id", req.id);
+      if (updateError) throw updateError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["feature-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["roadmap-items"] });
+      toast({ title: "Promoted to roadmap", description: "Feature request has been added to the product roadmap." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { error } = await supabase.from("feature_requests").update({ status }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["feature-requests"] });
+    },
+  });
+
+  const q = search.toLowerCase();
+  const filtered = (requests || []).filter((req: any) => {
+    const matchesSearch = !q || req.title?.toLowerCase().includes(q) || req.description?.toLowerCase().includes(q);
+    const matchesSource = sourceFilter === "all" || (req as any).source === sourceFilter;
+    const matchesStatus = statusFilter === "all" || req.status === statusFilter;
+    return matchesSearch && matchesSource && matchesStatus;
+  });
+
+  const beaconCount = (requests || []).filter((r: any) => (r as any).source === "beacon").length;
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-col sm:flex-row gap-3 justify-between">
+        <div className="flex flex-col sm:flex-row gap-3 flex-1">
+          <div className="relative max-w-sm flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search requests..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+            {(["all", "beacon", "manual"] as const).map((s) => (
+              <Button
+                key={s}
+                variant={sourceFilter === s ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setSourceFilter(s)}
+              >
+                {s === "all" ? "All" : SOURCE_STYLES[s].label}
+                {s === "beacon" && beaconCount > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-4 px-1 text-[9px]">{beaconCount}</Badge>
+                )}
+              </Button>
+            ))}
+          </div>
+        </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Submit Request</Button>
@@ -139,15 +229,15 @@ export function FeatureRequests() {
 
       {isLoading ? (
         <div className="text-center py-8 text-muted-foreground">Loading...</div>
-      ) : !requests || requests.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="text-center py-12 text-muted-foreground">
-            <p>No feature requests yet. Be the first to submit one!</p>
+            <p>No feature requests match your filters.</p>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-2">
-          {requests.map((req: any) => (
+          {filtered.map((req: any) => (
             <Card key={req.id}>
               <CardContent className="flex items-center gap-4 p-4">
                 <Button
@@ -160,18 +250,60 @@ export function FeatureRequests() {
                   <span className="text-xs font-medium">{req.upvotes || 0}</span>
                 </Button>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
+                  <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                     <p className="font-medium text-sm">{req.title}</p>
                     <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${STATUS_STYLES[req.status] || ""}`}>
                       {(req.status || "submitted").replace("_", " ")}
                     </Badge>
                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{req.category}</Badge>
+                    {(req as any).source === "beacon" && (
+                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 gap-1 ${SOURCE_STYLES.beacon.className}`}>
+                        <Bot className="h-2.5 w-2.5" />
+                        Beacon
+                      </Badge>
+                    )}
                   </div>
                   {req.description && <p className="text-xs text-muted-foreground line-clamp-2">{req.description}</p>}
                 </div>
-                <span className="text-[10px] text-muted-foreground shrink-0">
-                  {format(new Date(req.created_at), "MM/dd/yy")}
-                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  {isAdmin && req.status !== "approved" && req.status !== "completed" && (
+                    <div className="flex items-center gap-1">
+                      <Select
+                        value={req.status || "submitted"}
+                        onValueChange={(status) => updateStatusMutation.mutate({ id: req.id, status })}
+                      >
+                        <SelectTrigger className="h-7 text-xs w-[110px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="submitted">Submitted</SelectItem>
+                          <SelectItem value="under_review">Under Review</SelectItem>
+                          <SelectItem value="planned">Planned</SelectItem>
+                          <SelectItem value="rejected">Rejected</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1 text-emerald-600 border-emerald-300 hover:bg-emerald-50"
+                        onClick={() => promoteToRoadmapMutation.mutate(req)}
+                        disabled={promoteToRoadmapMutation.isPending}
+                      >
+                        <Rocket className="h-3 w-3" />
+                        Roadmap
+                      </Button>
+                    </div>
+                  )}
+                  {req.status === "approved" && (
+                    <Badge variant="outline" className="text-[10px] gap-1 bg-emerald-500/10 text-emerald-700 border-emerald-300">
+                      <Rocket className="h-2.5 w-2.5" />
+                      On Roadmap
+                    </Badge>
+                  )}
+                  <span className="text-[10px] text-muted-foreground">
+                    {format(new Date(req.created_at), "MM/dd/yy")}
+                  </span>
+                </div>
               </CardContent>
             </Card>
           ))}
