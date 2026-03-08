@@ -37,112 +37,74 @@ export default function ClientProposalPage() {
   const [receiptData, setReceiptData] = useState<DepositReceiptData | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
-  // Fetch proposal by public token
+  // Fetch proposal by public token via secure RPC
   const { data: proposal, isLoading, error } = useQuery({
     queryKey: ["public-proposal", token],
     queryFn: async () => {
       if (!token) throw new Error("No token");
-      const { data, error } = await supabase
-        .from("proposals")
-        .select(`
-          *,
-          properties (id, address, borough),
-          items:proposal_items(*),
-          milestones:proposal_milestones(*),
-          internal_signer:profiles!proposals_internal_signed_by_fkey(first_name, last_name)
-        `)
-        .eq("public_token", token)
-        .maybeSingle();
+      const { data, error } = await supabase.rpc("get_public_proposal" as any, { _token: token });
       if (error) throw error;
       if (!data) throw new Error("Proposal not found");
-      return data as any;
+      const d = data as any;
+      // Reshape to match expected structure
+      return {
+        ...d,
+        properties: d.properties || null,
+        items: d.items || [],
+        milestones: d.milestones || [],
+        internal_signer: d.internal_signer || null,
+      } as any;
     },
     enabled: !!token,
   });
 
-  // Fetch company info
-  const { data: company, isLoading: isCompanyLoading } = useQuery({
-    queryKey: ["public-company", proposal?.company_id],
-    queryFn: async () => {
-      if (!proposal?.company_id) return null;
-      const { data } = await supabase
-        .from("companies")
-        .select("name, address, phone, email, website, logo_url, settings")
-        .eq("id", proposal.company_id)
-        .single();
-      if (!data) return null;
-      const s = (data.settings || {}) as any;
-      return {
-        name: data.name,
-        address: s.company_address?.trim() || data.address || "",
-        phone: s.company_phone?.trim() || data.phone || "",
-        fax: s.company_fax?.trim() || "",
-        email: s.company_email?.trim() || data.email || "",
-        website: s.company_website?.trim() || data.website || "",
-        logo_url: s.company_logo_url?.trim() || data.logo_url || "",
-      };
-    },
-    enabled: !!proposal?.company_id,
-  });
+  // Company comes bundled in the RPC response
+  const company = proposal?.company ? (() => {
+    const c = proposal.company;
+    const s = (c.settings || {}) as any;
+    return {
+      name: c.name,
+      address: s.company_address?.trim() || c.address || "",
+      phone: s.company_phone?.trim() || c.phone || "",
+      fax: s.company_fax?.trim() || "",
+      email: s.company_email?.trim() || c.email || "",
+      website: s.company_website?.trim() || c.website || "",
+      logo_url: s.company_logo_url?.trim() || c.logo_url || "",
+    };
+  })() : null;
 
-  // Fetch proposal contacts
-  const { data: contacts = [] } = useQuery({
-    queryKey: ["public-proposal-contacts", proposal?.id],
-    queryFn: async () => {
-      if (!proposal?.id) return [];
-      const { data } = await supabase
-        .from("proposal_contacts")
-        .select("*")
-        .eq("proposal_id", proposal.id);
-      return data || [];
-    },
-    enabled: !!proposal?.id,
-  });
+  // Contacts come bundled in the RPC response
+  const contacts = proposal?.contacts || [];
 
-  // Fetch linked RFI token
-  const { data: rfiToken } = useQuery({
-    queryKey: ["public-rfi-token", proposal?.id],
-    queryFn: async () => {
-      if (!proposal?.id) return null;
-      const { data } = await supabase
-        .from("rfi_requests")
-        .select("access_token")
-        .eq("proposal_id", proposal.id)
-        .maybeSingle();
-      return (data as any)?.access_token || null;
-    },
-    enabled: !!proposal?.id,
-  });
+  // RFI token comes bundled in the RPC response
+  const rfiToken = proposal?.rfi_token || null;
 
   // Sign mutation
   const signMutation = useMutation({
     mutationFn: async () => {
       if (!canvasRef.current || !token) throw new Error("Missing data");
       const sigData = canvasRef.current.toDataURL("image/png");
-      const { error } = await supabase
-        .from("proposals")
-        .update({
-          client_signature_data: sigData,
-          client_signed_name: clientName,
-          client_signed_title: clientTitle,
-          client_signed_at: new Date().toISOString(),
-          status: "executed",
-        } as any)
-        .eq("public_token", token);
+      const { data, error } = await supabase.rpc("sign_proposal" as any, {
+        _token: token,
+        _signer_name: clientName,
+        _signer_title: clientTitle,
+        _signature_data: sigData,
+      });
       if (error) throw error;
+      if (!(data as any)?.success) throw new Error("Failed to sign");
 
       // Notify PM that client has signed
-      if (proposal?.assigned_pm_id && proposal?.company_id) {
-        const propertyAddress = proposal.properties?.address || "the property";
-        const projectId = (proposal as any).converted_project_id;
+      const result = data as any;
+      if (result.assigned_pm_id && result.company_id) {
+        const propertyAddress = proposal?.properties?.address || "the property";
         await supabase.from("notifications").insert({
-          company_id: proposal.company_id,
-          user_id: proposal.assigned_pm_id,
+          company_id: result.company_id,
+          user_id: result.assigned_pm_id,
           type: "pis_submitted",
-          title: `Client signed: ${proposal.title || proposal.proposal_number}`,
+          title: `Client signed: ${result.title || result.proposal_number}`,
           body: `${clientName || "The client"} has counter-signed the proposal for ${propertyAddress}. The proposal is now fully executed.`,
-          link: projectId ? `/projects/${projectId}` : `/proposals`,
-          project_id: projectId || null,
+          link: result.converted_project_id ? `/projects/${result.converted_project_id}` : `/proposals`,
+          project_id: result.converted_project_id || null,
         } as any);
       }
     },
@@ -178,14 +140,7 @@ export default function ClientProposalPage() {
     setViewTracked(true);
     const trackView = async () => {
       try {
-        // Set viewed_at and status
-        await supabase
-          .from("proposals")
-          .update({
-            viewed_at: new Date().toISOString(),
-            status: "viewed",
-          } as any)
-          .eq("id", proposal.id);
+        await supabase.rpc("track_proposal_view" as any, { _token: token });
 
         // Log to proposal_follow_ups
         await supabase.from("proposal_follow_ups").insert({
@@ -332,7 +287,7 @@ export default function ClientProposalPage() {
     if (isSigned) setViewMode("next-steps");
   }, [isSigned]);
 
-  if (isLoading || (proposal?.company_id && isCompanyLoading && !company)) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f9fa]">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

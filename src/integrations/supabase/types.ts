@@ -7570,6 +7570,10 @@ export type Database = {
         }
         Returns: string
       }
+      get_public_company_info: { Args: { _company_id: string }; Returns: Json }
+      get_public_profile_info: { Args: { _profile_id: string }; Returns: Json }
+      get_public_proposal: { Args: { _token: string }; Returns: Json }
+      get_public_rfi: { Args: { _token: string }; Returns: Json }
       get_rfi_plan_filenames: {
         Args: { _access_token: string }
         Returns: string[]
@@ -7623,6 +7627,22 @@ export type Database = {
         Args: { target_company_id: string }
         Returns: undefined
       }
+      sign_proposal: {
+        Args: {
+          _signature_data: string
+          _signer_ip?: string
+          _signer_name: string
+          _signer_title: string
+          _token: string
+        }
+        Returns: Json
+      }
+      submit_rfi_response: {
+        Args: { _responses: Json; _status?: string; _token: string }
+        Returns: Json
+      }
+      track_proposal_view: { Args: { _token: string }; Returns: undefined }
+      track_rfi_view: { Args: { _token: string }; Returns: undefined }
     }
     Enums: {
       activity_type:
