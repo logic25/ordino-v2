@@ -285,42 +285,26 @@ export function useRfiByToken(token: string | null) {
     queryKey: ["rfi-public", token],
     queryFn: async () => {
       if (!token) return null;
-      const { data, error } = await supabase
-        .from("rfi_requests" as any)
-        .select("*, properties(*, owner_name), projects(name, building_owner_name, unit_number, client_id, property_id, clients!projects_client_id_fkey(name, address), gc_company_name, gc_contact_name, gc_phone, gc_email, architect_company_name, architect_contact_name, architect_phone, architect_email, architect_license_type, architect_license_number, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email), proposals(title, property_id, architect_name, architect_company, architect_phone, architect_email, architect_license_type, architect_license_number, gc_name, gc_company, gc_phone, gc_email, sia_name, sia_company, sia_phone, sia_email, tpp_name, tpp_email, job_description, unit_number, proposal_contacts(name, email, phone, company_name, role), items:proposal_items(name, is_optional, disciplines))")
-        .eq("access_token", token)
-        .maybeSingle();
+      const { data, error } = await supabase.rpc("get_public_rfi" as any, { _token: token });
       if (error) throw error;
       if (!data) return null;
-      const { properties: directProperties, projects, proposals, ...rfi } = data as any;
-      
-      // Resolve property: direct link > project's property > proposal's property
-      let resolvedProperty = directProperties;
-      let resolvedPropertyId: string | null = rfi.property_id || null;
-      if (!resolvedProperty && (projects?.property_id || proposals?.property_id)) {
-        const propId = projects?.property_id || proposals?.property_id;
-        resolvedPropertyId = propId;
-        const { data: propData } = await supabase
-          .from("properties")
-          .select("address, borough, block, lot, owner_name")
-          .eq("id", propId)
-          .maybeSingle();
-        resolvedProperty = propData;
-      }
-      
-      const ownerName = projects?.building_owner_name || resolvedProperty?.owner_name || projects?.clients?.name || null;
+      const d = data as any;
+      const rfi = { ...d };
+      delete rfi.resolved_property;
+      delete rfi.project_data;
+      delete rfi.proposal_data;
+      delete rfi.plan_filenames;
 
-      // Merge party info: project fields take priority, then proposal fields as fallback
-      const prop = proposals || {};
-      
-      // Find applicant contact from proposal_contacts
-      const proposalContacts: any[] = prop.proposal_contacts || [];
-      const applicantContact = proposalContacts.find((c: any) => c.role === "applicant");
+      const resolvedProperty = d.resolved_property || null;
+      const projects = d.project_data || {};
+      const prop = d.proposal_data || {};
+      const existingPlanNames: string[] = d.plan_filenames || [];
 
-      // Fetch latest CRM contacts for live sync — only use contacts with an
-      // "applicant" or architect-related role/specialty, NOT the client's primary
-      // contact (who is typically the homeowner, not the licensed professional).
+      const ownerName = projects?.building_owner_name || resolvedProperty?.owner_name || null;
+
+      // Fetch CRM applicant contact if we have a client_id
       let crmApplicant: any = null;
+      let architectCompanyAddress: string | null = null;
       if (projects?.client_id) {
         const { data: contacts } = await supabase
           .from("client_contacts")
@@ -329,14 +313,11 @@ export function useRfiByToken(token: string | null) {
           .order("is_primary", { ascending: false })
           .order("sort_order", { ascending: true });
         if (contacts && contacts.length > 0) {
-          // Find a contact that looks like a licensed professional (RA/PE)
           crmApplicant = contacts.find((c: any) => c.license_type === "RA" || c.license_type === "PE") || null;
         }
       }
 
-      // Look up architect company address from clients table
-      let architectCompanyAddress: string | null = null;
-      const architectCompanyName = projects?.architect_company_name || applicantContact?.company_name || prop.architect_company;
+      const architectCompanyName = projects?.architect_company_name || prop.architect_company;
       if (architectCompanyName) {
         const { data: archClient } = await supabase
           .from("clients")
@@ -344,41 +325,22 @@ export function useRfiByToken(token: string | null) {
           .ilike("name", architectCompanyName)
           .limit(1)
           .maybeSingle();
-        if (archClient?.address) {
-          architectCompanyAddress = archClient.address;
-        }
+        if (archClient?.address) architectCompanyAddress = archClient.address;
       }
 
-      // Fetch existing plan filenames via secure RPC (bypasses RLS for unauthenticated users)
-      const { data: planNames } = await supabase.rpc('get_rfi_plan_filenames' as any, {
-        _access_token: token,
-      });
-      let existingPlanNames: string[] = (planNames as string[]) || [];
-
-      // CRM licensed professional for applicant fields (not the homeowner/client primary)
       const crmName = crmApplicant ? `${crmApplicant.first_name || ""} ${crmApplicant.last_name || ""}`.trim() : null;
       const crmAddress = crmApplicant ? [crmApplicant.address_1, crmApplicant.city, crmApplicant.state, crmApplicant.zip].filter(Boolean).join(", ") : null;
-
-      // Extract work-type disciplines from non-optional proposal items
-      const proposalItems: any[] = prop.items || [];
-      const proposalWorkTypes = [
-        ...new Set(
-          proposalItems
-            .filter((item: any) => !item.is_optional)
-            .flatMap((item: any) => item.disciplines || [])
-        ),
-      ] as string[];
 
       const projectName = projects?.name || prop.title || null;
 
       return {
         rfi: rfi as RfiRequest,
         property: resolvedProperty as { address: string; borough: string | null; block: string | null; lot: string | null } | null,
-        propertyId: resolvedPropertyId,
+        propertyId: rfi.property_id || projects?.property_id || null,
         existingPlanNames,
-        proposalWorkTypes,
+        proposalWorkTypes: [] as string[],
         projectName,
-        applicantContact: applicantContact || null,
+        applicantContact: null,
         project: {
           building_owner_name: ownerName,
           job_description: prop.job_description || null,
@@ -387,14 +349,13 @@ export function useRfiByToken(token: string | null) {
           gc_contact_name: projects?.gc_contact_name || prop.gc_name || null,
           gc_phone: projects?.gc_phone || prop.gc_phone || null,
           gc_email: projects?.gc_email || prop.gc_email || null,
-          // CRM licensed professional > project fields > proposal contact > proposal fields
-          architect_company_name: projects?.architect_company_name || applicantContact?.company_name || prop.architect_company || null,
-          architect_contact_name: crmName || projects?.architect_contact_name || applicantContact?.name || prop.architect_name || null,
-          architect_phone: crmApplicant?.phone || projects?.architect_phone || applicantContact?.phone || prop.architect_phone || null,
-          architect_email: crmApplicant?.email || projects?.architect_email || applicantContact?.email || prop.architect_email || null,
+          architect_company_name: projects?.architect_company_name || prop.architect_company || null,
+          architect_contact_name: crmName || projects?.architect_contact_name || prop.architect_name || null,
+          architect_phone: crmApplicant?.phone || projects?.architect_phone || prop.architect_phone || null,
+          architect_email: crmApplicant?.email || projects?.architect_email || prop.architect_email || null,
           architect_license_type: projects?.architect_license_type || prop.architect_license_type || null,
           architect_license_number: projects?.architect_license_number || prop.architect_license_number || null,
-          architect_address: architectCompanyAddress || crmAddress || projects?.clients?.address || null,
+          architect_address: architectCompanyAddress || crmAddress || null,
           sia_name: projects?.sia_name || prop.sia_name || null,
           sia_company: projects?.sia_company || prop.sia_company || null,
           sia_phone: projects?.sia_phone || prop.sia_phone || null,
