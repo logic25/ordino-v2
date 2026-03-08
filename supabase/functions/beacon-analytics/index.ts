@@ -188,11 +188,34 @@ async function logFeedback(sb: any, d: any) {
 
   // Also create a feature_request so it appears in the Help Center
   if (d.feedback_type === "feature_request" || !d.feedback_type) {
-    const companyId = d.company_id;
+    // Resolve company_id: use payload or fall back to first company in DB
+    let companyId = d.company_id;
+    if (!companyId) {
+      const { data: companyRow } = await sb.from("companies").select("id").limit(1).single();
+      companyId = companyRow?.id;
+    }
+
+    // Resolve profile-level user_id (Beacon sends email strings, not UUIDs)
+    let profileUserId: string | null = null;
+    if (d.user_id) {
+      const isEmail = typeof d.user_id === "string" && d.user_id.includes("@");
+      if (isEmail) {
+        const { data: prof } = await sb
+          .from("profiles")
+          .select("id")
+          .ilike("email", d.user_id)
+          .limit(1)
+          .maybeSingle();
+        profileUserId = prof?.id || null;
+      } else {
+        profileUserId = d.user_id;
+      }
+    }
+
     if (companyId) {
       await sb.from("feature_requests").insert({
         company_id: companyId,
-        user_id: d.user_id,
+        user_id: profileUserId,
         title: d.feedback_text.substring(0, 200),
         description: d.feedback_text,
         category: "general",
