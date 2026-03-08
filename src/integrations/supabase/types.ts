@@ -7639,7 +7639,7 @@ export type Database = {
       }
       submit_rfi_response: {
         Args: { _responses: Json; _status?: string; _token: string }
-        Returns: boolean
+        Returns: Json
       }
       track_proposal_view: { Args: { _token: string }; Returns: undefined }
       track_rfi_view: { Args: { _token: string }; Returns: undefined }
