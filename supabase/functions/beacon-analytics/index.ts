@@ -200,13 +200,19 @@ async function logFeedback(sb: any, d: any) {
     if (d.user_id) {
       const isEmail = typeof d.user_id === "string" && d.user_id.includes("@");
       if (isEmail) {
-        const { data: prof } = await sb
-          .from("profiles")
-          .select("id")
-          .ilike("email", d.user_id)
-          .limit(1)
-          .maybeSingle();
-        profileUserId = prof?.id || null;
+        // profiles table has no email column — look up via auth.users then map to profile
+        const { data: authUsers } = await sb.auth.admin.listUsers();
+        const matchedUser = (authUsers?.users || []).find(
+          (u: any) => u.email?.toLowerCase() === d.user_id.toLowerCase()
+        );
+        if (matchedUser) {
+          const { data: prof } = await sb
+            .from("profiles")
+            .select("id")
+            .eq("user_id", matchedUser.id)
+            .maybeSingle();
+          profileUserId = prof?.id || null;
+        }
       } else {
         profileUserId = d.user_id;
       }
