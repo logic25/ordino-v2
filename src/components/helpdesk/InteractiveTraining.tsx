@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Play, Navigation, Receipt, Mail, Settings, FolderKanban, FileText, GitBranch, Brain, CreditCard, FileSearch } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Play, Navigation, Receipt, Mail, Settings, FolderKanban, FileText, GitBranch, Brain, CreditCard, FileSearch, Clock, ExternalLink } from "lucide-react";
 import { useWalkthrough } from "@/components/walkthrough/WalkthroughProvider";
 import { WALKTHROUGHS } from "@/components/walkthrough/walkthroughs";
 import { useNavigate } from "react-router-dom";
@@ -33,6 +34,33 @@ const TOUR_DESCRIPTIONS: Record<string, string> = {
   "ai-plan-analysis": "Upload architectural plans and let AI extract scope for proposals. Discover and build RFP responses with AI.",
 };
 
+type Difficulty = "beginner" | "intermediate" | "advanced";
+
+interface TrainingMeta {
+  difficulty: Difficulty;
+  estimatedMinutes: number;
+  videoUrl?: string;
+}
+
+const TOUR_META: Record<string, TrainingMeta> = {
+  "getting-started": { difficulty: "beginner", estimatedMinutes: 2 },
+  "projects-workflow": { difficulty: "beginner", estimatedMinutes: 3 },
+  "proposals-workflow": { difficulty: "beginner", estimatedMinutes: 2 },
+  "billing-workflow": { difficulty: "intermediate", estimatedMinutes: 3 },
+  "email-calendar": { difficulty: "beginner", estimatedMinutes: 2 },
+  "settings-overview": { difficulty: "beginner", estimatedMinutes: 2 },
+  "change-orders-workflow": { difficulty: "intermediate", estimatedMinutes: 4 },
+  "ai-stress-test": { difficulty: "advanced", estimatedMinutes: 5 },
+  "ai-collections": { difficulty: "advanced", estimatedMinutes: 4 },
+  "ai-plan-analysis": { difficulty: "advanced", estimatedMinutes: 5 },
+};
+
+const DIFFICULTY_STYLES: Record<Difficulty, { label: string; className: string }> = {
+  beginner: { label: "Beginner", className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
+  intermediate: { label: "Intermediate", className: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+  advanced: { label: "Advanced", className: "bg-red-500/10 text-red-600 border-red-500/20" },
+};
+
 export function InteractiveTraining() {
   const { startWalkthrough } = useWalkthrough();
   const navigate = useNavigate();
@@ -40,7 +68,6 @@ export function InteractiveTraining() {
   const handleStart = (wt: WalkthroughWithPath) => {
     const path = wt.startPath || "/dashboard";
     navigate(path);
-    // Give the page time to render before starting the walkthrough
     setTimeout(() => startWalkthrough(wt), 800);
   };
 
@@ -52,30 +79,58 @@ export function InteractiveTraining() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {(WALKTHROUGHS as WalkthroughWithPath[]).map((wt) => {
           const Icon = TOUR_ICONS[wt.id] || Play;
+          const meta = TOUR_META[wt.id] || { difficulty: "beginner" as Difficulty, estimatedMinutes: 2 };
+          const diffStyle = DIFFICULTY_STYLES[meta.difficulty];
           return (
             <Card key={wt.id} className="card-hover flex flex-col">
               <CardContent className="p-5 flex flex-col flex-1">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
                     <Icon className="h-5 w-5 text-accent" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-medium text-sm text-foreground">{wt.name}</h3>
-                    <p className="text-xs text-muted-foreground">{wt.steps.length} steps</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 font-medium ${diffStyle.className}`}>
+                        {diffStyle.label}
+                      </Badge>
+                      <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        ~{meta.estimatedMinutes} min
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        · {wt.steps.length} steps
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed mt-3 flex-1">
                   {TOUR_DESCRIPTIONS[wt.id] || "Guided walkthrough of this feature."}
                 </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full gap-2 mt-3"
-                  onClick={() => handleStart(wt)}
-                >
-                  <Play className="h-3.5 w-3.5" />
-                  Start Training
-                </Button>
+                <div className="flex gap-2 mt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 gap-2"
+                    onClick={() => handleStart(wt)}
+                  >
+                    <Play className="h-3.5 w-3.5" />
+                    Start Training
+                  </Button>
+                  {meta.videoUrl && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1.5 text-muted-foreground"
+                      asChild
+                    >
+                      <a href={meta.videoUrl} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        Video
+                      </a>
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           );
