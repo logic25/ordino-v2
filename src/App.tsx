@@ -113,20 +113,38 @@ function AppRoutes() {
   );
 }
 
+function SentryFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="max-w-md w-full text-center">
+        <CardHeader>
+          <CardTitle>Something went wrong</CardTitle>
+          <CardDescription>We've been notified and are looking into it.</CardDescription>
+        </CardHeader>
+        <CardFooter className="justify-center">
+          <Button onClick={() => window.location.reload()}>Reload Page</Button>
+        </CardFooter>
+      </Card>
+    </div>
+  );
+}
+
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <WalkthroughProvider>
-            <AppRoutes />
-          </WalkthroughProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <Sentry.ErrorBoundary fallback={<SentryFallback />}>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <WalkthroughProvider>
+              <AppRoutes />
+            </WalkthroughProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </Sentry.ErrorBoundary>
 );
 
 export default App;

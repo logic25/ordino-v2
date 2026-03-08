@@ -137,17 +137,10 @@ export function useCreateActionItem() {
       if (error) throw error;
 
       // Fire-and-forget GChat notification
-      console.log("Task created, data:", data);
       if (data?.id) {
-        console.log("Invoking send-gchat-action-item for:", data.id);
         supabase.functions.invoke("send-gchat-action-item", {
           body: { action_item_id: data.id },
-        }).then((res) => {
-          if (res.error) console.error("GChat notification error:", res.error);
-          else console.log("GChat notification result:", res.data);
-        }).catch((err) => console.error("GChat notification failed:", err));
-      } else {
-        console.warn("No task ID returned from insert — GChat notification skipped");
+        }).catch(() => {});
       }
     },
     onSuccess: (_, vars) => {
@@ -167,7 +160,6 @@ export function useUpdateActionItemStatus() {
       status: ActionItemStatus;
     }) => {
       const updatePayload: any = { status: input.status };
-      // Clear completion fields if moving back from done
       if (input.status !== "done") {
         updatePayload.completed_at = null;
       }
@@ -210,8 +202,6 @@ export function useCompleteActionItem() {
       if (input.time_entry && profile?.company_id && profile?.id) {
         const durationMinutes = Math.round(input.time_entry.hours * 60);
 
-        // Find a service_id or application_id for this project so the time entry
-        // shows up in the project's Time tab (which filters by those IDs)
         let serviceId: string | null = null;
         let applicationId: string | null = null;
 
@@ -233,7 +223,7 @@ export function useCompleteActionItem() {
           }
         }
 
-        const { error: timeErr } = await supabase.from("activities").insert({
+        await supabase.from("activities").insert({
           company_id: profile.company_id,
           user_id: profile.id,
           activity_type: "time_log",
@@ -245,7 +235,6 @@ export function useCompleteActionItem() {
           application_id: applicationId,
           metadata: { action_item_id: input.id, project_id: input.project_id },
         } as any);
-        if (timeErr) console.error("Failed to insert time entry:", timeErr);
       }
     },
     onSuccess: (_, vars) => {
@@ -290,7 +279,7 @@ export function useActionItemComments(actionItemId: string | undefined) {
         .select(`*, profile:profiles!action_item_comments_user_id_fkey(id, display_name, first_name, last_name)`)
         .eq("action_item_id", actionItemId!)
         .order("created_at", { ascending: true });
-      if (error) { console.error("Failed to fetch comments:", error); throw error; }
+      if (error) throw error;
       return (data || []) as unknown as ActionItemComment[];
     },
   });
@@ -335,7 +324,7 @@ export function useAddActionItemComment() {
           content: input.content,
           attachments: input.attachments || [],
         });
-      if (error) { console.error("Failed to insert comment:", error); throw error; }
+      if (error) throw error;
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["action-item-comments", vars.action_item_id] });

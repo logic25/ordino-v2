@@ -71,17 +71,15 @@ function extractStreetName(address: string): string {
 function normalizeStreet(street: string): string {
   let s = street.toUpperCase().trim();
 
-  // Directional expansions (normalize to full form)
   s = s.replace(/\bN\.?\b/g, "NORTH");
   s = s.replace(/\bS\.?\b/g, "SOUTH");
   s = s.replace(/\bE\.?\b/g, "EAST");
   s = s.replace(/\bW\.?\b/g, "WEST");
 
-  // Suffix normalization (both directions → abbreviation)
   s = s.replace(/\bAVENUE\b/g, "AVE");
   s = s.replace(/\bSTREET\b/g, "ST");
   s = s.replace(/\bBOULEVARD\b/g, "BLVD");
-  s = s.replace(/\bBVLD\b/g, "BLVD"); // common typo
+  s = s.replace(/\bBVLD\b/g, "BLVD");
   s = s.replace(/\bDRIVE\b/g, "DR");
   s = s.replace(/\bROAD\b/g, "RD");
   s = s.replace(/\bPLACE\b/g, "PL");
@@ -97,19 +95,15 @@ function normalizeStreet(street: string): string {
   s = s.replace(/\bCENTER\b/g, "CTR");
   s = s.replace(/\bCENTRE\b/g, "CTR");
 
-  // Spelled-out numbers → digits: "SEVENTH" → "7"
   for (const [word, num] of Object.entries(SPELLED_NUMBERS)) {
     s = s.replace(new RegExp(`\\b${word}\\b`, "g"), num);
   }
 
-  // Ordinals → plain digits: "33RD" → "33", "5TH" → "5", "1ST" → "1", "2ND" → "2"
   s = s.replace(/\b(\d+)(?:ST|ND|RD|TH)\b/g, "$1");
 
-  // "OF THE" filler words
   s = s.replace(/\bOF\s+THE\b/g, "");
   s = s.replace(/\bOF\b/g, "");
 
-  // Collapse whitespace/punctuation
   s = s.replace(/[.,#\-\s]+/g, " ").trim();
 
   return s;
@@ -121,14 +115,11 @@ function streetNamesMatch(inputAddr: string, returnedAddr: string): boolean {
   const b = normalizeStreet(extractStreetName(returnedAddr));
   if (!a || !b) return false;
   if (a === b) return true;
-  // Check containment for partial matches
   if (a.includes(b) || b.includes(a)) return true;
-  // Extract core words (drop suffix) and compare
   const aWords = a.split(" ");
   const bWords = b.split(" ");
   const aCoreSet = new Set(aWords.slice(0, -1).length > 0 ? aWords.slice(0, -1) : aWords);
   const bCoreSet = new Set(bWords.slice(0, -1).length > 0 ? bWords.slice(0, -1) : bWords);
-  // Check if core words overlap
   for (const w of aCoreSet) {
     if (bCoreSet.has(w)) return true;
   }
@@ -144,28 +135,21 @@ async function verifyBBLWithPLUTO(
 ): Promise<{ verified: boolean; owner_name?: string; plutoAddress?: string }> {
   try {
     const plutoUrl = `https://data.cityofnewyork.us/resource/64uk-42ks.json?borocode=${boroCode}&block=${paddedBlock}&lot=${paddedLot}&$select=address,ownername&$limit=1`;
-    console.log("[NYC Verify] PLUTO cross-check:", plutoUrl);
     const resp = await fetch(plutoUrl);
     if (!resp.ok) return { verified: false };
     const data = await resp.json();
     if (!data?.length) {
-      console.warn("[NYC Verify] BBL not found in PLUTO — may be invalid");
       return { verified: false };
     }
     const plutoAddress = data[0].address || "";
     const owner_name = data[0].ownername || undefined;
 
     if (plutoAddress && !streetNamesMatch(inputAddress, plutoAddress)) {
-      console.warn(
-        `[NYC Verify] Street mismatch! Input="${extractStreetName(inputAddress)}" → "${normalizeStreet(extractStreetName(inputAddress))}", PLUTO="${plutoAddress}" → "${normalizeStreet(extractStreetName(plutoAddress))}". Rejecting BBL.`
-      );
       return { verified: false, plutoAddress };
     }
 
-    console.log("[NYC Verify] PLUTO confirmed BBL. PLUTO address:", plutoAddress);
     return { verified: true, owner_name, plutoAddress };
   } catch {
-    console.warn("[NYC Verify] PLUTO verification failed, skipping");
     return { verified: false };
   }
 }
@@ -212,8 +196,6 @@ export function useNYCPropertyLookup() {
     setError(null);
 
     try {
-      console.log("[NYC Lookup] Looking up:", address);
-
       if (address.trim().length < 5) {
         setError("Address too short for lookup");
         return null;
@@ -225,7 +207,6 @@ export function useNYCPropertyLookup() {
       // Strategy 1: NYC GeoSearch → cross-verify with PLUTO
       try {
         const geoUrl = `https://geosearch.planninglabs.nyc/v2/search?text=${encodeURIComponent(address)}&size=1`;
-        console.log("[NYC Lookup] GeoSearch query:", geoUrl);
         const geoResponse = await fetch(geoUrl);
         if (geoResponse.ok) {
           const geoData = await geoResponse.json();
@@ -235,11 +216,11 @@ export function useNYCPropertyLookup() {
             const returnedHouseNum = props?.housenumber;
 
             if (inputHouseNum && returnedHouseNum && inputHouseNum !== returnedHouseNum) {
-              console.warn(`[NYC Lookup] House number mismatch: input="${inputHouseNum}", returned="${returnedHouseNum}". Skipping.`);
+              // House number mismatch — skip
             } else {
               const geoLabel = props?.name || props?.label || "";
               if (geoLabel && !streetNamesMatch(address, geoLabel)) {
-                console.warn(`[NYC Lookup] Street mismatch: input="${normalizeStreet(extractStreetName(address))}", geo="${normalizeStreet(extractStreetName(geoLabel))}". Skipping.`);
+                // Street mismatch — skip
               } else {
                 const pad = props?.addendum?.pad;
                 const bbl = pad?.bbl || "";
@@ -254,10 +235,7 @@ export function useNYCPropertyLookup() {
 
                 const verification = await verifyBBLWithPLUTO(boroCode, paddedBlock, paddedLot, address);
 
-                if (!verification.verified) {
-                  console.warn(`[NYC Lookup] GeoSearch BBL ${bbl} failed PLUTO verification for "${address}". Skipping.`);
-                } else {
-                  console.log("[NYC Lookup] Verified result:", { borough, block, lot, bin, zip_code });
+                if (verification.verified) {
                   const aka_addresses = await fetchAkaAddresses(bin);
                   return {
                     bin,
@@ -274,8 +252,8 @@ export function useNYCPropertyLookup() {
             }
           }
         }
-      } catch (geoErr) {
-        console.warn("[NYC Lookup] GeoSearch failed, falling back to PLUTO:", geoErr);
+      } catch {
+        // GeoSearch failed, fall through to PLUTO
       }
 
       // Strategy 2: PLUTO direct address search (fallback)
@@ -284,7 +262,6 @@ export function useNYCPropertyLookup() {
 
       const boroFilter = boroCode ? ` AND borocode='${boroCode}'` : "";
       const plutoUrl = `https://data.cityofnewyork.us/resource/64uk-42ks.json?$where=upper(address) like '%25${encodeURIComponent(street)}%25'${encodeURIComponent(boroFilter)}&$limit=5`;
-      console.log("[NYC Lookup] PLUTO fallback query:", plutoUrl);
 
       const response = await fetch(plutoUrl);
       if (response.ok) {
@@ -314,7 +291,6 @@ export function useNYCPropertyLookup() {
 
       return null;
     } catch (err) {
-      console.error("NYC property lookup error:", err);
       setError(err instanceof Error ? err.message : "Failed to lookup property");
       return null;
     } finally {
@@ -354,7 +330,6 @@ export function useNYCPropertyLookup() {
 
       return null;
     } catch (err) {
-      console.error("NYC BBL lookup error:", err);
       setError(err instanceof Error ? err.message : "Failed to lookup property");
       return null;
     } finally {
