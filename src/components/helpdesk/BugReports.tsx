@@ -231,6 +231,7 @@ export function BugReports() {
     }
     const isNewlyResolved = editStatus === "resolved" && selectedBug.status !== "resolved";
     const isReopened = editStatus === "open" && selectedBug.status === "resolved";
+    const isMovedToInProgress = editStatus === "in_progress" && selectedBug.status === "open";
     updateBug.mutate({ id: selectedBug.id, updates }, {
       onSuccess: () => {
         if (isNewlyResolved) {
@@ -248,6 +249,16 @@ export function BugReports() {
           supabase.functions.invoke("send-bug-alert", {
             body: {
               action: "reopened",
+              bug_title: selectedBug.title,
+              bug_description: selectedBug.description,
+              company_id: selectedBug.company_id,
+            },
+          }).catch(() => {});
+        }
+        if (isMovedToInProgress) {
+          supabase.functions.invoke("send-bug-alert", {
+            body: {
+              action: "in_progress",
               bug_title: selectedBug.title,
               bug_description: selectedBug.description,
               company_id: selectedBug.company_id,
