@@ -176,6 +176,7 @@ async function logFeedback(sb: any, d: any) {
       user_id: d.user_id,
       user_name: d.user_name,
       feedback_text: d.feedback_text,
+      feedback_type: d.feedback_type || null,
       status: "new",
       roadmap_status: "backlog",
       priority: "medium",
@@ -184,6 +185,24 @@ async function logFeedback(sb: any, d: any) {
     .select("id")
     .single();
   if (error) throw error;
+
+  // Also create a feature_request so it appears in the Help Center
+  if (d.feedback_type === "feature_request" || !d.feedback_type) {
+    const companyId = d.company_id;
+    if (companyId) {
+      await sb.from("feature_requests").insert({
+        company_id: companyId,
+        user_id: d.user_id,
+        title: d.feedback_text.substring(0, 200),
+        description: d.feedback_text,
+        category: "general",
+        priority: "medium",
+        source: "beacon",
+        beacon_feedback_id: data.id,
+      });
+    }
+  }
+
   return jsonResponse({ success: true, id: data.id });
 }
 
