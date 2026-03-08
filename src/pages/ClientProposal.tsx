@@ -105,7 +105,7 @@ export default function ClientProposalPage() {
           body: `${clientName || "The client"} has counter-signed the proposal for ${propertyAddress}. The proposal is now fully executed.`,
           link: result.converted_project_id ? `/projects/${result.converted_project_id}` : `/proposals`,
           project_id: result.converted_project_id || null,
-        } as any).catch(() => {});
+        } as any);
       }
     },
     onSuccess: () => {
