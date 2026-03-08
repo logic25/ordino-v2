@@ -230,6 +230,7 @@ export function BugReports() {
       updates.resolved_at = null;
     }
     const isNewlyResolved = editStatus === "resolved" && selectedBug.status !== "resolved";
+    const isReopened = editStatus === "open" && selectedBug.status === "resolved";
     updateBug.mutate({ id: selectedBug.id, updates }, {
       onSuccess: () => {
         if (isNewlyResolved) {
@@ -240,6 +241,16 @@ export function BugReports() {
               company_id: selectedBug.company_id,
               reporter_user_id: selectedBug.user_id,
               admin_notes: editNotes || undefined,
+            },
+          }).catch(() => {});
+        }
+        if (isReopened) {
+          supabase.functions.invoke("send-bug-alert", {
+            body: {
+              action: "reopened",
+              bug_title: selectedBug.title,
+              bug_description: selectedBug.description,
+              company_id: selectedBug.company_id,
             },
           }).catch(() => {});
         }
