@@ -229,8 +229,22 @@ export function BugReports() {
     if (editStatus !== "resolved") {
       updates.resolved_at = null;
     }
+    const isNewlyResolved = editStatus === "resolved" && selectedBug.status !== "resolved";
     updateBug.mutate({ id: selectedBug.id, updates }, {
-      onSuccess: () => setSelectedBug(null),
+      onSuccess: () => {
+        if (isNewlyResolved) {
+          supabase.functions.invoke("send-bug-alert", {
+            body: {
+              action: "resolved",
+              bug_title: selectedBug.title,
+              company_id: selectedBug.company_id,
+              reporter_user_id: selectedBug.user_id,
+              admin_notes: editNotes || undefined,
+            },
+          }).catch(() => {});
+        }
+        setSelectedBug(null);
+      },
     });
   };
 
