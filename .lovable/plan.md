@@ -1,36 +1,69 @@
 
 
-## DOB NOW Filing Agent — Implementation Complete
+# Launch Blockers — Implementation Plan
 
-### What was built (4 pieces):
+Prompt 1 is already done. Here's the plan for the remaining 4.
 
-**1. Database: `filing_runs` table** ✅
-- Table with `id`, `company_id`, `project_id`, `service_id`, `status`, `progress_log` (jsonb), `payload_snapshot`, `agent_session_id`, timestamps, `error_message`, `created_by`
-- RLS: company-scoped read/insert/update for authenticated users
-- Realtime enabled for live progress subscriptions
-- `updated_at` trigger
+---
 
-**2. Edge Function: `filing-payload`** ✅
-- Accepts `project_id` + optional `service_id` via query params
-- Dual auth: JWT for browser, service-role key for agent
-- Returns structured JSON: `location`, `applicant_owner`, `filing_details`, `stakeholders`, `contacts`
-- Pulls from projects, properties, PIS responses, contacts, services
+## Prompt 2: Add Sentry Error Monitoring
 
-**3. Edge Function: `filing-status`** ✅
-- POST endpoint for agent to report progress
-- Auth: service-role key, `x-agent-secret` header, or JWT
-- Appends to `progress_log` array, updates `status`, sets `started_at`/`completed_at`
+1. Install `@sentry/react` and `@sentry/vite-plugin`
+2. **`src/main.tsx`** — Add `Sentry.init()` before `createRoot()` with the specified config (DSN from env, browser tracing, replay, sample rates, environment)
+3. **`src/App.tsx`** — Wrap the `QueryClientProvider` return with `Sentry.ErrorBoundary` using a fallback card component ("Something went wrong" + reload button)
+4. Note: `.env` cannot be edited directly (auto-managed), so `VITE_SENTRY_DSN` will need to be added via project settings or left as documentation. Sentry will gracefully no-op if DSN is empty/undefined.
 
-**4. UI: Agent Launcher in DobNowFilingPrepSheet** ✅
-- "Launch Filing Agent" button alongside existing manual submit
-- Creates `filing_runs` record with `queued` status + payload snapshot
-- Realtime subscription shows live progress feed
-- Status indicators: queued → running → completed/failed/review_needed
-- Progress log with timestamped steps and status icons
-- Retry/Done actions on terminal states
+---
 
-### External agent service (not built here):
-- Python + Claude Agent SDK + Playwright MCP
-- GET `/filing-payload?project_id=X&service_id=Y` with service-role key
-- POST `/filing-status` with `{ filing_run_id, status, step, error_message, agent_session_id }`
-- `DOB_AGENT_SECRET` header auth supported
+## Prompt 3: Remove Console Statements
+
+Strip all `console.log/warn/error` from:
+- **`src/hooks/useNYCPropertyLookup.ts`** — ~13 statements (debug logging for GeoSearch/PLUTO lookups)
+- **`src/hooks/useActionItems.ts`** — ~7 statements (GChat notification debug logs, error logs for comments/time entries)
+
+No `console` statements found in `src/components/time/QuickTimeLog.tsx` — skip that file.
+
+---
+
+## Prompt 4: Fix npm Vulnerabilities
+
+Lovable cannot run `npm audit fix` directly. Instead:
+- Update vulnerable dependencies in `package.json` to latest compatible versions where possible
+- Note: Most vulnerabilities (rollup, glob, minimatch) are transitive dev dependencies from Vite/build tooling and may not be directly patchable via `package.json`. Will update what's controllable.
+
+---
+
+## Prompt 5: Edge Function JWT Auth Audit
+
+Categorize all 44 edge functions:
+
+**PUBLIC (no auth needed):** `receive-lead`, `public-co`, `rfp-partner-response`, `pis-contact-search`, `process-deposit-payment` (token-validated already)
+
+**SCHEDULED/INTERNAL (add service-role-key check):** `check-completion-reminders`, `process-billing-schedules`, `process-email-reminders`, `send-billing-digest`, `send-billing-notification`, `auto-checklist-followups`, `process-scheduled-emails`, `send-open-services-report`, `monitor-rfps`, `process-automation-rules`, `send-welcome-email`, `send-gchat-action-item`
+
+**Already has auth:** `beacon-analytics` (x-beacon-key check), `beacon-proxy` (JWT check)
+
+**CLIENT-CALLED (add JWT via getClaims):** `backfill-property-bbl`, `gmail-auth`, `gmail-sync`, `gmail-attachments`, `gmail-search`, `gmail-send`, `google-calendar-sync`, `google-chat-api`, `gchat-interaction`, `analyze-client-payments`, `predict-payment-risk`, `generate-collection-message`, `extract-tasks`, `generate-claimflow-package`, `extract-rfp`, `generate-rfp-cover-letter`, `analyze-plans`, `draft-checklist-followup`, `draft-proposal-followup`, `analyze-telemetry`, `ask-ordino`, `filing-payload`, `filing-status`, `generate-changelog`, `send-bug-alert`
+
+For each client-called function, add at the top of the handler (after CORS):
+```typescript
+const authHeader = req.headers.get("Authorization");
+const supabase = createClient(url, anonKey, { global: { headers: { Authorization: authHeader! } } });
+const { data, error } = await supabase.auth.getClaims(authHeader?.replace("Bearer ", "")!);
+if (error || !data?.claims) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+```
+
+For scheduled/internal functions, add:
+```typescript
+const authHeader = req.headers.get("Authorization");
+if (authHeader !== `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`) {
+  return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+}
+```
+
+---
+
+## Execution Order
+
+All 4 prompts will be implemented in sequence. Prompt 5 is the largest (~25 edge functions to modify) but changes are mechanical — same auth pattern inserted at the top of each handler.
+
