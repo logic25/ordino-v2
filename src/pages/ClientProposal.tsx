@@ -107,21 +107,6 @@ export default function ClientProposalPage() {
           project_id: result.converted_project_id || null,
         } as any).catch(() => {});
       }
-
-      // Notify PM that client has signed
-      if (proposal?.assigned_pm_id && proposal?.company_id) {
-        const propertyAddress = proposal.properties?.address || "the property";
-        const projectId = (proposal as any).converted_project_id;
-        await supabase.from("notifications").insert({
-          company_id: proposal.company_id,
-          user_id: proposal.assigned_pm_id,
-          type: "pis_submitted",
-          title: `Client signed: ${proposal.title || proposal.proposal_number}`,
-          body: `${clientName || "The client"} has counter-signed the proposal for ${propertyAddress}. The proposal is now fully executed.`,
-          link: projectId ? `/projects/${projectId}` : `/proposals`,
-          project_id: projectId || null,
-        } as any);
-      }
     },
     onSuccess: () => {
       setSigned(true);
