@@ -139,6 +139,24 @@ export function FeatureRequests() {
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const { error } = await supabase.from("feature_requests").update({ status }).eq("id", id);
       if (error) throw error;
+
+      // If this feature request came from Beacon, cascade status back
+      const req = requests?.find((r: any) => r.id === id);
+      if (req?.beacon_feedback_id) {
+        const beaconStatusMap: Record<string, string> = {
+          approved: "approved",
+          rejected: "rejected",
+          under_review: "reviewed",
+          planned: "planned",
+        };
+        const beaconStatus = beaconStatusMap[status];
+        if (beaconStatus) {
+          await supabase
+            .from("beacon_feedback")
+            .update({ status: beaconStatus })
+            .eq("id", req.beacon_feedback_id);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["feature-requests"] });
