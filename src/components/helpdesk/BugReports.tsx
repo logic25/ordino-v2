@@ -307,12 +307,24 @@ export function BugReports() {
       {/* Stats */}
       <div className="grid grid-cols-4 gap-3">
         {[
-          { label: "Open", count: openCount, color: "text-destructive" },
-          { label: "In Progress", count: inProgressCount, color: "text-amber-500" },
-          { label: "Resolved", count: resolvedCount, color: "text-green-500" },
-          { label: "Critical", count: criticalCount, color: "text-destructive" },
+          { label: "Open", count: openCount, color: "text-destructive", filter: "open" },
+          { label: "In Progress", count: inProgressCount, color: "text-amber-500", filter: "in_progress" },
+          { label: "Resolved", count: resolvedCount, color: "text-green-500", filter: "resolved" },
+          { label: "Critical", count: criticalCount, color: "text-destructive", filter: "critical" },
         ].map((s) => (
-          <Card key={s.label}>
+          <Card
+            key={s.label}
+            className="cursor-pointer hover:ring-2 ring-primary/30 transition-all"
+            onClick={() => {
+              if (s.filter === "critical") {
+                setPriorityFilter("critical");
+                setStatusFilter("all");
+              } else {
+                setStatusFilter(s.filter);
+                setPriorityFilter("all");
+              }
+            }}
+          >
             <CardContent className="py-3 px-4 text-center">
               <p className={cn("text-2xl font-bold", s.color)}>{s.count}</p>
               <p className="text-xs text-muted-foreground">{s.label}</p>
