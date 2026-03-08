@@ -661,65 +661,12 @@ export default function RfiForm() {
         finalResponses["building_and_scope_estimated_job_cost"] = String(costSum);
       }
 
-      await (supabase.from("rfi_requests" as any) as any)
-        .update({
-          responses: finalResponses,
-          status: "submitted",
-          submitted_at: new Date().toISOString(),
-        })
-        .eq("access_token", token);
-
-      // Notify PM that PIS was submitted
-      if (rfi.project_id && rfi.company_id) {
-        // Look up the assigned PM for this project
-        const { data: project } = await supabase
-          .from("projects")
-          .select("assigned_pm_id, name")
-          .eq("id", rfi.project_id)
-          .maybeSingle();
-
-        if (project?.assigned_pm_id) {
-          await supabase.from("notifications").insert({
-            company_id: rfi.company_id,
-            user_id: project.assigned_pm_id,
-            type: "pis_submitted",
-            title: `PIS submitted: ${project.name || rfi.title}`,
-            body: `The client has submitted the Project Information Sheet for ${property?.address || project.name}. Review the responses and update the project.`,
-            link: `/projects/${rfi.project_id}`,
-            project_id: rfi.project_id,
-          } as any);
-        }
-
-        // If owner was updated via "Update Below", add as a proposal contact
-        const ownerUpdated = responses["applicant_and_owner_owner_verified"] === "false";
-        const ownerName = responses["applicant_and_owner_owner_name"];
-        if (ownerUpdated && ownerName && rfi.proposal_id) {
-          const ownerContact = {
-            proposal_id: rfi.proposal_id,
-            company_id: rfi.company_id,
-            name: ownerName,
-            company_name: responses["applicant_and_owner_owner_company"] || null,
-            role: "owner",
-            email: responses["applicant_and_owner_owner_email"] || null,
-            phone: responses["applicant_and_owner_owner_phone"] || null,
-          };
-          // Check if an owner contact already exists for this proposal
-          const { data: existingContact } = await (supabase.from("proposal_contacts" as any) as any)
-            .select("id")
-            .eq("proposal_id", rfi.proposal_id)
-            .eq("role", "owner")
-            .maybeSingle();
-          
-          if (existingContact) {
-            await (supabase.from("proposal_contacts" as any) as any)
-              .update(ownerContact)
-              .eq("id", existingContact.id);
-          } else {
-            await (supabase.from("proposal_contacts" as any) as any)
-              .insert(ownerContact);
-          }
-        }
-      }
+      const { data: result, error: rpcError } = await supabase.rpc("submit_rfi_response" as any, {
+        _token: token,
+        _responses: finalResponses,
+        _status: "submitted",
+      });
+      if (rpcError) throw rpcError;
 
       setSubmitted(true);
       setEditingAfterSubmit(false);
