@@ -9,6 +9,186 @@ const corsHeaders = {
 // Beacon RAG endpoint for non-task messages (fix empty-response 2026-02-25)
 const BEACON_WEBHOOK_URL = "https://beaconrag.up.railway.app/webhook";
 
+// Google Chat JWT issuer
+const CHAT_ISSUER = "chat@system.gserviceaccount.com";
+const GOOGLE_CERTS_URL = "https://www.googleapis.com/service_accounts/v1/metadata/x509/chat%40system.gserviceaccount.com";
+
+// Cache Google's public certs (they rotate infrequently)
+let cachedCerts: Record<string, string> | null = null;
+let certsCachedAt = 0;
+const CERTS_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+async function getGoogleCerts(): Promise<Record<string, string>> {
+  if (cachedCerts && Date.now() - certsCachedAt < CERTS_TTL_MS) {
+    return cachedCerts;
+  }
+  const res = await fetch(GOOGLE_CERTS_URL);
+  if (!res.ok) throw new Error(`Failed to fetch Google certs: ${res.status}`);
+  cachedCerts = await res.json();
+  certsCachedAt = Date.now();
+  return cachedCerts!;
+}
+
+/** Import an X.509 PEM certificate as a CryptoKey for RS256 verification */
+async function importX509Key(pem: string): Promise<CryptoKey> {
+  const b64 = pem
+    .replace(/-----BEGIN CERTIFICATE-----/g, "")
+    .replace(/-----END CERTIFICATE-----/g, "")
+    .replace(/\s/g, "");
+  const binary = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+
+  // Extract the SubjectPublicKeyInfo from the X.509 certificate
+  // The public key is embedded in the certificate — we use a DER parser approach
+  return await crypto.subtle.importKey(
+    "raw",
+    binary,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["verify"]
+  ).catch(async () => {
+    // Fallback: try importing from the SPKI extracted via certificate parsing
+    // Use the certificate directly with a manual SPKI extraction
+    return await importSpkiFromCert(binary);
+  });
+}
+
+/** Extract SPKI from X.509 DER certificate and import as CryptoKey */
+async function importSpkiFromCert(certDer: Uint8Array): Promise<CryptoKey> {
+  // Simple ASN.1 parser to extract SubjectPublicKeyInfo from X.509
+  // TBSCertificate → version → serialNumber → signature → issuer → validity → subject → subjectPublicKeyInfo
+  let offset = 0;
+  
+  function readTag(): { tag: number; length: number; headerLen: number } {
+    const tag = certDer[offset++];
+    let length = certDer[offset++];
+    let headerLen = 2;
+    if (length & 0x80) {
+      const numBytes = length & 0x7f;
+      length = 0;
+      for (let i = 0; i < numBytes; i++) {
+        length = (length << 8) | certDer[offset++];
+        headerLen++;
+      }
+    }
+    return { tag, length, headerLen };
+  }
+  
+  function skipElement() {
+    const { length } = readTag();
+    offset += length;
+  }
+  
+  // Outer SEQUENCE (Certificate)
+  readTag();
+  // TBSCertificate SEQUENCE
+  const tbsStart = offset;
+  readTag();
+  
+  // version [0] EXPLICIT
+  if (certDer[offset] === 0xa0) {
+    skipElement();
+  }
+  // serialNumber
+  skipElement();
+  // signature AlgorithmIdentifier
+  skipElement();
+  // issuer
+  skipElement();
+  // validity
+  skipElement();
+  // subject
+  skipElement();
+  
+  // subjectPublicKeyInfo — this is what we want
+  const spkiStart = offset;
+  const spkiTag = readTag();
+  const spkiBytes = certDer.slice(spkiStart, offset + spkiTag.length);
+  
+  return await crypto.subtle.importKey(
+    "spki",
+    spkiBytes,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["verify"]
+  );
+}
+
+/** Decode a base64url string */
+function base64urlDecode(str: string): Uint8Array {
+  const b64 = str.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = b64.length % 4 === 0 ? "" : "=".repeat(4 - (b64.length % 4));
+  return Uint8Array.from(atob(b64 + pad), (c) => c.charCodeAt(0));
+}
+
+/**
+ * Verify a Google Chat JWT Bearer token.
+ * Returns the decoded payload if valid, or null if verification fails.
+ */
+async function verifyGoogleChatToken(token: string, expectedAudience: string): Promise<Record<string, any> | null> {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+
+    const headerJson = JSON.parse(new TextDecoder().decode(base64urlDecode(parts[0])));
+    const payloadJson = JSON.parse(new TextDecoder().decode(base64urlDecode(parts[1])));
+
+    // Check issuer
+    if (payloadJson.iss !== CHAT_ISSUER) {
+      console.log("JWT verification failed: issuer mismatch:", payloadJson.iss);
+      return null;
+    }
+
+    // Check audience
+    if (payloadJson.aud !== expectedAudience) {
+      console.log("JWT verification failed: audience mismatch. Expected:", expectedAudience, "Got:", payloadJson.aud);
+      return null;
+    }
+
+    // Check expiry
+    if (payloadJson.exp && payloadJson.exp < Math.floor(Date.now() / 1000)) {
+      console.log("JWT verification failed: token expired");
+      return null;
+    }
+
+    // Verify signature using Google's public certs
+    const certs = await getGoogleCerts();
+    const kid = headerJson.kid;
+    const certPem = kid ? certs[kid] : Object.values(certs)[0];
+    if (!certPem) {
+      console.log("JWT verification failed: no matching cert for kid:", kid);
+      return null;
+    }
+
+    const key = await importSpkiFromCert(
+      Uint8Array.from(
+        atob(
+          certPem
+            .replace(/-----BEGIN CERTIFICATE-----/g, "")
+            .replace(/-----END CERTIFICATE-----/g, "")
+            .replace(/\s/g, "")
+        ),
+        (c) => c.charCodeAt(0)
+      )
+    );
+
+    const signatureBytes = base64urlDecode(parts[2]);
+    const dataBytes = new TextEncoder().encode(parts[0] + "." + parts[1]);
+
+    const valid = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, signatureBytes, dataBytes);
+
+    if (!valid) {
+      console.log("JWT verification failed: invalid signature");
+      return null;
+    }
+
+    console.log("JWT verification succeeded for user:", payloadJson.sub || payloadJson.email);
+    return payloadJson;
+  } catch (err) {
+    console.error("JWT verification error:", err);
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -16,14 +196,38 @@ Deno.serve(async (req) => {
 
   try {
     // Log raw request info for debugging webhook delivery
-    console.log("gchat-interaction: method=", req.method, "url=", req.url, "headers=", JSON.stringify(Object.fromEntries(req.headers.entries())));
+    console.log("gchat-interaction: method=", req.method, "url=", req.url);
+
+    // ── Verify Google Chat webhook authenticity ──
+    const authHeader = req.headers.get("Authorization");
+    const projectNumber = Deno.env.get("GOOGLE_CLOUD_PROJECT_NUMBER");
+
+    if (projectNumber && authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.replace("Bearer ", "");
+      const payload = await verifyGoogleChatToken(token, projectNumber);
+      if (!payload) {
+        console.error("gchat-interaction: JWT verification FAILED — rejecting request");
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } else if (projectNumber && !authHeader) {
+      console.error("gchat-interaction: No Authorization header — rejecting request");
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    } else if (!projectNumber) {
+      console.warn("gchat-interaction: GOOGLE_CLOUD_PROJECT_NUMBER not set — skipping webhook verification (INSECURE)");
+    }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const rawBody = await req.text();
-    console.log("gchat-interaction raw body (first 1000):", rawBody.substring(0, 1000));
+    console.log("gchat-interaction raw body (first 500):", rawBody.substring(0, 500));
     
     const event = JSON.parse(rawBody);
     console.log("gchat-interaction parsed: type=", event.type, "space.type=", event.space?.type, "space.name=", event.space?.name, "user=", event.user?.displayName);
