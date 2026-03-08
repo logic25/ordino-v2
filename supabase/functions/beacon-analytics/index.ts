@@ -496,6 +496,7 @@ async function updateFeedbackRoadmap(sb: any, d: any) {
   if (d.priority !== undefined) updates.priority = d.priority;
   if (d.target_quarter !== undefined) updates.target_quarter = d.target_quarter;
   if (d.notes !== undefined) updates.notes = d.notes;
+  if (d.status !== undefined) updates.status = d.status;
 
   const { data, error } = await sb
     .from("beacon_feedback")
@@ -504,6 +505,22 @@ async function updateFeedbackRoadmap(sb: any, d: any) {
     .select()
     .single();
   if (error) throw error;
+
+  // Cascade status to linked feature_request
+  const statusMap: Record<string, string> = {
+    approved: "approved",
+    rejected: "rejected",
+    reviewed: "under_review",
+    planned: "planned",
+  };
+  const mappedStatus = statusMap[d.status] || statusMap[d.roadmap_status];
+  if (mappedStatus) {
+    await sb
+      .from("feature_requests")
+      .update({ status: mappedStatus })
+      .eq("beacon_feedback_id", d.feedback_id);
+  }
+
   return jsonResponse(data);
 }
 
