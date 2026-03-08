@@ -221,6 +221,9 @@ Deno.serve(async (req) => {
         </div>
       `;
 
+      const subjectIcon = isReopened ? "🔄" : "🔧";
+      const subjectLabel = isReopened ? "Bug Reopened" : "Bug In Progress";
+
       let sentCount = 0;
       for (const email of recipients) {
         try {
@@ -230,13 +233,13 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               user_id: sender.user_id,
               to: email,
-              subject: `🔄 Bug Reopened: ${bug_title}`,
-              html_body: reopenedHtml,
+              subject: `${subjectIcon} ${subjectLabel}: ${bug_title}`,
+              html_body: statusHtml,
             }),
           });
           if (res.ok) sentCount++;
         } catch (e) {
-          console.error(`Failed to send reopened email to ${email}:`, e);
+          console.error(`Failed to send ${action} email to ${email}:`, e);
         }
       }
 
