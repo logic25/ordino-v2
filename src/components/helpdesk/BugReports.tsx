@@ -88,7 +88,37 @@ export function BugReports() {
   const [editStatus, setEditStatus] = useState("");
   const [editAssignee, setEditAssignee] = useState("");
 
-  const { data: reports = [], isLoading } = useQuery({
+  // Activity log query
+  const { data: activityLogs = [] } = useQuery({
+    queryKey: ["bug-activity", selectedBug?.id],
+    queryFn: async () => {
+      if (!selectedBug?.id) return [];
+      const { data } = await supabase
+        .from("bug_activity_logs")
+        .select("*")
+        .eq("bug_id", selectedBug.id)
+        .order("created_at", { ascending: false });
+      return data || [];
+    },
+    enabled: !!selectedBug?.id,
+  });
+
+  const getActivityDescription = (log: any) => {
+    const userName = profiles.find((p) => p.id === log.user_id)?.display_name || "Someone";
+    switch (log.action_type) {
+      case "status_change":
+        return `${userName} changed status from "${log.old_value}" to "${log.new_value}"`;
+      case "assignment_change":
+        return `${userName} reassigned from ${log.old_value} to ${log.new_value}`;
+      case "notes_updated":
+        return `${userName} updated admin notes`;
+      case "email_reply":
+        return `${userName} replied via email`;
+      default:
+        return `${userName} made a change`;
+    }
+  };
+
     queryKey: ["bug-reports", profile?.company_id],
     queryFn: async () => {
       if (!profile?.company_id) return [];
