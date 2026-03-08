@@ -53,8 +53,8 @@ export function InteractiveTraining() {
         {(WALKTHROUGHS as WalkthroughWithPath[]).map((wt) => {
           const Icon = TOUR_ICONS[wt.id] || Play;
           return (
-            <Card key={wt.id} className="card-hover">
-              <CardContent className="p-5 space-y-3">
+            <Card key={wt.id} className="card-hover flex flex-col">
+              <CardContent className="p-5 flex flex-col flex-1">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
                     <Icon className="h-5 w-5 text-accent" />
@@ -64,13 +64,13 @@ export function InteractiveTraining() {
                     <p className="text-xs text-muted-foreground">{wt.steps.length} steps</p>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
+                <p className="text-xs text-muted-foreground leading-relaxed mt-3 flex-1">
                   {TOUR_DESCRIPTIONS[wt.id] || "Guided walkthrough of this feature."}
                 </p>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full gap-2"
+                  className="w-full gap-2 mt-3"
                   onClick={() => handleStart(wt)}
                 >
                   <Play className="h-3.5 w-3.5" />
