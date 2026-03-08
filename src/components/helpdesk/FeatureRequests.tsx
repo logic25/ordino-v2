@@ -239,13 +239,13 @@ export function FeatureRequests() {
       ) : (
         <div className="space-y-2">
           {filtered.map((req: any) => (
-            <Card key={req.id}>
+            <Card key={req.id} className="cursor-pointer hover:border-primary/30 transition-colors" onClick={() => setSelectedRequest(req)}>
               <CardContent className="flex items-center gap-4 p-4">
                 <Button
                   variant="ghost"
                   size="sm"
                   className="flex flex-col items-center gap-0 h-auto py-1 px-2"
-                  onClick={() => upvoteMutation.mutate(req.id)}
+                  onClick={(e) => { e.stopPropagation(); upvoteMutation.mutate(req.id); }}
                 >
                   <ThumbsUp className="h-3.5 w-3.5" />
                   <span className="text-xs font-medium">{req.upvotes || 0}</span>
@@ -266,7 +266,7 @@ export function FeatureRequests() {
                   </div>
                   {req.description && <p className="text-xs text-muted-foreground line-clamp-2">{req.description}</p>}
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
                   {isAdmin && req.status !== "approved" && req.status !== "completed" && (
                     <div className="flex items-center gap-1">
                       <Select
@@ -310,6 +310,41 @@ export function FeatureRequests() {
           ))}
         </div>
       )}
+
+      {/* Detail dialog */}
+      <Dialog open={!!selectedRequest} onOpenChange={(o) => !o && setSelectedRequest(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 flex-wrap">
+              {selectedRequest?.title}
+              {selectedRequest?.source === "beacon" && (
+                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 gap-1 ${SOURCE_STYLES.beacon.className}`}>
+                  <Bot className="h-2.5 w-2.5" /> Beacon
+                </Badge>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedRequest && (
+            <div className="space-y-4">
+              <div className="flex gap-2 flex-wrap">
+                <Badge variant="outline" className={STATUS_STYLES[selectedRequest.status] || ""}>{(selectedRequest.status || "submitted").replace("_", " ")}</Badge>
+                <Badge variant="secondary">{selectedRequest.category}</Badge>
+                <Badge variant="outline">{selectedRequest.priority} priority</Badge>
+              </div>
+              {selectedRequest.description && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Description</Label>
+                  <p className="text-sm mt-1 whitespace-pre-wrap">{selectedRequest.description}</p>
+                </div>
+              )}
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Submitted {format(new Date(selectedRequest.created_at), "MMM d, yyyy 'at' h:mm a")}</span>
+                <span className="flex items-center gap-1"><ThumbsUp className="h-3 w-3" /> {selectedRequest.upvotes || 0} upvotes</span>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
