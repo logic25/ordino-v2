@@ -119,6 +119,7 @@ export function BugReports() {
     }
   };
 
+  const { data: reports = [], isLoading } = useQuery({
     queryKey: ["bug-reports", profile?.company_id],
     queryFn: async () => {
       if (!profile?.company_id) return [];
