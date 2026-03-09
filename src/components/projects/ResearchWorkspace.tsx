@@ -620,15 +620,18 @@ Filing Type: ${filingType || "N/A"}
 Answer the objection directly in 2-4 plain sentences:`;
 
     try {
-      const res = await askBeacon(prompt, userId, userName, {
-        projectId,
-        projectAddress,
-        codeSection: targetObj.code_reference || undefined,
-        filingType,
+      const { data, error } = await supabase.functions.invoke("cleanup-notes", {
+        body: {
+          notes: `Objection: "${targetObj.objection_text}"\nCode Reference: ${targetObj.code_reference || "N/A"}\nFiling Type: ${filingType || "N/A"}\n\nDraft a direct response to this objection.`,
+          code_reference: targetObj.code_reference || "",
+          objection_text: targetObj.objection_text,
+        },
       });
 
+      if (error) throw error;
+
       // Strip any residual markdown formatting
-      const responseText = (res.response || "")
+      const responseText = (data?.cleaned || "")
         .replace(/#{1,6}\s*/g, "")
         .replace(/\*{1,3}([^*]+)\*{1,3}/g, "$1")
         .replace(/^[-*>]\s+/gm, "")
