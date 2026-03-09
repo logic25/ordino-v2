@@ -123,7 +123,11 @@ function SourcesList({ sources, onViewDocument }: { sources: BeaconSource[]; onV
   );
 }
 
-export function BeaconChatWidget() {
+interface BeaconChatWidgetProps {
+  projectContext?: BeaconProjectContext;
+}
+
+export function BeaconChatWidget({ projectContext }: BeaconChatWidgetProps = {}) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
