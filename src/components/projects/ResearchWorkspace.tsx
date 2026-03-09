@@ -11,7 +11,7 @@ import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
-  Search, Brain, ChevronRight, ChevronDown, FileText, Sparkles,
+  Search, Brain, ChevronRight, ChevronDown, FileText, Sparkles, X,
   Save, Mail, CheckCircle2, Clock, AlertCircle, PanelLeftClose,
   PanelLeft, BookOpen, Upload, ThumbsUp, ThumbsDown, MessageSquare,
   Eye, Loader2,
@@ -793,21 +793,40 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
                   />
 
                   {currentWorkState?.cleanedVersion && (
-                    <Collapsible defaultOpen className="mt-2">
-                      <CollapsibleTrigger className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors w-full">
-                        <Sparkles className="h-3 w-3 text-primary" />
-                        Beacon's Version
-                        <ChevronRight className="h-3 w-3 ml-auto transition-transform data-[state=open]:rotate-90" />
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <Textarea
-                          className="min-h-[60px] text-sm mt-1.5 bg-muted/30"
-                          value={currentWorkState.cleanedVersion}
-                          onChange={(e) => updateWorkState(selected.id, { cleanedVersion: e.target.value })}
-                        />
-                        <p className="text-[10px] text-muted-foreground mt-0.5">Editable — this version will be used when sending as email</p>
-                      </CollapsibleContent>
-                    </Collapsible>
+                    <div className="mt-2 rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold flex items-center gap-1.5">
+                          <Sparkles className="h-3 w-3 text-primary" />
+                          Beacon's Version
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-6 text-[10px] gap-1 border-destructive/30 text-destructive hover:bg-destructive/10"
+                            onClick={() => updateWorkState(selected.id, { cleanedVersion: null })}
+                          >
+                            <X className="h-3 w-3" /> Discard
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="h-6 text-[10px] gap-1"
+                            onClick={() => {
+                              updateWorkState(selected.id, { pmNotes: currentWorkState.cleanedVersion!, cleanedVersion: null });
+                              toast({ title: "Beacon's version accepted", description: "Replaced your notes with the polished version." });
+                            }}
+                          >
+                            <CheckCircle2 className="h-3 w-3" /> Use This
+                          </Button>
+                        </div>
+                      </div>
+                      <Textarea
+                        className="min-h-[60px] text-sm bg-background"
+                        value={currentWorkState.cleanedVersion}
+                        onChange={(e) => updateWorkState(selected.id, { cleanedVersion: e.target.value })}
+                      />
+                      <p className="text-[10px] text-muted-foreground">Edit if needed, then accept or discard</p>
+                    </div>
                   )}
                 </div>
 
