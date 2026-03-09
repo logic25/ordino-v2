@@ -44,6 +44,9 @@ interface ObjectionWorkState {
   beaconResponses: BeaconResearchResponse[];
   pmNotes: string;
   cleanedVersion: string | null;
+  responseDraft: string | null;
+  architectInstructions: string | null;
+  draftLoading?: boolean;
 }
 
 // --- Status helpers ---
@@ -276,9 +279,11 @@ interface ResearchWorkspaceProps {
   projectId: string;
   projectAddress?: string;
   architectEmail?: string;
+  filingType?: string;
+  scopeOfWork?: string;
 }
 
-export function ResearchWorkspace({ projectId, projectAddress, architectEmail }: ResearchWorkspaceProps) {
+export function ResearchWorkspace({ projectId, projectAddress, architectEmail, filingType, scopeOfWork }: ResearchWorkspaceProps) {
   const { toast } = useToast();
   const { user, profile } = useAuth();
   const { items: objections, isLoading, update, bulkInsert } = useObjectionItems(projectId);
@@ -319,19 +324,23 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
           beaconResponses: [],
           pmNotes: selected.resolution_notes || "",
           cleanedVersion: selected.response_draft || null,
+          responseDraft: selected.response_draft || null,
+          architectInstructions: selected.architect_instructions || null,
         },
       };
     });
   }, [selected]);
 
+  const defaultWorkState: ObjectionWorkState = { beaconResponses: [], pmNotes: "", cleanedVersion: null, responseDraft: null, architectInstructions: null };
+
   const getWorkState = useCallback((id: string): ObjectionWorkState => {
-    return workStates[id] || { beaconResponses: [], pmNotes: "", cleanedVersion: null };
+    return workStates[id] || defaultWorkState;
   }, [workStates]);
 
   const updateWorkState = useCallback((id: string, patch: Partial<ObjectionWorkState>) => {
     setWorkStates((prev) => ({
       ...prev,
-      [id]: { ...prev[id] || { beaconResponses: [], pmNotes: "", cleanedVersion: null }, ...patch },
+      [id]: { ...(prev[id] || defaultWorkState), ...patch },
     }));
   }, []);
 
@@ -426,7 +435,8 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
       await update({
         id: selected.id,
         resolution_notes: ws.pmNotes || null,
-        response_draft: ws.cleanedVersion || null,
+        response_draft: ws.responseDraft || ws.cleanedVersion || null,
+        architect_instructions: ws.architectInstructions || null,
       });
       toast({ title: "Research saved", description: `Notes for objection #${selected.item_number} saved.` });
     } catch {
@@ -581,7 +591,79 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
       toast({ title: "Update failed", variant: "destructive" });
     }
   };
+  const handleDraftResponse = async () => {
+    if (!selected) return;
+    updateWorkState(selected.id, { draftLoading: true });
 
+    const prompt = `You are an NYC DOB expediting expert. Draft a professional response to this DOB examiner objection.
+
+**Objection #${selected.item_number}:**
+"${selected.objection_text}"
+
+**Code Reference:** ${selected.code_reference || "Not specified"}
+**Property Address:** ${projectAddress || "Not specified"}
+**Filing Type:** ${filingType || "Not specified"}
+**Scope of Work:** ${scopeOfWork || "Not specified"}
+
+Please provide:
+1. **Response to Examiner:** A direct, professional response addressing the objection with specific NYC Building Code, Zoning Resolution, or Administrative Code citations.
+2. **Architect Instructions:** What the architect needs to do — specific drawings to update, details to add, calculations to provide.
+3. **Expediter Action Items:** What the expediter should prepare or submit to DOB.
+
+Format the response clearly with these three sections.`;
+
+    try {
+      const res = await askBeacon(prompt, userId, userName, {
+        projectId,
+        projectAddress,
+        codeSection: selected.code_reference || undefined,
+        filingType,
+      });
+
+      // Parse sections from response
+      const responseText = res.response || "";
+      let architectInstr = "";
+      const architectMatch = responseText.match(/(?:\*\*)?Architect\s+Instructions?(?:\*\*)?[:\s]*([\s\S]*?)(?=(?:\*\*)?Expediter|$)/i);
+      if (architectMatch) architectInstr = architectMatch[1].trim();
+
+      updateWorkState(selected.id, {
+        responseDraft: responseText,
+        architectInstructions: architectInstr || null,
+        draftLoading: false,
+      });
+
+      // Auto-save to DB
+      await update({
+        id: selected.id,
+        response_draft: responseText,
+        architect_instructions: architectInstr || null,
+        status: selected.status === "pending" ? "in_progress" : selected.status,
+      });
+
+      toast({ title: "Draft response generated", description: "Review and edit before sending." });
+    } catch {
+      updateWorkState(selected.id, { draftLoading: false });
+      toast({ title: "Draft failed", description: "Could not generate response. Try again.", variant: "destructive" });
+    }
+  };
+
+  const handleSaveResponseDraft = async () => {
+    if (!selected) return;
+    const ws = getWorkState(selected.id);
+    try {
+      await update({
+        id: selected.id,
+        response_draft: ws.responseDraft || null,
+        architect_instructions: ws.architectInstructions || null,
+        resolution_notes: ws.pmNotes || null,
+      });
+      toast({ title: "Response saved" });
+    } catch {
+      toast({ title: "Save failed", variant: "destructive" });
+    }
+  };
+
+  
   // Scroll to top of latest response so user reads from the beginning
   useEffect(() => {
     if (lastResponseRef.current) {
@@ -682,6 +764,24 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
             onSaveToDocs={handleSavePackageToDocs}
             isSaving={savingPackage}
           />
+        ) : objections.length > 0 && openCount === 0 && !selected ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mb-4">
+              <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <h3 className="text-lg font-semibold">All Objections Resolved</h3>
+            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+              All {objections.length} objection{objections.length !== 1 ? "s" : ""} have been addressed and resolved.
+            </p>
+            <div className="flex gap-2 mt-4">
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowSummary(true)}>
+                <Eye className="h-3.5 w-3.5" /> View Summary
+              </Button>
+              <Button size="sm" className="gap-1.5" onClick={handleSendAllAsEmail}>
+                <Mail className="h-3.5 w-3.5" /> Send to Architect
+              </Button>
+            </div>
+          </div>
         ) : !selected ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
             <Search className="h-12 w-12 text-muted-foreground/30 mb-4" />
@@ -769,7 +869,63 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
                       Try: "Pull up {selected.code_reference || 'this section'}" or "How did we handle this before?"
                     </p>
                   )}
+                  {/* Draft Response Button */}
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="w-full h-9 text-xs gap-2 mt-2"
+                    onClick={handleDraftResponse}
+                    disabled={currentWorkState?.draftLoading}
+                  >
+                    {currentWorkState?.draftLoading ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5" />
+                    )}
+                    {currentWorkState?.draftLoading ? "Drafting Response..." : currentWorkState?.responseDraft ? "Re-Draft Response" : "Draft Response with Beacon"}
+                  </Button>
                 </div>
+
+                {/* Section B: Response Draft */}
+                {currentWorkState?.responseDraft && (
+                  <>
+                    <Separator />
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                          <FileText className="h-3.5 w-3.5" /> Draft Response
+                        </h4>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs gap-1.5"
+                          onClick={handleSaveResponseDraft}
+                        >
+                          <Save className="h-3 w-3" /> Save
+                        </Button>
+                      </div>
+                      <Textarea
+                        className="min-h-[120px] text-sm font-mono"
+                        value={currentWorkState.responseDraft}
+                        onChange={(e) => updateWorkState(selected.id, { responseDraft: e.target.value })}
+                        placeholder="AI-generated response will appear here..."
+                      />
+
+                      {/* Architect Instructions */}
+                      <div className="mt-3">
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                          <Mail className="h-3.5 w-3.5" /> Architect Instructions
+                        </h4>
+                        <Textarea
+                          className="min-h-[80px] text-sm"
+                          value={currentWorkState.architectInstructions || ""}
+                          onChange={(e) => updateWorkState(selected.id, { architectInstructions: e.target.value })}
+                          placeholder="What the architect needs to do — drawings to update, details to add..."
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 <Separator />
 

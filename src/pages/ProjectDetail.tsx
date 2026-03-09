@@ -500,6 +500,8 @@ export default function ProjectDetail() {
                   projectId={project.id}
                   projectAddress={project.properties?.address}
                   architectEmail={contacts.find(c => c.dobRole === "architect")?.email}
+                  filingType={(project as any).filing_type}
+                  scopeOfWork={project.notes}
                 />
               </TabsContent>
             </CardContent>
