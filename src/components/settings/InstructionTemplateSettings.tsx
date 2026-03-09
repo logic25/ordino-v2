@@ -44,6 +44,7 @@ export function InstructionTemplateSettings() {
 
   const [templates, setTemplates] = useState<InstructionTemplate[]>([]);
   const [editDialog, setEditDialog] = useState<InstructionTemplate | null>(null);
+  const [previewTemplate, setPreviewTemplate] = useState<InstructionTemplate | null>(null);
   const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
   const [editBody, setEditBody] = useState("");
