@@ -11,7 +11,7 @@ import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
-  Search, Send, ChevronRight, ChevronDown, FileText, Sparkles,
+  Search, Brain, ChevronRight, ChevronDown, FileText, Sparkles,
   Save, Mail, CheckCircle2, Clock, AlertCircle, PanelLeftClose,
   PanelLeft, BookOpen, Upload,
 } from "lucide-react";
