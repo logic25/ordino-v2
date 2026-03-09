@@ -597,56 +597,49 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
   };
   const handleDraftResponse = async () => {
     if (!selected) return;
-    updateWorkState(selected.id, { draftLoading: true });
+    // Capture selected objection at call time to avoid stale closure
+    const targetObj = selected;
+    const targetId = targetObj.id;
+    updateWorkState(targetId, { draftLoading: true });
 
-    const prompt = `You are an NYC DOB expediting expert. Draft a professional response to this DOB examiner objection.
+    const prompt = `You are an NYC DOB expediting expert. Draft a professional, concise response to this DOB examiner objection. This response will be used in a meeting with the examiner or sent to the architect for review.
 
-**Objection #${selected.item_number}:**
-"${selected.objection_text}"
+**Objection #${targetObj.item_number}:**
+"${targetObj.objection_text}"
 
-**Code Reference:** ${selected.code_reference || "Not specified"}
+**Code Reference:** ${targetObj.code_reference || "Not specified"}
 **Property Address:** ${projectAddress || "Not specified"}
 **Filing Type:** ${filingType || "Not specified"}
 **Scope of Work:** ${scopeOfWork || "Not specified"}
 
-Please provide:
-1. **Response to Examiner:** A direct, professional response addressing the objection with specific NYC Building Code, Zoning Resolution, or Administrative Code citations.
-2. **Architect Instructions:** What the architect needs to do — specific drawings to update, details to add, calculations to provide.
-3. **Expediter Action Items:** What the expediter should prepare or submit to DOB.
-
-Format the response clearly with these three sections.`;
+Write ONLY the response to the objection — a direct, professional answer that addresses the examiner's concern with specific NYC Building Code, Zoning Resolution, or Administrative Code citations where applicable. Do NOT include separate sections for architect instructions or expediter action items. Keep it focused and ready to present.`;
 
     try {
       const res = await askBeacon(prompt, userId, userName, {
         projectId,
         projectAddress,
-        codeSection: selected.code_reference || undefined,
+        codeSection: targetObj.code_reference || undefined,
         filingType,
       });
 
-      // Parse sections from response
       const responseText = res.response || "";
-      let architectInstr = "";
-      const architectMatch = responseText.match(/(?:\*\*)?Architect\s+Instructions?(?:\*\*)?[:\s]*([\s\S]*?)(?=(?:\*\*)?Expediter|$)/i);
-      if (architectMatch) architectInstr = architectMatch[1].trim();
 
-      updateWorkState(selected.id, {
+      updateWorkState(targetId, {
         responseDraft: responseText,
-        architectInstructions: architectInstr || null,
+        architectInstructions: null,
         draftLoading: false,
       });
 
       // Auto-save to DB
       await update({
-        id: selected.id,
+        id: targetId,
         response_draft: responseText,
-        architect_instructions: architectInstr || null,
-        status: selected.status === "pending" ? "in_progress" : selected.status,
+        status: targetObj.status === "pending" ? "in_progress" : targetObj.status,
       });
 
       toast({ title: "Draft response generated", description: "Review and edit before sending." });
     } catch {
-      updateWorkState(selected.id, { draftLoading: false });
+      updateWorkState(targetId, { draftLoading: false });
       toast({ title: "Draft failed", description: "Could not generate response. Try again.", variant: "destructive" });
     }
   };
