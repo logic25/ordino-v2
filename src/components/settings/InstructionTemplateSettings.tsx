@@ -11,6 +11,7 @@ import { Plus, Trash2, Loader2, Save, FileText, Pencil, Copy } from "lucide-reac
 import { Badge } from "@/components/ui/badge";
 import { useCompanySettings, useUpdateCompanySettings, type InstructionTemplate } from "@/hooks/useCompanySettings";
 import { useToast } from "@/hooks/use-toast";
+import { TemplateRichTextEditor } from "./TemplateRichTextEditor";
 
 const DEFAULT_TEMPLATES: InstructionTemplate[] = [
   {
