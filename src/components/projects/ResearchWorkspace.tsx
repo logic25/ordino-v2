@@ -549,7 +549,7 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
 
             {/* Scrollable Content */}
             <ScrollArea className="flex-1">
-              <div className="p-4 space-y-4">
+              <div className="p-4 space-y-3">
                 {/* Section A: Beacon Research */}
                 <div>
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
@@ -636,31 +636,28 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
                   </div>
 
                   <Textarea
-                    className="min-h-[120px] text-sm"
-                    placeholder="Write your notes here — your interpretation of the code section, how it applies to this project, what you want to tell the architect..."
+                    className="min-h-[80px] text-sm"
+                    placeholder="Write your notes here — interpretation, how it applies, what to tell the architect..."
                     value={currentWorkState?.pmNotes || ""}
                     onChange={(e) => updateWorkState(selected.id, { pmNotes: e.target.value })}
                   />
 
                   {currentWorkState?.cleanedVersion && (
-                    <Card className="mt-3 border-primary/20">
-                      <CardHeader className="pb-1 pt-2 px-3">
-                        <div className="flex items-center gap-1.5">
-                          <Sparkles className="h-3.5 w-3.5 text-primary" />
-                          <CardTitle className="text-xs font-semibold">Beacon's Version</CardTitle>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="px-3 pb-3">
+                    <Collapsible defaultOpen className="mt-2">
+                      <CollapsibleTrigger className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors w-full">
+                        <Sparkles className="h-3 w-3 text-primary" />
+                        Beacon's Version
+                        <ChevronRight className="h-3 w-3 ml-auto transition-transform data-[state=open]:rotate-90" />
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
                         <Textarea
-                          className="min-h-[80px] text-sm border-0 bg-transparent p-0 focus-visible:ring-0 resize-none"
+                          className="min-h-[60px] text-sm mt-1.5 bg-muted/30"
                           value={currentWorkState.cleanedVersion}
                           onChange={(e) => updateWorkState(selected.id, { cleanedVersion: e.target.value })}
                         />
-                        <div className="text-[10px] text-muted-foreground mt-1">
-                          You can edit this version directly
-                        </div>
-                      </CardContent>
-                    </Card>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">Editable — this version will be used when sending as email</p>
+                      </CollapsibleContent>
+                    </Collapsible>
                   )}
                 </div>
 
