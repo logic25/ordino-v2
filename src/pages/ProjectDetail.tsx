@@ -56,6 +56,7 @@ import { LitigationExportDialog } from "@/components/projects/LitigationExportDi
 import { DobNowFilingPrepSheet } from "@/components/projects/DobNowFilingPrepSheet";
 import { EditPISDialog } from "@/components/projects/EditPISDialog";
 import { ResearchWorkspace } from "@/components/projects/ResearchWorkspace";
+import { ResearchTabContainer } from "@/components/projects/ResearchTabContainer";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -496,7 +497,7 @@ export default function ProjectDetail() {
                 <JobCostingFull services={realServices} timeEntries={timeEntries} />
               </TabsContent>
               <TabsContent value="research" className="mt-0">
-                <ResearchWorkspace
+                <ResearchTabContainer
                   projectId={project.id}
                   projectAddress={project.properties?.address}
                   architectEmail={contacts.find(c => c.dobRole === "architect")?.email}
