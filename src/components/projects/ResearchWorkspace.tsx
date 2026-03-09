@@ -622,7 +622,13 @@ Write ONLY a direct, professional answer to the examiner's concern citing specif
         filingType,
       });
 
-      const responseText = res.response || "";
+      // Strip any residual markdown formatting
+      const responseText = (res.response || "")
+        .replace(/#{1,6}\s*/g, "")
+        .replace(/\*{1,3}([^*]+)\*{1,3}/g, "$1")
+        .replace(/^[-*]\s+/gm, "")
+        .replace(/⚠️|✅|❌|📌|🔹|🔸|➡️/g, "")
+        .trim();
 
       updateWorkState(targetId, {
         responseDraft: responseText,
