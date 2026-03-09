@@ -222,7 +222,7 @@ export function BeaconChatWidget({ projectContext }: BeaconChatWidgetProps = {})
         });
       }
 
-      const res = await askBeacon(q, userId, userName);
+      const res = await askBeacon(q, userId, userName, projectContext);
       setMessages((prev) => [
         ...prev,
         {
