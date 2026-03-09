@@ -416,8 +416,21 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
                 <div className={cn("max-w-[85%]", msg.role === "user" ? "bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-3 py-2" : "")}>
                   {msg.role === "beacon" ? (
                     <div className="space-y-1.5">
-                      <div className="prose prose-sm max-w-none text-[13px] leading-relaxed [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-[13px] [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1 [&_p]:mb-2 [&_ul]:pl-4 [&_ul]:mb-2 [&_ol]:pl-4 [&_ol]:mb-2 [&_li]:mb-0.5 [&_strong]:font-semibold">
-                        <ReactMarkdown>{msg.text.replace(/\n\n📚[\s\S]*$/, '').replace(/\n\nSources:[\s\S]*$/, '')}</ReactMarkdown>
+                      <div className="beacon-chat-response text-[13px] leading-relaxed">
+                        <ReactMarkdown
+                          components={{
+                            h1: ({ children }) => <strong className="block mb-1">{children}</strong>,
+                            h2: ({ children }) => <strong className="block mb-1">{children}</strong>,
+                            h3: ({ children }) => <strong className="block mb-1">{children}</strong>,
+                            h4: ({ children }) => <strong>{children}</strong>,
+                            h5: ({ children }) => <strong>{children}</strong>,
+                            h6: ({ children }) => <strong>{children}</strong>,
+                            p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
+                            ul: ({ children }) => <ul className="pl-4 mb-1.5 list-disc">{children}</ul>,
+                            ol: ({ children }) => <ol className="pl-4 mb-1.5 list-decimal">{children}</ol>,
+                            li: ({ children }) => <li className="mb-0">{children}</li>,
+                          }}
+                        >{msg.text.replace(/\n\n📚[\s\S]*$/, '').replace(/\n\nSources:[\s\S]*$/, '')}</ReactMarkdown>
                       </div>
                       <div className="flex items-center gap-1.5 flex-wrap">
                         {msg.confidence != null && msg.confidence > 0 && (
