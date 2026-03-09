@@ -889,6 +889,12 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
           defaultAttachments={composeDefaults.attachments}
         />
       )}
+
+      <UploadObjectionDialog
+        open={uploadDialogOpen}
+        onOpenChange={setUploadDialogOpen}
+        projectId={projectId}
+      />
     </div>
   );
 }
