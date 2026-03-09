@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, Trash2, Loader2, Save, FileText, Pencil, Copy } from "lucide-react";
+import { Plus, Trash2, Loader2, Save, FileText, Pencil, Copy, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useCompanySettings, useUpdateCompanySettings, type InstructionTemplate } from "@/hooks/useCompanySettings";
 import { useToast } from "@/hooks/use-toast";
@@ -44,6 +44,7 @@ export function InstructionTemplateSettings() {
 
   const [templates, setTemplates] = useState<InstructionTemplate[]>([]);
   const [editDialog, setEditDialog] = useState<InstructionTemplate | null>(null);
+  const [previewTemplate, setPreviewTemplate] = useState<InstructionTemplate | null>(null);
   const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
   const [editBody, setEditBody] = useState("");
@@ -149,6 +150,9 @@ export function InstructionTemplateSettings() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setPreviewTemplate(template)}>
+                    <Eye className="h-3.5 w-3.5" />
+                  </Button>
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(template)}>
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
@@ -209,6 +213,25 @@ export function InstructionTemplateSettings() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialog(null)}>Cancel</Button>
             <Button onClick={saveEdit} disabled={!editName.trim()}>Save Template</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Preview Dialog */}
+      <Dialog open={!!previewTemplate} onOpenChange={(open) => !open && setPreviewTemplate(null)}>
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Preview: {previewTemplate?.name}</DialogTitle>
+            <DialogDescription>{previewTemplate?.description}</DialogDescription>
+          </DialogHeader>
+          <div className="border rounded-lg p-6 bg-background">
+            <div
+              className="prose prose-sm max-w-none dark:prose-invert [&_img]:max-w-full [&_img]:rounded-md"
+              dangerouslySetInnerHTML={{ __html: previewTemplate?.body || "" }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPreviewTemplate(null)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
