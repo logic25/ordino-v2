@@ -235,7 +235,7 @@ export function InstructionTemplateSettings() {
             </div>
             <div className="space-y-2">
               <Label>Body</Label>
-              <Textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={10} placeholder="Dear {{OWNER_NAME}},..." className="font-mono text-sm" />
+              <TemplateRichTextEditor content={editBody} onChange={setEditBody} />
               {editBody && (
                 <div className="flex flex-wrap gap-1">
                   <span className="text-xs text-muted-foreground">Variables detected:</span>
