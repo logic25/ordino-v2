@@ -280,7 +280,7 @@ interface ResearchWorkspaceProps {
   scopeOfWork?: string;
 }
 
-export function ResearchWorkspace({ projectId, projectAddress, architectEmail }: ResearchWorkspaceProps) {
+export function ResearchWorkspace({ projectId, projectAddress, architectEmail, filingType, scopeOfWork }: ResearchWorkspaceProps) {
   const { toast } = useToast();
   const { user, profile } = useAuth();
   const { items: objections, isLoading, update, bulkInsert } = useObjectionItems(projectId);
