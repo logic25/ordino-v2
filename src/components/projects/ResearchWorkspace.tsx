@@ -302,6 +302,7 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
   const [showSummary, setShowSummary] = useState(false);
   const [savingPackage, setSavingPackage] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [draftModalOpen, setDraftModalOpen] = useState(false);
   const lastResponseRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const uploadDocument = useUploadDocument();
