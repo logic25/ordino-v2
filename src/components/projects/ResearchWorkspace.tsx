@@ -289,7 +289,7 @@ interface ResearchWorkspaceProps {
 export function ResearchWorkspace({ projectId, projectAddress, architectEmail, filingType, scopeOfWork }: ResearchWorkspaceProps) {
   const { toast } = useToast();
   const { user, profile } = useAuth();
-  const { items: objections, isLoading, update, bulkInsert } = useObjectionItems(projectId);
+  const { items: objections, isLoading, update, bulkInsert, removeAll } = useObjectionItems(projectId);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
