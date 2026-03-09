@@ -137,24 +137,24 @@ function BeaconResponseCard({ response, innerRef, projectId, objectionId, userId
           </span>
         </div>
       </CardHeader>
-      <CardContent className="px-4 pb-3 space-y-3">
-        {/* Direct Answer — highlighted */}
-        <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2.5">
-          <p className="text-[10px] font-semibold text-primary uppercase tracking-wider mb-1">Direct Answer</p>
-          <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+      <CardContent className="px-4 pb-3 space-y-2">
+        {/* Direct Answer — highlighted, compact */}
+        <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2">
+          <p className="text-[10px] font-semibold text-primary uppercase tracking-wider mb-0.5">Direct Answer</p>
+          <div className="text-sm leading-snug [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h1]:font-semibold [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:text-sm [&_h3]:font-medium [&_p]:text-sm [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0">
             <ReactMarkdown>{directAnswer}</ReactMarkdown>
           </div>
         </div>
 
-        {/* Full Analysis — collapsible */}
+        {/* Full Analysis — collapsible, compact */}
         {detailText.trim() && (
           <Collapsible open={expandAnalysis} onOpenChange={setExpandAnalysis}>
             <CollapsibleTrigger className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
               {expandAnalysis ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
               Full Analysis
             </CollapsibleTrigger>
-            <CollapsibleContent className="mt-2">
-              <div className="prose prose-sm dark:prose-invert max-w-none max-h-[300px] overflow-y-auto [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 pl-1 border-l-2 border-muted">
+            <CollapsibleContent className="mt-1.5">
+              <div className="text-sm leading-snug max-h-[250px] overflow-y-auto pl-2 border-l-2 border-muted [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:text-sm [&_h1]:font-semibold [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:text-[13px] [&_h3]:font-medium [&_p]:text-sm [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0">
                 <ReactMarkdown>{detailText}</ReactMarkdown>
               </div>
             </CollapsibleContent>
