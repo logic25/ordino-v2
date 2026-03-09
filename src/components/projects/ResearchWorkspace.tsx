@@ -303,8 +303,11 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
     }
   };
 
+  // Scroll to top of latest response so user reads from the beginning
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (lastResponseRef.current) {
+      lastResponseRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   }, [workStates, selectedId]);
 
   const currentWorkState = selected ? getWorkState(selected.id) : null;
