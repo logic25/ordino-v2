@@ -30,6 +30,57 @@ import { Mail, Brain, ExternalLink, BarChart3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
+function BeaconQuickStats() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["beacon-quick-stats"],
+    queryFn: async () => {
+      const [{ count: totalQuestions }, { data: confData }, { data: lastRow }] = await Promise.all([
+        supabase.from("beacon_interactions").select("*", { count: "exact", head: true }),
+        supabase.from("beacon_interactions").select("confidence").not("confidence", "is", null),
+        supabase.from("beacon_interactions").select("timestamp").order("timestamp", { ascending: false }).limit(1),
+      ]);
+      const avgConf = confData && confData.length > 0
+        ? Math.round(confData.reduce((s, r) => s + (r.confidence ?? 0), 0) / confData.length)
+        : 0;
+      const lastActivity = lastRow?.[0]?.timestamp ?? null;
+      return { totalQuestions: totalQuestions ?? 0, avgConfidence: avgConf, lastActivity };
+    },
+    staleTime: 60_000,
+  });
+
+  const formatLastActivity = (ts: string | null) => {
+    if (!ts) return "—";
+    const diff = Date.now() - new Date(ts).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  };
+
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-base">Quick Stats</CardTitle></CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-3 gap-4">
+          <div className="text-center p-3 border rounded-lg">
+            <p className="text-2xl font-bold">{isLoading ? "…" : (data?.totalQuestions ?? 0).toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground">Total Questions</p>
+          </div>
+          <div className="text-center p-3 border rounded-lg">
+            <p className="text-2xl font-bold">{isLoading ? "…" : `${data?.avgConfidence ?? 0}%`}</p>
+            <p className="text-xs text-muted-foreground">Avg Confidence</p>
+          </div>
+          <div className="text-center p-3 border rounded-lg">
+            <p className="text-2xl font-bold text-muted-foreground text-sm">{isLoading ? "…" : formatLastActivity(data?.lastActivity ?? null)}</p>
+            <p className="text-xs text-muted-foreground">Last Activity</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function BeaconSettingsSection() {
   return (
     <div className="space-y-6">
