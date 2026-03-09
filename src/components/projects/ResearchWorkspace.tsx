@@ -399,16 +399,19 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
     }
     setCleanUpLoading(true);
     try {
-      const res = await askBeacon(
-        `Clean up and formalize these PM notes into a professional response for DOB objection ${selected.code_reference || ''}:\n\n${ws.pmNotes}`,
-        userId,
-        userName,
-        { projectId, projectAddress, codeSection: selected.code_reference || undefined }
-      );
-      updateWorkState(selected.id, { cleanedVersion: res.response });
-      toast({ title: "Notes cleaned up by Beacon" });
-    } catch {
-      toast({ title: "Clean up failed", variant: "destructive" });
+      const { data, error } = await supabase.functions.invoke("cleanup-notes", {
+        body: {
+          notes: ws.pmNotes,
+          code_reference: selected.code_reference || "",
+          objection_text: selected.objection_text || "",
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      updateWorkState(selected.id, { cleanedVersion: data.cleaned });
+      toast({ title: "Notes cleaned up" });
+    } catch (err: any) {
+      toast({ title: "Clean up failed", description: err.message, variant: "destructive" });
     } finally {
       setCleanUpLoading(false);
     }
