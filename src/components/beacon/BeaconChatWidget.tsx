@@ -227,7 +227,19 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
         });
       }
 
-      const res = await askBeacon(q, userId, userName, projectContext);
+      // Prepend project context as system context when active
+      let enrichedQuery = q;
+      if (activeContext?.projectAddress) {
+        const ctxParts = [`Project: ${activeContext.projectAddress}`];
+        if (activeContext.projectName) ctxParts.push(`Name: ${activeContext.projectName}`);
+        if (activeContext.filingType) ctxParts.push(`Filing Type: ${activeContext.filingType}`);
+        if (activeContext.borough) ctxParts.push(`Borough: ${activeContext.borough}`);
+        if (activeContext.block && activeContext.lot) ctxParts.push(`Block/Lot: ${activeContext.block}/${activeContext.lot}`);
+        if (activeContext.scopeOfWork) ctxParts.push(`Scope: ${activeContext.scopeOfWork}`);
+        if (activeContext.assignedServices?.length) ctxParts.push(`Services: ${activeContext.assignedServices.join(", ")}`);
+        enrichedQuery = `[Context: ${ctxParts.join(" | ")}]\n\n${q}`;
+      }
+      const res = await askBeacon(enrichedQuery, userId, userName, activeContext);
       setMessages((prev) => [
         ...prev,
         {
