@@ -242,7 +242,30 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
         if (activeContext.billedAmount != null) ctxParts.push(`Billed: $${activeContext.billedAmount.toLocaleString()}`);
         if (activeContext.serviceDetails?.length) ctxParts.push(`Services: ${activeContext.serviceDetails.join("; ")}`);
         if (activeContext.dobApplications?.length) ctxParts.push(`DOB Applications: ${activeContext.dobApplications.join("; ")}`);
-        enrichedQuery = `[Context: ${ctxParts.join(" | ")}]\n\n${q}`;
+
+        // Operational context
+        if (activeContext.lastActivity) {
+          ctxParts.push(`Last Activity: ${activeContext.lastActivity.userName} — ${activeContext.lastActivity.action} (${activeContext.lastActivity.timestamp})`);
+        }
+        if (activeContext.daysSinceLastActivity != null) {
+          ctxParts.push(`Days Since Last Activity: ${activeContext.daysSinceLastActivity}`);
+        }
+        if (activeContext.openActionItems) {
+          ctxParts.push(`Open Action Items (${activeContext.openActionItems.count}): ${activeContext.openActionItems.items.map(ai => `${ai.title} [${ai.assignee}, ${ai.priority}]`).join("; ")}`);
+        }
+        if (activeContext.financials) {
+          const f = activeContext.financials;
+          ctxParts.push(`Financials: Invoiced $${f.totalInvoiced.toLocaleString()}, Paid $${f.totalPaid.toLocaleString()}, Outstanding $${f.outstanding.toLocaleString()}, Proposal: ${f.proposalStatus}`);
+        }
+        if (activeContext.servicesStatus) {
+          const ss = activeContext.servicesStatus;
+          if (ss.notStarted.length) ctxParts.push(`Not Started: ${ss.notStarted.join(", ")}`);
+          if (ss.inProgress.length) ctxParts.push(`In Progress: ${ss.inProgress.join(", ")}`);
+          if (ss.completed.length) ctxParts.push(`Completed: ${ss.completed.join(", ")}`);
+        }
+
+        const sysInstruction = `[INSTRUCTIONS: Respond conversationally like a knowledgeable colleague. Lead with what needs attention — stale projects, overdue items, open action items. Mention team activity naturally (e.g., "Maria last updated this 12 days ago"). Only include property/zoning/filing details if specifically asked. Keep it to 3-4 short paragraphs max. End with one practical next step, not a list of questions. No big headings or report formatting.]`;
+        enrichedQuery = `${sysInstruction}\n[Context: ${ctxParts.join(" | ")}]\n\n${q}`;
       }
       const res = await askBeacon(enrichedQuery, userId, userName, activeContext);
       setMessages((prev) => [
@@ -416,8 +439,21 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
                 <div className={cn("max-w-[85%]", msg.role === "user" ? "bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-3 py-2" : "")}>
                   {msg.role === "beacon" ? (
                     <div className="space-y-1.5">
-                      <div className="prose prose-sm max-w-none text-[13px] leading-relaxed [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-[13px] [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1 [&_p]:mb-2 [&_ul]:pl-4 [&_ul]:mb-2 [&_ol]:pl-4 [&_ol]:mb-2 [&_li]:mb-0.5 [&_strong]:font-semibold">
-                        <ReactMarkdown>{msg.text.replace(/\n\n📚[\s\S]*$/, '').replace(/\n\nSources:[\s\S]*$/, '')}</ReactMarkdown>
+                      <div className="beacon-chat-response text-[13px] leading-relaxed">
+                        <ReactMarkdown
+                          components={{
+                            h1: ({ children }) => <strong className="block mb-1">{children}</strong>,
+                            h2: ({ children }) => <strong className="block mb-1">{children}</strong>,
+                            h3: ({ children }) => <strong className="block mb-1">{children}</strong>,
+                            h4: ({ children }) => <strong>{children}</strong>,
+                            h5: ({ children }) => <strong>{children}</strong>,
+                            h6: ({ children }) => <strong>{children}</strong>,
+                            p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
+                            ul: ({ children }) => <ul className="pl-4 mb-1.5 list-disc">{children}</ul>,
+                            ol: ({ children }) => <ol className="pl-4 mb-1.5 list-decimal">{children}</ol>,
+                            li: ({ children }) => <li className="mb-0">{children}</li>,
+                          }}
+                        >{msg.text.replace(/\n\n📚[\s\S]*$/, '').replace(/\n\nSources:[\s\S]*$/, '')}</ReactMarkdown>
                       </div>
                       <div className="flex items-center gap-1.5 flex-wrap">
                         {msg.confidence != null && msg.confidence > 0 && (

@@ -32,6 +32,28 @@ export interface BeaconProjectContext {
   dobApplications?: string[];
   clientName?: string;
   projectNumber?: string;
+  // Operational context
+  lastActivity?: {
+    userName: string;
+    action: string;
+    timestamp: string;
+  };
+  daysSinceLastActivity?: number;
+  openActionItems?: {
+    count: number;
+    items: { title: string; assignee: string; priority: string }[];
+  };
+  financials?: {
+    totalInvoiced: number;
+    totalPaid: number;
+    outstanding: number;
+    proposalStatus: string;
+  };
+  servicesStatus?: {
+    notStarted: string[];
+    inProgress: string[];
+    completed: string[];
+  };
 }
 
 export async function askBeacon(
