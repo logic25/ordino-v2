@@ -66,6 +66,7 @@ export function useResearchNotes(projectId: string | undefined) {
       sources?: any[];
       confidence?: number;
       tags?: string[];
+      source_type?: string;
     }) => {
       const { data, error } = await supabase
         .from("research_notes" as any)
