@@ -774,15 +774,16 @@ Write ONLY the response to the objection — a direct, professional answer that 
 
       {/* Right Panel — Research Workspace or Summary */}
       <div className="flex-1 flex flex-col min-w-0">
-        {showSummary ? (
-          <ObjectionSummaryView
-            objections={objections}
-            onClose={() => setShowSummary(false)}
-            onSendAll={handleSendAllAsEmail}
-            onSaveToDocs={handleSavePackageToDocs}
-            isSaving={savingPackage}
-          />
-        ) : objections.length > 0 && openCount === 0 && !selected ? (
+        <ObjectionSummaryView
+          open={showSummary}
+          objections={objections}
+          workStates={workStates}
+          onClose={() => setShowSummary(false)}
+          onSendAll={handleSendAllAsEmail}
+          onSaveToDocs={handleSavePackageToDocs}
+          isSaving={savingPackage}
+        />
+        {objections.length > 0 && openCount === 0 && !selected ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
             <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mb-4">
               <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
