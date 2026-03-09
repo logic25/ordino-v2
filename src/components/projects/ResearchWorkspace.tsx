@@ -521,7 +521,11 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
   };
 
   const handleSavePackageToDocs = async () => {
-    const addressed = objections.filter((o) => o.response_draft || o.resolution_notes);
+    const getResponse = (o: ObjectionItem) => {
+      const ws = workStates[o.id];
+      return ws?.responseDraft || ws?.cleanedVersion || ws?.pmNotes || o.response_draft || o.resolution_notes || "";
+    };
+    const addressed = objections.filter((o) => getResponse(o).trim().length > 0);
     if (addressed.length === 0) {
       toast({ title: "Nothing to save", description: "Address at least one objection first.", variant: "destructive" });
       return;
@@ -541,7 +545,7 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
 <p><strong>Total Items:</strong> ${objections.length} (${addressed.length} addressed)</p><hr/>`;
 
       addressed.forEach((obj) => {
-        const response = obj.response_draft || obj.resolution_notes || "";
+        const response = getResponse(obj);
         html += `<div class="item">
 <h3>#${obj.item_number} ${obj.code_reference ? `<span class="code">${obj.code_reference}</span>` : ""}</h3>
 <p class="objection">${obj.objection_text}</p>
