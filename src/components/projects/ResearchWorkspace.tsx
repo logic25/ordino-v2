@@ -854,6 +854,7 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
           defaultTo={composeDefaults.to}
           defaultSubject={composeDefaults.subject}
           defaultBody={composeDefaults.body}
+          defaultAttachments={composeDefaults.attachments}
         />
       )}
     </div>
