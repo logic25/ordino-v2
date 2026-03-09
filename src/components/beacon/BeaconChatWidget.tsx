@@ -280,9 +280,23 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
     }
   };
 
-  const handleNewChat = () => {
+  const handleNewChat = async () => {
     setMessages([]);
     setHistoryCount(0);
+    setHistoryLoaded(true); // prevent reload
+
+    // Delete persisted history from DB
+    const userEmail = user?.email;
+    if (userEmail) {
+      try {
+        await supabase
+          .from("widget_messages" as any)
+          .delete()
+          .eq("user_email", userEmail);
+      } catch (err) {
+        console.error("Failed to clear Beacon history:", err);
+      }
+    }
   };
 
   const beaconMsgs = messages.filter((m) => m.role === "beacon");
