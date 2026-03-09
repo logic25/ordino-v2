@@ -216,6 +216,25 @@ export function InstructionTemplateSettings() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Preview Dialog */}
+      <Dialog open={!!previewTemplate} onOpenChange={(open) => !open && setPreviewTemplate(null)}>
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Preview: {previewTemplate?.name}</DialogTitle>
+            <DialogDescription>{previewTemplate?.description}</DialogDescription>
+          </DialogHeader>
+          <div className="border rounded-lg p-6 bg-background">
+            <div
+              className="prose prose-sm max-w-none dark:prose-invert [&_img]:max-w-full [&_img]:rounded-md"
+              dangerouslySetInnerHTML={{ __html: previewTemplate?.body || "" }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPreviewTemplate(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
