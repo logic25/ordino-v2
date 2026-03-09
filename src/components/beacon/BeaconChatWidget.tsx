@@ -231,12 +231,17 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
       let enrichedQuery = q;
       if (activeContext?.projectAddress) {
         const ctxParts = [`Project: ${activeContext.projectAddress}`];
+        if (activeContext.projectNumber) ctxParts.push(`Project #: ${activeContext.projectNumber}`);
         if (activeContext.projectName) ctxParts.push(`Name: ${activeContext.projectName}`);
+        if (activeContext.clientName) ctxParts.push(`Client: ${activeContext.clientName}`);
         if (activeContext.filingType) ctxParts.push(`Filing Type: ${activeContext.filingType}`);
         if (activeContext.borough) ctxParts.push(`Borough: ${activeContext.borough}`);
         if (activeContext.block && activeContext.lot) ctxParts.push(`Block/Lot: ${activeContext.block}/${activeContext.lot}`);
         if (activeContext.scopeOfWork) ctxParts.push(`Scope: ${activeContext.scopeOfWork}`);
-        if (activeContext.assignedServices?.length) ctxParts.push(`Services: ${activeContext.assignedServices.join(", ")}`);
+        if (activeContext.contractValue != null) ctxParts.push(`Contract Value: $${activeContext.contractValue.toLocaleString()}`);
+        if (activeContext.billedAmount != null) ctxParts.push(`Billed: $${activeContext.billedAmount.toLocaleString()}`);
+        if (activeContext.serviceDetails?.length) ctxParts.push(`Services: ${activeContext.serviceDetails.join("; ")}`);
+        if (activeContext.dobApplications?.length) ctxParts.push(`DOB Applications: ${activeContext.dobApplications.join("; ")}`);
         enrichedQuery = `[Context: ${ctxParts.join(" | ")}]\n\n${q}`;
       }
       const res = await askBeacon(enrichedQuery, userId, userName, activeContext);
