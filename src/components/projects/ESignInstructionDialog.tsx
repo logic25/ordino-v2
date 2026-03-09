@@ -93,7 +93,7 @@ export function ESignInstructionDialog({ open, onOpenChange, jobNumbers, project
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Send E-Sign Instructions</DialogTitle>
           <DialogDescription>Choose a template and customize the message before sending.</DialogDescription>
