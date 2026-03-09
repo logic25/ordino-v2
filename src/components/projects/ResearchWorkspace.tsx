@@ -11,7 +11,7 @@ import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
-  Search, Send, ChevronRight, ChevronDown, FileText, Sparkles,
+  Search, Brain, ChevronRight, ChevronDown, FileText, Sparkles,
   Save, Mail, CheckCircle2, Clock, AlertCircle, PanelLeftClose,
   PanelLeft, BookOpen, Upload,
 } from "lucide-react";
@@ -455,7 +455,7 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
                       {beaconLoading ? (
                         <Clock className="h-4 w-4 animate-spin" />
                       ) : (
-                        <Send className="h-4 w-4" />
+                        <Brain className="h-4 w-4" style={{ animation: 'beacon-pulse 1.2s ease-in-out infinite' }} />
                       )}
                     </Button>
                   </div>
