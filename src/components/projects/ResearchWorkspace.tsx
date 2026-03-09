@@ -850,7 +850,63 @@ Format the response clearly with these three sections.`;
                       Try: "Pull up {selected.code_reference || 'this section'}" or "How did we handle this before?"
                     </p>
                   )}
+                  {/* Draft Response Button */}
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="w-full h-9 text-xs gap-2 mt-2"
+                    onClick={handleDraftResponse}
+                    disabled={currentWorkState?.draftLoading}
+                  >
+                    {currentWorkState?.draftLoading ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5" />
+                    )}
+                    {currentWorkState?.draftLoading ? "Drafting Response..." : currentWorkState?.responseDraft ? "Re-Draft Response" : "Draft Response with Beacon"}
+                  </Button>
                 </div>
+
+                {/* Section B: Response Draft */}
+                {currentWorkState?.responseDraft && (
+                  <>
+                    <Separator />
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                          <FileText className="h-3.5 w-3.5" /> Draft Response
+                        </h4>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs gap-1.5"
+                          onClick={handleSaveResponseDraft}
+                        >
+                          <Save className="h-3 w-3" /> Save
+                        </Button>
+                      </div>
+                      <Textarea
+                        className="min-h-[120px] text-sm font-mono"
+                        value={currentWorkState.responseDraft}
+                        onChange={(e) => updateWorkState(selected.id, { responseDraft: e.target.value })}
+                        placeholder="AI-generated response will appear here..."
+                      />
+
+                      {/* Architect Instructions */}
+                      <div className="mt-3">
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                          <Mail className="h-3.5 w-3.5" /> Architect Instructions
+                        </h4>
+                        <Textarea
+                          className="min-h-[80px] text-sm"
+                          value={currentWorkState.architectInstructions || ""}
+                          onChange={(e) => updateWorkState(selected.id, { architectInstructions: e.target.value })}
+                          placeholder="What the architect needs to do — drawings to update, details to add..."
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 <Separator />
 
