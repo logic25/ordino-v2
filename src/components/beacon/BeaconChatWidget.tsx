@@ -242,7 +242,30 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
         if (activeContext.billedAmount != null) ctxParts.push(`Billed: $${activeContext.billedAmount.toLocaleString()}`);
         if (activeContext.serviceDetails?.length) ctxParts.push(`Services: ${activeContext.serviceDetails.join("; ")}`);
         if (activeContext.dobApplications?.length) ctxParts.push(`DOB Applications: ${activeContext.dobApplications.join("; ")}`);
-        enrichedQuery = `[Context: ${ctxParts.join(" | ")}]\n\n${q}`;
+
+        // Operational context
+        if (activeContext.lastActivity) {
+          ctxParts.push(`Last Activity: ${activeContext.lastActivity.userName} — ${activeContext.lastActivity.action} (${activeContext.lastActivity.timestamp})`);
+        }
+        if (activeContext.daysSinceLastActivity != null) {
+          ctxParts.push(`Days Since Last Activity: ${activeContext.daysSinceLastActivity}`);
+        }
+        if (activeContext.openActionItems) {
+          ctxParts.push(`Open Action Items (${activeContext.openActionItems.count}): ${activeContext.openActionItems.items.map(ai => `${ai.title} [${ai.assignee}, ${ai.priority}]`).join("; ")}`);
+        }
+        if (activeContext.financials) {
+          const f = activeContext.financials;
+          ctxParts.push(`Financials: Invoiced $${f.totalInvoiced.toLocaleString()}, Paid $${f.totalPaid.toLocaleString()}, Outstanding $${f.outstanding.toLocaleString()}, Proposal: ${f.proposalStatus}`);
+        }
+        if (activeContext.servicesStatus) {
+          const ss = activeContext.servicesStatus;
+          if (ss.notStarted.length) ctxParts.push(`Not Started: ${ss.notStarted.join(", ")}`);
+          if (ss.inProgress.length) ctxParts.push(`In Progress: ${ss.inProgress.join(", ")}`);
+          if (ss.completed.length) ctxParts.push(`Completed: ${ss.completed.join(", ")}`);
+        }
+
+        const sysInstruction = `[INSTRUCTIONS: Respond conversationally like a knowledgeable colleague. Lead with what needs attention — stale projects, overdue items, open action items. Mention team activity naturally (e.g., "Maria last updated this 12 days ago"). Only include property/zoning/filing details if specifically asked. Keep it to 3-4 short paragraphs max. End with one practical next step, not a list of questions. No big headings or report formatting.]`;
+        enrichedQuery = `${sysInstruction}\n[Context: ${ctxParts.join(" | ")}]\n\n${q}`;
       }
       const res = await askBeacon(enrichedQuery, userId, userName, activeContext);
       setMessages((prev) => [
