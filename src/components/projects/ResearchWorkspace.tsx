@@ -25,6 +25,7 @@ import { useUploadDocument } from "@/hooks/useUniversalDocuments";
 import { askBeacon, type BeaconChatResponse, type BeaconSource } from "@/services/beaconApi";
 import { useAuth } from "@/hooks/useAuth";
 import { ObjectionSummaryView } from "./ObjectionSummaryView";
+import { UploadObjectionDialog } from "./UploadObjectionDialog";
 
 // --- Types ---
 
