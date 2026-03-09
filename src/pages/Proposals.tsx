@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Plus, Search, Loader2, Send, UserPlus, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Bell } from "lucide-react";
 import { startOfMonth, subMonths, endOfMonth, isWithinInterval } from "date-fns";
 import { Input } from "@/components/ui/input";
-import { ProposalDialog } from "@/components/proposals/ProposalDialog";
+import { lazy, Suspense } from "react";
+const ProposalDialog = lazy(() => import("@/components/proposals/ProposalDialog").then(m => ({ default: m.ProposalDialog })));
 import { ProposalTable } from "@/components/proposals/ProposalTable";
 import { LeadsTable } from "@/components/proposals/LeadsTable";
 import { SignatureDialog } from "@/components/proposals/SignatureDialog";
@@ -1094,14 +1095,16 @@ export default function Proposals() {
         </Tabs>
       </div>
 
-      <ProposalDialog
-        open={dialogOpen}
-        onOpenChange={(v) => { setDialogOpen(v); if (!v) setEditingProposal(null); }}
-        onSubmit={handleSubmit}
-        proposal={editingProposal}
-        isLoading={createProposal.isPending || updateProposal.isPending}
-        defaultPropertyId={!editingProposal ? defaultPropertyId : undefined}
-      />
+      <Suspense fallback={null}>
+        <ProposalDialog
+          open={dialogOpen}
+          onOpenChange={(v) => { setDialogOpen(v); if (!v) setEditingProposal(null); }}
+          onSubmit={handleSubmit}
+          proposal={editingProposal}
+          isLoading={createProposal.isPending || updateProposal.isPending}
+          defaultPropertyId={!editingProposal ? defaultPropertyId : undefined}
+        />
+      </Suspense>
 
       <SignatureDialog
         open={signDialogOpen}

@@ -11,40 +11,55 @@ import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from "@/comp
 import { Button } from "@/components/ui/button";
 
 // Pages
+import { lazy, Suspense } from "react";
+import { Loader2 } from "lucide-react";
+
+// Eager-loaded pages (auth / shell)
 import Auth from "./pages/Auth";
 import Setup from "./pages/Setup";
-import Dashboard from "./pages/Dashboard";
-import Projects from "./pages/Projects";
-import ProjectDetail from "./pages/ProjectDetail";
-import Properties from "./pages/Properties";
-import PropertyDetail from "./pages/PropertyDetail";
-import Time from "./pages/Time";
-import Proposals from "./pages/Proposals";
-import Invoices from "./pages/Invoices";
-import Clients from "./pages/Clients";
-import Settings from "./pages/Settings";
-import RfiForm from "./pages/RfiForm";
-import ClientDetail from "./pages/ClientDetail";
-import Emails from "./pages/Emails";
-import Calendar from "./pages/Calendar";
-import Documents from "./pages/Documents";
-import Rfps from "./pages/Rfps";
-import RfpLibrary from "./pages/RfpLibrary";
-import RfpDiscovery from "./pages/RfpDiscovery";
-import ClientProposal from "./pages/ClientProposal";
-import ClientChangeOrder from "./pages/ClientChangeOrder";
-import Reports from "./pages/Reports";
-import HelpDesk from "./pages/HelpDesk";
-import Chat from "./pages/Chat";
-import NotFound from "./pages/NotFound";
 import AuthCallback from "./pages/AuthCallback";
-import Privacy from "./pages/Privacy";
-import Terms from "./pages/Terms";
+import NotFound from "./pages/NotFound";
+
+// Lazy-loaded pages
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Projects = lazy(() => import("./pages/Projects"));
+const ProjectDetail = lazy(() => import("./pages/ProjectDetail"));
+const Properties = lazy(() => import("./pages/Properties"));
+const PropertyDetail = lazy(() => import("./pages/PropertyDetail"));
+const Time = lazy(() => import("./pages/Time"));
+const Proposals = lazy(() => import("./pages/Proposals"));
+const Invoices = lazy(() => import("./pages/Invoices"));
+const Clients = lazy(() => import("./pages/Clients"));
+const Settings = lazy(() => import("./pages/Settings"));
+const RfiForm = lazy(() => import("./pages/RfiForm"));
+const ClientDetail = lazy(() => import("./pages/ClientDetail"));
+const Emails = lazy(() => import("./pages/Emails"));
+const Calendar = lazy(() => import("./pages/Calendar"));
+const Documents = lazy(() => import("./pages/Documents"));
+const Rfps = lazy(() => import("./pages/Rfps"));
+const RfpLibrary = lazy(() => import("./pages/RfpLibrary"));
+const RfpDiscovery = lazy(() => import("./pages/RfpDiscovery"));
+const ClientProposal = lazy(() => import("./pages/ClientProposal"));
+const ClientChangeOrder = lazy(() => import("./pages/ClientChangeOrder"));
+const Reports = lazy(() => import("./pages/Reports"));
+const HelpDesk = lazy(() => import("./pages/HelpDesk"));
+const Chat = lazy(() => import("./pages/Chat"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const Terms = lazy(() => import("./pages/Terms"));
+
+function PageSpinner() {
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
 
 const queryClient = new QueryClient();
 
 function AppRoutes() {
   return (
+    <Suspense fallback={<PageSpinner />}>
     <Routes>
       {/* Public routes */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -110,6 +125,7 @@ function AppRoutes() {
       {/* Catch-all */}
       <Route path="*" element={<NotFound />} />
     </Routes>
+    </Suspense>
   );
 }
 
