@@ -99,8 +99,8 @@ function BeaconResponseCard({ response, innerRef }: { response: BeaconResearchRe
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-3 space-y-3">
-        <div className="text-sm leading-relaxed text-foreground whitespace-pre-wrap max-h-[400px] overflow-y-auto">
-          {response.text}
+        <div className="prose prose-sm dark:prose-invert max-w-none max-h-[400px] overflow-y-auto [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+          <ReactMarkdown>{response.text}</ReactMarkdown>
         </div>
 
         {response.sources.length > 0 && (
