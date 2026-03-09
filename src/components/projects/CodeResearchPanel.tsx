@@ -123,10 +123,12 @@ function ResearchCard({
         </div>
       )}
 
-      {/* Timestamp */}
-      <p className="text-[10px] text-muted-foreground">
-        {new Date(note.created_at).toLocaleDateString()} {new Date(note.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-      </p>
+      {/* Meta */}
+      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+        {note.created_by_name && <span className="font-medium">{note.created_by_name}</span>}
+        {note.created_by_name && <span>·</span>}
+        <span>{new Date(note.created_at).toLocaleDateString()} {new Date(note.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+      </div>
     </Card>
   );
 }
