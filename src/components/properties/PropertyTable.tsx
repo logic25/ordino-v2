@@ -186,7 +186,7 @@ export function PropertyTable({
                               <p className="font-medium">{property.address}</p>
                               {missingBBL ? (
                                 <p className="text-xs text-destructive font-medium">Missing BBL data — click Edit to fix</p>
-                              ) : property.bbl_verified === false && !property.bin ? (
+                              ) : property.bbl_verified === false && !hasBBL && !property.bin ? (
                                 <p className="text-xs text-destructive font-medium">BBL could not be verified — click Edit to review</p>
                               ) : property.zip_code ? (
                                 <p className="text-sm text-muted-foreground">{property.zip_code}</p>
