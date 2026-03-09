@@ -11,67 +11,28 @@ import { Plus, Trash2, Loader2, Save, FileText, Pencil, Copy } from "lucide-reac
 import { Badge } from "@/components/ui/badge";
 import { useCompanySettings, useUpdateCompanySettings, type InstructionTemplate } from "@/hooks/useCompanySettings";
 import { useToast } from "@/hooks/use-toast";
+import { TemplateRichTextEditor } from "./TemplateRichTextEditor";
 
 const DEFAULT_TEMPLATES: InstructionTemplate[] = [
   {
     id: "default-dob-registration",
     name: "DOB Registration",
     description: "Instructions for building owners to create a DOB NOW account",
-    body: `Dear {{OWNER_NAME}},
-
-We need you to create a DOB NOW account so you can sign and pay for the filing(s) on your property.
-
-Please go to: https://a810-bisweb.nyc.gov/bisweb/
-
-1. Click "Create Account"
-2. Use your legal name as it appears on the deed
-3. Once registered, please email us your DOB NOW username
-
-If you already have an account, just send us the username and we'll proceed.
-
-Thank you,
-{{COMPANY_NAME}}`,
+    body: `<p>Dear {{OWNER_NAME}},</p><p>We need you to create a DOB NOW account so you can sign and pay for the filing(s) on your property.</p><p>Please go to: <a href="https://a810-bisweb.nyc.gov/bisweb/">https://a810-bisweb.nyc.gov/bisweb/</a></p><ol><li>Click "Create Account"</li><li>Use your legal name as it appears on the deed</li><li>Once registered, please email us your DOB NOW username</li></ol><p>If you already have an account, just send us the username and we'll proceed.</p><p>Thank you,<br/>{{COMPANY_NAME}}</p>`,
     variables: ["OWNER_NAME", "COMPANY_NAME"],
   },
   {
     id: "default-esign-standard",
     name: "DOB E-Sign (Standard)",
     description: "Instructions for owner to e-sign and pay on a single application",
-    body: `Dear {{OWNER_NAME}},
-
-Your application {{JOB_NUMBER}} is ready for your signature and payment on DOB NOW.
-
-Please log in to DOB NOW and:
-1. Go to "Jobs to Sign"
-2. Find job {{JOB_NUMBER}}
-3. Review the application details
-4. Sign electronically
-5. Pay the filing fee ({{FILING_FEE}} estimated)
-
-Please complete this within 48 hours so we can proceed with filing.
-
-Thank you,
-{{COMPANY_NAME}}`,
+    body: `<p>Dear {{OWNER_NAME}},</p><p>Your application {{JOB_NUMBER}} is ready for your signature and payment on DOB NOW.</p><p>Please log in to DOB NOW and:</p><ol><li>Go to "Jobs to Sign"</li><li>Find job {{JOB_NUMBER}}</li><li>Review the application details</li><li>Sign electronically</li><li>Pay the filing fee ({{FILING_FEE}} estimated)</li></ol><p>Please complete this within 48 hours so we can proceed with filing.</p><p>Thank you,<br/>{{COMPANY_NAME}}</p>`,
     variables: ["OWNER_NAME", "JOB_NUMBER", "FILING_FEE", "COMPANY_NAME"],
   },
   {
     id: "default-esign-supersede",
     name: "DOB E-Sign (Supersede)",
     description: "Instructions for owner to sign multiple supersede applications",
-    body: `Dear {{OWNER_NAME}},
-
-We have {{APP_COUNT}} supersede applications ready for your signature on DOB NOW.
-
-Job Numbers: {{JOB_NUMBERS}}
-
-Please log in to DOB NOW and sign each application under "Jobs to Sign." Each one will require a separate signature.
-
-Note: Only signature is needed — there is no additional filing fee for supersedes.
-
-Please complete this at your earliest convenience.
-
-Thank you,
-{{COMPANY_NAME}}`,
+    body: `<p>Dear {{OWNER_NAME}},</p><p>We have {{APP_COUNT}} supersede applications ready for your signature on DOB NOW.</p><p>Job Numbers: {{JOB_NUMBERS}}</p><p>Please log in to DOB NOW and sign each application under "Jobs to Sign." Each one will require a separate signature.</p><p><strong>Note:</strong> Only signature is needed — there is no additional filing fee for supersedes.</p><p>Please complete this at your earliest convenience.</p><p>Thank you,<br/>{{COMPANY_NAME}}</p>`,
     variables: ["OWNER_NAME", "APP_COUNT", "JOB_NUMBERS", "COMPANY_NAME"],
   },
 ];
@@ -216,7 +177,7 @@ export function InstructionTemplateSettings() {
 
       {/* Edit Dialog */}
       <Dialog open={!!editDialog} onOpenChange={(open) => !open && setEditDialog(null)}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editDialog?.name ? "Edit Template" : "New Template"}</DialogTitle>
             <DialogDescription>
@@ -234,7 +195,7 @@ export function InstructionTemplateSettings() {
             </div>
             <div className="space-y-2">
               <Label>Body</Label>
-              <Textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={10} placeholder="Dear {{OWNER_NAME}},..." className="font-mono text-sm" />
+              <TemplateRichTextEditor content={editBody} onChange={setEditBody} />
               {editBody && (
                 <div className="flex flex-wrap gap-1">
                   <span className="text-xs text-muted-foreground">Variables detected:</span>
