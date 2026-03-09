@@ -413,13 +413,15 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
 
                   {currentWorkState && currentWorkState.beaconResponses.length > 0 && (
                     <div className="space-y-3 mb-3">
-                      {currentWorkState.beaconResponses.map((resp) => (
-                        <div key={resp.id}>
-                          <p className="text-xs text-muted-foreground mb-1.5 italic">"{resp.query}"</p>
-                          <BeaconResponseCard response={resp} />
-                        </div>
-                      ))}
-                      <div ref={chatEndRef} />
+                      {currentWorkState.beaconResponses.map((resp, idx) => {
+                        const isLast = idx === currentWorkState.beaconResponses.length - 1;
+                        return (
+                          <div key={resp.id}>
+                            <p className="text-xs text-muted-foreground mb-1.5 italic">"{resp.query}"</p>
+                            <BeaconResponseCard response={resp} innerRef={isLast ? lastResponseRef : undefined} />
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
 
