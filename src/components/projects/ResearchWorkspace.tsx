@@ -557,7 +557,14 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
                         return (
                           <div key={resp.id}>
                             <p className="text-xs text-muted-foreground mb-1.5 italic">"{resp.query}"</p>
-                            <BeaconResponseCard response={resp} innerRef={isLast ? lastResponseRef : undefined} />
+                          <BeaconResponseCard
+                            response={resp}
+                            innerRef={isLast ? lastResponseRef : undefined}
+                            projectId={projectId}
+                            objectionId={selected.id}
+                            userId={profile?.id}
+                            companyId={profile?.company_id}
+                          />
                           </div>
                         );
                       })}
