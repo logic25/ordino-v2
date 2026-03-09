@@ -938,19 +938,6 @@ Write ONLY the response to the objection — a direct, professional answer that 
                         onChange={(e) => updateWorkState(selected.id, { responseDraft: e.target.value })}
                         placeholder="AI-generated response will appear here..."
                       />
-
-                      {/* Architect Instructions */}
-                      <div className="mt-3">
-                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 mb-2">
-                          <Mail className="h-3.5 w-3.5" /> Architect Instructions
-                        </h4>
-                        <Textarea
-                          className="min-h-[80px] text-sm"
-                          value={currentWorkState.architectInstructions || ""}
-                          onChange={(e) => updateWorkState(selected.id, { architectInstructions: e.target.value })}
-                          placeholder="What the architect needs to do — drawings to update, details to add..."
-                        />
-                      </div>
                     </div>
                   </>
                 )}
