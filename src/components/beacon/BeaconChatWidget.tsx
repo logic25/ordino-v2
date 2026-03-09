@@ -458,6 +458,22 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
         </div>
       )}
 
+      {/* Context badge */}
+      {activeContext?.projectAddress && (
+        <div className="border-t px-3 py-1.5 flex items-center gap-1.5 bg-accent/30">
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 font-normal max-w-[340px] truncate">
+            Context: {activeContext.projectAddress}{activeContext.filingType ? ` — ${activeContext.filingType}` : ""}
+          </Badge>
+          <button
+            onClick={() => setContextCleared(true)}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            title="Clear project context"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      )}
+
       {/* Input */}
       <div className="border-t p-3">
         <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="flex gap-2">

@@ -1,10 +1,12 @@
 import { ReactNode, useState, useMemo } from "react";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { TopBar } from "./TopBar";
 import { ClockOutModal } from "@/components/time/ClockOutModal";
 import { BeaconChatWidget } from "@/components/beacon/BeaconChatWidget";
 import type { BeaconProjectContext } from "@/services/beaconApi";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -15,14 +17,49 @@ export function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
   const isOnChatPage = location.pathname === "/chat";
 
-  // Extract project context from route for Beacon
-  const projectContext = useMemo<BeaconProjectContext | undefined>(() => {
-    const match = location.pathname.match(/^\/projects\/([^/]+)/);
-    if (match) {
-      return { projectId: match[1] };
-    }
-    return undefined;
+  // Extract project ID from route
+  const projectId = useMemo(() => {
+    const match = location.pathname.match(/^\/projects\/([0-9a-f-]{36})/);
+    return match ? match[1] : undefined;
   }, [location.pathname]);
+
+  // Fetch project data for Beacon context when on a project page
+  const { data: projectData } = useQuery({
+    queryKey: ["beacon-project-context", projectId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("projects")
+        .select(`
+          id, name, project_type, floor_number, notes,
+          properties (address, borough, block, lot),
+          services:services (name)
+        `)
+        .eq("id", projectId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!projectId,
+    staleTime: 60_000,
+  });
+
+  const projectContext = useMemo<BeaconProjectContext | undefined>(() => {
+    if (!projectId) return undefined;
+    if (!projectData) return { projectId };
+    const prop = (projectData as any).properties;
+    const services = ((projectData as any).services || []) as { name: string }[];
+    return {
+      projectId,
+      projectName: projectData.name || undefined,
+      projectAddress: prop?.address || undefined,
+      borough: prop?.borough || undefined,
+      block: prop?.block || undefined,
+      lot: prop?.lot || undefined,
+      filingType: projectData.project_type || undefined,
+      scopeOfWork: projectData.notes || undefined,
+      assignedServices: services.map((s) => s.name).filter(Boolean),
+    };
+  }, [projectId, projectData]);
 
   return (
     <>

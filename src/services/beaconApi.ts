@@ -17,7 +17,14 @@ export interface BeaconChatResponse {
 
 export interface BeaconProjectContext {
   projectId?: string;
+  projectName?: string;
   projectAddress?: string;
+  borough?: string;
+  block?: string;
+  lot?: string;
+  filingType?: string;
+  scopeOfWork?: string;
+  assignedServices?: string[];
   codeSection?: string;
 }
 
