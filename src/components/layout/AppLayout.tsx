@@ -30,9 +30,11 @@ export function AppLayout({ children }: AppLayoutProps) {
       const { data, error } = await supabase
         .from("projects")
         .select(`
-          id, name, project_type, floor_number, notes,
+          id, name, project_number, filing_type, floor_number, notes, estimated_job_cost,
           properties (address, borough, block, lot),
-          services:services (name)
+          services:services (name, status, total_amount, billed_amount),
+          dob_applications:dob_applications (job_number, filing_type, status),
+          clients:clients (name)
         `)
         .eq("id", projectId!)
         .maybeSingle();
@@ -47,17 +49,29 @@ export function AppLayout({ children }: AppLayoutProps) {
     if (!projectId) return undefined;
     if (!projectData) return { projectId };
     const prop = (projectData as any).properties;
-    const services = ((projectData as any).services || []) as { name: string }[];
+    const services = ((projectData as any).services || []) as { name: string; status: string; total_amount: number; billed_amount: number }[];
+    const apps = ((projectData as any).dob_applications || []) as { job_number: string; filing_type: string; status: string }[];
+    const client = (projectData as any).clients;
+
+    const contractValue = services.reduce((sum, s) => sum + (Number(s.total_amount) || 0), 0);
+    const billedAmount = services.reduce((sum, s) => sum + (Number(s.billed_amount) || 0), 0);
+
     return {
       projectId,
       projectName: projectData.name || undefined,
+      projectNumber: (projectData as any).project_number || undefined,
       projectAddress: prop?.address || undefined,
       borough: prop?.borough || undefined,
       block: prop?.block || undefined,
       lot: prop?.lot || undefined,
-      filingType: projectData.project_type || undefined,
+      filingType: (projectData as any).filing_type || undefined,
       scopeOfWork: projectData.notes || undefined,
       assignedServices: services.map((s) => s.name).filter(Boolean),
+      contractValue: contractValue || undefined,
+      billedAmount: billedAmount || undefined,
+      serviceDetails: services.map((s) => `${s.name} (${s.status}, $${Number(s.total_amount) || 0})`),
+      dobApplications: apps.map((a) => `${a.job_number || 'No job#'} - ${a.filing_type || 'N/A'} (${a.status || 'pending'})`),
+      clientName: client?.name || undefined,
     };
   }, [projectId, projectData]);
 

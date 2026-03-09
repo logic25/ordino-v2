@@ -26,6 +26,12 @@ export interface BeaconProjectContext {
   scopeOfWork?: string;
   assignedServices?: string[];
   codeSection?: string;
+  contractValue?: number;
+  billedAmount?: number;
+  serviceDetails?: string[];
+  dobApplications?: string[];
+  clientName?: string;
+  projectNumber?: string;
 }
 
 export async function askBeacon(
