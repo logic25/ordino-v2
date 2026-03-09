@@ -763,6 +763,24 @@ Format the response clearly with these three sections.`;
             onSaveToDocs={handleSavePackageToDocs}
             isSaving={savingPackage}
           />
+        ) : objections.length > 0 && openCount === 0 && !selected ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mb-4">
+              <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <h3 className="text-lg font-semibold">All Objections Resolved</h3>
+            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+              All {objections.length} objection{objections.length !== 1 ? "s" : ""} have been addressed and resolved.
+            </p>
+            <div className="flex gap-2 mt-4">
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowSummary(true)}>
+                <Eye className="h-3.5 w-3.5" /> View Summary
+              </Button>
+              <Button size="sm" className="gap-1.5" onClick={handleSendAllAsEmail}>
+                <Mail className="h-3.5 w-3.5" /> Send to Architect
+              </Button>
+            </div>
+          </div>
         ) : !selected ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
             <Search className="h-12 w-12 text-muted-foreground/30 mb-4" />
