@@ -55,6 +55,7 @@ const statusConfig: Record<ObjectionStatus, { label: string; className: string }
 function ObjectionListItem({ objection, isSelected, onClick }: { objection: ObjectionItem; isSelected: boolean; onClick: () => void }) {
   const status = (objection.status || "pending") as ObjectionStatus;
   const cfg = statusConfig[status] || statusConfig.pending;
+  const hasNotes = !!(objection.resolution_notes || objection.response_draft);
   return (
     <button
       onClick={onClick}
@@ -69,6 +70,11 @@ function ObjectionListItem({ objection, isSelected, onClick }: { objection: Obje
             <span className="text-xs font-mono text-muted-foreground">#{objection.item_number}</span>
             {objection.code_reference && (
               <Badge variant="outline" className="text-xs font-mono px-1.5 py-0">{objection.code_reference}</Badge>
+            )}
+            {hasNotes && (
+              <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">
+                <FileText className="h-3 w-3" /> Notes
+              </span>
             )}
           </div>
           <p className="text-sm text-foreground line-clamp-2">{objection.objection_text}</p>
