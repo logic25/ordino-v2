@@ -32,7 +32,7 @@ interface ObjectionSummaryViewProps {
 export function ObjectionSummaryView({ open, objections, workStates, onClose, onSendAll, onSaveToDocs, isSaving }: ObjectionSummaryViewProps) {
   // Get response from workState first, then DB
   const getResponse = (obj: ObjectionItem): string => {
-    const ws = workStates[obj.id];
+    const ws = workStates?.[obj.id];
     return ws?.responseDraft || ws?.cleanedVersion || ws?.pmNotes || obj.response_draft || obj.resolution_notes || "";
   };
 
