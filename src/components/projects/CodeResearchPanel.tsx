@@ -14,7 +14,8 @@ import { cn } from "@/lib/utils";
 import { useResearchNotes, type ResearchNote } from "@/hooks/useResearchNotes";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { askBeacon, type BeaconSource } from "@/services/beaconApi";
+import { type BeaconSource } from "@/services/beaconApi";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CodeResearchPanelProps {
   projectId: string;
