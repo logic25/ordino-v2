@@ -162,11 +162,9 @@ export function ESignInstructionDialog({ open, onOpenChange, jobNumbers, project
 
           <div className="space-y-2">
             <Label>Message</Label>
-            <Textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={12}
-              className="font-mono text-sm"
+            <TemplateRichTextEditor
+              content={body}
+              onChange={setBody}
             />
           </div>
         </div>
