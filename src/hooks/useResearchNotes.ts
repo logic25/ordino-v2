@@ -79,6 +79,7 @@ export function useResearchNotes(projectId: string | undefined) {
           sources: note.sources || [],
           confidence: note.confidence || null,
           tags: note.tags || [],
+          source_type: note.source_type || "beacon_rag",
         })
         .select()
         .single();

@@ -1,0 +1,1 @@
+ALTER TABLE public.research_notes ADD COLUMN IF NOT EXISTS source_type text DEFAULT 'beacon_rag';
