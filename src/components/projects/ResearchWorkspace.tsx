@@ -455,7 +455,7 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
                       {beaconLoading ? (
                         <Clock className="h-4 w-4 animate-spin" />
                       ) : (
-                        <Brain className="h-4 w-4" style={{ animation: 'beacon-pulse 1.2s ease-in-out infinite' }} />
+                        <Brain className="h-4 w-4 animate-pulse text-amber-500" />
                       )}
                     </Button>
                   </div>
