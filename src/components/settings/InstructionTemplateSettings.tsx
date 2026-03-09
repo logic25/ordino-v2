@@ -217,7 +217,7 @@ export function InstructionTemplateSettings() {
 
       {/* Edit Dialog */}
       <Dialog open={!!editDialog} onOpenChange={(open) => !open && setEditDialog(null)}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editDialog?.name ? "Edit Template" : "New Template"}</DialogTitle>
             <DialogDescription>
