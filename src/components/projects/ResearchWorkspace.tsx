@@ -324,6 +324,8 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
           beaconResponses: [],
           pmNotes: selected.resolution_notes || "",
           cleanedVersion: selected.response_draft || null,
+          responseDraft: selected.response_draft || null,
+          architectInstructions: selected.architect_instructions || null,
         },
       };
     });
