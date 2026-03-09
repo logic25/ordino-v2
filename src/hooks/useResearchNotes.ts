@@ -37,7 +37,24 @@ export function useResearchNotes(projectId: string | undefined) {
         .order("is_pinned", { ascending: false })
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data || []) as unknown as ResearchNote[];
+      const notes = (data || []) as unknown as ResearchNote[];
+
+      // Fetch profile names for created_by
+      const userIds = [...new Set(notes.map((n) => n.created_by).filter(Boolean))] as string[];
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, display_name, first_name, last_name")
+          .in("id", userIds);
+        const nameMap = new Map(
+          (profiles || []).map((p: any) => [p.id, p.display_name || `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Unknown"])
+        );
+        notes.forEach((n) => {
+          if (n.created_by) n.created_by_name = nameMap.get(n.created_by) || undefined;
+        });
+      }
+
+      return notes;
     },
   });
 
