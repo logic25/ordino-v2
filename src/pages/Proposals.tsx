@@ -1095,14 +1095,16 @@ export default function Proposals() {
         </Tabs>
       </div>
 
-      <ProposalDialog
-        open={dialogOpen}
-        onOpenChange={(v) => { setDialogOpen(v); if (!v) setEditingProposal(null); }}
-        onSubmit={handleSubmit}
-        proposal={editingProposal}
-        isLoading={createProposal.isPending || updateProposal.isPending}
-        defaultPropertyId={!editingProposal ? defaultPropertyId : undefined}
-      />
+      <Suspense fallback={null}>
+        <ProposalDialog
+          open={dialogOpen}
+          onOpenChange={(v) => { setDialogOpen(v); if (!v) setEditingProposal(null); }}
+          onSubmit={handleSubmit}
+          proposal={editingProposal}
+          isLoading={createProposal.isPending || updateProposal.isPending}
+          defaultPropertyId={!editingProposal ? defaultPropertyId : undefined}
+        />
+      </Suspense>
 
       <SignatureDialog
         open={signDialogOpen}

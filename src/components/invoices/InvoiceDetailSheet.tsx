@@ -1189,11 +1189,13 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
         </Dialog>
       )}
 
-      <InvoicePDFPreview
-        invoice={invoice}
-        open={pdfPreviewOpen}
-        onOpenChange={setPdfPreviewOpen}
-      />
+      <Suspense fallback={null}>
+        <InvoicePDFPreview
+          invoice={invoice}
+          open={pdfPreviewOpen}
+          onOpenChange={setPdfPreviewOpen}
+        />
+      </Suspense>
 
       <ClaimFlowDialog
         open={claimFlowOpen}

@@ -236,11 +236,13 @@ export function KnowledgeBaseView({ activeFolder: externalActiveFolder }: Knowle
         </DialogContent>
       </Dialog>
 
-      <BeaconDocumentModal
-        open={!!viewingFile}
-        onClose={() => setViewingFile(null)}
-        sourceFile={viewingFile || ""}
-      />
+      <Suspense fallback={null}>
+        <BeaconDocumentModal
+          open={!!viewingFile}
+          onClose={() => setViewingFile(null)}
+          sourceFile={viewingFile || ""}
+        />
+      </Suspense>
     </div>
   );
 }

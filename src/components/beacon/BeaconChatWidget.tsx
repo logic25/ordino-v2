@@ -456,11 +456,13 @@ export function BeaconChatWidget() {
           </Button>
         </form>
       </div>
-      <BeaconDocumentModal
-        open={!!viewingFile}
-        onClose={() => setViewingFile(null)}
-        sourceFile={viewingFile || ""}
-      />
+      <Suspense fallback={null}>
+        <BeaconDocumentModal
+          open={!!viewingFile}
+          onClose={() => setViewingFile(null)}
+          sourceFile={viewingFile || ""}
+        />
+      </Suspense>
     </div>,
     document.body
   );
