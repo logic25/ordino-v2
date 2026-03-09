@@ -19,7 +19,8 @@ import {
 import { useBeaconKnowledge, useUploadToBeaconKB } from "@/hooks/useBeaconKnowledge";
 import { FOLDER_TO_SOURCE_TYPE } from "@/services/beaconApi";
 import { useToast } from "@/hooks/use-toast";
-import { BeaconDocumentModal } from "./BeaconDocumentModal";
+import { lazy, Suspense } from "react";
+const BeaconDocumentModal = lazy(() => import("./BeaconDocumentModal").then(m => ({ default: m.BeaconDocumentModal })));
 
 function humanize(slug: string): string {
   if (slug === "_root") return "Root";

@@ -9,7 +9,8 @@ import { cn } from "@/lib/utils";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { useAuth } from "@/hooks/useAuth";
 import { askBeacon, checkBeaconHealth, type BeaconSource } from "@/services/beaconApi";
-import { BeaconDocumentModal } from "../documents/BeaconDocumentModal";
+import { lazy, Suspense } from "react";
+const BeaconDocumentModal = lazy(() => import("../documents/BeaconDocumentModal").then(m => ({ default: m.BeaconDocumentModal })));
 import { supabase } from "@/integrations/supabase/client";
 import { useRef, useEffect, useCallback } from "react";
 

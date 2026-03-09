@@ -19,8 +19,9 @@ import {
 } from "@/components/ui/collapsible";
 import { InvoiceStatusBadge } from "./InvoiceStatusBadge";
 import { LineItemsEditor } from "./LineItemsEditor";
-import { InvoicePDFPreview } from "./InvoicePDFPreview";
+import { lazy, Suspense } from "react";
 import { generateInvoicePDFBlob } from "./InvoicePDFPreview";
+const InvoicePDFPreview = lazy(() => import("./InvoicePDFPreview").then(m => ({ default: m.InvoicePDFPreview })));
 import { useUpdateInvoice, type InvoiceWithRelations, type LineItem } from "@/hooks/useInvoices";
 import { useInvoiceFollowUps, useInvoiceActivityLog } from "@/hooks/useInvoiceFollowUps";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
