@@ -264,7 +264,8 @@ export function BeaconChatWidget() {
     setHistoryCount(0);
   };
 
-  const lastBeaconMsg = messages.filter((m) => m.role === "beacon").at(-1);
+  const beaconMsgs = messages.filter((m) => m.role === "beacon");
+  const lastBeaconMsg = beaconMsgs.length > 0 ? beaconMsgs[beaconMsgs.length - 1] : undefined;
 
   if (!open) {
     return createPortal(
