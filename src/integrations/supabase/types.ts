@@ -4449,6 +4449,79 @@ export type Database = {
           },
         ]
       }
+      objection_items: {
+        Row: {
+          architect_instructions: string | null
+          category: string | null
+          code_reference: string | null
+          company_id: string
+          created_at: string | null
+          id: string
+          item_number: number
+          objection_letter_id: string | null
+          objection_text: string
+          project_id: string
+          resolution_notes: string | null
+          response_draft: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          architect_instructions?: string | null
+          category?: string | null
+          code_reference?: string | null
+          company_id: string
+          created_at?: string | null
+          id?: string
+          item_number: number
+          objection_letter_id?: string | null
+          objection_text: string
+          project_id: string
+          resolution_notes?: string | null
+          response_draft?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          architect_instructions?: string | null
+          category?: string | null
+          code_reference?: string | null
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          item_number?: number
+          objection_letter_id?: string | null
+          objection_text?: string
+          project_id?: string
+          resolution_notes?: string | null
+          response_draft?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "objection_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "objection_items_objection_letter_id_fkey"
+            columns: ["objection_letter_id"]
+            isOneToOne: false
+            referencedRelation: "universal_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "objection_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ordino_assistant_conversations: {
         Row: {
           company_id: string
