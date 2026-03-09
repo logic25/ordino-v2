@@ -638,9 +638,14 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
                 <FileText className="h-10 w-10 text-muted-foreground/40 mb-3" />
                 <p className="text-sm text-muted-foreground">No objections loaded</p>
                 <p className="text-xs text-muted-foreground mt-1">Import a DOB objection sheet to get started</p>
-                <Button variant="outline" size="sm" className="mt-4 gap-1.5" onClick={handleImportDemo}>
-                  <Upload className="h-3.5 w-3.5" /> Import Demo Sheet
-                </Button>
+                <div className="flex gap-2 mt-4">
+                  <Button variant="default" size="sm" className="gap-1.5" onClick={() => setUploadDialogOpen(true)}>
+                    <Upload className="h-3.5 w-3.5" /> Upload Objection Letter
+                  </Button>
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={handleImportDemo}>
+                    <Upload className="h-3.5 w-3.5" /> Import Demo
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="space-y-2">
