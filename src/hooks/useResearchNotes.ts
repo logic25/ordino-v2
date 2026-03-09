@@ -14,6 +14,7 @@ export interface ResearchNote {
   notes: string | null;
   tags: string[];
   is_pinned: boolean;
+  created_by_name?: string;
   created_at: string;
   updated_at: string;
 }
