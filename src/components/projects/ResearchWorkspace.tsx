@@ -590,7 +590,79 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
       toast({ title: "Update failed", variant: "destructive" });
     }
   };
+  const handleDraftResponse = async () => {
+    if (!selected) return;
+    updateWorkState(selected.id, { draftLoading: true });
 
+    const prompt = `You are an NYC DOB expediting expert. Draft a professional response to this DOB examiner objection.
+
+**Objection #${selected.item_number}:**
+"${selected.objection_text}"
+
+**Code Reference:** ${selected.code_reference || "Not specified"}
+**Property Address:** ${projectAddress || "Not specified"}
+**Filing Type:** ${filingType || "Not specified"}
+**Scope of Work:** ${scopeOfWork || "Not specified"}
+
+Please provide:
+1. **Response to Examiner:** A direct, professional response addressing the objection with specific NYC Building Code, Zoning Resolution, or Administrative Code citations.
+2. **Architect Instructions:** What the architect needs to do — specific drawings to update, details to add, calculations to provide.
+3. **Expediter Action Items:** What the expediter should prepare or submit to DOB.
+
+Format the response clearly with these three sections.`;
+
+    try {
+      const res = await askBeacon(prompt, userId, userName, {
+        projectId,
+        projectAddress,
+        codeSection: selected.code_reference || undefined,
+        filingType,
+      });
+
+      // Parse sections from response
+      const responseText = res.response || "";
+      let architectInstr = "";
+      const architectMatch = responseText.match(/(?:\*\*)?Architect\s+Instructions?(?:\*\*)?[:\s]*([\s\S]*?)(?=(?:\*\*)?Expediter|$)/i);
+      if (architectMatch) architectInstr = architectMatch[1].trim();
+
+      updateWorkState(selected.id, {
+        responseDraft: responseText,
+        architectInstructions: architectInstr || null,
+        draftLoading: false,
+      });
+
+      // Auto-save to DB
+      await update({
+        id: selected.id,
+        response_draft: responseText,
+        architect_instructions: architectInstr || null,
+        status: selected.status === "pending" ? "in_progress" : selected.status,
+      });
+
+      toast({ title: "Draft response generated", description: "Review and edit before sending." });
+    } catch {
+      updateWorkState(selected.id, { draftLoading: false });
+      toast({ title: "Draft failed", description: "Could not generate response. Try again.", variant: "destructive" });
+    }
+  };
+
+  const handleSaveResponseDraft = async () => {
+    if (!selected) return;
+    const ws = getWorkState(selected.id);
+    try {
+      await update({
+        id: selected.id,
+        response_draft: ws.responseDraft || null,
+        architect_instructions: ws.architectInstructions || null,
+        resolution_notes: ws.pmNotes || null,
+      });
+      toast({ title: "Response saved" });
+    } catch {
+      toast({ title: "Save failed", variant: "destructive" });
+    }
+  };
+
+  
   // Scroll to top of latest response so user reads from the beginning
   useEffect(() => {
     if (lastResponseRef.current) {
