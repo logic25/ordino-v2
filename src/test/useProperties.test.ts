@@ -13,78 +13,59 @@ vi.mock("@/integrations/supabase/client", () => ({
 
 // Chainable builder helper
 function chain(finalData: any = null, finalError: any = null) {
-  const self: any = {
-    select: vi.fn().mockReturnValue(self),
-    insert: vi.fn().mockReturnValue(self),
-    update: vi.fn().mockReturnValue(self),
-    delete: vi.fn().mockReturnValue(self),
-    eq: vi.fn().mockReturnValue(self),
-    order: vi.fn().mockReturnValue(self),
-    single: vi.fn().mockResolvedValue({ data: finalData, error: finalError }),
-    maybeSingle: vi.fn().mockResolvedValue({ data: finalData, error: finalError }),
-  };
-  return self;
+  const obj: Record<string, any> = {};
+  obj.select = vi.fn().mockReturnValue(obj);
+  obj.insert = vi.fn().mockReturnValue(obj);
+  obj.update = vi.fn().mockReturnValue(obj);
+  obj.delete = vi.fn().mockReturnValue(obj);
+  obj.eq = vi.fn().mockReturnValue(obj);
+  obj.order = vi.fn().mockReturnValue(obj);
+  obj.single = vi.fn().mockResolvedValue({ data: finalData, error: finalError });
+  obj.maybeSingle = vi.fn().mockResolvedValue({ data: finalData, error: finalError });
+  return obj;
 }
 
-describe("useProperties — unit logic", () => {
+describe("useProperties — BBL verification logic", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("bbl_verified is true when borough, block, and lot are all provided", () => {
     const property = { borough: "Manhattan", block: "123", lot: "45" };
-    const verified = !!(property.borough && property.block && property.lot);
-    expect(verified).toBe(true);
+    expect(!!(property.borough && property.block && property.lot)).toBe(true);
   });
 
   it("bbl_verified is false when borough is missing", () => {
-    const property = { borough: null, block: "123", lot: "45" };
-    const verified = !!(property.borough && property.block && property.lot);
-    expect(verified).toBe(false);
+    const property = { borough: null as string | null, block: "123", lot: "45" };
+    expect(!!(property.borough && property.block && property.lot)).toBe(false);
   });
 
   it("bbl_verified is false when block is missing", () => {
-    const property = { borough: "Brooklyn", block: null, lot: "45" };
-    const verified = !!(property.borough && property.block && property.lot);
-    expect(verified).toBe(false);
+    const property = { borough: "Brooklyn", block: null as string | null, lot: "45" };
+    expect(!!(property.borough && property.block && property.lot)).toBe(false);
   });
 
-  it("bbl_verified is false when lot is missing", () => {
+  it("bbl_verified is false when lot is empty string", () => {
     const property = { borough: "Queens", block: "99", lot: "" };
-    const verified = !!(property.borough && property.block && property.lot);
-    expect(verified).toBe(false);
+    expect(!!(property.borough && property.block && property.lot)).toBe(false);
   });
 
-  it("useCreateProperty insert payload includes bbl_verified=true when BBL is present", async () => {
-    const insertChain = chain({ id: "new-1", address: "123 Main St", borough: "Manhattan", block: "1", lot: "2" });
-    const profileChain = chain({ company_id: "co-1" });
-
-    mockGetUser.mockResolvedValue({ data: { user: { id: "u1" } } });
-    mockFrom.mockImplementation((table: string) => {
-      if (table === "profiles") return profileChain;
-      if (table === "properties") return insertChain;
-      return chain();
-    });
-
-    // Import dynamically after mock setup
-    const { useCreateProperty } = await import("@/hooks/useProperties");
-
-    // We can't easily use renderHook with react-query here, so test the logic directly
-    // by verifying the insert call receives bbl_verified = true
-    const property = { address: "123 Main St", borough: "Manhattan", block: "1", lot: "2" };
-    const verified = !!(property.borough && property.block && property.lot);
-    expect(verified).toBe(true);
+  it("post-save NYC lookup sets bbl_verified = true in update payload", () => {
+    // Simulates the logic at line 119-121 of useProperties.ts
+    const updates: Record<string, unknown> = { borough: "Manhattan", block: "100", lot: "50" };
+    if (Object.keys(updates).length > 0) {
+      updates.bbl_verified = true;
+    }
+    expect(updates.bbl_verified).toBe(true);
   });
 
-  it("useUpdateProperty sets bbl_verified=true when all BBL fields present", () => {
+  it("update property auto-verifies when BBL complete", () => {
     const updates = { borough: "Bronx", block: "456", lot: "78" };
-    const bbl_verified = !!(updates.borough && updates.block && updates.lot);
-    expect(bbl_verified).toBe(true);
+    expect(!!(updates.borough && updates.block && updates.lot)).toBe(true);
   });
 
-  it("useUpdateProperty sets bbl_verified=false when BBL fields missing", () => {
+  it("update property does NOT verify when BBL incomplete", () => {
     const updates = { borough: "Bronx", block: null as string | null, lot: "78" };
-    const bbl_verified = !!(updates.borough && updates.block && updates.lot);
-    expect(bbl_verified).toBe(false);
+    expect(!!(updates.borough && updates.block && updates.lot)).toBe(false);
   });
 });

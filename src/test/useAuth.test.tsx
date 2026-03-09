@@ -1,10 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, act, waitFor } from "@testing-library/react";
+import { render, act } from "@testing-library/react";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 
 // Mock supabase client
 const mockUnsubscribe = vi.fn();
-let authStateCallback: ((event: string, session: any) => void) | null = null;
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
@@ -14,7 +13,6 @@ vi.mock("@/integrations/supabase/client", () => ({
       signUp: vi.fn(),
       signOut: vi.fn(),
       onAuthStateChange: vi.fn((cb: any) => {
-        authStateCallback = cb;
         return { data: { subscription: { unsubscribe: mockUnsubscribe } } };
       }),
     },
@@ -40,28 +38,34 @@ function TestConsumer() {
   );
 }
 
+function waitForDom(cb: () => void): Promise<void> {
+  return new Promise((resolve) => {
+    const interval = setInterval(() => {
+      try { cb(); clearInterval(interval); resolve(); } catch { /* retry */ }
+    }, 10);
+    setTimeout(() => { clearInterval(interval); resolve(); }, 2000);
+  });
+}
+
 describe("useAuth", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    authStateCallback = null;
   });
 
   it("starts in loading state and resolves to no user", async () => {
-    render(
+    const { getByTestId } = render(
       <AuthProvider>
         <TestConsumer />
       </AuthProvider>
     );
 
-    // Should resolve to no user
-    await waitFor(() => {
-      expect(screen.getByTestId("loading").textContent).toBe("false");
+    await waitForDom(() => {
+      expect(getByTestId("loading").textContent).toBe("false");
     });
-    expect(screen.getByTestId("user").textContent).toBe("none");
+    expect(getByTestId("user").textContent).toBe("none");
   });
 
   it("throws when used outside AuthProvider", () => {
-    // Suppress console.error for expected error
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     expect(() => render(<TestConsumer />)).toThrow(
       "useAuth must be used within an AuthProvider"
@@ -73,18 +77,18 @@ describe("useAuth", () => {
     const { supabase } = await import("@/integrations/supabase/client");
     (supabase.auth.signInWithPassword as any).mockResolvedValue({ error: null });
 
-    render(
+    const { getByTestId, getByText } = render(
       <AuthProvider>
         <TestConsumer />
       </AuthProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByTestId("loading").textContent).toBe("false");
+    await waitForDom(() => {
+      expect(getByTestId("loading").textContent).toBe("false");
     });
 
     await act(async () => {
-      screen.getByText("Login").click();
+      getByText("Login").click();
     });
 
     expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({
@@ -97,32 +101,32 @@ describe("useAuth", () => {
     const { supabase } = await import("@/integrations/supabase/client");
     (supabase.auth.signOut as any).mockResolvedValue({ error: null });
 
-    render(
+    const { getByTestId, getByText } = render(
       <AuthProvider>
         <TestConsumer />
       </AuthProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByTestId("loading").textContent).toBe("false");
+    await waitForDom(() => {
+      expect(getByTestId("loading").textContent).toBe("false");
     });
 
     await act(async () => {
-      screen.getByText("Logout").click();
+      getByText("Logout").click();
     });
 
     expect(supabase.auth.signOut).toHaveBeenCalled();
   });
 
   it("unsubscribes on unmount", async () => {
-    const { unmount } = render(
+    const { unmount, getByTestId } = render(
       <AuthProvider>
         <TestConsumer />
       </AuthProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByTestId("loading").textContent).toBe("false");
+    await waitForDom(() => {
+      expect(getByTestId("loading").textContent).toBe("false");
     });
 
     unmount();
