@@ -104,3 +104,6 @@ verify_jwt = false
 
 [functions.cleanup-notes]
 verify_jwt = false
+
+[functions.code-research]
+verify_jwt = false

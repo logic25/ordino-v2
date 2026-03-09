@@ -166,36 +166,44 @@ export function CodeResearchPanel({ projectId, projectAddress, filingType }: Cod
 
     setSearching(true);
     try {
-      const prompt = `Answer this NYC building code research question directly in plain text. No markdown, no bold, no asterisks, no emojis, no headers. Just clear, factual paragraphs citing specific code sections.
-
-Question: ${q}
-Property: ${projectAddress || "N/A"}
-Filing Type: ${filingType || "N/A"}`;
-
-      const res = await askBeacon(prompt, userId, userName, {
-        projectId,
-        projectAddress,
-        filingType,
+      const { data, error } = await supabase.functions.invoke("code-research", {
+        body: {
+          question: q,
+          project_address: projectAddress || undefined,
+          filing_type: filingType || undefined,
+          user_id: userId,
+          user_name: userName,
+        },
       });
 
-      const responseText = (res.response || "")
-        .replace(/#{1,6}\s*/g, "")
-        .replace(/\*{1,3}([^*]+)\*{1,3}/g, "$1")
-        .replace(/^[-*>]\s+/gm, "")
-        .replace(/^---+$/gm, "")
-        .replace(/⚠️|✅|❌|📌|🔹|🔸|➡️|📧/g, "")
-        .replace(/\n{3,}/g, "\n\n")
-        .trim();
+      if (error) {
+        const status = (error as any)?.context?.status;
+        if (status === 429) {
+          toast({ title: "Rate limited", description: "Please wait a moment and try again.", variant: "destructive" });
+          return;
+        }
+        if (status === 402) {
+          toast({ title: "Credits exhausted", description: "AI credits need to be topped up.", variant: "destructive" });
+          return;
+        }
+        throw error;
+      }
 
       await create({
         query: q,
-        response: responseText,
-        sources: res.sources || [],
-        confidence: res.confidence,
+        response: data.response || "",
+        sources: data.sources || [],
+        confidence: data.confidence,
+        source_type: data.source_type || "beacon_rag",
       });
 
       setQuery("");
-      toast({ title: "Research saved" });
+      toast({
+        title: "Research saved",
+        description: data.source_type === "llm" ? "Answered from AI knowledge (no KB match)" :
+                     data.source_type === "hybrid" ? "Answered from AI + partial KB sources" :
+                     "Answered from Beacon Knowledge Base",
+      });
     } catch {
       toast({ title: "Research failed", description: "Could not get a response. Try again.", variant: "destructive" });
     } finally {
