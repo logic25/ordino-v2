@@ -211,19 +211,26 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
   const handleBeaconSend = async () => {
     if (!beaconInput.trim() || !selected) return;
     setBeaconLoading(true);
-    const query = beaconInput.trim();
+    const rawQuery = beaconInput.trim();
     setBeaconInput("");
+
+    // Prepend objection context so Beacon knows exactly which code section is being discussed
+    const codeRef = selected.code_reference || "";
+    const contextPrefix = codeRef
+      ? `[Regarding DOB objection #${selected.item_number} — ${codeRef}: "${selected.objection_text}"]\n\n`
+      : `[Regarding DOB objection #${selected.item_number}: "${selected.objection_text}"]\n\n`;
+    const query = contextPrefix + rawQuery;
 
     try {
       const res = await askBeacon(query, userId, userName, {
         projectId,
         projectAddress,
-        codeSection: selected.code_reference || undefined,
+        codeSection: codeRef || undefined,
       });
 
       const response: BeaconResearchResponse = {
         id: `br-${Date.now()}`,
-        query,
+        query: rawQuery,
         text: res.response,
         confidence: res.confidence,
         sources: res.sources || [],
