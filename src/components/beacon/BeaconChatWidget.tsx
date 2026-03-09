@@ -127,11 +127,16 @@ interface BeaconChatWidgetProps {
   projectContext?: BeaconProjectContext;
 }
 
-export function BeaconChatWidget({ projectContext }: BeaconChatWidgetProps = {}) {
+export function BeaconChatWidget({ projectContext: externalContext }: BeaconChatWidgetProps = {}) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [contextCleared, setContextCleared] = useState(false);
+
+  // Allow user to clear project context; reset when context changes
+  const activeContext = contextCleared ? undefined : externalContext;
+  useEffect(() => { setContextCleared(false); }, [externalContext?.projectId]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [historyCount, setHistoryCount] = useState(0);
   const lastBotRef = useRef<HTMLDivElement>(null);
@@ -222,7 +227,19 @@ export function BeaconChatWidget({ projectContext }: BeaconChatWidgetProps = {})
         });
       }
 
-      const res = await askBeacon(q, userId, userName, projectContext);
+      // Prepend project context as system context when active
+      let enrichedQuery = q;
+      if (activeContext?.projectAddress) {
+        const ctxParts = [`Project: ${activeContext.projectAddress}`];
+        if (activeContext.projectName) ctxParts.push(`Name: ${activeContext.projectName}`);
+        if (activeContext.filingType) ctxParts.push(`Filing Type: ${activeContext.filingType}`);
+        if (activeContext.borough) ctxParts.push(`Borough: ${activeContext.borough}`);
+        if (activeContext.block && activeContext.lot) ctxParts.push(`Block/Lot: ${activeContext.block}/${activeContext.lot}`);
+        if (activeContext.scopeOfWork) ctxParts.push(`Scope: ${activeContext.scopeOfWork}`);
+        if (activeContext.assignedServices?.length) ctxParts.push(`Services: ${activeContext.assignedServices.join(", ")}`);
+        enrichedQuery = `[Context: ${ctxParts.join(" | ")}]\n\n${q}`;
+      }
+      const res = await askBeacon(enrichedQuery, userId, userName, activeContext);
       setMessages((prev) => [
         ...prev,
         {
@@ -438,6 +455,22 @@ export function BeaconChatWidget({ projectContext }: BeaconChatWidgetProps = {})
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Context badge */}
+      {activeContext?.projectAddress && (
+        <div className="border-t px-3 py-1.5 flex items-center gap-1.5 bg-accent/30">
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 font-normal max-w-[340px] truncate">
+            Context: {activeContext.projectAddress}{activeContext.filingType ? ` — ${activeContext.filingType}` : ""}
+          </Badge>
+          <button
+            onClick={() => setContextCleared(true)}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            title="Clear project context"
+          >
+            <X className="h-3 w-3" />
+          </button>
         </div>
       )}
 
