@@ -435,7 +435,8 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
       await update({
         id: selected.id,
         resolution_notes: ws.pmNotes || null,
-        response_draft: ws.cleanedVersion || null,
+        response_draft: ws.responseDraft || ws.cleanedVersion || null,
+        architect_instructions: ws.architectInstructions || null,
       });
       toast({ title: "Research saved", description: `Notes for objection #${selected.item_number} saved.` });
     } catch {
