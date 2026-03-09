@@ -44,6 +44,9 @@ interface ObjectionWorkState {
   beaconResponses: BeaconResearchResponse[];
   pmNotes: string;
   cleanedVersion: string | null;
+  responseDraft: string | null;
+  architectInstructions: string | null;
+  draftLoading?: boolean;
 }
 
 // --- Status helpers ---
