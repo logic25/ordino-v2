@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, Trash2, Loader2, Save, FileText, Pencil, Copy } from "lucide-react";
+import { Plus, Trash2, Loader2, Save, FileText, Pencil, Copy, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useCompanySettings, useUpdateCompanySettings, type InstructionTemplate } from "@/hooks/useCompanySettings";
 import { useToast } from "@/hooks/use-toast";
