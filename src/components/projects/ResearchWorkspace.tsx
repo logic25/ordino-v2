@@ -12,130 +12,47 @@ import {
 import {
   Search, Send, ChevronRight, ChevronDown, FileText, Sparkles,
   Save, Mail, CheckCircle2, Clock, AlertCircle, PanelLeftClose,
-  PanelLeft, BookOpen, Upload, Bold, Italic, List,
+  PanelLeft, BookOpen, Upload,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { ComposeEmailDialog } from "@/components/emails/ComposeEmailDialog";
+import { useObjectionItems, type ObjectionItem } from "@/hooks/useObjectionItems";
+import { askBeacon, type BeaconChatResponse, type BeaconSource } from "@/services/beaconApi";
+import { useAuth } from "@/hooks/useAuth";
 
 // --- Types ---
 
-type ObjectionStatus = "open" | "in_progress" | "resolved";
+type ObjectionStatus = "pending" | "in_progress" | "resolved";
 
-interface Objection {
-  id: string;
-  number: number;
-  codeSection: string;
-  examinerComment: string;
-  status: ObjectionStatus;
-}
-
-interface BeaconResponse {
+interface BeaconResearchResponse {
   id: string;
   query: string;
-  sectionNumber: string;
-  sectionTitle: string;
-  sectionText: string;
-  confidence: "High" | "Medium" | "Low";
-  sources: string;
-  pastReferences: { project: string; summary: string }[];
-  bulletins: string[];
+  text: string;
+  confidence: number;
+  sources: BeaconSource[];
   timestamp: Date;
 }
 
 interface ObjectionWorkState {
-  beaconResponses: BeaconResponse[];
+  beaconResponses: BeaconResearchResponse[];
   pmNotes: string;
   cleanedVersion: string | null;
-}
-
-// --- Mock Data ---
-
-const MOCK_OBJECTIONS: Objection[] = [
-  { id: "obj-1", number: 1, codeSection: "AC 28-104.7", examinerComment: "Provide a complete scope of work including all construction operations", status: "open" },
-  { id: "obj-2", number: 2, codeSection: "AC 28-112.3", examinerComment: "Applicant of record does not match the BIS record for this filing", status: "open" },
-  { id: "obj-3", number: 3, codeSection: "ZR 33-42", examinerComment: "Rear yard setback does not comply with the applicable zoning district requirements", status: "in_progress" },
-  { id: "obj-4", number: 4, codeSection: "BC 1003.6", examinerComment: "Provide occupant load calculations for all floors affected by the proposed work", status: "open" },
-  { id: "obj-5", number: 5, codeSection: "BC 3307.1", examinerComment: "Construction safeguards — provide details on temporary protection and safety measures", status: "open" },
-  { id: "obj-6", number: 6, codeSection: "AC 28-105.4.1", examinerComment: "Energy code compliance path not indicated on the drawings", status: "resolved" },
-  { id: "obj-7", number: 7, codeSection: "BC 1604.4", examinerComment: "Structural load path — provide documentation of the lateral force resisting system", status: "open" },
-];
-
-const MOCK_BEACON_RESPONSES: Record<string, Omit<BeaconResponse, "id" | "query" | "timestamp">> = {
-  "ZR 33-42": {
-    sectionNumber: "ZR 33-42",
-    sectionTitle: "Rear Yard Regulations (C4-5X District)",
-    sectionText: "In the districts indicated, for any building that exceeds a height of 60 feet or 6 stories, a rear yard with a minimum depth of 20 feet shall be provided at every level above the floor of the first story or above the floor of the story directly above a story used for non-residential purposes...",
-    confidence: "High",
-    sources: "NYC Zoning Resolution, Article III, Chapter 3",
-    pastReferences: [
-      { project: "45-10 Court Square (2024)", summary: "Same section cited. Team responded with rear yard equivalency analysis showing open area compliance through setback averaging. Resolved after one resubmission." },
-    ],
-    bulletins: ["TB 2019-003: Rear Yard Equivalency Calculation Guidelines"],
-  },
-  "AC 28-104.7": {
-    sectionNumber: "AC 28-104.7",
-    sectionTitle: "Scope of Work Requirements",
-    sectionText: "Applications for construction document approval shall include a complete scope of work describing all construction operations to be performed under the permit, including but not limited to structural modifications, mechanical installations, plumbing, and electrical work...",
-    confidence: "High",
-    sources: "NYC Administrative Code, Title 28, Chapter 1",
-    pastReferences: [
-      { project: "123 Broadway (2023)", summary: "Examiner required itemized scope. We provided a detailed breakdown by trade. Cleared on first resubmission." },
-    ],
-    bulletins: [],
-  },
-  "AC 28-112.3": {
-    sectionNumber: "AC 28-112.3",
-    sectionTitle: "Professional Certification",
-    sectionText: "The applicant of record who signs and seals the application must be the same professional engineer or registered architect whose information is on file with the Department for the associated BIS record...",
-    confidence: "High",
-    sources: "NYC Administrative Code, Title 28, Chapter 1",
-    pastReferences: [],
-    bulletins: ["DOB Bulletin 2021-007: Applicant of Record Verification"],
-  },
-  "BC 1003.6": {
-    sectionNumber: "BC 1003.6",
-    sectionTitle: "Occupant Load Calculations",
-    sectionText: "The design occupant load for each floor or portion thereof shall be determined by dividing the floor area assigned to that use by the occupant load factor specified in Table 1004.5...",
-    confidence: "Medium",
-    sources: "NYC Building Code, Chapter 10 — Means of Egress",
-    pastReferences: [
-      { project: "7 East 14th Street (2024)", summary: "Examiner requested occupant load table for floors 2-5. Engineer prepared a spreadsheet with code reference annotations." },
-    ],
-    bulletins: [],
-  },
-};
-
-function getDefaultBeaconResponse(codeSection: string): Omit<BeaconResponse, "id" | "query" | "timestamp"> {
-  return {
-    sectionNumber: codeSection,
-    sectionTitle: "Code Section Details",
-    sectionText: `Detailed text for ${codeSection} is being retrieved from the code database. This section typically addresses the specific requirements cited by the examiner. For full text, consult the relevant code volume directly.`,
-    confidence: "Medium",
-    sources: "NYC Building Code / Administrative Code / Zoning Resolution",
-    pastReferences: [],
-    bulletins: [],
-  };
 }
 
 // --- Status helpers ---
 
 const statusConfig: Record<ObjectionStatus, { label: string; className: string }> = {
-  open: { label: "Open", className: "bg-muted text-muted-foreground border-border" },
+  pending: { label: "Open", className: "bg-muted text-muted-foreground border-border" },
   in_progress: { label: "In Progress", className: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700" },
   resolved: { label: "Resolved", className: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700" },
 };
 
-const confidenceColors: Record<string, string> = {
-  High: "text-emerald-600 dark:text-emerald-400",
-  Medium: "text-amber-600 dark:text-amber-400",
-  Low: "text-red-600 dark:text-red-400",
-};
-
 // --- Sub-components ---
 
-function ObjectionListItem({ objection, isSelected, onClick }: { objection: Objection; isSelected: boolean; onClick: () => void }) {
-  const cfg = statusConfig[objection.status];
+function ObjectionListItem({ objection, isSelected, onClick }: { objection: ObjectionItem; isSelected: boolean; onClick: () => void }) {
+  const status = (objection.status || "pending") as ObjectionStatus;
+  const cfg = statusConfig[status] || statusConfig.pending;
   return (
     <button
       onClick={onClick}
@@ -147,10 +64,12 @@ function ObjectionListItem({ objection, isSelected, onClick }: { objection: Obje
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-mono text-muted-foreground">#{objection.number}</span>
-            <Badge variant="outline" className="text-xs font-mono px-1.5 py-0">{objection.codeSection}</Badge>
+            <span className="text-xs font-mono text-muted-foreground">#{objection.item_number}</span>
+            {objection.code_reference && (
+              <Badge variant="outline" className="text-xs font-mono px-1.5 py-0">{objection.code_reference}</Badge>
+            )}
           </div>
-          <p className="text-sm text-foreground line-clamp-2">{objection.examinerComment}</p>
+          <p className="text-sm text-foreground line-clamp-2">{objection.objection_text}</p>
         </div>
         <span className={cn("shrink-0 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold", cfg.className)}>
           {cfg.label}
@@ -160,9 +79,10 @@ function ObjectionListItem({ objection, isSelected, onClick }: { objection: Obje
   );
 }
 
-function BeaconResponseCard({ response }: { response: BeaconResponse }) {
-  const [expandRefs, setExpandRefs] = useState(false);
-  const [expandBulletins, setExpandBulletins] = useState(false);
+function BeaconResponseCard({ response }: { response: BeaconResearchResponse }) {
+  const [expandSources, setExpandSources] = useState(false);
+  const confidenceLabel = response.confidence >= 0.85 ? "High" : response.confidence >= 0.6 ? "Medium" : "Low";
+  const confidenceColor = response.confidence >= 0.85 ? "text-emerald-600 dark:text-emerald-400" : response.confidence >= 0.6 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400";
 
   return (
     <Card className="border-primary/20">
@@ -170,50 +90,28 @@ function BeaconResponseCard({ response }: { response: BeaconResponse }) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BookOpen className="h-4 w-4 text-primary" />
-            <CardTitle className="text-sm font-semibold">{response.sectionNumber} — {response.sectionTitle}</CardTitle>
+            <CardTitle className="text-sm font-semibold">Beacon Research</CardTitle>
           </div>
-          <div className="flex items-center gap-2">
-            <span className={cn("text-[10px] font-semibold", confidenceColors[response.confidence])}>
-              {response.confidence} Confidence
-            </span>
-          </div>
+          <span className={cn("text-[10px] font-semibold", confidenceColor)}>
+            {confidenceLabel} ({Math.round(response.confidence * 100)}%)
+          </span>
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-3 space-y-3">
-        <p className="text-sm leading-relaxed text-foreground">{response.sectionText}</p>
+        <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">{response.text}</p>
 
-        <div className="text-[11px] text-muted-foreground">
-          Sources: {response.sources}
-        </div>
-
-        {response.pastReferences.length > 0 && (
-          <Collapsible open={expandRefs} onOpenChange={setExpandRefs}>
+        {response.sources.length > 0 && (
+          <Collapsible open={expandSources} onOpenChange={setExpandSources}>
             <CollapsibleTrigger className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-              {expandRefs ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-              Past Project References ({response.pastReferences.length})
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-2 space-y-2">
-              {response.pastReferences.map((ref, i) => (
-                <div key={i} className="p-2 rounded border bg-muted/30 text-sm">
-                  <span className="font-medium">{ref.project}</span>
-                  <p className="text-muted-foreground mt-0.5">{ref.summary}</p>
-                </div>
-              ))}
-            </CollapsibleContent>
-          </Collapsible>
-        )}
-
-        {response.bulletins.length > 0 && (
-          <Collapsible open={expandBulletins} onOpenChange={setExpandBulletins}>
-            <CollapsibleTrigger className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-              {expandBulletins ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-              Related DOB Bulletins ({response.bulletins.length})
+              {expandSources ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+              Sources ({response.sources.length})
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-2 space-y-1">
-              {response.bulletins.map((b, i) => (
+              {response.sources.map((s, i) => (
                 <div key={i} className="p-2 rounded border bg-muted/30 text-sm flex items-center gap-2">
                   <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  {b}
+                  <span className="truncate">{s.title}</span>
+                  <span className="text-[10px] text-muted-foreground ml-auto">{Math.round(s.score * 100)}%</span>
                 </div>
               ))}
             </CollapsibleContent>
@@ -238,7 +136,9 @@ interface ResearchWorkspaceProps {
 
 export function ResearchWorkspace({ projectId, projectAddress, architectEmail }: ResearchWorkspaceProps) {
   const { toast } = useToast();
-  const [objections, setObjections] = useState<Objection[]>([]);
+  const { user, profile } = useAuth();
+  const { items: objections, isLoading, update, bulkInsert } = useObjectionItems(projectId);
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [workStates, setWorkStates] = useState<Record<string, ObjectionWorkState>>({});
@@ -250,7 +150,30 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const selected = objections.find((o) => o.id === selectedId) || null;
-  const openCount = objections.filter((o) => o.status === "open" || o.status === "in_progress").length;
+  const openCount = objections.filter((o) => o.status !== "resolved").length;
+
+  // Auto-select first item when objections load
+  useEffect(() => {
+    if (objections.length > 0 && !selectedId) {
+      setSelectedId(objections[0].id);
+    }
+  }, [objections, selectedId]);
+
+  // Initialize workState from DB fields
+  useEffect(() => {
+    if (!selected) return;
+    setWorkStates((prev) => {
+      if (prev[selected.id]) return prev;
+      return {
+        ...prev,
+        [selected.id]: {
+          beaconResponses: [],
+          pmNotes: selected.resolution_notes || "",
+          cleanedVersion: selected.response_draft || null,
+        },
+      };
+    });
+  }, [selected]);
 
   const getWorkState = useCallback((id: string): ObjectionWorkState => {
     return workStates[id] || { beaconResponses: [], pmNotes: "", cleanedVersion: null };
@@ -263,38 +186,57 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
     }));
   }, []);
 
-  const handleImport = () => {
-    setObjections(MOCK_OBJECTIONS);
-    setSelectedId(MOCK_OBJECTIONS[0].id);
-    toast({ title: "Objection sheet imported", description: `${MOCK_OBJECTIONS.length} objections loaded.` });
+  const handleImportDemo = async () => {
+    const demoItems = [
+      { project_id: projectId, item_number: 1, objection_text: "Provide a complete scope of work including all construction operations", code_reference: "AC 28-104.7", status: "pending" },
+      { project_id: projectId, item_number: 2, objection_text: "Applicant of record does not match the BIS record for this filing", code_reference: "AC 28-112.3", status: "pending" },
+      { project_id: projectId, item_number: 3, objection_text: "Rear yard setback does not comply with the applicable zoning district requirements", code_reference: "ZR 33-42", status: "in_progress" },
+      { project_id: projectId, item_number: 4, objection_text: "Provide occupant load calculations for all floors affected by the proposed work", code_reference: "BC 1003.6", status: "pending" },
+      { project_id: projectId, item_number: 5, objection_text: "Energy code compliance path not indicated on the drawings", code_reference: "AC 28-105.4.1", status: "resolved" },
+    ];
+    try {
+      await bulkInsert(demoItems as any);
+      toast({ title: "Demo objections imported", description: `${demoItems.length} objections loaded.` });
+    } catch (err: any) {
+      toast({ title: "Import failed", description: err.message, variant: "destructive" });
+    }
   };
 
-  const handleBeaconSend = () => {
+  const userId = user?.email || user?.id || "anonymous";
+  const userName = profile?.display_name || profile?.first_name || "User";
+
+  const handleBeaconSend = async () => {
     if (!beaconInput.trim() || !selected) return;
     setBeaconLoading(true);
     const query = beaconInput.trim();
     setBeaconInput("");
 
-    setTimeout(() => {
-      // Try to match a code section from the query
-      const match = query.match(/[A-Z]{2}\s*\d[\d\-\.]+/i);
-      const codeKey = match ? match[0].replace(/\s+/g, " ").toUpperCase() : selected.codeSection;
-      const template = MOCK_BEACON_RESPONSES[codeKey] || getDefaultBeaconResponse(codeKey);
+    try {
+      const res = await askBeacon(query, userId, userName, {
+        projectId,
+        projectAddress,
+        codeSection: selected.code_reference || undefined,
+      });
 
-      const response: BeaconResponse = {
-        ...template,
+      const response: BeaconResearchResponse = {
         id: `br-${Date.now()}`,
         query,
+        text: res.response,
+        confidence: res.confidence,
+        sources: res.sources || [],
         timestamp: new Date(),
       };
 
       const current = getWorkState(selected.id);
       updateWorkState(selected.id, { beaconResponses: [...current.beaconResponses, response] });
+    } catch {
+      toast({ title: "Beacon unavailable", description: "Could not reach Beacon. Please try again.", variant: "destructive" });
+    } finally {
       setBeaconLoading(false);
-    }, 1000);
+    }
   };
 
-  const handleCleanUp = () => {
+  const handleCleanUp = async () => {
     if (!selected) return;
     const ws = getWorkState(selected.id);
     if (!ws.pmNotes.trim()) {
@@ -302,16 +244,35 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
       return;
     }
     setCleanUpLoading(true);
-    setTimeout(() => {
-      const cleaned = `Based on the analysis of ${selected.codeSection}, ${ws.pmNotes.trim()}`;
-      updateWorkState(selected.id, { cleanedVersion: cleaned });
-      setCleanUpLoading(false);
+    try {
+      const res = await askBeacon(
+        `Clean up and formalize these PM notes into a professional response for DOB objection ${selected.code_reference || ''}:\n\n${ws.pmNotes}`,
+        userId,
+        userName,
+        { projectId, projectAddress, codeSection: selected.code_reference || undefined }
+      );
+      updateWorkState(selected.id, { cleanedVersion: res.response });
       toast({ title: "Notes cleaned up by Beacon" });
-    }, 1000);
+    } catch {
+      toast({ title: "Clean up failed", variant: "destructive" });
+    } finally {
+      setCleanUpLoading(false);
+    }
   };
 
-  const handleSaveToDocs = () => {
-    toast({ title: "Research saved to Docs", description: `Notes for objection #${selected?.number} saved.` });
+  const handleSaveToDocs = async () => {
+    if (!selected) return;
+    const ws = getWorkState(selected.id);
+    try {
+      await update({
+        id: selected.id,
+        resolution_notes: ws.pmNotes || null,
+        response_draft: ws.cleanedVersion || null,
+      });
+      toast({ title: "Research saved", description: `Notes for objection #${selected.item_number} saved.` });
+    } catch {
+      toast({ title: "Save failed", variant: "destructive" });
+    }
   };
 
   const handleSendAsEmail = () => {
@@ -320,23 +281,25 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
     const body = ws.cleanedVersion || ws.pmNotes || "";
     setComposeDefaults({
       to: architectEmail || "",
-      subject: `RE: ${projectAddress || "Project"} — Response to DOB Objection #${selected.number}`,
+      subject: `RE: ${projectAddress || "Project"} — Response to DOB Objection #${selected.item_number}`,
       body,
     });
     setComposeOpen(true);
   };
 
-  const handleStatusChange = (id: string, status: ObjectionStatus) => {
-    setObjections((prev) => prev.map((o) => o.id === id ? { ...o, status } : o));
-    toast({ title: `Objection marked as ${statusConfig[status].label}` });
-    // Auto-advance to next open objection
-    if (status === "resolved") {
-      const next = objections.find((o) => o.id !== id && o.status !== "resolved");
-      if (next) setSelectedId(next.id);
+  const handleStatusChange = async (id: string, status: ObjectionStatus) => {
+    try {
+      await update({ id, status });
+      toast({ title: `Objection marked as ${statusConfig[status].label}` });
+      if (status === "resolved") {
+        const next = objections.find((o) => o.id !== id && o.status !== "resolved");
+        if (next) setSelectedId(next.id);
+      }
+    } catch {
+      toast({ title: "Update failed", variant: "destructive" });
     }
   };
 
-  // Scroll to bottom of chat when new responses come in
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [workStates, selectedId]);
@@ -357,22 +320,28 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
               )}
             </h3>
             <div className="flex items-center gap-1">
-              <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={handleImport}>
-                <Upload className="h-3 w-3" /> Import Sheet
-              </Button>
+              {objections.length === 0 && (
+                <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={handleImportDemo}>
+                  <Upload className="h-3 w-3" /> Import Demo
+                </Button>
+              )}
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setPanelCollapsed(true)}>
                 <PanelLeftClose className="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
           <ScrollArea className="flex-1 p-2">
-            {objections.length === 0 ? (
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Clock className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : objections.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <FileText className="h-10 w-10 text-muted-foreground/40 mb-3" />
                 <p className="text-sm text-muted-foreground">No objections loaded</p>
                 <p className="text-xs text-muted-foreground mt-1">Import a DOB objection sheet to get started</p>
-                <Button variant="outline" size="sm" className="mt-4 gap-1.5" onClick={handleImport}>
-                  <Upload className="h-3.5 w-3.5" /> Import Mock Sheet
+                <Button variant="outline" size="sm" className="mt-4 gap-1.5" onClick={handleImportDemo}>
+                  <Upload className="h-3.5 w-3.5" /> Import Demo Sheet
                 </Button>
               </div>
             ) : (
@@ -415,13 +384,15 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
             {/* Objection Header */}
             <div className="px-4 py-3 border-b bg-muted/20 flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="text-xs font-mono text-muted-foreground">#{selected.number}</span>
-                <Badge variant="outline" className="font-mono text-xs">{selected.codeSection}</Badge>
+                <span className="text-xs font-mono text-muted-foreground">#{selected.item_number}</span>
+                {selected.code_reference && (
+                  <Badge variant="outline" className="font-mono text-xs">{selected.code_reference}</Badge>
+                )}
                 <Separator orientation="vertical" className="h-4" />
-                <p className="text-sm truncate">{selected.examinerComment}</p>
+                <p className="text-sm truncate">{selected.objection_text}</p>
               </div>
-              <span className={cn("shrink-0 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold", statusConfig[selected.status].className)}>
-                {statusConfig[selected.status].label}
+              <span className={cn("shrink-0 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold", statusConfig[(selected.status || "pending") as ObjectionStatus]?.className)}>
+                {statusConfig[(selected.status || "pending") as ObjectionStatus]?.label}
               </span>
             </div>
 
@@ -434,7 +405,6 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
                     <Sparkles className="h-3.5 w-3.5" /> Beacon Research
                   </h4>
 
-                  {/* Beacon Responses */}
                   {currentWorkState && currentWorkState.beaconResponses.length > 0 && (
                     <div className="space-y-3 mb-3">
                       {currentWorkState.beaconResponses.map((resp) => (
@@ -453,7 +423,7 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         className="pl-9 pr-4"
-                        placeholder={`Ask Beacon about ${selected.codeSection}...`}
+                        placeholder={`Ask Beacon about ${selected.code_reference || "this objection"}...`}
                         value={beaconInput}
                         onChange={(e) => setBeaconInput(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter") handleBeaconSend(); }}
@@ -476,7 +446,7 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
 
                   {currentWorkState && currentWorkState.beaconResponses.length === 0 && (
                     <p className="text-xs text-muted-foreground mt-2 italic">
-                      Try: "Pull up {selected.codeSection}" or "How did we handle this before?"
+                      Try: "Pull up {selected.code_reference || 'this section'}" or "How did we handle this before?"
                     </p>
                   )}
                 </div>
@@ -539,7 +509,7 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
                 {/* Section C: Actions */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handleSaveToDocs}>
-                    <Save className="h-3.5 w-3.5" /> Save to Project Docs
+                    <Save className="h-3.5 w-3.5" /> Save Notes
                   </Button>
                   <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handleSendAsEmail}>
                     <Mail className="h-3.5 w-3.5" /> Send as Email
@@ -572,31 +542,21 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
         )}
       </div>
 
-      {/* Email Compose (lazy import of existing dialog) */}
+      {/* Email Compose */}
       {composeOpen && (
-        <ComposeEmailLazy
+        <ComposeEmailDialog
           open={composeOpen}
           onOpenChange={setComposeOpen}
-          defaults={composeDefaults}
+          defaultTo={composeDefaults.to}
+          defaultSubject={composeDefaults.subject}
+          defaultBody={composeDefaults.body}
         />
       )}
     </div>
   );
 }
 
-function ComposeEmailLazy({ open, onOpenChange, defaults }: { open: boolean; onOpenChange: (o: boolean) => void; defaults: { to: string; subject: string; body: string } }) {
-  return (
-    <ComposeEmailDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      defaultTo={defaults.to}
-      defaultSubject={defaults.subject}
-      defaultBody={defaults.body}
-    />
-  );
-}
-
-export function getOpenObjectionCount(): number {
-  // For the tab badge - returns mock count. In a real implementation this would come from state/query.
-  return MOCK_OBJECTIONS.filter((o) => o.status !== "resolved").length;
+export function useOpenObjectionCount(projectId: string | undefined) {
+  const { items } = useObjectionItems(projectId);
+  return items.filter((o) => o.status !== "resolved").length;
 }

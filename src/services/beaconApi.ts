@@ -15,13 +15,26 @@ export interface BeaconChatResponse {
   response_time_ms: number;
 }
 
+export interface BeaconProjectContext {
+  projectId?: string;
+  projectAddress?: string;
+  codeSection?: string;
+}
+
 export async function askBeacon(
   message: string,
   userId: string,
-  userName: string
+  userName: string,
+  projectContext?: BeaconProjectContext
 ): Promise<BeaconChatResponse> {
   const { data, error } = await supabase.functions.invoke("beacon-proxy?action=chat", {
-    body: { message, user_id: userId, user_name: userName, space_id: "ordino-web" },
+    body: {
+      message,
+      user_id: userId,
+      user_name: userName,
+      space_id: "ordino-web",
+      ...(projectContext && { project_context: projectContext }),
+    },
   });
   if (error) throw new Error(`Beacon API error: ${error.message}`);
   return data as BeaconChatResponse;

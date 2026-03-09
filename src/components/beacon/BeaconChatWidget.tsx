@@ -8,7 +8,7 @@ import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { useAuth } from "@/hooks/useAuth";
-import { askBeacon, checkBeaconHealth, type BeaconSource } from "@/services/beaconApi";
+import { askBeacon, checkBeaconHealth, type BeaconSource, type BeaconProjectContext } from "@/services/beaconApi";
 import { lazy, Suspense } from "react";
 const BeaconDocumentModal = lazy(() => import("../documents/BeaconDocumentModal").then(m => ({ default: m.BeaconDocumentModal })));
 import { supabase } from "@/integrations/supabase/client";
@@ -123,7 +123,11 @@ function SourcesList({ sources, onViewDocument }: { sources: BeaconSource[]; onV
   );
 }
 
-export function BeaconChatWidget() {
+interface BeaconChatWidgetProps {
+  projectContext?: BeaconProjectContext;
+}
+
+export function BeaconChatWidget({ projectContext }: BeaconChatWidgetProps = {}) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -218,7 +222,7 @@ export function BeaconChatWidget() {
         });
       }
 
-      const res = await askBeacon(q, userId, userName);
+      const res = await askBeacon(q, userId, userName, projectContext);
       setMessages((prev) => [
         ...prev,
         {
