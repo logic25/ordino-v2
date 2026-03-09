@@ -605,6 +605,9 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
               )}
             </h3>
             <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => setUploadDialogOpen(true)}>
+                <Upload className="h-3 w-3" /> Upload Objection
+              </Button>
               {objections.length === 0 && (
                 <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={handleImportDemo}>
                   <Upload className="h-3 w-3" /> Import Demo
