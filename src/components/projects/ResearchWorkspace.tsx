@@ -81,10 +81,48 @@ function ObjectionListItem({ objection, isSelected, onClick }: { objection: Obje
   );
 }
 
-function BeaconResponseCard({ response, innerRef }: { response: BeaconResearchResponse; innerRef?: React.Ref<HTMLDivElement> }) {
+function BeaconResponseCard({ response, innerRef, projectId, objectionId, userId, companyId }: {
+  response: BeaconResearchResponse;
+  innerRef?: React.Ref<HTMLDivElement>;
+  projectId?: string;
+  objectionId?: string;
+  userId?: string;
+  companyId?: string;
+}) {
   const [expandSources, setExpandSources] = useState(false);
+  const [expandAnalysis, setExpandAnalysis] = useState(false);
+  const [feedbackGiven, setFeedbackGiven] = useState<boolean | null>(null);
+  const [showCommentBox, setShowCommentBox] = useState(false);
+  const [feedbackComment, setFeedbackComment] = useState("");
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+
   const confidenceLabel = response.confidence >= 0.85 ? "High" : response.confidence >= 0.6 ? "Medium" : "Low";
   const confidenceColor = response.confidence >= 0.85 ? "text-emerald-600 dark:text-emerald-400" : response.confidence >= 0.6 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400";
+
+  // Split response into direct answer (first paragraph) and detail
+  const paragraphs = response.text.split(/\n\n+/);
+  const directAnswer = paragraphs[0] || "";
+  const detailText = paragraphs.slice(1).join("\n\n");
+
+  const submitFeedback = async (isHelpful: boolean, comment?: string) => {
+    if (!userId || !companyId) return;
+    setSubmittingFeedback(true);
+    try {
+      await supabase.from("beacon_research_feedback").insert({
+        user_id: userId,
+        company_id: companyId,
+        project_id: projectId || null,
+        objection_id: objectionId || null,
+        query: response.query,
+        is_helpful: isHelpful,
+        confidence_score: response.confidence,
+        comment: comment || null,
+      });
+      setFeedbackGiven(isHelpful);
+      setShowCommentBox(false);
+    } catch { /* non-critical */ }
+    setSubmittingFeedback(false);
+  };
 
   return (
     <Card ref={innerRef} className="border-primary/20">
@@ -100,10 +138,30 @@ function BeaconResponseCard({ response, innerRef }: { response: BeaconResearchRe
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-3 space-y-3">
-        <div className="prose prose-sm dark:prose-invert max-w-none max-h-[400px] overflow-y-auto [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-          <ReactMarkdown>{response.text}</ReactMarkdown>
+        {/* Direct Answer — highlighted */}
+        <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2.5">
+          <p className="text-[10px] font-semibold text-primary uppercase tracking-wider mb-1">Direct Answer</p>
+          <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+            <ReactMarkdown>{directAnswer}</ReactMarkdown>
+          </div>
         </div>
 
+        {/* Full Analysis — collapsible */}
+        {detailText.trim() && (
+          <Collapsible open={expandAnalysis} onOpenChange={setExpandAnalysis}>
+            <CollapsibleTrigger className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+              {expandAnalysis ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+              Full Analysis
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2">
+              <div className="prose prose-sm dark:prose-invert max-w-none max-h-[300px] overflow-y-auto [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 pl-1 border-l-2 border-muted">
+                <ReactMarkdown>{detailText}</ReactMarkdown>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+
+        {/* Sources — collapsible */}
         {response.sources.length > 0 && (
           <Collapsible open={expandSources} onOpenChange={setExpandSources}>
             <CollapsibleTrigger className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
@@ -122,9 +180,81 @@ function BeaconResponseCard({ response, innerRef }: { response: BeaconResearchRe
           </Collapsible>
         )}
 
-        <div className="text-[10px] text-muted-foreground">
-          {response.timestamp.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+        {/* Feedback */}
+        <div className="flex items-center gap-2 pt-1 border-t border-border/50">
+          {feedbackGiven === null ? (
+            <>
+              <span className="text-[10px] text-muted-foreground">Was this helpful?</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+                disabled={submittingFeedback}
+                onClick={() => submitFeedback(true)}
+              >
+                <ThumbsUp className="h-3.5 w-3.5 text-muted-foreground hover:text-emerald-600" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+                disabled={submittingFeedback}
+                onClick={() => {
+                  setFeedbackGiven(false);
+                  setShowCommentBox(true);
+                }}
+              >
+                <ThumbsDown className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+              </Button>
+            </>
+          ) : (
+            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+              {feedbackGiven ? (
+                <><ThumbsUp className="h-3 w-3 text-emerald-600" /> Thanks for your feedback</>
+              ) : (
+                <><ThumbsDown className="h-3 w-3 text-destructive" /> Thanks for your feedback</>
+              )}
+            </span>
+          )}
+          <span className="ml-auto text-[10px] text-muted-foreground">
+            {response.timestamp.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+          </span>
         </div>
+
+        {/* Comment box for negative feedback */}
+        {showCommentBox && (
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <MessageSquare className="h-3 w-3" /> What was wrong or missing? (optional)
+            </div>
+            <Textarea
+              className="min-h-[60px] text-xs"
+              placeholder="e.g. Wrong code section, didn't address the specific objection..."
+              value={feedbackComment}
+              onChange={(e) => setFeedbackComment(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 text-[10px]"
+                onClick={() => submitFeedback(false, feedbackComment)}
+                disabled={submittingFeedback}
+              >
+                Submit
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-[10px]"
+                onClick={() => { setShowCommentBox(false); submitFeedback(false); }}
+                disabled={submittingFeedback}
+              >
+                Skip
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
