@@ -441,6 +441,129 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
     setComposeOpen(true);
   };
 
+  // Build HTML body for all addressed objections
+  const buildConsolidatedBody = () => {
+    const addressed = objections.filter((o) => o.response_draft || o.resolution_notes);
+    if (addressed.length === 0) return "";
+    let html = `<p>Please see our responses to the DOB objections for <strong>${projectAddress || "the project"}</strong> below:</p><br/>`;
+    addressed.forEach((obj) => {
+      const response = obj.response_draft || obj.resolution_notes || "";
+      html += `<p><strong>#${obj.item_number}${obj.code_reference ? ` — ${obj.code_reference}` : ""}</strong></p>`;
+      html += `<p style="color:#666;font-style:italic;">${obj.objection_text}</p>`;
+      html += `<p>${response.replace(/\n/g, "<br/>")}</p><br/>`;
+    });
+    return html;
+  };
+
+  // Fetch project plan docs from universal_documents and convert to AttachmentFile format
+  const fetchProjectAttachments = async (): Promise<any[]> => {
+    if (!profile?.company_id) return [];
+    const { data: docs } = await supabase
+      .from("universal_documents")
+      .select("*")
+      .eq("project_id", projectId)
+      .in("category", ["Plans", "Objections", "Objection Responses"])
+      .order("created_at", { ascending: false });
+    if (!docs || docs.length === 0) return [];
+
+    const attachments: any[] = [];
+    for (const doc of docs.slice(0, 5)) { // limit to 5 files
+      try {
+        const { data: blob } = await supabase.storage
+          .from("universal-documents")
+          .download(doc.storage_path);
+        if (!blob) continue;
+        const file = new File([blob], doc.filename, { type: doc.mime_type || "application/octet-stream" });
+        const base64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve((reader.result as string).split(",")[1]);
+          reader.readAsDataURL(file);
+        });
+        attachments.push({ file, name: doc.filename, size: file.size, base64 });
+      } catch { /* skip failed downloads */ }
+    }
+    return attachments;
+  };
+
+  const handleSendAllAsEmail = async () => {
+    const body = buildConsolidatedBody();
+    if (!body) {
+      toast({ title: "No responses to send", description: "Address at least one objection first.", variant: "destructive" });
+      return;
+    }
+    const attachments = await fetchProjectAttachments();
+    setComposeDefaults({
+      to: architectEmail || "",
+      subject: `RE: ${projectAddress || "Project"} — Objection Responses`,
+      body,
+      attachments,
+    });
+    setComposeOpen(true);
+  };
+
+  const handleSavePackageToDocs = async () => {
+    const addressed = objections.filter((o) => o.response_draft || o.resolution_notes);
+    if (addressed.length === 0) {
+      toast({ title: "Nothing to save", description: "Address at least one objection first.", variant: "destructive" });
+      return;
+    }
+    setSavingPackage(true);
+    try {
+      // Build HTML document
+      let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Objection Responses — ${projectAddress || "Project"}</title>
+<style>body{font-family:sans-serif;max-width:800px;margin:40px auto;padding:0 20px;color:#333}
+.item{margin-bottom:24px;border-bottom:1px solid #eee;padding-bottom:16px}
+.code{font-family:monospace;background:#f4f4f4;padding:2px 6px;border-radius:3px;font-size:13px}
+.objection{color:#666;font-style:italic;margin:4px 0 8px}
+.response{white-space:pre-wrap;line-height:1.6}</style></head><body>
+<h1>Objection Responses</h1>
+<p><strong>Project:</strong> ${projectAddress || "—"}</p>
+<p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+<p><strong>Total Items:</strong> ${objections.length} (${addressed.length} addressed)</p><hr/>`;
+
+      addressed.forEach((obj) => {
+        const response = obj.response_draft || obj.resolution_notes || "";
+        html += `<div class="item">
+<h3>#${obj.item_number} ${obj.code_reference ? `<span class="code">${obj.code_reference}</span>` : ""}</h3>
+<p class="objection">${obj.objection_text}</p>
+<div class="response">${response}</div></div>`;
+      });
+      html += `</body></html>`;
+
+      const blob = new Blob([html], { type: "text/html" });
+      const filename = `Objection-Responses-${projectAddress?.replace(/[^a-zA-Z0-9]/g, "-") || projectId.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.html`;
+      const file = new File([blob], filename, { type: "text/html" });
+
+      await uploadDocument.mutateAsync({
+        file,
+        title: `Objection Responses — ${projectAddress || "Project"}`,
+        description: `${addressed.length} of ${objections.length} objections addressed`,
+        category: "Objection Responses",
+        tags: ["objections", "responses"],
+      });
+
+      // Also link to project
+      // The upload hook doesn't support project_id directly, so patch it
+      const { data: latest } = await supabase
+        .from("universal_documents")
+        .select("id")
+        .eq("company_id", profile!.company_id!)
+        .eq("category", "Objection Responses")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+      if (latest) {
+        await supabase.from("universal_documents").update({ project_id: projectId } as any).eq("id", latest.id);
+      }
+
+      toast({ title: "Saved to Documents", description: "Objection response package saved." });
+    } catch (err: any) {
+      toast({ title: "Save failed", description: err.message, variant: "destructive" });
+    } finally {
+      setSavingPackage(false);
+    }
+  };
+
   const handleStatusChange = async (id: string, status: ObjectionStatus) => {
     try {
       await update({ id, status });
