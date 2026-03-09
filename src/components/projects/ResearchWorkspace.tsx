@@ -79,13 +79,13 @@ function ObjectionListItem({ objection, isSelected, onClick }: { objection: Obje
   );
 }
 
-function BeaconResponseCard({ response }: { response: BeaconResearchResponse }) {
+function BeaconResponseCard({ response, innerRef }: { response: BeaconResearchResponse; innerRef?: React.Ref<HTMLDivElement> }) {
   const [expandSources, setExpandSources] = useState(false);
   const confidenceLabel = response.confidence >= 0.85 ? "High" : response.confidence >= 0.6 ? "Medium" : "Low";
   const confidenceColor = response.confidence >= 0.85 ? "text-emerald-600 dark:text-emerald-400" : response.confidence >= 0.6 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400";
 
   return (
-    <Card className="border-primary/20">
+    <Card ref={innerRef} className="border-primary/20">
       <CardHeader className="pb-2 pt-3 px-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -98,7 +98,9 @@ function BeaconResponseCard({ response }: { response: BeaconResearchResponse }) 
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-3 space-y-3">
-        <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">{response.text}</p>
+        <div className="text-sm leading-relaxed text-foreground whitespace-pre-wrap max-h-[400px] overflow-y-auto">
+          {response.text}
+        </div>
 
         {response.sources.length > 0 && (
           <Collapsible open={expandSources} onOpenChange={setExpandSources}>
@@ -147,7 +149,8 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
   const [cleanUpLoading, setCleanUpLoading] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeDefaults, setComposeDefaults] = useState<{ to: string; subject: string; body: string }>({ to: "", subject: "", body: "" });
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const lastResponseRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const selected = objections.find((o) => o.id === selectedId) || null;
   const openCount = objections.filter((o) => o.status !== "resolved").length;
@@ -300,8 +303,11 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
     }
   };
 
+  // Scroll to top of latest response so user reads from the beginning
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (lastResponseRef.current) {
+      lastResponseRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   }, [workStates, selectedId]);
 
   const currentWorkState = selected ? getWorkState(selected.id) : null;
@@ -407,13 +413,15 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
 
                   {currentWorkState && currentWorkState.beaconResponses.length > 0 && (
                     <div className="space-y-3 mb-3">
-                      {currentWorkState.beaconResponses.map((resp) => (
-                        <div key={resp.id}>
-                          <p className="text-xs text-muted-foreground mb-1.5 italic">"{resp.query}"</p>
-                          <BeaconResponseCard response={resp} />
-                        </div>
-                      ))}
-                      <div ref={chatEndRef} />
+                      {currentWorkState.beaconResponses.map((resp, idx) => {
+                        const isLast = idx === currentWorkState.beaconResponses.length - 1;
+                        return (
+                          <div key={resp.id}>
+                            <p className="text-xs text-muted-foreground mb-1.5 italic">"{resp.query}"</p>
+                            <BeaconResponseCard response={resp} innerRef={isLast ? lastResponseRef : undefined} />
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
 
