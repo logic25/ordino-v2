@@ -276,6 +276,8 @@ interface ResearchWorkspaceProps {
   projectId: string;
   projectAddress?: string;
   architectEmail?: string;
+  filingType?: string;
+  scopeOfWork?: string;
 }
 
 export function ResearchWorkspace({ projectId, projectAddress, architectEmail }: ResearchWorkspaceProps) {
