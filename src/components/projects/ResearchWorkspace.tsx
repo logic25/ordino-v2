@@ -700,14 +700,35 @@ Format the response clearly with these three sections.`;
                 </Button>
               )}
               {objections.length > 0 && (
-                <Button
-                  variant={showSummary ? "default" : "outline"}
-                  size="sm"
-                  className="h-7 text-xs gap-1"
-                  onClick={() => setShowSummary(!showSummary)}
-                >
-                  <Eye className="h-3 w-3" /> Preview
-                </Button>
+                <>
+                  <Button
+                    variant={showSummary ? "default" : "outline"}
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => setShowSummary(!showSummary)}
+                  >
+                    <Eye className="h-3 w-3" /> Preview
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs gap-1 text-destructive hover:text-destructive"
+                    onClick={async () => {
+                      if (!confirm("Clear all objections? This cannot be undone.")) return;
+                      try {
+                        await removeAll();
+                        setSelectedId(null);
+                        setWorkStates({});
+                        setShowSummary(false);
+                        toast({ title: "Objections cleared" });
+                      } catch {
+                        toast({ title: "Reset failed", variant: "destructive" });
+                      }
+                    }}
+                  >
+                    <RotateCcw className="h-3 w-3" /> Reset
+                  </Button>
+                </>
               )}
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setPanelCollapsed(true)}>
                 <PanelLeftClose className="h-3.5 w-3.5" />
