@@ -1077,25 +1077,13 @@ Write ONLY the response to the objection — a direct, professional answer that 
               </div>
             </DialogHeader>
             <ScrollArea className="flex-1 min-h-0">
-              <div className="p-6 space-y-4">
+              <div className="p-6">
                 <div>
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Response to Examiner</h4>
                   <Textarea
-                    className="min-h-[250px] text-sm font-mono leading-relaxed"
+                    className="min-h-[350px] text-sm font-mono leading-relaxed"
                     value={currentWorkState.responseDraft}
                     onChange={(e) => updateWorkState(selected.id, { responseDraft: e.target.value })}
-                  />
-                </div>
-                <Separator />
-                <div>
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <Mail className="h-3.5 w-3.5" /> Architect Instructions
-                  </h4>
-                  <Textarea
-                    className="min-h-[150px] text-sm leading-relaxed"
-                    value={currentWorkState.architectInstructions || ""}
-                    onChange={(e) => updateWorkState(selected.id, { architectInstructions: e.target.value })}
-                    placeholder="What the architect needs to do..."
                   />
                 </div>
               </div>
