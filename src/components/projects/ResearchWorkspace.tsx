@@ -602,17 +602,17 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
     const targetId = targetObj.id;
     updateWorkState(targetId, { draftLoading: true });
 
-    const prompt = `You are an NYC DOB expediting expert. Draft a professional, concise response to this DOB examiner objection. This response will be used in a meeting with the examiner or sent to the architect for review.
+    const prompt = `You are an NYC DOB expediting expert. Write a plain-text response to this DOB examiner objection. No markdown, no bold, no asterisks, no hashtags, no emojis, no headers, no bullet symbols. Just plain sentences and paragraphs.
 
-**Objection #${targetObj.item_number}:**
+Objection #${targetObj.item_number}:
 "${targetObj.objection_text}"
 
-**Code Reference:** ${targetObj.code_reference || "Not specified"}
-**Property Address:** ${projectAddress || "Not specified"}
-**Filing Type:** ${filingType || "Not specified"}
-**Scope of Work:** ${scopeOfWork || "Not specified"}
+Code Reference: ${targetObj.code_reference || "Not specified"}
+Property Address: ${projectAddress || "Not specified"}
+Filing Type: ${filingType || "Not specified"}
+Scope of Work: ${scopeOfWork || "Not specified"}
 
-Write ONLY the response to the objection — a direct, professional answer that addresses the examiner's concern with specific NYC Building Code, Zoning Resolution, or Administrative Code citations where applicable. Do NOT include separate sections for architect instructions or expediter action items. Keep it focused and ready to present.`;
+Write ONLY a direct, professional answer to the examiner's concern citing specific NYC Building Code, Zoning Resolution, or Administrative Code sections where applicable. Do NOT include preliminary notes, recommended steps, architect instructions, or expediter action items. Do NOT use markdown formatting of any kind. Just answer the objection.`;
 
     try {
       const res = await askBeacon(prompt, userId, userName, {
@@ -622,7 +622,13 @@ Write ONLY the response to the objection — a direct, professional answer that 
         filingType,
       });
 
-      const responseText = res.response || "";
+      // Strip any residual markdown formatting
+      const responseText = (res.response || "")
+        .replace(/#{1,6}\s*/g, "")
+        .replace(/\*{1,3}([^*]+)\*{1,3}/g, "$1")
+        .replace(/^[-*]\s+/gm, "")
+        .replace(/⚠️|✅|❌|📌|🔹|🔸|➡️/g, "")
+        .trim();
 
       updateWorkState(targetId, {
         responseDraft: responseText,
