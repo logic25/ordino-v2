@@ -93,6 +93,21 @@ function ResearchCard({
         </Button>
       )}
 
+      {/* Source type indicator */}
+      {note.source_type && (
+        <Badge
+          variant="outline"
+          className={cn(
+            "text-[10px] px-1.5 py-0 w-fit",
+            note.source_type === "beacon_rag" && "border-emerald-500/40 text-emerald-600",
+            note.source_type === "llm" && "border-blue-500/40 text-blue-600",
+            note.source_type === "hybrid" && "border-amber-500/40 text-amber-600",
+          )}
+        >
+          {note.source_type === "beacon_rag" ? "Beacon KB" : note.source_type === "llm" ? "AI Knowledge" : "Hybrid"}
+        </Badge>
+      )}
+
       {/* Sources */}
       {sources.length > 0 && (
         <div className="space-y-1">
