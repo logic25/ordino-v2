@@ -1047,8 +1047,63 @@ Format the response clearly with these three sections.`;
           </div>
         )}
       </div>
+      {/* Draft Response Pop-out Modal */}
+      {selected && currentWorkState?.responseDraft && (
+        <Dialog open={draftModalOpen} onOpenChange={setDraftModalOpen}>
+          <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0">
+            <DialogHeader className="px-6 pt-6 pb-3 border-b">
+              <div className="flex items-center justify-between gap-4 pr-8">
+                <div className="min-w-0">
+                  <DialogTitle className="text-sm font-semibold flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Draft Response — #{selected.item_number}
+                    {selected.code_reference && (
+                      <Badge variant="outline" className="font-mono text-xs">{selected.code_reference}</Badge>
+                    )}
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                    {selected.objection_text}
+                  </DialogDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1.5 shrink-0"
+                  onClick={() => { handleSaveResponseDraft(); setDraftModalOpen(false); }}
+                >
+                  <Save className="h-3 w-3" /> Save & Close
+                </Button>
+              </div>
+            </DialogHeader>
+            <ScrollArea className="flex-1 min-h-0">
+              <div className="p-6 space-y-4">
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Response to Examiner</h4>
+                  <Textarea
+                    className="min-h-[250px] text-sm font-mono leading-relaxed"
+                    value={currentWorkState.responseDraft}
+                    onChange={(e) => updateWorkState(selected.id, { responseDraft: e.target.value })}
+                  />
+                </div>
+                <Separator />
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <Mail className="h-3.5 w-3.5" /> Architect Instructions
+                  </h4>
+                  <Textarea
+                    className="min-h-[150px] text-sm leading-relaxed"
+                    value={currentWorkState.architectInstructions || ""}
+                    onChange={(e) => updateWorkState(selected.id, { architectInstructions: e.target.value })}
+                    placeholder="What the architect needs to do..."
+                  />
+                </div>
+              </div>
+            </ScrollArea>
+          </DialogContent>
+        </Dialog>
+      )}
 
-      {/* Email Compose */}
+
       {composeOpen && (
         <ComposeEmailDialog
           open={composeOpen}
