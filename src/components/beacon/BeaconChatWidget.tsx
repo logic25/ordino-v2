@@ -481,7 +481,8 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
       {activeContext?.projectAddress && (
         <div className="border-t px-3 py-1.5 flex items-center gap-1.5 bg-accent/30">
           <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 font-normal max-w-[340px] truncate">
-            Context: {activeContext.projectAddress}{activeContext.filingType ? ` — ${activeContext.filingType}` : ""}
+            📍 {activeContext.projectAddress}{activeContext.filingType ? ` — ${activeContext.filingType}` : ""}
+            {activeContext.contractValue != null ? ` · $${activeContext.contractValue.toLocaleString()}` : ""}
           </Badge>
           <button
             onClick={() => setContextCleared(true)}
