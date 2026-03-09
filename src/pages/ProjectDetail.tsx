@@ -496,7 +496,7 @@ export default function ProjectDetail() {
                 <JobCostingFull services={realServices} timeEntries={timeEntries} />
               </TabsContent>
               <TabsContent value="research" className="mt-0">
-                <ResearchWorkspace
+                <ResearchTabContainer
                   projectId={project.id}
                   projectAddress={project.properties?.address}
                   architectEmail={contacts.find(c => c.dobRole === "architect")?.email}
