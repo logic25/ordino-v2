@@ -11,7 +11,7 @@ import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
-  Search, Brain, ChevronRight, ChevronDown, FileText, Sparkles,
+  Search, Brain, ChevronRight, ChevronDown, FileText, Sparkles, X,
   Save, Mail, CheckCircle2, Clock, AlertCircle, PanelLeftClose,
   PanelLeft, BookOpen, Upload, ThumbsUp, ThumbsDown, MessageSquare,
   Eye, Loader2,
