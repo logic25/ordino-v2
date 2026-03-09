@@ -14,14 +14,17 @@ import {
   Search, Brain, ChevronRight, ChevronDown, FileText, Sparkles,
   Save, Mail, CheckCircle2, Clock, AlertCircle, PanelLeftClose,
   PanelLeft, BookOpen, Upload, ThumbsUp, ThumbsDown, MessageSquare,
+  Eye, Loader2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { ComposeEmailDialog } from "@/components/emails/ComposeEmailDialog";
 import { useObjectionItems, type ObjectionItem } from "@/hooks/useObjectionItems";
+import { useUploadDocument } from "@/hooks/useUniversalDocuments";
 import { askBeacon, type BeaconChatResponse, type BeaconSource } from "@/services/beaconApi";
 import { useAuth } from "@/hooks/useAuth";
+import { ObjectionSummaryView } from "./ObjectionSummaryView";
 
 // --- Types ---
 
