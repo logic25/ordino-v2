@@ -59,6 +59,7 @@ const queryClient = new QueryClient();
 
 function AppRoutes() {
   return (
+    <Suspense fallback={<PageSpinner />}>
     <Routes>
       {/* Public routes */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
