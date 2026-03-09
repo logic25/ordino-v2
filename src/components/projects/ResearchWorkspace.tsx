@@ -14,7 +14,7 @@ import {
   Search, Brain, ChevronRight, ChevronDown, FileText, Sparkles, X,
   Save, Mail, CheckCircle2, Clock, AlertCircle, PanelLeftClose,
   PanelLeft, BookOpen, Upload, ThumbsUp, ThumbsDown, MessageSquare,
-  Eye, Loader2, Maximize2,
+  Eye, Loader2, Maximize2, RotateCcw,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
