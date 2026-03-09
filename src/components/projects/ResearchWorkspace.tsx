@@ -605,6 +605,16 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
                   <Upload className="h-3 w-3" /> Import Demo
                 </Button>
               )}
+              {objections.length > 0 && (
+                <Button
+                  variant={showSummary ? "default" : "outline"}
+                  size="sm"
+                  className="h-7 text-xs gap-1"
+                  onClick={() => setShowSummary(!showSummary)}
+                >
+                  <Eye className="h-3 w-3" /> Preview
+                </Button>
+              )}
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setPanelCollapsed(true)}>
                 <PanelLeftClose className="h-3.5 w-3.5" />
               </Button>
