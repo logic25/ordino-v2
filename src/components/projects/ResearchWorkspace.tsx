@@ -331,14 +331,16 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
     });
   }, [selected]);
 
+  const defaultWorkState: ObjectionWorkState = { beaconResponses: [], pmNotes: "", cleanedVersion: null, responseDraft: null, architectInstructions: null };
+
   const getWorkState = useCallback((id: string): ObjectionWorkState => {
-    return workStates[id] || { beaconResponses: [], pmNotes: "", cleanedVersion: null };
+    return workStates[id] || defaultWorkState;
   }, [workStates]);
 
   const updateWorkState = useCallback((id: string, patch: Partial<ObjectionWorkState>) => {
     setWorkStates((prev) => ({
       ...prev,
-      [id]: { ...prev[id] || { beaconResponses: [], pmNotes: "", cleanedVersion: null }, ...patch },
+      [id]: { ...(prev[id] || defaultWorkState), ...patch },
     }));
   }, []);
 
