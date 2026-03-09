@@ -63,25 +63,7 @@ function BeaconSettingsSection() {
           </Button>
         </CardContent>
       </Card>
-      <Card>
-        <CardHeader><CardTitle className="text-base">Quick Stats</CardTitle></CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="text-center p-3 border rounded-lg">
-              <p className="text-2xl font-bold">1,247</p>
-              <p className="text-xs text-muted-foreground">Total Questions</p>
-            </div>
-            <div className="text-center p-3 border rounded-lg">
-              <p className="text-2xl font-bold">84%</p>
-              <p className="text-xs text-muted-foreground">Avg Confidence</p>
-            </div>
-            <div className="text-center p-3 border rounded-lg">
-              <p className="text-2xl font-bold text-muted-foreground text-sm">2 hrs ago</p>
-              <p className="text-xs text-muted-foreground">Last Activity</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <BeaconQuickStats />
     </div>
   );
 }
