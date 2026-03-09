@@ -143,8 +143,9 @@ export function PropertyTable({
                 const projectCount = property.projects?.length || 0;
                 const hasSignal = !!property.signalSubscription;
                 const hasChildren = applicationCount > 0 || projectCount > 0 || hasSignal;
+                const hasBBL = !!(property.borough && property.block && property.lot);
                 const missingBBL = !property.block && !property.lot;
-                const bblIssue = missingBBL || (property.bbl_verified === false && !property.bin);
+                const bblIssue = missingBBL || (property.bbl_verified === false && !hasBBL && !property.bin);
 
                 return (
                   <Collapsible key={property.id} asChild open={isExpanded}>
@@ -185,7 +186,7 @@ export function PropertyTable({
                               <p className="font-medium">{property.address}</p>
                               {missingBBL ? (
                                 <p className="text-xs text-destructive font-medium">Missing BBL data — click Edit to fix</p>
-                              ) : property.bbl_verified === false && !property.bin ? (
+                              ) : property.bbl_verified === false && !hasBBL && !property.bin ? (
                                 <p className="text-xs text-destructive font-medium">BBL could not be verified — click Edit to review</p>
                               ) : property.zip_code ? (
                                 <p className="text-sm text-muted-foreground">{property.zip_code}</p>
