@@ -1,9 +1,10 @@
-import { ReactNode, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { ReactNode, useState, useMemo } from "react";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { TopBar } from "./TopBar";
 import { ClockOutModal } from "@/components/time/ClockOutModal";
 import { BeaconChatWidget } from "@/components/beacon/BeaconChatWidget";
+import type { BeaconProjectContext } from "@/services/beaconApi";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -13,6 +14,15 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
   const isOnChatPage = location.pathname === "/chat";
+
+  // Extract project context from route for Beacon
+  const projectContext = useMemo<BeaconProjectContext | undefined>(() => {
+    const match = location.pathname.match(/^\/projects\/([^/]+)/);
+    if (match) {
+      return { projectId: match[1] };
+    }
+    return undefined;
+  }, [location.pathname]);
 
   return (
     <>
@@ -50,7 +60,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       </div>
 
       {/* Beacon floating chat widget - hidden on /chat to avoid duplicate messages */}
-      {!isOnChatPage && <BeaconChatWidget />}
+      {!isOnChatPage && <BeaconChatWidget projectContext={projectContext} />}
     </>
   );
 }
