@@ -28,22 +28,24 @@ serve(async (req) => {
       });
     }
 
-    const systemPrompt = `You are a writing assistant for a NYC DOB expediting firm. Your job is to take rough PM notes about a DOB objection response and polish them into a clear, professional response suitable for sending to an architect or examiner.
+    const systemPrompt = `You are a writing assistant for a NYC DOB expediting firm. Your job is to take rough PM notes about a DOB objection response and polish them into a clear, professional response. The output will either be sent to the project architect for review/action or used directly in a meeting with the DOB plan examiner.
 
 Rules:
 - Keep the same meaning and technical substance — do NOT add information the PM didn't include.
-- Use professional but direct tone. No filler or fluff.
-- Preserve any code references, section numbers, or technical terms exactly as written.
-- Format as a concise response paragraph (or short numbered list if multiple points).
+- Use professional, confident, and direct tone appropriate for communication with architects and DOB examiners. No filler or fluff.
+- Preserve any code references, section numbers, zoning citations, or technical terms exactly as written.
+- Structure clearly: if there are multiple points, use a short numbered list. Otherwise use concise paragraphs.
+- When the notes reference drawings or submittals, keep those references specific.
 - Do NOT add greetings, sign-offs, or subject lines — just the response body.
-- If the notes are already well-written, make only minimal improvements.`;
+- If the notes are already well-written, make only minimal improvements.
+- The result should be ready to send as-is — no placeholders or brackets for the PM to fill in.`;
 
     const userPrompt = `DOB Objection${code_reference ? ` (${code_reference})` : ""}: "${objection_text || "N/A"}"
 
 PM's rough notes:
 ${notes}
 
-Please clean up these notes into a polished professional response:`;
+Polish these notes into a professional response ready for the architect or examiner:`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -52,7 +54,7 @@ Please clean up these notes into a polished professional response:`;
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
