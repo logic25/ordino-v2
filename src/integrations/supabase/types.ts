@@ -817,6 +817,74 @@ export type Database = {
         }
         Relationships: []
       }
+      beacon_research_feedback: {
+        Row: {
+          comment: string | null
+          company_id: string
+          confidence_score: number | null
+          created_at: string
+          id: string
+          is_helpful: boolean
+          objection_id: string | null
+          project_id: string | null
+          query: string
+          user_id: string
+        }
+        Insert: {
+          comment?: string | null
+          company_id: string
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          is_helpful: boolean
+          objection_id?: string | null
+          project_id?: string | null
+          query: string
+          user_id: string
+        }
+        Update: {
+          comment?: string | null
+          company_id?: string
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          is_helpful?: boolean
+          objection_id?: string | null
+          project_id?: string | null
+          query?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beacon_research_feedback_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "beacon_research_feedback_objection_id_fkey"
+            columns: ["objection_id"]
+            isOneToOne: false
+            referencedRelation: "objection_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "beacon_research_feedback_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "beacon_research_feedback_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       beacon_suggestions: {
         Row: {
           correct_answer: string
