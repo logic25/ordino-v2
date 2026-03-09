@@ -289,9 +289,12 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
   const [beaconLoading, setBeaconLoading] = useState(false);
   const [cleanUpLoading, setCleanUpLoading] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
-  const [composeDefaults, setComposeDefaults] = useState<{ to: string; subject: string; body: string }>({ to: "", subject: "", body: "" });
+  const [composeDefaults, setComposeDefaults] = useState<{ to: string; subject: string; body: string; attachments?: any[] }>({ to: "", subject: "", body: "" });
+  const [showSummary, setShowSummary] = useState(false);
+  const [savingPackage, setSavingPackage] = useState(false);
   const lastResponseRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const uploadDocument = useUploadDocument();
 
   const selected = objections.find((o) => o.id === selectedId) || null;
   const openCount = objections.filter((o) => o.status !== "resolved").length;
