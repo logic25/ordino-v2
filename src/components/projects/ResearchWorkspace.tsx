@@ -14,7 +14,7 @@ import {
   Search, Brain, ChevronRight, ChevronDown, FileText, Sparkles, X,
   Save, Mail, CheckCircle2, Clock, AlertCircle, PanelLeftClose,
   PanelLeft, BookOpen, Upload, ThumbsUp, ThumbsDown, MessageSquare,
-  Eye, Loader2, Maximize2,
+  Eye, Loader2, Maximize2, RotateCcw,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -289,7 +289,7 @@ interface ResearchWorkspaceProps {
 export function ResearchWorkspace({ projectId, projectAddress, architectEmail, filingType, scopeOfWork }: ResearchWorkspaceProps) {
   const { toast } = useToast();
   const { user, profile } = useAuth();
-  const { items: objections, isLoading, update, bulkInsert } = useObjectionItems(projectId);
+  const { items: objections, isLoading, update, bulkInsert, removeAll } = useObjectionItems(projectId);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
@@ -700,14 +700,35 @@ Format the response clearly with these three sections.`;
                 </Button>
               )}
               {objections.length > 0 && (
-                <Button
-                  variant={showSummary ? "default" : "outline"}
-                  size="sm"
-                  className="h-7 text-xs gap-1"
-                  onClick={() => setShowSummary(!showSummary)}
-                >
-                  <Eye className="h-3 w-3" /> Preview
-                </Button>
+                <>
+                  <Button
+                    variant={showSummary ? "default" : "outline"}
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => setShowSummary(!showSummary)}
+                  >
+                    <Eye className="h-3 w-3" /> Preview
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs gap-1 text-destructive hover:text-destructive"
+                    onClick={async () => {
+                      if (!confirm("Clear all objections? This cannot be undone.")) return;
+                      try {
+                        await removeAll();
+                        setSelectedId(null);
+                        setWorkStates({});
+                        setShowSummary(false);
+                        toast({ title: "Objections cleared" });
+                      } catch {
+                        toast({ title: "Reset failed", variant: "destructive" });
+                      }
+                    }}
+                  >
+                    <RotateCcw className="h-3 w-3" /> Reset
+                  </Button>
+                </>
               )}
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setPanelCollapsed(true)}>
                 <PanelLeftClose className="h-3.5 w-3.5" />

@@ -79,6 +79,19 @@ export function useObjectionItems(projectId: string | undefined) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
   });
 
+  const removeAll = useMutation({
+    mutationFn: async () => {
+      if (!projectId || !companyId) return;
+      const { error } = await supabase
+        .from("objection_items")
+        .delete()
+        .eq("project_id", projectId)
+        .eq("company_id", companyId);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+  });
+
   return {
     items: query.data || [],
     isLoading: query.isLoading,
@@ -87,5 +100,6 @@ export function useObjectionItems(projectId: string | undefined) {
     update: update.mutateAsync,
     bulkInsert: bulkInsert.mutateAsync,
     remove: remove.mutateAsync,
+    removeAll: removeAll.mutateAsync,
   };
 }
