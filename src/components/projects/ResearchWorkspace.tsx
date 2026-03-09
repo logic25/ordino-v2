@@ -659,9 +659,17 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
         </div>
       )}
 
-      {/* Right Panel — Research Workspace */}
+      {/* Right Panel — Research Workspace or Summary */}
       <div className="flex-1 flex flex-col min-w-0">
-        {!selected ? (
+        {showSummary ? (
+          <ObjectionSummaryView
+            objections={objections}
+            onClose={() => setShowSummary(false)}
+            onSendAll={handleSendAllAsEmail}
+            onSaveToDocs={handleSavePackageToDocs}
+            isSaving={savingPackage}
+          />
+        ) : !selected ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
             <Search className="h-12 w-12 text-muted-foreground/30 mb-4" />
             <h3 className="text-lg font-medium text-muted-foreground">Select an objection to research</h3>
