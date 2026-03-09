@@ -293,6 +293,7 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
   const [composeDefaults, setComposeDefaults] = useState<{ to: string; subject: string; body: string; attachments?: any[] }>({ to: "", subject: "", body: "" });
   const [showSummary, setShowSummary] = useState(false);
   const [savingPackage, setSavingPackage] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const lastResponseRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const uploadDocument = useUploadDocument();
