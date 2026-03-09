@@ -6344,6 +6344,7 @@ export type Database = {
           project_id: string
           query: string
           response: string | null
+          source_type: string | null
           sources: Json | null
           tags: string[] | null
           updated_at: string
@@ -6359,6 +6360,7 @@ export type Database = {
           project_id: string
           query: string
           response?: string | null
+          source_type?: string | null
           sources?: Json | null
           tags?: string[] | null
           updated_at?: string
@@ -6374,6 +6376,7 @@ export type Database = {
           project_id?: string
           query?: string
           response?: string | null
+          source_type?: string | null
           sources?: Json | null
           tags?: string[] | null
           updated_at?: string

@@ -14,6 +14,7 @@ export interface ResearchNote {
   notes: string | null;
   tags: string[];
   is_pinned: boolean;
+  source_type: string | null;
   created_by_name?: string;
   created_at: string;
   updated_at: string;
@@ -65,6 +66,7 @@ export function useResearchNotes(projectId: string | undefined) {
       sources?: any[];
       confidence?: number;
       tags?: string[];
+      source_type?: string;
     }) => {
       const { data, error } = await supabase
         .from("research_notes" as any)
@@ -77,6 +79,7 @@ export function useResearchNotes(projectId: string | undefined) {
           sources: note.sources || [],
           confidence: note.confidence || null,
           tags: note.tags || [],
+          source_type: note.source_type || "beacon_rag",
         })
         .select()
         .single();

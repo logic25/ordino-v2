@@ -14,7 +14,8 @@ import { cn } from "@/lib/utils";
 import { useResearchNotes, type ResearchNote } from "@/hooks/useResearchNotes";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { askBeacon, type BeaconSource } from "@/services/beaconApi";
+import { type BeaconSource } from "@/services/beaconApi";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CodeResearchPanelProps {
   projectId: string;
@@ -92,6 +93,21 @@ function ResearchCard({
         </Button>
       )}
 
+      {/* Source type indicator */}
+      {note.source_type && (
+        <Badge
+          variant="outline"
+          className={cn(
+            "text-[10px] px-1.5 py-0 w-fit",
+            note.source_type === "beacon_rag" && "border-emerald-500/40 text-emerald-600",
+            note.source_type === "llm" && "border-blue-500/40 text-blue-600",
+            note.source_type === "hybrid" && "border-amber-500/40 text-amber-600",
+          )}
+        >
+          {note.source_type === "beacon_rag" ? "Beacon KB" : note.source_type === "llm" ? "AI Knowledge" : "Hybrid"}
+        </Badge>
+      )}
+
       {/* Sources */}
       {sources.length > 0 && (
         <div className="space-y-1">
@@ -150,36 +166,44 @@ export function CodeResearchPanel({ projectId, projectAddress, filingType }: Cod
 
     setSearching(true);
     try {
-      const prompt = `Answer this NYC building code research question directly in plain text. No markdown, no bold, no asterisks, no emojis, no headers. Just clear, factual paragraphs citing specific code sections.
-
-Question: ${q}
-Property: ${projectAddress || "N/A"}
-Filing Type: ${filingType || "N/A"}`;
-
-      const res = await askBeacon(prompt, userId, userName, {
-        projectId,
-        projectAddress,
-        filingType,
+      const { data, error } = await supabase.functions.invoke("code-research", {
+        body: {
+          question: q,
+          project_address: projectAddress || undefined,
+          filing_type: filingType || undefined,
+          user_id: userId,
+          user_name: userName,
+        },
       });
 
-      const responseText = (res.response || "")
-        .replace(/#{1,6}\s*/g, "")
-        .replace(/\*{1,3}([^*]+)\*{1,3}/g, "$1")
-        .replace(/^[-*>]\s+/gm, "")
-        .replace(/^---+$/gm, "")
-        .replace(/⚠️|✅|❌|📌|🔹|🔸|➡️|📧/g, "")
-        .replace(/\n{3,}/g, "\n\n")
-        .trim();
+      if (error) {
+        const status = (error as any)?.context?.status;
+        if (status === 429) {
+          toast({ title: "Rate limited", description: "Please wait a moment and try again.", variant: "destructive" });
+          return;
+        }
+        if (status === 402) {
+          toast({ title: "Credits exhausted", description: "AI credits need to be topped up.", variant: "destructive" });
+          return;
+        }
+        throw error;
+      }
 
       await create({
         query: q,
-        response: responseText,
-        sources: res.sources || [],
-        confidence: res.confidence,
+        response: data.response || "",
+        sources: data.sources || [],
+        confidence: data.confidence,
+        source_type: data.source_type || "beacon_rag",
       });
 
       setQuery("");
-      toast({ title: "Research saved" });
+      toast({
+        title: "Research saved",
+        description: data.source_type === "llm" ? "Answered from AI knowledge (no KB match)" :
+                     data.source_type === "hybrid" ? "Answered from AI + partial KB sources" :
+                     "Answered from Beacon Knowledge Base",
+      });
     } catch {
       toast({ title: "Research failed", description: "Could not get a response. Try again.", variant: "destructive" });
     } finally {
