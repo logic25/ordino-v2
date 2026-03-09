@@ -61,9 +61,21 @@ export function DocumentPreviewSheet({ document: doc, open, onClose, isBeaconFol
     setOriginalContent("");
     setSignedUrl(null);
 
-    if (previewType === "pdf" || previewType === "image" || previewType === "html") {
+    if (previewType === "pdf" || previewType === "image") {
       supabase.storage.from(bucket).createSignedUrl(doc.storage_path, 3600)
         .then(({ data }) => { if (data) setSignedUrl(data.signedUrl); });
+    }
+
+    if (previewType === "html") {
+      // Download HTML and render via blob URL to ensure proper rendering
+      supabase.storage.from(bucket).download(doc.storage_path)
+        .then(async ({ data, error }) => {
+          if (error || !data) return;
+          const text = await data.text();
+          setContent(text);
+          const blob = new Blob([text], { type: "text/html" });
+          setSignedUrl(URL.createObjectURL(blob));
+        });
     }
 
     if (isEditable) {
