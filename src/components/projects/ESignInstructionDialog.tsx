@@ -84,7 +84,10 @@ export function ESignInstructionDialog({ open, onOpenChange, jobNumbers, project
   }, [selectedTemplateId, templates, ownerName, projectName, jobNumbers, companyData]);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(body);
+    // Strip HTML for plain-text clipboard
+    const tmp = document.createElement("div");
+    tmp.innerHTML = body;
+    navigator.clipboard.writeText(tmp.textContent || tmp.innerText || "");
     toast({ title: "Copied", description: "Instructions copied to clipboard." });
   };
 
