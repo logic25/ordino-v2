@@ -602,36 +602,24 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
     const targetId = targetObj.id;
     updateWorkState(targetId, { draftLoading: true });
 
-    const prompt = `You are an NYC DOB expediting expert. Write a short, plain-text response to this DOB examiner objection. 
-
-RULES:
-- No markdown, no bold, no asterisks, no hashtags, no emojis, no headers, no numbered lists, no bullet points, no ">" quotes, no "---" dividers.
-- No titles, no headings like "DOB Objection Response" or "Response to Examiner".
-- No address/filing/project info header block.
-- No architect instructions section.
-- No expediter action items section.
-- No "bottom line" summary.
-- Just 2-4 sentences directly answering the objection, citing the relevant code section if applicable.
+    const prompt = `IMPORTANT: Respond with ONLY 2-4 plain sentences. No markdown, no headers, no titles, no emojis, no bold, no lists, no bullet points, no architect instructions, no action items, no preliminary notes. Just answer the objection directly.
 
 Objection: "${targetObj.objection_text}"
 Code Reference: ${targetObj.code_reference || "N/A"}
 Filing Type: ${filingType || "N/A"}
 
-Answer the objection directly in 2-4 plain sentences:`;
+Give a direct, professional response to this DOB examiner objection in 2-4 plain sentences:`;
 
     try {
-      const { data, error } = await supabase.functions.invoke("cleanup-notes", {
-        body: {
-          notes: `Objection: "${targetObj.objection_text}"\nCode Reference: ${targetObj.code_reference || "N/A"}\nFiling Type: ${filingType || "N/A"}\n\nDraft a direct response to this objection.`,
-          code_reference: targetObj.code_reference || "",
-          objection_text: targetObj.objection_text,
-        },
+      const res = await askBeacon(prompt, userId, userName, {
+        projectId,
+        projectAddress,
+        codeSection: targetObj.code_reference || undefined,
+        filingType,
       });
 
-      if (error) throw error;
-
       // Strip any residual markdown formatting
-      const responseText = (data?.cleaned || "")
+      const responseText = (res.response || "")
         .replace(/#{1,6}\s*/g, "")
         .replace(/\*{1,3}([^*]+)\*{1,3}/g, "$1")
         .replace(/^[-*>]\s+/gm, "")
