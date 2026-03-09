@@ -56,6 +56,7 @@ import { LitigationExportDialog } from "@/components/projects/LitigationExportDi
 import { DobNowFilingPrepSheet } from "@/components/projects/DobNowFilingPrepSheet";
 import { EditPISDialog } from "@/components/projects/EditPISDialog";
 import { ResearchWorkspace } from "@/components/projects/ResearchWorkspace";
+import { ResearchTabContainer } from "@/components/projects/ResearchTabContainer";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
