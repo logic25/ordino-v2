@@ -25,6 +25,7 @@ import { useUploadDocument } from "@/hooks/useUniversalDocuments";
 import { askBeacon, type BeaconChatResponse, type BeaconSource } from "@/services/beaconApi";
 import { useAuth } from "@/hooks/useAuth";
 import { ObjectionSummaryView } from "./ObjectionSummaryView";
+import { UploadObjectionDialog } from "./UploadObjectionDialog";
 
 // --- Types ---
 
@@ -292,6 +293,7 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
   const [composeDefaults, setComposeDefaults] = useState<{ to: string; subject: string; body: string; attachments?: any[] }>({ to: "", subject: "", body: "" });
   const [showSummary, setShowSummary] = useState(false);
   const [savingPackage, setSavingPackage] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const lastResponseRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const uploadDocument = useUploadDocument();
@@ -603,6 +605,9 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
               )}
             </h3>
             <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => setUploadDialogOpen(true)}>
+                <Upload className="h-3 w-3" /> Upload Objection
+              </Button>
               {objections.length === 0 && (
                 <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={handleImportDemo}>
                   <Upload className="h-3 w-3" /> Import Demo
@@ -633,9 +638,14 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
                 <FileText className="h-10 w-10 text-muted-foreground/40 mb-3" />
                 <p className="text-sm text-muted-foreground">No objections loaded</p>
                 <p className="text-xs text-muted-foreground mt-1">Import a DOB objection sheet to get started</p>
-                <Button variant="outline" size="sm" className="mt-4 gap-1.5" onClick={handleImportDemo}>
-                  <Upload className="h-3.5 w-3.5" /> Import Demo Sheet
-                </Button>
+                <div className="flex gap-2 mt-4">
+                  <Button variant="default" size="sm" className="gap-1.5" onClick={() => setUploadDialogOpen(true)}>
+                    <Upload className="h-3.5 w-3.5" /> Upload Objection Letter
+                  </Button>
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={handleImportDemo}>
+                    <Upload className="h-3.5 w-3.5" /> Import Demo
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="space-y-2">
@@ -879,6 +889,12 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
           defaultAttachments={composeDefaults.attachments}
         />
       )}
+
+      <UploadObjectionDialog
+        open={uploadDialogOpen}
+        onOpenChange={setUploadDialogOpen}
+        projectId={projectId}
+      />
     </div>
   );
 }
