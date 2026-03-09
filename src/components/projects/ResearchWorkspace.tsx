@@ -899,14 +899,24 @@ Format the response clearly with these three sections.`;
                         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                           <FileText className="h-3.5 w-3.5" /> Draft Response
                         </h4>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs gap-1.5"
-                          onClick={handleSaveResponseDraft}
-                        >
-                          <Save className="h-3 w-3" /> Save
-                        </Button>
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs gap-1.5"
+                            onClick={() => setDraftModalOpen(true)}
+                          >
+                            <Maximize2 className="h-3 w-3" /> Expand
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs gap-1.5"
+                            onClick={handleSaveResponseDraft}
+                          >
+                            <Save className="h-3 w-3" /> Save
+                          </Button>
+                        </div>
                       </div>
                       <Textarea
                         className="min-h-[120px] text-sm font-mono"
