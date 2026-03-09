@@ -100,5 +100,6 @@ export function useObjectionItems(projectId: string | undefined) {
     update: update.mutateAsync,
     bulkInsert: bulkInsert.mutateAsync,
     remove: remove.mutateAsync,
+    removeAll: removeAll.mutateAsync,
   };
 }
