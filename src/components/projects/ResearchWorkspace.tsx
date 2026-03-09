@@ -602,17 +602,22 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail, f
     const targetId = targetObj.id;
     updateWorkState(targetId, { draftLoading: true });
 
-    const prompt = `You are an NYC DOB expediting expert. Write a plain-text response to this DOB examiner objection. No markdown, no bold, no asterisks, no hashtags, no emojis, no headers, no bullet symbols. Just plain sentences and paragraphs.
+    const prompt = `You are an NYC DOB expediting expert. Write a short, plain-text response to this DOB examiner objection. 
 
-Objection #${targetObj.item_number}:
-"${targetObj.objection_text}"
+RULES:
+- No markdown, no bold, no asterisks, no hashtags, no emojis, no headers, no numbered lists, no bullet points, no ">" quotes, no "---" dividers.
+- No titles, no headings like "DOB Objection Response" or "Response to Examiner".
+- No address/filing/project info header block.
+- No architect instructions section.
+- No expediter action items section.
+- No "bottom line" summary.
+- Just 2-4 sentences directly answering the objection, citing the relevant code section if applicable.
 
-Code Reference: ${targetObj.code_reference || "Not specified"}
-Property Address: ${projectAddress || "Not specified"}
-Filing Type: ${filingType || "Not specified"}
-Scope of Work: ${scopeOfWork || "Not specified"}
+Objection: "${targetObj.objection_text}"
+Code Reference: ${targetObj.code_reference || "N/A"}
+Filing Type: ${filingType || "N/A"}
 
-Write ONLY a direct, professional answer to the examiner's concern citing specific NYC Building Code, Zoning Resolution, or Administrative Code sections where applicable. Do NOT include preliminary notes, recommended steps, architect instructions, or expediter action items. Do NOT use markdown formatting of any kind. Just answer the objection.`;
+Answer the objection directly in 2-4 plain sentences:`;
 
     try {
       const res = await askBeacon(prompt, userId, userName, {
@@ -626,8 +631,11 @@ Write ONLY a direct, professional answer to the examiner's concern citing specif
       const responseText = (res.response || "")
         .replace(/#{1,6}\s*/g, "")
         .replace(/\*{1,3}([^*]+)\*{1,3}/g, "$1")
-        .replace(/^[-*]\s+/gm, "")
-        .replace(/⚠️|✅|❌|📌|🔹|🔸|➡️/g, "")
+        .replace(/^[-*>]\s+/gm, "")
+        .replace(/^---+$/gm, "")
+        .replace(/^\d+\.\s+/gm, "")
+        .replace(/⚠️|✅|❌|📌|🔹|🔸|➡️|📧/g, "")
+        .replace(/\n{3,}/g, "\n\n")
         .trim();
 
       updateWorkState(targetId, {
