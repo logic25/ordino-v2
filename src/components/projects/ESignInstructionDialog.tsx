@@ -14,55 +14,21 @@ const DEFAULT_TEMPLATES: InstructionTemplate[] = [
     id: "dob-registration",
     name: "DOB Registration",
     description: "Owner creates a DOB NOW account",
-    body: `Dear {{OWNER_NAME}},
-
-We need you to create a DOB NOW account so you can electronically sign and pay for your application(s).
-
-Please go to https://a810-dobnow.nyc.gov/publish/#!/ and click "Register" to create an account using your email address.
-
-Once registered, please reply to this email with the email address you used so we can send the application to you for signature.
-
-Thank you,
-{{COMPANY_NAME}}`,
+    body: `<p>Dear {{OWNER_NAME}},</p><p>We need you to create a DOB NOW account so you can electronically sign and pay for your application(s).</p><p>Please go to <a href="https://a810-dobnow.nyc.gov/publish/#!/">https://a810-dobnow.nyc.gov/publish/#!/</a> and click "Register" to create an account using your email address.</p><p>Once registered, please reply to this email with the email address you used so we can send the application to you for signature.</p><p>Thank you,<br/>{{COMPANY_NAME}}</p>`,
     variables: ["OWNER_NAME", "COMPANY_NAME"],
   },
   {
     id: "dob-esign-standard",
     name: "DOB E-Sign (Standard)",
     description: "Owner signs and pays on one application",
-    body: `Dear {{OWNER_NAME}},
-
-Your application for {{PROJECT_NAME}} (Job #{{JOB_NUMBERS}}) has been submitted to DOB NOW and is ready for your electronic signature and payment.
-
-Please log in to your DOB NOW account at https://a810-dobnow.nyc.gov/publish/#!/ and:
-
-1. Click "Submitted Actions" on the left menu
-2. Find Job #{{JOB_NUMBERS}}
-3. Click "Sign" and complete the e-signature
-4. Pay the filing fee (DOB fee of $130 per application)
-
-Please complete this within 3 business days so we can proceed with the review process.
-
-Thank you,
-{{COMPANY_NAME}}`,
+    body: `<p>Dear {{OWNER_NAME}},</p><p>Your application for {{PROJECT_NAME}} (Job #{{JOB_NUMBERS}}) has been submitted to DOB NOW and is ready for your electronic signature and payment.</p><p>Please log in to your DOB NOW account at <a href="https://a810-dobnow.nyc.gov/publish/#!/">https://a810-dobnow.nyc.gov/publish/#!/</a> and:</p><ol><li>Click "Submitted Actions" on the left menu</li><li>Find Job #{{JOB_NUMBERS}}</li><li>Click "Sign" and complete the e-signature</li><li>Pay the filing fee (DOB fee of $130 per application)</li></ol><p>Please complete this within 3 business days so we can proceed with the review process.</p><p>Thank you,<br/>{{COMPANY_NAME}}</p>`,
     variables: ["OWNER_NAME", "PROJECT_NAME", "JOB_NUMBERS", "COMPANY_NAME"],
   },
   {
     id: "dob-esign-supersede",
     name: "DOB E-Sign (Supersede)",
     description: "Owner signs multiple supersede applications",
-    body: `Dear {{OWNER_NAME}},
-
-We have filed supersede applications for {{PROJECT_NAME}}. The following job numbers require your electronic signature and payment:
-
-{{JOB_NUMBERS}}
-
-Please log in to DOB NOW at https://a810-dobnow.nyc.gov/publish/#!/ and sign each application under "Submitted Actions." Each application has a $130 DOB filing fee.
-
-Please complete all signatures within 3 business days.
-
-Thank you,
-{{COMPANY_NAME}}`,
+    body: `<p>Dear {{OWNER_NAME}},</p><p>We have filed supersede applications for {{PROJECT_NAME}}. The following job numbers require your electronic signature and payment:</p><p>{{JOB_NUMBERS}}</p><p>Please log in to DOB NOW at <a href="https://a810-dobnow.nyc.gov/publish/#!/">https://a810-dobnow.nyc.gov/publish/#!/</a> and sign each application under "Submitted Actions." Each application has a $130 DOB filing fee.</p><p>Please complete all signatures within 3 business days.</p><p>Thank you,<br/>{{COMPANY_NAME}}</p>`,
     variables: ["OWNER_NAME", "PROJECT_NAME", "JOB_NUMBERS", "COMPANY_NAME"],
   },
 ];
