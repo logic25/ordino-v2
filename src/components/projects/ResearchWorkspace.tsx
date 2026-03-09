@@ -13,8 +13,9 @@ import {
 import {
   Search, Brain, ChevronRight, ChevronDown, FileText, Sparkles,
   Save, Mail, CheckCircle2, Clock, AlertCircle, PanelLeftClose,
-  PanelLeft, BookOpen, Upload,
+  PanelLeft, BookOpen, Upload, ThumbsUp, ThumbsDown, MessageSquare,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { ComposeEmailDialog } from "@/components/emails/ComposeEmailDialog";
