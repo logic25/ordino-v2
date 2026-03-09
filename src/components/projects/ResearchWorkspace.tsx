@@ -149,7 +149,8 @@ export function ResearchWorkspace({ projectId, projectAddress, architectEmail }:
   const [cleanUpLoading, setCleanUpLoading] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeDefaults, setComposeDefaults] = useState<{ to: string; subject: string; body: string }>({ to: "", subject: "", body: "" });
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const lastResponseRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const selected = objections.find((o) => o.id === selectedId) || null;
   const openCount = objections.filter((o) => o.status !== "resolved").length;
