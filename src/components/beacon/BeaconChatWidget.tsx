@@ -127,11 +127,16 @@ interface BeaconChatWidgetProps {
   projectContext?: BeaconProjectContext;
 }
 
-export function BeaconChatWidget({ projectContext }: BeaconChatWidgetProps = {}) {
+export function BeaconChatWidget({ projectContext: externalContext }: BeaconChatWidgetProps = {}) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [contextCleared, setContextCleared] = useState(false);
+
+  // Allow user to clear project context; reset when context changes
+  const activeContext = contextCleared ? undefined : externalContext;
+  useEffect(() => { setContextCleared(false); }, [externalContext?.projectId]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [historyCount, setHistoryCount] = useState(0);
   const lastBotRef = useRef<HTMLDivElement>(null);
