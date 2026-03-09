@@ -1,36 +1,52 @@
 
 
-## DOB NOW Filing Agent — Implementation Complete
+# Objection Response Workflow — Gap Fixes
 
-### What was built (4 pieces):
+## What to build
 
-**1. Database: `filing_runs` table** ✅
-- Table with `id`, `company_id`, `project_id`, `service_id`, `status`, `progress_log` (jsonb), `payload_snapshot`, `agent_session_id`, timestamps, `error_message`, `created_by`
-- RLS: company-scoped read/insert/update for authenticated users
-- Realtime enabled for live progress subscriptions
-- `updated_at` trigger
+### 1. Summary Preview Panel
+Add a "Preview All Responses" button (e.g. top of objection list or as a toggle). Shows a read-only consolidated list of all objections with their saved notes/cleaned versions, grouped by status. This is the PM's review step before sending.
 
-**2. Edge Function: `filing-payload`** ✅
-- Accepts `project_id` + optional `service_id` via query params
-- Dual auth: JWT for browser, service-role key for agent
-- Returns structured JSON: `location`, `applicant_owner`, `filing_details`, `stakeholders`, `contacts`
-- Pulls from projects, properties, PIS responses, contacts, services
+### 2. Consolidated Email with Attachments
+Replace or supplement the per-objection "Send as Email" with a top-level "Send Response to Architect" action that:
+- Builds an HTML email body covering ALL addressed objections (item number, code ref, response text)
+- Pre-fills the architect's email from the project record
+- Queries `universal_documents` for the project's uploaded plans (category = 'Plans') and the original objection sheet, attaches them to the compose dialog via `defaultAttachments`
+- Falls back to per-objection send for individual items if desired
 
-**3. Edge Function: `filing-status`** ✅
-- POST endpoint for agent to report progress
-- Auth: service-role key, `x-agent-secret` header, or JWT
-- Appends to `progress_log` array, updates `status`, sets `started_at`/`completed_at`
+### 3. Save Package to Documents
+When the PM sends or explicitly saves, generate a document (stored in `universal_documents`) containing:
+- All objection responses as a single file (HTML or PDF)
+- Linked to `project_id`
+- Category: "Objection Responses"
+- Stored in the `universal-documents` bucket
 
-**4. UI: Agent Launcher in DobNowFilingPrepSheet** ✅
-- "Launch Filing Agent" button alongside existing manual submit
-- Creates `filing_runs` record with `queued` status + payload snapshot
-- Realtime subscription shows live progress feed
-- Status indicators: queued → running → completed/failed/review_needed
-- Progress log with timestamped steps and status icons
-- Retry/Done actions on terminal states
+This gives a permanent record in the Documents section.
 
-### External agent service (not built here):
-- Python + Claude Agent SDK + Playwright MCP
-- GET `/filing-payload?project_id=X&service_id=Y` with service-role key
-- POST `/filing-status` with `{ filing_run_id, status, step, error_message, agent_session_id }`
-- `DOB_AGENT_SECRET` header auth supported
+## Technical approach
+
+### Summary Preview
+- New component `ObjectionSummaryView` rendered conditionally in `ResearchWorkspace`
+- Toggle state: `showSummary` boolean
+- Maps over `objections` array, displays saved `resolution_notes` / `response_draft` for each
+- Read-only, scrollable, with status badges
+
+### Consolidated Email
+- New handler `handleSendAllAsEmail` in `ResearchWorkspace`
+- Fetches project plan documents: `supabase.from('universal_documents').select('*').eq('project_id', projectId).in('category', ['Plans', 'Objections'])`
+- For each doc, fetches the file from storage bucket and converts to `AttachmentFile` format
+- Builds consolidated HTML body from all non-pending objections
+- Opens `ComposeEmailDialog` with `defaultAttachments` and combined body
+
+### Save to Documents
+- On send or explicit "Save to Docs" action, create a Blob/HTML string of all responses
+- Upload to `universal-documents` bucket under the project path
+- Insert row into `universal_documents` table with `project_id`, category "Objection Responses", timestamp filename
+
+## Files to modify
+- `src/components/projects/ResearchWorkspace.tsx` — add summary view toggle, consolidated email handler, save-to-docs handler
+- May extract `ObjectionSummaryView` into its own file for cleanliness
+
+## No database changes needed
+All data structures exist (`universal_documents`, `objection_items` with `resolution_notes`/`response_draft`).
+
