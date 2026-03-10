@@ -281,7 +281,7 @@ Deno.serve(async (req) => {
 
     // ─── UPDATE: Update an existing event ───
     if (action === "update") {
-      const { event_id, title, description, location, start_time, end_time, all_day, event_type, project_id, property_id, client_id } = body;
+      const { event_id, title, description, location, start_time, end_time, all_day, event_type, project_id, property_id, client_id, attendee_ids } = body;
 
       const { data: existing } = await supabaseAdmin
         .from("calendar_events")
