@@ -422,8 +422,8 @@ export default function ProjectDetail() {
         {/* Main Tabbed Content */}
         <Card>
           <Tabs defaultValue="services" className="w-full">
-            <div className="overflow-x-auto border-b bg-muted/20 rounded-t-lg">
-            <TabsList className="w-max justify-start rounded-none bg-transparent h-11 px-4 gap-1">
+            <div className="overflow-x-auto border-b bg-muted/20 rounded-t-lg scrollbar-hide">
+            <TabsList className="w-max justify-start rounded-none bg-transparent h-11 px-2 sm:px-4 gap-0.5 sm:gap-1">
               <TabsTrigger value="services" className="gap-1.5 data-[state=active]:bg-background">
                 <FileText className="h-3.5 w-3.5" /> Services ({realServices.length})
               </TabsTrigger>
