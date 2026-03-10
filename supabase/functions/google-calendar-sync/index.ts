@@ -333,6 +333,10 @@ Deno.serve(async (req) => {
       if (project_id !== undefined) updates.project_id = project_id;
       if (property_id !== undefined) updates.property_id = property_id;
       if (client_id !== undefined) updates.client_id = client_id;
+      if (attendee_ids !== undefined) {
+        const existingMeta = (existing as any).metadata || {};
+        updates.metadata = { ...existingMeta, attendee_ids };
+      }
 
       const { data: updated, error: updateErr } = await supabaseAdmin
         .from("calendar_events")
