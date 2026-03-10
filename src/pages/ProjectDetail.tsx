@@ -299,27 +299,29 @@ export default function ProjectDetail() {
     <AppLayout>
       <div className="space-y-6 animate-fade-in overflow-x-hidden">
         {/* Header */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <Button variant="ghost" size="icon" className="mt-1 shrink-0" onClick={() => navigate("/projects")}>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-start gap-2">
+            <Button variant="ghost" size="icon" className="mt-0.5 shrink-0" onClick={() => navigate("/projects")}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold tracking-tight">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start gap-2 flex-wrap">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight break-words">
                   {[project.project_number, project.properties?.address, project.name || project.proposals?.title].filter(Boolean).join(" — ") || "Untitled Project"}
                 </h1>
-                <Badge variant={status.variant} className="shrink-0">{status.label}</Badge>
-                {(() => {
-                  const tier = calculateComplexityTier(project.project_type, realServices.length);
-                  return (
-                    <Badge variant="outline" className={cn("shrink-0 border-none text-[10px] font-medium", tier.color)}>
-                      {tier.label}
-                    </Badge>
-                  );
-                })()}
+                <div className="flex items-center gap-1.5 shrink-0 mt-1">
+                  <Badge variant={status.variant}>{status.label}</Badge>
+                  {(() => {
+                    const tier = calculateComplexityTier(project.project_type, realServices.length);
+                    return (
+                      <Badge variant="outline" className={cn("border-none text-[10px] font-medium", tier.color)}>
+                        {tier.label}
+                      </Badge>
+                    );
+                  })()}
+                </div>
               </div>
-              <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
+              <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground flex-wrap">
                 {(project as any).tenant_name && (
                   <span className="flex items-center gap-1 text-xs">Tenant: {(project as any).tenant_name}</span>
                 )}
@@ -335,14 +337,14 @@ export default function ProjectDetail() {
                   <span className="flex items-center gap-1">
                     <Users className="h-3.5 w-3.5" />
                     {primaryContact.name}
-                    {primaryContact.phone && <span className="text-xs">· {primaryContact.phone}</span>}
+                    {primaryContact.phone && <span className="text-xs hidden sm:inline">· {primaryContact.phone}</span>}
                   </span>
                 )}
                 {!primaryContact && contacts.length > 0 && (
                   <span className="flex items-center gap-1">
                     <Users className="h-3.5 w-3.5" />
                     {contacts[0].name}
-                    {contacts[0].phone && <span className="text-xs">· {contacts[0].phone}</span>}
+                    {contacts[0].phone && <span className="text-xs hidden sm:inline">· {contacts[0].phone}</span>}
                   </span>
                 )}
                 <span className="flex items-center gap-1">
@@ -367,10 +369,10 @@ export default function ProjectDetail() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 ml-10 sm:ml-0 sm:justify-end">
             <LitigationButton onClick={() => setLitigationDialogOpen(true)} />
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditDialogOpen(true)}>
-              <Pencil className="h-3.5 w-3.5" /> Edit Project
+              <Pencil className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Edit Project</span><span className="sm:hidden">Edit</span>
             </Button>
           </div>
         </div>
@@ -420,8 +422,8 @@ export default function ProjectDetail() {
         {/* Main Tabbed Content */}
         <Card>
           <Tabs defaultValue="services" className="w-full">
-            <div className="overflow-x-auto border-b bg-muted/20 rounded-t-lg">
-            <TabsList className="w-max justify-start rounded-none bg-transparent h-11 px-4 gap-1">
+            <div className="overflow-x-auto border-b bg-muted/20 rounded-t-lg scrollbar-hide">
+            <TabsList className="w-max justify-start rounded-none bg-transparent h-11 px-2 sm:px-4 gap-0.5 sm:gap-1">
               <TabsTrigger value="services" className="gap-1.5 data-[state=active]:bg-background">
                 <FileText className="h-3.5 w-3.5" /> Services ({realServices.length})
               </TabsTrigger>
