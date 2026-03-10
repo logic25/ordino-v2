@@ -201,7 +201,7 @@ Deno.serve(async (req) => {
 
     // ─── CREATE: Push a new event to Google Calendar ───
     if (action === "create") {
-      const { title, description, location, start_time, end_time, all_day, event_type, project_id, property_id, client_id, application_id } = body;
+      const { title, description, location, start_time, end_time, all_day, event_type, project_id, property_id, client_id, application_id, attendee_ids } = body;
 
       let googleEventId: string | null = null;
       let htmlLink: string | null = null;
@@ -261,7 +261,7 @@ Deno.serve(async (req) => {
           status: "confirmed",
           sync_status: googleEventId ? "synced" : "local",
           last_synced_at: googleEventId ? new Date().toISOString() : null,
-          metadata: htmlLink ? { html_link: htmlLink } : {},
+          metadata: { ...(htmlLink ? { html_link: htmlLink } : {}), ...(attendee_ids?.length ? { attendee_ids } : {}) },
         })
         .select()
         .single();
@@ -281,11 +281,11 @@ Deno.serve(async (req) => {
 
     // ─── UPDATE: Update an existing event ───
     if (action === "update") {
-      const { event_id, title, description, location, start_time, end_time, all_day, event_type, project_id, property_id, client_id } = body;
+      const { event_id, title, description, location, start_time, end_time, all_day, event_type, project_id, property_id, client_id, attendee_ids } = body;
 
       const { data: existing } = await supabaseAdmin
         .from("calendar_events")
-        .select("google_event_id")
+        .select("google_event_id, metadata")
         .eq("id", event_id)
         .eq("company_id", profile.company_id)
         .single();
@@ -333,6 +333,10 @@ Deno.serve(async (req) => {
       if (project_id !== undefined) updates.project_id = project_id;
       if (property_id !== undefined) updates.property_id = property_id;
       if (client_id !== undefined) updates.client_id = client_id;
+      if (attendee_ids !== undefined) {
+        const existingMeta = (existing as any).metadata || {};
+        updates.metadata = { ...existingMeta, attendee_ids };
+      }
 
       const { data: updated, error: updateErr } = await supabaseAdmin
         .from("calendar_events")

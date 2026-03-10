@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -18,7 +19,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Users, X } from "lucide-react";
 import { useProjects } from "@/hooks/useProjects";
+import { useAssignableProfiles } from "@/hooks/useProfiles";
 import { useCreateCalendarEvent, useUpdateCalendarEvent, type CalendarEvent } from "@/hooks/useCalendarEvents";
 import { useToast } from "@/hooks/use-toast";
 
@@ -48,6 +57,7 @@ export function CalendarEventDialog({
 }: CalendarEventDialogProps) {
   const { toast } = useToast();
   const { data: projects } = useProjects();
+  const { data: profiles = [] } = useAssignableProfiles();
   const createEvent = useCreateCalendarEvent();
   const updateEvent = useUpdateCalendarEvent();
 
@@ -61,6 +71,7 @@ export function CalendarEventDialog({
   const [allDay, setAllDay] = useState(false);
   const [eventType, setEventType] = useState("general");
   const [projectId, setProjectId] = useState<string>("");
+  const [attendeeIds, setAttendeeIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (event) {
@@ -70,6 +81,7 @@ export function CalendarEventDialog({
       setAllDay(event.all_day);
       setEventType(event.event_type);
       setProjectId(event.project_id || "");
+      setAttendeeIds(event.metadata?.attendee_ids || []);
       const start = new Date(event.start_time);
       const end = new Date(event.end_time);
       setStartDate(start.toISOString().split("T")[0]);
@@ -89,8 +101,19 @@ export function CalendarEventDialog({
       setAllDay(false);
       setEventType("general");
       setProjectId("");
+      setAttendeeIds([]);
     }
   }, [event, defaultDate, open]);
+
+  const toggleAttendee = (id: string) => {
+    setAttendeeIds((prev) =>
+      prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]
+    );
+  };
+
+  const removeAttendee = (id: string) => {
+    setAttendeeIds((prev) => prev.filter((a) => a !== id));
+  };
 
   const handleSubmit = async () => {
     if (!title || !startDate || !endDate) return;
@@ -114,6 +137,7 @@ export function CalendarEventDialog({
           all_day: allDay,
           event_type: eventType,
           project_id: projectId || undefined,
+          attendee_ids: attendeeIds,
         });
         toast({ title: "Event updated" });
       } else {
@@ -126,6 +150,7 @@ export function CalendarEventDialog({
           all_day: allDay,
           event_type: eventType,
           project_id: projectId || undefined,
+          attendee_ids: attendeeIds,
         });
         toast({ title: "Event created" });
       }
@@ -140,6 +165,8 @@ export function CalendarEventDialog({
   };
 
   const isLoading = createEvent.isPending || updateEvent.isPending;
+
+  const selectedProfiles = profiles.filter((p) => attendeeIds.includes(p.id));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -191,6 +218,63 @@ export function CalendarEventDialog({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Team Members / Attendees */}
+          <div className="grid gap-2">
+            <Label>Team Members</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="justify-start h-auto min-h-10 font-normal"
+                  type="button"
+                >
+                  <Users className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                  {selectedProfiles.length === 0 ? (
+                    <span className="text-muted-foreground">Add team members...</span>
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {selectedProfiles.map((p) => (
+                        <Badge
+                          key={p.id}
+                          variant="secondary"
+                          className="text-xs gap-1"
+                        >
+                          {p.first_name} {p.last_name}
+                          <X
+                            className="h-3 w-3 cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeAttendee(p.id);
+                            }}
+                          />
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-2" align="start">
+                <div className="space-y-1 max-h-48 overflow-y-auto">
+                  {profiles.map((p) => (
+                    <label
+                      key={p.id}
+                      className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-sm"
+                    >
+                      <Checkbox
+                        checked={attendeeIds.includes(p.id)}
+                        onCheckedChange={() => toggleAttendee(p.id)}
+                      />
+                      {p.first_name} {p.last_name}
+                    </label>
+                  ))}
+                  {profiles.length === 0 && (
+                    <p className="text-xs text-muted-foreground px-2 py-1">No team members found</p>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="flex items-center gap-3">

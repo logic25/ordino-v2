@@ -82,6 +82,7 @@ export function useCreateCalendarEvent() {
       property_id?: string;
       client_id?: string;
       application_id?: string;
+      attendee_ids?: string[];
     }) => {
       const { data, error } = await supabase.functions.invoke("google-calendar-sync", {
         body: { action: "create", ...event },
@@ -112,6 +113,7 @@ export function useUpdateCalendarEvent() {
       project_id?: string;
       property_id?: string;
       client_id?: string;
+      attendee_ids?: string[];
     }) => {
       const { data, error } = await supabase.functions.invoke("google-calendar-sync", {
         body: { action: "update", ...event },
