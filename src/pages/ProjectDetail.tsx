@@ -588,6 +588,8 @@ function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWi
   const { toast } = useToast();
   const [resending, setResending] = useState(false);
 
+  const [dismissed, setDismissed] = useState(false);
+
   if (!proposal) return null;
 
   const proposalNumber = proposal.proposal_number || "—";
@@ -600,7 +602,7 @@ function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWi
   const sentAt = (proposal as any).sent_at
     ? format(new Date((proposal as any).sent_at), "MM/dd/yyyy 'at' h:mm a")
     : null;
-  const fullyExecuted = !!internalDate && !!clientDate;
+  const fullyExecuted = !!internalDate && (!!clientDate || proposal.status === "executed");
 
   const handleResend = async () => {
     setResending(true);
@@ -616,6 +618,26 @@ function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWi
     }
   };
 
+  const handleDismiss = () => {
+    setDismissed(true);
+    toast({ title: "Banner dismissed", description: "Signature reminder hidden for this session." });
+  };
+
+  if (dismissed && !fullyExecuted) {
+    // Only show unsigned COs if the proposal banner is dismissed
+    if (unsignedCOs.length === 0) return null;
+    return (
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800 text-sm">
+          <PenLine className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <span className="text-amber-700 dark:text-amber-300">
+            {unsignedCOs.length} CO{unsignedCOs.length > 1 ? "s" : ""} awaiting signature: {unsignedCOs.map(co => co.co_number).join(", ")}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center gap-3 flex-wrap">
       <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${
@@ -628,7 +650,7 @@ function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWi
             <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             <span className="text-emerald-700 dark:text-emerald-300 font-medium">Proposal #{proposalNumber} — Fully Executed</span>
             <span className="text-xs text-muted-foreground">
-              Internal: {internalDate} · Client: {clientDate}
+              Internal: {internalDate}{clientDate ? ` · Client: ${clientDate}` : " · Approved (alt. method)"}
             </span>
           </>
         ) : (
@@ -641,16 +663,28 @@ function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWi
             {sentAt && (
               <span className="text-xs text-muted-foreground">Last sent: {sentAt}</span>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs gap-1 ml-auto"
-              onClick={handleResend}
-              disabled={resending}
-            >
-              {resending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
-              {resending ? "Sending..." : "Resend for Signature"}
-            </Button>
+            <div className="flex items-center gap-1 ml-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={handleResend}
+                disabled={resending}
+              >
+                {resending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                {resending ? "Sending..." : "Resend for Signature"}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                onClick={handleDismiss}
+                title="Dismiss — proposal was approved via alternative method"
+              >
+                <XCircle className="h-3 w-3" />
+                Dismiss
+              </Button>
+            </div>
           </>
         )}
       </div>
