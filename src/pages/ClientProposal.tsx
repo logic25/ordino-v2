@@ -93,11 +93,11 @@ export default function ClientProposalPage() {
       if (error) throw error;
       if (!(data as any)?.success) throw new Error("Failed to sign");
 
-      // Notify PM that client has signed
+      // Notify PM that client has signed — best-effort, don't block signing
       const result = data as any;
       if (result.assigned_pm_id && result.company_id) {
         const propertyAddress = proposal?.properties?.address || "the property";
-        await supabase.from("notifications").insert({
+        supabase.from("notifications").insert({
           company_id: result.company_id,
           user_id: result.assigned_pm_id,
           type: "pis_submitted",
@@ -105,7 +105,7 @@ export default function ClientProposalPage() {
           body: `${clientName || "The client"} has counter-signed the proposal for ${propertyAddress}. The proposal is now fully executed.`,
           link: result.converted_project_id ? `/projects/${result.converted_project_id}` : `/proposals`,
           project_id: result.converted_project_id || null,
-        } as any);
+        } as any).then(() => {});
       }
     },
     onSuccess: () => {
