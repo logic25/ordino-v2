@@ -798,9 +798,9 @@ export default function Proposals() {
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in" data-tour="proposals-page">
-        <div className="flex items-center justify-between" data-tour="proposals-header">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3" data-tour="proposals-header">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Proposals</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Proposals</h1>
             <p className="text-muted-foreground mt-1">
               Create and manage client proposals and leads
             </p>
