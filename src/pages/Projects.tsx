@@ -154,9 +154,9 @@ export default function Projects() {
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in" data-tour="projects-page">
-        <div className="flex items-center justify-between" data-tour="projects-header">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3" data-tour="projects-header">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Projects</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Projects</h1>
             <p className="text-muted-foreground mt-1">
               {isAdmin && showAllProjects ? "All company projects" : "Your assigned projects"}
             </p>
