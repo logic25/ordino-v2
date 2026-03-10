@@ -48,6 +48,7 @@ export function InvoiceFilterTabs({ activeTab, onTabChange, counts, pendingBilli
           );
         })}
       </TabsList>
+      </div>
     </Tabs>
   );
 }
