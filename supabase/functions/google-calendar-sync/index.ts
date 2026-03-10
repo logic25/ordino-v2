@@ -297,7 +297,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      if (existing.google_event_id) {
+      if (existing.google_event_id && accessToken) {
         const gcalEvent: any = { summary: title };
         if (description !== undefined) gcalEvent.description = description;
         if (location !== undefined) gcalEvent.location = location;
