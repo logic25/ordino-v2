@@ -261,7 +261,7 @@ Deno.serve(async (req) => {
           status: "confirmed",
           sync_status: googleEventId ? "synced" : "local",
           last_synced_at: googleEventId ? new Date().toISOString() : null,
-          metadata: htmlLink ? { html_link: htmlLink } : {},
+          metadata: { ...(htmlLink ? { html_link: htmlLink } : {}), ...(attendee_ids?.length ? { attendee_ids } : {}) },
         })
         .select()
         .single();
