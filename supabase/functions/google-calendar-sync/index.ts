@@ -96,16 +96,27 @@ Deno.serve(async (req) => {
       .eq("user_id", profile.id)
       .single();
 
-    if (!connection) {
+    const body = await req.json();
+    const { action } = body;
+
+    // For create/update/delete, allow local-only when Gmail isn't connected
+    let accessToken: string | null = null;
+    if (connection) {
+      try {
+        accessToken = await getAccessToken(supabaseAdmin, connection, gmailClientId, gmailClientSecret);
+      } catch (e) {
+        console.error("Token refresh failed, proceeding local-only:", e.message);
+        accessToken = null;
+      }
+    }
+
+    // Sync requires Google connection
+    if (action === "sync" && !accessToken) {
       return new Response(
         JSON.stringify({ error: "Gmail not connected. Please connect Gmail first (with Calendar scope)." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const accessToken = await getAccessToken(supabaseAdmin, connection, gmailClientId, gmailClientSecret);
-    const body = await req.json();
-    const { action } = body;
 
     // ─── SYNC: Pull events from Google Calendar ───
     if (action === "sync") {
@@ -192,45 +203,50 @@ Deno.serve(async (req) => {
     if (action === "create") {
       const { title, description, location, start_time, end_time, all_day, event_type, project_id, property_id, client_id, application_id } = body;
 
-      const gcalEvent: any = {
-        summary: title,
-        description: description || "",
-        location: location || "",
-      };
+      let googleEventId: string | null = null;
+      let htmlLink: string | null = null;
 
-      if (all_day) {
-        gcalEvent.start = { date: start_time.split("T")[0] };
-        gcalEvent.end = { date: end_time.split("T")[0] };
-      } else {
-        gcalEvent.start = { dateTime: start_time, timeZone: "America/New_York" };
-        gcalEvent.end = { dateTime: end_time, timeZone: "America/New_York" };
+      // Push to Google Calendar if connected
+      if (accessToken) {
+        const gcalEvent: any = {
+          summary: title,
+          description: description || "",
+          location: location || "",
+        };
+
+        if (all_day) {
+          gcalEvent.start = { date: start_time.split("T")[0] };
+          gcalEvent.end = { date: end_time.split("T")[0] };
+        } else {
+          gcalEvent.start = { dateTime: start_time, timeZone: "America/New_York" };
+          gcalEvent.end = { dateTime: end_time, timeZone: "America/New_York" };
+        }
+
+        const resp = await fetch(`${CALENDAR_API}/calendars/primary/events`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(gcalEvent),
+        });
+
+        if (!resp.ok) {
+          const errText = await resp.text();
+          console.error("Google Calendar create failed, saving locally:", errText);
+        } else {
+          const created = await resp.json();
+          googleEventId = created.id;
+          htmlLink = created.htmlLink;
+        }
       }
-
-      const resp = await fetch(`${CALENDAR_API}/calendars/primary/events`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(gcalEvent),
-      });
-
-      if (!resp.ok) {
-        const errText = await resp.text();
-        return new Response(
-          JSON.stringify({ error: `Failed to create event: ${resp.status}`, details: errText }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const created = await resp.json();
 
       const { data: dbEvent, error: dbErr } = await supabaseAdmin
         .from("calendar_events")
         .insert({
           company_id: profile.company_id,
           user_id: profile.id,
-          google_event_id: created.id,
+          google_event_id: googleEventId,
           title,
           description,
           location,
@@ -243,9 +259,9 @@ Deno.serve(async (req) => {
           client_id: client_id || null,
           application_id: application_id || null,
           status: "confirmed",
-          sync_status: "synced",
-          last_synced_at: new Date().toISOString(),
-          metadata: { html_link: created.htmlLink },
+          sync_status: googleEventId ? "synced" : "local",
+          last_synced_at: googleEventId ? new Date().toISOString() : null,
+          metadata: htmlLink ? { html_link: htmlLink } : {},
         })
         .select()
         .single();
@@ -281,7 +297,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      if (existing.google_event_id) {
+      if (existing.google_event_id && accessToken) {
         const gcalEvent: any = { summary: title };
         if (description !== undefined) gcalEvent.description = description;
         if (location !== undefined) gcalEvent.location = location;
@@ -348,7 +364,7 @@ Deno.serve(async (req) => {
         .eq("company_id", profile.company_id)
         .single();
 
-      if (existing?.google_event_id) {
+      if (existing?.google_event_id && accessToken) {
         const resp = await fetch(
           `${CALENDAR_API}/calendars/primary/events/${existing.google_event_id}`,
           {
