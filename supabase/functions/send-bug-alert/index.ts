@@ -22,15 +22,22 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } }
     );
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabaseUser.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
+    if (userError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+    const callerAuthId = user.id;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    // Resolve the caller's profile to find their gmail connection
+    const { data: callerProfile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("user_id", callerAuthId)
+      .single();
 
     const body = await req.json();
     const { action, bug_title, bug_description, bug_priority, company_id, reporter_name } = body;
@@ -42,7 +49,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get first available gmail connection for sending
+    // Prefer the calling user's gmail connection; fall back to first available
     const { data: connections } = await supabase
       .from("gmail_connections")
       .select("user_id, email_address, access_token, refresh_token, token_expires_at")
@@ -54,7 +61,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const sender = connections[0];
+    const sender = (callerProfile && connections.find(c => c.user_id === callerProfile.id)) || connections[0];
 
     // ── RESOLVED notification: email the reporter + all admins/managers ──
     if (action === "resolved") {
