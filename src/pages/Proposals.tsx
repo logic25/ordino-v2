@@ -825,7 +825,7 @@ export default function Proposals() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-5" data-tour="proposals-stats">
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-5" data-tour="proposals-stats">
           <Card
             className={`cursor-pointer transition-colors hover:border-primary/50 ${statusFilter === null && !["draft","sent","executed","lost","follow_up"].includes(statusFilter || "") ? "border-primary ring-1 ring-primary/20" : ""}`}
             onClick={() => { setStatusFilter(statusFilter === null ? null : null); setActiveTab("proposals"); }}

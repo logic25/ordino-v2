@@ -89,20 +89,22 @@ export default function Time() {
 
         {/* Tabbed Views */}
         <Tabs defaultValue="timesheet" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="timesheet" className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4" />
-              Weekly Timesheet
-            </TabsTrigger>
-            <TabsTrigger value="entries" className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              Time Entries
-            </TabsTrigger>
-            <TabsTrigger value="attendance" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Attendance Log
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto scrollbar-hide">
+            <TabsList className="inline-flex w-auto">
+              <TabsTrigger value="timesheet" className="flex items-center gap-2">
+                <CalendarDays className="h-4 w-4" />
+                <span className="hidden sm:inline">Weekly</span> Timesheet
+              </TabsTrigger>
+              <TabsTrigger value="entries" className="flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                <span className="hidden sm:inline">Time</span> Entries
+              </TabsTrigger>
+              <TabsTrigger value="attendance" className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Attendance
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="timesheet">
             <Card>

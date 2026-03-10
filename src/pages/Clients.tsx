@@ -205,7 +205,7 @@ export default function Clients() {
         {/* Metrics */}
         <Card>
           <CardContent className="py-3 px-4">
-            <div className="flex items-center justify-around gap-4 text-center">
+            <div className="flex items-center justify-around gap-4 text-center flex-wrap">
               <div>
                 <p className="text-2xl font-bold">{metrics.totalClients}</p>
                 <p className="text-xs text-muted-foreground">Companies</p>
