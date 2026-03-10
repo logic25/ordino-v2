@@ -648,16 +648,28 @@ function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWi
             {sentAt && (
               <span className="text-xs text-muted-foreground">Last sent: {sentAt}</span>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs gap-1 ml-auto"
-              onClick={handleResend}
-              disabled={resending}
-            >
-              {resending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
-              {resending ? "Sending..." : "Resend for Signature"}
-            </Button>
+            <div className="flex items-center gap-1 ml-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={handleResend}
+                disabled={resending}
+              >
+                {resending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                {resending ? "Sending..." : "Resend for Signature"}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                onClick={handleDismiss}
+                title="Dismiss — proposal was approved via alternative method"
+              >
+                <XCircle className="h-3 w-3" />
+                Dismiss
+              </Button>
+            </div>
           </>
         )}
       </div>
