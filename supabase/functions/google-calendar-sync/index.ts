@@ -364,7 +364,7 @@ Deno.serve(async (req) => {
         .eq("company_id", profile.company_id)
         .single();
 
-      if (existing?.google_event_id) {
+      if (existing?.google_event_id && accessToken) {
         const resp = await fetch(
           `${CALENDAR_API}/calendars/primary/events/${existing.google_event_id}`,
           {
