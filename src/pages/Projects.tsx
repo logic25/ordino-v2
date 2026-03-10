@@ -174,7 +174,7 @@ export default function Projects() {
           )}
         </div>
 
-        <div className="grid gap-4 md:grid-cols-4" data-tour="projects-stats">
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4" data-tour="projects-stats">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Open</CardTitle>
