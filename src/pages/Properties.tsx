@@ -164,9 +164,9 @@ export default function Properties() {
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Properties</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Properties</h1>
             <p className="text-muted-foreground mt-1">
               Buildings and addresses with DOB applications
             </p>
