@@ -212,7 +212,7 @@ export function CalendarEventDialog({
                   <SelectItem value="__none__">None</SelectItem>
                   {projects?.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.name}
+                      {[p.project_number, (p as any).properties?.address, p.name].filter(Boolean).join(" - ")}
                     </SelectItem>
                   ))}
                 </SelectContent>
