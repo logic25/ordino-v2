@@ -588,6 +588,8 @@ function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWi
   const { toast } = useToast();
   const [resending, setResending] = useState(false);
 
+  const [dismissed, setDismissed] = useState(false);
+
   if (!proposal) return null;
 
   const proposalNumber = proposal.proposal_number || "—";
@@ -600,7 +602,7 @@ function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWi
   const sentAt = (proposal as any).sent_at
     ? format(new Date((proposal as any).sent_at), "MM/dd/yyyy 'at' h:mm a")
     : null;
-  const fullyExecuted = !!internalDate && !!clientDate;
+  const fullyExecuted = !!internalDate && (!!clientDate || proposal.status === "executed");
 
   const handleResend = async () => {
     setResending(true);
@@ -614,6 +616,11 @@ function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWi
     } finally {
       setResending(false);
     }
+  };
+
+  const handleDismiss = () => {
+    setDismissed(true);
+    toast({ title: "Banner dismissed", description: "Signature reminder hidden for this session." });
   };
 
   return (
