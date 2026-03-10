@@ -95,7 +95,7 @@ export function DashboardStats({ role }: DashboardStatsProps) {
           <span className="text-xs text-muted-foreground ml-auto">Check project readiness checklists</span>
         </div>
       )}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         {pmStats.map((stat) => (
           <StatCard
             key={stat.title}

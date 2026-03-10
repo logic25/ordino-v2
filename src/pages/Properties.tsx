@@ -164,9 +164,9 @@ export default function Properties() {
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Properties</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Properties</h1>
             <p className="text-muted-foreground mt-1">
               Buildings and addresses with DOB applications
             </p>
@@ -198,15 +198,17 @@ export default function Properties() {
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <Tabs value={signalFilter} onValueChange={setSignalFilter}>
-            <TabsList>
-              <TabsTrigger value="all">All ({propertiesWithAll.length})</TabsTrigger>
-              <TabsTrigger value="active">Signal Active ({signalCounts.active})</TabsTrigger>
-              <TabsTrigger value="prospects">Prospects ({signalCounts.prospects})</TabsTrigger>
-              <TabsTrigger value="not_monitored">Not Monitored ({signalCounts.notMonitored})</TabsTrigger>
-            </TabsList>
+            <div className="overflow-x-auto scrollbar-hide">
+              <TabsList className="inline-flex w-auto">
+                <TabsTrigger value="all">All ({propertiesWithAll.length})</TabsTrigger>
+                <TabsTrigger value="active">Signal Active ({signalCounts.active})</TabsTrigger>
+                <TabsTrigger value="prospects">Prospects ({signalCounts.prospects})</TabsTrigger>
+                <TabsTrigger value="not_monitored">Not Monitored ({signalCounts.notMonitored})</TabsTrigger>
+              </TabsList>
+            </div>
           </Tabs>
 
-          <div className="relative max-w-md flex-1">
+          <div className="relative w-full sm:max-w-md sm:flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"

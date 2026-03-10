@@ -85,7 +85,7 @@ export function InvoiceSummaryCards({ counts, totals, activeFilter, onFilterChan
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         {cards.map((card) => {
           const Icon = card.icon;
           const isActive = activeFilter === card.key;

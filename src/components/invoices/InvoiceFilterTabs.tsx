@@ -23,7 +23,8 @@ const tabs: { value: string; label: string; showCount?: boolean; countKey?: stri
 export function InvoiceFilterTabs({ activeTab, onTabChange, counts, pendingBillingCount = 0 }: InvoiceFilterTabsProps) {
   return (
     <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as BillingTab)}>
-      <TabsList className="h-auto bg-transparent p-0 gap-0">
+      <div className="overflow-x-auto scrollbar-hide">
+      <TabsList className="h-auto bg-transparent p-0 gap-0 inline-flex w-auto">
         {tabs.map((tab) => {
           let count = 0;
           if (tab.countKey === "pending_billing") {
@@ -47,6 +48,7 @@ export function InvoiceFilterTabs({ activeTab, onTabChange, counts, pendingBilli
           );
         })}
       </TabsList>
+      </div>
     </Tabs>
   );
 }

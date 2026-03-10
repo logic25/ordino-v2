@@ -154,9 +154,9 @@ export default function Projects() {
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in" data-tour="projects-page">
-        <div className="flex items-center justify-between" data-tour="projects-header">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3" data-tour="projects-header">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Projects</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Projects</h1>
             <p className="text-muted-foreground mt-1">
               {isAdmin && showAllProjects ? "All company projects" : "Your assigned projects"}
             </p>
@@ -174,7 +174,7 @@ export default function Projects() {
           )}
         </div>
 
-        <div className="grid gap-4 md:grid-cols-4" data-tour="projects-stats">
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4" data-tour="projects-stats">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Open</CardTitle>
@@ -216,15 +216,17 @@ export default function Projects() {
         </div>
 
         <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full">
-          <div className="flex items-center gap-4 flex-wrap">
-            <TabsList>
-              <TabsTrigger value="all">All ({visibleProjects.length})</TabsTrigger>
-              <TabsTrigger value="open">Open ({openCount})</TabsTrigger>
-              <TabsTrigger value="on_hold">On Hold ({onHoldCount})</TabsTrigger>
-              <TabsTrigger value="closed">Closed ({visibleProjects.filter(p => p.status === "closed").length})</TabsTrigger>
-              <TabsTrigger value="paid">Paid ({visibleProjects.filter(p => p.status === "paid").length})</TabsTrigger>
-            </TabsList>
-            <div className="relative max-w-md flex-1">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <div className="overflow-x-auto w-full sm:w-auto scrollbar-hide">
+              <TabsList className="inline-flex w-auto">
+                <TabsTrigger value="all">All ({visibleProjects.length})</TabsTrigger>
+                <TabsTrigger value="open">Open ({openCount})</TabsTrigger>
+                <TabsTrigger value="on_hold">On Hold ({onHoldCount})</TabsTrigger>
+                <TabsTrigger value="closed">Closed ({visibleProjects.filter(p => p.status === "closed").length})</TabsTrigger>
+                <TabsTrigger value="paid">Paid ({visibleProjects.filter(p => p.status === "paid").length})</TabsTrigger>
+              </TabsList>
+            </div>
+            <div className="relative w-full sm:max-w-md sm:flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"

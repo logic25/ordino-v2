@@ -209,7 +209,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
         <div className="flex-1 flex flex-col min-w-0">
           <TopBar onMenuToggle={() => setMobileOpen((v) => !v)} />
-          <main className="flex-1 overflow-auto p-4 md:p-6">
+          <main className="flex-1 overflow-auto p-3 sm:p-4 md:p-6">
             {children}
           </main>
           <footer className="border-t border-border px-4 py-3 flex items-center justify-center gap-4 text-xs text-muted-foreground">

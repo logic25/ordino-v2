@@ -798,9 +798,9 @@ export default function Proposals() {
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in" data-tour="proposals-page">
-        <div className="flex items-center justify-between" data-tour="proposals-header">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3" data-tour="proposals-header">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Proposals</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Proposals</h1>
             <p className="text-muted-foreground mt-1">
               Create and manage client proposals and leads
             </p>
@@ -825,7 +825,7 @@ export default function Proposals() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-5" data-tour="proposals-stats">
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-5" data-tour="proposals-stats">
           <Card
             className={`cursor-pointer transition-colors hover:border-primary/50 ${statusFilter === null && !["draft","sent","executed","lost","follow_up"].includes(statusFilter || "") ? "border-primary ring-1 ring-primary/20" : ""}`}
             onClick={() => { setStatusFilter(statusFilter === null ? null : null); setActiveTab("proposals"); }}
@@ -918,7 +918,7 @@ export default function Proposals() {
           </div>
         )}
 
-        <div className="relative max-w-md">
+        <div className="relative w-full sm:max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
