@@ -96,16 +96,27 @@ Deno.serve(async (req) => {
       .eq("user_id", profile.id)
       .single();
 
-    if (!connection) {
+    const body = await req.json();
+    const { action } = body;
+
+    // For create/update/delete, allow local-only when Gmail isn't connected
+    let accessToken: string | null = null;
+    if (connection) {
+      try {
+        accessToken = await getAccessToken(supabaseAdmin, connection, gmailClientId, gmailClientSecret);
+      } catch (e) {
+        console.error("Token refresh failed, proceeding local-only:", e.message);
+        accessToken = null;
+      }
+    }
+
+    // Sync requires Google connection
+    if (action === "sync" && !accessToken) {
       return new Response(
         JSON.stringify({ error: "Gmail not connected. Please connect Gmail first (with Calendar scope)." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const accessToken = await getAccessToken(supabaseAdmin, connection, gmailClientId, gmailClientSecret);
-    const body = await req.json();
-    const { action } = body;
 
     // ─── SYNC: Pull events from Google Calendar ───
     if (action === "sync") {
