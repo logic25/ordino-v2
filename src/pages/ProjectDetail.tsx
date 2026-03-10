@@ -623,6 +623,21 @@ function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWi
     toast({ title: "Banner dismissed", description: "Signature reminder hidden for this session." });
   };
 
+  if (dismissed && !fullyExecuted) {
+    // Only show unsigned COs if the proposal banner is dismissed
+    if (unsignedCOs.length === 0) return null;
+    return (
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800 text-sm">
+          <PenLine className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <span className="text-amber-700 dark:text-amber-300">
+            {unsignedCOs.length} CO{unsignedCOs.length > 1 ? "s" : ""} awaiting signature: {unsignedCOs.map(co => co.co_number).join(", ")}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center gap-3 flex-wrap">
       <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${
