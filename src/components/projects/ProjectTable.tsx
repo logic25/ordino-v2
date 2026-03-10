@@ -58,8 +58,8 @@ export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, is
   };
 
   return (
-    <div className="overflow-x-auto">
-      <Table>
+    <div className="overflow-x-auto -mx-4 sm:mx-0">
+      <Table className="min-w-[800px]">
         <TableHeader>
           <TableRow>
             <TableHead>Project #</TableHead>
