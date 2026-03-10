@@ -198,12 +198,14 @@ export default function Properties() {
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <Tabs value={signalFilter} onValueChange={setSignalFilter}>
-            <TabsList>
-              <TabsTrigger value="all">All ({propertiesWithAll.length})</TabsTrigger>
-              <TabsTrigger value="active">Signal Active ({signalCounts.active})</TabsTrigger>
-              <TabsTrigger value="prospects">Prospects ({signalCounts.prospects})</TabsTrigger>
-              <TabsTrigger value="not_monitored">Not Monitored ({signalCounts.notMonitored})</TabsTrigger>
-            </TabsList>
+            <div className="overflow-x-auto scrollbar-hide">
+              <TabsList className="inline-flex w-auto">
+                <TabsTrigger value="all">All ({propertiesWithAll.length})</TabsTrigger>
+                <TabsTrigger value="active">Signal Active ({signalCounts.active})</TabsTrigger>
+                <TabsTrigger value="prospects">Prospects ({signalCounts.prospects})</TabsTrigger>
+                <TabsTrigger value="not_monitored">Not Monitored ({signalCounts.notMonitored})</TabsTrigger>
+              </TabsList>
+            </div>
           </Tabs>
 
           <div className="relative max-w-md flex-1">
