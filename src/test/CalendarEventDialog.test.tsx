@@ -127,7 +127,7 @@ describe("CalendarEventDialog - Team Members", () => {
 
     // Find and click Create button
     const buttons = container.querySelectorAll("button");
-    const createBtn = Array.from(buttons).find((b) => b.textContent === "Create");
+    const createBtn = Array.from(buttons).find((b) => (b as HTMLButtonElement).textContent === "Create") as HTMLButtonElement | undefined;
     expect(createBtn).toBeTruthy();
     createBtn?.click();
 
