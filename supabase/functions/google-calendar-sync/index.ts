@@ -285,7 +285,7 @@ Deno.serve(async (req) => {
 
       const { data: existing } = await supabaseAdmin
         .from("calendar_events")
-        .select("google_event_id")
+        .select("google_event_id, metadata")
         .eq("id", event_id)
         .eq("company_id", profile.company_id)
         .single();
