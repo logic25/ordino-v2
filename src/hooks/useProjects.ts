@@ -49,7 +49,7 @@ export interface Project {
 
 export interface ProjectWithRelations extends Project {
   properties?: { id: string; address: string; borough: string | null; block?: string | null; lot?: string | null; bin?: string | null; zip_code?: string | null; owner_name?: string | null } | null;
-  proposals?: { id: string; proposal_number: string | null; title: string; total_amount: number | null; status?: string; internal_signed_at?: string | null; client_signed_at?: string | null } | null;
+  proposals?: { id: string; proposal_number: string | null; title: string; total_amount: number | null; status?: string; internal_signed_at?: string | null; client_signed_at?: string | null; approval_method?: string | null } | null;
   assigned_pm?: { id: string; first_name: string | null; last_name: string | null } | null;
   senior_pm?: { id: string; first_name: string | null; last_name: string | null } | null;
   clients?: { id: string; name: string } | null;
