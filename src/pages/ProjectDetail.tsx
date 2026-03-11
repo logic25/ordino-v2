@@ -468,7 +468,7 @@ export default function ProjectDetail() {
                 }} />
               </TabsContent>
               <TabsContent value="emails" className="mt-0">
-                <EmailsFullLive projectId={project.id} mockEmails={emails} />
+                <EmailsFullLive projectId={project.id} projectName={project.name} mockEmails={emails} />
               </TabsContent>
               <TabsContent value="contacts" className="mt-0">
                 <ContactsFull contacts={contacts} pisStatus={pisStatus} projectId={project.id} clientId={project.client_id} />
