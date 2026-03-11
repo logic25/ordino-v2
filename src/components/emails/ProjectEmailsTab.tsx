@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { Mail, Paperclip, X, ExternalLink } from "lucide-react";
+import { Mail, Paperclip, X, ExternalLink, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useProjectEmails, useUntagEmail } from "@/hooks/useEmails";
 import { EmailDetailSheet } from "./EmailDetailSheet";
+import { AddEmailToProjectDialog } from "./AddEmailToProjectDialog";
 import { useToast } from "@/hooks/use-toast";
 import type { EmailWithTags } from "@/hooks/useEmails";
 
