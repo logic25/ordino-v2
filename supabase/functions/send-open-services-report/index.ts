@@ -473,6 +473,21 @@ Deno.serve(async (req) => {
       }
     }
 
+    // 3b. Get billing schedules for next bill dates
+    const { data: billingSchedules } = await supabase
+      .from("billing_schedules")
+      .select("service_id, project_id, next_bill_date")
+      .eq("company_id", companyId)
+      .eq("is_active", true);
+
+    const nextBillMap = new Map<string, string>();
+    for (const bs of billingSchedules || []) {
+      const key = bs.service_id || bs.project_id;
+      if (key && (!nextBillMap.has(key) || bs.next_bill_date < nextBillMap.get(key)!)) {
+        nextBillMap.set(key, bs.next_bill_date);
+      }
+    }
+
     // 4. Group services by PM
     const groupMap = new Map<string, PMGroup>();
 
@@ -495,6 +510,8 @@ Deno.serve(async (req) => {
       const group = groupMap.get(pmId)!;
       const amount = Number(svc.fixed_price) || Number(svc.total_amount) || 0;
       const billed = billedMap.get(svc.id) || Number(svc.billed_amount) || 0;
+      // Resolve next bill date: service-level first, then project-level
+      const nextBillDate = nextBillMap.get(svc.id) || nextBillMap.get(svc.projects.id) || null;
       group.totalValue += amount;
       group.totalBilled += billed;
       group.totalServices += 1;
@@ -504,10 +521,12 @@ Deno.serve(async (req) => {
         address: svc.projects.properties?.address || svc.projects.name || "—",
         clientName: svc.projects.clients?.name || "",
         serviceName: svc.name,
+        serviceId: svc.id,
         amount,
         billedAmount: billed,
         status: svc.status,
         createdAt: svc.created_at,
+        nextBillDate,
       });
     }
 
