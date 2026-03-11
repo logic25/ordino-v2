@@ -437,6 +437,7 @@ Deno.serve(async (req) => {
       companyEmail,
       companyPhone,
       hasProposalAttachment: !!proposalAttachment,
+      logoUrl: (company as any)?.logo_url || null,
     });
 
     const attachments = proposalAttachment ? [proposalAttachment] : [];
