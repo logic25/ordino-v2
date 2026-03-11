@@ -777,8 +777,11 @@ export function useSignProposalInternal() {
           .eq("proposal_id", id);
 
         if (propContacts && propContacts.length > 0) {
+          // Only migrate contacts with a meaningful project role; skip CC-only contacts
+          const migrateRoles = ["applicant", "bill_to", "sign"];
           for (const pc of propContacts) {
             if (!pc.name) continue;
+            if (pc.role && !migrateRoles.includes(pc.role)) continue;
             let contactId: string | null = null;
 
             // Try to find an existing client_contact by email or name
