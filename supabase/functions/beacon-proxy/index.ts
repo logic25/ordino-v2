@@ -110,9 +110,6 @@ Deno.serve(async (req) => {
           ...(BEACON_API_KEY ? { "x-beacon-key": BEACON_API_KEY } : {}),
         },
       };
-    } else if (action === "health") {
-      beaconUrl = `${BEACON_API_URL}/`;
-      beaconReqInit = { method: "GET" };
     } else {
       return new Response(JSON.stringify({ error: "Invalid action" }), {
         status: 400,
