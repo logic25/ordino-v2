@@ -121,10 +121,12 @@ interface ServiceItem {
   address: string;
   clientName: string;
   serviceName: string;
+  serviceId: string;
   amount: number;
   billedAmount: number;
   status: string;
   createdAt: string;
+  nextBillDate: string | null;
 }
 
 interface PMGroup {
