@@ -72,6 +72,7 @@ export function CalendarEventDialog({
   const [eventType, setEventType] = useState("general");
   const [projectId, setProjectId] = useState<string>("");
   const [attendeeIds, setAttendeeIds] = useState<string[]>([]);
+  const [locationManuallyEdited, setLocationManuallyEdited] = useState(false);
 
   useEffect(() => {
     if (event) {
