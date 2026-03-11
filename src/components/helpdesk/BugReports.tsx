@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bug, CheckCircle2, Plus, Clock, Filter, ArrowUpDown, Loader2, Upload, Video, X, Image as ImageIcon, Copy, History } from "lucide-react";
+import { Bug, CheckCircle2, Plus, Clock, Filter, ArrowUpDown, Loader2, Upload, Video, X, Image as ImageIcon, Copy, History, Send, MessageSquare } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -87,6 +87,8 @@ export function BugReports() {
   const [editNotes, setEditNotes] = useState("");
   const [editStatus, setEditStatus] = useState("");
   const [editAssignee, setEditAssignee] = useState("");
+  const [newComment, setNewComment] = useState("");
+  const commentsEndRef = useRef<HTMLDivElement>(null);
 
   // Activity log query
   const { data: activityLogs = [] } = useQuery({
@@ -103,6 +105,67 @@ export function BugReports() {
     enabled: !!selectedBug?.id,
   });
 
+  // Comments query
+  const { data: comments = [] } = useQuery({
+    queryKey: ["bug-comments", selectedBug?.id],
+    queryFn: async () => {
+      if (!selectedBug?.id) return [];
+      const { data } = await supabase
+        .from("bug_comments")
+        .select("*")
+        .eq("bug_id", selectedBug.id)
+        .order("created_at", { ascending: true });
+      return data || [];
+    },
+    enabled: !!selectedBug?.id,
+  });
+
+  // Post comment mutation
+  const postComment = useMutation({
+    mutationFn: async (message: string) => {
+      if (!selectedBug || !profile) throw new Error("Missing context");
+      const { error } = await supabase.from("bug_comments").insert({
+        bug_id: selectedBug.id,
+        company_id: selectedBug.company_id,
+        user_id: profile.id,
+        message,
+      });
+      if (error) throw error;
+
+      // Send email notification (best-effort)
+      supabase.functions.invoke("send-bug-alert", {
+        body: {
+          action: "comment",
+          bug_title: selectedBug.title,
+          bug_description: selectedBug.description,
+          company_id: selectedBug.company_id,
+          commenter_user_id: profile.id,
+          commenter_name: profile.display_name || `${profile.first_name} ${profile.last_name}`,
+          comment_message: message,
+          reporter_user_id: selectedBug.user_id,
+        },
+      }).catch(() => {});
+    },
+    onSuccess: () => {
+      setNewComment("");
+      queryClient.invalidateQueries({ queryKey: ["bug-comments", selectedBug?.id] });
+      // Also log activity
+      if (selectedBug && profile) {
+        supabase.from("bug_activity_logs").insert({
+          bug_id: selectedBug.id,
+          company_id: selectedBug.company_id,
+          user_id: profile.id,
+          action_type: "comment",
+          note: newComment.substring(0, 200),
+        }).then(() => queryClient.invalidateQueries({ queryKey: ["bug-activity", selectedBug.id] }));
+      }
+      setTimeout(() => commentsEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    },
+    onError: (err: any) => {
+      toast({ title: "Error posting comment", description: err.message, variant: "destructive" });
+    },
+  });
+
   const getActivityDescription = (log: any) => {
     const userName = profiles.find((p) => p.id === log.user_id)?.display_name || "Someone";
     switch (log.action_type) {
@@ -112,6 +175,8 @@ export function BugReports() {
         return `${userName} reassigned from ${log.old_value} to ${log.new_value}`;
       case "notes_updated":
         return `${userName} updated admin notes`;
+      case "comment":
+        return `${userName} posted a comment`;
       case "email_reply":
         return `${userName} replied via email`;
       default:
@@ -683,6 +748,62 @@ export function BugReports() {
                   <div>
                     <Label className="text-xs text-muted-foreground">Reported</Label>
                     <p className="mt-1 text-sm">{format(new Date(selectedBug.created_at), "MMM d, yyyy")}</p>
+                  </div>
+                </div>
+
+                {/* Reporter */}
+                <div>
+                  <Label className="text-xs text-muted-foreground">Reported By</Label>
+                  <p className="mt-1 text-sm font-medium">{getAssigneeName(selectedBug.user_id)}</p>
+                </div>
+
+                {/* Comments Thread */}
+                <div className="border-t pt-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                    <h4 className="font-semibold text-sm">Comments</h4>
+                    {comments.length > 0 && <Badge variant="secondary" className="text-xs">{comments.length}</Badge>}
+                  </div>
+                  {comments.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-2">No comments yet. Start a conversation about this bug.</p>
+                  ) : (
+                    <div className="space-y-3 max-h-64 overflow-y-auto mb-3">
+                      {comments.map((c: any) => {
+                        const commenterName = profiles.find((p) => p.id === c.user_id)?.display_name || "Unknown";
+                        const isCurrentUser = c.user_id === profile?.id;
+                        return (
+                          <div key={c.id} className={cn("rounded-lg p-3 text-sm", isCurrentUser ? "bg-primary/10 ml-4" : "bg-muted/50 mr-4")}>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-medium text-xs">{commenterName}</span>
+                              <span className="text-xs text-muted-foreground">{format(new Date(c.created_at), "MMM d, h:mm a")}</span>
+                            </div>
+                            <p className="text-foreground whitespace-pre-line">{c.message}</p>
+                          </div>
+                        );
+                      })}
+                      <div ref={commentsEndRef} />
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Input
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Write a comment..."
+                      className="flex-1"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey && newComment.trim()) {
+                          e.preventDefault();
+                          postComment.mutate(newComment.trim());
+                        }
+                      }}
+                    />
+                    <Button
+                      size="sm"
+                      disabled={!newComment.trim() || postComment.isPending}
+                      onClick={() => postComment.mutate(newComment.trim())}
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
 
