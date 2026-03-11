@@ -1,36 +1,71 @@
 
 
-## DOB NOW Filing Agent — Implementation Complete
+## Bug Tracker Workflow & Comments Enhancement
 
-### What was built (4 pieces):
+### The Problem
+Right now the bug detail sheet only has "Admin Notes" (a single text field) and an activity log that tracks changes. There's no way to have a back-and-forth conversation about a bug — you can't respond to the reporter or ask for clarification, and the reporter (like Chris) can't explain why they reopened it.
 
-**1. Database: `filing_runs` table** ✅
-- Table with `id`, `company_id`, `project_id`, `service_id`, `status`, `progress_log` (jsonb), `payload_snapshot`, `agent_session_id`, timestamps, `error_message`, `created_by`
-- RLS: company-scoped read/insert/update for authenticated users
-- Realtime enabled for live progress subscriptions
-- `updated_at` trigger
+### Proposed Workflow
 
-**2. Edge Function: `filing-payload`** ✅
-- Accepts `project_id` + optional `service_id` via query params
-- Dual auth: JWT for browser, service-role key for agent
-- Returns structured JSON: `location`, `applicant_owner`, `filing_details`, `stakeholders`, `contacts`
-- Pulls from projects, properties, PIS responses, contacts, services
+**Statuses: Open → In Progress → Resolved**
+- **Open** — New bug, not yet being worked on
+- **In Progress** — You're actively working on it (email notification sent to admins/managers)
+- **Resolved** — Fix is deployed (email notification sent to reporter + admins)
 
-**3. Edge Function: `filing-status`** ✅
-- POST endpoint for agent to report progress
-- Auth: service-role key, `x-agent-secret` header, or JWT
-- Appends to `progress_log` array, updates `status`, sets `started_at`/`completed_at`
+When Chris (the reporter) reopens a bug, the status goes back to **Open** and admins are notified.
 
-**4. UI: Agent Launcher in DobNowFilingPrepSheet** ✅
-- "Launch Filing Agent" button alongside existing manual submit
-- Creates `filing_runs` record with `queued` status + payload snapshot
-- Realtime subscription shows live progress feed
-- Status indicators: queued → running → completed/failed/review_needed
-- Progress log with timestamped steps and status icons
-- Retry/Done actions on terminal states
+### What Will Be Built
 
-### External agent service (not built here):
-- Python + Claude Agent SDK + Playwright MCP
-- GET `/filing-payload?project_id=X&service_id=Y` with service-role key
-- POST `/filing-status` with `{ filing_run_id, status, step, error_message, agent_session_id }`
-- `DOB_AGENT_SECRET` header auth supported
+**1. Bug Comments Thread**
+- New `bug_comments` database table (`id`, `bug_id`, `company_id`, `user_id`, `message`, `created_at`)
+- RLS: company-scoped read/write for authenticated users
+- Replaces the single "Admin Notes" textarea with a threaded comment feed
+- Any team member (admin or reporter) can post comments
+- Comments show user name, timestamp, and message
+- A compose input at the bottom of the detail sheet
+
+**2. Keep Admin Notes as Internal-Only**
+- Admin Notes stays as a separate private field (only visible to admins) for internal resolution summaries
+- Comments are visible to everyone on the team
+
+**3. Reporter Visibility**
+- Non-admin users will now see the comment thread on their own bugs, so they can explain why they reopened or ask questions
+- The reporter name is shown in the detail sheet header
+
+**4. Notification on Comment**
+- When an admin comments, the reporter gets an email notification (via existing `send-bug-alert` function with a new `action: "comment"`)
+- When the reporter comments, admins get notified
+
+### Technical Details
+
+**Database migration:**
+```sql
+CREATE TABLE public.bug_comments (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  bug_id uuid NOT NULL REFERENCES public.feature_requests(id) ON DELETE CASCADE,
+  company_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  message text NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE public.bug_comments ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Company members can read comments"
+  ON public.bug_comments FOR SELECT TO authenticated
+  USING (company_id IN (SELECT company_id FROM profiles WHERE user_id = auth.uid()));
+
+CREATE POLICY "Company members can insert comments"
+  ON public.bug_comments FOR INSERT TO authenticated
+  WITH CHECK (company_id IN (SELECT company_id FROM profiles WHERE user_id = auth.uid()));
+```
+
+**UI changes in BugReports.tsx:**
+- Add a comments query + mutation in the detail sheet
+- Render comment thread between the description and admin section
+- Add a text input + send button for new comments
+- Activity log remains at the bottom
+
+**Edge function update (`send-bug-alert`):**
+- Add `action: "comment"` handler that emails the other party (reporter gets admin comments, admins get reporter comments)
+
