@@ -1,36 +1,45 @@
 
 
-## DOB NOW Filing Agent — Implementation Complete
+## Upgrade Open Services Report Email
 
-### What was built (4 pieces):
+The email template is built entirely in `supabase/functions/send-open-services-report/index.ts` — all HTML is generated there. There's no in-app preview. The only way to see it is to trigger "Send Now" from Report Settings or wait for the scheduled send.
 
-**1. Database: `filing_runs` table** ✅
-- Table with `id`, `company_id`, `project_id`, `service_id`, `status`, `progress_log` (jsonb), `payload_snapshot`, `agent_session_id`, timestamps, `error_message`, `created_by`
-- RLS: company-scoped read/insert/update for authenticated users
-- Realtime enabled for live progress subscriptions
-- `updated_at` trigger
+### Changes
 
-**2. Edge Function: `filing-payload`** ✅
-- Accepts `project_id` + optional `service_id` via query params
-- Dual auth: JWT for browser, service-role key for agent
-- Returns structured JSON: `location`, `applicant_owner`, `filing_details`, `stakeholders`, `contacts`
-- Pulls from projects, properties, PIS responses, contacts, services
+**1. Add company logo + branding to header**
+- Query `companies` table for `logo_url`, `address`, `phone`, `email` using the resolved `companyId`
+- Replace the plain green gradient header with logo image + company address + contact line (same pattern as proposal emails)
 
-**3. Edge Function: `filing-status`** ✅
-- POST endpoint for agent to report progress
-- Auth: service-role key, `x-agent-secret` header, or JWT
-- Appends to `progress_log` array, updates `status`, sets `started_at`/`completed_at`
+**2. Add client name column to service table**
+- Join `projects.client_id` → `clients.name` in the data query
+- Add a "Client" column to the services table between Address and Service
 
-**4. UI: Agent Launcher in DobNowFilingPrepSheet** ✅
-- "Launch Filing Agent" button alongside existing manual submit
-- Creates `filing_runs` record with `queued` status + payload snapshot
-- Realtime subscription shows live progress feed
-- Status indicators: queued → running → completed/failed/review_needed
-- Progress log with timestamped steps and status icons
-- Retry/Done actions on terminal states
+**3. Add "Days Open" column**
+- Include `services.created_at` in the query
+- Calculate days since creation: `Math.ceil((Date.now() - new Date(svc.created_at)) / 86400000)`
+- Add a "Days" column with color coding: green (<30), amber (30-60), red (>60)
 
-### External agent service (not built here):
-- Python + Claude Agent SDK + Playwright MCP
-- GET `/filing-payload?project_id=X&service_id=Y` with service-role key
-- POST `/filing-status` with `{ filing_run_id, status, step, error_message, agent_session_id }`
-- `DOB_AGENT_SECRET` header auth supported
+**4. Group services by project**
+- Within each PM section, group services by `project_id`
+- Render a project sub-header row (project number + address + client) spanning all columns
+- List services under each project without repeating project number/address
+
+**5. Fix Gmail-incompatible CSS**
+- Replace `display:flex` with `<table>` layouts for the PM stats section (Gmail strips flexbox)
+- Use inline `<table>` cells for Monthly Goal, Open Value, Goal Progress, Billed, Remaining, Services
+
+### File changed
+- `supabase/functions/send-open-services-report/index.ts` — all template + query changes
+
+### Data query update
+```
+.select(`
+  id, name, status, fixed_price, total_amount, billed_amount, created_at,
+  projects!inner (
+    id, project_number, name, assigned_pm_id, status, company_id, client_id,
+    properties ( address ),
+    clients ( name )
+  )
+`)
+```
+
