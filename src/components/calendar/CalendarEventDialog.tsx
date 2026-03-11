@@ -57,7 +57,7 @@ export function CalendarEventDialog({
 }: CalendarEventDialogProps) {
   const { toast } = useToast();
   const { data: projects } = useProjects();
-  const { data: profiles = [] } = useAssignableProfiles();
+  const { data: profiles = [] } = useCompanyProfiles();
   const createEvent = useCreateCalendarEvent();
   const updateEvent = useUpdateCalendarEvent();
 
