@@ -650,7 +650,7 @@ function ProposalExecutionBanner({ project, changeOrders }: { project: ProjectWi
             <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             <span className="text-emerald-700 dark:text-emerald-300 font-medium">Proposal #{proposalNumber} — Fully Executed</span>
             <span className="text-xs text-muted-foreground">
-              Internal: {internalDate}{clientDate ? ` · Client: ${clientDate}` : " · Approved (alt. method)"}
+              Internal: {internalDate}{clientDate ? ` · Client: ${clientDate}` : ` · ${({physical_copy:"Physical signed copy",client_agreement:"Client's own agreement",email_confirmation:"Email confirmation"})[proposal.approval_method || ""] || "Approved (alt. method)"}`}
             </span>
           </>
         ) : (
