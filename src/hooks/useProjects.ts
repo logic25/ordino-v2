@@ -83,7 +83,7 @@ export function useProjects() {
         .select(`
           *,
           properties (id, address, borough, block, lot, bin),
-          proposals!projects_proposal_id_fkey (id, proposal_number, title, total_amount, status, internal_signed_at, client_signed_at, sent_at, public_token),
+          proposals!projects_proposal_id_fkey (id, proposal_number, title, total_amount, status, internal_signed_at, client_signed_at, sent_at, public_token, approval_method),
           assigned_pm:profiles!projects_assigned_pm_id_fkey (id, first_name, last_name),
           senior_pm:profiles!projects_senior_pm_id_fkey (id, first_name, last_name),
           clients!projects_client_id_fkey (id, name),
