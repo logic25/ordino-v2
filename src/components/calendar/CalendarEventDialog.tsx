@@ -340,7 +340,10 @@ export function CalendarEventDialog({
             <Label>Location</Label>
             <Input
               value={location}
-              onChange={(e) => setLocation(e.target.value)}
+              onChange={(e) => {
+                setLocation(e.target.value);
+                setLocationManuallyEdited(true);
+              }}
               placeholder="123 Main St, NYC"
             />
           </div>
