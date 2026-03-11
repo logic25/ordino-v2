@@ -164,6 +164,12 @@ export function ProjectEmailsTab({ projectId }: ProjectEmailsTabProps) {
         open={!!selectedEmail}
         onOpenChange={(open) => !open && setSelectedEmail(null)}
       />
+
+      <AddEmailToProjectDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        projectId={projectId}
+      />
     </div>
   );
 }
