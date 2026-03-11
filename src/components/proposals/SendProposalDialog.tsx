@@ -32,12 +32,14 @@ function buildProposalEmailHtml({
   companyName,
   companyEmail,
   companyPhone,
+  logoUrl,
   items,
 }: {
   clientName: string;
   proposalTitle: string;
   propertyAddress: string;
   totalAmount: string;
+  logoUrl?: string;
   logoUrl?: string;
   depositAmount: string;
   clientLink: string;
