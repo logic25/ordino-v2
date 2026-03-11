@@ -69,19 +69,25 @@ export function ProjectEmailsTab({ projectId }: ProjectEmailsTabProps) {
         <h3 className="text-sm font-medium">
           Emails ({taggedEmails.length})
         </h3>
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-40 h-8 text-xs">
-            <SelectValue placeholder="All categories" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            <SelectItem value="objection">🚨 Objection</SelectItem>
-            <SelectItem value="agency">📋 Agency</SelectItem>
-            <SelectItem value="client">👤 Client</SelectItem>
-            <SelectItem value="submission">📄 Submission</SelectItem>
-            <SelectItem value="other">Other</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setAddDialogOpen(true)}>
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Add Email
+          </Button>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-40 h-8 text-xs">
+              <SelectValue placeholder="All categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              <SelectItem value="objection">🚨 Objection</SelectItem>
+              <SelectItem value="agency">📋 Agency</SelectItem>
+              <SelectItem value="client">👤 Client</SelectItem>
+              <SelectItem value="submission">📄 Submission</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {filtered.length === 0 ? (
