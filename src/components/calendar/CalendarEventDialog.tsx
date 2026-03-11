@@ -72,6 +72,7 @@ export function CalendarEventDialog({
   const [eventType, setEventType] = useState("general");
   const [projectId, setProjectId] = useState<string>("");
   const [attendeeIds, setAttendeeIds] = useState<string[]>([]);
+  const [locationManuallyEdited, setLocationManuallyEdited] = useState(false);
 
   useEffect(() => {
     if (event) {
@@ -102,8 +103,19 @@ export function CalendarEventDialog({
       setEventType("general");
       setProjectId("");
       setAttendeeIds([]);
+      setLocationManuallyEdited(false);
     }
   }, [event, defaultDate, open]);
+
+  // Auto-fill location from project address when project changes
+  useEffect(() => {
+    if (!projectId || locationManuallyEdited) return;
+    const selected = projects?.find((p) => p.id === projectId);
+    const address = (selected as any)?.properties?.address;
+    if (address) {
+      setLocation(address);
+    }
+  }, [projectId, projects, locationManuallyEdited]);
 
   const toggleAttendee = (id: string) => {
     setAttendeeIds((prev) =>
@@ -328,7 +340,10 @@ export function CalendarEventDialog({
             <Label>Location</Label>
             <Input
               value={location}
-              onChange={(e) => setLocation(e.target.value)}
+              onChange={(e) => {
+                setLocation(e.target.value);
+                setLocationManuallyEdited(true);
+              }}
               placeholder="123 Main St, NYC"
             />
           </div>
