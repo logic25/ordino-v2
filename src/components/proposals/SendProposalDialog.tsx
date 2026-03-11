@@ -40,7 +40,6 @@ function buildProposalEmailHtml({
   propertyAddress: string;
   totalAmount: string;
   logoUrl?: string;
-  logoUrl?: string;
   depositAmount: string;
   clientLink: string;
   companyName: string;
