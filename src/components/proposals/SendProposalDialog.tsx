@@ -207,6 +207,7 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
         companyName: resolvedCompanyName,
         companyEmail,
         companyPhone,
+        logoUrl: companyLogoUrl,
         items: items.map((i: any) => ({
           name: i.name,
           total: fmt(Number(i.total_price || i.quantity * i.unit_price || 0)),
