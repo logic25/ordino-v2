@@ -40,6 +40,7 @@ const categoryLabels: Record<string, string> = {
 export function ProjectEmailsTab({ projectId }: ProjectEmailsTabProps) {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [selectedEmail, setSelectedEmail] = useState<EmailWithTags | null>(null);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
   const { data: taggedEmails = [], isLoading } = useProjectEmails(projectId);
   const untagEmail = useUntagEmail();
   const { toast } = useToast();
