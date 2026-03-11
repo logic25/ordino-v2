@@ -106,6 +106,7 @@ function buildWelcomeEmailHtml({
   companyEmail,
   companyPhone,
   hasProposalAttachment,
+  logoUrl,
 }: {
   clientName: string;
   companyName: string;
@@ -118,6 +119,7 @@ function buildWelcomeEmailHtml({
   companyEmail: string;
   companyPhone: string;
   hasProposalAttachment: boolean;
+  logoUrl: string | null;
 }) {
   const footerParts = [
     companyEmail ? `<a href="mailto:${companyEmail}" style="color:#64748b;">${companyEmail}</a>` : null,
