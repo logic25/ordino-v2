@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { Mail, Paperclip, X, ExternalLink } from "lucide-react";
+import { Mail, Paperclip, X, ExternalLink, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useProjectEmails, useUntagEmail } from "@/hooks/useEmails";
 import { EmailDetailSheet } from "./EmailDetailSheet";
+import { AddEmailToProjectDialog } from "./AddEmailToProjectDialog";
 import { useToast } from "@/hooks/use-toast";
 import type { EmailWithTags } from "@/hooks/useEmails";
 
@@ -39,6 +40,7 @@ const categoryLabels: Record<string, string> = {
 export function ProjectEmailsTab({ projectId }: ProjectEmailsTabProps) {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [selectedEmail, setSelectedEmail] = useState<EmailWithTags | null>(null);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
   const { data: taggedEmails = [], isLoading } = useProjectEmails(projectId);
   const untagEmail = useUntagEmail();
   const { toast } = useToast();
@@ -67,19 +69,25 @@ export function ProjectEmailsTab({ projectId }: ProjectEmailsTabProps) {
         <h3 className="text-sm font-medium">
           Emails ({taggedEmails.length})
         </h3>
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-40 h-8 text-xs">
-            <SelectValue placeholder="All categories" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            <SelectItem value="objection">🚨 Objection</SelectItem>
-            <SelectItem value="agency">📋 Agency</SelectItem>
-            <SelectItem value="client">👤 Client</SelectItem>
-            <SelectItem value="submission">📄 Submission</SelectItem>
-            <SelectItem value="other">Other</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setAddDialogOpen(true)}>
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Add Email
+          </Button>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-40 h-8 text-xs">
+              <SelectValue placeholder="All categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              <SelectItem value="objection">🚨 Objection</SelectItem>
+              <SelectItem value="agency">📋 Agency</SelectItem>
+              <SelectItem value="client">👤 Client</SelectItem>
+              <SelectItem value="submission">📄 Submission</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -155,6 +163,12 @@ export function ProjectEmailsTab({ projectId }: ProjectEmailsTabProps) {
         email={selectedEmail}
         open={!!selectedEmail}
         onOpenChange={(open) => !open && setSelectedEmail(null)}
+      />
+
+      <AddEmailToProjectDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        projectId={projectId}
       />
     </div>
   );
