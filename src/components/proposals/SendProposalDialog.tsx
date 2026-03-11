@@ -151,6 +151,7 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
   const companyEmail = (company as any)?.email || "";
   const companyPhone = (company as any)?.phone || "";
   const companyLogoUrl = (company as any)?.logo_url || "";
+  const companyAddress = (company as any)?.address || "";
 
   const billTo = contacts.find(c => c.role === "bill_to");
   const clientEmail = billTo?.email || proposal?.client_email || "";
