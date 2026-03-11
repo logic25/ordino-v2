@@ -15,7 +15,20 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Verify JWT
+    const url = new URL(req.url);
+    const action = url.searchParams.get("action"); // chat, ingest, knowledge-list, file-content, health
+
+    // Health check doesn't require authentication
+    if (action === "health") {
+      const beaconRes = await fetch(`${BEACON_API_URL}/`, { method: "GET" });
+      const responseBody = await beaconRes.text();
+      return new Response(responseBody, {
+        status: beaconRes.status,
+        headers: { ...corsHeaders, "Content-Type": beaconRes.headers.get("Content-Type") || "application/json" },
+      });
+    }
+
+    // Verify JWT for all other actions
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -36,10 +49,6 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    // Determine which Beacon endpoint to call from the request body/URL
-    const url = new URL(req.url);
-    const action = url.searchParams.get("action"); // chat, ingest, knowledge-list, file-content
 
     // For ingest, check admin role
     if (action === "ingest") {
@@ -101,9 +110,6 @@ Deno.serve(async (req) => {
           ...(BEACON_API_KEY ? { "x-beacon-key": BEACON_API_KEY } : {}),
         },
       };
-    } else if (action === "health") {
-      beaconUrl = `${BEACON_API_URL}/`;
-      beaconReqInit = { method: "GET" };
     } else {
       return new Response(JSON.stringify({ error: "Invalid action" }), {
         status: 400,
