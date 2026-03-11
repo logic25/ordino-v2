@@ -103,7 +103,29 @@ function getGoalMessage(openValue: number, goal: number): { label: string; emoji
   return { label: "Light month — check with leadership on upcoming assignments", emoji: "⚠️", color: "#dc2626" };
 }
 
+function daysOpen(createdAt: string): number {
+  return Math.ceil((Date.now() - new Date(createdAt).getTime()) / 86400000);
+}
+
+function daysColor(days: number): string {
+  if (days > 60) return "#dc2626";
+  if (days > 30) return "#d97706";
+  return "#16a34a";
+}
+
 // --- Types ---
+
+interface ServiceItem {
+  projectId: string;
+  projectNumber: string;
+  address: string;
+  clientName: string;
+  serviceName: string;
+  amount: number;
+  billedAmount: number;
+  status: string;
+  createdAt: string;
+}
 
 interface PMGroup {
   pmName: string;
@@ -112,44 +134,64 @@ interface PMGroup {
   totalValue: number;
   totalBilled: number;
   totalServices: number;
-  services: {
-    projectNumber: string;
-    address: string;
-    serviceName: string;
-    amount: number;
-    billedAmount: number;
-    status: string;
-  }[];
+  services: ServiceItem[];
+}
+
+interface CompanyBranding {
+  name: string;
+  logo_url: string | null;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
 }
 
 // --- Email template builders ---
 
-function buildServicesTable(services: PMGroup["services"]): string {
-  const rows = services
-    .map(
-      (s) => `
+function buildProjectGroupedTable(services: ServiceItem[]): string {
+  // Group by projectId
+  const byProject = new Map<string, { projectNumber: string; address: string; clientName: string; items: ServiceItem[] }>();
+  for (const s of services) {
+    if (!byProject.has(s.projectId)) {
+      byProject.set(s.projectId, { projectNumber: s.projectNumber, address: s.address, clientName: s.clientName, items: [] });
+    }
+    byProject.get(s.projectId)!.items.push(s);
+  }
+
+  let rows = "";
+  for (const [, group] of byProject) {
+    // Project sub-header row
+    rows += `
+      <tr style="background:#eef2ff;">
+        <td colspan="6" style="padding:8px 10px;font-size:13px;font-weight:600;color:#1e3a5f;border-bottom:1px solid #d1d5db;">
+          ${group.projectNumber} &mdash; ${group.address}${group.clientName ? ` &bull; <span style="font-weight:400;color:#4b5563;">${group.clientName}</span>` : ""}
+        </td>
+      </tr>`;
+    for (const s of group.items) {
+      const days = daysOpen(s.createdAt);
+      const remaining = s.amount - s.billedAmount;
+      rows += `
       <tr>
-        <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;">${s.projectNumber}</td>
-        <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;">${s.address}</td>
-        <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;">${s.serviceName}</td>
+        <td style="padding:6px 10px 6px 20px;border-bottom:1px solid #e5e7eb;font-size:13px;">${s.serviceName}</td>
         <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right;">${fmt(s.amount)}</td>
         <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right;">${fmt(s.billedAmount)}</td>
-        <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right;">${fmt(s.amount - s.billedAmount)}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right;">${fmt(remaining)}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:center;">
+          <span style="color:${daysColor(days)};font-weight:600;">${days}d</span>
+        </td>
         <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;text-transform:capitalize;">${s.status.replace("_", " ")}</td>
-      </tr>`
-    )
-    .join("");
+      </tr>`;
+    }
+  }
 
   return `
     <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:8px;">
       <thead>
         <tr style="background:#f3f4f6;">
-          <th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:#374151;border-bottom:2px solid #d1d5db;">Project #</th>
-          <th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:#374151;border-bottom:2px solid #d1d5db;">Address</th>
           <th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:#374151;border-bottom:2px solid #d1d5db;">Service</th>
           <th style="padding:8px 10px;text-align:right;font-size:12px;font-weight:600;color:#374151;border-bottom:2px solid #d1d5db;">Total</th>
           <th style="padding:8px 10px;text-align:right;font-size:12px;font-weight:600;color:#374151;border-bottom:2px solid #d1d5db;">Billed</th>
           <th style="padding:8px 10px;text-align:right;font-size:12px;font-weight:600;color:#374151;border-bottom:2px solid #d1d5db;">Remaining</th>
+          <th style="padding:8px 10px;text-align:center;font-size:12px;font-weight:600;color:#374151;border-bottom:2px solid #d1d5db;">Age</th>
           <th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:#374151;border-bottom:2px solid #d1d5db;">Status</th>
         </tr>
       </thead>
@@ -161,20 +203,27 @@ function buildPMSection(group: PMGroup): string {
   const goal = getGoalMessage(group.totalValue, group.monthlyGoal);
   const remaining = group.totalValue - group.totalBilled;
   const billedPct = group.totalValue > 0 ? Math.round((group.totalBilled / group.totalValue) * 100) : 0;
+
+  // Gmail-safe table layout for stats instead of flexbox
+  const statsTable = `
+    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+      <tr>
+        <td style="padding:4px 0;font-size:13px;color:#4b5563;width:33%;"><strong>Monthly Goal:</strong> ${group.monthlyGoal ? fmt(group.monthlyGoal) : "Not set"}</td>
+        <td style="padding:4px 0;font-size:13px;color:#4b5563;width:33%;"><strong>Open Value:</strong> ${fmt(group.totalValue)}</td>
+        <td style="padding:4px 0;font-size:13px;color:#4b5563;width:34%;"><strong>Goal Progress:</strong> ${pct(group.totalValue, group.monthlyGoal)}</td>
+      </tr>
+      <tr>
+        <td style="padding:4px 0;font-size:13px;color:#4b5563;"><strong>Billed:</strong> ${fmt(group.totalBilled)} (${billedPct}%)</td>
+        <td style="padding:4px 0;font-size:13px;color:#4b5563;"><strong>Remaining:</strong> ${fmt(remaining)}</td>
+        <td style="padding:4px 0;font-size:13px;color:#4b5563;"><strong>Services:</strong> ${group.totalServices}</td>
+      </tr>
+    </table>`;
+
   return `
     <div style="margin-bottom:28px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
       <div style="background:#f9fafb;padding:14px 16px;border-bottom:1px solid #e5e7eb;">
         <h3 style="margin:0 0 8px;font-size:16px;color:#111827;">${group.pmName}</h3>
-        <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:13px;color:#4b5563;">
-          <span><strong>Monthly Goal:</strong> ${group.monthlyGoal ? fmt(group.monthlyGoal) : "Not set"}</span>
-          <span><strong>Open Value:</strong> ${fmt(group.totalValue)}</span>
-          <span><strong>Goal Progress:</strong> ${pct(group.totalValue, group.monthlyGoal)}</span>
-        </div>
-        <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:13px;color:#4b5563;margin-top:4px;">
-          <span><strong>Billed:</strong> ${fmt(group.totalBilled)} (${billedPct}%)</span>
-          <span><strong>Remaining:</strong> ${fmt(remaining)}</span>
-          <span><strong>Services:</strong> ${group.totalServices}</span>
-        </div>
+        ${statsTable}
         <!-- Billing progress bar -->
         <div style="margin-top:8px;background:#e5e7eb;border-radius:4px;height:8px;overflow:hidden;">
           <div style="background:#065f46;height:100%;width:${Math.min(billedPct, 100)}%;border-radius:4px;"></div>
@@ -184,8 +233,29 @@ function buildPMSection(group: PMGroup): string {
         </div>
       </div>
       <div style="padding:0 16px 12px;">
-        ${buildServicesTable(group.services)}
+        ${buildProjectGroupedTable(group.services)}
       </div>
+    </div>`;
+}
+
+function buildBrandingHeader(branding: CompanyBranding, title: string, subtitle: string): string {
+  const logoHtml = branding.logo_url
+    ? `<img src="${branding.logo_url}" alt="${branding.name}" style="max-height:48px;max-width:200px;margin-bottom:8px;" /><br/>`
+    : "";
+  const contactParts: string[] = [];
+  if (branding.address) contactParts.push(branding.address);
+  if (branding.phone) contactParts.push(branding.phone);
+  if (branding.email) contactParts.push(branding.email);
+  const contactLine = contactParts.length > 0
+    ? `<p style="margin:4px 0 0;font-size:11px;opacity:0.8;">${contactParts.join(" &bull; ")}</p>`
+    : "";
+
+  return `
+    <div style="background:linear-gradient(135deg,#065f46,#047857);padding:28px 24px;color:#ffffff;">
+      ${logoHtml}
+      <h1 style="margin:0;font-size:22px;font-weight:700;">${title}</h1>
+      <p style="margin:8px 0 0;font-size:14px;opacity:0.9;">${subtitle}</p>
+      ${contactLine}
     </div>`;
 }
 
@@ -196,7 +266,8 @@ function buildEmailHTML(
   totalBilled: number,
   monthLabel: string,
   isAdmin: boolean,
-  appUrl: string
+  appUrl: string,
+  branding: CompanyBranding
 ): string {
   const pmSections = pmGroups.map(buildPMSection).join("");
   const title = isAdmin
@@ -212,10 +283,7 @@ function buildEmailHTML(
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <div style="max-width:720px;margin:20px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
     <!-- Header -->
-    <div style="background:linear-gradient(135deg,#065f46,#047857);padding:28px 24px;color:#ffffff;">
-      <h1 style="margin:0;font-size:22px;font-weight:700;">${title}</h1>
-      <p style="margin:8px 0 0;font-size:14px;opacity:0.9;">Services expected to be completed this period</p>
-    </div>
+    ${buildBrandingHeader(branding, title, "Services expected to be completed this period")}
 
     <!-- Summary -->
     <div style="padding:20px 24px;border-bottom:1px solid #e5e7eb;">
@@ -253,7 +321,7 @@ function buildEmailHTML(
     <!-- Footer -->
     <div style="padding:16px 24px;background:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">
       <a href="${appUrl}/reports" style="display:inline-block;padding:10px 24px;background:#065f46;color:#ffffff;text-decoration:none;border-radius:6px;font-size:14px;font-weight:500;">View in Ordino</a>
-      <p style="margin:12px 0 0;font-size:11px;color:#9ca3af;">Green Light Expediting • Automated Report</p>
+      <p style="margin:12px 0 0;font-size:11px;color:#9ca3af;">${branding.name} • Automated Report</p>
     </div>
   </div>
 </body>
@@ -289,14 +357,15 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // 1. Query open services with project + property info + billed amounts
+    // 1. Query open services with project + property + client info
     const { data: services, error: svcErr } = await supabase
       .from("services")
       .select(`
-        id, name, status, fixed_price, total_amount, billed_amount,
+        id, name, status, fixed_price, total_amount, billed_amount, created_at,
         projects!inner (
-          id, project_number, name, assigned_pm_id, status, company_id,
-          properties ( address )
+          id, project_number, name, assigned_pm_id, status, company_id, client_id,
+          properties ( address ),
+          clients ( name )
         )
       `)
       .in("status", ["not_started", "in_progress"]);
@@ -310,6 +379,21 @@ Deno.serve(async (req) => {
     }
 
     const companyId = (services[0] as any).projects.company_id;
+
+    // 1b. Fetch company branding
+    const { data: companyRow } = await supabase
+      .from("companies")
+      .select("name, logo_url, address, phone, email")
+      .eq("id", companyId)
+      .single();
+
+    const branding: CompanyBranding = {
+      name: companyRow?.name || "Company",
+      logo_url: companyRow?.logo_url || null,
+      address: companyRow?.address || null,
+      phone: companyRow?.phone || null,
+      email: companyRow?.email || null,
+    };
 
     // 2. Get all PM profiles
     const pmIds = [...new Set(services.map((s: any) => s.projects.assigned_pm_id).filter(Boolean))];
@@ -333,7 +417,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 3. Get billing data for these services (from billing_requests)
+    // 3. Get billing data for these services
     const serviceIds = services.map((s: any) => s.id);
     const { data: billingRequests } = await supabase
       .from("billing_requests")
@@ -341,7 +425,6 @@ Deno.serve(async (req) => {
       .eq("company_id", companyId)
       .in("status", ["pending", "invoiced"]);
 
-    // Build a map of service_id -> total billed from billing requests
     const billedMap = new Map<string, number>();
     for (const br of billingRequests || []) {
       const brServices = br.services as any[];
@@ -381,12 +464,15 @@ Deno.serve(async (req) => {
       group.totalBilled += billed;
       group.totalServices += 1;
       group.services.push({
+        projectId: svc.projects.id,
         projectNumber: svc.projects.project_number || "—",
         address: svc.projects.properties?.address || svc.projects.name || "—",
+        clientName: svc.projects.clients?.name || "",
         serviceName: svc.name,
         amount,
         billedAmount: billed,
         status: svc.status,
+        createdAt: svc.created_at,
       });
     }
 
@@ -467,14 +553,14 @@ Deno.serve(async (req) => {
       if (pmId === "unassigned" || !group.pmEmail) continue;
       if (adminEmails.includes(group.pmEmail)) continue;
 
-      const html = buildEmailHTML([group], group.totalServices, group.totalValue, group.totalBilled, monthLabel, false, appUrl);
+      const html = buildEmailHTML([group], group.totalServices, group.totalValue, group.totalBilled, monthLabel, false, appUrl, branding);
       const result = await sendEmail(accessToken, senderEmail, group.pmEmail, subject, html);
       results.push({ to: group.pmEmail, type: "pm", ...result });
     }
 
     // 7. Send admin/team email
     const allGroups = pmGroups.map(([, g]) => g);
-    const adminHtml = buildEmailHTML(allGroups, grandTotalServices, grandTotalValue, grandTotalBilled, monthLabel, true, appUrl);
+    const adminHtml = buildEmailHTML(allGroups, grandTotalServices, grandTotalValue, grandTotalBilled, monthLabel, true, appUrl, branding);
 
     for (const adminEmail of adminEmails) {
       const result = await sendEmail(accessToken, senderEmail, adminEmail, subject, adminHtml);
