@@ -105,6 +105,67 @@ export function BugReports() {
     enabled: !!selectedBug?.id,
   });
 
+  // Comments query
+  const { data: comments = [] } = useQuery({
+    queryKey: ["bug-comments", selectedBug?.id],
+    queryFn: async () => {
+      if (!selectedBug?.id) return [];
+      const { data } = await supabase
+        .from("bug_comments")
+        .select("*")
+        .eq("bug_id", selectedBug.id)
+        .order("created_at", { ascending: true });
+      return data || [];
+    },
+    enabled: !!selectedBug?.id,
+  });
+
+  // Post comment mutation
+  const postComment = useMutation({
+    mutationFn: async (message: string) => {
+      if (!selectedBug || !profile) throw new Error("Missing context");
+      const { error } = await supabase.from("bug_comments").insert({
+        bug_id: selectedBug.id,
+        company_id: selectedBug.company_id,
+        user_id: profile.id,
+        message,
+      });
+      if (error) throw error;
+
+      // Send email notification (best-effort)
+      supabase.functions.invoke("send-bug-alert", {
+        body: {
+          action: "comment",
+          bug_title: selectedBug.title,
+          bug_description: selectedBug.description,
+          company_id: selectedBug.company_id,
+          commenter_user_id: profile.id,
+          commenter_name: profile.display_name || `${profile.first_name} ${profile.last_name}`,
+          comment_message: message,
+          reporter_user_id: selectedBug.user_id,
+        },
+      }).catch(() => {});
+    },
+    onSuccess: () => {
+      setNewComment("");
+      queryClient.invalidateQueries({ queryKey: ["bug-comments", selectedBug?.id] });
+      // Also log activity
+      if (selectedBug && profile) {
+        supabase.from("bug_activity_logs").insert({
+          bug_id: selectedBug.id,
+          company_id: selectedBug.company_id,
+          user_id: profile.id,
+          action_type: "comment",
+          note: newComment.substring(0, 200),
+        }).then(() => queryClient.invalidateQueries({ queryKey: ["bug-activity", selectedBug.id] }));
+      }
+      setTimeout(() => commentsEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    },
+    onError: (err: any) => {
+      toast({ title: "Error posting comment", description: err.message, variant: "destructive" });
+    },
+  });
+
   const getActivityDescription = (log: any) => {
     const userName = profiles.find((p) => p.id === log.user_id)?.display_name || "Someone";
     switch (log.action_type) {
