@@ -252,7 +252,7 @@ Deno.serve(async (req) => {
     // Get company info
     const { data: company } = await supabaseAdmin
       .from("companies")
-      .select("name, email, phone, settings")
+      .select("name, email, phone, settings, logo_url")
       .eq("id", (proposal as any).company_id)
       .single();
 
