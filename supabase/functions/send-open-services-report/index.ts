@@ -149,22 +149,51 @@ interface CompanyBranding {
 
 // --- Email template builders ---
 
+function fmtDate(d: string | null): string {
+  if (!d) return "—";
+  const date = new Date(d);
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function billDateColor(d: string | null): string {
+  if (!d) return "#6b7280";
+  const diff = Math.ceil((new Date(d).getTime() - Date.now()) / 86400000);
+  if (diff < 0) return "#dc2626"; // overdue
+  if (diff <= 7) return "#d97706"; // within a week
+  return "#16a34a";
+}
+
 function buildProjectGroupedTable(services: ServiceItem[]): string {
-  // Group by projectId
-  const byProject = new Map<string, { projectNumber: string; address: string; clientName: string; items: ServiceItem[] }>();
-  for (const s of services) {
+  // Sort services by nextBillDate (nearest first, nulls last)
+  const sorted = [...services].sort((a, b) => {
+    if (!a.nextBillDate && !b.nextBillDate) return 0;
+    if (!a.nextBillDate) return 1;
+    if (!b.nextBillDate) return -1;
+    return new Date(a.nextBillDate).getTime() - new Date(b.nextBillDate).getTime();
+  });
+
+  // Group by projectId (preserving sort order)
+  const byProject = new Map<string, { projectNumber: string; address: string; clientName: string; earliestBill: string | null; items: ServiceItem[] }>();
+  for (const s of sorted) {
     if (!byProject.has(s.projectId)) {
-      byProject.set(s.projectId, { projectNumber: s.projectNumber, address: s.address, clientName: s.clientName, items: [] });
+      byProject.set(s.projectId, { projectNumber: s.projectNumber, address: s.address, clientName: s.clientName, earliestBill: s.nextBillDate, items: [] });
     }
     byProject.get(s.projectId)!.items.push(s);
   }
 
+  // Sort project groups by earliest bill date
+  const sortedGroups = [...byProject.entries()].sort((a, b) => {
+    if (!a[1].earliestBill && !b[1].earliestBill) return 0;
+    if (!a[1].earliestBill) return 1;
+    if (!b[1].earliestBill) return -1;
+    return new Date(a[1].earliestBill).getTime() - new Date(b[1].earliestBill).getTime();
+  });
+
   let rows = "";
-  for (const [, group] of byProject) {
-    // Project sub-header row
+  for (const [, group] of sortedGroups) {
     rows += `
       <tr style="background:#eef2ff;">
-        <td colspan="6" style="padding:8px 10px;font-size:13px;font-weight:600;color:#1e3a5f;border-bottom:1px solid #d1d5db;">
+        <td colspan="7" style="padding:8px 10px;font-size:13px;font-weight:600;color:#1e3a5f;border-bottom:1px solid #d1d5db;">
           ${group.projectNumber} &mdash; ${group.address}${group.clientName ? ` &bull; <span style="font-weight:400;color:#4b5563;">${group.clientName}</span>` : ""}
         </td>
       </tr>`;
@@ -177,6 +206,9 @@ function buildProjectGroupedTable(services: ServiceItem[]): string {
         <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right;">${fmt(s.amount)}</td>
         <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right;">${fmt(s.billedAmount)}</td>
         <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right;">${fmt(remaining)}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:center;">
+          <span style="color:${billDateColor(s.nextBillDate)};font-weight:600;">${fmtDate(s.nextBillDate)}</span>
+        </td>
         <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:center;">
           <span style="color:${daysColor(days)};font-weight:600;">${days}d</span>
         </td>
@@ -193,6 +225,7 @@ function buildProjectGroupedTable(services: ServiceItem[]): string {
           <th style="padding:8px 10px;text-align:right;font-size:12px;font-weight:600;color:#374151;border-bottom:2px solid #d1d5db;">Total</th>
           <th style="padding:8px 10px;text-align:right;font-size:12px;font-weight:600;color:#374151;border-bottom:2px solid #d1d5db;">Billed</th>
           <th style="padding:8px 10px;text-align:right;font-size:12px;font-weight:600;color:#374151;border-bottom:2px solid #d1d5db;">Remaining</th>
+          <th style="padding:8px 10px;text-align:center;font-size:12px;font-weight:600;color:#374151;border-bottom:2px solid #d1d5db;">Next Bill</th>
           <th style="padding:8px 10px;text-align:center;font-size:12px;font-weight:600;color:#374151;border-bottom:2px solid #d1d5db;">Age</th>
           <th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:#374151;border-bottom:2px solid #d1d5db;">Status</th>
         </tr>
