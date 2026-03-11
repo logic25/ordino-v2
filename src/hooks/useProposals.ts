@@ -389,7 +389,7 @@ export function useUpdateProposal() {
           title: proposalData.title,
           scope_of_work: proposalData.scope_of_work || null,
           payment_terms: proposalData.payment_terms || null,
-          deposit_required: proposalData.deposit_required || 0,
+          deposit_required: proposalData.retainer_amount ?? proposalData.deposit_required ?? 0,
           deposit_percentage: proposalData.deposit_percentage || null,
           tax_rate: taxRate,
           tax_amount: taxAmount,
