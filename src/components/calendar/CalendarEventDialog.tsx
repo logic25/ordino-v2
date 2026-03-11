@@ -27,7 +27,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Users, X } from "lucide-react";
 import { useProjects } from "@/hooks/useProjects";
-import { useAssignableProfiles } from "@/hooks/useProfiles";
+import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useCreateCalendarEvent, useUpdateCalendarEvent, type CalendarEvent } from "@/hooks/useCalendarEvents";
 import { useToast } from "@/hooks/use-toast";
 
@@ -57,7 +57,7 @@ export function CalendarEventDialog({
 }: CalendarEventDialogProps) {
   const { toast } = useToast();
   const { data: projects } = useProjects();
-  const { data: profiles = [] } = useAssignableProfiles();
+  const { data: profiles = [] } = useCompanyProfiles();
   const createEvent = useCreateCalendarEvent();
   const updateEvent = useUpdateCalendarEvent();
 
