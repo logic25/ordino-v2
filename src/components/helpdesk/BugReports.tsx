@@ -87,6 +87,8 @@ export function BugReports() {
   const [editNotes, setEditNotes] = useState("");
   const [editStatus, setEditStatus] = useState("");
   const [editAssignee, setEditAssignee] = useState("");
+  const [newComment, setNewComment] = useState("");
+  const commentsEndRef = useRef<HTMLDivElement>(null);
 
   // Activity log query
   const { data: activityLogs = [] } = useQuery({
