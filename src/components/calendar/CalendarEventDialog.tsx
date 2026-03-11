@@ -27,7 +27,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Users, X } from "lucide-react";
 import { useProjects } from "@/hooks/useProjects";
-import { useAssignableProfiles } from "@/hooks/useProfiles";
+import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useCreateCalendarEvent, useUpdateCalendarEvent, type CalendarEvent } from "@/hooks/useCalendarEvents";
 import { useToast } from "@/hooks/use-toast";
 
