@@ -71,8 +71,9 @@ function buildProposalEmailHtml({
   <div style="max-width:600px;margin:0 auto;padding:32px 16px;">
     <!-- Header -->
     <div style="background:#1e293b;padding:24px 32px;border-radius:12px 12px 0 0;">
-      ${logoUrl ? `<img src="${logoUrl}" alt="${companyName}" style="max-height:48px;margin-bottom:8px;" />` : `<h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;">${companyName}</h1>`}
-      <p style="margin:4px 0 0;color:#94a3b8;font-size:13px;">Proposal for Your Review</p>
+      ${logoUrl ? `<img src="${logoUrl}" alt="${companyName}" style="max-height:48px;" />` : `<h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;">${companyName}</h1>`}
+      ${companyAddress ? `<p style="margin:6px 0 0;color:#94a3b8;font-size:12px;">${companyAddress}</p>` : ""}
+      ${companyPhone || companyEmail ? `<p style="margin:2px 0 0;color:#94a3b8;font-size:12px;">${[companyPhone, companyEmail].filter(Boolean).join(" | ")}</p>` : ""}
     </div>
 
     <!-- Body Card -->
