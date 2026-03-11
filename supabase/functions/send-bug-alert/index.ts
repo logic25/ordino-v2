@@ -281,6 +281,101 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── COMMENT notification ──
+    if (action === "comment") {
+      const { commenter_user_id, commenter_name, comment_message, reporter_user_id } = body;
+
+      const recipients: string[] = [];
+
+      const getEmailByProfileId = async (profileId: string): Promise<string | null> => {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("user_id")
+          .eq("id", profileId)
+          .single();
+        if (!prof?.user_id) return null;
+        const { data: { user } } = await supabase.auth.admin.getUserById(prof.user_id);
+        return user?.email || null;
+      };
+
+      // Check if commenter is the reporter
+      const commenterIsReporter = commenter_user_id === reporter_user_id;
+
+      if (commenterIsReporter) {
+        // Reporter commented → notify admins/managers
+        const { data: adminProfiles } = await supabase
+          .from("profiles")
+          .select("id, user_id")
+          .eq("company_id", company_id)
+          .eq("is_active", true)
+          .in("role", ["admin", "manager"]);
+        for (const p of adminProfiles || []) {
+          const { data: { user } } = await supabase.auth.admin.getUserById(p.user_id);
+          if (user?.email && !recipients.includes(user.email)) recipients.push(user.email);
+        }
+      } else {
+        // Admin/manager commented → notify reporter
+        if (reporter_user_id) {
+          const email = await getEmailByProfileId(reporter_user_id);
+          if (email) recipients.push(email);
+        }
+      }
+
+      if (recipients.length === 0) {
+        return new Response(JSON.stringify({ ok: true, sent: 0, reason: "no_recipients" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const commentHtml = `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb;">
+          <div style="background: #6366f1; padding: 24px 32px;">
+            <h2 style="color: #ffffff; margin: 0; font-size: 20px;">💬 New Comment on Bug</h2>
+          </div>
+          <div style="padding: 24px 32px;">
+            <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+              <strong>${commenter_name || "Someone"}</strong> commented on:
+            </p>
+            <div style="background: #f3f4f6; border-left: 4px solid #6366f1; padding: 14px 18px; margin: 16px 0; border-radius: 4px;">
+              <strong style="color: #4338ca; font-size: 15px;">${bug_title}</strong>
+            </div>
+            <div style="background: #f9fafb; padding: 14px; border-radius: 6px; margin: 16px 0; white-space: pre-line; color: #374151; font-size: 14px; line-height: 1.5; border: 1px solid #e5e7eb;">
+              ${comment_message || ""}
+            </div>
+            <div style="margin-top: 24px; text-align: center;">
+              <a href="https://ordinov3.lovable.app/help" style="display: inline-block; background: #6366f1; color: #ffffff; text-decoration: none; padding: 10px 24px; border-radius: 6px; font-size: 14px; font-weight: 600;">View Bug</a>
+            </div>
+          </div>
+          <div style="background: #f9fafb; padding: 16px 32px; border-top: 1px solid #e5e7eb;">
+            <p style="color: #9ca3af; font-size: 12px; margin: 0; text-align: center;">Ordino • Bug Tracker Notification</p>
+          </div>
+        </div>
+      `;
+
+      let sentCount = 0;
+      for (const email of recipients) {
+        try {
+          const res = await fetch(`${supabaseUrl}/functions/v1/gmail-send`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
+            body: JSON.stringify({
+              user_id: sender.user_id,
+              to: email,
+              subject: `💬 Comment on Bug: ${bug_title}`,
+              html_body: commentHtml,
+            }),
+          });
+          if (res.ok) sentCount++;
+        } catch (e) {
+          console.error(`Failed to send comment email to ${email}:`, e);
+        }
+      }
+
+      return new Response(JSON.stringify({ ok: true, sent: sentCount }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { data: newBugAdminProfiles } = await supabase
       .from("profiles")
       .select("id, user_id")

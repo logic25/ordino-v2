@@ -751,6 +751,62 @@ export function BugReports() {
                   </div>
                 </div>
 
+                {/* Reporter */}
+                <div>
+                  <Label className="text-xs text-muted-foreground">Reported By</Label>
+                  <p className="mt-1 text-sm font-medium">{getAssigneeName(selectedBug.user_id)}</p>
+                </div>
+
+                {/* Comments Thread */}
+                <div className="border-t pt-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                    <h4 className="font-semibold text-sm">Comments</h4>
+                    {comments.length > 0 && <Badge variant="secondary" className="text-xs">{comments.length}</Badge>}
+                  </div>
+                  {comments.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-2">No comments yet. Start a conversation about this bug.</p>
+                  ) : (
+                    <div className="space-y-3 max-h-64 overflow-y-auto mb-3">
+                      {comments.map((c: any) => {
+                        const commenterName = profiles.find((p) => p.id === c.user_id)?.display_name || "Unknown";
+                        const isCurrentUser = c.user_id === profile?.id;
+                        return (
+                          <div key={c.id} className={cn("rounded-lg p-3 text-sm", isCurrentUser ? "bg-primary/10 ml-4" : "bg-muted/50 mr-4")}>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-medium text-xs">{commenterName}</span>
+                              <span className="text-xs text-muted-foreground">{format(new Date(c.created_at), "MMM d, h:mm a")}</span>
+                            </div>
+                            <p className="text-foreground whitespace-pre-line">{c.message}</p>
+                          </div>
+                        );
+                      })}
+                      <div ref={commentsEndRef} />
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Input
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Write a comment..."
+                      className="flex-1"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey && newComment.trim()) {
+                          e.preventDefault();
+                          postComment.mutate(newComment.trim());
+                        }
+                      }}
+                    />
+                    <Button
+                      size="sm"
+                      disabled={!newComment.trim() || postComment.isPending}
+                      onClick={() => postComment.mutate(newComment.trim())}
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
                 {/* Copy for Lovable — visible to everyone */}
                 <div className="border-t pt-4">
                   <Button size="sm" variant="outline" className="w-full" onClick={copyForLovable}>
