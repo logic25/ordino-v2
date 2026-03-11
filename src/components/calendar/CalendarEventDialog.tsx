@@ -103,8 +103,19 @@ export function CalendarEventDialog({
       setEventType("general");
       setProjectId("");
       setAttendeeIds([]);
+      setLocationManuallyEdited(false);
     }
   }, [event, defaultDate, open]);
+
+  // Auto-fill location from project address when project changes
+  useEffect(() => {
+    if (!projectId || locationManuallyEdited) return;
+    const selected = projects?.find((p) => p.id === projectId);
+    const address = (selected as any)?.properties?.address;
+    if (address) {
+      setLocation(address);
+    }
+  }, [projectId, projects, locationManuallyEdited]);
 
   const toggleAttendee = (id: string) => {
     setAttendeeIds((prev) =>
