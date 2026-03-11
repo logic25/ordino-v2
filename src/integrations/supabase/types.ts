@@ -5965,6 +5965,8 @@ export type Database = {
           client_signed_at: string | null
           client_signed_name: string | null
           client_signed_title: string | null
+          client_signer_name: string | null
+          client_signer_title: string | null
           company_id: string
           converted_application_id: string | null
           converted_at: string | null
@@ -6042,6 +6044,8 @@ export type Database = {
           client_signed_at?: string | null
           client_signed_name?: string | null
           client_signed_title?: string | null
+          client_signer_name?: string | null
+          client_signer_title?: string | null
           company_id: string
           converted_application_id?: string | null
           converted_at?: string | null
@@ -6119,6 +6123,8 @@ export type Database = {
           client_signed_at?: string | null
           client_signed_name?: string | null
           client_signed_title?: string | null
+          client_signer_name?: string | null
+          client_signer_title?: string | null
           company_id?: string
           converted_application_id?: string | null
           converted_at?: string | null
