@@ -300,12 +300,12 @@ export default function RfiForm() {
         if (fieldOverrides[field.id]) {
           return { ...field, ...fieldOverrides[field.id] };
         }
-        // Merge proposal work types into work_type_picker options (only valid DOB types)
-        if (field.type === "work_type_picker" && proposalWorkTypes.length > 0) {
-          const baseOpts = field.options || [];
-          const merged = [...baseOpts];
+        // Always use the current canonical work type list, not stale saved options
+        if (field.type === "work_type_picker") {
+          const canonicalOpts = [...WORK_TYPE_DISCIPLINES, "Other"];
+          const merged = [...canonicalOpts];
+          // Also merge any proposal work types that aren't already in the list
           for (const wt of proposalWorkTypes) {
-            if (!VALID_WORK_TYPES.has(wt)) continue; // Skip non-standard disciplines
             if (!merged.includes(wt)) {
               const otherIdx = merged.indexOf("Other");
               if (otherIdx >= 0) {
