@@ -889,12 +889,13 @@ export function BugReports() {
                       ))}
                     </div>
                   )}
-                  <div className="flex gap-2">
-                    <Input
+                  <div className="space-y-2">
+                    <Textarea
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
                       placeholder="Write a comment..."
-                      className="flex-1"
+                      rows={3}
+                      className="resize-none"
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey && (newComment.trim() || commentFiles.length > 0)) {
                           e.preventDefault();
@@ -902,27 +903,29 @@ export function BugReports() {
                         }
                       }}
                     />
-                    <input
-                      ref={commentFileRef}
-                      type="file"
-                      accept="image/*,.pdf,.doc,.docx"
-                      multiple
-                      className="hidden"
-                      onChange={(e) => {
-                        if (e.target.files) setCommentFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
-                        e.target.value = "";
-                      }}
-                    />
-                    <Button size="sm" variant="outline" onClick={() => commentFileRef.current?.click()} title="Attach file">
-                      <Paperclip className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      disabled={(!newComment.trim() && commentFiles.length === 0) || postComment.isPending}
-                      onClick={() => postComment.mutate({ message: newComment.trim(), files: commentFiles })}
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-2 justify-end">
+                      <input
+                        ref={commentFileRef}
+                        type="file"
+                        accept="image/*,.pdf,.doc,.docx"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files) setCommentFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
+                          e.target.value = "";
+                        }}
+                      />
+                      <Button size="sm" variant="outline" onClick={() => commentFileRef.current?.click()} title="Attach file">
+                        <Paperclip className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={(!newComment.trim() && commentFiles.length === 0) || postComment.isPending}
+                        onClick={() => postComment.mutate({ message: newComment.trim(), files: commentFiles })}
+                      >
+                        <Send className="h-4 w-4 mr-1" /> Post
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
