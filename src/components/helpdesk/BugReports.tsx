@@ -443,10 +443,11 @@ export function BugReports() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-5 gap-3">
         {[
           { label: "Open", count: openCount, color: "text-destructive", filter: "open" },
           { label: "In Progress", count: inProgressCount, color: "text-amber-500", filter: "in_progress" },
+          { label: "Ready for Review", count: readyForReviewCount, color: "text-purple-500", filter: "ready_for_review" },
           { label: "Resolved", count: resolvedCount, color: "text-green-500", filter: "resolved" },
           { label: "Critical", count: criticalCount, color: "text-destructive", filter: "critical" },
         ].map((s) => (
