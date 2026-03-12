@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
 
     // ── REOPENED notification: email the reporter + all admins/managers ──
     if (action === "reopened" || action === "in_progress" || action === "ready_for_review") {
-      const { reopened_by_name, reporter_user_id, admin_notes } = body;
+      const { reopened_by_name, reporter_user_id, admin_notes, recent_comments } = body;
 
       const recipients: string[] = [];
 
