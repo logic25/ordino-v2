@@ -89,9 +89,12 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Service-role auth check for scheduled/internal calls
-    const authHeader = req.headers.get("Authorization");
-    if (authHeader !== `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`) {
+    // Accept both service-role key and anon key (for cron jobs)
+    const authHeader = req.headers.get("Authorization") || "";
+    const token = authHeader.replace("Bearer ", "");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    if (token !== serviceRoleKey && token !== anonKey) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
