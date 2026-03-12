@@ -359,6 +359,7 @@ export function BugReports() {
     const isNewlyResolved = editStatus === "resolved" && selectedBug.status !== "resolved";
     const isReopened = editStatus === "open" && selectedBug.status === "resolved";
     const isMovedToInProgress = editStatus === "in_progress" && selectedBug.status === "open";
+    const isReadyForReview = editStatus === "ready_for_review" && selectedBug.status !== "ready_for_review";
     updateBug.mutate({ id: selectedBug.id, updates }, {
       onSuccess: () => {
         if (isNewlyResolved) {
