@@ -171,7 +171,7 @@ Deno.serve(async (req) => {
     }
 
     // ── REOPENED notification: email the reporter + all admins/managers ──
-    if (action === "reopened" || action === "in_progress") {
+    if (action === "reopened" || action === "in_progress" || action === "ready_for_review") {
       const { reopened_by_name } = body;
 
       const recipients: string[] = [];
@@ -222,16 +222,17 @@ Deno.serve(async (req) => {
       };
 
       const isReopened = action === "reopened";
-      const headerBg = isReopened ? "#ea580c" : "#2563eb";
-      const headerIcon = isReopened ? "🔄" : "🔧";
-      const headerText = isReopened ? "Bug Reopened" : "Bug In Progress";
-      const cardBg = isReopened ? "#fff7ed" : "#eff6ff";
-      const cardBorder = isReopened ? "#ea580c" : "#2563eb";
-      const titleColor = isReopened ? "#c2410c" : "#1d4ed8";
+      const isReadyForReview = action === "ready_for_review";
+      const headerBg = isReopened ? "#ea580c" : isReadyForReview ? "#7c3aed" : "#2563eb";
+      const headerIcon = isReopened ? "🔄" : isReadyForReview ? "👀" : "🔧";
+      const headerText = isReopened ? "Bug Reopened" : isReadyForReview ? "Bug Ready for Review" : "Bug In Progress";
+      const cardBg = isReopened ? "#fff7ed" : isReadyForReview ? "#f5f3ff" : "#eff6ff";
+      const cardBorder = isReopened ? "#ea580c" : isReadyForReview ? "#7c3aed" : "#2563eb";
+      const titleColor = isReopened ? "#c2410c" : isReadyForReview ? "#6d28d9" : "#1d4ed8";
       const byLine = isReopened
         ? (reopened_by_name ? ` by <strong>${reopened_by_name}</strong>` : "")
         : "";
-      const statusLabel = isReopened ? "reopened" : "moved to In Progress";
+      const statusLabel = isReopened ? "reopened" : isReadyForReview ? "marked as ready for review" : "moved to In Progress";
 
       const statusHtml = `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb;">
