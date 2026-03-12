@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Send, Copy, CheckCircle2, ExternalLink, Loader2, FileText } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import type { ProposalWithRelations } from "@/hooks/useProposals";
 import { useProposalContacts } from "@/hooks/useProposalContacts";
 import { sendBillingEmail } from "@/hooks/useBillingEmail";
@@ -153,9 +154,55 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
   const companyLogoUrl = (company as any)?.logo_url || "";
   const companyAddress = (company as any)?.address || "";
 
-  const billTo = contacts.find(c => c.role === "bill_to");
-  const clientEmail = billTo?.email || proposal?.client_email || "";
-  const clientName = billTo?.name || proposal?.client_name || "Client";
+  // Build recipient options from contacts + fallback
+  const recipientOptions = useMemo(() => {
+    const opts: { id: string; label: string; name: string; email: string }[] = [];
+    const roleLabels: Record<string, string> = {
+      bill_to: "Bill To",
+      applicant: "Applicant",
+      sign: "Signer",
+      owner: "Owner",
+      cc: "CC",
+    };
+    for (const c of contacts) {
+      if (c.email) {
+        opts.push({
+          id: c.id,
+          label: `${roleLabels[c.role] || c.role} — ${c.name}`,
+          name: c.name || "",
+          email: c.email,
+        });
+      }
+    }
+    // Fallback if no contacts with email
+    if (opts.length === 0 && proposal?.client_email) {
+      opts.push({
+        id: "fallback",
+        label: `Client — ${proposal.client_name || "Client"}`,
+        name: proposal.client_name || "Client",
+        email: proposal.client_email,
+      });
+    }
+    return opts;
+  }, [contacts, proposal?.client_email, proposal?.client_name]);
+
+  const [selectedRecipientId, setSelectedRecipientId] = useState("");
+
+  // Auto-select bill_to or first available
+  useEffect(() => {
+    if (open && recipientOptions.length > 0) {
+      const billTo = contacts.find(c => c.role === "bill_to" && c.email);
+      if (billTo) {
+        setSelectedRecipientId(billTo.id);
+      } else {
+        setSelectedRecipientId(recipientOptions[0].id);
+      }
+    }
+  }, [open, recipientOptions]);
+
+  const selectedRecipient = recipientOptions.find(r => r.id === selectedRecipientId) || recipientOptions[0];
+  const clientEmail = selectedRecipient?.email || "";
+  const clientName = selectedRecipient?.name || "Client";
   const firstName = clientName.split(" ")[0];
 
   const token = (proposal as any)?.public_token;
@@ -247,11 +294,26 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
         </DialogHeader>
 
         <div className="space-y-4 flex-1 overflow-y-auto">
-          {/* Recipient info */}
+          {/* Recipient selector */}
           <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">To:</span>
-              <span className="font-medium">{clientName} {clientEmail && `<${clientEmail}>`}</span>
+            <div className="text-sm">
+              <Label className="text-xs text-muted-foreground mb-1 block">Send To</Label>
+              {recipientOptions.length > 1 ? (
+                <Select value={selectedRecipientId} onValueChange={setSelectedRecipientId}>
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="Select recipient" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {recipientOptions.map(opt => (
+                      <SelectItem key={opt.id} value={opt.id}>
+                        {opt.label} &lt;{opt.email}&gt;
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="font-medium text-sm">{clientName} {clientEmail && `<${clientEmail}>`}</div>
+              )}
             </div>
             <div className="text-sm">
               <Label className="text-xs text-muted-foreground mb-1 block">Subject</Label>
