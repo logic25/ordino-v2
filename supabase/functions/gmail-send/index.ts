@@ -355,11 +355,47 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Insert sent email into emails table so it's immediately available
+    const toEmails = to.split(",").map((e: string) => e.trim()).filter(Boolean);
+    const { data: insertedEmail } = await supabaseAdmin
+      .from("emails")
+      .upsert({
+        company_id: connection.company_id,
+        user_id: profileId,
+        gmail_message_id: sendData.id,
+        thread_id: sendData.threadId || null,
+        subject,
+        from_email: connection.email_address,
+        from_name: connection.email_address,
+        to_emails: toEmails,
+        date: new Date().toISOString(),
+        snippet: html_body.replace(/<[^>]*>/g, "").substring(0, 200),
+        has_attachments: (attachments && attachments.length > 0) || false,
+        labels: ["SENT"],
+        is_read: true,
+      }, { onConflict: "company_id,gmail_message_id" })
+      .select("id")
+      .single();
+
+    // Auto-tag to project if project_id provided
+    if (project_id && insertedEmail?.id) {
+      await supabaseAdmin
+        .from("email_project_tags")
+        .insert({
+          email_id: insertedEmail.id,
+          project_id,
+          company_id: connection.company_id,
+          tagged_by_id: profileId,
+          category: tag_category || "other",
+        });
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
         message_id: sendData.id,
         thread_id: sendData.threadId,
+        email_id: insertedEmail?.id || null,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
