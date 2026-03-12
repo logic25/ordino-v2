@@ -2146,7 +2146,6 @@ function EmailsFullLive({ projectId, projectName, mockEmails }: { projectId: str
         open={composeOpen}
         onOpenChange={setComposeOpen}
         projectId={projectId}
-        projectId={projectId}
       />
 
       {/* Mock fallback for demo */}
