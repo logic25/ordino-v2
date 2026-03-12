@@ -45,9 +45,13 @@ function getQuickOptions() {
   ];
 }
 
+function getDefaultCustomDate() {
+  return startOfDay(new Date());
+}
+
 export function ScheduleSendDropdown({ onSchedule, disabled }: ScheduleSendDropdownProps) {
   const [customOpen, setCustomOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => getDefaultCustomDate());
   const [selectedTime, setSelectedTime] = useState("09:00");
 
   const quickOptions = getQuickOptions();
