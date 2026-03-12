@@ -1405,7 +1405,7 @@ function AssignedToField({ service }: { service: MockService }) {
 }
 
 
-function ServiceExpandedDetail({ service, projectName }: { service: MockService; projectName?: string }) {
+function ServiceExpandedDetail({ service, projectName, projectId }: { service: MockService; projectName?: string; projectId?: string }) {
   const [showAddReq, setShowAddReq] = useState(false);
   const [newReqLabel, setNewReqLabel] = useState("");
   const [newReqFrom, setNewReqFrom] = useState("");
