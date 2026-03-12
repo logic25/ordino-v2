@@ -243,7 +243,7 @@ export default function Projects() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FolderKanban className="h-5 w-5" />
-              All Projects
+              {isAdmin && showAllProjects ? "All Projects" : "My Projects"}
               {!isLoading && (
                 <span className="text-muted-foreground font-normal text-sm">
                   ({filteredProjects.length})
