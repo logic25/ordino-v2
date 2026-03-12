@@ -214,7 +214,7 @@ export default function Emails() {
                 setSearch(e.target.value);
                 if (!e.target.value) clearGmailSearch();
               }}
-              className="pl-9"
+              className="pl-9 border-2 border-border bg-background shadow-sm focus-visible:border-primary"
             />
             {search && (
               <button
