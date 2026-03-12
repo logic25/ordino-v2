@@ -956,10 +956,75 @@ export function BugReports() {
                   </div>
                 )}
 
-                {selectedBug.admin_notes && !isAdmin && (
+                {/* Reviewer actions for non-admin reporter when status is ready_for_review */}
+                {!isAdmin && selectedBug.user_id === profile?.id && selectedBug.status === "ready_for_review" && (
+                  <div className="border-t pt-4 space-y-3">
+                    <h4 className="font-semibold text-sm">Review This Fix</h4>
+                    <p className="text-xs text-muted-foreground">This bug has been marked as ready for your review. Please test and confirm.</p>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => {
+                          updateBug.mutate({ id: selectedBug.id, updates: { status: "resolved", resolved_at: new Date().toISOString() } }, {
+                            onSuccess: () => {
+                              supabase.from("bug_activity_logs").insert({
+                                bug_id: selectedBug.id, company_id: selectedBug.company_id, user_id: profile!.id,
+                                action_type: "status_change", field_changed: "status", old_value: "ready_for_review", new_value: "resolved",
+                              }).then(() => queryClient.invalidateQueries({ queryKey: ["bug-activity", selectedBug.id] }));
+                              supabase.functions.invoke("send-bug-alert", {
+                                body: { action: "resolved", bug_title: selectedBug.title, company_id: selectedBug.company_id, reporter_user_id: selectedBug.user_id },
+                              }).catch(() => {});
+                              setSelectedBug(null);
+                            },
+                          });
+                        }}
+                        disabled={updateBug.isPending}
+                      >
+                        <ThumbsUp className="h-4 w-4 mr-2" />
+                        Confirm Fixed
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="flex-1"
+                        onClick={() => {
+                          const reason = prompt("What's still broken? (This will be posted as a comment)");
+                          if (!reason) return;
+                          // Post comment first, then change status
+                          postComment.mutate({ message: `🔴 Still broken: ${reason}`, files: [] }, {
+                            onSuccess: () => {
+                              updateBug.mutate({ id: selectedBug.id, updates: { status: "in_progress", resolved_at: null } }, {
+                                onSuccess: () => {
+                                  supabase.from("bug_activity_logs").insert({
+                                    bug_id: selectedBug.id, company_id: selectedBug.company_id, user_id: profile!.id,
+                                    action_type: "status_change", field_changed: "status", old_value: "ready_for_review", new_value: "in_progress",
+                                  }).then(() => queryClient.invalidateQueries({ queryKey: ["bug-activity", selectedBug.id] }));
+                                  supabase.functions.invoke("send-bug-alert", {
+                                    body: { action: "reopened", bug_title: selectedBug.title, bug_description: selectedBug.description, company_id: selectedBug.company_id, reporter_user_id: selectedBug.user_id },
+                                  }).catch(() => {});
+                                  setSelectedBug(null);
+                                },
+                              });
+                            },
+                          });
+                        }}
+                        disabled={updateBug.isPending || postComment.isPending}
+                      >
+                        <ThumbsDown className="h-4 w-4 mr-2" />
+                        Still Broken
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Admin notes visible to reporter during ready_for_review OR after resolved */}
+                {selectedBug.admin_notes && !isAdmin && (selectedBug.status === "ready_for_review" || selectedBug.status === "resolved") && (
                   <div className="border-t pt-4">
-                    <Label className="text-xs text-muted-foreground">Resolution Notes</Label>
-                    <p className="mt-1 text-sm whitespace-pre-line">{selectedBug.admin_notes}</p>
+                    <Label className="text-xs text-muted-foreground">
+                      {selectedBug.status === "ready_for_review" ? "What was changed" : "Resolution Notes"}
+                    </Label>
+                    <p className="mt-1 text-sm whitespace-pre-line bg-muted/50 rounded-md p-3">{selectedBug.admin_notes}</p>
                   </div>
                 )}
 
