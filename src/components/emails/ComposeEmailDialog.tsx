@@ -38,9 +38,11 @@ interface ComposeEmailDialogProps {
   defaultAttachments?: AttachmentFile[];
   /** Optional transform applied to body HTML before sending (e.g. wrap in styled email template) */
   transformBodyOnSend?: (html: string) => string;
+  /** When provided, sent emails are auto-tagged to this project */
+  projectId?: string;
 }
 
-export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defaultSubject, defaultBody, defaultAttachments, transformBodyOnSend }: ComposeEmailDialogProps) {
+export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defaultSubject, defaultBody, defaultAttachments, transformBodyOnSend, projectId }: ComposeEmailDialogProps) {
   const [to, setTo] = useState<string[]>([]);
   const [cc, setCc] = useState<string[]>([]);
   const [bcc, setBcc] = useState<string[]>([]);
@@ -198,6 +200,8 @@ export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defau
         subject: subject.trim(),
         html_body: finalBody,
         attachments: buildAttachmentsPayload(),
+        project_id: projectId,
+        tag_category: "other",
       },
       async () => {
         await cleanupDraftOnSend();

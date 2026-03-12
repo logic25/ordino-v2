@@ -1111,6 +1111,7 @@ Give a direct, professional response to this DOB examiner objection in 2-4 plain
           defaultSubject={composeDefaults.subject}
           defaultBody={composeDefaults.body}
           defaultAttachments={composeDefaults.attachments}
+          projectId={projectId}
         />
       )}
 

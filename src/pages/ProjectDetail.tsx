@@ -1405,7 +1405,7 @@ function AssignedToField({ service }: { service: MockService }) {
 }
 
 
-function ServiceExpandedDetail({ service, projectName }: { service: MockService; projectName?: string }) {
+function ServiceExpandedDetail({ service, projectName, projectId }: { service: MockService; projectName?: string; projectId?: string }) {
   const [showAddReq, setShowAddReq] = useState(false);
   const [newReqLabel, setNewReqLabel] = useState("");
   const [newReqFrom, setNewReqFrom] = useState("");
@@ -1630,6 +1630,7 @@ function ServiceExpandedDetail({ service, projectName }: { service: MockService;
         onOpenChange={setComposeEmailOpen}
         defaultSubject={`Re: ${service.name}${projectName ? ` — ${projectName}` : ""}`}
         defaultBody={`<p>Hi,</p><p>Regarding the service <strong>${service.name}</strong>${projectName ? ` on project <strong>${projectName}</strong>` : ""}:</p><p></p>`}
+        projectId={projectId}
       />
     </div>
   );
@@ -2014,7 +2015,7 @@ function ServicesFull({ services: initialServices, project, contacts, allService
                       </TableRow>
                       {isExpanded && (
                         <TableRow key={`${svc.id}-detail`} className="hover:bg-transparent">
-                          <TableCell colSpan={12} className="p-0"><ServiceExpandedDetail service={svc} projectName={project.name || project.proposals?.title || ""} /></TableCell>
+                          <TableCell colSpan={12} className="p-0"><ServiceExpandedDetail service={svc} projectName={project.name || project.proposals?.title || ""} projectId={project.id} /></TableCell>
                         </TableRow>
                       )}
                       {!isChild && children.map((child) => renderServiceRow(child, svcIndex, true))}
@@ -2146,6 +2147,7 @@ function EmailsFullLive({ projectId, projectName, mockEmails }: { projectId: str
         onOpenChange={setComposeOpen}
         defaultSubject={projectName ? `Re: ${projectName}` : ""}
         defaultBody={projectName ? `<p>Hi,</p><p>Regarding project <strong>${projectName}</strong>:</p><p></p>` : ""}
+        projectId={projectId}
       />
 
       {/* Mock fallback for demo */}

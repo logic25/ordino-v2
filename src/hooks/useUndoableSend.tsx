@@ -12,6 +12,8 @@ interface SendPayload {
   html_body: string;
   reply_to_email_id?: string;
   attachments?: { filename: string; content: string; mime_type: string }[];
+  project_id?: string;
+  tag_category?: string;
 }
 
 export function useUndoableSend() {
