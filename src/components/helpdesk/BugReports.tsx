@@ -383,7 +383,26 @@ export function BugReports() {
     const isMovedToInProgress = editStatus === "in_progress" && selectedBug.status === "open";
     const isReadyForReview = editStatus === "ready_for_review" && selectedBug.status !== "ready_for_review";
     updateBug.mutate({ id: selectedBug.id, updates }, {
-      onSuccess: () => {
+      onSuccess: async () => {
+        // Fetch recent comments to include in status-change emails
+        let recentComments: Array<{ message: string; commenter_name: string; created_at: string; attachments?: any }> = [];
+        if (isNewlyResolved || isReadyForReview || isMovedToInProgress || isReopened) {
+          const { data: cmts } = await supabase
+            .from("bug_comments")
+            .select("message, created_at, user_id, attachments")
+            .eq("bug_id", selectedBug.id)
+            .order("created_at", { ascending: false })
+            .limit(5);
+          if (cmts) {
+            recentComments = cmts.map((c: any) => ({
+              message: c.message,
+              created_at: c.created_at,
+              commenter_name: profiles.find((p) => p.id === c.user_id)?.display_name || "Someone",
+              attachments: c.attachments,
+            })).reverse();
+          }
+        }
+
         if (isNewlyResolved) {
           supabase.functions.invoke("send-bug-alert", {
             body: {
@@ -392,6 +411,7 @@ export function BugReports() {
               company_id: selectedBug.company_id,
               reporter_user_id: selectedBug.user_id,
               admin_notes: editNotes || undefined,
+              recent_comments: recentComments,
             },
           }).catch(() => {});
         }
@@ -403,6 +423,7 @@ export function BugReports() {
               bug_description: selectedBug.description,
               company_id: selectedBug.company_id,
               reporter_user_id: selectedBug.user_id,
+              recent_comments: recentComments,
             },
           }).catch(() => {});
         }
@@ -414,6 +435,7 @@ export function BugReports() {
               bug_description: selectedBug.description,
               company_id: selectedBug.company_id,
               reporter_user_id: selectedBug.user_id,
+              recent_comments: recentComments,
             },
           }).catch(() => {});
         }
@@ -426,6 +448,7 @@ export function BugReports() {
               admin_notes: editNotes || selectedBug.admin_notes || "",
               company_id: selectedBug.company_id,
               reporter_user_id: selectedBug.user_id,
+              recent_comments: recentComments,
             },
           }).catch(() => {});
         }
