@@ -1038,7 +1038,7 @@ export function BugReports() {
                                     action_type: "status_change", field_changed: "status", old_value: "ready_for_review", new_value: "in_progress",
                                   }).then(() => queryClient.invalidateQueries({ queryKey: ["bug-activity", selectedBug.id] }));
                                   supabase.functions.invoke("send-bug-alert", {
-                                    body: { action: "reopened", bug_title: selectedBug.title, bug_description: selectedBug.description, company_id: selectedBug.company_id, reporter_user_id: selectedBug.user_id },
+                                    body: { action: "reopened", bug_id: selectedBug.id, bug_title: selectedBug.title, bug_description: selectedBug.description, company_id: selectedBug.company_id, reporter_user_id: selectedBug.user_id },
                                   }).catch(() => {});
                                   setSelectedBug(null);
                                 },
