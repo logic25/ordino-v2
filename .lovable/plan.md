@@ -1,45 +1,26 @@
 
 
-## Plan: Inbound Email Replies as Bug Comments + UI Refinements
+## Inbound Email Replies as Bug Comments + UI Refinements — Complete
 
-### What Changes
+### What was built:
 
-**1. Rename "Admin Notes" to "Resolution Notes" in the UI**
-The admin textarea label changes from "Admin Notes" to "Resolution Notes" everywhere — the management section, the reviewer view, and the resolved view. This better describes the purpose.
+**1. Renamed "Admin Notes" to "Resolution Notes"** ✅
+- Label changed in management section and activity log descriptions
+- Reporter-facing label kept as "What was changed" during ready_for_review, "Resolution Notes" when resolved
 
-**2. Move Comments section below the Resolution Notes area**
-Currently comments appear above the admin management section. We'll reorder so that in the detail sheet the layout is:
-- Description / Screenshots / Metadata
-- Resolution Notes (visible to reporter at ready_for_review/resolved)
-- Comments thread (the back-and-forth)
-- Admin Management section (status, assignee, resolution notes input)
-- Reviewer actions
-- Activity Log
+**2. Reordered detail sheet sections** ✅
+- Resolution notes (for reporter) now appears right after metadata, before comments
+- Order: Description → Screenshots/Video → Metadata → Resolution Notes (reporter view) → Comments → Copy for Lovable → Admin Management → Reviewer Actions → Activity Log
 
-**3. Inbound Email-to-Comment Feature**
-Create a new edge function `receive-bug-reply` that accepts inbound email replies and posts them as comments on the corresponding bug.
+**3. Added `[BUG-{short_id}]` tags to all outbound bug emails** ✅
+- All 4 email types (new bug, resolved, status change, comment) now include `[BUG-xxxxxxxx]` in subject
+- `bug_id` passed from frontend to edge function for all invocations
 
-**How it works:**
-- When sending bug notification emails, include a unique reply identifier in the email subject (e.g., `[BUG-{bug_id_short}]`) and a `Reply-To` header or footer instruction.
-- Create a new edge function `receive-bug-reply` that:
-  1. Polls or is triggered when a reply comes in via Gmail sync
-  2. Parses the bug ID from the subject line `[BUG-xxxxx]`
-  3. Extracts the reply body (stripping quoted content)
-  4. Looks up the sender's email to find their profile
-  5. Inserts a `bug_comments` row with the message
-  6. Triggers comment notifications to the other party
-
-**Approach:** Since we use Gmail API (not a mail server), we'll integrate with the existing `gmail-sync` flow. During sync, if an email's subject contains `[BUG-xxxx]`, it gets routed to bug comments instead of the normal inbox. This avoids needing a separate webhook/mailbox.
-
-### Technical Details
-
-**Files to modify:**
-- `src/components/helpdesk/BugReports.tsx` — Rename labels, reorder sections
-- `supabase/functions/send-bug-alert/index.ts` — Add `[BUG-{short_id}]` tag to all outbound bug email subjects
-- `supabase/functions/gmail-sync/index.ts` — Add detection for bug reply emails, auto-create `bug_comments` rows and skip normal inbox insertion
-- New helper to strip quoted email content (signature, previous thread)
-
-**Subject tagging format:** `[BUG-{first 8 chars of bug UUID}]` appended to existing subjects. On reply parsing, we match this pattern to find the bug.
-
-**Email body parsing:** Strip everything after common reply markers (`On ... wrote:`, `---Original Message---`, Gmail's `<div class="gmail_quote">`).
-
+**4. Inbound email-to-comment routing in gmail-sync** ✅
+- During sync, emails with `[BUG-xxxxxxxx]` in subject are detected
+- Reply body is extracted and stripped of quoted content (gmail_quote, "On ... wrote:", etc.)
+- Sender email is matched to a company profile
+- A `bug_comments` row is inserted with the reply text
+- A `bug_activity_logs` entry is created with action_type `email_reply`
+- The email is NOT inserted into the normal inbox (skipped)
+- `stripQuotedContent()` helper handles HTML and plain-text reply stripping

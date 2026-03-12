@@ -40,7 +40,8 @@ Deno.serve(async (req) => {
       .single();
 
     const body = await req.json();
-    const { action, bug_title, bug_description, bug_priority, company_id, reporter_name } = body;
+    const { action, bug_id, bug_title, bug_description, bug_priority, company_id, reporter_name } = body;
+    const bugTag = bug_id ? ` [BUG-${bug_id.substring(0, 8)}]` : "";
 
     if (!company_id || !bug_title) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -169,7 +170,7 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               user_id: sender.user_id,
               to: email,
-              subject: `✅ Bug Resolved: ${bug_title}`,
+              subject: `✅ Bug Resolved: ${bug_title}${bugTag}`,
               html_body: resolvedHtml,
             }),
           });
@@ -308,7 +309,7 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               user_id: sender.user_id,
               to: email,
-              subject: `${subjectIcon} ${subjectLabel}: ${bug_title}`,
+              subject: `${subjectIcon} ${subjectLabel}: ${bug_title}${bugTag}`,
               html_body: statusHtml,
             }),
           });
@@ -415,7 +416,7 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               user_id: sender.user_id,
               to: email,
-              subject: `💬 Comment on Bug: ${bug_title}`,
+              subject: `💬 Comment on Bug: ${bug_title}${bugTag}`,
               html_body: commentHtml,
             }),
           });
@@ -490,7 +491,7 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             user_id: sender.user_id,
             to: email,
-            subject: `🐛 Bug Report: ${bug_title}`,
+            subject: `🐛 Bug Report: ${bug_title}${bugTag}`,
             html_body: htmlBody,
           }),
         });

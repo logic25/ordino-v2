@@ -156,6 +156,7 @@ export function BugReports() {
       supabase.functions.invoke("send-bug-alert", {
         body: {
           action: "comment",
+          bug_id: selectedBug.id,
           bug_title: selectedBug.title,
           bug_description: selectedBug.description,
           company_id: selectedBug.company_id,
@@ -196,7 +197,7 @@ export function BugReports() {
       case "assignment_change":
         return `${userName} reassigned from ${log.old_value} to ${log.new_value}`;
       case "notes_updated":
-        return `${userName} updated admin notes`;
+        return `${userName} updated resolution notes`;
       case "comment":
         return `${userName} posted a comment`;
       case "email_reply":
@@ -279,15 +280,18 @@ export function BugReports() {
       }
 
       // Fire email alert (best-effort)
-      supabase.functions.invoke("send-bug-alert", {
-        body: {
-          bug_title: `[${page}] ${action.slice(0, 80)}`,
-          bug_description: description,
-          bug_priority: priority,
-          company_id: profile.company_id,
-          reporter_name: profile.display_name || `${profile.first_name} ${profile.last_name}`,
-        },
-      }).catch(() => {});
+      if (inserted) {
+        supabase.functions.invoke("send-bug-alert", {
+          body: {
+            bug_id: inserted.id,
+            bug_title: `[${page}] ${action.slice(0, 80)}`,
+            bug_description: description,
+            bug_priority: priority,
+            company_id: profile.company_id,
+            reporter_name: profile.display_name || `${profile.first_name} ${profile.last_name}`,
+          },
+        }).catch(() => {});
+      }
     },
     onSuccess: () => {
       toast({ title: "Bug report submitted", description: "Team members have been notified." });
@@ -407,6 +411,7 @@ export function BugReports() {
           supabase.functions.invoke("send-bug-alert", {
             body: {
               action: "resolved",
+              bug_id: selectedBug.id,
               bug_title: selectedBug.title,
               company_id: selectedBug.company_id,
               reporter_user_id: selectedBug.user_id,
@@ -419,6 +424,7 @@ export function BugReports() {
           supabase.functions.invoke("send-bug-alert", {
             body: {
               action: "reopened",
+              bug_id: selectedBug.id,
               bug_title: selectedBug.title,
               bug_description: selectedBug.description,
               company_id: selectedBug.company_id,
@@ -431,6 +437,7 @@ export function BugReports() {
           supabase.functions.invoke("send-bug-alert", {
             body: {
               action: "in_progress",
+              bug_id: selectedBug.id,
               bug_title: selectedBug.title,
               bug_description: selectedBug.description,
               company_id: selectedBug.company_id,
@@ -443,6 +450,7 @@ export function BugReports() {
           supabase.functions.invoke("send-bug-alert", {
             body: {
               action: "ready_for_review",
+              bug_id: selectedBug.id,
               bug_title: selectedBug.title,
               bug_description: selectedBug.description,
               admin_notes: editNotes || selectedBug.admin_notes || "",
@@ -821,6 +829,16 @@ export function BugReports() {
                   <p className="mt-1 text-sm font-medium">{getAssigneeName(selectedBug.user_id)}</p>
                 </div>
 
+                {/* Resolution notes visible to reporter during ready_for_review OR after resolved */}
+                {selectedBug.admin_notes && !isAdmin && (selectedBug.status === "ready_for_review" || selectedBug.status === "resolved") && (
+                  <div className="border-t pt-4">
+                    <Label className="text-xs text-muted-foreground">
+                      {selectedBug.status === "ready_for_review" ? "What was changed" : "Resolution Notes"}
+                    </Label>
+                    <p className="mt-1 text-sm whitespace-pre-line bg-muted/50 rounded-md p-3">{selectedBug.admin_notes}</p>
+                  </div>
+                )}
+
                 {/* Comments Thread */}
                 <div className="border-t pt-4">
                   <div className="flex items-center gap-2 mb-3">
@@ -968,8 +986,8 @@ export function BugReports() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Admin Notes</Label>
-                      <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Internal notes or resolution summary..." rows={3} />
+                      <Label>Resolution Notes</Label>
+                      <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Resolution summary or internal notes..." rows={3} />
                     </div>
 
                     <div className="flex gap-2">
@@ -1002,7 +1020,7 @@ export function BugReports() {
                                 action_type: "status_change", field_changed: "status", old_value: "ready_for_review", new_value: "resolved",
                               }).then(() => queryClient.invalidateQueries({ queryKey: ["bug-activity", selectedBug.id] }));
                               supabase.functions.invoke("send-bug-alert", {
-                                body: { action: "resolved", bug_title: selectedBug.title, company_id: selectedBug.company_id, reporter_user_id: selectedBug.user_id },
+                                body: { action: "resolved", bug_id: selectedBug.id, bug_title: selectedBug.title, company_id: selectedBug.company_id, reporter_user_id: selectedBug.user_id },
                               }).catch(() => {});
                               setSelectedBug(null);
                             },
@@ -1030,7 +1048,7 @@ export function BugReports() {
                                     action_type: "status_change", field_changed: "status", old_value: "ready_for_review", new_value: "in_progress",
                                   }).then(() => queryClient.invalidateQueries({ queryKey: ["bug-activity", selectedBug.id] }));
                                   supabase.functions.invoke("send-bug-alert", {
-                                    body: { action: "reopened", bug_title: selectedBug.title, bug_description: selectedBug.description, company_id: selectedBug.company_id, reporter_user_id: selectedBug.user_id },
+                                    body: { action: "reopened", bug_id: selectedBug.id, bug_title: selectedBug.title, bug_description: selectedBug.description, company_id: selectedBug.company_id, reporter_user_id: selectedBug.user_id },
                                   }).catch(() => {});
                                   setSelectedBug(null);
                                 },
@@ -1047,15 +1065,6 @@ export function BugReports() {
                   </div>
                 )}
 
-                {/* Admin notes visible to reporter during ready_for_review OR after resolved */}
-                {selectedBug.admin_notes && !isAdmin && (selectedBug.status === "ready_for_review" || selectedBug.status === "resolved") && (
-                  <div className="border-t pt-4">
-                    <Label className="text-xs text-muted-foreground">
-                      {selectedBug.status === "ready_for_review" ? "What was changed" : "Resolution Notes"}
-                    </Label>
-                    <p className="mt-1 text-sm whitespace-pre-line bg-muted/50 rounded-md p-3">{selectedBug.admin_notes}</p>
-                  </div>
-                )}
 
                 {/* Activity Timeline */}
                 {activityLogs.length > 0 && (

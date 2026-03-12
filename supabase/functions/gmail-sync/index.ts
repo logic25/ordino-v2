@@ -83,6 +83,29 @@ function getHeader(headers: any[], name: string): string {
   return h?.value || "";
 }
 
+function stripQuotedContent(text: string): string {
+  // Remove HTML tags first if it looks like HTML
+  let clean = text;
+  if (clean.includes("<")) {
+    // Remove gmail_quote divs and everything after
+    clean = clean.replace(/<div class="gmail_quote">[\s\S]*/i, "");
+    // Strip remaining HTML tags
+    clean = clean.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+  }
+  // Remove common reply markers and everything after
+  const markers = [
+    /\n\s*On .+wrote:\s*$/s,
+    /\n\s*-{3,}\s*Original Message\s*-{3,}[\s\S]*/i,
+    /\n\s*_{3,}[\s\S]*/,
+    /\n\s*From:.*\nSent:.*\n/i,
+    /\n\s*>.*$/s,
+  ];
+  for (const marker of markers) {
+    clean = clean.replace(marker, "");
+  }
+  return clean.trim();
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -248,6 +271,78 @@ Deno.serve(async (req) => {
 
         const { body_text, body_html, attachments } = extractEmailParts(msgData.payload);
 
+        const subject = getHeader(headers, "Subject") || "(no subject)";
+
+        // ── Bug reply detection ──
+        // If subject contains [BUG-xxxxxxxx], route as a bug comment instead of a normal email
+        const bugTagMatch = subject.match(/\[BUG-([a-f0-9]{8})\]/i);
+        if (bugTagMatch) {
+          const bugIdPrefix = bugTagMatch[1].toLowerCase();
+          // Find the bug by ID prefix
+          const { data: matchingBug } = await supabaseAdmin
+            .from("feature_requests")
+            .select("id, company_id, user_id")
+            .eq("company_id", profile.company_id)
+            .eq("category", "bug_report")
+            .like("id", `${bugIdPrefix}%`)
+            .maybeSingle();
+
+          if (matchingBug) {
+            // Strip quoted content from reply
+            const replyBody = stripQuotedContent(body_text || body_html || "");
+            if (replyBody.trim()) {
+              // Find sender's profile by email
+              const { data: senderProfiles } = await supabaseAdmin
+                .from("profiles")
+                .select("id")
+                .eq("company_id", profile.company_id)
+                .eq("is_active", true);
+
+              let senderProfileId = profile.id; // default to syncing user
+              if (senderProfiles && from_email) {
+                // Try to match sender email to a profile via auth
+                for (const sp of senderProfiles) {
+                  const { data: spData } = await supabaseAdmin
+                    .from("profiles")
+                    .select("user_id")
+                    .eq("id", sp.id)
+                    .single();
+                  if (spData?.user_id) {
+                    const { data: { user: authUser } } = await supabaseAdmin.auth.admin.getUserById(spData.user_id);
+                    if (authUser?.email?.toLowerCase() === from_email.toLowerCase()) {
+                      senderProfileId = sp.id;
+                      break;
+                    }
+                  }
+                }
+              }
+
+              // Insert as bug comment
+              await supabaseAdmin.from("bug_comments").insert({
+                bug_id: matchingBug.id,
+                company_id: matchingBug.company_id,
+                user_id: senderProfileId,
+                message: replyBody.trim(),
+              });
+
+              // Log activity
+              await supabaseAdmin.from("bug_activity_logs").insert({
+                bug_id: matchingBug.id,
+                company_id: matchingBug.company_id,
+                user_id: senderProfileId,
+                action_type: "email_reply",
+                note: replyBody.trim().substring(0, 200),
+              });
+
+              console.log(`Routed email reply to bug ${matchingBug.id} from ${from_email}`);
+            }
+            // Skip normal email insertion for bug replies
+            newOnThisPage++;
+            syncedCount++;
+            continue;
+          }
+        }
+
         const dateStr = getHeader(headers, "Date");
         let emailDate: string | null = null;
         try {
@@ -272,7 +367,7 @@ Deno.serve(async (req) => {
             user_id: profile.id,
             gmail_message_id: msg.id,
             thread_id: msg.threadId,
-            subject: getHeader(headers, "Subject") || "(no subject)",
+            subject,
             from_email,
             from_name,
             to_emails,
