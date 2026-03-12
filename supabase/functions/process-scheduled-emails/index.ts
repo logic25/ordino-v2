@@ -288,6 +288,8 @@ Deno.serve(async (req) => {
             });
         }
 
+        processed++;
+
       } catch (err) {
         console.error(`Error processing scheduled email ${scheduled.id}:`, err);
         await supabaseAdmin
