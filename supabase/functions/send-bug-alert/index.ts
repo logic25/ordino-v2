@@ -119,6 +119,19 @@ Deno.serve(async (req) => {
           .join("");
       };
 
+      // Render recent comments thread for resolved emails
+      const resolvedCommentsHtml = Array.isArray(recent_comments) && recent_comments.length > 0
+        ? `<div style="margin: 20px 0;">
+            <strong style="color: #374151; font-size: 14px;">💬 Recent Comments</strong>
+            ${recent_comments.map((c: any) => `
+              <div style="background: #f9fafb; padding: 12px 14px; border-radius: 6px; margin-top: 8px; border: 1px solid #e5e7eb;">
+                <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;"><strong>${c.commenter_name || "Someone"}</strong> · ${new Date(c.created_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</div>
+                <div style="color: #374151; font-size: 14px; line-height: 1.5; white-space: pre-line;">${c.message || ""}</div>
+              </div>
+            `).join("")}
+          </div>`
+        : "";
+
       const resolvedHtml = `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb;">
           <div style="background: #16a34a; padding: 24px 32px;">
@@ -136,6 +149,7 @@ Deno.serve(async (req) => {
                 <div style="background: #f9fafb; padding: 14px; border-radius: 6px; margin-top: 6px; white-space: pre-line; color: #4b5563; font-size: 14px; line-height: 1.5; border: 1px solid #e5e7eb;">${admin_notes}</div>
               </div>
             ` : ""}
+            ${resolvedCommentsHtml}
             <div style="margin-top: 24px; text-align: center;">
               <a href="https://ordinov3.lovable.app/help" style="display: inline-block; background: #16a34a; color: #ffffff; text-decoration: none; padding: 10px 24px; border-radius: 6px; font-size: 14px; font-weight: 600;">View in Help Center</a>
             </div>
