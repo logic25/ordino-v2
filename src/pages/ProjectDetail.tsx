@@ -2145,8 +2145,6 @@ function EmailsFullLive({ projectId, projectName, mockEmails }: { projectId: str
       <ComposeEmailDialog
         open={composeOpen}
         onOpenChange={setComposeOpen}
-        defaultSubject={projectName ? `Re: ${projectName}` : ""}
-        defaultBody={projectName ? `<p>Hi,</p><p>Regarding project <strong>${projectName}</strong>:</p><p></p>` : ""}
         projectId={projectId}
       />
 
