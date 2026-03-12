@@ -294,11 +294,26 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
         </DialogHeader>
 
         <div className="space-y-4 flex-1 overflow-y-auto">
-          {/* Recipient info */}
+          {/* Recipient selector */}
           <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">To:</span>
-              <span className="font-medium">{clientName} {clientEmail && `<${clientEmail}>`}</span>
+            <div className="text-sm">
+              <Label className="text-xs text-muted-foreground mb-1 block">Send To</Label>
+              {recipientOptions.length > 1 ? (
+                <Select value={selectedRecipientId} onValueChange={setSelectedRecipientId}>
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="Select recipient" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {recipientOptions.map(opt => (
+                      <SelectItem key={opt.id} value={opt.id}>
+                        {opt.label} &lt;{opt.email}&gt;
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="font-medium text-sm">{clientName} {clientEmail && `<${clientEmail}>`}</div>
+              )}
             </div>
             <div className="text-sm">
               <Label className="text-xs text-muted-foreground mb-1 block">Subject</Label>
