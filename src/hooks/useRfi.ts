@@ -338,7 +338,7 @@ export function useRfiByToken(token: string | null) {
         property: resolvedProperty as { address: string; borough: string | null; block: string | null; lot: string | null } | null,
         propertyId: rfi.property_id || projects?.property_id || null,
         existingPlanNames,
-        proposalWorkTypes: [] as string[],
+        proposalWorkTypes: (d.proposal_work_types || []) as string[],
         projectName,
         applicantContact: null,
         project: {
