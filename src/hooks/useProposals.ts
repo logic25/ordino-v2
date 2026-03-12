@@ -545,16 +545,20 @@ export function useSendProposal() {
       let companyName = "Our Team";
       let companyEmail = "";
       let companyPhone = "";
+      let companyLogoUrl = "";
+      let companyAddress = "";
       if (profile?.company_id) {
         const { data: co } = await supabase
           .from("companies")
-          .select("name, email, phone")
+          .select("name, email, phone, logo_url, address, settings")
           .eq("id", profile.company_id)
           .single();
         if (co) {
           companyName = co.name || companyName;
-          companyEmail = co.email || "";
-          companyPhone = co.phone || "";
+          companyEmail = (co as any).settings?.company_email || co.email || "";
+          companyPhone = (co as any).settings?.company_phone || co.phone || "";
+          companyLogoUrl = co.logo_url || (co as any).settings?.company_logo_url || "";
+          companyAddress = co.address || (co as any).settings?.company_address || "";
         }
       }
 
