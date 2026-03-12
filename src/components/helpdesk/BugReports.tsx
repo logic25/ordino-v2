@@ -423,6 +423,7 @@ export function BugReports() {
               action: "ready_for_review",
               bug_title: selectedBug.title,
               bug_description: selectedBug.description,
+              admin_notes: editNotes || selectedBug.admin_notes || "",
               company_id: selectedBug.company_id,
               reporter_user_id: selectedBug.user_id,
             },
