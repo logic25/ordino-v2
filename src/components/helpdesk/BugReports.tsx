@@ -46,6 +46,7 @@ const priorityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2,
 
 const statusIcon = (status: string) => {
   if (status === "resolved") return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+  if (status === "ready_for_review") return <Eye className="h-4 w-4 text-purple-500" />;
   if (status === "in_progress") return <Clock className="h-4 w-4 text-amber-500" />;
   return <Bug className="h-4 w-4 text-destructive" />;
 };
