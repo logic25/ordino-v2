@@ -830,6 +830,7 @@ export function BugReports() {
                         <SelectContent>
                           <SelectItem value="open">Open</SelectItem>
                           <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="ready_for_review">Ready for Review</SelectItem>
                           <SelectItem value="resolved">Resolved</SelectItem>
                         </SelectContent>
                       </Select>
