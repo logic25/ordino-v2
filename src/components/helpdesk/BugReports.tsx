@@ -976,8 +976,8 @@ export function BugReports() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Admin Notes</Label>
-                      <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Internal notes or resolution summary..." rows={3} />
+                      <Label>Resolution Notes</Label>
+                      <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Resolution summary or internal notes..." rows={3} />
                     </div>
 
                     <div className="flex gap-2">
