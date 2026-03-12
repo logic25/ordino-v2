@@ -491,7 +491,7 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             user_id: sender.user_id,
             to: email,
-            subject: `🐛 Bug Report: ${bug_title}`,
+            subject: `🐛 Bug Report: ${bug_title}${bugTag}`,
             html_body: htmlBody,
           }),
         });
