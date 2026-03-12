@@ -411,6 +411,7 @@ export function BugReports() {
           supabase.functions.invoke("send-bug-alert", {
             body: {
               action: "resolved",
+              bug_id: selectedBug.id,
               bug_title: selectedBug.title,
               company_id: selectedBug.company_id,
               reporter_user_id: selectedBug.user_id,
