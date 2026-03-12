@@ -1,36 +1,26 @@
 
 
-## DOB NOW Filing Agent — Implementation Complete
+## Inbound Email Replies as Bug Comments + UI Refinements — Complete
 
-### What was built (4 pieces):
+### What was built:
 
-**1. Database: `filing_runs` table** ✅
-- Table with `id`, `company_id`, `project_id`, `service_id`, `status`, `progress_log` (jsonb), `payload_snapshot`, `agent_session_id`, timestamps, `error_message`, `created_by`
-- RLS: company-scoped read/insert/update for authenticated users
-- Realtime enabled for live progress subscriptions
-- `updated_at` trigger
+**1. Renamed "Admin Notes" to "Resolution Notes"** ✅
+- Label changed in management section and activity log descriptions
+- Reporter-facing label kept as "What was changed" during ready_for_review, "Resolution Notes" when resolved
 
-**2. Edge Function: `filing-payload`** ✅
-- Accepts `project_id` + optional `service_id` via query params
-- Dual auth: JWT for browser, service-role key for agent
-- Returns structured JSON: `location`, `applicant_owner`, `filing_details`, `stakeholders`, `contacts`
-- Pulls from projects, properties, PIS responses, contacts, services
+**2. Reordered detail sheet sections** ✅
+- Resolution notes (for reporter) now appears right after metadata, before comments
+- Order: Description → Screenshots/Video → Metadata → Resolution Notes (reporter view) → Comments → Copy for Lovable → Admin Management → Reviewer Actions → Activity Log
 
-**3. Edge Function: `filing-status`** ✅
-- POST endpoint for agent to report progress
-- Auth: service-role key, `x-agent-secret` header, or JWT
-- Appends to `progress_log` array, updates `status`, sets `started_at`/`completed_at`
+**3. Added `[BUG-{short_id}]` tags to all outbound bug emails** ✅
+- All 4 email types (new bug, resolved, status change, comment) now include `[BUG-xxxxxxxx]` in subject
+- `bug_id` passed from frontend to edge function for all invocations
 
-**4. UI: Agent Launcher in DobNowFilingPrepSheet** ✅
-- "Launch Filing Agent" button alongside existing manual submit
-- Creates `filing_runs` record with `queued` status + payload snapshot
-- Realtime subscription shows live progress feed
-- Status indicators: queued → running → completed/failed/review_needed
-- Progress log with timestamped steps and status icons
-- Retry/Done actions on terminal states
-
-### External agent service (not built here):
-- Python + Claude Agent SDK + Playwright MCP
-- GET `/filing-payload?project_id=X&service_id=Y` with service-role key
-- POST `/filing-status` with `{ filing_run_id, status, step, error_message, agent_session_id }`
-- `DOB_AGENT_SECRET` header auth supported
+**4. Inbound email-to-comment routing in gmail-sync** ✅
+- During sync, emails with `[BUG-xxxxxxxx]` in subject are detected
+- Reply body is extracted and stripped of quoted content (gmail_quote, "On ... wrote:", etc.)
+- Sender email is matched to a company profile
+- A `bug_comments` row is inserted with the reply text
+- A `bug_activity_logs` entry is created with action_type `email_reply`
+- The email is NOT inserted into the normal inbox (skipped)
+- `stripQuotedContent()` helper handles HTML and plain-text reply stripping
