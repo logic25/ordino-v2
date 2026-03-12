@@ -593,8 +593,9 @@ export function useSendProposal() {
 <body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;">
   <div style="max-width:600px;margin:0 auto;padding:32px 16px;">
     <div style="background:#1e293b;padding:24px 32px;border-radius:12px 12px 0 0;">
-      <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;">${companyName}</h1>
-      <p style="margin:4px 0 0;color:#94a3b8;font-size:13px;">Proposal for Your Review</p>
+      ${companyLogoUrl ? `<img src="${companyLogoUrl}" alt="${companyName}" style="max-height:48px;" />` : `<h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;">${companyName}</h1>`}
+      ${companyAddress ? `<p style="margin:6px 0 0;color:#94a3b8;font-size:12px;">${companyAddress}</p>` : ""}
+      ${companyPhone || companyEmail ? `<p style="margin:2px 0 0;color:#94a3b8;font-size:12px;">${[companyPhone ? `Tel: ${companyPhone}` : "", companyEmail].filter(Boolean).join(" | ")}</p>` : ""}
     </div>
     <div style="background:#ffffff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;">
       <p style="margin:0 0 16px;font-size:15px;color:#1e293b;">Dear ${clientName.split(" ")[0]},</p>
