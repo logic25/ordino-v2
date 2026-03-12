@@ -119,6 +119,7 @@ export function useSendEmail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["emails"] });
+      queryClient.invalidateQueries({ queryKey: ["project-emails"] });
     },
   });
 }
