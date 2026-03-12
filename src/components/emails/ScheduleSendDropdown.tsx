@@ -94,7 +94,7 @@ export function ScheduleSendDropdown({ onSchedule, disabled }: ScheduleSendDropd
       </DropdownMenu>
 
       <Dialog open={customOpen} onOpenChange={setCustomOpen}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-sm z-[200]">
           <DialogHeader>
             <DialogTitle>Schedule Email</DialogTitle>
           </DialogHeader>
@@ -108,7 +108,7 @@ export function ScheduleSendDropdown({ onSchedule, disabled }: ScheduleSendDropd
                 today.setHours(0, 0, 0, 0);
                 return date < today;
               }}
-              className="rounded-md border mx-auto"
+              className="rounded-md border mx-auto pointer-events-auto"
             />
             <div className="space-y-1.5">
               <Label className="text-xs">Time</Label>
