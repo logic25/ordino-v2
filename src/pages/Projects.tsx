@@ -231,7 +231,7 @@ export default function Projects() {
               <Input
                 type="search"
                 placeholder="Search by project #, name, property, or client..."
-                className="pl-9"
+                className="pl-9 border-2 border-border bg-background shadow-sm focus:border-primary"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -243,7 +243,7 @@ export default function Projects() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FolderKanban className="h-5 w-5" />
-              All Projects
+              {isAdmin && showAllProjects ? "All Projects" : "My Projects"}
               {!isLoading && (
                 <span className="text-muted-foreground font-normal text-sm">
                   ({filteredProjects.length})
