@@ -1342,6 +1342,7 @@ export type Database = {
       }
       bug_comments: {
         Row: {
+          attachments: Json | null
           bug_id: string
           company_id: string
           created_at: string | null
@@ -1350,6 +1351,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          attachments?: Json | null
           bug_id: string
           company_id: string
           created_at?: string | null
@@ -1358,6 +1360,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          attachments?: Json | null
           bug_id?: string
           company_id?: string
           created_at?: string | null

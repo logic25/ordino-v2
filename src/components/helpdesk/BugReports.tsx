@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bug, CheckCircle2, Plus, Clock, Filter, ArrowUpDown, Loader2, Upload, Video, X, Image as ImageIcon, Copy, History, Send, MessageSquare, Eye } from "lucide-react";
+import { Bug, CheckCircle2, Plus, Clock, Filter, ArrowUpDown, Loader2, Upload, Video, X, Image as ImageIcon, Copy, History, Send, MessageSquare, Eye, Paperclip, ThumbsUp, ThumbsDown, FileIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -90,6 +90,8 @@ export function BugReports() {
   const [editStatus, setEditStatus] = useState("");
   const [editAssignee, setEditAssignee] = useState("");
   const [newComment, setNewComment] = useState("");
+  const [commentFiles, setCommentFiles] = useState<File[]>([]);
+  const commentFileRef = useRef<HTMLInputElement>(null);
   const commentsEndRef = useRef<HTMLDivElement>(null);
 
   // Activity log query
@@ -124,14 +126,30 @@ export function BugReports() {
 
   // Post comment mutation
   const postComment = useMutation({
-    mutationFn: async (message: string) => {
+    mutationFn: async ({ message, files }: { message: string; files: File[] }) => {
       if (!selectedBug || !profile) throw new Error("Missing context");
+
+      // Upload comment attachments if any
+      let attachmentData: Array<{ url: string; name: string; type: string }> | null = null;
+      if (files.length > 0) {
+        attachmentData = [];
+        for (const file of files) {
+          const path = `${profile.company_id}/${selectedBug.id}/comments/${Date.now()}-${file.name}`;
+          const { error: uploadErr } = await supabase.storage.from("bug-attachments").upload(path, file);
+          if (!uploadErr) {
+            const { data: urlData } = supabase.storage.from("bug-attachments").getPublicUrl(path);
+            attachmentData.push({ url: urlData.publicUrl, name: file.name, type: file.type });
+          }
+        }
+      }
+
       const { error } = await supabase.from("bug_comments").insert({
         bug_id: selectedBug.id,
         company_id: selectedBug.company_id,
         user_id: profile.id,
         message,
-      });
+        attachments: attachmentData,
+      } as any);
       if (error) throw error;
 
       // Send email notification (best-effort)
@@ -145,11 +163,13 @@ export function BugReports() {
           commenter_name: profile.display_name || `${profile.first_name} ${profile.last_name}`,
           comment_message: message,
           reporter_user_id: selectedBug.user_id,
+          comment_attachments: attachmentData,
         },
       }).catch(() => {});
     },
     onSuccess: () => {
       setNewComment("");
+      setCommentFiles([]);
       queryClient.invalidateQueries({ queryKey: ["bug-comments", selectedBug?.id] });
       // Also log activity
       if (selectedBug && profile) {
@@ -789,6 +809,10 @@ export function BugReports() {
                       {comments.map((c: any) => {
                         const commenterName = profiles.find((p) => p.id === c.user_id)?.display_name || "Unknown";
                         const isCurrentUser = c.user_id === profile?.id;
+                        const commentAttachments: Array<{ url: string; name: string; type: string }> = (() => {
+                          if (!c.attachments) return [];
+                          try { return Array.isArray(c.attachments) ? c.attachments : JSON.parse(c.attachments); } catch { return []; }
+                        })();
                         return (
                           <div key={c.id} className={cn("rounded-lg p-3 text-sm", isCurrentUser ? "bg-primary/10 ml-4" : "bg-muted/50 mr-4")}>
                             <div className="flex items-center justify-between mb-1">
@@ -796,10 +820,47 @@ export function BugReports() {
                               <span className="text-xs text-muted-foreground">{format(new Date(c.created_at), "MMM d, h:mm a")}</span>
                             </div>
                             <p className="text-foreground whitespace-pre-line">{c.message}</p>
+                            {commentAttachments.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {commentAttachments.map((att, i) =>
+                                  att.type?.startsWith("image/") ? (
+                                    <a key={i} href={att.url} target="_blank" rel="noopener noreferrer">
+                                      <img src={att.url} alt={att.name} className="h-20 w-auto rounded border hover:ring-2 ring-primary transition-all" />
+                                    </a>
+                                  ) : (
+                                    <a key={i} href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-primary underline">
+                                      <FileIcon className="h-3 w-3" />{att.name}
+                                    </a>
+                                  )
+                                )}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
                       <div ref={commentsEndRef} />
+                    </div>
+                  )}
+                  {/* Comment file previews */}
+                  {commentFiles.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {commentFiles.map((f, i) => (
+                        <div key={i} className="relative group">
+                          {f.type.startsWith("image/") ? (
+                            <img src={URL.createObjectURL(f)} alt={f.name} className="h-14 w-14 object-cover rounded border" />
+                          ) : (
+                            <div className="h-14 w-14 rounded border flex items-center justify-center bg-muted">
+                              <FileIcon className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                          )}
+                          <button
+                            className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => setCommentFiles((prev) => prev.filter((_, j) => j !== i))}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   )}
                   <div className="flex gap-2">
@@ -809,16 +870,30 @@ export function BugReports() {
                       placeholder="Write a comment..."
                       className="flex-1"
                       onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey && newComment.trim()) {
+                        if (e.key === "Enter" && !e.shiftKey && (newComment.trim() || commentFiles.length > 0)) {
                           e.preventDefault();
-                          postComment.mutate(newComment.trim());
+                          postComment.mutate({ message: newComment.trim(), files: commentFiles });
                         }
                       }}
                     />
+                    <input
+                      ref={commentFileRef}
+                      type="file"
+                      accept="image/*,.pdf,.doc,.docx"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files) setCommentFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
+                        e.target.value = "";
+                      }}
+                    />
+                    <Button size="sm" variant="outline" onClick={() => commentFileRef.current?.click()} title="Attach file">
+                      <Paperclip className="h-4 w-4" />
+                    </Button>
                     <Button
                       size="sm"
-                      disabled={!newComment.trim() || postComment.isPending}
-                      onClick={() => postComment.mutate(newComment.trim())}
+                      disabled={(!newComment.trim() && commentFiles.length === 0) || postComment.isPending}
+                      onClick={() => postComment.mutate({ message: newComment.trim(), files: commentFiles })}
                     >
                       <Send className="h-4 w-4" />
                     </Button>
@@ -881,10 +956,75 @@ export function BugReports() {
                   </div>
                 )}
 
-                {selectedBug.admin_notes && !isAdmin && (
+                {/* Reviewer actions for non-admin reporter when status is ready_for_review */}
+                {!isAdmin && selectedBug.user_id === profile?.id && selectedBug.status === "ready_for_review" && (
+                  <div className="border-t pt-4 space-y-3">
+                    <h4 className="font-semibold text-sm">Review This Fix</h4>
+                    <p className="text-xs text-muted-foreground">This bug has been marked as ready for your review. Please test and confirm.</p>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => {
+                          updateBug.mutate({ id: selectedBug.id, updates: { status: "resolved", resolved_at: new Date().toISOString() } }, {
+                            onSuccess: () => {
+                              supabase.from("bug_activity_logs").insert({
+                                bug_id: selectedBug.id, company_id: selectedBug.company_id, user_id: profile!.id,
+                                action_type: "status_change", field_changed: "status", old_value: "ready_for_review", new_value: "resolved",
+                              }).then(() => queryClient.invalidateQueries({ queryKey: ["bug-activity", selectedBug.id] }));
+                              supabase.functions.invoke("send-bug-alert", {
+                                body: { action: "resolved", bug_title: selectedBug.title, company_id: selectedBug.company_id, reporter_user_id: selectedBug.user_id },
+                              }).catch(() => {});
+                              setSelectedBug(null);
+                            },
+                          });
+                        }}
+                        disabled={updateBug.isPending}
+                      >
+                        <ThumbsUp className="h-4 w-4 mr-2" />
+                        Confirm Fixed
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="flex-1"
+                        onClick={() => {
+                          const reason = prompt("What's still broken? (This will be posted as a comment)");
+                          if (!reason) return;
+                          // Post comment first, then change status
+                          postComment.mutate({ message: `🔴 Still broken: ${reason}`, files: [] }, {
+                            onSuccess: () => {
+                              updateBug.mutate({ id: selectedBug.id, updates: { status: "in_progress", resolved_at: null } }, {
+                                onSuccess: () => {
+                                  supabase.from("bug_activity_logs").insert({
+                                    bug_id: selectedBug.id, company_id: selectedBug.company_id, user_id: profile!.id,
+                                    action_type: "status_change", field_changed: "status", old_value: "ready_for_review", new_value: "in_progress",
+                                  }).then(() => queryClient.invalidateQueries({ queryKey: ["bug-activity", selectedBug.id] }));
+                                  supabase.functions.invoke("send-bug-alert", {
+                                    body: { action: "reopened", bug_title: selectedBug.title, bug_description: selectedBug.description, company_id: selectedBug.company_id, reporter_user_id: selectedBug.user_id },
+                                  }).catch(() => {});
+                                  setSelectedBug(null);
+                                },
+                              });
+                            },
+                          });
+                        }}
+                        disabled={updateBug.isPending || postComment.isPending}
+                      >
+                        <ThumbsDown className="h-4 w-4 mr-2" />
+                        Still Broken
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Admin notes visible to reporter during ready_for_review OR after resolved */}
+                {selectedBug.admin_notes && !isAdmin && (selectedBug.status === "ready_for_review" || selectedBug.status === "resolved") && (
                   <div className="border-t pt-4">
-                    <Label className="text-xs text-muted-foreground">Resolution Notes</Label>
-                    <p className="mt-1 text-sm whitespace-pre-line">{selectedBug.admin_notes}</p>
+                    <Label className="text-xs text-muted-foreground">
+                      {selectedBug.status === "ready_for_review" ? "What was changed" : "Resolution Notes"}
+                    </Label>
+                    <p className="mt-1 text-sm whitespace-pre-line bg-muted/50 rounded-md p-3">{selectedBug.admin_notes}</p>
                   </div>
                 )}
 

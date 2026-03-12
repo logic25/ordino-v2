@@ -290,7 +290,7 @@ Deno.serve(async (req) => {
 
     // ── COMMENT notification ──
     if (action === "comment") {
-      const { commenter_user_id, commenter_name, comment_message, reporter_user_id } = body;
+      const { commenter_user_id, commenter_name, comment_message, reporter_user_id, comment_attachments } = body;
 
       const recipients: string[] = [];
 
@@ -349,6 +349,18 @@ Deno.serve(async (req) => {
             <div style="background: #f9fafb; padding: 14px; border-radius: 6px; margin: 16px 0; white-space: pre-line; color: #374151; font-size: 14px; line-height: 1.5; border: 1px solid #e5e7eb;">
               ${comment_message || ""}
             </div>
+            ${Array.isArray(comment_attachments) && comment_attachments.length > 0 ? `
+              <div style="margin: 12px 0;">
+                <strong style="color: #374151; font-size: 13px;">Attachments:</strong>
+                <div style="margin-top: 8px;">
+                  ${comment_attachments.map((att: any) =>
+                    att.type?.startsWith("image/")
+                      ? `<a href="${att.url}" target="_blank"><img src="${att.url}" alt="${att.name}" style="max-height: 120px; max-width: 200px; border-radius: 6px; border: 1px solid #e5e7eb; margin: 4px 4px 4px 0;" /></a>`
+                      : `<a href="${att.url}" target="_blank" style="color: #6366f1; font-size: 13px; text-decoration: underline;">📎 ${att.name}</a><br/>`
+                  ).join("")}
+                </div>
+              </div>
+            ` : ""}
             <div style="margin-top: 24px; text-align: center;">
               <a href="https://ordinov3.lovable.app/help" style="display: inline-block; background: #6366f1; color: #ffffff; text-decoration: none; padding: 10px 24px; border-radius: 6px; font-size: 14px; font-weight: 600;">View Bug</a>
             </div>

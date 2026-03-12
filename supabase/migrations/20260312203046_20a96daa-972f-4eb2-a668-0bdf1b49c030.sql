@@ -1,0 +1,1 @@
+ALTER TABLE public.bug_comments ADD COLUMN IF NOT EXISTS attachments jsonb DEFAULT NULL;
