@@ -30,6 +30,7 @@ const STATUS_OPTIONS = [
   { value: "all", label: "All Statuses" },
   { value: "open", label: "Open" },
   { value: "in_progress", label: "In Progress" },
+  { value: "ready_for_review", label: "Ready for Review" },
   { value: "resolved", label: "Resolved" },
 ];
 
