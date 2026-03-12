@@ -83,6 +83,29 @@ function getHeader(headers: any[], name: string): string {
   return h?.value || "";
 }
 
+function stripQuotedContent(text: string): string {
+  // Remove HTML tags first if it looks like HTML
+  let clean = text;
+  if (clean.includes("<")) {
+    // Remove gmail_quote divs and everything after
+    clean = clean.replace(/<div class="gmail_quote">[\s\S]*/i, "");
+    // Strip remaining HTML tags
+    clean = clean.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+  }
+  // Remove common reply markers and everything after
+  const markers = [
+    /\n\s*On .+wrote:\s*$/s,
+    /\n\s*-{3,}\s*Original Message\s*-{3,}[\s\S]*/i,
+    /\n\s*_{3,}[\s\S]*/,
+    /\n\s*From:.*\nSent:.*\n/i,
+    /\n\s*>.*$/s,
+  ];
+  for (const marker of markers) {
+    clean = clean.replace(marker, "");
+  }
+  return clean.trim();
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
