@@ -261,8 +261,8 @@ Deno.serve(async (req) => {
         </div>
       `;
 
-      const subjectIcon = isReopened ? "🔄" : "🔧";
-      const subjectLabel = isReopened ? "Bug Reopened" : "Bug In Progress";
+      const subjectIcon = isReopened ? "🔄" : isReadyForReview ? "👀" : "🔧";
+      const subjectLabel = isReopened ? "Bug Reopened" : isReadyForReview ? "Bug Ready for Review" : "Bug In Progress";
 
       let sentCount = 0;
       for (const email of recipients) {
