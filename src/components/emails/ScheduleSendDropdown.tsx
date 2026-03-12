@@ -62,7 +62,7 @@ export function ScheduleSendDropdown({ onSchedule, disabled }: ScheduleSendDropd
     const scheduledDate = setSeconds(setMinutes(setHours(selectedDate, hours), minutes), 0);
     onSchedule(scheduledDate);
     setCustomOpen(false);
-    setSelectedDate(undefined);
+    setSelectedDate(getDefaultCustomDate());
     setSelectedTime("09:00");
   };
 
