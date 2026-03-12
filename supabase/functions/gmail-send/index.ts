@@ -222,7 +222,7 @@ Deno.serve(async (req) => {
     }
 
     const reqBody = isServiceRole ? (req as any)._parsedBody : await req.json();
-    const { to, cc, bcc, subject, html_body, reply_to_email_id, attachments } = reqBody;
+    const { to, cc, bcc, subject, html_body, reply_to_email_id, attachments, project_id, tag_category } = reqBody;
 
     if (!to || !subject || !html_body) {
       return new Response(
