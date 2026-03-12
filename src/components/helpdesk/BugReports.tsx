@@ -90,6 +90,8 @@ export function BugReports() {
   const [editStatus, setEditStatus] = useState("");
   const [editAssignee, setEditAssignee] = useState("");
   const [newComment, setNewComment] = useState("");
+  const [commentFiles, setCommentFiles] = useState<File[]>([]);
+  const commentFileRef = useRef<HTMLInputElement>(null);
   const commentsEndRef = useRef<HTMLDivElement>(null);
 
   // Activity log query
