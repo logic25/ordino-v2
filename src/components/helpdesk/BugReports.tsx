@@ -126,14 +126,30 @@ export function BugReports() {
 
   // Post comment mutation
   const postComment = useMutation({
-    mutationFn: async (message: string) => {
+    mutationFn: async ({ message, files }: { message: string; files: File[] }) => {
       if (!selectedBug || !profile) throw new Error("Missing context");
+
+      // Upload comment attachments if any
+      let attachmentData: Array<{ url: string; name: string; type: string }> | null = null;
+      if (files.length > 0) {
+        attachmentData = [];
+        for (const file of files) {
+          const path = `${profile.company_id}/${selectedBug.id}/comments/${Date.now()}-${file.name}`;
+          const { error: uploadErr } = await supabase.storage.from("bug-attachments").upload(path, file);
+          if (!uploadErr) {
+            const { data: urlData } = supabase.storage.from("bug-attachments").getPublicUrl(path);
+            attachmentData.push({ url: urlData.publicUrl, name: file.name, type: file.type });
+          }
+        }
+      }
+
       const { error } = await supabase.from("bug_comments").insert({
         bug_id: selectedBug.id,
         company_id: selectedBug.company_id,
         user_id: profile.id,
         message,
-      });
+        attachments: attachmentData,
+      } as any);
       if (error) throw error;
 
       // Send email notification (best-effort)
@@ -147,11 +163,13 @@ export function BugReports() {
           commenter_name: profile.display_name || `${profile.first_name} ${profile.last_name}`,
           comment_message: message,
           reporter_user_id: selectedBug.user_id,
+          comment_attachments: attachmentData,
         },
       }).catch(() => {});
     },
     onSuccess: () => {
       setNewComment("");
+      setCommentFiles([]);
       queryClient.invalidateQueries({ queryKey: ["bug-comments", selectedBug?.id] });
       // Also log activity
       if (selectedBug && profile) {
