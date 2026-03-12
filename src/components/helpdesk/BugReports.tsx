@@ -380,6 +380,7 @@ export function BugReports() {
               bug_title: selectedBug.title,
               bug_description: selectedBug.description,
               company_id: selectedBug.company_id,
+              reporter_user_id: selectedBug.user_id,
             },
           }).catch(() => {});
         }
@@ -390,6 +391,7 @@ export function BugReports() {
               bug_title: selectedBug.title,
               bug_description: selectedBug.description,
               company_id: selectedBug.company_id,
+              reporter_user_id: selectedBug.user_id,
             },
           }).catch(() => {});
         }
@@ -400,6 +402,7 @@ export function BugReports() {
               bug_title: selectedBug.title,
               bug_description: selectedBug.description,
               company_id: selectedBug.company_id,
+              reporter_user_id: selectedBug.user_id,
             },
           }).catch(() => {});
         }

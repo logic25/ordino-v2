@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
 
     // ── REOPENED notification: email the reporter + all admins/managers ──
     if (action === "reopened" || action === "in_progress" || action === "ready_for_review") {
-      const { reopened_by_name } = body;
+      const { reopened_by_name, reporter_user_id } = body;
 
       const recipients: string[] = [];
 
@@ -186,6 +186,12 @@ Deno.serve(async (req) => {
         const { data: { user } } = await supabase.auth.admin.getUserById(prof.user_id);
         return user?.email || null;
       };
+
+      // Include the reporter so they know the status changed
+      if (reporter_user_id) {
+        const email = await getEmailByProfileId(reporter_user_id);
+        if (email) recipients.push(email);
+      }
 
       // Always include admins/managers
       const { data: adminProfiles } = await supabase
