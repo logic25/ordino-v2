@@ -54,9 +54,13 @@ export function useCreateScheduledEmail() {
       timezone?: string;
       projectId?: string;
     }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
       const { data: profile } = await supabase
         .from("profiles")
         .select("id, company_id")
+        .eq("user_id", user.id)
         .single();
 
       if (!profile) throw new Error("No profile found");
