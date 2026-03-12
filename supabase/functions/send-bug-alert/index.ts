@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
 
     // ── RESOLVED notification: email the reporter + all admins/managers ──
     if (action === "resolved") {
-      const { reporter_user_id, admin_notes } = body;
+      const { reporter_user_id, admin_notes, recent_comments } = body;
 
       // Collect all recipients: reporter + admins/managers
       const recipients: string[] = [];
