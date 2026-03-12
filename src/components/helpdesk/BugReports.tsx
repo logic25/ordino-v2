@@ -393,6 +393,16 @@ export function BugReports() {
             },
           }).catch(() => {});
         }
+        if (isReadyForReview) {
+          supabase.functions.invoke("send-bug-alert", {
+            body: {
+              action: "ready_for_review",
+              bug_title: selectedBug.title,
+              bug_description: selectedBug.description,
+              company_id: selectedBug.company_id,
+            },
+          }).catch(() => {});
+        }
         setSelectedBug(null);
       },
     });
