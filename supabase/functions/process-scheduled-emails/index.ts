@@ -252,7 +252,42 @@ Deno.serve(async (req) => {
           })
           .eq("id", scheduled.id);
 
-        processed++;
+        // Insert sent email into emails table
+        const toEmails = draft.to.split(",").map((e: string) => e.trim()).filter(Boolean);
+        const { data: insertedEmail } = await supabaseAdmin
+          .from("emails")
+          .upsert({
+            company_id: connection.company_id,
+            user_id: scheduled.user_id,
+            gmail_message_id: sendData.id,
+            thread_id: sendData.threadId || null,
+            subject: draft.subject,
+            from_email: connection.email_address,
+            from_name: connection.email_address,
+            to_emails: toEmails,
+            date: new Date().toISOString(),
+            snippet: draft.html_body.replace(/<[^>]*>/g, "").substring(0, 200),
+            has_attachments: (draft.attachments && draft.attachments.length > 0) || false,
+            labels: ["SENT"],
+            is_read: true,
+          }, { onConflict: "gmail_message_id,company_id" })
+          .select("id")
+          .single();
+
+        // Auto-tag to project if project_id provided
+        const projectId = scheduled.project_id || draft.project_id;
+        if (projectId && insertedEmail?.id) {
+          await supabaseAdmin
+            .from("email_project_tags")
+            .insert({
+              email_id: insertedEmail.id,
+              project_id: projectId,
+              company_id: connection.company_id,
+              tagged_by_id: scheduled.user_id,
+              category: draft.tag_category || "other",
+            });
+        }
+
       } catch (err) {
         console.error(`Error processing scheduled email ${scheduled.id}:`, err);
         await supabaseAdmin
