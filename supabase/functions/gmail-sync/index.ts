@@ -367,7 +367,7 @@ Deno.serve(async (req) => {
             user_id: profile.id,
             gmail_message_id: msg.id,
             thread_id: msg.threadId,
-            subject: getHeader(headers, "Subject") || "(no subject)",
+            subject,
             from_email,
             from_name,
             to_emails,
