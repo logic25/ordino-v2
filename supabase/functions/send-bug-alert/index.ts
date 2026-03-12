@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
 
     // ── REOPENED notification: email the reporter + all admins/managers ──
     if (action === "reopened" || action === "in_progress" || action === "ready_for_review") {
-      const { reopened_by_name, reporter_user_id } = body;
+      const { reopened_by_name, reporter_user_id, admin_notes } = body;
 
       const recipients: string[] = [];
 
@@ -251,6 +251,12 @@ Deno.serve(async (req) => {
               <strong style="color: ${titleColor}; font-size: 15px;">${bug_title}</strong>
               ${bug_description ? `<div style="margin-top: 10px;">${formatDescription(bug_description)}</div>` : ""}
             </div>
+            ${isReadyForReview && admin_notes ? `
+              <div style="margin: 20px 0;">
+                <strong style="color: #374151; font-size: 14px;">📝 What was changed</strong>
+                <div style="background: #f9fafb; padding: 14px; border-radius: 6px; margin-top: 6px; white-space: pre-line; color: #4b5563; font-size: 14px; line-height: 1.5; border: 1px solid #e5e7eb;">${admin_notes}</div>
+              </div>
+            ` : ""}
             <div style="margin-top: 24px; text-align: center;">
               <a href="https://ordinov3.lovable.app/help" style="display: inline-block; background: ${headerBg}; color: #ffffff; text-decoration: none; padding: 10px 24px; border-radius: 6px; font-size: 14px; font-weight: 600;">View in Help Center</a>
             </div>
