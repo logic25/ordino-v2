@@ -809,6 +809,10 @@ export function BugReports() {
                       {comments.map((c: any) => {
                         const commenterName = profiles.find((p) => p.id === c.user_id)?.display_name || "Unknown";
                         const isCurrentUser = c.user_id === profile?.id;
+                        const commentAttachments: Array<{ url: string; name: string; type: string }> = (() => {
+                          if (!c.attachments) return [];
+                          try { return Array.isArray(c.attachments) ? c.attachments : JSON.parse(c.attachments); } catch { return []; }
+                        })();
                         return (
                           <div key={c.id} className={cn("rounded-lg p-3 text-sm", isCurrentUser ? "bg-primary/10 ml-4" : "bg-muted/50 mr-4")}>
                             <div className="flex items-center justify-between mb-1">
@@ -816,6 +820,21 @@ export function BugReports() {
                               <span className="text-xs text-muted-foreground">{format(new Date(c.created_at), "MMM d, h:mm a")}</span>
                             </div>
                             <p className="text-foreground whitespace-pre-line">{c.message}</p>
+                            {commentAttachments.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {commentAttachments.map((att, i) =>
+                                  att.type?.startsWith("image/") ? (
+                                    <a key={i} href={att.url} target="_blank" rel="noopener noreferrer">
+                                      <img src={att.url} alt={att.name} className="h-20 w-auto rounded border hover:ring-2 ring-primary transition-all" />
+                                    </a>
+                                  ) : (
+                                    <a key={i} href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-primary underline">
+                                      <FileIcon className="h-3 w-3" />{att.name}
+                                    </a>
+                                  )
+                                )}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
