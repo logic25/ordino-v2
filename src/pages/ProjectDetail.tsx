@@ -1630,6 +1630,7 @@ function ServiceExpandedDetail({ service, projectName, projectId }: { service: M
         onOpenChange={setComposeEmailOpen}
         defaultSubject={`Re: ${service.name}${projectName ? ` — ${projectName}` : ""}`}
         defaultBody={`<p>Hi,</p><p>Regarding the service <strong>${service.name}</strong>${projectName ? ` on project <strong>${projectName}</strong>` : ""}:</p><p></p>`}
+        projectId={projectId}
       />
     </div>
   );
