@@ -280,15 +280,18 @@ export function BugReports() {
       }
 
       // Fire email alert (best-effort)
-      supabase.functions.invoke("send-bug-alert", {
-        body: {
-          bug_title: `[${page}] ${action.slice(0, 80)}`,
-          bug_description: description,
-          bug_priority: priority,
-          company_id: profile.company_id,
-          reporter_name: profile.display_name || `${profile.first_name} ${profile.last_name}`,
-        },
-      }).catch(() => {});
+      if (inserted) {
+        supabase.functions.invoke("send-bug-alert", {
+          body: {
+            bug_id: inserted.id,
+            bug_title: `[${page}] ${action.slice(0, 80)}`,
+            bug_description: description,
+            bug_priority: priority,
+            company_id: profile.company_id,
+            reporter_name: profile.display_name || `${profile.first_name} ${profile.last_name}`,
+          },
+        }).catch(() => {});
+      }
     },
     onSuccess: () => {
       toast({ title: "Bug report submitted", description: "Team members have been notified." });
