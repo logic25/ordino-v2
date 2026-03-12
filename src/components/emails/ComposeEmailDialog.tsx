@@ -223,8 +223,11 @@ export function ComposeEmailDialog({ open, onOpenChange, draft, defaultTo, defau
           subject: subject.trim(),
           html_body: finalBody,
           attachments: buildAttachmentsPayload(),
+          project_id: projectId,
+          tag_category: "other",
         },
         scheduledSendTime: date,
+        projectId,
       });
       toast({
         title: "Email Scheduled",
