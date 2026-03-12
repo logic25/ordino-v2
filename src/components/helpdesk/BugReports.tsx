@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bug, CheckCircle2, Plus, Clock, Filter, ArrowUpDown, Loader2, Upload, Video, X, Image as ImageIcon, Copy, History, Send, MessageSquare } from "lucide-react";
+import { Bug, CheckCircle2, Plus, Clock, Filter, ArrowUpDown, Loader2, Upload, Video, X, Image as ImageIcon, Copy, History, Send, MessageSquare, Eye } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -30,6 +30,7 @@ const STATUS_OPTIONS = [
   { value: "all", label: "All Statuses" },
   { value: "open", label: "Open" },
   { value: "in_progress", label: "In Progress" },
+  { value: "ready_for_review", label: "Ready for Review" },
   { value: "resolved", label: "Resolved" },
 ];
 
@@ -45,6 +46,7 @@ const priorityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2,
 
 const statusIcon = (status: string) => {
   if (status === "resolved") return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+  if (status === "ready_for_review") return <Eye className="h-4 w-4 text-purple-500" />;
   if (status === "in_progress") return <Clock className="h-4 w-4 text-amber-500" />;
   return <Bug className="h-4 w-4 text-destructive" />;
 };
@@ -202,6 +204,7 @@ export function BugReports() {
   // Stats
   const openCount = reports.filter((r: any) => r.status === "open").length;
   const inProgressCount = reports.filter((r: any) => r.status === "in_progress").length;
+  const readyForReviewCount = reports.filter((r: any) => r.status === "ready_for_review").length;
   const resolvedCount = reports.filter((r: any) => r.status === "resolved").length;
   const criticalCount = reports.filter((r: any) => r.priority === "critical" && r.status !== "resolved").length;
 
@@ -356,6 +359,7 @@ export function BugReports() {
     const isNewlyResolved = editStatus === "resolved" && selectedBug.status !== "resolved";
     const isReopened = editStatus === "open" && selectedBug.status === "resolved";
     const isMovedToInProgress = editStatus === "in_progress" && selectedBug.status === "open";
+    const isReadyForReview = editStatus === "ready_for_review" && selectedBug.status !== "ready_for_review";
     updateBug.mutate({ id: selectedBug.id, updates }, {
       onSuccess: () => {
         if (isNewlyResolved) {
@@ -383,6 +387,16 @@ export function BugReports() {
           supabase.functions.invoke("send-bug-alert", {
             body: {
               action: "in_progress",
+              bug_title: selectedBug.title,
+              bug_description: selectedBug.description,
+              company_id: selectedBug.company_id,
+            },
+          }).catch(() => {});
+        }
+        if (isReadyForReview) {
+          supabase.functions.invoke("send-bug-alert", {
+            body: {
+              action: "ready_for_review",
               bug_title: selectedBug.title,
               bug_description: selectedBug.description,
               company_id: selectedBug.company_id,
@@ -440,10 +454,11 @@ export function BugReports() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-5 gap-3">
         {[
           { label: "Open", count: openCount, color: "text-destructive", filter: "open" },
           { label: "In Progress", count: inProgressCount, color: "text-amber-500", filter: "in_progress" },
+          { label: "Ready for Review", count: readyForReviewCount, color: "text-purple-500", filter: "ready_for_review" },
           { label: "Resolved", count: resolvedCount, color: "text-green-500", filter: "resolved" },
           { label: "Critical", count: criticalCount, color: "text-destructive", filter: "critical" },
         ].map((s) => (
@@ -826,6 +841,7 @@ export function BugReports() {
                         <SelectContent>
                           <SelectItem value="open">Open</SelectItem>
                           <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="ready_for_review">Ready for Review</SelectItem>
                           <SelectItem value="resolved">Resolved</SelectItem>
                         </SelectContent>
                       </Select>
