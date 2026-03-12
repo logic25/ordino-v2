@@ -231,7 +231,7 @@ export default function Projects() {
               <Input
                 type="search"
                 placeholder="Search by project #, name, property, or client..."
-                className="pl-9"
+                className="pl-9 border-2 border-border bg-background shadow-sm focus:border-primary"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
