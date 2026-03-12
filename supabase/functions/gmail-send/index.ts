@@ -373,7 +373,7 @@ Deno.serve(async (req) => {
         has_attachments: (attachments && attachments.length > 0) || false,
         labels: ["SENT"],
         is_read: true,
-      }, { onConflict: "company_id,gmail_message_id" })
+      }, { onConflict: "gmail_message_id,company_id" })
       .select("id")
       .single();
 
