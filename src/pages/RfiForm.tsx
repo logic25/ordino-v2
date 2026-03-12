@@ -253,8 +253,7 @@ export default function RfiForm() {
   // Proposal work types for merging into picker options
   const proposalWorkTypes: string[] = rfiData?.proposalWorkTypes || [];
 
-  // Valid work types — use the canonical list from company settings
-  const VALID_WORK_TYPES = new Set([...WORK_TYPE_DISCIPLINES, "Other"]);
+
 
   const sections = useMemo(() => {
     const baseSections = rfi?.sections || [];
