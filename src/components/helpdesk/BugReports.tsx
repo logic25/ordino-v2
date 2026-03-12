@@ -450,6 +450,7 @@ export function BugReports() {
           supabase.functions.invoke("send-bug-alert", {
             body: {
               action: "ready_for_review",
+              bug_id: selectedBug.id,
               bug_title: selectedBug.title,
               bug_description: selectedBug.description,
               admin_notes: editNotes || selectedBug.admin_notes || "",
