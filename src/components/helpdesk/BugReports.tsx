@@ -197,7 +197,7 @@ export function BugReports() {
       case "assignment_change":
         return `${userName} reassigned from ${log.old_value} to ${log.new_value}`;
       case "notes_updated":
-        return `${userName} updated admin notes`;
+        return `${userName} updated resolution notes`;
       case "comment":
         return `${userName} posted a comment`;
       case "email_reply":
