@@ -290,7 +290,7 @@ Deno.serve(async (req) => {
 
     // ── COMMENT notification ──
     if (action === "comment") {
-      const { commenter_user_id, commenter_name, comment_message, reporter_user_id } = body;
+      const { commenter_user_id, commenter_name, comment_message, reporter_user_id, comment_attachments } = body;
 
       const recipients: string[] = [];
 
