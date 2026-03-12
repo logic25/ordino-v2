@@ -2015,7 +2015,7 @@ function ServicesFull({ services: initialServices, project, contacts, allService
                       </TableRow>
                       {isExpanded && (
                         <TableRow key={`${svc.id}-detail`} className="hover:bg-transparent">
-                          <TableCell colSpan={12} className="p-0"><ServiceExpandedDetail service={svc} projectName={project.name || project.proposals?.title || ""} /></TableCell>
+                          <TableCell colSpan={12} className="p-0"><ServiceExpandedDetail service={svc} projectName={project.name || project.proposals?.title || ""} projectId={projectId} /></TableCell>
                         </TableRow>
                       )}
                       {!isChild && children.map((child) => renderServiceRow(child, svcIndex, true))}
