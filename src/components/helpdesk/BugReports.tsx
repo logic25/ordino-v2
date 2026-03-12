@@ -841,6 +841,28 @@ export function BugReports() {
                       <div ref={commentsEndRef} />
                     </div>
                   )}
+                  {/* Comment file previews */}
+                  {commentFiles.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {commentFiles.map((f, i) => (
+                        <div key={i} className="relative group">
+                          {f.type.startsWith("image/") ? (
+                            <img src={URL.createObjectURL(f)} alt={f.name} className="h-14 w-14 object-cover rounded border" />
+                          ) : (
+                            <div className="h-14 w-14 rounded border flex items-center justify-center bg-muted">
+                              <FileIcon className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                          )}
+                          <button
+                            className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => setCommentFiles((prev) => prev.filter((_, j) => j !== i))}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="flex gap-2">
                     <Input
                       value={newComment}
@@ -848,16 +870,30 @@ export function BugReports() {
                       placeholder="Write a comment..."
                       className="flex-1"
                       onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey && newComment.trim()) {
+                        if (e.key === "Enter" && !e.shiftKey && (newComment.trim() || commentFiles.length > 0)) {
                           e.preventDefault();
-                          postComment.mutate(newComment.trim());
+                          postComment.mutate({ message: newComment.trim(), files: commentFiles });
                         }
                       }}
                     />
+                    <input
+                      ref={commentFileRef}
+                      type="file"
+                      accept="image/*,.pdf,.doc,.docx"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files) setCommentFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
+                        e.target.value = "";
+                      }}
+                    />
+                    <Button size="sm" variant="outline" onClick={() => commentFileRef.current?.click()} title="Attach file">
+                      <Paperclip className="h-4 w-4" />
+                    </Button>
                     <Button
                       size="sm"
-                      disabled={!newComment.trim() || postComment.isPending}
-                      onClick={() => postComment.mutate(newComment.trim())}
+                      disabled={(!newComment.trim() && commentFiles.length === 0) || postComment.isPending}
+                      onClick={() => postComment.mutate({ message: newComment.trim(), files: commentFiles })}
                     >
                       <Send className="h-4 w-4" />
                     </Button>
