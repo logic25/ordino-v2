@@ -53,7 +53,6 @@ function usePropertyProjects(propertyId: string) {
         .from("projects")
         .select("id, name, project_number, phase, status")
         .eq("property_id", propertyId)
-        .in("status", ["open", "on_hold"])
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -194,8 +193,10 @@ export function SignalEnrollDialog({
                 </div>
                 <Switch
                   checked={isComplimentary}
-                  onCheckedChange={setIsComplimentary}
-                  disabled={!hasActiveProjects}
+                  onCheckedChange={(checked) => {
+                    if (checked && !hasActiveProjects) return;
+                    setIsComplimentary(checked);
+                  }}
                 />
               </div>
               {!hasActiveProjects && (
