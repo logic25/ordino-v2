@@ -181,7 +181,7 @@ export async function fetchDOBApplications(bin: string): Promise<COApplication[]
     fetch(`https://data.cityofnewyork.us/resource/ic3t-wcy2.json?bin__=${bin}&$limit=500`)
       .then(r => r.ok ? r.json() : [])
       .catch(() => [] as DOBJobFiling[]),
-    fetch(`https://data.cityofnewyork.us/resource/rbx6-tga4.json?bin=${bin}&$limit=500`)
+    fetch(`https://data.cityofnewyork.us/resource/w9ak-ipjd.json?bin=${bin}&$limit=500`)
       .then(r => r.ok ? r.json() : [])
       .catch(() => [] as DOBNowBuild[]),
   ]);
