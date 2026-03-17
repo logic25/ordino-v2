@@ -508,7 +508,11 @@ export function useSendProposal() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (input: string | { id: string; recipientEmail?: string; recipientName?: string }) => {
+      const id = typeof input === "string" ? input : input.id;
+      const recipientEmailOverride = typeof input === "object" ? input.recipientEmail : undefined;
+      const recipientNameOverride = typeof input === "object" ? input.recipientName : undefined;
+
       // 1. Fetch proposal with property and items
       const { data: proposal, error: pErr } = await supabase
         .from("proposals")
@@ -522,14 +526,18 @@ export function useSendProposal() {
         throw new Error("This proposal has already been sent. Refresh the page if you need to resend.");
       }
 
-      // 2. Fetch bill_to contact
-      const { data: contacts } = await supabase
-        .from("proposal_contacts")
-        .select("*")
-        .eq("proposal_id", id);
-      const billTo = (contacts || []).find((c: any) => c.role === "bill_to");
-      const clientEmail = billTo?.email || proposal.client_email;
-      const clientName = billTo?.name || proposal.client_name || "Client";
+      // 2. Determine recipient — use override if provided, else fall back to bill_to contact
+      let clientEmail = recipientEmailOverride;
+      let clientName = recipientNameOverride || "Client";
+      if (!clientEmail) {
+        const { data: contacts } = await supabase
+          .from("proposal_contacts")
+          .select("*")
+          .eq("proposal_id", id);
+        const billTo = (contacts || []).find((c: any) => c.role === "bill_to");
+        clientEmail = billTo?.email || proposal.client_email;
+        clientName = billTo?.name || proposal.client_name || "Client";
+      }
 
       if (!clientEmail) throw new Error("No client email address found on this proposal.");
 

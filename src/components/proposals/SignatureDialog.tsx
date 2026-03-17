@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -22,12 +22,18 @@ import { useAssignableProfiles } from "@/hooks/useProfiles";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useTelemetry } from "@/hooks/useTelemetry";
+import { useProposalContacts } from "@/hooks/useProposalContacts";
 import type { ProposalWithRelations } from "@/hooks/useProposals";
+
+export interface SignatureRecipient {
+  name: string;
+  email: string;
+}
 
 interface SignatureDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSign: (signatureData: string, assignedPmId: string) => Promise<void>;
+  onSign: (signatureData: string, assignedPmId: string, recipient?: SignatureRecipient) => Promise<void>;
   proposal: ProposalWithRelations | null;
   isLoading?: boolean;
 }
@@ -49,6 +55,52 @@ export function SignatureDialog({
   const { data: profiles = [] } = useAssignableProfiles();
   const { profile } = useAuth();
   const { track } = useTelemetry();
+  const { data: contacts = [] } = useProposalContacts(proposal?.id);
+  const [selectedRecipientId, setSelectedRecipientId] = useState("");
+
+  // Build recipient options from contacts
+  const recipientOptions = useMemo(() => {
+    const opts: { id: string; label: string; name: string; email: string }[] = [];
+    const roleLabels: Record<string, string> = {
+      bill_to: "Bill To",
+      applicant: "Applicant",
+      sign: "Signer",
+      owner: "Owner",
+      cc: "CC",
+    };
+    for (const c of contacts) {
+      if (c.email) {
+        opts.push({
+          id: c.id,
+          label: `${roleLabels[c.role] || c.role} — ${c.name || "No name"}`,
+          name: c.name || "",
+          email: c.email,
+        });
+      }
+    }
+    // Fallback if no contacts with email
+    if (opts.length === 0 && proposal?.client_email) {
+      opts.push({
+        id: "fallback",
+        label: `Client — ${proposal.client_name || "Client"}`,
+        name: proposal.client_name || "Client",
+        email: proposal.client_email,
+      });
+    }
+    return opts;
+  }, [contacts, proposal?.client_email, proposal?.client_name]);
+
+  // Auto-select bill_to or first available
+  useEffect(() => {
+    if (open && recipientOptions.length > 0) {
+      const billTo = contacts.find(c => c.role === "bill_to" && c.email);
+      if (billTo) {
+        setSelectedRecipientId(billTo.id);
+      } else {
+        setSelectedRecipientId(recipientOptions[0].id);
+      }
+    }
+  }, [open, recipientOptions]);
 
   // Load saved signature from profile
   useEffect(() => {
@@ -158,8 +210,13 @@ export function SignatureDialog({
         .then(() => {});
     }
 
+    const selectedRecipient = recipientOptions.find(r => r.id === selectedRecipientId) || recipientOptions[0];
+    const recipient: SignatureRecipient | undefined = selectedRecipient
+      ? { name: selectedRecipient.name, email: selectedRecipient.email }
+      : undefined;
+
     track("proposals", "internal_sign_completed");
-    await onSign(signatureData, assignedPmId);
+    await onSign(signatureData, assignedPmId, recipient);
     setHasDrawn(false);
     setAssignedPmId("");
   };
@@ -202,6 +259,31 @@ export function SignatureDialog({
                 <span className="font-medium">Total</span>
                 <span className="font-bold">{fmt(Number(proposal.total_amount))}</span>
               </div>
+            </div>
+
+            {/* Send To Recipient */}
+            <div className="space-y-2">
+              <Label>Send To *</Label>
+              {recipientOptions.length > 1 ? (
+                <Select value={selectedRecipientId} onValueChange={setSelectedRecipientId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select recipient..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {recipientOptions.map((opt) => (
+                      <SelectItem key={opt.id} value={opt.id}>
+                        {opt.label} &lt;{opt.email}&gt;
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : recipientOptions.length === 1 ? (
+                <div className="text-sm font-medium px-3 py-2 border rounded-md bg-muted/30">
+                  {recipientOptions[0].label} &lt;{recipientOptions[0].email}&gt;
+                </div>
+              ) : (
+                <p className="text-xs text-destructive">⚠ No contacts with email found on this proposal.</p>
+              )}
             </div>
 
             {/* Assign PM */}

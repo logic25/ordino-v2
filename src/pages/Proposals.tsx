@@ -13,7 +13,7 @@ import { lazy, Suspense } from "react";
 const ProposalDialog = lazy(() => import("@/components/proposals/ProposalDialog").then(m => ({ default: m.ProposalDialog })));
 import { ProposalTable } from "@/components/proposals/ProposalTable";
 import { LeadsTable } from "@/components/proposals/LeadsTable";
-import { SignatureDialog } from "@/components/proposals/SignatureDialog";
+import { SignatureDialog, type SignatureRecipient } from "@/components/proposals/SignatureDialog";
 import { ProposalApprovalDialog } from "@/components/proposals/ProposalApprovalDialog";
 import { ProposalPreviewModal } from "@/components/proposals/ProposalPreviewModal";
 import { LeadCaptureDialog, type LeadCaptureData } from "@/components/proposals/LeadCaptureDialog";
@@ -526,7 +526,7 @@ export default function Proposals() {
     setSignDialogOpen(true);
   };
 
-  const handleSign = async (signatureData: string, assignedPmId: string) => {
+  const handleSign = async (signatureData: string, assignedPmId: string, recipient?: SignatureRecipient) => {
     if (!signingProposal) return;
     const proposalId = signingProposal.id;
     try {
@@ -578,9 +578,13 @@ export default function Proposals() {
           }, 1500);
         }
 
-        // Auto-send the proposal email to the client
+        // Auto-send the proposal email to the selected recipient
         try {
-          await sendProposal.mutateAsync(proposalId);
+          await sendProposal.mutateAsync(
+            recipient
+              ? { id: proposalId, recipientEmail: recipient.email, recipientName: recipient.name }
+              : proposalId
+          );
           toast({ title: "Proposal signed & sent!", description: "The proposal has been emailed to the client." });
         } catch (sendErr: any) {
           console.error("Auto-send after sign failed:", sendErr);
