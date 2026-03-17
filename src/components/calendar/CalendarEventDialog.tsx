@@ -119,6 +119,7 @@ function ProjectCombobox({
   );
 }
 
+interface CalendarEventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   event?: CalendarEvent | null;
