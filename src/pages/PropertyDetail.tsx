@@ -91,6 +91,37 @@ export default function PropertyDetail() {
   const isSubscriptionActive = subscription?.status === "active" || subscription?.status === "trial";
   const isSubscriptionInactive = subscription?.status === "prospect" || subscription?.status === "expired";
 
+  // Auto-fetch DOB data when CitiSignal is active and property has BIN
+  const autoFetchedRef = useRef(false);
+  useEffect(() => {
+    if (autoFetchedRef.current) return;
+    if (!property?.bin) return;
+    if (!isSubscriptionActive) return;
+    if (coImported || coImporting) return;
+    autoFetchedRef.current = true;
+    // Trigger the import
+    (async () => {
+      setCoImporting(true);
+      try {
+        const apps = await fetchDOBApplications(property.bin!);
+        setCoApps(apps);
+        setCoViolations([]);
+        setCoImported(true);
+        setLastSynced(format(new Date(), "MM/dd/yyyy h:mm a"));
+        if (apps.length === 0) {
+          toast({
+            title: "No DOB applications found",
+            description: `No filings found for BIN ${property.bin}. This property may not have any DOB filings.`,
+          });
+        }
+      } catch {
+        // Silent fail on auto-fetch; user can manually retry
+      } finally {
+        setCoImporting(false);
+      }
+    })();
+  }, [property?.bin, isSubscriptionActive, coImported, coImporting, toast]);
+
   // Import DOB data (real NYC Open Data)
   const handleImportDOBData = useCallback(async () => {
     if (!isSubscriptionActive && !isSubscriptionInactive) {
