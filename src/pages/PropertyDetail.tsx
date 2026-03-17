@@ -48,11 +48,11 @@ export default function PropertyDetail() {
   const [activeTab, setActiveTab] = useState("overview");
 
   // CO state
-  const [coImported, setCoImported] = useState(true);
+  const [coImported, setCoImported] = useState(false);
   const [coImporting, setCoImporting] = useState(false);
-  const [coApps, setCoApps] = useState<COApplication[]>(MOCK_CO_APPLICATIONS);
-  const [coViolations, setCoViolations] = useState<COViolation[]>(MOCK_CO_VIOLATIONS);
-  const [lastSynced, setLastSynced] = useState<string | null>(format(new Date(), "MM/dd/yyyy h:mm a"));
+  const [coApps, setCoApps] = useState<COApplication[]>([]);
+  const [coViolations, setCoViolations] = useState<COViolation[]>([]);
+  const [lastSynced, setLastSynced] = useState<string | null>(null);
   const [coWorkTypeFilter, setCoWorkTypeFilter] = useState<string | null>(null);
 
   // Required items per application (keyed by jobNum) — user-added items only
