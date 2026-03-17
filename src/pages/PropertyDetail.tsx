@@ -29,6 +29,7 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { COApplicationsView } from "@/components/properties/co/COApplicationsView";
 import { COViolationsView } from "@/components/properties/co/COViolationsView";
+import { COComplaintsView } from "@/components/properties/co/COComplaintsView";
 import { COSummaryView } from "@/components/properties/co/COSummaryView";
 import { COSetupWizard } from "@/components/properties/co/COSetupWizard";
 import { useCoSignOffs } from "@/hooks/useCoSignOffs";
@@ -36,7 +37,9 @@ import {
   type COApplication, type COViolation,
 } from "@/components/properties/co/coMockData";
 import { fetchDOBApplications } from "@/hooks/useDOBApplications";
+import { fetchDOBViolations, fetchDOBComplaints, type DOBComplaintRecord } from "@/hooks/useDOBViolations";
 import { type RequiredItem } from "@/components/properties/co/requiredItemsData";
+import { MessageSquareWarning } from "lucide-react";
 
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
