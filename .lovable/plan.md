@@ -1,26 +1,65 @@
 
 
-## Inbound Email Replies as Bug Comments + UI Refinements — Complete
+# CitiSignal Complimentary Subscription Safeguards
 
-### What was built:
+## The Problem
 
-**1. Renamed "Admin Notes" to "Resolution Notes"** ✅
-- Label changed in management section and activity log descriptions
-- Reporter-facing label kept as "What was changed" during ready_for_review, "Resolution Notes" when resolved
+If you give away CitiSignal monitoring free because the client uses you as their building expediter, you need proof that relationship exists and an automatic way to stop giving it away if the relationship ends. Otherwise you're handing out free monitoring with no accountability.
 
-**2. Reordered detail sheet sections** ✅
-- Resolution notes (for reporter) now appears right after metadata, before comments
-- Order: Description → Screenshots/Video → Metadata → Resolution Notes (reporter view) → Comments → Copy for Lovable → Admin Management → Reviewer Actions → Activity Log
+## Design
 
-**3. Added `[BUG-{short_id}]` tags to all outbound bug emails** ✅
-- All 4 email types (new bug, resolved, status change, comment) now include `[BUG-xxxxxxxx]` in subject
-- `bug_id` passed from frontend to edge function for all invocations
+### New columns on `signal_subscriptions`
 
-**4. Inbound email-to-comment routing in gmail-sync** ✅
-- During sync, emails with `[BUG-xxxxxxxx]` in subject are detected
-- Reply body is extracted and stripped of quoted content (gmail_quote, "On ... wrote:", etc.)
-- Sender email is matched to a company profile
-- A `bug_comments` row is inserted with the reply text
-- A `bug_activity_logs` entry is created with action_type `email_reply`
-- The email is NOT inserted into the normal inbox (skipped)
-- `stripQuotedContent()` helper handles HTML and plain-text reply stripping
+| Column | Type | Purpose |
+|---|---|---|
+| `is_complimentary` | boolean (default false) | Flags this as a freebie bundled with expediting |
+| `enrolled_by` | uuid (FK → profiles) | Who sold/enrolled it — accountability |
+| `linked_project_id` | uuid (FK → projects, nullable) | The expediting project that justifies the comp — proof we got the building |
+| `monthly_rate` | numeric (nullable) | For paid subs — what they're paying |
+| `billing_start_date` | date (nullable) | When billing begins for paid subs |
+| `comp_reason` | text (nullable) | Free-text justification ("Active expediting client, 3 projects") |
+
+### Business Rules
+
+1. **Complimentary requires a linked project** — when `is_complimentary` is toggled on, the dialog forces you to select an active project for this property. No project = can't toggle it on. This is your proof you got the building.
+
+2. **Auto-expiration for complimentary subs** — if no `expires_at` is set, default to **1 year from enrollment**. This forces a review. The SignalSection will show a countdown: "Comp expires in 47 days."
+
+3. **Warning when linked project closes** — if the linked project's phase moves to `closeout` or status becomes inactive, the SignalSection shows a warning badge: "Linked project closed — review subscription." This is a UI-level check (not a trigger), keeping it simple.
+
+4. **Trial = 14 days auto-expiry** — selecting "Trial" auto-sets `expires_at` to +14 days.
+
+5. **Enrolled-by tracking** — auto-captured on creation so managers can see who's giving away comps.
+
+### UI Changes
+
+**SignalEnrollDialog** additions:
+- "Complimentary" switch — only enabled when property has active projects
+- When on: project selector dropdown (required), comp reason textarea, no monthly rate
+- When off + status "active": monthly rate input, billing start date
+- When status "trial": read-only expires_at showing 14-day date
+- All modes: enrolled-by auto-captured (shown read-only on edit)
+
+**SignalSection** additions:
+- "Sold by: [Name]" line
+- "Complimentary — linked to [Project Name]" or "Paid — $X/mo"
+- Expiration countdown for comps and trials
+- Warning badge if: comp with no linked project, linked project closed, or subscription expired
+
+### Files Changed
+
+| File | Change |
+|---|---|
+| Migration SQL | Add 6 columns to `signal_subscriptions` |
+| `src/hooks/useSignalSubscriptions.ts` | Update types + mutation to include new fields, auto-set `enrolled_by` |
+| `src/components/properties/SignalEnrollDialog.tsx` | Complimentary toggle, project selector, comp reason, rate input, auto-expiry logic |
+| `src/components/properties/SignalSection.tsx` | Show enrolled-by, linked project, rate, expiration countdown, warning badges |
+| `src/components/properties/SignalStatusBadge.tsx` | Add "complimentary" visual indicator |
+
+### What this prevents
+
+- Giving away monitoring without proof of an expediting relationship (linked project required)
+- Forgetting to remove comps (auto-expiration + countdown)
+- Not knowing who authorized the comp (enrolled-by tracking)
+- Comps outliving the project relationship (warning when project closes)
+
