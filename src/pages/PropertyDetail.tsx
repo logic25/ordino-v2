@@ -287,7 +287,9 @@ export default function PropertyDetail() {
                 {property.borough && (
                   <Badge variant="secondary">{formatBorough(property.borough)}</Badge>
                 )}
-                <SignalStatusBadge status={subscription?.status || null} />
+                <button type="button" onClick={() => setEnrollOpen(true)} className="cursor-pointer hover:opacity-80 transition-opacity">
+                  <SignalStatusBadge status={subscription?.status || null} />
+                </button>
               </div>
               <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
                 {(property.block || property.lot) && (
