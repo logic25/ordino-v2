@@ -97,6 +97,8 @@ const DOB_NOW_STATUS_MAP: Record<string, string> = {
   "SIGNED OFF": "Signed Off",
   "DISAPPROVED": "Disapproved",
   "WITHDRAWN": "Withdrawn",
+  "OBJECTIONS": "Disapproved",
+  "INCOMPLETE": "In Process",
 };
 
 function inferWorkType(filing: DOBJobFiling): string {
@@ -110,14 +112,12 @@ function inferWorkType(filing: DOBJobFiling): string {
 }
 
 function inferWorkTypeFromDOBNow(record: DOBNowBuild): string {
-  const wt = (record.work_type || "").toUpperCase();
-  if (wt.includes("FIRE ALARM")) return "FA";
-  if (wt.includes("SPRINKLER")) return "SP";
-  if (wt.includes("FIRE SUPPRESSION") || wt.includes("FIRE PROTECTION")) return "FP";
-  if (wt.includes("PLUMBING")) return "PL";
-  if (wt.includes("MECHANICAL")) return "MH";
-  if (wt.includes("ELEVATOR") || wt.includes("EQUIPMENT")) return "EQ";
-  if (wt.includes("SIGN")) return "SG";
+  if (record.sprinkler_work_type === "1") return "SP";
+  if (record.plumbing_work_type === "1") return "PL";
+  if (record.mechanical_systems_work_type_ === "1") return "MH";
+  if (record.boiler_equipment_work_type_ === "1") return "MH";
+  if (record.structural_work_type_ === "1") return "OT";
+  if (record.general_construction_work_type_ === "1") return "OT";
   return "OT";
 }
 
