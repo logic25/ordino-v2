@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { Radio } from "lucide-react";
+import { Radio, Gift } from "lucide-react";
 
 const STATUS_STYLES: Record<string, string> = {
   active: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
@@ -17,10 +17,11 @@ const STATUS_LABELS: Record<string, string> = {
 
 interface SignalStatusBadgeProps {
   status: string | null;
+  isComplimentary?: boolean;
   showIcon?: boolean;
 }
 
-export function SignalStatusBadge({ status, showIcon = true }: SignalStatusBadgeProps) {
+export function SignalStatusBadge({ status, isComplimentary, showIcon = true }: SignalStatusBadgeProps) {
   if (!status) {
     return <span className="text-muted-foreground text-sm">—</span>;
   }
@@ -29,6 +30,7 @@ export function SignalStatusBadge({ status, showIcon = true }: SignalStatusBadge
     <Badge variant="outline" className={`gap-1 ${STATUS_STYLES[status] || "bg-muted text-muted-foreground"}`}>
       {showIcon && <Radio className="h-3 w-3" />}
       {STATUS_LABELS[status] || status}
+      {isComplimentary && <Gift className="h-3 w-3 ml-0.5" />}
     </Badge>
   );
 }
