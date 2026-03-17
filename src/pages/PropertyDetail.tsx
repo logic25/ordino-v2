@@ -33,9 +33,9 @@ import { COSummaryView } from "@/components/properties/co/COSummaryView";
 import { COSetupWizard } from "@/components/properties/co/COSetupWizard";
 import { useCoSignOffs } from "@/hooks/useCoSignOffs";
 import {
-  MOCK_CO_APPLICATIONS, MOCK_CO_VIOLATIONS,
   type COApplication, type COViolation,
 } from "@/components/properties/co/coMockData";
+import { fetchDOBApplications } from "@/hooks/useDOBApplications";
 import { type RequiredItem } from "@/components/properties/co/requiredItemsData";
 
 export default function PropertyDetail() {
@@ -48,11 +48,11 @@ export default function PropertyDetail() {
   const [activeTab, setActiveTab] = useState("overview");
 
   // CO state
-  const [coImported, setCoImported] = useState(true);
+  const [coImported, setCoImported] = useState(false);
   const [coImporting, setCoImporting] = useState(false);
-  const [coApps, setCoApps] = useState<COApplication[]>(MOCK_CO_APPLICATIONS);
-  const [coViolations, setCoViolations] = useState<COViolation[]>(MOCK_CO_VIOLATIONS);
-  const [lastSynced, setLastSynced] = useState<string | null>(format(new Date(), "MM/dd/yyyy h:mm a"));
+  const [coApps, setCoApps] = useState<COApplication[]>([]);
+  const [coViolations, setCoViolations] = useState<COViolation[]>([]);
+  const [lastSynced, setLastSynced] = useState<string | null>(null);
   const [coWorkTypeFilter, setCoWorkTypeFilter] = useState<string | null>(null);
 
   // Required items per application (keyed by jobNum) — user-added items only
@@ -91,8 +91,8 @@ export default function PropertyDetail() {
   const isSubscriptionActive = subscription?.status === "active" || subscription?.status === "trial";
   const isSubscriptionInactive = subscription?.status === "prospect" || subscription?.status === "expired";
 
-  // Import DOB data (mock)
-  const handleImportDOBData = useCallback(() => {
+  // Import DOB data (real NYC Open Data)
+  const handleImportDOBData = useCallback(async () => {
     if (!isSubscriptionActive && !isSubscriptionInactive) {
       setEnrollOpen(true);
       toast({
@@ -102,18 +102,41 @@ export default function PropertyDetail() {
       });
       return;
     }
-    setCoImporting(true);
-    setTimeout(() => {
-      setCoApps(MOCK_CO_APPLICATIONS);
-      setCoViolations(MOCK_CO_VIOLATIONS);
-      setCoImported(true);
-      setCoImporting(false);
-      setLastSynced(format(new Date(), "MM/dd/yyyy h:mm a"));
+    if (!property?.bin) {
       toast({
-        title: "DOB Data Imported",
-        description: `Imported ${MOCK_CO_APPLICATIONS.length} applications and ${MOCK_CO_VIOLATIONS.length} violations for Block ${property?.block || "—"}, Lot ${property?.lot || "—"}`,
+        title: "BIN required",
+        description: "This property doesn't have a BIN number. Edit the property to add one before importing DOB data.",
+        variant: "destructive",
       });
-    }, 2000);
+      return;
+    }
+    setCoImporting(true);
+    try {
+      const apps = await fetchDOBApplications(property.bin);
+      setCoApps(apps);
+      setCoViolations([]); // TODO: real violations fetch
+      setCoImported(true);
+      setLastSynced(format(new Date(), "MM/dd/yyyy h:mm a"));
+      if (apps.length === 0) {
+        toast({
+          title: "No DOB applications found",
+          description: `No filings found for BIN ${property.bin}. This property may not have any DOB filings.`,
+        });
+      } else {
+        toast({
+          title: "DOB Data Imported",
+          description: `Imported ${apps.length} applications for BIN ${property.bin}`,
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Import failed",
+        description: error.message || "Failed to fetch DOB data. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setCoImporting(false);
+    }
   }, [property, toast, isSubscriptionActive, isSubscriptionInactive]);
 
   const handleUpdateApp = useCallback((jobNum: string, updates: Partial<COApplication>) => {
