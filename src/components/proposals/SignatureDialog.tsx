@@ -210,8 +210,13 @@ export function SignatureDialog({
         .then(() => {});
     }
 
+    const selectedRecipient = recipientOptions.find(r => r.id === selectedRecipientId) || recipientOptions[0];
+    const recipient: SignatureRecipient | undefined = selectedRecipient
+      ? { name: selectedRecipient.name, email: selectedRecipient.email }
+      : undefined;
+
     track("proposals", "internal_sign_completed");
-    await onSign(signatureData, assignedPmId);
+    await onSign(signatureData, assignedPmId, recipient);
     setHasDrawn(false);
     setAssignedPmId("");
   };
