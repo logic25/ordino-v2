@@ -208,19 +208,21 @@ export async function fetchDOBApplications(bin: string): Promise<COApplication[]
     });
   }
 
-  // Map DOB NOW Build
+  // Map DOB NOW Build (w9ak-ipjd dataset)
   for (const r of dobNowRes as DOBNowBuild[]) {
     const workType = inferWorkTypeFromDOBNow(r);
     const status = mapDOBNowStatus(r.filing_status);
-    const jobNum = (r.job_filing_number || "").replace(/-/g, "");
+    const jobNum = (r.job_filing_number || "");
+    const desc = r.job_description || r.job_type || "";
+    const floorInfo = r.work_on_floor || "";
     results.push({
       num: 0,
       jobNum,
       source: "DOB_NOW_BUILD",
       fileDate: r.filing_date ? r.filing_date.substring(0, 10) : "",
-      desc: r.job_description || "",
-      tenant: extractTenant(r.job_description || ""),
-      floor: extractFloor(r.job_description || ""),
+      desc: desc || `${r.job_type || "Alteration"} - ${r.house_no || ""} ${r.street_name || ""}`.trim(),
+      tenant: extractTenant(desc),
+      floor: floorInfo || extractFloor(desc),
       docNum: null,
       jobType: r.job_type || "",
       workType,
