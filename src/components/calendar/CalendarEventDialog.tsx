@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -24,8 +24,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Users, X } from "lucide-react";
+import { Users, X, ChevronsUpDown, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useProjects } from "@/hooks/useProjects";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
 import { useCreateCalendarEvent, useUpdateCalendarEvent, type CalendarEvent } from "@/hooks/useCalendarEvents";
@@ -41,6 +50,74 @@ const EVENT_TYPES = [
   { value: "filing", label: "Filing" },
   { value: "milestone", label: "Milestone" },
 ];
+
+function getProjectLabel(p: any): string {
+  return [p.project_number, (p as any).properties?.address, p.name].filter(Boolean).join(" - ");
+}
+
+function ProjectCombobox({
+  projects,
+  value,
+  onChange,
+}: {
+  projects: any[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = projects.find((p) => p.id === value);
+
+  return (
+    <div className="grid gap-2">
+      <Label>Project</Label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="justify-between font-normal h-10"
+          >
+            <span className="truncate">
+              {selected ? getProjectLabel(selected) : "None"}
+            </span>
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+          <Command>
+            <CommandInput placeholder="Search projects..." />
+            <CommandList>
+              <CommandEmpty>No projects found.</CommandEmpty>
+              <CommandGroup>
+                <CommandItem
+                  value="__none__"
+                  onSelect={() => { onChange(""); setOpen(false); }}
+                >
+                  <Check className={cn("mr-2 h-4 w-4", !value ? "opacity-100" : "opacity-0")} />
+                  None
+                </CommandItem>
+                {projects.map((p) => {
+                  const label = getProjectLabel(p);
+                  return (
+                    <CommandItem
+                      key={p.id}
+                      value={label}
+                      onSelect={() => { onChange(p.id); setOpen(false); }}
+                    >
+                      <Check className={cn("mr-2 h-4 w-4", value === p.id ? "opacity-100" : "opacity-0")} />
+                      {label}
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
 
 interface CalendarEventDialogProps {
   open: boolean;
@@ -214,22 +291,11 @@ export function CalendarEventDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-2">
-              <Label>Project</Label>
-              <Select value={projectId || "__none__"} onValueChange={(v) => setProjectId(v === "__none__" ? "" : v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="None" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {projects?.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {[p.project_number, (p as any).properties?.address, p.name].filter(Boolean).join(" - ")}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <ProjectCombobox
+              projects={projects || []}
+              value={projectId}
+              onChange={setProjectId}
+            />
           </div>
 
           {/* Team Members / Attendees */}
