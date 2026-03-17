@@ -152,9 +152,14 @@ export default function PropertyDetail() {
     }
     setCoImporting(true);
     try {
-      const apps = await fetchDOBApplications(property.bin);
+      const [apps, viols, complaints] = await Promise.all([
+        fetchDOBApplications(property.bin),
+        fetchDOBViolations(property.bin),
+        fetchDOBComplaints(property.bin),
+      ]);
       setCoApps(apps);
-      setCoViolations([]); // TODO: real violations fetch
+      setCoViolations(viols);
+      setCoComplaints(complaints);
       setCoImported(true);
       setLastSynced(format(new Date(), "MM/dd/yyyy h:mm a"));
       if (apps.length === 0) {
