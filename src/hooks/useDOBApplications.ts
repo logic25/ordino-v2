@@ -48,10 +48,22 @@ interface DOBNowBuild {
   job_type: string;
   filing_status: string;
   filing_date: string;
-  job_description: string;
-  work_type: string;
-  applicant_first_name: string;
-  applicant_last_name: string;
+  job_description?: string;
+  work_on_floor?: string;
+  initial_cost?: string;
+  total_construction_floor_area?: string;
+  applicant_first_name?: string;
+  applicant_last_name?: string;
+  // Work type boolean fields (as "0" or "1")
+  sprinkler_work_type?: string;
+  plumbing_work_type?: string;
+  mechanical_systems_work_type_?: string;
+  general_construction_work_type_?: string;
+  boiler_equipment_work_type_?: string;
+  structural_work_type_?: string;
+  earth_work_work_type_?: string;
+  foundation_work_type_?: string;
+  sidewalk_shed_work_type_?: string;
   [key: string]: string | null | undefined;
 }
 
