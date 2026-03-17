@@ -110,7 +110,6 @@ export function SignalEnrollDialog({
   }, [status, isComplimentary]);
 
   const canSubmit = () => {
-    if (isComplimentary && !linkedProjectId) return false;
     return true;
   };
 
@@ -193,21 +192,18 @@ export function SignalEnrollDialog({
                 </div>
                 <Switch
                   checked={isComplimentary}
-                  onCheckedChange={(checked) => {
-                    if (checked && !hasActiveProjects) return;
-                    setIsComplimentary(checked);
-                  }}
+                onCheckedChange={setIsComplimentary}
                 />
               </div>
               {!hasActiveProjects && (
-                <p className="text-xs text-destructive">No active projects for this property. Complimentary requires a linked project.</p>
+                <p className="text-xs text-muted-foreground">No projects for this property. You can link one later.</p>
               )}
 
               {isComplimentary && (
                 <>
                   {/* Linked project selector */}
                   <div className="space-y-2">
-                    <Label>Linked Project <span className="text-destructive">*</span></Label>
+                    <Label>Linked Project</Label>
                     <Select value={linkedProjectId} onValueChange={setLinkedProjectId}>
                       <SelectTrigger><SelectValue placeholder="Select project..." /></SelectTrigger>
                       <SelectContent>
