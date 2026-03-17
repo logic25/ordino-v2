@@ -55,6 +55,7 @@ export default function PropertyDetail() {
   const [coImporting, setCoImporting] = useState(false);
   const [coApps, setCoApps] = useState<COApplication[]>([]);
   const [coViolations, setCoViolations] = useState<COViolation[]>([]);
+  const [coComplaints, setCoComplaints] = useState<DOBComplaintRecord[]>([]);
   const [lastSynced, setLastSynced] = useState<string | null>(null);
   const [coWorkTypeFilter, setCoWorkTypeFilter] = useState<string | null>(null);
 
