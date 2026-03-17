@@ -33,9 +33,9 @@ import { COSummaryView } from "@/components/properties/co/COSummaryView";
 import { COSetupWizard } from "@/components/properties/co/COSetupWizard";
 import { useCoSignOffs } from "@/hooks/useCoSignOffs";
 import {
-  MOCK_CO_APPLICATIONS, MOCK_CO_VIOLATIONS,
   type COApplication, type COViolation,
 } from "@/components/properties/co/coMockData";
+import { fetchDOBApplications } from "@/hooks/useDOBApplications";
 import { type RequiredItem } from "@/components/properties/co/requiredItemsData";
 
 export default function PropertyDetail() {
