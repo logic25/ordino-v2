@@ -263,6 +263,7 @@ export default function PropertyDetail() {
 
   const openCoApps = coApps.filter(a => a.status !== "Signed Off").length;
   const activeCoViols = coViolations.filter(v => v.status === "Active" || v.status === "In Resolution").length;
+  const activeComplaints = coComplaints.filter(c => c.status.toUpperCase() !== "CLOSE" && c.status.toUpperCase() !== "CLOSED").length;
 
   // CitiSignal enrollment gate component
   const CitiSignalGate = () => (
