@@ -443,6 +443,14 @@ export default function PropertyDetail() {
                   </Badge>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="co_complaints" className="gap-1.5 data-[state=active]:bg-background">
+                <MessageSquareWarning className="h-3.5 w-3.5" /> Complaints
+                {coImported && activeComplaints > 0 && (
+                  <Badge variant="outline" className="ml-1 bg-orange-500/10 text-orange-600 border-orange-500/20 text-xs h-5 px-1.5">
+                    {activeComplaints}
+                  </Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="projects" className="gap-1.5 data-[state=active]:bg-background">
                 <Briefcase className="h-3.5 w-3.5" /> Projects ({projects.length})
               </TabsTrigger>
