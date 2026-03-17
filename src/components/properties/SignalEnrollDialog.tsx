@@ -203,7 +203,7 @@ export function SignalEnrollDialog({
                 <>
                   {/* Linked project selector */}
                   <div className="space-y-2">
-                    <Label>Linked Project <span className="text-destructive">*</span></Label>
+                    <Label>Linked Project</Label>
                     <Select value={linkedProjectId} onValueChange={setLinkedProjectId}>
                       <SelectTrigger><SelectValue placeholder="Select project..." /></SelectTrigger>
                       <SelectContent>
