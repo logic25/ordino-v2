@@ -7510,10 +7510,16 @@ export type Database = {
       }
       signal_subscriptions: {
         Row: {
+          billing_start_date: string | null
+          comp_reason: string | null
           company_id: string
           created_at: string
+          enrolled_by: string | null
           expires_at: string | null
           id: string
+          is_complimentary: boolean
+          linked_project_id: string | null
+          monthly_rate: number | null
           notes: string | null
           owner_email: string | null
           owner_phone: string | null
@@ -7523,10 +7529,16 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          billing_start_date?: string | null
+          comp_reason?: string | null
           company_id: string
           created_at?: string
+          enrolled_by?: string | null
           expires_at?: string | null
           id?: string
+          is_complimentary?: boolean
+          linked_project_id?: string | null
+          monthly_rate?: number | null
           notes?: string | null
           owner_email?: string | null
           owner_phone?: string | null
@@ -7536,10 +7548,16 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          billing_start_date?: string | null
+          comp_reason?: string | null
           company_id?: string
           created_at?: string
+          enrolled_by?: string | null
           expires_at?: string | null
           id?: string
+          is_complimentary?: boolean
+          linked_project_id?: string | null
+          monthly_rate?: number | null
           notes?: string | null
           owner_email?: string | null
           owner_phone?: string | null
@@ -7554,6 +7572,20 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signal_subscriptions_enrolled_by_fkey"
+            columns: ["enrolled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signal_subscriptions_linked_project_id_fkey"
+            columns: ["linked_project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
           {

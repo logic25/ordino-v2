@@ -11,8 +11,18 @@ export interface SignalSubscription {
   owner_email: string | null;
   owner_phone: string | null;
   notes: string | null;
+  is_complimentary: boolean;
+  enrolled_by: string | null;
+  linked_project_id: string | null;
+  monthly_rate: number | null;
+  billing_start_date: string | null;
+  comp_reason: string | null;
   created_at: string;
   updated_at: string;
+  // Joined fields
+  enrolled_by_name?: string | null;
+  linked_project_name?: string | null;
+  linked_project_phase?: string | null;
 }
 
 export interface SignalSubscriptionInput {
@@ -23,6 +33,11 @@ export interface SignalSubscriptionInput {
   notes?: string | null;
   subscribed_at?: string | null;
   expires_at?: string | null;
+  is_complimentary?: boolean;
+  linked_project_id?: string | null;
+  monthly_rate?: number | null;
+  billing_start_date?: string | null;
+  comp_reason?: string | null;
 }
 
 export function useSignalSubscriptions() {
@@ -52,7 +67,33 @@ export function useSignalSubscription(propertyId: string | undefined) {
         .maybeSingle();
 
       if (error) throw error;
-      return data as SignalSubscription | null;
+
+      if (!data) return null;
+
+      const sub = data as SignalSubscription;
+
+      // Fetch enrolled-by name
+      if (sub.enrolled_by) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("id", sub.enrolled_by)
+          .maybeSingle();
+        sub.enrolled_by_name = profile?.display_name || null;
+      }
+
+      // Fetch linked project info
+      if (sub.linked_project_id) {
+        const { data: project } = await supabase
+          .from("projects")
+          .select("name, phase")
+          .eq("id", sub.linked_project_id)
+          .maybeSingle();
+        sub.linked_project_name = project?.name || null;
+        sub.linked_project_phase = project?.phase || null;
+      }
+
+      return sub;
     },
     enabled: !!propertyId,
   });
@@ -68,7 +109,7 @@ export function useEnrollProperty() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("company_id")
+        .select("company_id, id")
         .eq("user_id", user.id)
         .maybeSingle();
 
@@ -85,6 +126,12 @@ export function useEnrollProperty() {
           notes: input.notes || null,
           subscribed_at: input.subscribed_at || null,
           expires_at: input.expires_at || null,
+          is_complimentary: input.is_complimentary || false,
+          enrolled_by: profile.id,
+          linked_project_id: input.linked_project_id || null,
+          monthly_rate: input.monthly_rate ?? null,
+          billing_start_date: input.billing_start_date || null,
+          comp_reason: input.comp_reason || null,
         }, { onConflict: "property_id,company_id" })
         .select()
         .single();
