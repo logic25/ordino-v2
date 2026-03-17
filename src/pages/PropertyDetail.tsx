@@ -29,6 +29,7 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { COApplicationsView } from "@/components/properties/co/COApplicationsView";
 import { COViolationsView } from "@/components/properties/co/COViolationsView";
+import { COComplaintsView } from "@/components/properties/co/COComplaintsView";
 import { COSummaryView } from "@/components/properties/co/COSummaryView";
 import { COSetupWizard } from "@/components/properties/co/COSetupWizard";
 import { useCoSignOffs } from "@/hooks/useCoSignOffs";
@@ -36,7 +37,9 @@ import {
   type COApplication, type COViolation,
 } from "@/components/properties/co/coMockData";
 import { fetchDOBApplications } from "@/hooks/useDOBApplications";
+import { fetchDOBViolations, fetchDOBComplaints, type DOBComplaintRecord } from "@/hooks/useDOBViolations";
 import { type RequiredItem } from "@/components/properties/co/requiredItemsData";
+import { MessageSquareWarning } from "lucide-react";
 
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -52,6 +55,7 @@ export default function PropertyDetail() {
   const [coImporting, setCoImporting] = useState(false);
   const [coApps, setCoApps] = useState<COApplication[]>([]);
   const [coViolations, setCoViolations] = useState<COViolation[]>([]);
+  const [coComplaints, setCoComplaints] = useState<DOBComplaintRecord[]>([]);
   const [lastSynced, setLastSynced] = useState<string | null>(null);
   const [coWorkTypeFilter, setCoWorkTypeFilter] = useState<string | null>(null);
 
@@ -103,9 +107,14 @@ export default function PropertyDetail() {
     (async () => {
       setCoImporting(true);
       try {
-        const apps = await fetchDOBApplications(property.bin!);
+        const [apps, viols, complaints] = await Promise.all([
+          fetchDOBApplications(property.bin!),
+          fetchDOBViolations(property.bin!),
+          fetchDOBComplaints(property.bin!),
+        ]);
         setCoApps(apps);
-        setCoViolations([]);
+        setCoViolations(viols);
+        setCoComplaints(complaints);
         setCoImported(true);
         setLastSynced(format(new Date(), "MM/dd/yyyy h:mm a"));
         if (apps.length === 0) {
@@ -143,9 +152,14 @@ export default function PropertyDetail() {
     }
     setCoImporting(true);
     try {
-      const apps = await fetchDOBApplications(property.bin);
+      const [apps, viols, complaints] = await Promise.all([
+        fetchDOBApplications(property.bin),
+        fetchDOBViolations(property.bin),
+        fetchDOBComplaints(property.bin),
+      ]);
       setCoApps(apps);
-      setCoViolations([]); // TODO: real violations fetch
+      setCoViolations(viols);
+      setCoComplaints(complaints);
       setCoImported(true);
       setLastSynced(format(new Date(), "MM/dd/yyyy h:mm a"));
       if (apps.length === 0) {
@@ -249,6 +263,7 @@ export default function PropertyDetail() {
 
   const openCoApps = coApps.filter(a => a.status !== "Signed Off").length;
   const activeCoViols = coViolations.filter(v => v.status === "Active" || v.status === "In Resolution").length;
+  const activeComplaints = coComplaints.filter(c => c.status.toUpperCase() !== "CLOSE" && c.status.toUpperCase() !== "CLOSED").length;
 
   // CitiSignal enrollment gate component
   const CitiSignalGate = () => (
@@ -428,6 +443,14 @@ export default function PropertyDetail() {
                   </Badge>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="co_complaints" className="gap-1.5 data-[state=active]:bg-background">
+                <MessageSquareWarning className="h-3.5 w-3.5" /> Complaints
+                {coImported && activeComplaints > 0 && (
+                  <Badge variant="outline" className="ml-1 bg-orange-500/10 text-orange-600 border-orange-500/20 text-xs h-5 px-1.5">
+                    {activeComplaints}
+                  </Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="projects" className="gap-1.5 data-[state=active]:bg-background">
                 <Briefcase className="h-3.5 w-3.5" /> Projects ({projects.length})
               </TabsTrigger>
@@ -573,6 +596,24 @@ export default function PropertyDetail() {
                     violations={coViolations}
                     onUpdateViolation={handleUpdateViolation}
                   />
+                )}
+              </TabsContent>
+
+              {/* CO Complaints Tab */}
+              <TabsContent value="co_complaints" className="mt-0 p-6">
+                {!isSubscriptionActive && !isSubscriptionInactive ? (
+                  <CitiSignalGate />
+                ) : !coImported ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
+                    <Download className="h-8 w-8 text-muted-foreground/50" />
+                    <p className="text-muted-foreground">Import DOB data to view complaints.</p>
+                    <Button variant="outline" onClick={handleImportDOBData} disabled={coImporting}>
+                      {coImporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                      Import DOB Data
+                    </Button>
+                  </div>
+                ) : (
+                  <COComplaintsView complaints={coComplaints} />
                 )}
               </TabsContent>
 
