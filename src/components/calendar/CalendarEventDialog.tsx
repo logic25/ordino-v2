@@ -51,7 +51,74 @@ const EVENT_TYPES = [
   { value: "milestone", label: "Milestone" },
 ];
 
-interface CalendarEventDialogProps {
+function getProjectLabel(p: any): string {
+  return [p.project_number, (p as any).properties?.address, p.name].filter(Boolean).join(" - ");
+}
+
+function ProjectCombobox({
+  projects,
+  value,
+  onChange,
+}: {
+  projects: any[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = projects.find((p) => p.id === value);
+
+  return (
+    <div className="grid gap-2">
+      <Label>Project</Label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="justify-between font-normal h-10"
+          >
+            <span className="truncate">
+              {selected ? getProjectLabel(selected) : "None"}
+            </span>
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+          <Command>
+            <CommandInput placeholder="Search projects..." />
+            <CommandList>
+              <CommandEmpty>No projects found.</CommandEmpty>
+              <CommandGroup>
+                <CommandItem
+                  value="__none__"
+                  onSelect={() => { onChange(""); setOpen(false); }}
+                >
+                  <Check className={cn("mr-2 h-4 w-4", !value ? "opacity-100" : "opacity-0")} />
+                  None
+                </CommandItem>
+                {projects.map((p) => {
+                  const label = getProjectLabel(p);
+                  return (
+                    <CommandItem
+                      key={p.id}
+                      value={label}
+                      onSelect={() => { onChange(p.id); setOpen(false); }}
+                    >
+                      <Check className={cn("mr-2 h-4 w-4", value === p.id ? "opacity-100" : "opacity-0")} />
+                      {label}
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
   open: boolean;
   onOpenChange: (open: boolean) => void;
   event?: CalendarEvent | null;
