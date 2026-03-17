@@ -201,26 +201,31 @@ export function SignalEnrollDialog({
 
               {isComplimentary && (
                 <>
-                  {/* Linked project selector */}
+                  {/* Linked project selector (optional) */}
                   <div className="space-y-2">
-                    <Label>Linked Project</Label>
-                    <Select value={linkedProjectId} onValueChange={setLinkedProjectId}>
-                      <SelectTrigger><SelectValue placeholder="Select project..." /></SelectTrigger>
-                      <SelectContent>
-                        {projects.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.project_number ? `${p.project_number} — ` : ""}{p.name || "Untitled"}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label>Linked Project <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                    {projects.length > 0 ? (
+                      <Select value={linkedProjectId} onValueChange={setLinkedProjectId}>
+                        <SelectTrigger><SelectValue placeholder="Select project..." /></SelectTrigger>
+                        <SelectContent>
+                          {projects.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.project_number ? `${p.project_number} — ` : ""}{p.name || "Untitled"}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <p className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2">No projects for this property yet. You can link one later.</p>
+                    )}
+                    <p className="text-xs text-muted-foreground">Link when the property becomes tied to an expediting job.</p>
                   </div>
 
                   {/* Comp reason */}
                   <div className="space-y-2">
                     <Label>Justification</Label>
                     <Textarea
-                      placeholder="Active expediting client, 3 projects..."
+                      placeholder="Pre-sale monitoring, referral relationship, owner requested early monitoring..."
                       value={compReason}
                       onChange={(e) => setCompReason(e.target.value)}
                       rows={2}

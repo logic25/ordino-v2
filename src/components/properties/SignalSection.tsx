@@ -73,7 +73,7 @@ export function SignalSection({ propertyId, propertyAddress, subscription }: Sig
               {subscription.linked_project_name ? (
                 <span>Complimentary — linked to <span className="text-foreground font-medium">{subscription.linked_project_name}</span></span>
               ) : (
-                <span className="text-destructive font-medium">Complimentary — no linked project ⚠️</span>
+                <span>Complimentary — no project linked yet</span>
               )}
             </div>
           )}

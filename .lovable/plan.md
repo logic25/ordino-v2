@@ -1,37 +1,30 @@
 
-Goal: stop the complimentary flow from feeling blocked by a linked project when a property has no projects yet.
 
-What I found:
-- The database already allows `linked_project_id` to be null.
-- The save mutation already sends `linked_project_id: null` when no project is selected.
-- `canSubmit()` currently always returns `true`, so there is no actual frontend validation blocking save.
-- The issue is the dialog UX: once “Complimentary” is turned on, it still shows a prominent “Linked Project” field, which makes it look required even though it is not.
+## CitiSignal Complimentary Subscription Safeguards — Complete
 
-Plan:
-1. Relax the complimentary UI in `SignalEnrollDialog.tsx`
-   - Rename the field to `Linked Project (optional)`.
-   - Add helper copy like: “Use this if the property later becomes tied to an expediting job.”
-   - When there are zero projects, replace the selector with a lightweight note instead of an empty project picker.
-   - Keep the complimentary toggle fully usable even with zero projects.
+### What was built:
 
-2. Keep proof/accountability another way
-   - Treat `comp_reason` / justification as the required explanation for why the monitoring is free.
-   - Update the placeholder/copy so it captures the business reason even without a project, e.g. “Pre-sale monitoring, referral relationship, owner requested early monitoring.”
+**1. Database migration** ✅
+- Added 6 columns to `signal_subscriptions`: `is_complimentary`, `enrolled_by`, `linked_project_id`, `monthly_rate`, `billing_start_date`, `comp_reason`
 
-3. Adjust the subscription summary in `SignalSection.tsx`
-   - If a complimentary subscription has no linked project, show neutral wording such as “Complimentary — no project linked yet” instead of a warning/error style.
-   - Only show the “linked project closed — review subscription” warning when a project actually exists and is later closed.
+**2. useSignalSubscriptions hook updated** ✅
+- Types include all new fields + joined `enrolled_by_name`, `linked_project_name`, `linked_project_phase`
+- `useEnrollProperty` auto-sets `enrolled_by` to current user's profile ID
+- `useSignalSubscription` fetches joined profile name and project info
 
-4. Preserve the business workflow
-   - Complimentary monitoring can start before a project/application exists.
-   - If Ordino later wins the work, the subscription can be edited and linked to the project.
-   - Expiration still remains the safety mechanism for freebies that are not converted.
+**3. SignalEnrollDialog enhanced** ✅
+- Complimentary toggle (only enabled when property has active projects)
+- Linked project selector (required when complimentary)
+- Comp reason textarea
+- Monthly rate + billing start date inputs (for paid active subs)
+- Trial auto-expiry (14 days), comp auto-expiry (1 year)
+- Enrolled-by shown read-only on edit
 
-Files to update:
-- `src/components/properties/SignalEnrollDialog.tsx`
-- `src/components/properties/SignalSection.tsx`
+**4. SignalSection updated** ✅
+- Shows "Sold by: [Name]"
+- Shows "Complimentary — linked to [Project Name]" or "Paid — $X/mo"
+- Expiration countdown with color warnings
+- Warning badge if linked project closed or no linked project on comp
 
-Expected outcome:
-- Users can mark a property as complimentary without feeling forced to select a project.
-- The system still tracks why it was comped and when it should expire.
-- Project linkage becomes a later enrichment step, not a prerequisite.
+**5. SignalStatusBadge updated** ✅
+- Gift icon shown for complimentary subscriptions
