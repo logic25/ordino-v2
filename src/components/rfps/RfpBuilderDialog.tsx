@@ -247,7 +247,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   const goToLibrary = (tab?: string | null) => {
     saveDraft();
     onOpenChange(false);
-    navigate(`/rfps?tab=library${tab ? `&libraryTab=${tab}` : ""}`);
+    navigate(`/rfps/library${tab ? `?tab=${tab}` : ""}`);
   };
 
   return (
