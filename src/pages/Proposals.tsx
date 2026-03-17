@@ -578,9 +578,13 @@ export default function Proposals() {
           }, 1500);
         }
 
-        // Auto-send the proposal email to the client
+        // Auto-send the proposal email to the selected recipient
         try {
-          await sendProposal.mutateAsync(proposalId);
+          await sendProposal.mutateAsync(
+            recipient
+              ? { id: proposalId, recipientEmail: recipient.email, recipientName: recipient.name }
+              : proposalId
+          );
           toast({ title: "Proposal signed & sent!", description: "The proposal has been emailed to the client." });
         } catch (sendErr: any) {
           console.error("Auto-send after sign failed:", sendErr);
