@@ -194,8 +194,10 @@ export function SignalEnrollDialog({
                 </div>
                 <Switch
                   checked={isComplimentary}
-                  onCheckedChange={setIsComplimentary}
-                  disabled={!hasActiveProjects}
+                  onCheckedChange={(checked) => {
+                    if (checked && !hasActiveProjects) return;
+                    setIsComplimentary(checked);
+                  }}
                 />
               </div>
               {!hasActiveProjects && (
