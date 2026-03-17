@@ -55,6 +55,52 @@ export function SignatureDialog({
   const { data: profiles = [] } = useAssignableProfiles();
   const { profile } = useAuth();
   const { track } = useTelemetry();
+  const { data: contacts = [] } = useProposalContacts(proposal?.id);
+  const [selectedRecipientId, setSelectedRecipientId] = useState("");
+
+  // Build recipient options from contacts
+  const recipientOptions = useMemo(() => {
+    const opts: { id: string; label: string; name: string; email: string }[] = [];
+    const roleLabels: Record<string, string> = {
+      bill_to: "Bill To",
+      applicant: "Applicant",
+      sign: "Signer",
+      owner: "Owner",
+      cc: "CC",
+    };
+    for (const c of contacts) {
+      if (c.email) {
+        opts.push({
+          id: c.id,
+          label: `${roleLabels[c.role] || c.role} — ${c.name || "No name"}`,
+          name: c.name || "",
+          email: c.email,
+        });
+      }
+    }
+    // Fallback if no contacts with email
+    if (opts.length === 0 && proposal?.client_email) {
+      opts.push({
+        id: "fallback",
+        label: `Client — ${proposal.client_name || "Client"}`,
+        name: proposal.client_name || "Client",
+        email: proposal.client_email,
+      });
+    }
+    return opts;
+  }, [contacts, proposal?.client_email, proposal?.client_name]);
+
+  // Auto-select bill_to or first available
+  useEffect(() => {
+    if (open && recipientOptions.length > 0) {
+      const billTo = contacts.find(c => c.role === "bill_to" && c.email);
+      if (billTo) {
+        setSelectedRecipientId(billTo.id);
+      } else {
+        setSelectedRecipientId(recipientOptions[0].id);
+      }
+    }
+  }, [open, recipientOptions]);
 
   // Load saved signature from profile
   useEffect(() => {
