@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -22,12 +22,18 @@ import { useAssignableProfiles } from "@/hooks/useProfiles";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useTelemetry } from "@/hooks/useTelemetry";
+import { useProposalContacts } from "@/hooks/useProposalContacts";
 import type { ProposalWithRelations } from "@/hooks/useProposals";
+
+export interface SignatureRecipient {
+  name: string;
+  email: string;
+}
 
 interface SignatureDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSign: (signatureData: string, assignedPmId: string) => Promise<void>;
+  onSign: (signatureData: string, assignedPmId: string, recipient?: SignatureRecipient) => Promise<void>;
   proposal: ProposalWithRelations | null;
   isLoading?: boolean;
 }
