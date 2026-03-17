@@ -53,7 +53,6 @@ function usePropertyProjects(propertyId: string) {
         .from("projects")
         .select("id, name, project_number, phase, status")
         .eq("property_id", propertyId)
-        .in("status", ["open", "on_hold"])
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
