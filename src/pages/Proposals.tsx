@@ -13,7 +13,7 @@ import { lazy, Suspense } from "react";
 const ProposalDialog = lazy(() => import("@/components/proposals/ProposalDialog").then(m => ({ default: m.ProposalDialog })));
 import { ProposalTable } from "@/components/proposals/ProposalTable";
 import { LeadsTable } from "@/components/proposals/LeadsTable";
-import { SignatureDialog } from "@/components/proposals/SignatureDialog";
+import { SignatureDialog, type SignatureRecipient } from "@/components/proposals/SignatureDialog";
 import { ProposalApprovalDialog } from "@/components/proposals/ProposalApprovalDialog";
 import { ProposalPreviewModal } from "@/components/proposals/ProposalPreviewModal";
 import { LeadCaptureDialog, type LeadCaptureData } from "@/components/proposals/LeadCaptureDialog";
