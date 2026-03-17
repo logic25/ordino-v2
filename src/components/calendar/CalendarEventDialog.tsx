@@ -223,22 +223,11 @@ export function CalendarEventDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-2">
-              <Label>Project</Label>
-              <Select value={projectId || "__none__"} onValueChange={(v) => setProjectId(v === "__none__" ? "" : v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="None" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {projects?.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {[p.project_number, (p as any).properties?.address, p.name].filter(Boolean).join(" - ")}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <ProjectCombobox
+              projects={projects || []}
+              value={projectId}
+              onChange={setProjectId}
+            />
           </div>
 
           {/* Team Members / Attendees */}
