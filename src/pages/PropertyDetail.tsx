@@ -287,7 +287,9 @@ export default function PropertyDetail() {
                 {property.borough && (
                   <Badge variant="secondary">{formatBorough(property.borough)}</Badge>
                 )}
-                <SignalStatusBadge status={subscription?.status || null} />
+                <button type="button" onClick={() => setEnrollOpen(true)} className="cursor-pointer hover:opacity-80 transition-opacity">
+                  <SignalStatusBadge status={subscription?.status || null} />
+                </button>
               </div>
               <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
                 {(property.block || property.lot) && (
@@ -350,7 +352,7 @@ export default function PropertyDetail() {
               <div className="text-2xl font-bold mt-1">{coImported ? coApps.length : applications.length}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => setEnrollOpen(true)}>
             <CardContent className="p-4">
               <div className="text-xs text-muted-foreground">CitiSignal Status</div>
               <div className="mt-1">
