@@ -48,10 +48,22 @@ interface DOBNowBuild {
   job_type: string;
   filing_status: string;
   filing_date: string;
-  job_description: string;
-  work_type: string;
-  applicant_first_name: string;
-  applicant_last_name: string;
+  job_description?: string;
+  work_on_floor?: string;
+  initial_cost?: string;
+  total_construction_floor_area?: string;
+  applicant_first_name?: string;
+  applicant_last_name?: string;
+  // Work type boolean fields (as "0" or "1")
+  sprinkler_work_type?: string;
+  plumbing_work_type?: string;
+  mechanical_systems_work_type_?: string;
+  general_construction_work_type_?: string;
+  boiler_equipment_work_type_?: string;
+  structural_work_type_?: string;
+  earth_work_work_type_?: string;
+  foundation_work_type_?: string;
+  sidewalk_shed_work_type_?: string;
   [key: string]: string | null | undefined;
 }
 
@@ -85,6 +97,8 @@ const DOB_NOW_STATUS_MAP: Record<string, string> = {
   "SIGNED OFF": "Signed Off",
   "DISAPPROVED": "Disapproved",
   "WITHDRAWN": "Withdrawn",
+  "OBJECTIONS": "Disapproved",
+  "INCOMPLETE": "In Process",
 };
 
 function inferWorkType(filing: DOBJobFiling): string {
@@ -98,14 +112,12 @@ function inferWorkType(filing: DOBJobFiling): string {
 }
 
 function inferWorkTypeFromDOBNow(record: DOBNowBuild): string {
-  const wt = (record.work_type || "").toUpperCase();
-  if (wt.includes("FIRE ALARM")) return "FA";
-  if (wt.includes("SPRINKLER")) return "SP";
-  if (wt.includes("FIRE SUPPRESSION") || wt.includes("FIRE PROTECTION")) return "FP";
-  if (wt.includes("PLUMBING")) return "PL";
-  if (wt.includes("MECHANICAL")) return "MH";
-  if (wt.includes("ELEVATOR") || wt.includes("EQUIPMENT")) return "EQ";
-  if (wt.includes("SIGN")) return "SG";
+  if (record.sprinkler_work_type === "1") return "SP";
+  if (record.plumbing_work_type === "1") return "PL";
+  if (record.mechanical_systems_work_type_ === "1") return "MH";
+  if (record.boiler_equipment_work_type_ === "1") return "MH";
+  if (record.structural_work_type_ === "1") return "OT";
+  if (record.general_construction_work_type_ === "1") return "OT";
   return "OT";
 }
 
@@ -169,7 +181,7 @@ export async function fetchDOBApplications(bin: string): Promise<COApplication[]
     fetch(`https://data.cityofnewyork.us/resource/ic3t-wcy2.json?bin__=${bin}&$limit=500`)
       .then(r => r.ok ? r.json() : [])
       .catch(() => [] as DOBJobFiling[]),
-    fetch(`https://data.cityofnewyork.us/resource/rbx6-tga4.json?bin=${bin}&$limit=500`)
+    fetch(`https://data.cityofnewyork.us/resource/w9ak-ipjd.json?bin=${bin}&$limit=500`)
       .then(r => r.ok ? r.json() : [])
       .catch(() => [] as DOBNowBuild[]),
   ]);
@@ -196,19 +208,21 @@ export async function fetchDOBApplications(bin: string): Promise<COApplication[]
     });
   }
 
-  // Map DOB NOW Build
+  // Map DOB NOW Build (w9ak-ipjd dataset)
   for (const r of dobNowRes as DOBNowBuild[]) {
     const workType = inferWorkTypeFromDOBNow(r);
     const status = mapDOBNowStatus(r.filing_status);
-    const jobNum = (r.job_filing_number || "").replace(/-/g, "");
+    const jobNum = (r.job_filing_number || "");
+    const desc = r.job_description || r.job_type || "";
+    const floorInfo = r.work_on_floor || "";
     results.push({
       num: 0,
       jobNum,
       source: "DOB_NOW_BUILD",
       fileDate: r.filing_date ? r.filing_date.substring(0, 10) : "",
-      desc: r.job_description || "",
-      tenant: extractTenant(r.job_description || ""),
-      floor: extractFloor(r.job_description || ""),
+      desc: desc || `${r.job_type || "Alteration"} - ${r.house_no || ""} ${r.street_name || ""}`.trim(),
+      tenant: extractTenant(desc),
+      floor: floorInfo || extractFloor(desc),
       docNum: null,
       jobType: r.job_type || "",
       workType,
