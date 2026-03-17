@@ -196,7 +196,7 @@ export function SignalEnrollDialog({
                 />
               </div>
               {!hasActiveProjects && (
-                <p className="text-xs text-destructive">No active projects for this property. Complimentary requires a linked project.</p>
+                <p className="text-xs text-muted-foreground">No projects for this property. You can link one later.</p>
               )}
 
               {isComplimentary && (
