@@ -110,7 +110,6 @@ export function SignalEnrollDialog({
   }, [status, isComplimentary]);
 
   const canSubmit = () => {
-    if (isComplimentary && !linkedProjectId) return false;
     return true;
   };
 
