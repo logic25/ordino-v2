@@ -261,6 +261,31 @@ export function SignatureDialog({
               </div>
             </div>
 
+            {/* Send To Recipient */}
+            <div className="space-y-2">
+              <Label>Send To *</Label>
+              {recipientOptions.length > 1 ? (
+                <Select value={selectedRecipientId} onValueChange={setSelectedRecipientId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select recipient..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {recipientOptions.map((opt) => (
+                      <SelectItem key={opt.id} value={opt.id}>
+                        {opt.label} &lt;{opt.email}&gt;
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : recipientOptions.length === 1 ? (
+                <div className="text-sm font-medium px-3 py-2 border rounded-md bg-muted/30">
+                  {recipientOptions[0].label} &lt;{recipientOptions[0].email}&gt;
+                </div>
+              ) : (
+                <p className="text-xs text-destructive">⚠ No contacts with email found on this proposal.</p>
+              )}
+            </div>
+
             {/* Assign PM */}
             <div className="space-y-2">
               <Label htmlFor="pm">Assign Project Manager *</Label>
