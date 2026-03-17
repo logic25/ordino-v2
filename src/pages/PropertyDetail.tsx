@@ -352,7 +352,7 @@ export default function PropertyDetail() {
               <div className="text-2xl font-bold mt-1">{coImported ? coApps.length : applications.length}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => setEnrollOpen(true)}>
             <CardContent className="p-4">
               <div className="text-xs text-muted-foreground">CitiSignal Status</div>
               <div className="mt-1">
