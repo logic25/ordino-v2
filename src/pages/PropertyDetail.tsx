@@ -599,6 +599,24 @@ export default function PropertyDetail() {
                 )}
               </TabsContent>
 
+              {/* CO Complaints Tab */}
+              <TabsContent value="co_complaints" className="mt-0 p-6">
+                {!isSubscriptionActive && !isSubscriptionInactive ? (
+                  <CitiSignalGate />
+                ) : !coImported ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
+                    <Download className="h-8 w-8 text-muted-foreground/50" />
+                    <p className="text-muted-foreground">Import DOB data to view complaints.</p>
+                    <Button variant="outline" onClick={handleImportDOBData} disabled={coImporting}>
+                      {coImporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                      Import DOB Data
+                    </Button>
+                  </div>
+                ) : (
+                  <COComplaintsView complaints={coComplaints} />
+                )}
+              </TabsContent>
+
               {/* Projects Tab */}
               <TabsContent value="projects" className="mt-0 p-6">
                 {projects.length === 0 ? (
