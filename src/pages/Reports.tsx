@@ -13,7 +13,6 @@ import SignalReports from "@/components/reports/SignalReports";
 
 export default function Reports() {
   const { track } = useTelemetry();
-  const [activeTab, setActiveTab] = useState("projects");
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -25,9 +24,7 @@ export default function Reports() {
           </div>
         </div>
 
-        {activeTab !== "signal" && <ReportsKPISummary />}
-
-        <Tabs defaultValue="projects" className="space-y-4" onValueChange={(tab) => { setActiveTab(tab); track("reports", "tab_viewed", { tab }); }}>
+        <Tabs defaultValue="projects" className="space-y-4" onValueChange={(tab) => { track("reports", "tab_viewed", { tab }); }}>
           <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="projects">Projects</TabsTrigger>
             <TabsTrigger value="billing">Billing</TabsTrigger>

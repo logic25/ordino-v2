@@ -1,3 +1,4 @@
+import ReportsKPISummary from "@/components/reports/ReportsKPISummary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useProjectReports } from "@/hooks/useReports";
 import { useQuery } from "@tanstack/react-query";
