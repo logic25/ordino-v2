@@ -105,25 +105,19 @@ export function SignatureDialog({
     }
   }, [open, recipientOptions]);
 
-  // Load saved signature from profile
   useEffect(() => {
-    if (open && profile) {
-      const sig = (profile as any).signature_data;
-      setSavedSignatureData(sig || null);
-    }
-  }, [open, profile]);
+    if (!open) return;
 
-  useEffect(() => {
-    if (open) {
-      setHasDrawn(false);
-      setHasSignature(false);
-      setSavedSignatureData(null);
-      setManualCcEmails("");
-      if (proposal?.assigned_pm_id) {
-        setAssignedPmId(proposal.assigned_pm_id);
-      }
+    setHasDrawn(false);
+    setHasSignature(false);
+    setManualCcEmails("");
+    setSelectedCcIds([]);
+    setSavedSignatureData((profile as any)?.signature_data || null);
+
+    if (proposal?.assigned_pm_id) {
+      setAssignedPmId(proposal.assigned_pm_id);
     }
-  }, [open, proposal]);
+  }, [open, proposal, profile]);
 
   // Initialize canvas and optionally draw saved signature
   useEffect(() => {
