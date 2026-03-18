@@ -10,6 +10,7 @@ import ProposalReports from "@/components/reports/ProposalReports";
 import OperationsReports from "@/components/reports/OperationsReports";
 import ReferralReports from "@/components/reports/ReferralReports";
 import DataExports from "@/components/reports/DataExports";
+import SignalReports from "@/components/reports/SignalReports";
 import ReportsKPISummary from "@/components/reports/ReportsKPISummary";
 
 export default function Reports() {
