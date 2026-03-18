@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart3 } from "lucide-react";
@@ -11,7 +10,6 @@ import OperationsReports from "@/components/reports/OperationsReports";
 import ReferralReports from "@/components/reports/ReferralReports";
 import DataExports from "@/components/reports/DataExports";
 import SignalReports from "@/components/reports/SignalReports";
-import ReportsKPISummary from "@/components/reports/ReportsKPISummary";
 
 export default function Reports() {
   const { track } = useTelemetry();
