@@ -6,6 +6,7 @@ import { useProposalContacts } from "@/hooks/useProposalContacts";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useRef } from "react";
+import { parseTermsSections } from "./proposalUtils";
 
 interface ProposalPreviewModalProps {
   proposal: ProposalWithRelations | null;
