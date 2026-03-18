@@ -312,9 +312,9 @@ export function SignatureDialog({
             </div>
 
             {/* CC Recipients */}
-            {recipientOptions.filter(r => r.id !== selectedRecipientId).length > 0 && (
-              <div className="space-y-2">
-                <Label>CC (optional)</Label>
+            <div className="space-y-2">
+              <Label>CC (optional)</Label>
+              {recipientOptions.filter(r => r.id !== selectedRecipientId).length > 0 && (
                 <div className="space-y-1.5">
                   {recipientOptions
                     .filter(r => r.id !== selectedRecipientId)
@@ -335,8 +335,14 @@ export function SignatureDialog({
                       </label>
                     ))}
                 </div>
-              </div>
-            )}
+              )}
+              <Input
+                placeholder="Additional emails (comma-separated)"
+                value={manualCcEmails}
+                onChange={(e) => setManualCcEmails(e.target.value)}
+                className="text-sm"
+              />
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="pm">Assign Project Manager *</Label>
