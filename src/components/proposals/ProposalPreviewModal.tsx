@@ -406,7 +406,7 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
               {/* ═══ Total ═══ */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderRadius: 8, marginTop: 28, border: `2px solid ${charcoal}` }}>
                 <span style={{ fontSize: "12pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: charcoal }}>Total</span>
-                <span style={{ fontSize: "16pt", fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", color: charcoal }}>{fmt(totalAmount)}</span>
+                <span style={{ fontSize: "16pt", fontWeight: 800, color: charcoal }}>{fmt(totalAmount)}</span>
               </div>
 
               {/* Deposit callout */}
