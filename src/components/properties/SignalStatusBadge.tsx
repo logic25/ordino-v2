@@ -26,10 +26,14 @@ export function SignalStatusBadge({ status, isComplimentary, showIcon = true }: 
     return <span className="text-muted-foreground text-sm">—</span>;
   }
 
+  const label = status === "active"
+    ? isComplimentary ? "Active — Comp" : "Active — Paid"
+    : STATUS_LABELS[status] || status;
+
   return (
     <Badge variant="outline" className={`gap-1 ${STATUS_STYLES[status] || "bg-muted text-muted-foreground"}`}>
       {showIcon && <Radio className="h-3 w-3" />}
-      {STATUS_LABELS[status] || status}
+      {label}
       {isComplimentary && <Gift className="h-3 w-3 ml-0.5" />}
     </Badge>
   );
