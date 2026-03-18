@@ -237,7 +237,7 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
               {/* Account & Project Info */}
               <div style={{ display: "flex", gap: 32, marginBottom: 28 }}>
                 <div style={{ flex: 1, background: lightBg, padding: "16px 20px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
-                  <div style={{ fontSize: "8pt", textTransform: "uppercase", letterSpacing: 1.5, color: slate, marginBottom: 8, fontWeight: 700 }}>
+                <div style={{ fontSize: "8pt", textTransform: "uppercase", letterSpacing: 1.5, color: slate, marginBottom: 8, fontWeight: 700 }}>
                     Prepared For
                   </div>
                   {billTo ? (
@@ -254,6 +254,14 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                     </>
                   ) : (
                     <div style={{ color: slate, fontStyle: "italic" }}>No client specified</div>
+                  )}
+                  {/* Billed To sub-block */}
+                  {billTo && (proposal as any).billed_to_name && (proposal as any).billed_to_name !== billTo.name && (
+                    <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid #e2e8f0" }}>
+                      <div style={{ fontSize: "8pt", textTransform: "uppercase", letterSpacing: 1.2, color: slate, marginBottom: 4, fontWeight: 700 }}>Billed To</div>
+                      <div style={{ fontSize: "10pt", fontWeight: 600 }}>{(proposal as any).billed_to_name}</div>
+                      {(proposal as any).billed_to_email && <div style={{ fontSize: "9pt", color: slate }}>{(proposal as any).billed_to_email}</div>}
+                    </div>
                   )}
                 </div>
                 <div style={{ flex: 1, background: lightBg, padding: "16px 20px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
