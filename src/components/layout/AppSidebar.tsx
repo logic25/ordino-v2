@@ -203,6 +203,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
               key={item.href}
               to={item.href}
               onClick={onNavigate}
+              onMouseEnter={() => prefetchRoute(item.href)}
               data-tour={`nav-${item.href.replace("/", "")}`}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150",
