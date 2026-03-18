@@ -132,7 +132,8 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
   };
 
   // Apple-esque design tokens
-  const amber = "#6db33f";
+  const amber = "hsl(65 69% 54%)";
+  const amberSoft = "hsl(65 69% 54% / 0.12)";
   const charcoal = "#1c2127";
   const slate = "#64748b";
   const lightBg = "#f8f9fa";

@@ -213,7 +213,9 @@ export default function ClientChangeOrderPage() {
   const projectAddress = project?.properties?.address || "";
   const projectNumber = project?.project_number || "";
 
-  const amber = "#6db33f";
+  const amber = "hsl(65 69% 54%)";
+  const amberSoft = "hsl(65 69% 54% / 0.12)";
+  const amberBorder = "hsl(65 69% 54% / 0.28)";
   const charcoal = "#1c2127";
   const slate = "#64748b";
   const borderColor = "#e5e7eb";

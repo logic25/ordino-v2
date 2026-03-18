@@ -54,7 +54,8 @@ function buildProposalEmailHtml({
   companyPhone?: string;
   items: { name: string; total: string; isOptional: boolean }[];
 }) {
-  const gleGreen = "#1a7a4c";
+  const documentAccent = "hsl(65 69% 54%)";
+  const documentAccentForeground = "hsl(220 20% 10%)";
 
   const serviceRows = items
     .filter(i => !i.isOptional)
@@ -79,20 +80,20 @@ function buildProposalEmailHtml({
       <table style="width:100%;" cellpadding="0" cellspacing="0">
         <tr>
           <td style="vertical-align:top;">
-            ${logoUrl ? `<img src="${logoUrl}" alt="${companyName}" style="max-height:44px;display:block;" />` : `<span style="font-size:18px;font-weight:700;color:${gleGreen};">${companyName}</span>`}
+            ${logoUrl ? `<img src="${logoUrl}" alt="${companyName}" style="max-height:44px;display:block;" />` : `<span style="font-size:18px;font-weight:700;color:${documentAccent};">${companyName}</span>`}
             ${companyAddress ? `<p style="margin:6px 0 0;color:#94a3b8;font-size:11px;line-height:1.4;">${companyAddress}</p>` : ""}
             ${contactLine ? `<p style="margin:2px 0 0;color:#94a3b8;font-size:11px;">${contactLine}</p>` : ""}
           </td>
-          ${proposalNumber ? `<td style="vertical-align:top;text-align:right;">
+          ${proposalNumber ? `<td style="vertical-align:top;text-align:right;white-space:nowrap;width:140px;">
             <p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;font-weight:600;">Proposal</p>
-            <p style="margin:2px 0 0;font-size:22px;font-weight:800;color:#1e293b;letter-spacing:-0.5px;">#${proposalNumber}</p>
+            <p style="margin:2px 0 0;font-size:20px;font-weight:800;color:#1e293b;letter-spacing:-0.3px;white-space:nowrap;line-height:1;">#${proposalNumber}</p>
           </td>` : ""}
         </tr>
       </table>
     </div>
 
     <!-- Green accent line -->
-    <div style="height:3px;background:linear-gradient(90deg,${gleGreen},${gleGreen}88);"></div>
+    <div style="height:3px;background:${documentAccent};"></div>
 
     <!-- Body Card -->
     <div style="background:#ffffff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;">
@@ -149,7 +150,7 @@ function buildProposalEmailHtml({
 
       <!-- CTA Button -->
       <div style="text-align:center;margin:32px 0;">
-        <a href="${clientLink}" style="display:inline-block;background:${gleGreen};color:#ffffff;text-decoration:none;padding:14px 44px;border-radius:8px;font-size:16px;font-weight:600;letter-spacing:0.2px;">
+        <a href="${clientLink}" style="display:inline-block;background:${documentAccent};color:${documentAccentForeground};text-decoration:none;padding:14px 44px;border-radius:8px;font-size:16px;font-weight:700;letter-spacing:0.2px;">
           Review &amp; Sign Proposal
         </a>
       </div>

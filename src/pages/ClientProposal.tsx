@@ -320,7 +320,9 @@ export default function ClientProposalPage() {
   const billTo = (contacts as any[]).find((c: any) => c.role === "bill_to");
   const signer = (contacts as any[]).find((c: any) => c.role === "sign");
 
-  const amber = "#6db33f";
+  const amber = "hsl(65 69% 54%)";
+  const amberSoft = "hsl(65 69% 54% / 0.12)";
+  const amberBorder = "hsl(65 69% 54% / 0.28)";
   const charcoal = "#1c2127";
   const slate = "#64748b";
   const lightBg = "#f8f9fa";
