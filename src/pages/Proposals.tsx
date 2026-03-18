@@ -526,7 +526,7 @@ export default function Proposals() {
     setSignDialogOpen(true);
   };
 
-  const handleSign = async (signatureData: string, assignedPmId: string, recipient?: SignatureRecipient) => {
+  const handleSign = async (signatureData: string, assignedPmId: string, recipient?: SignatureRecipient, ccEmails?: string[]) => {
     if (!signingProposal) return;
     const proposalId = signingProposal.id;
     try {
