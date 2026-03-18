@@ -608,7 +608,7 @@ export default function ClientProposalPage() {
                 style={{ background: "#6db33f0f", border: `1px solid #6db33f40` }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="rounded-full p-2" style={{ background: "hsl(38, 92%, 50%, 0.15)" }}>
+                  <div className="rounded-full p-2" style={{ background: "#6db33f26" }}>
                     <FileText className="h-5 w-5" style={{ color: amber }} />
                   </div>
                   <div>
