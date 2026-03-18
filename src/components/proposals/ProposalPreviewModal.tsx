@@ -131,11 +131,12 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
     return "";
   };
 
-  // Amber accent from design system
+  // Apple-esque design tokens
   const amber = "hsl(38, 92%, 50%)";
   const charcoal = "#1c2127";
   const slate = "#64748b";
   const lightBg = "#f8f9fa";
+  const borderColor = "#e5e7eb";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
