@@ -1,22 +1,30 @@
 
 
-## Problem
+## CitiSignal Complimentary Subscription Safeguards — Complete
 
-The global KPI cards (Pending Proposals, Open Invoices, Active Projects, YTD Collected) sit above the tabs and persist across all tab changes. They aren't contextual to the selected report, which feels disorienting — users expect the content to change when they switch tabs.
+### What was built:
 
-## Proposed fix
+**1. Database migration** ✅
+- Added 6 columns to `signal_subscriptions`: `is_complimentary`, `enrolled_by`, `linked_project_id`, `monthly_rate`, `billing_start_date`, `comp_reason`
 
-**Move the KPI summary inside the Projects tab** instead of sitting above all tabs. Each report tab already has its own summary cards (e.g., Billing has revenue/aging, Proposals has win rate, SignalReports has subscription counts). The global KPIs are most relevant to the Projects overview, so they belong there.
+**2. useSignalSubscriptions hook updated** ✅
+- Types include all new fields + joined `enrolled_by_name`, `linked_project_name`, `linked_project_phase`
+- `useEnrollProperty` auto-sets `enrolled_by` to current user's profile ID
+- `useSignalSubscription` fetches joined profile name and project info
 
-### Changes
+**3. SignalEnrollDialog enhanced** ✅
+- Complimentary toggle (only enabled when property has active projects)
+- Linked project selector (required when complimentary)
+- Comp reason textarea
+- Monthly rate + billing start date inputs (for paid active subs)
+- Trial auto-expiry (14 days), comp auto-expiry (1 year)
+- Enrolled-by shown read-only on edit
 
-**`src/pages/Reports.tsx`**
-- Remove the `ReportsKPISummary` rendering from above the `<Tabs>` component.
-- Remove the `activeTab` state (no longer needed for conditional rendering).
-- Remove the `ReportsKPISummary` import.
+**4. SignalSection updated** ✅
+- Shows "Sold by: [Name]"
+- Shows "Complimentary — linked to [Project Name]" or "Paid — $X/mo"
+- Expiration countdown with color warnings
+- Warning badge if linked project closed or no linked project on comp
 
-**`src/components/reports/ProjectReports.tsx`**
-- Import and render `ReportsKPISummary` at the top of the Projects tab content, so those KPIs appear only when viewing Project reports.
-
-This way every tab shows only its own relevant metrics — no persistent cards that feel out of place.
-
+**5. SignalStatusBadge updated** ✅
+- Gift icon shown for complimentary subscriptions

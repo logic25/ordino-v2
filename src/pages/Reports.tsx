@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart3 } from "lucide-react";
@@ -11,11 +10,9 @@ import OperationsReports from "@/components/reports/OperationsReports";
 import ReferralReports from "@/components/reports/ReferralReports";
 import DataExports from "@/components/reports/DataExports";
 import SignalReports from "@/components/reports/SignalReports";
-import ReportsKPISummary from "@/components/reports/ReportsKPISummary";
 
 export default function Reports() {
   const { track } = useTelemetry();
-  const [activeTab, setActiveTab] = useState("projects");
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -27,9 +24,7 @@ export default function Reports() {
           </div>
         </div>
 
-        {activeTab !== "signal" && <ReportsKPISummary />}
-
-        <Tabs defaultValue="projects" className="space-y-4" onValueChange={(tab) => { setActiveTab(tab); track("reports", "tab_viewed", { tab }); }}>
+        <Tabs defaultValue="projects" className="space-y-4" onValueChange={(tab) => { track("reports", "tab_viewed", { tab }); }}>
           <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="projects">Projects</TabsTrigger>
             <TabsTrigger value="billing">Billing</TabsTrigger>
