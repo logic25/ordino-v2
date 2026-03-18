@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -51,6 +51,36 @@ const secondaryNav = [
   { title: "Help", icon: HelpCircle, href: "/help", resource: "dashboard" as ResourceKey },
 ];
 
+
+// Prefetch map: route path → lazy import function
+const routePrefetchMap: Record<string, () => Promise<unknown>> = {
+  "/dashboard": () => import("@/pages/Dashboard"),
+  "/projects": () => import("@/pages/Projects"),
+  "/properties": () => import("@/pages/Properties"),
+  "/time": () => import("@/pages/Time"),
+  "/proposals": () => import("@/pages/Proposals"),
+  "/invoices": () => import("@/pages/Invoices"),
+  "/emails": () => import("@/pages/Emails"),
+  "/calendar": () => import("@/pages/Calendar"),
+  "/rfps": () => import("@/pages/Rfps"),
+  "/chat": () => import("@/pages/Chat"),
+  "/reports": () => import("@/pages/Reports"),
+  "/clients": () => import("@/pages/Clients"),
+  "/documents": () => import("@/pages/Documents"),
+  "/settings": () => import("@/pages/Settings"),
+  "/help": () => import("@/pages/HelpDesk"),
+};
+
+const prefetchedRoutes = new Set<string>();
+
+function prefetchRoute(href: string) {
+  if (prefetchedRoutes.has(href)) return;
+  const loader = routePrefetchMap[href];
+  if (loader) {
+    prefetchedRoutes.add(href);
+    loader();
+  }
+}
 
 function getInitials(profile: any, email?: string | null): string {
   const first = profile?.first_name?.trim();
@@ -139,6 +169,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
               key={item.href}
               to={item.href}
               onClick={onNavigate}
+              onMouseEnter={() => prefetchRoute(item.href)}
               data-tour={`nav-${item.href.replace("/", "")}`}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150",
@@ -172,6 +203,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
               key={item.href}
               to={item.href}
               onClick={onNavigate}
+              onMouseEnter={() => prefetchRoute(item.href)}
               data-tour={`nav-${item.href.replace("/", "")}`}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150",
