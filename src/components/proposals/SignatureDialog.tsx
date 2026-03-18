@@ -111,8 +111,12 @@ export function SignatureDialog({
   }, [open, profile]);
 
   useEffect(() => {
-    if (open && proposal?.assigned_pm_id) {
-      setAssignedPmId(proposal.assigned_pm_id);
+    if (open) {
+      setHasDrawn(false);
+      setHasSignature(false);
+      if (proposal?.assigned_pm_id) {
+        setAssignedPmId(proposal.assigned_pm_id);
+      }
     }
   }, [open, proposal]);
 
