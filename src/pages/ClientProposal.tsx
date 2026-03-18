@@ -659,11 +659,11 @@ export default function ClientProposalPage() {
                 {company?.website && <div style={{ color: amber }}>{company.website}</div>}
               </div>
             </div>
-            <div style={{ textAlign: "right" }}>
+            <div style={{ textAlign: "right", minWidth: 148, whiteSpace: "nowrap", flexShrink: 0 }}>
               <div style={{ fontSize: "9pt", textTransform: "uppercase", letterSpacing: 2, color: slate, fontWeight: 600, marginBottom: 4 }}>
                 Proposal
               </div>
-              <div style={{ fontSize: "18pt", fontWeight: 800, color: charcoal, fontFamily: "'JetBrains Mono', monospace" }}>
+              <div style={{ fontSize: "18pt", fontWeight: 800, color: charcoal, fontFamily: "'JetBrains Mono', monospace", whiteSpace: "nowrap", lineHeight: 1 }}>
                 #{proposal.proposal_number}
               </div>
               <div style={{ fontSize: "9pt", color: slate, marginTop: 8 }}>
@@ -673,7 +673,7 @@ export default function ClientProposalPage() {
           </div>
 
           {/* ═══ Accent line ═══ */}
-          <div style={{ height: 3, background: `linear-gradient(90deg, ${amber}, ${amber}88)` }} />
+          <div style={{ height: 3, background: amber }} />
 
           {/* ═══ Body ═══ */}
           <div style={{ padding: "32px 48px 40px" }}>

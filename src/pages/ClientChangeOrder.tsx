@@ -399,9 +399,9 @@ export default function ClientChangeOrderPage() {
                 {company?.phone && <p className="text-xs" style={{ color: slate }}>Tel: {company.phone}</p>}
                 {company?.email && <p className="text-xs" style={{ color: slate }}>{company.email}</p>}
               </div>
-              <div className="text-right">
+              <div className="text-right" style={{ minWidth: 148, whiteSpace: "nowrap", flexShrink: 0 }}>
                 <p className="text-[10px] font-semibold tracking-[2px] uppercase" style={{ color: slate }}>Change Order</p>
-                <p className="text-xl font-extrabold mt-1" style={{ color: charcoal }}>{co.co_number}</p>
+                <p className="text-xl font-extrabold mt-1" style={{ color: charcoal, whiteSpace: "nowrap", lineHeight: 1 }}>{co.co_number}</p>
                 <p className="text-xs mt-2" style={{ color: slate }}>{fmtDate(co.created_at)}</p>
                 {co.requested_by && <p className="text-xs" style={{ color: slate }}>Requested by: {co.requested_by}</p>}
               </div>
@@ -409,7 +409,7 @@ export default function ClientChangeOrderPage() {
           </div>
 
           {/* Accent line */}
-          <div className="co-accent-bar" style={{ height: 3, background: `linear-gradient(90deg, ${amber}, ${amber}88)` }} />
+          <div className="co-accent-bar" style={{ height: 3, background: amber }} />
 
           {/* Body */}
           <div style={{ padding: "28px 36px" }}>

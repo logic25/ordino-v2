@@ -18,7 +18,7 @@ interface ChangeOrderPDFProps {
 }
 
 /* ── Palette matching Proposal ─────────────────────── */
-const amber = "#E89A1D";   // hsl(38, 92%, 50%)
+const amber = "hsl(65 69% 54%)";
 const charcoal = "#1c2127";
 const slate = "#64748b";
 const lightBg = "#f8f9fa";
