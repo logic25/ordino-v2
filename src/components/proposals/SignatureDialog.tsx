@@ -207,11 +207,16 @@ export function SignatureDialog({
 
     // Save signature to profile if checked
     if (saveSignature && profile) {
-      supabase
+      void supabase
         .from("profiles")
         .update({ signature_data: signatureData } as any)
         .eq("id", profile.id)
-        .then(() => {});
+        .then(async ({ error }) => {
+          if (!error) {
+            await refreshProfile();
+            setSavedSignatureData(signatureData);
+          }
+        });
     }
 
     const selectedRecipient = recipientOptions.find(r => r.id === selectedRecipientId) || recipientOptions[0];
