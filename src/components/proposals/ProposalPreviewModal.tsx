@@ -418,7 +418,7 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
 
               {/* Deposit callout */}
               {depositAmt > 0 && (
-                <div style={{ marginTop: 12, padding: "12px 20px", background: "hsl(38, 92%, 50%, 0.08)", borderLeft: `4px solid ${amber}`, borderRadius: "0 6px 6px 0", fontSize: "10pt" }}>
+                <div style={{ marginTop: 12, padding: "12px 20px", background: "#6db33f14", borderLeft: `4px solid ${amber}`, borderRadius: "0 6px 6px 0", fontSize: "10pt" }}>
                   <strong>Retainer Due Upon Signing:</strong> {fmt(depositAmt)}
                   {depositPct > 0 && <span style={{ color: slate, marginLeft: 6 }}>({depositPct}% of contract total)</span>}
                 </div>
