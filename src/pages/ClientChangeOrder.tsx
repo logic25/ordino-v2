@@ -224,9 +224,6 @@ export default function ClientChangeOrderPage() {
         @media print {
           @page { margin: 0.4in; size: letter; }
           body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          .co-header-banner { background: ${charcoal} !important; color: #fff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          .co-header-banner * { color: #fff !important; }
-          .co-header-banner .co-amber-label { color: ${amber} !important; }
           .co-accent-bar { background: ${amber} !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           .co-total-box { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           .co-reason-box { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
