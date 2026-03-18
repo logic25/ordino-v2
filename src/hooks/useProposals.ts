@@ -508,10 +508,11 @@ export function useSendProposal() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: string | { id: string; recipientEmail?: string; recipientName?: string }) => {
+    mutationFn: async (input: string | { id: string; recipientEmail?: string; recipientName?: string; ccEmails?: string[] }) => {
       const id = typeof input === "string" ? input : input.id;
       const recipientEmailOverride = typeof input === "object" ? input.recipientEmail : undefined;
       const recipientNameOverride = typeof input === "object" ? input.recipientName : undefined;
+      const ccEmails = typeof input === "object" ? input.ccEmails : undefined;
 
       // 1. Fetch proposal with property and items
       const { data: proposal, error: pErr } = await supabase
@@ -630,8 +631,9 @@ export function useSendProposal() {
 </body></html>`;
 
       // 6. Send via Gmail
+      const ccString = ccEmails?.length ? ccEmails.join(",") : undefined;
       const { data: sendResult, error: sendErr } = await supabase.functions.invoke("gmail-send", {
-        body: { to: clientEmail, subject, html_body: htmlBody },
+        body: { to: clientEmail, cc: ccString, subject, html_body: htmlBody },
       });
       if (sendErr) throw sendErr;
       if (sendResult?.error) throw new Error(sendResult.error);

@@ -33,7 +33,7 @@ export interface SignatureRecipient {
 interface SignatureDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSign: (signatureData: string, assignedPmId: string, recipient?: SignatureRecipient) => Promise<void>;
+  onSign: (signatureData: string, assignedPmId: string, recipient?: SignatureRecipient, ccEmails?: string[]) => Promise<void>;
   proposal: ProposalWithRelations | null;
   isLoading?: boolean;
 }
@@ -57,6 +57,7 @@ export function SignatureDialog({
   const { track } = useTelemetry();
   const { data: contacts = [] } = useProposalContacts(proposal?.id);
   const [selectedRecipientId, setSelectedRecipientId] = useState("");
+  const [selectedCcIds, setSelectedCcIds] = useState<string[]>([]);
 
   // Build recipient options from contacts
   const recipientOptions = useMemo(() => {
@@ -224,10 +225,17 @@ export function SignatureDialog({
       ? { name: selectedRecipient.name, email: selectedRecipient.email }
       : undefined;
 
+    // Build CC emails from selected contacts (exclude the primary recipient)
+    const ccEmails = selectedCcIds
+      .filter(id => id !== selectedRecipientId)
+      .map(id => recipientOptions.find(r => r.id === id)?.email)
+      .filter(Boolean) as string[];
+
     track("proposals", "internal_sign_completed");
-    await onSign(signatureData, assignedPmId, recipient);
+    await onSign(signatureData, assignedPmId, recipient, ccEmails.length > 0 ? ccEmails : undefined);
     setHasDrawn(false);
     setAssignedPmId("");
+    setSelectedCcIds([]);
   };
 
   const fmt = (v: number | null) => {
@@ -295,7 +303,33 @@ export function SignatureDialog({
               )}
             </div>
 
-            {/* Assign PM */}
+            {/* CC Recipients */}
+            {recipientOptions.filter(r => r.id !== selectedRecipientId).length > 0 && (
+              <div className="space-y-2">
+                <Label>CC (optional)</Label>
+                <div className="space-y-1.5">
+                  {recipientOptions
+                    .filter(r => r.id !== selectedRecipientId)
+                    .map((opt) => (
+                      <label key={opt.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <Checkbox
+                          checked={selectedCcIds.includes(opt.id)}
+                          onCheckedChange={(checked) => {
+                            setSelectedCcIds(prev =>
+                              checked
+                                ? [...prev, opt.id]
+                                : prev.filter(id => id !== opt.id)
+                            );
+                          }}
+                        />
+                        <span className="text-muted-foreground">{opt.label}</span>
+                        <span className="text-xs text-muted-foreground">&lt;{opt.email}&gt;</span>
+                      </label>
+                    ))}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="pm">Assign Project Manager *</Label>
               <Select value={assignedPmId} onValueChange={setAssignedPmId}>
