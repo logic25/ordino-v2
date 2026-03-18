@@ -384,28 +384,30 @@ export default function ClientChangeOrderPage() {
         {/* CO Document */}
         <div className="bg-white shadow-md rounded-lg overflow-hidden print:shadow-none print:rounded-none">
           {/* Header */}
-          <div className="co-header-banner" style={{ background: charcoal, color: "#fff", padding: "28px 36px" }}>
+          <div style={{ padding: "28px 36px", borderBottom: `1px solid ${borderColor}` }}>
             <div className="flex justify-between items-start">
               <div>
-                {company?.logo_url && (
-                  <img src={company.logo_url} alt="Logo" className="h-10 mb-3" style={{ objectFit: "contain" }} />
+                {company?.logo_url ? (
+                  <img src={company.logo_url} alt="Logo" className="h-12 mb-3" style={{ objectFit: "contain" }} />
+                ) : (
+                  <h1 className="text-lg font-bold tracking-tight" style={{ color: charcoal }}>{company?.name || "Company"}</h1>
                 )}
-                <h1 className="text-lg font-bold tracking-tight">{company?.name || "Company"}</h1>
-                {company?.address && <p className="text-xs co-header-opacity" style={{ opacity: 0.8 }}>{company.address}</p>}
-                {company?.phone && <p className="text-xs co-header-opacity" style={{ opacity: 0.8 }}>Tel: {company.phone}</p>}
-                {company?.email && <p className="text-xs co-header-opacity" style={{ opacity: 0.8 }}>{company.email}</p>}
+                {company?.logo_url && <h1 className="text-lg font-bold tracking-tight" style={{ color: charcoal }}>{company?.name || "Company"}</h1>}
+                {company?.address && <p className="text-xs" style={{ color: slate }}>{company.address}</p>}
+                {company?.phone && <p className="text-xs" style={{ color: slate }}>Tel: {company.phone}</p>}
+                {company?.email && <p className="text-xs" style={{ color: slate }}>{company.email}</p>}
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-bold tracking-[2px] uppercase" style={{ color: amber }}>Change Order</p>
-                <p className="text-xl font-extrabold mt-1">{co.co_number}</p>
-                <p className="text-xs co-header-opacity mt-2" style={{ opacity: 0.7 }}>{fmtDate(co.created_at)}</p>
-                {co.requested_by && <p className="text-xs co-header-opacity" style={{ opacity: 0.7 }}>Requested by: {co.requested_by}</p>}
+                <p className="text-[10px] font-semibold tracking-[2px] uppercase" style={{ color: slate }}>Change Order</p>
+                <p className="text-xl font-extrabold mt-1" style={{ color: charcoal }}>{co.co_number}</p>
+                <p className="text-xs mt-2" style={{ color: slate }}>{fmtDate(co.created_at)}</p>
+                {co.requested_by && <p className="text-xs" style={{ color: slate }}>Requested by: {co.requested_by}</p>}
               </div>
             </div>
           </div>
 
-          {/* Amber accent bar */}
-          <div className="co-accent-bar" style={{ height: 4, background: amber }} />
+          {/* Accent line */}
+          <div className="co-accent-bar" style={{ height: 3, background: `linear-gradient(90deg, ${amber}, ${amber}88)` }} />
 
           {/* Body */}
           <div style={{ padding: "28px 36px" }}>
