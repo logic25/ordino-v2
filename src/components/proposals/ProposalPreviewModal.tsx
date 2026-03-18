@@ -517,7 +517,7 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                   {company?.fax && <span style={{ marginLeft: 10 }}>Fax: {company.fax}</span>}
                   {company?.email && <span style={{ marginLeft: 10 }}>{company.email}</span>}
                 </div>
-                {company?.website && <div style={{ color: amber, marginTop: 2 }}>{company.website}</div>}
+                {company?.website && <div style={{ color: "#4a7a2e", fontWeight: 600, marginTop: 2 }}>{company.website}</div>}
               </div>
             </div>
           </div>
