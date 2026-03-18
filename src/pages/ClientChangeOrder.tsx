@@ -269,7 +269,7 @@ export default function ClientChangeOrderPage() {
             {co.deposit_percentage > 0 && !depositPaid && !co.deposit_paid_at && (
               <div className="bg-white shadow-md rounded-lg p-6" style={{ borderLeft: `4px solid ${amber}` }}>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="rounded-full p-2" style={{ background: "hsl(38, 92%, 50%, 0.1)" }}>
+                  <div className="rounded-full p-2" style={{ background: "#6db33f1a" }}>
                     <Mail className="h-5 w-5" style={{ color: amber }} />
                   </div>
                   <div>
