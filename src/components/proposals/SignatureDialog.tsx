@@ -57,6 +57,7 @@ export function SignatureDialog({
   const { track } = useTelemetry();
   const { data: contacts = [] } = useProposalContacts(proposal?.id);
   const [selectedRecipientId, setSelectedRecipientId] = useState("");
+  const [selectedCcIds, setSelectedCcIds] = useState<string[]>([]);
 
   // Build recipient options from contacts
   const recipientOptions = useMemo(() => {
