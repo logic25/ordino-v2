@@ -53,7 +53,7 @@ export function SignatureDialog({
   const [saveSignature, setSaveSignature] = useState(true);
   const [savedSignatureData, setSavedSignatureData] = useState<string | null>(null);
   const { data: profiles = [] } = useAssignableProfiles();
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
   const { track } = useTelemetry();
   const { data: contacts = [] } = useProposalContacts(proposal?.id);
   const [selectedRecipientId, setSelectedRecipientId] = useState("");
@@ -207,11 +207,16 @@ export function SignatureDialog({
 
     // Save signature to profile if checked
     if (saveSignature && profile) {
-      supabase
+      void supabase
         .from("profiles")
         .update({ signature_data: signatureData } as any)
         .eq("id", profile.id)
-        .then(() => {});
+        .then(async ({ error }) => {
+          if (!error) {
+            await refreshProfile();
+            setSavedSignatureData(signatureData);
+          }
+        });
     }
 
     const selectedRecipient = recipientOptions.find(r => r.id === selectedRecipientId) || recipientOptions[0];
