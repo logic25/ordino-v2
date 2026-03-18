@@ -212,14 +212,14 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                     {company?.fax && <span style={{ marginLeft: 12 }}>Fax: {company.fax}</span>}
                   </div>
                   {company?.email && <div>{company.email}</div>}
-                  {company?.website && <div style={{ color: amber }}>{company.website}</div>}
+                  {company?.website && <div style={{ color: "#4a7a2e", fontWeight: 600 }}>{company.website}</div>}
                 </div>
               </div>
               <div style={{ textAlign: "right", minWidth: 148, whiteSpace: "nowrap", flexShrink: 0 }}>
                 <div style={{ fontSize: "9pt", textTransform: "uppercase", letterSpacing: 2, color: slate, fontWeight: 600, marginBottom: 4 }}>
                   Proposal
                 </div>
-                <div style={{ fontSize: "18pt", fontWeight: 800, color: charcoal, fontFamily: "'JetBrains Mono', monospace", whiteSpace: "nowrap", lineHeight: 1 }}>
+                <div style={{ fontSize: "18pt", fontWeight: 800, color: charcoal, whiteSpace: "nowrap", lineHeight: 1, letterSpacing: -0.5 }}>
                   #{proposal.proposal_number}
                 </div>
                 <div style={{ fontSize: "9pt", color: slate, marginTop: 8 }}>
@@ -337,7 +337,7 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                   <div key={i} style={{ marginBottom: 20, paddingBottom: 18, borderBottom: i < nonOptionalItems.length - 1 ? "1px solid #e2e8f0" : "none" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
                       <span style={{ fontSize: "11pt", fontWeight: 700, color: charcoal }}>{item.name}</span>
-                      <span style={{ fontSize: "11pt", fontWeight: 700, color: charcoal, whiteSpace: "nowrap", fontFamily: "'JetBrains Mono', monospace" }}>{fmt(price)}</span>
+                      <span style={{ fontSize: "11pt", fontWeight: 700, color: charcoal, whiteSpace: "nowrap" }}>{fmt(price)}</span>
                     </div>
                     {bullets.length > 0 ? (
                       <ul style={{ listStyle: "none", margin: "4px 0 0 0", padding: 0, fontSize: "9.5pt", color: slate, lineHeight: 1.65 }}>
@@ -392,7 +392,7 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                               {item.name}
                               {item.description && <span style={{ color: slate, marginLeft: 6 }}>— {item.description.split("\n")[0]}</span>}
                             </td>
-                            <td style={{ padding: "8px 0", textAlign: "right", whiteSpace: "nowrap", fontWeight: 600, fontFamily: "'JetBrains Mono', monospace" }}>
+                            <td style={{ padding: "8px 0", textAlign: "right", whiteSpace: "nowrap", fontWeight: 600 }}>
                               {fmt(price)}{item.quantity > 1 ? " each" : ""}
                             </td>
                           </tr>
@@ -406,7 +406,7 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
               {/* ═══ Total ═══ */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderRadius: 8, marginTop: 28, border: `2px solid ${charcoal}` }}>
                 <span style={{ fontSize: "12pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: charcoal }}>Total</span>
-                <span style={{ fontSize: "16pt", fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", color: charcoal }}>{fmt(totalAmount)}</span>
+                <span style={{ fontSize: "16pt", fontWeight: 800, color: charcoal }}>{fmt(totalAmount)}</span>
               </div>
 
               {/* Deposit callout */}
@@ -517,7 +517,7 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                   {company?.fax && <span style={{ marginLeft: 10 }}>Fax: {company.fax}</span>}
                   {company?.email && <span style={{ marginLeft: 10 }}>{company.email}</span>}
                 </div>
-                {company?.website && <div style={{ color: amber, marginTop: 2 }}>{company.website}</div>}
+                {company?.website && <div style={{ color: "#4a7a2e", fontWeight: 600, marginTop: 2 }}>{company.website}</div>}
               </div>
             </div>
           </div>
