@@ -287,10 +287,15 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
     setIsSending(true);
     track("proposals", "send_started", { proposal_id: proposal.id });
     try {
+      const billToContact = contacts.find(c => c.role === "bill_to");
+      const preparedForName = billToContact?.name || proposal.client_name || "";
+
       const htmlBody = buildProposalEmailHtml({
         clientName,
         proposalTitle: proposal.title || "Your Project",
+        proposalNumber: proposal.proposal_number || "",
         propertyAddress: proposal.properties?.address || "",
+        preparedFor: preparedForName || undefined,
         totalAmount: fmt(totalAmount),
         depositAmount: fmt(depositAmt),
         clientLink,
