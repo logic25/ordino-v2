@@ -351,7 +351,7 @@ export default function ClientProposalPage() {
                     <Mail className="h-5 w-5" style={{ color: "#10b981" }} />
                   </div>
                 ) : (
-                  <div className="rounded-full p-2 animate-pulse" style={{ background: "hsl(38, 92%, 50%, 0.1)" }}>
+                  <div className="rounded-full p-2 animate-pulse" style={{ background: "#6db33f1a" }}>
                     <Clock className="h-5 w-5" style={{ color: amber }} />
                   </div>
                 )}

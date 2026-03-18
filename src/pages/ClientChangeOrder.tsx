@@ -294,7 +294,7 @@ export default function ClientChangeOrderPage() {
                     ACH Transfer
                   </button>
                   <button
-                    className={`flex-1 text-sm font-medium py-2 px-3 rounded-lg border transition-colors ${paymentMethod === "check" ? "border-amber-400 bg-amber-50 text-amber-800" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
+                    className={`flex-1 text-sm font-medium py-2 px-3 rounded-lg border transition-colors ${paymentMethod === "check" ? "border-green-500 bg-green-50 text-green-800" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
                     onClick={() => setPaymentMethod("check")}
                   >
                     Check
