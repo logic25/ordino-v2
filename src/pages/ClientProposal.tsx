@@ -538,7 +538,7 @@ export default function ClientProposalPage() {
                     <div className="grid grid-cols-3 gap-3 mb-4">
                       <button
                         className="border-2 rounded-lg p-4 text-left transition-colors cursor-pointer"
-                        style={{ borderColor: selectedPayment === "card" ? amber : "#e2e8f0", background: selectedPayment === "card" ? "hsl(38, 92%, 50%, 0.06)" : undefined }}
+                        style={{ borderColor: selectedPayment === "card" ? amber : "#e2e8f0", background: selectedPayment === "card" ? "#6db33f0f" : undefined }}
                         onClick={() => setSelectedPayment("card")}
                       >
                         <CreditCard className="h-5 w-5 mb-2" style={{ color: amber }} />
