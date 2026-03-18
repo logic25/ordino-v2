@@ -631,8 +631,9 @@ export function useSendProposal() {
 </body></html>`;
 
       // 6. Send via Gmail
+      const ccString = ccEmails?.length ? ccEmails.join(",") : undefined;
       const { data: sendResult, error: sendErr } = await supabase.functions.invoke("gmail-send", {
-        body: { to: clientEmail, subject, html_body: htmlBody },
+        body: { to: clientEmail, cc: ccString, subject, html_body: htmlBody },
       });
       if (sendErr) throw sendErr;
       if (sendResult?.error) throw new Error(sendResult.error);

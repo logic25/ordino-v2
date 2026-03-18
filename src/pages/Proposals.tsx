@@ -582,7 +582,7 @@ export default function Proposals() {
         try {
           await sendProposal.mutateAsync(
             recipient
-              ? { id: proposalId, recipientEmail: recipient.email, recipientName: recipient.name }
+              ? { id: proposalId, recipientEmail: recipient.email, recipientName: recipient.name, ccEmails }
               : proposalId
           );
           toast({ title: "Proposal signed & sent!", description: "The proposal has been emailed to the client." });
