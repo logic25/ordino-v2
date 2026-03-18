@@ -1,30 +1,29 @@
 
 
-## CitiSignal Complimentary Subscription Safeguards — Complete
+## Speed Optimization: Add React Query Caching
 
-### What was built:
+### What we'll do
+Add a global `staleTime` to the `QueryClient` so recently fetched data is served instantly from cache instead of re-fetching on every page visit. This is the remaining low-hanging fruit from your optimization list.
 
-**1. Database migration** ✅
-- Added 6 columns to `signal_subscriptions`: `is_complimentary`, `enrolled_by`, `linked_project_id`, `monthly_rate`, `billing_start_date`, `comp_reason`
+### Change
+**`src/App.tsx`** — Update the QueryClient initialization:
 
-**2. useSignalSubscriptions hook updated** ✅
-- Types include all new fields + joined `enrolled_by_name`, `linked_project_name`, `linked_project_phase`
-- `useEnrollProperty` auto-sets `enrolled_by` to current user's profile ID
-- `useSignalSubscription` fetches joined profile name and project info
+```typescript
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 10,   // 10 minutes garbage collection
+    },
+  },
+});
+```
 
-**3. SignalEnrollDialog enhanced** ✅
-- Complimentary toggle (only enabled when property has active projects)
-- Linked project selector (required when complimentary)
-- Comp reason textarea
-- Monthly rate + billing start date inputs (for paid active subs)
-- Trial auto-expiry (14 days), comp auto-expiry (1 year)
-- Enrolled-by shown read-only on edit
+This means when you navigate away from a page and come back within 5 minutes, the data appears instantly (no spinner) while a background refresh runs if needed. This mirrors how the Laravel app felt — data was cached server-side, here it's cached client-side.
 
-**4. SignalSection updated** ✅
-- Shows "Sold by: [Name]"
-- Shows "Complimentary — linked to [Project Name]" or "Paid — $X/mo"
-- Expiration countdown with color warnings
-- Warning badge if linked project closed or no linked project on comp
+### What's already done
+- Lazy loading (code-splitting into chunks) ✅
+- Hover prefetching on sidebar links ✅
 
-**5. SignalStatusBadge updated** ✅
-- Gift icon shown for complimentary subscriptions
+This is a one-line change — minimal risk, significant UX improvement.
+
