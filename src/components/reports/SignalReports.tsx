@@ -91,7 +91,7 @@ export default function SignalReports() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{active.length}</div>
-            <p className="text-xs text-muted-foreground">{paid.length} paid · {complimentary.length} comp</p>
+            <p className="text-xs text-muted-foreground">{paid.length} paid · {complimentary.length} comp{unset.length > 0 ? ` · ${unset.length} not set` : ""}</p>
           </CardContent>
         </Card>
         <Card>
