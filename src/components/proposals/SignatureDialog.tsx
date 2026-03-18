@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -58,6 +59,7 @@ export function SignatureDialog({
   const { data: contacts = [] } = useProposalContacts(proposal?.id);
   const [selectedRecipientId, setSelectedRecipientId] = useState("");
   const [selectedCcIds, setSelectedCcIds] = useState<string[]>([]);
+  const [manualCcEmails, setManualCcEmails] = useState("");
 
   // Build recipient options from contacts
   const recipientOptions = useMemo(() => {
@@ -115,6 +117,8 @@ export function SignatureDialog({
     if (open) {
       setHasDrawn(false);
       setHasSignature(false);
+      setSavedSignatureData(null);
+      setManualCcEmails("");
       if (proposal?.assigned_pm_id) {
         setAssignedPmId(proposal.assigned_pm_id);
       }
@@ -225,11 +229,16 @@ export function SignatureDialog({
       ? { name: selectedRecipient.name, email: selectedRecipient.email }
       : undefined;
 
-    // Build CC emails from selected contacts (exclude the primary recipient)
-    const ccEmails = selectedCcIds
+    // Build CC emails from selected contacts + manual input
+    const contactCcEmails = selectedCcIds
       .filter(id => id !== selectedRecipientId)
       .map(id => recipientOptions.find(r => r.id === id)?.email)
       .filter(Boolean) as string[];
+    const manualEmails = manualCcEmails
+      .split(",")
+      .map(e => e.trim())
+      .filter(e => e.includes("@"));
+    const ccEmails = [...new Set([...contactCcEmails, ...manualEmails])];
 
     track("proposals", "internal_sign_completed");
     await onSign(signatureData, assignedPmId, recipient, ccEmails.length > 0 ? ccEmails : undefined);
@@ -304,9 +313,9 @@ export function SignatureDialog({
             </div>
 
             {/* CC Recipients */}
-            {recipientOptions.filter(r => r.id !== selectedRecipientId).length > 0 && (
-              <div className="space-y-2">
-                <Label>CC (optional)</Label>
+            <div className="space-y-2">
+              <Label>CC (optional)</Label>
+              {recipientOptions.filter(r => r.id !== selectedRecipientId).length > 0 && (
                 <div className="space-y-1.5">
                   {recipientOptions
                     .filter(r => r.id !== selectedRecipientId)
@@ -327,8 +336,14 @@ export function SignatureDialog({
                       </label>
                     ))}
                 </div>
-              </div>
-            )}
+              )}
+              <Input
+                placeholder="Additional emails (comma-separated)"
+                value={manualCcEmails}
+                onChange={(e) => setManualCcEmails(e.target.value)}
+                className="text-sm"
+              />
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="pm">Assign Project Manager *</Label>
