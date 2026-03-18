@@ -186,41 +186,41 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
         <div className="flex-1 overflow-y-auto bg-muted/40">
           <div id="proposal-preview-content" className="max-w-[720px] mx-auto bg-white shadow-md my-6" style={{ color: charcoal }}>
 
-            {/* ═══ Header Banner ═══ */}
-            <div style={{ background: charcoal, color: "#fff", padding: "32px 48px 28px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            {/* ═══ Header ═══ */}
+            <div style={{ padding: "36px 48px 28px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: `1px solid ${borderColor}` }}>
               <div>
                 {company?.logo_url ? (
-                  <img src={company.logo_url} alt={company.name} style={{ maxHeight: 48, marginBottom: 12, filter: "brightness(0) invert(1)" }} />
+                  <img src={company.logo_url} alt={company.name} style={{ maxHeight: 52, marginBottom: 14 }} />
                 ) : (
-                  <div style={{ fontSize: "20pt", fontWeight: 800, letterSpacing: -0.5, marginBottom: 8 }}>
+                  <div style={{ fontSize: "20pt", fontWeight: 800, letterSpacing: -0.5, marginBottom: 8, color: charcoal }}>
                     {company?.name || "Your Company"}
                   </div>
                 )}
-                <div style={{ fontSize: "9pt", color: "#94a3b8", lineHeight: 1.6 }}>
+                <div style={{ fontSize: "9pt", color: slate, lineHeight: 1.7 }}>
                   {company?.address && <div>{company.address}</div>}
                   <div>
                     {company?.phone && <span>Tel: {company.phone}</span>}
                     {company?.fax && <span style={{ marginLeft: 12 }}>Fax: {company.fax}</span>}
                   </div>
                   {company?.email && <div>{company.email}</div>}
-                  {company?.website && <div>{company.website}</div>}
+                  {company?.website && <div style={{ color: amber }}>{company.website}</div>}
                 </div>
               </div>
               <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: "9pt", textTransform: "uppercase", letterSpacing: 2, color: amber, fontWeight: 700, marginBottom: 4 }}>
+                <div style={{ fontSize: "9pt", textTransform: "uppercase", letterSpacing: 2, color: slate, fontWeight: 600, marginBottom: 4 }}>
                   Proposal
                 </div>
-                <div style={{ fontSize: "16pt", fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>
+                <div style={{ fontSize: "18pt", fontWeight: 800, color: charcoal, fontFamily: "'JetBrains Mono', monospace" }}>
                   #{proposal.proposal_number}
                 </div>
-                <div style={{ fontSize: "9pt", color: "#94a3b8", marginTop: 6 }}>
+                <div style={{ fontSize: "9pt", color: slate, marginTop: 8 }}>
                   {fmtDate(proposal.created_at)}
                 </div>
               </div>
             </div>
 
-            {/* ═══ Amber accent bar ═══ */}
-            <div style={{ height: 4, background: amber }} />
+            {/* ═══ Accent line ═══ */}
+            <div style={{ height: 3, background: `linear-gradient(90deg, ${amber}, ${amber}88)` }} />
 
             {/* ═══ Body ═══ */}
             <div style={{ padding: "32px 48px 40px" }}>
