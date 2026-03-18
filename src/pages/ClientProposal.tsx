@@ -700,6 +700,14 @@ export default function ClientProposalPage() {
                 ) : (
                   <div style={{ color: slate, fontStyle: "italic" }}>No client specified</div>
                 )}
+                {/* Billed To sub-block */}
+                {billTo && proposal.billed_to_name && proposal.billed_to_name !== billTo.name && (
+                  <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid #e2e8f0" }}>
+                    <div style={{ fontSize: "8pt", textTransform: "uppercase", letterSpacing: 1.2, color: slate, marginBottom: 4, fontWeight: 700 }}>Billed To</div>
+                    <div style={{ fontSize: "10pt", fontWeight: 600 }}>{proposal.billed_to_name}</div>
+                    {proposal.billed_to_email && <div style={{ fontSize: "9pt", color: slate }}>{proposal.billed_to_email}</div>}
+                  </div>
+                )}
               </div>
               <div style={{ flex: 1, background: lightBg, padding: "16px 20px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
                 <div style={{ fontSize: "8pt", textTransform: "uppercase", letterSpacing: 1.5, color: slate, marginBottom: 8, fontWeight: 700 }}>
