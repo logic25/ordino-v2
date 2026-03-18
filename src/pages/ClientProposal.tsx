@@ -567,7 +567,7 @@ export default function ClientProposalPage() {
                     {selectedPayment && (
                       <Button
                         className="w-full font-bold"
-                        style={{ background: amber, color: charcoal }}
+                        style={{ background: amber, color: "#fff" }}
                         onClick={() => setPaymentStep("form")}
                       >
                         Continue with {selectedPayment === "card" ? "Card" : selectedPayment === "ach" ? "ACH" : "Check"} <ChevronRight className="h-4 w-4 ml-1" />
