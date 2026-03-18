@@ -112,11 +112,6 @@ function buildProposalEmailHtml({
           </td>
         </tr>
       </table>
-      ` : `
-      <p style="margin:0 0 16px;font-size:15px;color:#1e293b;line-height:1.6;">Dear ${clientName.split(" ")[0]},</p>
-      <p style="margin:0 0 24px;font-size:15px;color:#334155;line-height:1.6;">
-        Thank you for the opportunity to work with you. We've prepared a proposal for <strong>${proposalTitle}</strong>${propertyAddress ? ` at <strong>${propertyAddress}</strong>` : ""}.
-      </p>
       `}
 
       <p style="margin:0 0 16px;font-size:15px;color:#1e293b;line-height:1.6;">Dear ${clientName.split(" ")[0]},</p>
