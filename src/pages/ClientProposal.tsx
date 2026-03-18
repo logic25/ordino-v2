@@ -324,6 +324,7 @@ export default function ClientProposalPage() {
   const charcoal = "#1c2127";
   const slate = "#64748b";
   const lightBg = "#f8f9fa";
+  const borderColor = "#e5e7eb";
 
   return (
     <div className="min-h-screen bg-[#f1f5f9]">
