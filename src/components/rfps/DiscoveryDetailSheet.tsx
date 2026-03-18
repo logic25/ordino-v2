@@ -48,6 +48,29 @@ const statusIcon: Record<string, React.ReactNode> = {
   passed: <XCircle className="h-3 w-3 text-muted-foreground" />,
 };
 
+function getViewOriginalUrl(rfp: DiscoveredRfp | null): string | null {
+  const candidates = [rfp?.original_url, rfp?.pdf_url];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+
+    try {
+      const parsed = new URL(candidate);
+      const hostname = parsed.hostname.toLowerCase();
+
+      if (hostname === "nycha.gov" || hostname === "www.nycha.gov") {
+        return "https://www.nyc.gov/site/nycha/business/procurement-opportunities.page";
+      }
+
+      return parsed.toString();
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+}
+
 export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateResponse }: Props) {
   const update = useUpdateDiscoveredRfp();
   const { data: profiles = [] } = useCompanyProfiles();
@@ -75,6 +98,8 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
     }
     return map;
   }, [outreachRecords]);
+
+  const originalLink = getViewOriginalUrl(rfp);
 
   if (!rfp) return null;
 
