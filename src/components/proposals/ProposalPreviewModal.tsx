@@ -108,10 +108,17 @@ export function ProposalPreviewModal({ proposal, open, onOpenChange, onSend, onS
     if (!el) return;
     const w = window.open("", "_blank");
     if (!w) return;
+    const propAddr = proposal.properties?.address || "";
     w.document.write(`<html><head><title>${proposal.proposal_number} — ${proposal.title}</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-@page { margin: 0.6in; }
+@page {
+  margin: 0.6in;
+  @top-left { content: "Proposal #${proposal.proposal_number}"; font-size: 8pt; color: #64748b; font-family: 'Inter', sans-serif; }
+  @top-right { content: "RE: ${propAddr}"; font-size: 8pt; color: #64748b; font-family: 'Inter', sans-serif; }
+  @bottom-center { content: "${(company?.address || "").replace(/"/g, '')}  ·  Tel: ${company?.phone || ""}  ·  ${company?.email || ""}"; font-size: 7pt; color: #94a3b8; font-family: 'Inter', sans-serif; }
+  @bottom-right { content: "Page " counter(page) " of " counter(pages); font-size: 7pt; color: #94a3b8; font-family: 'Inter', sans-serif; }
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 720px; margin: 0 auto; font-size: 10pt; line-height: 1.55; }
 </style></head><body>`);
