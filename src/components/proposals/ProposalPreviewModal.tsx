@@ -392,7 +392,7 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                               {item.name}
                               {item.description && <span style={{ color: slate, marginLeft: 6 }}>— {item.description.split("\n")[0]}</span>}
                             </td>
-                            <td style={{ padding: "8px 0", textAlign: "right", whiteSpace: "nowrap", fontWeight: 600, fontFamily: "'JetBrains Mono', monospace" }}>
+                            <td style={{ padding: "8px 0", textAlign: "right", whiteSpace: "nowrap", fontWeight: 600 }}>
                               {fmt(price)}{item.quantity > 1 ? " each" : ""}
                             </td>
                           </tr>
