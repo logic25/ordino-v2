@@ -52,6 +52,36 @@ const secondaryNav = [
 ];
 
 
+// Prefetch map: route path → lazy import function
+const routePrefetchMap: Record<string, () => Promise<unknown>> = {
+  "/dashboard": () => import("@/pages/Dashboard"),
+  "/projects": () => import("@/pages/Projects"),
+  "/properties": () => import("@/pages/Properties"),
+  "/time": () => import("@/pages/Time"),
+  "/proposals": () => import("@/pages/Proposals"),
+  "/invoices": () => import("@/pages/Invoices"),
+  "/emails": () => import("@/pages/Emails"),
+  "/calendar": () => import("@/pages/Calendar"),
+  "/rfps": () => import("@/pages/Rfps"),
+  "/chat": () => import("@/pages/Chat"),
+  "/reports": () => import("@/pages/Reports"),
+  "/clients": () => import("@/pages/Clients"),
+  "/documents": () => import("@/pages/Documents"),
+  "/settings": () => import("@/pages/Settings"),
+  "/help": () => import("@/pages/HelpDesk"),
+};
+
+const prefetchedRoutes = new Set<string>();
+
+function prefetchRoute(href: string) {
+  if (prefetchedRoutes.has(href)) return;
+  const loader = routePrefetchMap[href];
+  if (loader) {
+    prefetchedRoutes.add(href);
+    loader();
+  }
+}
+
 function getInitials(profile: any, email?: string | null): string {
   const first = profile?.first_name?.trim();
   const last = profile?.last_name?.trim();
