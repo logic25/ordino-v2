@@ -6,6 +6,7 @@ import { useProposalContacts } from "@/hooks/useProposalContacts";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useRef } from "react";
+import { parseTermsSections } from "./proposalUtils";
 
 interface ProposalPreviewModalProps {
   proposal: ProposalWithRelations | null;
@@ -107,10 +108,17 @@ export function ProposalPreviewModal({ proposal, open, onOpenChange, onSend, onS
     if (!el) return;
     const w = window.open("", "_blank");
     if (!w) return;
+    const propAddr = proposal.properties?.address || "";
     w.document.write(`<html><head><title>${proposal.proposal_number} — ${proposal.title}</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-@page { margin: 0.6in; }
+@page {
+  margin: 0.6in;
+  @top-left { content: "Proposal #${proposal.proposal_number}"; font-size: 8pt; color: #64748b; font-family: 'Inter', sans-serif; }
+  @top-right { content: "RE: ${propAddr}"; font-size: 8pt; color: #64748b; font-family: 'Inter', sans-serif; }
+  @bottom-center { content: "${(company?.address || "").replace(/"/g, '')}  ·  Tel: ${company?.phone || ""}  ·  ${company?.email || ""}"; font-size: 7pt; color: #94a3b8; font-family: 'Inter', sans-serif; }
+  @bottom-right { content: "Page " counter(page) " of " counter(pages); font-size: 7pt; color: #94a3b8; font-family: 'Inter', sans-serif; }
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 720px; margin: 0 auto; font-size: 10pt; line-height: 1.55; }
 </style></head><body>`);
@@ -229,7 +237,7 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
               {/* Account & Project Info */}
               <div style={{ display: "flex", gap: 32, marginBottom: 28 }}>
                 <div style={{ flex: 1, background: lightBg, padding: "16px 20px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
-                  <div style={{ fontSize: "8pt", textTransform: "uppercase", letterSpacing: 1.5, color: slate, marginBottom: 8, fontWeight: 700 }}>
+                <div style={{ fontSize: "8pt", textTransform: "uppercase", letterSpacing: 1.5, color: slate, marginBottom: 8, fontWeight: 700 }}>
                     Prepared For
                   </div>
                   {billTo ? (
@@ -246,6 +254,14 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                     </>
                   ) : (
                     <div style={{ color: slate, fontStyle: "italic" }}>No client specified</div>
+                  )}
+                  {/* Billed To sub-block */}
+                  {billTo && (proposal as any).billed_to_name && (proposal as any).billed_to_name !== billTo.name && (
+                    <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid #e2e8f0" }}>
+                      <div style={{ fontSize: "8pt", textTransform: "uppercase", letterSpacing: 1.2, color: slate, marginBottom: 4, fontWeight: 700 }}>Billed To</div>
+                      <div style={{ fontSize: "10pt", fontWeight: 600 }}>{(proposal as any).billed_to_name}</div>
+                      {(proposal as any).billed_to_email && <div style={{ fontSize: "9pt", color: slate }}>{(proposal as any).billed_to_email}</div>}
+                    </div>
                   )}
                 </div>
                 <div style={{ flex: 1, background: lightBg, padding: "16px 20px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
@@ -327,7 +343,7 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                       <ul style={{ listStyle: "none", margin: "4px 0 0 0", padding: 0, fontSize: "9.5pt", color: slate, lineHeight: 1.65 }}>
                         {bullets.map((b, bi) => (
                           <li key={bi} style={{ paddingLeft: 16, position: "relative" }}>
-                            <span style={{ position: "absolute", left: 0, color: amber, fontWeight: 700 }}>›</span>
+                            <span style={{ position: "absolute", left: 0, color: amber, fontWeight: 700 }}>•</span>
                             {b}
                           </li>
                         ))}
@@ -357,7 +373,7 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                 );
               })}
 
-              {/* Optional Services */}
+              {/* Optional Services — compact table */}
               {optionalItems.length > 0 && (
                 <>
                   <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "24px 0 16px" }}>
@@ -366,48 +382,24 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                       Optional Services
                     </h3>
                   </div>
-                  {optionalItems.map((item: any, i: number) => {
-                    const bullets = parseBullets(item.description);
-                    const price = Number(item.total_price || item.quantity * item.unit_price);
-                    const disciplines: string[] = item.disciplines || [];
-                    const disciplineFee = Number(item.discipline_fee) || 0;
-                    return (
-                      <div key={i} style={{ marginBottom: 16, paddingBottom: 14, borderBottom: i < optionalItems.length - 1 ? "1px dashed #e2e8f0" : "none", opacity: 0.85 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
-                          <span style={{ fontSize: "10.5pt", fontWeight: 600 }}>
-                            {item.name}
-                            <span style={{ display: "inline-block", background: "#f1f5f9", border: "1px solid #e2e8f0", fontSize: "7.5pt", padding: "1px 6px", borderRadius: 3, marginLeft: 8, color: slate, textTransform: "uppercase", letterSpacing: 0.5, verticalAlign: "middle" }}>Optional</span>
-                          </span>
-                          <span style={{ fontSize: "10.5pt", fontWeight: 600, whiteSpace: "nowrap", fontFamily: "'JetBrains Mono', monospace" }}>{fmt(price)}</span>
-                        </div>
-                        {bullets.length > 0 ? (
-                          <ul style={{ listStyle: "none", margin: "4px 0 0 0", padding: 0, fontSize: "9pt", color: slate, lineHeight: 1.6 }}>
-                            {bullets.map((b, bi) => (
-                              <li key={bi} style={{ paddingLeft: 16, position: "relative" }}>
-                                <span style={{ position: "absolute", left: 0, color: "#cbd5e1" }}>›</span>
-                                {b}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : item.description ? (
-                          <p style={{ fontSize: "9pt", color: slate, margin: "4px 0 0" }}>{item.description}</p>
-                        ) : null}
-                        {disciplines.length > 0 && (
-                          <div style={{ marginTop: 6, padding: "6px 10px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }}>
-                            <div style={{ fontSize: "8pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: slate, marginBottom: 4 }}>
-                              Work Types
-                              {disciplineFee > 0 && <span style={{ fontWeight: 400, marginLeft: 6 }}>({fmt(disciplineFee)} each)</span>}
-                            </div>
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                              {disciplines.map((d: string) => (
-                                <span key={d} style={{ fontSize: "8pt", padding: "1px 6px", background: "#e2e8f0", borderRadius: 3, color: charcoal, fontWeight: 500 }}>{d}</span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "9.5pt" }}>
+                    <tbody>
+                      {optionalItems.map((item: any, i: number) => {
+                        const price = Number(item.total_price || item.quantity * item.unit_price);
+                        return (
+                          <tr key={i} style={{ borderBottom: i < optionalItems.length - 1 ? "1px dashed #e2e8f0" : "none" }}>
+                            <td style={{ padding: "8px 0", color: charcoal }}>
+                              {item.name}
+                              {item.description && <span style={{ color: slate, marginLeft: 6 }}>— {item.description.split("\n")[0]}</span>}
+                            </td>
+                            <td style={{ padding: "8px 0", textAlign: "right", whiteSpace: "nowrap", fontWeight: 600, fontFamily: "'JetBrains Mono', monospace" }}>
+                              {fmt(price)}{item.quantity > 1 ? " each" : ""}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </>
               )}
 
@@ -442,13 +434,21 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                     </div>
                   )}
 
-                  {(proposal as any).terms_conditions && (
-                    <div>
-                      <p style={{ fontSize: "9.5pt", color: "#475569", whiteSpace: "pre-wrap", lineHeight: 1.65, margin: 0 }}>
-                        {interpolate((proposal as any).terms_conditions)}
-                      </p>
-                    </div>
-                  )}
+                  {(proposal as any).terms_conditions && (() => {
+                    const sections = parseTermsSections(interpolate((proposal as any).terms_conditions));
+                    return sections.map((sec, si) => (
+                      <div key={si} style={{ marginBottom: 14 }}>
+                        {sec.heading && (
+                          <h4 style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 4, color: charcoal }}>{sec.heading}</h4>
+                        )}
+                        {sec.body && (
+                          <p style={{ fontSize: "9.5pt", color: "#475569", whiteSpace: "pre-wrap", lineHeight: 1.65, margin: 0 }}>
+                            {sec.body}
+                          </p>
+                        )}
+                      </div>
+                    ));
+                  })()}
                 </div>
               )}
 
@@ -481,6 +481,9 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                         if (Array.isArray(c) && c[0]) return `${c[0].first_name || ""} ${c[0].last_name || ""}`.trim();
                         return "";
                       })()}</div>
+                      {(proposal as any).internal_signer_title && (
+                        <div><strong>Title:</strong> {(proposal as any).internal_signer_title}</div>
+                      )}
                       <div><strong>Date:</strong> {proposal.internal_signed_at ? fmtDate(proposal.internal_signed_at) : ""}</div>
                     </div>
                   </div>
@@ -497,6 +500,9 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                     </div>
                     <div style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>
                       <div><strong>By:</strong> {(proposal as any).client_signed_name || signer?.name || billTo?.name || ""}</div>
+                      {(proposal as any).client_signer_title && (
+                        <div><strong>Title:</strong> {(proposal as any).client_signer_title}</div>
+                      )}
                       <div><strong>Date:</strong> {proposal.client_signed_at ? fmtDate(proposal.client_signed_at) : ""}</div>
                     </div>
                   </div>
