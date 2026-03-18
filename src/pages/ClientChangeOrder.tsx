@@ -213,7 +213,7 @@ export default function ClientChangeOrderPage() {
   const projectAddress = project?.properties?.address || "";
   const projectNumber = project?.project_number || "";
 
-  const amber = "hsl(38, 92%, 50%)";
+  const amber = "#6db33f";
   const charcoal = "#1c2127";
   const slate = "#64748b";
   const borderColor = "#e5e7eb";
@@ -269,7 +269,7 @@ export default function ClientChangeOrderPage() {
             {co.deposit_percentage > 0 && !depositPaid && !co.deposit_paid_at && (
               <div className="bg-white shadow-md rounded-lg p-6" style={{ borderLeft: `4px solid ${amber}` }}>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="rounded-full p-2" style={{ background: "hsl(38, 92%, 50%, 0.1)" }}>
+                  <div className="rounded-full p-2" style={{ background: "#6db33f1a" }}>
                     <Mail className="h-5 w-5" style={{ color: amber }} />
                   </div>
                   <div>
@@ -282,19 +282,19 @@ export default function ClientChangeOrderPage() {
 
                 <div className="flex gap-2 mb-4">
                   <button
-                    className={`flex-1 text-sm font-medium py-2 px-3 rounded-lg border transition-colors ${paymentMethod === "card" ? "border-amber-400 bg-amber-50 text-amber-800" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
+                    className={`flex-1 text-sm font-medium py-2 px-3 rounded-lg border transition-colors ${paymentMethod === "card" ? "border-green-500 bg-green-50 text-green-800" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
                     onClick={() => setPaymentMethod("card")}
                   >
                     Credit Card
                   </button>
                   <button
-                    className={`flex-1 text-sm font-medium py-2 px-3 rounded-lg border transition-colors ${paymentMethod === "ach" ? "border-amber-400 bg-amber-50 text-amber-800" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
+                    className={`flex-1 text-sm font-medium py-2 px-3 rounded-lg border transition-colors ${paymentMethod === "ach" ? "border-green-500 bg-green-50 text-green-800" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
                     onClick={() => setPaymentMethod("ach")}
                   >
                     ACH Transfer
                   </button>
                   <button
-                    className={`flex-1 text-sm font-medium py-2 px-3 rounded-lg border transition-colors ${paymentMethod === "check" ? "border-amber-400 bg-amber-50 text-amber-800" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
+                    className={`flex-1 text-sm font-medium py-2 px-3 rounded-lg border transition-colors ${paymentMethod === "check" ? "border-green-500 bg-green-50 text-green-800" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
                     onClick={() => setPaymentMethod("check")}
                   >
                     Check

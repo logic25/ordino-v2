@@ -320,7 +320,7 @@ export default function ClientProposalPage() {
   const billTo = (contacts as any[]).find((c: any) => c.role === "bill_to");
   const signer = (contacts as any[]).find((c: any) => c.role === "sign");
 
-  const amber = "hsl(38, 92%, 50%)";
+  const amber = "#6db33f";
   const charcoal = "#1c2127";
   const slate = "#64748b";
   const lightBg = "#f8f9fa";
@@ -351,7 +351,7 @@ export default function ClientProposalPage() {
                     <Mail className="h-5 w-5" style={{ color: "#10b981" }} />
                   </div>
                 ) : (
-                  <div className="rounded-full p-2 animate-pulse" style={{ background: "hsl(38, 92%, 50%, 0.1)" }}>
+                  <div className="rounded-full p-2 animate-pulse" style={{ background: "#6db33f1a" }}>
                     <Clock className="h-5 w-5" style={{ color: amber }} />
                   </div>
                 )}
@@ -538,7 +538,7 @@ export default function ClientProposalPage() {
                     <div className="grid grid-cols-3 gap-3 mb-4">
                       <button
                         className="border-2 rounded-lg p-4 text-left transition-colors cursor-pointer"
-                        style={{ borderColor: selectedPayment === "card" ? amber : "#e2e8f0", background: selectedPayment === "card" ? "hsl(38, 92%, 50%, 0.06)" : undefined }}
+                        style={{ borderColor: selectedPayment === "card" ? amber : "#e2e8f0", background: selectedPayment === "card" ? "#6db33f0f" : undefined }}
                         onClick={() => setSelectedPayment("card")}
                       >
                         <CreditCard className="h-5 w-5 mb-2" style={{ color: amber }} />
@@ -547,7 +547,7 @@ export default function ClientProposalPage() {
                       </button>
                       <button
                         className="border-2 rounded-lg p-4 text-left transition-colors cursor-pointer"
-                        style={{ borderColor: selectedPayment === "ach" ? amber : "#e2e8f0", background: selectedPayment === "ach" ? "hsl(38, 92%, 50%, 0.06)" : undefined }}
+                        style={{ borderColor: selectedPayment === "ach" ? amber : "#e2e8f0", background: selectedPayment === "ach" ? "#6db33f0f" : undefined }}
                         onClick={() => setSelectedPayment("ach")}
                       >
                         <Building2 className="h-5 w-5 mb-2" style={{ color: amber }} />
@@ -556,7 +556,7 @@ export default function ClientProposalPage() {
                       </button>
                       <button
                         className="border-2 rounded-lg p-4 text-left transition-colors cursor-pointer"
-                        style={{ borderColor: selectedPayment === "check" ? amber : "#e2e8f0", background: selectedPayment === "check" ? "hsl(38, 92%, 50%, 0.06)" : undefined }}
+                        style={{ borderColor: selectedPayment === "check" ? amber : "#e2e8f0", background: selectedPayment === "check" ? "#6db33f0f" : undefined }}
                         onClick={() => setSelectedPayment("check")}
                       >
                         <FileText className="h-5 w-5 mb-2" style={{ color: amber }} />
@@ -567,7 +567,7 @@ export default function ClientProposalPage() {
                     {selectedPayment && (
                       <Button
                         className="w-full font-bold"
-                        style={{ background: amber, color: charcoal }}
+                        style={{ background: amber, color: "#fff" }}
                         onClick={() => setPaymentStep("form")}
                       >
                         Continue with {selectedPayment === "card" ? "Card" : selectedPayment === "ach" ? "ACH" : "Check"} <ChevronRight className="h-4 w-4 ml-1" />
@@ -605,10 +605,10 @@ export default function ClientProposalPage() {
 
 
                 className="flex items-center justify-between rounded-lg p-4 transition-shadow"
-                style={{ background: "hsl(38, 92%, 50%, 0.06)", border: `1px solid hsl(38, 92%, 50%, 0.25)` }}
+                style={{ background: "#6db33f0f", border: `1px solid #6db33f40` }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="rounded-full p-2" style={{ background: "hsl(38, 92%, 50%, 0.15)" }}>
+                  <div className="rounded-full p-2" style={{ background: "#6db33f26" }}>
                     <FileText className="h-5 w-5" style={{ color: amber }} />
                   </div>
                   <div>
@@ -840,7 +840,7 @@ export default function ClientProposalPage() {
 
             {/* Deposit callout */}
             {depositAmt > 0 && (
-              <div style={{ marginTop: 12, padding: "12px 20px", background: "hsl(38, 92%, 50%, 0.08)", borderLeft: `4px solid ${amber}`, borderRadius: "0 6px 6px 0", fontSize: "10pt" }}>
+              <div style={{ marginTop: 12, padding: "12px 20px", background: "#6db33f14", borderLeft: `4px solid ${amber}`, borderRadius: "0 6px 6px 0", fontSize: "10pt" }}>
                 <strong>Retainer Due Upon Signing:</strong> {fmt(depositAmt)}
                 {depositPct > 0 && <span style={{ color: slate, marginLeft: 6 }}>({depositPct}% of contract total)</span>}
               </div>
