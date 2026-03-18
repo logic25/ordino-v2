@@ -235,6 +235,7 @@ export function SignatureDialog({
     await onSign(signatureData, assignedPmId, recipient, ccEmails.length > 0 ? ccEmails : undefined);
     setHasDrawn(false);
     setAssignedPmId("");
+    setSelectedCcIds([]);
   };
 
   const fmt = (v: number | null) => {
