@@ -216,6 +216,7 @@ export default function ClientChangeOrderPage() {
   const amber = "hsl(38, 92%, 50%)";
   const charcoal = "#1c2127";
   const slate = "#64748b";
+  const borderColor = "#e5e7eb";
 
   return (
     <div className="min-h-screen bg-[#f1f5f9] print:bg-white">
@@ -223,9 +224,6 @@ export default function ClientChangeOrderPage() {
         @media print {
           @page { margin: 0.4in; size: letter; }
           body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          .co-header-banner { background: ${charcoal} !important; color: #fff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          .co-header-banner * { color: #fff !important; }
-          .co-header-banner .co-amber-label { color: ${amber} !important; }
           .co-accent-bar { background: ${amber} !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           .co-total-box { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           .co-reason-box { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -386,28 +384,30 @@ export default function ClientChangeOrderPage() {
         {/* CO Document */}
         <div className="bg-white shadow-md rounded-lg overflow-hidden print:shadow-none print:rounded-none">
           {/* Header */}
-          <div className="co-header-banner" style={{ background: charcoal, color: "#fff", padding: "28px 36px" }}>
+          <div style={{ padding: "28px 36px", borderBottom: `1px solid ${borderColor}` }}>
             <div className="flex justify-between items-start">
               <div>
-                {company?.logo_url && (
-                  <img src={company.logo_url} alt="Logo" className="h-10 mb-3" style={{ objectFit: "contain" }} />
+                {company?.logo_url ? (
+                  <img src={company.logo_url} alt="Logo" className="h-12 mb-3" style={{ objectFit: "contain" }} />
+                ) : (
+                  <h1 className="text-lg font-bold tracking-tight" style={{ color: charcoal }}>{company?.name || "Company"}</h1>
                 )}
-                <h1 className="text-lg font-bold tracking-tight">{company?.name || "Company"}</h1>
-                {company?.address && <p className="text-xs co-header-opacity" style={{ opacity: 0.8 }}>{company.address}</p>}
-                {company?.phone && <p className="text-xs co-header-opacity" style={{ opacity: 0.8 }}>Tel: {company.phone}</p>}
-                {company?.email && <p className="text-xs co-header-opacity" style={{ opacity: 0.8 }}>{company.email}</p>}
+                {company?.logo_url && <h1 className="text-lg font-bold tracking-tight" style={{ color: charcoal }}>{company?.name || "Company"}</h1>}
+                {company?.address && <p className="text-xs" style={{ color: slate }}>{company.address}</p>}
+                {company?.phone && <p className="text-xs" style={{ color: slate }}>Tel: {company.phone}</p>}
+                {company?.email && <p className="text-xs" style={{ color: slate }}>{company.email}</p>}
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-bold tracking-[2px] uppercase" style={{ color: amber }}>Change Order</p>
-                <p className="text-xl font-extrabold mt-1">{co.co_number}</p>
-                <p className="text-xs co-header-opacity mt-2" style={{ opacity: 0.7 }}>{fmtDate(co.created_at)}</p>
-                {co.requested_by && <p className="text-xs co-header-opacity" style={{ opacity: 0.7 }}>Requested by: {co.requested_by}</p>}
+                <p className="text-[10px] font-semibold tracking-[2px] uppercase" style={{ color: slate }}>Change Order</p>
+                <p className="text-xl font-extrabold mt-1" style={{ color: charcoal }}>{co.co_number}</p>
+                <p className="text-xs mt-2" style={{ color: slate }}>{fmtDate(co.created_at)}</p>
+                {co.requested_by && <p className="text-xs" style={{ color: slate }}>Requested by: {co.requested_by}</p>}
               </div>
             </div>
           </div>
 
-          {/* Amber accent bar */}
-          <div className="co-accent-bar" style={{ height: 4, background: amber }} />
+          {/* Accent line */}
+          <div className="co-accent-bar" style={{ height: 3, background: `linear-gradient(90deg, ${amber}, ${amber}88)` }} />
 
           {/* Body */}
           <div style={{ padding: "28px 36px" }}>
@@ -450,11 +450,11 @@ export default function ClientChangeOrderPage() {
             </div>
 
             {/* Total bar */}
-            <div className="co-total-box flex justify-between items-center rounded-md px-5 py-3 mt-5" style={{ background: charcoal }}>
-              <span className="text-sm font-bold uppercase tracking-wider text-white">
+            <div className="co-total-box flex justify-between items-center rounded-md px-5 py-3 mt-5" style={{ border: `2px solid ${charcoal}` }}>
+              <span className="text-sm font-bold uppercase tracking-wider" style={{ color: charcoal }}>
                 {isCredit ? "Total Credit" : "Total"}
               </span>
-              <span className="text-lg font-extrabold text-white">
+              <span className="text-lg font-extrabold" style={{ color: charcoal, fontFamily: "'JetBrains Mono', monospace" }}>
                 {isCredit ? `-${fmt(Math.abs(co.amount))}` : fmt(co.amount)}
               </span>
             </div>
