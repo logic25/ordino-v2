@@ -228,11 +228,16 @@ export function SignatureDialog({
       ? { name: selectedRecipient.name, email: selectedRecipient.email }
       : undefined;
 
-    // Build CC emails from selected contacts (exclude the primary recipient)
-    const ccEmails = selectedCcIds
+    // Build CC emails from selected contacts + manual input
+    const contactCcEmails = selectedCcIds
       .filter(id => id !== selectedRecipientId)
       .map(id => recipientOptions.find(r => r.id === id)?.email)
       .filter(Boolean) as string[];
+    const manualEmails = manualCcEmails
+      .split(",")
+      .map(e => e.trim())
+      .filter(e => e.includes("@"));
+    const ccEmails = [...new Set([...contactCcEmails, ...manualEmails])];
 
     track("proposals", "internal_sign_completed");
     await onSign(signatureData, assignedPmId, recipient, ccEmails.length > 0 ? ccEmails : undefined);
