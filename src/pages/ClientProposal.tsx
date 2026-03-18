@@ -913,6 +913,9 @@ export default function ClientProposalPage() {
                       </div>
                       <div style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>
                         <div><strong>By:</strong> {proposal.client_signed_name || signer?.name || billTo?.name || ""}</div>
+                        {proposal.client_signer_title && (
+                          <div><strong>Title:</strong> {proposal.client_signer_title}</div>
+                        )}
                         <div><strong>Date:</strong> {proposal.client_signed_at ? fmtDate(proposal.client_signed_at) : ""}</div>
                       </div>
                     </>
