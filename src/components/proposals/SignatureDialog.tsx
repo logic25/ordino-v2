@@ -58,6 +58,7 @@ export function SignatureDialog({
   const { data: contacts = [] } = useProposalContacts(proposal?.id);
   const [selectedRecipientId, setSelectedRecipientId] = useState("");
   const [selectedCcIds, setSelectedCcIds] = useState<string[]>([]);
+  const [manualCcEmails, setManualCcEmails] = useState("");
 
   // Build recipient options from contacts
   const recipientOptions = useMemo(() => {
