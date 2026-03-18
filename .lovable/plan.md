@@ -1,30 +1,24 @@
 
 
-## CitiSignal Complimentary Subscription Safeguards — Complete
+## Bug Analysis
 
-### What was built:
+### 1. Saved Signature Not Loading (Recurring)
 
-**1. Database migration** ✅
-- Added 6 columns to `signal_subscriptions`: `is_complimentary`, `enrolled_by`, `linked_project_id`, `monthly_rate`, `billing_start_date`, `comp_reason`
+**Root cause**: When the dialog opens a second time, `savedSignatureData` is already set from the previous open. The profile effect (line 107) sets it to the same value, which does NOT trigger a React re-render. Since the canvas drawing effect (line 125) depends on `[open, savedSignatureData]`, it doesn't re-fire — the signature never gets drawn.
 
-**2. useSignalSubscriptions hook updated** ✅
-- Types include all new fields + joined `enrolled_by_name`, `linked_project_name`, `linked_project_phase`
-- `useEnrollProperty` auto-sets `enrolled_by` to current user's profile ID
-- `useSignalSubscription` fetches joined profile name and project info
+**Fix**: In the reset effect (line 114), also reset `savedSignatureData` to `null`. This forces the profile effect to set it again (as a state change from `null` → data), which re-triggers the canvas drawing effect.
 
-**3. SignalEnrollDialog enhanced** ✅
-- Complimentary toggle (only enabled when property has active projects)
-- Linked project selector (required when complimentary)
-- Comp reason textarea
-- Monthly rate + billing start date inputs (for paid active subs)
-- Trial auto-expiry (14 days), comp auto-expiry (1 year)
-- Enrolled-by shown read-only on edit
+### 2. CC Option Not Available
 
-**4. SignalSection updated** ✅
-- Shows "Sold by: [Name]"
-- Shows "Complimentary — linked to [Project Name]" or "Paid — $X/mo"
-- Expiration countdown with color warnings
-- Warning badge if linked project closed or no linked project on comp
+**Root cause**: The CC section (line 307) only renders when there are other contacts besides the selected recipient. This proposal has only one contact (the Applicant), so the CC section is hidden entirely.
 
-**5. SignalStatusBadge updated** ✅
-- Gift icon shown for complimentary subscriptions
+**Fix**: Always show the CC section, but when there are no additional contacts to select from, show a free-text email input so the user can type any email address to CC. This also adds value when contacts exist — a free-text field alongside the checkbox list.
+
+### Changes
+
+**File: `src/components/proposals/SignatureDialog.tsx`**
+
+1. Add `setSavedSignatureData(null)` inside the reset effect (line 116) so the signature data is freshly loaded each time the dialog opens
+2. Add a free-text CC email input (comma-separated) that always appears, in addition to the existing contact checkboxes when available
+3. Merge free-text CC emails with checkbox-selected CC emails when signing
+
