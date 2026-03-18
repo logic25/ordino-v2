@@ -225,8 +225,14 @@ export function SignatureDialog({
       ? { name: selectedRecipient.name, email: selectedRecipient.email }
       : undefined;
 
+    // Build CC emails from selected contacts (exclude the primary recipient)
+    const ccEmails = selectedCcIds
+      .filter(id => id !== selectedRecipientId)
+      .map(id => recipientOptions.find(r => r.id === id)?.email)
+      .filter(Boolean) as string[];
+
     track("proposals", "internal_sign_completed");
-    await onSign(signatureData, assignedPmId, recipient);
+    await onSign(signatureData, assignedPmId, recipient, ccEmails.length > 0 ? ccEmails : undefined);
     setHasDrawn(false);
     setAssignedPmId("");
   };
