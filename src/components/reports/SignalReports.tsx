@@ -71,7 +71,8 @@ export default function SignalReports() {
 
   const active = subscriptions.filter((s) => s.status === "active");
   const complimentary = active.filter((s) => s.is_complimentary);
-  const paid = active.filter((s) => !s.is_complimentary);
+  const paid = active.filter((s) => !s.is_complimentary && Number(s.monthly_rate) > 0);
+  const unset = active.filter((s) => !s.is_complimentary && !Number(s.monthly_rate));
   const totalMonthlyRevenue = paid.reduce((sum, s) => sum + (Number(s.monthly_rate) || 0), 0);
   const expiringSoon = subscriptions.filter((s) => {
     if (!s.expires_at || s.status === "expired") return false;
@@ -90,7 +91,7 @@ export default function SignalReports() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{active.length}</div>
-            <p className="text-xs text-muted-foreground">{paid.length} paid · {complimentary.length} comp</p>
+            <p className="text-xs text-muted-foreground">{paid.length} paid · {complimentary.length} comp{unset.length > 0 ? ` · ${unset.length} not set` : ""}</p>
           </CardContent>
         </Card>
         <Card>
@@ -188,10 +189,12 @@ export default function SignalReports() {
                         <Badge variant="outline" className="gap-1 bg-purple-500/10 text-purple-600 border-purple-500/20">
                           <Gift className="h-3 w-3" /> Comp
                         </Badge>
-                      ) : (
+                      ) : Number(sub.monthly_rate) > 0 ? (
                         <Badge variant="outline" className="gap-1 bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
                           <DollarSign className="h-3 w-3" /> Paid
                         </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-muted-foreground">Not Set</Badge>
                       )}
                     </TableCell>
                     <TableCell>
