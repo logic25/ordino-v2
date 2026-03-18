@@ -222,7 +222,11 @@ Only include items that appear to be active procurement opportunities (RFPs, RFQ
                 try {
                   const resolved = new URL(rawUrl, source.source_url);
                   const hostname = resolved.hostname.toLowerCase();
-                  if (hostname === "nycha.gov" || hostname === "www.nycha.gov") return null;
+                  if (
+                    hostname === "nycha.gov" || hostname === "www.nycha.gov" ||
+                    hostname === "web.nycha.info" ||
+                    resolved.pathname.includes("OA_HTML/OA.jsp")
+                  ) return null;
                   return resolved.toString();
                 } catch {
                   return null;
