@@ -481,6 +481,9 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                         if (Array.isArray(c) && c[0]) return `${c[0].first_name || ""} ${c[0].last_name || ""}`.trim();
                         return "";
                       })()}</div>
+                      {(proposal as any).internal_signer_title && (
+                        <div><strong>Title:</strong> {(proposal as any).internal_signer_title}</div>
+                      )}
                       <div><strong>Date:</strong> {proposal.internal_signed_at ? fmtDate(proposal.internal_signed_at) : ""}</div>
                     </div>
                   </div>
@@ -497,6 +500,9 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                     </div>
                     <div style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>
                       <div><strong>By:</strong> {(proposal as any).client_signed_name || signer?.name || billTo?.name || ""}</div>
+                      {(proposal as any).client_signer_title && (
+                        <div><strong>Title:</strong> {(proposal as any).client_signer_title}</div>
+                      )}
                       <div><strong>Date:</strong> {proposal.client_signed_at ? fmtDate(proposal.client_signed_at) : ""}</div>
                     </div>
                   </div>
