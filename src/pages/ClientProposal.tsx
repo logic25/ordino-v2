@@ -10,6 +10,7 @@ import { Loader2, RotateCcw, CheckCircle2, PenLine, CreditCard, Building2, FileT
 import { useToast } from "@/hooks/use-toast";
 import { BlobProvider } from "@react-pdf/renderer";
 import { DepositReceiptPDF, type DepositReceiptData } from "@/components/invoices/DepositReceiptPDF";
+import { parseTermsSections } from "@/components/proposals/proposalUtils";
 
 export default function ClientProposalPage() {
   const { token } = useParams<{ token: string }>();
