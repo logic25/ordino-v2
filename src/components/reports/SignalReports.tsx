@@ -71,7 +71,8 @@ export default function SignalReports() {
 
   const active = subscriptions.filter((s) => s.status === "active");
   const complimentary = active.filter((s) => s.is_complimentary);
-  const paid = active.filter((s) => !s.is_complimentary);
+  const paid = active.filter((s) => !s.is_complimentary && Number(s.monthly_rate) > 0);
+  const unset = active.filter((s) => !s.is_complimentary && !Number(s.monthly_rate));
   const totalMonthlyRevenue = paid.reduce((sum, s) => sum + (Number(s.monthly_rate) || 0), 0);
   const expiringSoon = subscriptions.filter((s) => {
     if (!s.expires_at || s.status === "expired") return false;
