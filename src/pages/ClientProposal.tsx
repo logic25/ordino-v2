@@ -556,7 +556,7 @@ export default function ClientProposalPage() {
                       </button>
                       <button
                         className="border-2 rounded-lg p-4 text-left transition-colors cursor-pointer"
-                        style={{ borderColor: selectedPayment === "check" ? amber : "#e2e8f0", background: selectedPayment === "check" ? "hsl(38, 92%, 50%, 0.06)" : undefined }}
+                        style={{ borderColor: selectedPayment === "check" ? amber : "#e2e8f0", background: selectedPayment === "check" ? "#6db33f0f" : undefined }}
                         onClick={() => setSelectedPayment("check")}
                       >
                         <FileText className="h-5 w-5 mb-2" style={{ color: amber }} />
