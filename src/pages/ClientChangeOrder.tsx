@@ -450,11 +450,11 @@ export default function ClientChangeOrderPage() {
             </div>
 
             {/* Total bar */}
-            <div className="co-total-box flex justify-between items-center rounded-md px-5 py-3 mt-5" style={{ background: charcoal }}>
-              <span className="text-sm font-bold uppercase tracking-wider text-white">
+            <div className="co-total-box flex justify-between items-center rounded-md px-5 py-3 mt-5" style={{ border: `2px solid ${charcoal}` }}>
+              <span className="text-sm font-bold uppercase tracking-wider" style={{ color: charcoal }}>
                 {isCredit ? "Total Credit" : "Total"}
               </span>
-              <span className="text-lg font-extrabold text-white">
+              <span className="text-lg font-extrabold" style={{ color: charcoal, fontFamily: "'JetBrains Mono', monospace" }}>
                 {isCredit ? `-${fmt(Math.abs(co.amount))}` : fmt(co.amount)}
               </span>
             </div>
