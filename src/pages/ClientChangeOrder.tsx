@@ -282,7 +282,7 @@ export default function ClientChangeOrderPage() {
 
                 <div className="flex gap-2 mb-4">
                   <button
-                    className={`flex-1 text-sm font-medium py-2 px-3 rounded-lg border transition-colors ${paymentMethod === "card" ? "border-amber-400 bg-amber-50 text-amber-800" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
+                    className={`flex-1 text-sm font-medium py-2 px-3 rounded-lg border transition-colors ${paymentMethod === "card" ? "border-green-500 bg-green-50 text-green-800" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
                     onClick={() => setPaymentMethod("card")}
                   >
                     Credit Card
