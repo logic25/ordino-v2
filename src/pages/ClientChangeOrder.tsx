@@ -216,6 +216,7 @@ export default function ClientChangeOrderPage() {
   const amber = "hsl(38, 92%, 50%)";
   const charcoal = "#1c2127";
   const slate = "#64748b";
+  const borderColor = "#e5e7eb";
 
   return (
     <div className="min-h-screen bg-[#f1f5f9] print:bg-white">
