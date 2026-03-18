@@ -891,6 +891,9 @@ export default function ClientProposalPage() {
                     <div><strong>By:</strong> {proposal.internal_signer
                       ? `${proposal.internal_signer.first_name} ${proposal.internal_signer.last_name}`
                       : ""}</div>
+                    {proposal.internal_signer_title && (
+                      <div><strong>Title:</strong> {proposal.internal_signer_title}</div>
+                    )}
                     <div><strong>Date:</strong> {proposal.internal_signed_at ? fmtDate(proposal.internal_signed_at) : ""}</div>
                   </div>
                 </div>
