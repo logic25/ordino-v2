@@ -343,7 +343,7 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                       <ul style={{ listStyle: "none", margin: "4px 0 0 0", padding: 0, fontSize: "9.5pt", color: slate, lineHeight: 1.65 }}>
                         {bullets.map((b, bi) => (
                           <li key={bi} style={{ paddingLeft: 16, position: "relative" }}>
-                            <span style={{ position: "absolute", left: 0, color: amber, fontWeight: 700 }}>›</span>
+                            <span style={{ position: "absolute", left: 0, color: amber, fontWeight: 700 }}>•</span>
                             {b}
                           </li>
                         ))}
