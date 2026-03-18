@@ -466,11 +466,11 @@ export default function ClientChangeOrderPage() {
 
             {/* Deposit callout */}
             {co.deposit_percentage > 0 && (
-              <div className="co-total-box flex justify-between items-center rounded-md px-5 py-2.5 mt-2.5" style={{ background: "#fffbeb", border: "1px solid #fde68a" }}>
-                <span className="text-sm font-bold" style={{ color: "#92400e" }}>
+              <div className="co-total-box flex justify-between items-center rounded-md px-5 py-2.5 mt-2.5" style={{ background: amberSoft, border: `1px solid ${amberBorder}` }}>
+                <span className="text-sm font-bold" style={{ color: charcoal }}>
                   Deposit Due Upon Signing ({co.deposit_percentage}%)
                 </span>
-                <span className="text-base font-bold" style={{ color: "#92400e" }}>
+                <span className="text-base font-bold" style={{ color: charcoal }}>
                   {fmt(Math.abs(co.amount) * co.deposit_percentage / 100)}
                 </span>
               </div>

@@ -381,13 +381,13 @@ export default function ClientProposalPage() {
 
                 {proposal.deposit_paid_at ? (
                   <div className="text-center py-6">
-                    <CheckCircle2 className="h-12 w-12 mx-auto mb-4" style={{ color: "#10b981" }} />
+                    <CheckCircle2 className="h-12 w-12 mx-auto mb-4" style={{ color: amber }} />
                     <h4 style={{ fontSize: "13pt", fontWeight: 800, color: charcoal, marginBottom: 4 }}>Deposit Already Paid</h4>
                     <p style={{ fontSize: "10pt", color: slate }}>The deposit for this proposal has already been processed.</p>
                   </div>
                 ) : paymentStep === "success" ? (
                   <div className="text-center py-6">
-                    <CheckCircle2 className="h-12 w-12 mx-auto mb-4" style={{ color: "#10b981" }} />
+                    <CheckCircle2 className="h-12 w-12 mx-auto mb-4" style={{ color: amber }} />
                     <h4 style={{ fontSize: "13pt", fontWeight: 800, color: charcoal, marginBottom: 4 }}>Payment Received!</h4>
                     <p style={{ fontSize: "10pt", color: slate, marginBottom: 12 }}>
                       Your deposit of <strong style={{ color: charcoal }}>{fmt(depositAmt)}</strong> has been processed successfully.
@@ -455,7 +455,7 @@ export default function ClientProposalPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 p-2 rounded" style={{ background: lightBg, border: "1px solid #e2e8f0" }}>
-                        <Shield className="h-3.5 w-3.5" style={{ color: "#10b981" }} />
+                        <Shield className="h-3.5 w-3.5" style={{ color: amber }} />
                         <span style={{ fontSize: "8pt", color: slate }}>256-bit SSL encrypted. Your card details are never stored on our servers.</span>
                       </div>
                       <Button
@@ -488,7 +488,7 @@ export default function ClientProposalPage() {
                         <Input value={bankAccount} onChange={e => setBankAccount(e.target.value.replace(/\D/g, '').substring(0,17))} placeholder="Your account number" className="mt-1 font-mono" />
                       </div>
                       <div className="flex items-center gap-2 p-2 rounded" style={{ background: lightBg, border: "1px solid #e2e8f0" }}>
-                        <Shield className="h-3.5 w-3.5" style={{ color: "#10b981" }} />
+                        <Shield className="h-3.5 w-3.5" style={{ color: amber }} />
                         <span style={{ fontSize: "8pt", color: slate }}>NACHA-compliant ACH transfer. Bank details are encrypted and securely processed.</span>
                       </div>
                       <Button
