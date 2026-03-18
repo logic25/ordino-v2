@@ -53,7 +53,7 @@ export function SignatureDialog({
   const [saveSignature, setSaveSignature] = useState(true);
   const [savedSignatureData, setSavedSignatureData] = useState<string | null>(null);
   const { data: profiles = [] } = useAssignableProfiles();
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
   const { track } = useTelemetry();
   const { data: contacts = [] } = useProposalContacts(proposal?.id);
   const [selectedRecipientId, setSelectedRecipientId] = useState("");
