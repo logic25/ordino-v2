@@ -214,7 +214,39 @@ Only include items that appear to be active procurement opportunities (RFPs, RFQ
         totalScanned += listings.length;
 
         for (const listing of listings) {
-          allListings.push({ ...listing, source_id: source.id, source_name: source.source_name });
+          const rawUrl = typeof listing.url === "string" ? listing.url.trim() : "";
+          const rawPdfUrl = typeof listing.pdf_url === "string" ? listing.pdf_url.trim() : "";
+
+          const normalizedUrl = rawUrl
+            ? (() => {
+                try {
+                  const resolved = new URL(rawUrl, source.source_url);
+                  const hostname = resolved.hostname.toLowerCase();
+                  if (hostname === "nycha.gov" || hostname === "www.nycha.gov") return null;
+                  return resolved.toString();
+                } catch {
+                  return null;
+                }
+              })()
+            : null;
+
+          const normalizedPdfUrl = rawPdfUrl
+            ? (() => {
+                try {
+                  return new URL(rawPdfUrl, source.source_url).toString();
+                } catch {
+                  return null;
+                }
+              })()
+            : null;
+
+          allListings.push({
+            ...listing,
+            url: normalizedUrl,
+            pdf_url: normalizedPdfUrl,
+            source_id: source.id,
+            source_name: source.source_name,
+          });
         }
 
         // Update last_checked_at

@@ -469,8 +469,8 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
                 <Sparkles className="h-4 w-4 mr-2" /> Generate Response
               </Button>
             )}
-            {rfp.original_url && (
-              <Button variant="outline" onClick={() => window.open(rfp.original_url!, "_blank", "noopener,noreferrer")}>
+            {originalLink && (
+              <Button variant="outline" onClick={() => window.open(originalLink, "_blank", "noopener,noreferrer")}>
                 <ExternalLink className="h-4 w-4 mr-2" /> View Original
               </Button>
             )}
