@@ -213,7 +213,9 @@ export default function ClientChangeOrderPage() {
   const projectAddress = project?.properties?.address || "";
   const projectNumber = project?.project_number || "";
 
-  const amber = "#6db33f";
+  const amber = "hsl(65 69% 54%)";
+  const amberSoft = "hsl(65 69% 54% / 0.12)";
+  const amberBorder = "hsl(65 69% 54% / 0.28)";
   const charcoal = "#1c2127";
   const slate = "#64748b";
   const borderColor = "#e5e7eb";
@@ -233,153 +235,156 @@ export default function ClientChangeOrderPage() {
       `}</style>
       <div className="max-w-[720px] mx-auto py-6 px-4 print:max-w-none print:p-0">
         {/* Already signed confirmation */}
-        {alreadySigned && (
-          <div className="space-y-4 mb-6 print:hidden">
-            <div className="bg-white shadow-md rounded-lg p-8 text-center">
-              <div className="inline-flex items-center justify-center rounded-full p-3 mb-4" style={{ background: "hsl(160, 84%, 39%, 0.1)" }}>
-                <CheckCircle2 className="h-12 w-12" style={{ color: "#10b981" }} />
-              </div>
-              <h2 className="text-xl font-bold mb-2" style={{ color: charcoal }}>Change Order Approved!</h2>
-              <p className="text-sm max-w-md mx-auto" style={{ color: slate }}>
-                Thank you for signing <strong>{co.co_number}</strong>. The team has been notified.
-              </p>
-            </div>
-
-            {/* Auto-send status */}
-            {autoSendStatus === "sending" && (
-              <div className="bg-white shadow-md rounded-lg p-4 flex items-center gap-3" style={{ borderLeft: `4px solid ${amber}` }}>
-                <Loader2 className="h-4 w-4 animate-spin" style={{ color: amber }} />
-                <span className="text-sm" style={{ color: slate }}>Sending signed copy to {co.sent_to_email}...</span>
-              </div>
-            )}
-            {autoSendStatus === "sent" && (
-              <div className="bg-white shadow-md rounded-lg p-4 flex items-center gap-3" style={{ borderLeft: "4px solid #10b981" }}>
-                <CheckCircle2 className="h-4 w-4" style={{ color: "#10b981" }} />
-                <span className="text-sm" style={{ color: charcoal }}>Signed copy sent to <strong>{co.sent_to_email}</strong></span>
-              </div>
-            )}
-            {autoSendStatus === "failed" && (
-              <div className="bg-white shadow-md rounded-lg p-4 flex items-center gap-3" style={{ borderLeft: "4px solid #ef4444" }}>
-                <Mail className="h-4 w-4" style={{ color: "#ef4444" }} />
-                <span className="text-sm" style={{ color: slate }}>Failed to auto-send copy. Use the Print button for your records.</span>
-              </div>
-            )}
-
-            {/* Deposit Payment Section */}
-            {co.deposit_percentage > 0 && !depositPaid && !co.deposit_paid_at && (
-              <div className="bg-white shadow-md rounded-lg p-6" style={{ borderLeft: `4px solid ${amber}` }}>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="rounded-full p-2" style={{ background: "#6db33f1a" }}>
-                    <Mail className="h-5 w-5" style={{ color: amber }} />
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold" style={{ color: charcoal }}>Deposit Required</div>
-                    <div className="text-xs" style={{ color: slate }}>
-                      {co.deposit_percentage}% deposit — {fmt(Math.abs(co.amount) * co.deposit_percentage / 100)}
-                    </div>
-                  </div>
+          {alreadySigned && (
+            <div className="space-y-4 mb-6 print:hidden">
+              <div className="bg-white shadow-md rounded-lg p-8 text-center">
+                <div className="inline-flex items-center justify-center rounded-full p-3 mb-4" style={{ background: amberSoft }}>
+                  <CheckCircle2 className="h-12 w-12" style={{ color: amber }} />
                 </div>
+                <h2 className="text-xl font-bold mb-2" style={{ color: charcoal }}>Change Order Approved!</h2>
+                <p className="text-sm max-w-md mx-auto" style={{ color: slate }}>
+                  Thank you for signing <strong>{co.co_number}</strong>. The team has been notified.
+                </p>
+              </div>
 
-                <div className="flex gap-2 mb-4">
-                  <button
-                    className={`flex-1 text-sm font-medium py-2 px-3 rounded-lg border transition-colors ${paymentMethod === "card" ? "border-green-500 bg-green-50 text-green-800" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
-                    onClick={() => setPaymentMethod("card")}
-                  >
-                    Credit Card
-                  </button>
-                  <button
-                    className={`flex-1 text-sm font-medium py-2 px-3 rounded-lg border transition-colors ${paymentMethod === "ach" ? "border-green-500 bg-green-50 text-green-800" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
-                    onClick={() => setPaymentMethod("ach")}
-                  >
-                    ACH Transfer
-                  </button>
-                  <button
-                    className={`flex-1 text-sm font-medium py-2 px-3 rounded-lg border transition-colors ${paymentMethod === "check" ? "border-green-500 bg-green-50 text-green-800" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
-                    onClick={() => setPaymentMethod("check")}
-                  >
-                    Check
-                  </button>
+              {/* Auto-send status */}
+              {autoSendStatus === "sending" && (
+                <div className="bg-white shadow-md rounded-lg p-4 flex items-center gap-3" style={{ borderLeft: `4px solid ${amber}` }}>
+                  <Loader2 className="h-4 w-4 animate-spin" style={{ color: amber }} />
+                  <span className="text-sm" style={{ color: slate }}>Sending signed copy to {co.sent_to_email}...</span>
                 </div>
+              )}
+              {autoSendStatus === "sent" && (
+                <div className="bg-white shadow-md rounded-lg p-4 flex items-center gap-3" style={{ borderLeft: `4px solid ${amber}` }}>
+                  <CheckCircle2 className="h-4 w-4" style={{ color: amber }} />
+                  <span className="text-sm" style={{ color: charcoal }}>Signed copy sent to <strong>{co.sent_to_email}</strong></span>
+                </div>
+              )}
+              {autoSendStatus === "failed" && (
+                <div className="bg-white shadow-md rounded-lg p-4 flex items-center gap-3" style={{ borderLeft: "4px solid #ef4444" }}>
+                  <Mail className="h-4 w-4" style={{ color: "#ef4444" }} />
+                  <span className="text-sm" style={{ color: slate }}>Failed to auto-send copy. Use the Print button for your records.</span>
+                </div>
+              )}
 
-                {paymentMethod === "card" ? (
-                  <div className="space-y-3 mb-4">
-                    <Input placeholder="Card Number" />
-                    <div className="grid grid-cols-2 gap-3">
-                      <Input placeholder="MM / YY" />
-                      <Input placeholder="CVC" />
+              {/* Deposit Payment Section */}
+              {co.deposit_percentage > 0 && !depositPaid && !co.deposit_paid_at && (
+                <div className="bg-white shadow-md rounded-lg p-6" style={{ borderLeft: `4px solid ${amber}` }}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="rounded-full p-2" style={{ background: amberSoft }}>
+                      <Mail className="h-5 w-5" style={{ color: amber }} />
                     </div>
-                  </div>
-                ) : paymentMethod === "ach" ? (
-                  <div className="space-y-3 mb-4">
-                    <Input placeholder="Routing Number" />
-                    <Input placeholder="Account Number" />
-                  </div>
-                ) : (
-                  <div className="space-y-3 mb-4">
-                    <div className="rounded-lg p-4" style={{ background: "#f8f9fa", border: "1px solid #e2e8f0" }}>
-                      <div className="text-sm font-bold mb-2" style={{ color: charcoal }}>Mail your check to:</div>
-                      <div className="text-sm" style={{ color: charcoal, lineHeight: 1.6 }}>
-                        <strong>{company?.name || "Company"}</strong><br />
-                        {company?.address || "Company Address"}
+                    <div>
+                      <div className="text-sm font-bold" style={{ color: charcoal }}>Deposit Required</div>
+                      <div className="text-xs" style={{ color: slate }}>
+                        {co.deposit_percentage}% deposit — {fmt(Math.abs(co.amount) * co.deposit_percentage / 100)}
                       </div>
                     </div>
-                    <div className="text-xs" style={{ color: slate }}>
-                      Make payable to: <strong>{company?.name || "Company"}</strong><br />
-                      Reference: <strong>{co.co_number}</strong>
+                  </div>
+
+                  <div className="flex gap-2 mb-4">
+                    <button
+                      className="flex-1 text-sm font-medium py-2 px-3 rounded-lg border transition-colors"
+                      style={{ borderColor: paymentMethod === "card" ? amber : "#e5e7eb", background: paymentMethod === "card" ? amberSoft : "#ffffff", color: paymentMethod === "card" ? charcoal : slate }}
+                      onClick={() => setPaymentMethod("card")}
+                    >
+                      Credit Card
+                    </button>
+                    <button
+                      className="flex-1 text-sm font-medium py-2 px-3 rounded-lg border transition-colors"
+                      style={{ borderColor: paymentMethod === "ach" ? amber : "#e5e7eb", background: paymentMethod === "ach" ? amberSoft : "#ffffff", color: paymentMethod === "ach" ? charcoal : slate }}
+                      onClick={() => setPaymentMethod("ach")}
+                    >
+                      ACH Transfer
+                    </button>
+                    <button
+                      className="flex-1 text-sm font-medium py-2 px-3 rounded-lg border transition-colors"
+                      style={{ borderColor: paymentMethod === "check" ? amber : "#e5e7eb", background: paymentMethod === "check" ? amberSoft : "#ffffff", color: paymentMethod === "check" ? charcoal : slate }}
+                      onClick={() => setPaymentMethod("check")}
+                    >
+                      Check
+                    </button>
+                  </div>
+
+                  {paymentMethod === "card" ? (
+                    <div className="space-y-3 mb-4">
+                      <Input placeholder="Card Number" />
+                      <div className="grid grid-cols-2 gap-3">
+                        <Input placeholder="MM / YY" />
+                        <Input placeholder="CVC" />
+                      </div>
                     </div>
-                  </div>
-                )}
+                  ) : paymentMethod === "ach" ? (
+                    <div className="space-y-3 mb-4">
+                      <Input placeholder="Routing Number" />
+                      <Input placeholder="Account Number" />
+                    </div>
+                  ) : (
+                    <div className="space-y-3 mb-4">
+                      <div className="rounded-lg p-4" style={{ background: "#f8f9fa", border: "1px solid #e2e8f0" }}>
+                        <div className="text-sm font-bold mb-2" style={{ color: charcoal }}>Mail your check to:</div>
+                        <div className="text-sm" style={{ color: charcoal, lineHeight: 1.6 }}>
+                          <strong>{company?.name || "Company"}</strong><br />
+                          {company?.address || "Company Address"}
+                        </div>
+                      </div>
+                      <div className="text-xs" style={{ color: slate }}>
+                        Make payable to: <strong>{company?.name || "Company"}</strong><br />
+                        Reference: <strong>{co.co_number}</strong>
+                      </div>
+                    </div>
+                  )}
 
-                <Button
-                  className="w-full"
-                  style={{ background: amber, color: "#fff" }}
-                  disabled={depositPaying}
-                  onClick={async () => {
-                    setDepositPaying(true);
-                    try {
-                      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-                      const res = await fetch(
-                        `https://${projectId}.supabase.co/functions/v1/public-co?token=${encodeURIComponent(token!)}`,
-                        {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ action: "deposit" }),
-                        }
-                      );
-                      if (!res.ok) throw new Error("Deposit failed");
-                      setDepositPaid(true);
-                      toast({ title: paymentMethod === "check" ? "Check payment noted!" : "Deposit received!", description: `Payment of ${fmt(Math.abs(co.amount) * co.deposit_percentage / 100)} ${paymentMethod === "check" ? "will be processed upon receipt." : "processed."}` });
-                    } catch {
-                      toast({ title: "Payment failed", description: "Please try again.", variant: "destructive" });
-                    } finally {
-                      setDepositPaying(false);
-                    }
-                  }}
-                >
-                  {depositPaying ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  {paymentMethod === "check" ? `I'll Send a Check — ${fmt(Math.abs(co.amount) * co.deposit_percentage / 100)}` : `Pay Deposit — ${fmt(Math.abs(co.amount) * co.deposit_percentage / 100)}`}
-                </Button>
-              </div>
-            )}
+                  <Button
+                    className="w-full"
+                    style={{ background: amber, color: charcoal }}
+                    disabled={depositPaying}
+                    onClick={async () => {
+                      setDepositPaying(true);
+                      try {
+                        const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+                        const res = await fetch(
+                          `https://${projectId}.supabase.co/functions/v1/public-co?token=${encodeURIComponent(token!)}`,
+                          {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ action: "deposit" }),
+                          }
+                        );
+                        if (!res.ok) throw new Error("Deposit failed");
+                        setDepositPaid(true);
+                        toast({ title: paymentMethod === "check" ? "Check payment noted!" : "Deposit received!", description: `Payment of ${fmt(Math.abs(co.amount) * co.deposit_percentage / 100)} ${paymentMethod === "check" ? "will be processed upon receipt." : "processed."}` });
+                      } catch {
+                        toast({ title: "Payment failed", description: "Please try again.", variant: "destructive" });
+                      } finally {
+                        setDepositPaying(false);
+                      }
+                    }}
+                  >
+                    {depositPaying ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    {paymentMethod === "check" ? `I'll Send a Check — ${fmt(Math.abs(co.amount) * co.deposit_percentage / 100)}` : `Pay Deposit — ${fmt(Math.abs(co.amount) * co.deposit_percentage / 100)}`}
+                  </Button>
+                </div>
+              )}
 
-            {/* Deposit paid receipt */}
-            {(depositPaid || co.deposit_paid_at) && co.deposit_percentage > 0 && (
-              <div className="bg-white shadow-md rounded-lg p-5" style={{ borderLeft: "4px solid #10b981" }}>
-                <div className="flex items-center gap-3">
-                  <div className="rounded-full p-2" style={{ background: "hsl(160, 84%, 39%, 0.1)" }}>
-                    <CheckCircle2 className="h-5 w-5" style={{ color: "#10b981" }} />
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold" style={{ color: charcoal }}>Deposit Received</div>
-                    <div className="text-xs" style={{ color: slate }}>
-                      {fmt(Math.abs(co.amount) * co.deposit_percentage / 100)} ({co.deposit_percentage}%) has been processed.
+              {/* Deposit paid receipt */}
+              {(depositPaid || co.deposit_paid_at) && co.deposit_percentage > 0 && (
+                <div className="bg-white shadow-md rounded-lg p-5" style={{ borderLeft: `4px solid ${amber}` }}>
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-full p-2" style={{ background: amberSoft }}>
+                      <CheckCircle2 className="h-5 w-5" style={{ color: amber }} />
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold" style={{ color: charcoal }}>Deposit Received</div>
+                      <div className="text-xs" style={{ color: slate }}>
+                        {fmt(Math.abs(co.amount) * co.deposit_percentage / 100)} ({co.deposit_percentage}%) has been processed.
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          )}
 
         {/* CO Document */}
         <div className="bg-white shadow-md rounded-lg overflow-hidden print:shadow-none print:rounded-none">
@@ -397,9 +402,9 @@ export default function ClientChangeOrderPage() {
                 {company?.phone && <p className="text-xs" style={{ color: slate }}>Tel: {company.phone}</p>}
                 {company?.email && <p className="text-xs" style={{ color: slate }}>{company.email}</p>}
               </div>
-              <div className="text-right">
+              <div className="text-right" style={{ minWidth: 148, whiteSpace: "nowrap", flexShrink: 0 }}>
                 <p className="text-[10px] font-semibold tracking-[2px] uppercase" style={{ color: slate }}>Change Order</p>
-                <p className="text-xl font-extrabold mt-1" style={{ color: charcoal }}>{co.co_number}</p>
+                <p className="text-xl font-extrabold mt-1" style={{ color: charcoal, whiteSpace: "nowrap", lineHeight: 1 }}>{co.co_number}</p>
                 <p className="text-xs mt-2" style={{ color: slate }}>{fmtDate(co.created_at)}</p>
                 {co.requested_by && <p className="text-xs" style={{ color: slate }}>Requested by: {co.requested_by}</p>}
               </div>
@@ -407,7 +412,7 @@ export default function ClientChangeOrderPage() {
           </div>
 
           {/* Accent line */}
-          <div className="co-accent-bar" style={{ height: 3, background: `linear-gradient(90deg, ${amber}, ${amber}88)` }} />
+          <div className="co-accent-bar" style={{ height: 3, background: amber }} />
 
           {/* Body */}
           <div style={{ padding: "28px 36px" }}>
@@ -461,11 +466,11 @@ export default function ClientChangeOrderPage() {
 
             {/* Deposit callout */}
             {co.deposit_percentage > 0 && (
-              <div className="co-total-box flex justify-between items-center rounded-md px-5 py-2.5 mt-2.5" style={{ background: "#fffbeb", border: "1px solid #fde68a" }}>
-                <span className="text-sm font-bold" style={{ color: "#92400e" }}>
+              <div className="co-total-box flex justify-between items-center rounded-md px-5 py-2.5 mt-2.5" style={{ background: amberSoft, border: `1px solid ${amberBorder}` }}>
+                <span className="text-sm font-bold" style={{ color: charcoal }}>
                   Deposit Due Upon Signing ({co.deposit_percentage}%)
                 </span>
-                <span className="text-base font-bold" style={{ color: "#92400e" }}>
+                <span className="text-base font-bold" style={{ color: charcoal }}>
                   {fmt(Math.abs(co.amount) * co.deposit_percentage / 100)}
                 </span>
               </div>

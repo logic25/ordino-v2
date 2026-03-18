@@ -320,7 +320,9 @@ export default function ClientProposalPage() {
   const billTo = (contacts as any[]).find((c: any) => c.role === "bill_to");
   const signer = (contacts as any[]).find((c: any) => c.role === "sign");
 
-  const amber = "#6db33f";
+  const amber = "hsl(65 69% 54%)";
+  const amberSoft = "hsl(65 69% 54% / 0.12)";
+  const amberBorder = "hsl(65 69% 54% / 0.28)";
   const charcoal = "#1c2127";
   const slate = "#64748b";
   const lightBg = "#f8f9fa";
@@ -334,8 +336,8 @@ export default function ClientProposalPage() {
           <div className="space-y-4">
             {/* Confirmation Banner */}
             <div className="bg-white shadow-md rounded-lg p-8 text-center">
-              <div className="inline-flex items-center justify-center rounded-full p-3 mb-4" style={{ background: "hsl(160, 84%, 39%, 0.1)" }}>
-                <CheckCircle2 className="h-12 w-12" style={{ color: "#10b981" }} />
+              <div className="inline-flex items-center justify-center rounded-full p-3 mb-4" style={{ background: amberSoft }}>
+                <CheckCircle2 className="h-12 w-12" style={{ color: amber }} />
               </div>
               <h2 className="text-xl font-bold mb-2" style={{ color: charcoal }}>Proposal Accepted!</h2>
               <p className="text-sm max-w-md mx-auto" style={{ color: slate }}>
@@ -344,14 +346,14 @@ export default function ClientProposalPage() {
             </div>
 
             {/* Welcome Email Status */}
-            <div className="bg-white shadow-md rounded-lg p-5 overflow-hidden" style={{ borderLeft: `4px solid ${welcomeEmailSent ? "#10b981" : amber}` }}>
+            <div className="bg-white shadow-md rounded-lg p-5 overflow-hidden" style={{ borderLeft: `4px solid ${amber}` }}>
               <div className="flex items-center gap-3">
                 {welcomeEmailSent ? (
-                  <div className="rounded-full p-2" style={{ background: "hsl(160, 84%, 39%, 0.1)" }}>
-                    <Mail className="h-5 w-5" style={{ color: "#10b981" }} />
+                  <div className="rounded-full p-2" style={{ background: amberSoft }}>
+                    <Mail className="h-5 w-5" style={{ color: amber }} />
                   </div>
                 ) : (
-                  <div className="rounded-full p-2 animate-pulse" style={{ background: "#6db33f1a" }}>
+                  <div className="rounded-full p-2 animate-pulse" style={{ background: amberSoft }}>
                     <Clock className="h-5 w-5" style={{ color: amber }} />
                   </div>
                 )}
@@ -365,7 +367,7 @@ export default function ClientProposalPage() {
                       : "Preparing your personalized welcome email with project manager details..."}
                   </div>
                 </div>
-                {welcomeEmailSent && <CheckCircle2 className="h-5 w-5 shrink-0" style={{ color: "#10b981" }} />}
+                {welcomeEmailSent && <CheckCircle2 className="h-5 w-5 shrink-0" style={{ color: amber }} />}
               </div>
             </div>
 
@@ -379,13 +381,13 @@ export default function ClientProposalPage() {
 
                 {proposal.deposit_paid_at ? (
                   <div className="text-center py-6">
-                    <CheckCircle2 className="h-12 w-12 mx-auto mb-4" style={{ color: "#10b981" }} />
+                    <CheckCircle2 className="h-12 w-12 mx-auto mb-4" style={{ color: amber }} />
                     <h4 style={{ fontSize: "13pt", fontWeight: 800, color: charcoal, marginBottom: 4 }}>Deposit Already Paid</h4>
                     <p style={{ fontSize: "10pt", color: slate }}>The deposit for this proposal has already been processed.</p>
                   </div>
                 ) : paymentStep === "success" ? (
                   <div className="text-center py-6">
-                    <CheckCircle2 className="h-12 w-12 mx-auto mb-4" style={{ color: "#10b981" }} />
+                    <CheckCircle2 className="h-12 w-12 mx-auto mb-4" style={{ color: amber }} />
                     <h4 style={{ fontSize: "13pt", fontWeight: 800, color: charcoal, marginBottom: 4 }}>Payment Received!</h4>
                     <p style={{ fontSize: "10pt", color: slate, marginBottom: 12 }}>
                       Your deposit of <strong style={{ color: charcoal }}>{fmt(depositAmt)}</strong> has been processed successfully.
@@ -453,7 +455,7 @@ export default function ClientProposalPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 p-2 rounded" style={{ background: lightBg, border: "1px solid #e2e8f0" }}>
-                        <Shield className="h-3.5 w-3.5" style={{ color: "#10b981" }} />
+                        <Shield className="h-3.5 w-3.5" style={{ color: amber }} />
                         <span style={{ fontSize: "8pt", color: slate }}>256-bit SSL encrypted. Your card details are never stored on our servers.</span>
                       </div>
                       <Button
@@ -486,7 +488,7 @@ export default function ClientProposalPage() {
                         <Input value={bankAccount} onChange={e => setBankAccount(e.target.value.replace(/\D/g, '').substring(0,17))} placeholder="Your account number" className="mt-1 font-mono" />
                       </div>
                       <div className="flex items-center gap-2 p-2 rounded" style={{ background: lightBg, border: "1px solid #e2e8f0" }}>
-                        <Shield className="h-3.5 w-3.5" style={{ color: "#10b981" }} />
+                        <Shield className="h-3.5 w-3.5" style={{ color: amber }} />
                         <span style={{ fontSize: "8pt", color: slate }}>NACHA-compliant ACH transfer. Bank details are encrypted and securely processed.</span>
                       </div>
                       <Button
@@ -657,11 +659,11 @@ export default function ClientProposalPage() {
                 {company?.website && <div style={{ color: amber }}>{company.website}</div>}
               </div>
             </div>
-            <div style={{ textAlign: "right" }}>
+            <div style={{ textAlign: "right", minWidth: 148, whiteSpace: "nowrap", flexShrink: 0 }}>
               <div style={{ fontSize: "9pt", textTransform: "uppercase", letterSpacing: 2, color: slate, fontWeight: 600, marginBottom: 4 }}>
                 Proposal
               </div>
-              <div style={{ fontSize: "18pt", fontWeight: 800, color: charcoal, fontFamily: "'JetBrains Mono', monospace" }}>
+              <div style={{ fontSize: "18pt", fontWeight: 800, color: charcoal, fontFamily: "'JetBrains Mono', monospace", whiteSpace: "nowrap", lineHeight: 1 }}>
                 #{proposal.proposal_number}
               </div>
               <div style={{ fontSize: "9pt", color: slate, marginTop: 8 }}>
@@ -671,7 +673,7 @@ export default function ClientProposalPage() {
           </div>
 
           {/* ═══ Accent line ═══ */}
-          <div style={{ height: 3, background: `linear-gradient(90deg, ${amber}, ${amber}88)` }} />
+          <div style={{ height: 3, background: amber }} />
 
           {/* ═══ Body ═══ */}
           <div style={{ padding: "32px 48px 40px" }}>
