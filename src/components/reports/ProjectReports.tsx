@@ -51,6 +51,7 @@ export default function ProjectReports() {
 
   return (
     <div className="space-y-4">
+      <ReportsKPISummary />
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {/* Project Status Summary */}
         <Card className="md:col-span-1">
