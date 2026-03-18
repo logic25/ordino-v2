@@ -1,30 +1,54 @@
 
 
-## CitiSignal Complimentary Subscription Safeguards — Complete
+## Comparison: Existing PDF Proposal vs Current System Output
 
-### What was built:
+### What the Existing PDF Does Well (Keep/Adopt)
+1. **Page header on every page** — "Proposal #020526-3 / RE: 1720 Eastchester Rd" appears top-left on every page as a running header. Our system doesn't have this for print.
+2. **"ACCOUNT DETAILS" box** — Shows both the client company (with full address) AND a separate "Billed to" block. Our current "Prepared For" card only shows the bill_to contact; it doesn't show the full client address or distinguish account vs billing.
+3. **"Billed to" with full address** — The old PDF shows the billing contact's street address. Our system only shows name/email/phone.
+4. **Scope items use bullet points** (not `›` arrows) — cleaner, more traditional.
+5. **Optional Services as a simple table** — "DOT permits — $250 each" format. Clean and compact vs our current card-style layout.
+6. **Terms broken into labeled sub-sections** — Payment Terms, Suppliers, Mutual Indemnification, Limitation of Liability, Additional Services, Miscellaneous. Our system renders terms as a single block of text.
+7. **Signature block with Title field** — The old PDF has "By / Title / Date" lines. Our current version is missing the **Title** field.
+8. **Footer on every page** — Address + contact info + page number. Our footer only appears once at the bottom.
 
-**1. Database migration** ✅
-- Added 6 columns to `signal_subscriptions`: `is_complimentary`, `enrolled_by`, `linked_project_id`, `monthly_rate`, `billing_start_date`, `comp_reason`
+### What Our Current System Does Better (Keep)
+1. **Clean Apple-esque white design** with the brand color accent line — much more modern than the old PDF.
+2. **Side-by-side info cards** (Prepared For / Project Details) — better visual hierarchy than the old stacked text.
+3. **Architect/Engineer and GC info blocks** — the old PDF doesn't show these at all.
+4. **Work Types badges** — disciplines shown as clean tags. Not in the old PDF format.
+5. **Retainer/deposit callout** — highlighted prominently. Old PDF buries it in payment terms text.
+6. **Digital signature rendering** — actual signature images displayed inline.
 
-**2. useSignalSubscriptions hook updated** ✅
-- Types include all new fields + joined `enrolled_by_name`, `linked_project_name`, `linked_project_phase`
-- `useEnrollProperty` auto-sets `enrolled_by` to current user's profile ID
-- `useSignalSubscription` fetches joined profile name and project info
+### Recommended Changes
 
-**3. SignalEnrollDialog enhanced** ✅
-- Complimentary toggle (only enabled when property has active projects)
-- Linked project selector (required when complimentary)
-- Comp reason textarea
-- Monthly rate + billing start date inputs (for paid active subs)
-- Trial auto-expiry (14 days), comp auto-expiry (1 year)
-- Enrolled-by shown read-only on edit
+#### 1. Add "Billed To" address to Prepared For card
+Pull the client's full mailing address (from the `bill_to` contact or the client record) so it matches the old PDF's complete billing info.
 
-**4. SignalSection updated** ✅
-- Shows "Sold by: [Name]"
-- Shows "Complimentary — linked to [Project Name]" or "Paid — $X/mo"
-- Expiration countdown with color warnings
-- Warning badge if linked project closed or no linked project on comp
+#### 2. Add "Title" field to signature block
+Both the company side and client side should show "By / Title / Date" — matching the old PDF. The signer's title should be pulled from their profile or contact record.
 
-**5. SignalStatusBadge updated** ✅
-- Gift icon shown for complimentary subscriptions
+#### 3. Break Terms & Conditions into labeled sub-sections
+Instead of one big text block, parse or store terms as structured sections (Payment Terms, Suppliers, Indemnification, Liability, Additional Services, Miscellaneous) and render each with its own bold heading — matching the old PDF's format.
+
+#### 4. Add page-level header/footer for print
+When printing/PDF, inject a running header ("Proposal #XXX / RE: Address") and footer (company address + page numbers) using `@page` CSS rules.
+
+#### 5. Fix the accent color
+The `amber` variable is still set to `hsl(65 69% 54%)` — this is the wrong green. Should be updated to the correct GLE green from the brand (the lime-chartreuse from the logo, visible in the uploaded PDF header).
+
+#### 6. Optional services as compact table
+Render optional items in a simpler two-column table format ("Service — $X each") rather than full cards, matching the old PDF's cleaner approach.
+
+### Files to Modify
+- `src/components/proposals/ProposalPreviewModal.tsx` — all visual changes above
+- `src/pages/ClientProposal.tsx` — mirror changes for public-facing version
+- `src/pages/ClientChangeOrder.tsx` — mirror where applicable
+- `src/components/proposals/SendProposalDialog.tsx` — email template consistency
+
+### What NOT to Change
+- Keep the modern white header + logo layout (don't revert to the old PDF's plain text header)
+- Keep the side-by-side card layout for Prepared For / Project Details
+- Keep the Architect/GC info blocks (old PDF didn't have these — they're an improvement)
+- Keep the digital signature image rendering
+
