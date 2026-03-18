@@ -605,7 +605,7 @@ export default function ClientProposalPage() {
 
 
                 className="flex items-center justify-between rounded-lg p-4 transition-shadow"
-                style={{ background: "hsl(38, 92%, 50%, 0.06)", border: `1px solid hsl(38, 92%, 50%, 0.25)` }}
+                style={{ background: "#6db33f0f", border: `1px solid #6db33f40` }}
               >
                 <div className="flex items-center gap-3">
                   <div className="rounded-full p-2" style={{ background: "hsl(38, 92%, 50%, 0.15)" }}>
