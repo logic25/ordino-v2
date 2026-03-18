@@ -434,13 +434,21 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                     </div>
                   )}
 
-                  {(proposal as any).terms_conditions && (
-                    <div>
-                      <p style={{ fontSize: "9.5pt", color: "#475569", whiteSpace: "pre-wrap", lineHeight: 1.65, margin: 0 }}>
-                        {interpolate((proposal as any).terms_conditions)}
-                      </p>
-                    </div>
-                  )}
+                  {(proposal as any).terms_conditions && (() => {
+                    const sections = parseTermsSections(interpolate((proposal as any).terms_conditions));
+                    return sections.map((sec, si) => (
+                      <div key={si} style={{ marginBottom: 14 }}>
+                        {sec.heading && (
+                          <h4 style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 4, color: charcoal }}>{sec.heading}</h4>
+                        )}
+                        {sec.body && (
+                          <p style={{ fontSize: "9.5pt", color: "#475569", whiteSpace: "pre-wrap", lineHeight: 1.65, margin: 0 }}>
+                            {sec.body}
+                          </p>
+                        )}
+                      </div>
+                    ));
+                  })()}
                 </div>
               )}
 
