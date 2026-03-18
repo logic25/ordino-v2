@@ -1,0 +1,1 @@
+DELETE FROM discovered_rfps WHERE id IN ('635de873-05e3-498d-8e7d-97ddc089ed41', 'ff3aadf1-d577-439d-bcbe-e83560f303bb') AND source_id IS NULL;
