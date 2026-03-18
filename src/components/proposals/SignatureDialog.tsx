@@ -303,7 +303,33 @@ export function SignatureDialog({
               )}
             </div>
 
-            {/* Assign PM */}
+            {/* CC Recipients */}
+            {recipientOptions.filter(r => r.id !== selectedRecipientId).length > 0 && (
+              <div className="space-y-2">
+                <Label>CC (optional)</Label>
+                <div className="space-y-1.5">
+                  {recipientOptions
+                    .filter(r => r.id !== selectedRecipientId)
+                    .map((opt) => (
+                      <label key={opt.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <Checkbox
+                          checked={selectedCcIds.includes(opt.id)}
+                          onCheckedChange={(checked) => {
+                            setSelectedCcIds(prev =>
+                              checked
+                                ? [...prev, opt.id]
+                                : prev.filter(id => id !== opt.id)
+                            );
+                          }}
+                        />
+                        <span className="text-muted-foreground">{opt.label}</span>
+                        <span className="text-xs text-muted-foreground">&lt;{opt.email}&gt;</span>
+                      </label>
+                    ))}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="pm">Assign Project Manager *</Label>
               <Select value={assignedPmId} onValueChange={setAssignedPmId}>
