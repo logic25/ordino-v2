@@ -121,31 +121,31 @@ export function SignatureDialog({
 
   // Initialize canvas and optionally draw saved signature
   useEffect(() => {
-    if (open && canvasRef.current) {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeStyle = "#1a1a1a";
-        ctx.lineWidth = 2;
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-      }
+    if (!open || !canvasRef.current) return;
 
-      // If saved signature exists and user hasn't drawn yet, load it
-      if (savedSignatureData && !hasDrawn) {
-        const img = new Image();
-        img.onload = () => {
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            setHasSignature(true);
-          }
-        };
-        img.src = savedSignatureData;
-      }
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = "#1a1a1a";
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    if (savedSignatureData && !hasDrawn) {
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        setHasSignature(true);
+      };
+      img.src = savedSignatureData;
+      return;
     }
-  }, [open, savedSignatureData]);
+
+    setHasSignature(false);
+  }, [open, savedSignatureData, hasDrawn]);
 
   const getCoordinates = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = canvasRef.current;
