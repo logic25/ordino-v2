@@ -547,7 +547,7 @@ export default function ClientProposalPage() {
                       </button>
                       <button
                         className="border-2 rounded-lg p-4 text-left transition-colors cursor-pointer"
-                        style={{ borderColor: selectedPayment === "ach" ? amber : "#e2e8f0", background: selectedPayment === "ach" ? "hsl(38, 92%, 50%, 0.06)" : undefined }}
+                        style={{ borderColor: selectedPayment === "ach" ? amber : "#e2e8f0", background: selectedPayment === "ach" ? "#6db33f0f" : undefined }}
                         onClick={() => setSelectedPayment("ach")}
                       >
                         <Building2 className="h-5 w-5 mb-2" style={{ color: amber }} />
