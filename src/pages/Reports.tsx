@@ -37,6 +37,7 @@ export default function Reports() {
             <TabsTrigger value="operations">Operations</TabsTrigger>
             <TabsTrigger value="referrals">Referrals</TabsTrigger>
             <TabsTrigger value="exports">Data Exports</TabsTrigger>
+            <TabsTrigger value="signal">CitiSignal</TabsTrigger>
           </TabsList>
 
           <TabsContent value="projects"><ProjectReports /></TabsContent>
@@ -46,6 +47,7 @@ export default function Reports() {
           <TabsContent value="operations"><OperationsReports /></TabsContent>
           <TabsContent value="referrals"><ReferralReports /></TabsContent>
           <TabsContent value="exports"><DataExports /></TabsContent>
+          <TabsContent value="signal"><SignalReports /></TabsContent>
         </Tabs>
       </div>
     </AppLayout>
