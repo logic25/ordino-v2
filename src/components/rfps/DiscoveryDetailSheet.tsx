@@ -445,10 +445,8 @@ export function DiscoveryDetailSheet({ rfp, open, onOpenChange, onGenerateRespon
               </Button>
             )}
             {rfp.original_url && (
-              <Button variant="outline" asChild>
-                <a href={rfp.original_url} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4 mr-2" /> View Original
-                </a>
+              <Button variant="outline" onClick={() => window.open(rfp.original_url!, "_blank", "noopener,noreferrer")}>
+                <ExternalLink className="h-4 w-4 mr-2" /> View Original
               </Button>
             )}
             {rfp.status !== "passed" && (
