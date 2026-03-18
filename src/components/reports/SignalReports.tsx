@@ -189,10 +189,12 @@ export default function SignalReports() {
                         <Badge variant="outline" className="gap-1 bg-purple-500/10 text-purple-600 border-purple-500/20">
                           <Gift className="h-3 w-3" /> Comp
                         </Badge>
-                      ) : (
+                      ) : Number(sub.monthly_rate) > 0 ? (
                         <Badge variant="outline" className="gap-1 bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
                           <DollarSign className="h-3 w-3" /> Paid
                         </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-muted-foreground">Not Set</Badge>
                       )}
                     </TableCell>
                     <TableCell>
