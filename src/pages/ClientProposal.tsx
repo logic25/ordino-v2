@@ -850,13 +850,21 @@ export default function ClientProposalPage() {
                   </div>
                 )}
 
-                {proposal.terms_conditions && (
-                  <div>
-                    <p style={{ fontSize: "9.5pt", color: "#475569", whiteSpace: "pre-wrap", lineHeight: 1.65, margin: 0 }}>
-                      {interpolate(proposal.terms_conditions)}
-                    </p>
-                  </div>
-                )}
+                {proposal.terms_conditions && (() => {
+                  const sections = parseTermsSections(interpolate(proposal.terms_conditions));
+                  return sections.map((sec: any, si: number) => (
+                    <div key={si} style={{ marginBottom: 14 }}>
+                      {sec.heading && (
+                        <h4 style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 4, color: charcoal }}>{sec.heading}</h4>
+                      )}
+                      {sec.body && (
+                        <p style={{ fontSize: "9.5pt", color: "#475569", whiteSpace: "pre-wrap", lineHeight: 1.65, margin: 0 }}>
+                          {sec.body}
+                        </p>
+                      )}
+                    </div>
+                  ));
+                })()}
               </div>
             )}
 
