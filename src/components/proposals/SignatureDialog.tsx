@@ -116,6 +116,8 @@ export function SignatureDialog({
     if (open) {
       setHasDrawn(false);
       setHasSignature(false);
+      setSavedSignatureData(null);
+      setManualCcEmails("");
       if (proposal?.assigned_pm_id) {
         setAssignedPmId(proposal.assigned_pm_id);
       }
