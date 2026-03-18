@@ -1,14 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableHeader, TableHead, TableRow, TableBody, TableCell } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Radio, Gift, DollarSign, Users, AlertTriangle } from "lucide-react";
-import { SignalStatusBadge } from "@/components/properties/SignalStatusBadge";
-import { format, differenceInDays, parseISO } from "date-fns";
+import { Card } from "@/components/ui/card";
+import { differenceInDays, parseISO } from "date-fns";
 import { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { SignalKPICards } from "./signal/SignalKPICards";
+import { SignalSubscriptionRow } from "./signal/SignalSubscriptionRow";
 
 interface SubscriptionRow {
   id: string;
@@ -24,7 +23,6 @@ interface SubscriptionRow {
   linked_project_id: string | null;
   created_at: string;
   owner_email: string | null;
-  // joined
   property_address?: string;
   enrolled_by_name?: string;
   project_name?: string;
@@ -81,55 +79,16 @@ export default function SignalReports() {
 
   return (
     <div className="space-y-6">
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-              <Radio className="h-4 w-4" /> Active Subscriptions
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{active.length}</div>
-            <p className="text-xs text-muted-foreground">{paid.length} paid · {complimentary.length} comp{unset.length > 0 ? ` · ${unset.length} not set` : ""}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-              <DollarSign className="h-4 w-4" /> Monthly Revenue
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${totalMonthlyRevenue.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">From {paid.length} paid subscriptions</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-              <Users className="h-4 w-4" /> Total Subscriptions
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{subscriptions.length}</div>
-            <p className="text-xs text-muted-foreground">All statuses</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-              <AlertTriangle className="h-4 w-4" /> Expiring Soon
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{expiringSoon.length}</div>
-            <p className="text-xs text-muted-foreground">Within 30 days</p>
-          </CardContent>
-        </Card>
-      </div>
+      <SignalKPICards
+        activeCount={active.length}
+        paidCount={paid.length}
+        compCount={complimentary.length}
+        unsetCount={unset.length}
+        totalMonthlyRevenue={totalMonthlyRevenue}
+        totalCount={subscriptions.length}
+        expiringSoonCount={expiringSoon.length}
+      />
 
-      {/* Filters */}
       <div className="flex items-center gap-3">
         <Input
           placeholder="Search by address, name, or email…"
@@ -151,7 +110,6 @@ export default function SignalReports() {
         </Select>
       </div>
 
-      {/* Table */}
       <Card>
         <Table>
           <TableHeader>
@@ -176,54 +134,7 @@ export default function SignalReports() {
                 <TableCell colSpan={8} className="text-center text-muted-foreground py-8">No subscriptions found</TableCell>
               </TableRow>
             ) : (
-              filtered.map((sub) => {
-                const daysUntilExpiry = sub.expires_at ? differenceInDays(parseISO(sub.expires_at), new Date()) : null;
-                return (
-                  <TableRow key={sub.id}>
-                    <TableCell className="font-medium max-w-[220px] truncate">{sub.property_address}</TableCell>
-                    <TableCell>
-                      <SignalStatusBadge status={sub.status} isComplimentary={sub.is_complimentary} />
-                    </TableCell>
-                    <TableCell>
-                      {sub.is_complimentary ? (
-                        <Badge variant="outline" className="gap-1 bg-purple-500/10 text-purple-600 border-purple-500/20">
-                          <Gift className="h-3 w-3" /> Comp
-                        </Badge>
-                      ) : Number(sub.monthly_rate) > 0 ? (
-                        <Badge variant="outline" className="gap-1 bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-                          <DollarSign className="h-3 w-3" /> Paid
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-muted-foreground">Not Set</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {sub.is_complimentary ? (
-                        <span className="text-muted-foreground text-sm">—</span>
-                      ) : (
-                        <span className="font-medium">${Number(sub.monthly_rate || 0).toLocaleString()}</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm">{sub.enrolled_by_name}</TableCell>
-                    <TableCell className="text-sm">
-                      {sub.subscribed_at ? format(parseISO(sub.subscribed_at), "MMM d, yyyy") : "—"}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {sub.expires_at ? (
-                        <span className={daysUntilExpiry !== null && daysUntilExpiry <= 30 ? "text-destructive font-medium" : ""}>
-                          {format(parseISO(sub.expires_at), "MMM d, yyyy")}
-                          {daysUntilExpiry !== null && daysUntilExpiry <= 30 && daysUntilExpiry > 0 && (
-                            <span className="text-xs ml-1">({daysUntilExpiry}d)</span>
-                          )}
-                        </span>
-                      ) : "—"}
-                    </TableCell>
-                    <TableCell className="text-sm max-w-[180px] truncate">
-                      {sub.project_name || <span className="text-muted-foreground">—</span>}
-                    </TableCell>
-                  </TableRow>
-                );
-              })
+              filtered.map((sub) => <SignalSubscriptionRow key={sub.id} sub={sub} />)
             )}
           </TableBody>
         </Table>
