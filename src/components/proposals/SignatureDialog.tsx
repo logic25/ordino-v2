@@ -33,7 +33,7 @@ export interface SignatureRecipient {
 interface SignatureDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSign: (signatureData: string, assignedPmId: string, recipient?: SignatureRecipient) => Promise<void>;
+  onSign: (signatureData: string, assignedPmId: string, recipient?: SignatureRecipient, ccEmails?: string[]) => Promise<void>;
   proposal: ProposalWithRelations | null;
   isLoading?: boolean;
 }
