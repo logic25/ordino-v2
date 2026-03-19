@@ -6,11 +6,17 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Mail, Eye } from "lucide-react";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 
+/** Company info resolved from settings — used in every template */
+interface CoInfo {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  logoUrl: string | null;
+}
+
+/** Fake client / project data used as sample placeholders */
 const SAMPLE = {
-  companyName: "Green Light Expediting",
-  companyEmail: "info@greenlightexp.com",
-  companyPhone: "(212) 555-1234",
-  companyAddress: "123 Broadway, New York, NY 10001",
   clientName: "John Smith",
   projectTitle: "Alt-1 Interior Renovation",
   propertyAddress: "456 Park Avenue, New York, NY",
@@ -18,8 +24,8 @@ const SAMPLE = {
   coNumber: "CO#1",
   invoiceNumber: "INV-00042",
   pmName: "Sarah Johnson",
-  pmEmail: "sarah@greenlightexp.com",
-  pmPhone: "(212) 555-5678",
+  pmEmail: "sarah@company.com",
+  pmPhone: "(555) 555-5678",
 };
 
 // ── Shared design tokens ──
@@ -32,26 +38,26 @@ const BORDER = "#e2e8f0";
 const CARD_BG = "#f8fafc";
 const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif";
 
-function resolvePreviewLogoUrl(rawLogoUrl?: string | null) {
-  return rawLogoUrl?.trim() || null;
+function makeContactLine(co: CoInfo) {
+  const parts: string[] = [];
+  if (co.phone) parts.push(co.phone);
+  if (co.email) parts.push(co.email);
+  return parts.join(" · ");
 }
 
 /** Shared outer shell used by every template */
 function shell({
-  logoUrl,
+  co,
   docLabel,
   docNumber,
   body,
-  contactLine,
-  companyAddress,
 }: {
-  logoUrl?: string | null;
+  co: CoInfo;
   docLabel: string;
   docNumber?: string;
   body: string;
-  contactLine: string;
-  companyAddress?: string;
 }) {
+  const contactLine = makeContactLine(co);
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:${CARD_BG};font-family:${FONT};">
@@ -60,8 +66,8 @@ function shell({
     <div style="background:#ffffff;padding:28px 32px;border-radius:12px 12px 0 0;border:1px solid ${BORDER};border-bottom:none;">
       <table style="width:100%;" cellpadding="0" cellspacing="0"><tr>
         <td style="vertical-align:top;">
-          ${logoUrl ? `<img src="${logoUrl}" alt="${SAMPLE.companyName}" style="max-height:44px;display:block;" />` : `<span style="font-size:18px;font-weight:700;color:${ACCENT};">${SAMPLE.companyName}</span>`}
-          ${companyAddress ? `<p style="margin:6px 0 0;color:${MUTED};font-size:11px;line-height:1.4;">${companyAddress}</p>` : ""}
+          ${co.logoUrl ? `<img src="${co.logoUrl}" alt="${co.name}" style="max-height:44px;display:block;" />` : `<span style="font-size:18px;font-weight:700;color:${ACCENT};">${co.name}</span>`}
+          ${co.address ? `<p style="margin:6px 0 0;color:${MUTED};font-size:11px;line-height:1.4;">${co.address}</p>` : ""}
           ${contactLine ? `<p style="margin:2px 0 0;color:${MUTED};font-size:11px;">${contactLine}</p>` : ""}
         </td>
         ${docNumber ? `<td style="vertical-align:top;text-align:right;white-space:nowrap;width:140px;">
@@ -98,22 +104,18 @@ function ctaButton(text: string) {
   </div>`;
 }
 
-function signoff() {
+function signoff(co: CoInfo) {
   return `<p style="margin:24px 0 0;font-size:15px;color:${BODY};line-height:1.6;">Please don't hesitate to reach out if you have any questions.</p>
-  <p style="margin:16px 0 0;font-size:15px;color:${HEADING};">Best regards,<br/><strong>${SAMPLE.companyName}</strong></p>`;
+  <p style="margin:16px 0 0;font-size:15px;color:${HEADING};">Best regards,<br/><strong>${co.name}</strong></p>`;
 }
-
-const contactLine = `${SAMPLE.companyPhone} · ${SAMPLE.companyEmail}`;
 
 // ── Template builders ──
 
-function buildProposal(logoUrl?: string | null) {
+function buildProposal(co: CoInfo) {
   return shell({
-    logoUrl,
+    co,
     docLabel: "Proposal",
     docNumber: `#${SAMPLE.proposalNumber}`,
-    contactLine,
-    companyAddress: SAMPLE.companyAddress,
     body: `
       <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
         ${infoCard("Prepared For", SAMPLE.clientName)}
@@ -141,17 +143,15 @@ function buildProposal(logoUrl?: string | null) {
       </div>
       ${ctaButton("Review &amp; Sign Proposal")}
       <p style="margin:0 0 8px;font-size:13px;color:${MUTED};text-align:center;line-height:1.5;">The link above also includes a Project Information Sheet — please fill it out at your convenience.</p>
-      ${signoff()}`,
+      ${signoff(co)}`,
   });
 }
 
-function buildChangeOrder(logoUrl?: string | null) {
+function buildChangeOrder(co: CoInfo) {
   return shell({
-    logoUrl,
+    co,
     docLabel: "Change Order",
     docNumber: SAMPLE.coNumber,
-    contactLine,
-    companyAddress: SAMPLE.companyAddress,
     body: `
       <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
         ${infoCard("Client", SAMPLE.clientName)}
@@ -159,7 +159,7 @@ function buildChangeOrder(logoUrl?: string | null) {
         ${infoCard("Project", SAMPLE.projectTitle, SAMPLE.propertyAddress)}
       </tr></table>
       <p style="margin:0 0 16px;font-size:15px;color:${HEADING};line-height:1.6;">Hi John,</p>
-      <p style="margin:0 0 24px;font-size:15px;color:${BODY};line-height:1.6;">${SAMPLE.companyName} has issued <strong>Change Order ${SAMPLE.coNumber}</strong> for your project. Please review the details below.</p>
+      <p style="margin:0 0 24px;font-size:15px;color:${BODY};line-height:1.6;">${co.name} has issued <strong>Change Order ${SAMPLE.coNumber}</strong> for your project. Please review the details below.</p>
       <div style="border:1px solid ${BORDER};border-radius:8px;overflow:hidden;margin-bottom:24px;">
         <table style="width:100%;border-collapse:collapse;">
           <thead><tr style="background:${CARD_BG};">
@@ -177,22 +177,20 @@ function buildChangeOrder(logoUrl?: string | null) {
         </div>
       </div>
       ${ctaButton("Review &amp; Sign")}
-      ${signoff()}`,
+      ${signoff(co)}`,
   });
 }
 
-function buildWelcome(logoUrl?: string | null) {
+function buildWelcome(co: CoInfo) {
   return shell({
-    logoUrl,
+    co,
     docLabel: "Welcome",
-    contactLine,
-    companyAddress: SAMPLE.companyAddress,
     body: `
       <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
         ${infoCard("Project", SAMPLE.projectTitle, SAMPLE.propertyAddress)}
       </tr></table>
       <p style="margin:0 0 16px;font-size:15px;color:${HEADING};line-height:1.6;">Hi ${SAMPLE.clientName},</p>
-      <p style="margin:0 0 20px;font-size:15px;color:${BODY};line-height:1.6;">Thank you for choosing <strong>${SAMPLE.companyName}</strong>. We're excited to get started on <strong>${SAMPLE.projectTitle}</strong> at <strong>${SAMPLE.propertyAddress}</strong>.</p>
+      <p style="margin:0 0 20px;font-size:15px;color:${BODY};line-height:1.6;">Thank you for choosing <strong>${co.name}</strong>. We're excited to get started on <strong>${SAMPLE.projectTitle}</strong> at <strong>${SAMPLE.propertyAddress}</strong>.</p>
       <p style="margin:0 0 20px;font-size:14px;color:#64748b;line-height:1.6;">📎 A copy of your fully executed proposal is attached to this email for your records.</p>
       <div style="background:${CARD_BG};border:1px solid ${BORDER};border-radius:8px;padding:20px;margin-bottom:24px;">
         <p style="margin:0 0 8px;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;">Your Project Manager</p>
@@ -202,17 +200,15 @@ function buildWelcome(logoUrl?: string | null) {
       </div>
       <p style="margin:0 0 20px;font-size:15px;color:${BODY};line-height:1.6;">To get started, please fill out the Project Information Sheet so we can begin work on your behalf.</p>
       ${ctaButton("Fill Out Project Information Sheet")}
-      <p style="margin:16px 0 0;font-size:15px;color:${HEADING};">Best regards,<br/><strong>${SAMPLE.companyName}</strong></p>`,
+      <p style="margin:16px 0 0;font-size:15px;color:${HEADING};">Best regards,<br/><strong>${co.name}</strong></p>`,
   });
 }
 
-function buildInvoice(logoUrl?: string | null) {
+function buildInvoice(co: CoInfo) {
   return shell({
-    logoUrl,
+    co,
     docLabel: "Invoice",
     docNumber: SAMPLE.invoiceNumber,
-    contactLine,
-    companyAddress: SAMPLE.companyAddress,
     body: `
       <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
         ${infoCard("Billed To", SAMPLE.clientName)}
@@ -237,17 +233,15 @@ function buildInvoice(logoUrl?: string | null) {
         </div>
       </div>
       <p style="margin:0 0 24px;font-size:15px;color:${BODY};line-height:1.6;">Thank you for your business.</p>
-      <p style="margin:16px 0 0;font-size:15px;color:${HEADING};">Best regards,<br/><strong>${SAMPLE.companyName}</strong></p>`,
+      <p style="margin:16px 0 0;font-size:15px;color:${HEADING};">Best regards,<br/><strong>${co.name}</strong></p>`,
   });
 }
 
-function buildReminder(logoUrl?: string | null) {
+function buildReminder(co: CoInfo) {
   return shell({
-    logoUrl,
+    co,
     docLabel: "Payment Reminder",
     docNumber: SAMPLE.invoiceNumber,
-    contactLine,
-    companyAddress: SAMPLE.companyAddress,
     body: `
       <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
         ${infoCard("Client", SAMPLE.clientName)}
@@ -269,17 +263,15 @@ function buildReminder(logoUrl?: string | null) {
         </tr></table>
       </div>
       <p style="margin:0 0 24px;font-size:15px;color:${BODY};line-height:1.6;">We would appreciate your prompt attention to this matter. If payment has already been sent, please disregard this notice.</p>
-      ${signoff()}`,
+      ${signoff(co)}`,
   });
 }
 
-function buildDigest(logoUrl?: string | null) {
+function buildDigest(co: CoInfo) {
   return shell({
-    logoUrl,
+    co,
     docLabel: "Billing Summary",
     docNumber: "Weekly",
-    contactLine,
-    companyAddress: SAMPLE.companyAddress,
     body: `
       <p style="margin:0 0 16px;font-size:15px;color:${HEADING};line-height:1.6;">Hi Sarah,</p>
       <p style="margin:0 0 24px;font-size:15px;color:${BODY};line-height:1.6;">Here's your weekly billing summary for <strong>Mar 12 – Mar 19</strong>.</p>
@@ -311,16 +303,14 @@ function buildDigest(logoUrl?: string | null) {
         </table>
       </div>
       ${ctaButton("View in Ordino")}
-      <p style="margin:16px 0 0;font-size:15px;color:${HEADING};">— ${SAMPLE.companyName}</p>`,
+      <p style="margin:16px 0 0;font-size:15px;color:${HEADING};">— ${co.name}</p>`,
   });
 }
 
-function buildPartner(logoUrl?: string | null) {
+function buildPartner(co: CoInfo) {
   return shell({
-    logoUrl,
+    co,
     docLabel: "RFP Outreach",
-    contactLine,
-    companyAddress: SAMPLE.companyAddress,
     body: `
       <p style="margin:0 0 16px;font-size:15px;color:${HEADING};line-height:1.6;">Hello,</p>
       <p style="margin:0 0 24px;font-size:15px;color:${BODY};line-height:1.6;">We'd like to offer our firm's inspection and filing support for this upcoming LL11/FISP requirement. Our team has extensive experience with facade compliance and DOB filings.</p>
@@ -343,7 +333,7 @@ function buildPartner(logoUrl?: string | null) {
         <span style="display:inline-block;width:12px;"></span>
         <a href="#" style="display:inline-block;background:#ffffff;color:${MUTED};text-decoration:none;padding:14px 36px;border-radius:8px;font-size:16px;font-weight:600;border:1px solid ${BORDER};">Pass</a>
       </div>
-      <p style="margin:24px 0 0;font-size:15px;color:${HEADING};">— ${SAMPLE.companyName}</p>`,
+      <p style="margin:24px 0 0;font-size:15px;color:${HEADING};">— ${co.name}</p>`,
   });
 }
 
@@ -354,7 +344,7 @@ interface TemplateEntry {
   name: string;
   description: string;
   category: "client" | "internal" | "partner";
-  buildHtml: (logoUrl?: string | null) => string;
+  buildHtml: (co: CoInfo) => string;
 }
 
 const TEMPLATES: TemplateEntry[] = [
@@ -376,11 +366,18 @@ const categoryColors: Record<string, string> = {
 
 export function EmailTemplateGallery() {
   const { data: company } = useCompanySettings();
-  const storedLogoUrl = company?.logo_url || (company as any)?.settings?.company_logo_url || null;
-  const logoUrl = resolvePreviewLogoUrl(storedLogoUrl);
+
+  const coInfo: CoInfo = useMemo(() => ({
+    name: company?.name || "Your Company",
+    email: company?.email || company?.settings?.company_email || "",
+    phone: company?.phone || company?.settings?.company_phone || "",
+    address: company?.address || company?.settings?.company_address || "",
+    logoUrl: company?.logo_url || company?.settings?.company_logo_url || null,
+  }), [company]);
+
   const [previewId, setPreviewId] = useState<string | null>(null);
   const previewTemplate = TEMPLATES.find((t) => t.id === previewId);
-  const previewHtml = useMemo(() => previewTemplate?.buildHtml(logoUrl) || "", [previewId, logoUrl]);
+  const previewHtml = useMemo(() => previewTemplate?.buildHtml(coInfo) || "", [previewId, coInfo]);
 
   return (
     <Card>
@@ -395,7 +392,7 @@ export function EmailTemplateGallery() {
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {TEMPLATES.map((t) => {
-            const html = t.buildHtml(logoUrl);
+            const html = t.buildHtml(coInfo);
             return (
               <button
                 key={t.id}
