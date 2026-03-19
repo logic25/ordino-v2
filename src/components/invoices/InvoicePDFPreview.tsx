@@ -103,10 +103,12 @@ export function InvoicePDFPreview({ invoice, open, onOpenChange }: InvoicePDFPre
 export async function generateInvoicePDFBlob(
   invoice: InvoiceWithRelations,
   settings?: import("@/hooks/useCompanySettings").CompanySettings,
+  companyName?: string,
+  logoUrl?: string,
 ): Promise<Blob> {
   const { pdf } = await import("@react-pdf/renderer");
   const blob = await pdf(
-    <InvoicePDF invoice={invoice} settings={settings} />
+    <InvoicePDF invoice={invoice} settings={settings} companyName={companyName} logoUrl={logoUrl} />
   ).toBlob();
   return blob;
 }
