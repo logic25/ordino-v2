@@ -372,7 +372,7 @@ const categoryColors: Record<string, string> = {
 
 export function EmailTemplateGallery() {
   const { data: company } = useCompanySettings();
-  const logoUrl = (company as any)?.logo_url || (company as any)?.settings?.company_logo_url || null;
+  const logoUrl = company?.logo_url || (company as any)?.settings?.company_logo_url || null;
   const [previewId, setPreviewId] = useState<string | null>(null);
   const previewTemplate = TEMPLATES.find(t => t.id === previewId);
   const previewHtml = useMemo(() => previewTemplate?.buildHtml(logoUrl) || "", [previewId, logoUrl]);
