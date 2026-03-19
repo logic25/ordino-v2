@@ -48,6 +48,7 @@ export function useClientRelations(clientId: string | undefined) {
 
       const projects = projectsRes.data || [];
       const proposals = proposalsRes.data || [];
+      const referrals = referralsRes.data || [];
 
       const acceptedProposals = proposals.filter((p) => p.status === "executed").length;
       const rejectedProposals = proposals.filter((p) => p.status === "rejected").length;
