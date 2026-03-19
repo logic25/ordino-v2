@@ -49,7 +49,8 @@ export function SendInvoiceModal({ invoice, open, onOpenChange, onSent }: SendIn
       // Step 1: Generate PDF
       setStep("generating");
       const { generateInvoicePDFBlob } = await import("@/components/invoices/InvoicePDFPreview");
-      const pdfBlob = await generateInvoicePDFBlob(invoice, companyData?.settings);
+      const logoUrl = companyData?.logo_url || companyData?.settings?.company_logo_url || "";
+      const pdfBlob = await generateInvoicePDFBlob(invoice, companyData?.settings, companyData?.name, logoUrl);
 
       // Convert blob to base64
       const arrayBuffer = await pdfBlob.arrayBuffer();

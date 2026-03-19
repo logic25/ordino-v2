@@ -427,6 +427,7 @@ export function ChangeOrderDetailSheet({
       internal_signed_at: co.internal_signed_at || new Date().toISOString(),
       internal_signer_name: co.internal_signer_name || signerName || null,
     } : co;
+    const logoUrl = companySettings?.logo_url || settings?.company_logo_url || "";
     const blob = await pdf(
       <ChangeOrderPDF
         co={coForPdf}
@@ -440,6 +441,7 @@ export function ChangeOrderDetailSheet({
         projectNumber={projectInfo?.project_number}
         clientName={projectInfo?.clients?.name}
         signerName={signerName || undefined}
+        logoUrl={logoUrl}
       />
     ).toBlob();
     return blob;
