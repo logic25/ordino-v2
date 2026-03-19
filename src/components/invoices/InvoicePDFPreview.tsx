@@ -19,16 +19,23 @@ interface InvoicePDFPreviewProps {
 export function InvoicePDFPreview({ invoice, open, onOpenChange }: InvoicePDFPreviewProps) {
   const { data: companyData } = useCompanySettings();
 
-  if (!invoice) return null;
+  const [logoDataUrl, setLogoDataUrl] = useState<string>("");
 
-  const logoUrl = companyData?.logo_url || companyData?.settings?.company_logo_url || "";
+  useEffect(() => {
+    if (open) {
+      const rawUrl = companyData?.logo_url || companyData?.settings?.company_logo_url || "";
+      getLogoDataUrl(rawUrl).then(setLogoDataUrl);
+    }
+  }, [open, companyData]);
+
+  if (!invoice) return null;
 
   const pdfDoc = (
     <InvoicePDF
       invoice={invoice}
       settings={companyData?.settings}
       companyName={companyData?.name}
-      logoUrl={logoUrl}
+      logoUrl={logoDataUrl}
     />
   );
 
