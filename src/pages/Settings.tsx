@@ -205,6 +205,7 @@ const settingsGroups: SettingsGroup[] = [
       { id: "rfi_templates", title: "RFI Templates", description: "Configure client questionnaire forms", icon: FileText },
       { id: "instruction_templates", title: "Instruction Templates", description: "Reusable email templates for DOB instructions", icon: Mail },
       { id: "partner_templates", title: "Partner Outreach Templates", description: "Email templates for RFP partner notifications", icon: Mail },
+      { id: "email_gallery", title: "Email Template Gallery", description: "Preview all branded email templates side-by-side", icon: Mail },
       { id: "lists", title: "Lists & Lookups", description: "Company types, review categories, and lead sources", icon: ListChecks },
     ],
   },
