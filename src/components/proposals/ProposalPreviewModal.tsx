@@ -466,7 +466,7 @@ table { page-break-inside: avoid; }
               }
 
               {/* ═══ Signature Block ═══ */}
-              <div style={{ marginTop: 40 }}>
+              <div className="no-break" style={{ marginTop: 40 }}>
                 <p style={{ fontWeight: 600, fontSize: "10pt", color: slate, marginBottom: 4 }}>
                   Please sign the designated space provided below and return a copy
                 </p>
