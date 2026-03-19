@@ -31,7 +31,7 @@ export function SignalStatusBadge({ status, isComplimentary, showIcon = true }: 
     : STATUS_LABELS[status] || status;
 
   return (
-    <Badge variant="outline" className={`gap-1 ${STATUS_STYLES[status] || "bg-muted text-muted-foreground"}`}>
+    <Badge variant="outline" className={`gap-1 text-xs py-0 px-1.5 h-5 ${STATUS_STYLES[status] || "bg-muted text-muted-foreground"}`}>
       {showIcon && <Radio className="h-3 w-3" />}
       {label}
       {isComplimentary && <Gift className="h-3 w-3 ml-0.5" />}
