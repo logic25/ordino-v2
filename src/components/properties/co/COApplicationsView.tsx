@@ -31,6 +31,12 @@ const SOURCE_FILTERS = ["All", "Legacy DOB", "DOB NOW Build"];
 const STATUS_FILTERS = ["All", "Permit Issued", "Approved", "In Process", "Signed Off", "Plan Exam - Approved"];
 const ACTION_FILTERS = ["All", "Needs LOC", "Needs FDNY LOA", "Needs Cost Affidavit", "Needs Plans", "Withdrawal Candidate"];
 
+const formatDateSafe = (value: string | null | undefined, pattern: string, fallback = "Unknown") => {
+  if (!value) return fallback;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? fallback : format(date, pattern);
+};
+
 export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeFilter }: COApplicationsViewProps) {
   const [search, setSearch] = useState("");
   const [workTypeFilter, setWorkTypeFilter] = useState(initialWorkTypeFilter || "All");
@@ -256,7 +262,7 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
                     if (idx < filtered.length - 1) openDrawer(filtered[idx + 1]);
                   }}><ChevronRight className="h-4 w-4" /></Button>
                 </div>
-                <SheetDescription>Filed {selectedApp.fileDate ? format(new Date(selectedApp.fileDate), "MMMM d, yyyy") : "Unknown"}</SheetDescription>
+                <SheetDescription>Filed {formatDateSafe(selectedApp.fileDate, "MMMM d, yyyy")}</SheetDescription>
               </SheetHeader>
 
               <div className="space-y-4 mt-4">
@@ -321,7 +327,7 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
                     ].map((h, i) => (
                       <div key={i} className="flex items-center gap-3 text-sm">
                         <h.icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="text-muted-foreground">{format(new Date(h.date), "MM/dd/yyyy")}</span>
+                        <span className="text-muted-foreground">{formatDateSafe(h.date, "MM/dd/yyyy")}</span>
                         <span>{h.event}</span>
                       </div>
                     ))}
