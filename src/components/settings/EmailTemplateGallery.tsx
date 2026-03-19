@@ -227,8 +227,8 @@ function buildPreviewHtml(
 
   const doc = docLabels[template.id] || { label: template.name };
   const logoLockup = co.logoUrl
-    ? `<div style="max-width:240px;height:48px;display:flex;align-items:center;overflow:hidden;">
-         <img src="${co.logoUrl}" alt="${co.name}" style="display:block;max-width:100%;max-height:48px;width:auto;height:auto;object-fit:contain;object-position:left center;" />
+    ? `<div style="max-width:320px;height:64px;display:flex;align-items:center;overflow:hidden;">
+         <img src="${co.logoUrl}" alt="${co.name}" style="display:block;max-width:100%;max-height:64px;width:auto;height:auto;object-fit:contain;object-position:left center;" />
        </div>`
     : `<span style="font-size:18px;font-weight:700;color:${accent};">${co.name}</span>`;
 
