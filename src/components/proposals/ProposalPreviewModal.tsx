@@ -345,7 +345,7 @@ div { page-break-inside: avoid; }
                   <div key={i} style={{ marginBottom: 20, paddingBottom: 18, borderBottom: i < nonOptionalItems.length - 1 ? "1px solid #e2e8f0" : "none" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
                       <span style={{ fontSize: "11pt", fontWeight: 700, color: charcoal }}>{item.name}</span>
-                      <span style={{ fontSize: "11pt", fontWeight: 700, color: charcoal, whiteSpace: "nowrap" }}>{fmt(price)}</span>
+                      <span style={{ fontSize: "11pt", fontWeight: 700, color: charcoal, whiteSpace: "nowrap" }} className="text-sm font-semibold">{fmt(price)}</span>
                     </div>
                     {bullets.length > 0 ?
                     <ul style={{ listStyle: "none", margin: "4px 0 0 0", padding: 0, fontSize: "9.5pt", color: slate, lineHeight: 1.65 }}>
@@ -414,7 +414,7 @@ div { page-break-inside: avoid; }
               {/* ═══ Total ═══ */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderRadius: 8, marginTop: 28, border: `2px solid ${charcoal}` }}>
                 <span style={{ fontSize: "12pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: charcoal }}>Total</span>
-                <span style={{ fontSize: "16pt", fontWeight: 800, color: charcoal }} className="font-bold text-sm">{fmt(totalAmount)}</span>
+                <span style={{ fontSize: "16pt", fontWeight: 800, color: charcoal }} className="font-bold text-base">{fmt(totalAmount)}</span>
               </div>
 
               {/* Deposit callout */}
