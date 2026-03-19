@@ -9,6 +9,9 @@ export interface ClientStats {
   totalRevenue: number;
   activeProjects: number;
   lastActivity: string | null;
+  referralCount: number;
+  referralValue: number;
+  referralConverted: number;
 }
 
 export function useClientRelations(clientId: string | undefined) {
