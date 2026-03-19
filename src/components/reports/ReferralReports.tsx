@@ -23,20 +23,35 @@ function useReferralReports(year: string) {
       const items = proposals || [];
 
       // Top referrers
-      const referrerMap: Record<string, { name: string; proposals: number; converted: number; totalValue: number; convertedValue: number }> = {};
+      const referrerMap: Record<string, { name: string; proposals: number; converted: number; totalValue: number; convertedValue: number; lastReferralDate: string | null }> = {};
       items.forEach((p: any) => {
         const ref = p.referred_by?.trim();
         if (!ref) return;
-        if (!referrerMap[ref]) referrerMap[ref] = { name: ref, proposals: 0, converted: 0, totalValue: 0, convertedValue: 0 };
+        if (!referrerMap[ref]) referrerMap[ref] = { name: ref, proposals: 0, converted: 0, totalValue: 0, convertedValue: 0, lastReferralDate: null };
         referrerMap[ref].proposals++;
         referrerMap[ref].totalValue += p.total_amount || 0;
+        if (!referrerMap[ref].lastReferralDate || p.created_at > referrerMap[ref].lastReferralDate) {
+          referrerMap[ref].lastReferralDate = p.created_at;
+        }
         if (p.status === "executed") {
           referrerMap[ref].converted++;
           referrerMap[ref].convertedValue += p.total_amount || 0;
         }
       });
+
+      const getTier = (value: number) => {
+        if (value >= 25000) return "Gold";
+        if (value >= 5000) return "Silver";
+        return "Bronze";
+      };
+
       const topReferrers = Object.values(referrerMap)
-        .map((r) => ({ ...r, conversionRate: r.proposals > 0 ? Math.round((r.converted / r.proposals) * 100) : 0 }))
+        .map((r) => ({
+          ...r,
+          conversionRate: r.proposals > 0 ? Math.round((r.converted / r.proposals) * 100) : 0,
+          tier: getTier(r.convertedValue),
+          isRepeat: r.proposals > 1,
+        }))
         .sort((a, b) => b.totalValue - a.totalValue);
 
       // Lead source breakdown
