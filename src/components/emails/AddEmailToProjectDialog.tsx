@@ -86,7 +86,7 @@ export function AddEmailToProjectDialog({ open, onOpenChange, projectId }: AddEm
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-w-[calc(100vw-2rem)] overflow-hidden">
         <DialogHeader>
           <DialogTitle>Add Email to Project</DialogTitle>
         </DialogHeader>
@@ -102,7 +102,7 @@ export function AddEmailToProjectDialog({ open, onOpenChange, projectId }: AddEm
             />
           </div>
 
-          <div className="max-h-64 overflow-y-auto border rounded-md divide-y">
+          <div className="max-h-64 overflow-y-auto overflow-x-hidden border rounded-md divide-y">
             {isLoading ? (
               <p className="p-3 text-sm text-muted-foreground">Loading emails...</p>
             ) : availableEmails.length === 0 ? (
@@ -116,23 +116,22 @@ export function AddEmailToProjectDialog({ open, onOpenChange, projectId }: AddEm
                   key={e.id}
                   onClick={() => setSelectedEmailId(e.id)}
                   className={cn(
-                    "w-full text-left px-3 py-2 hover:bg-muted/50 transition-colors",
+                    "w-full text-left px-3 py-2.5 hover:bg-muted/50 transition-colors overflow-hidden",
                     selectedEmailId === e.id && "bg-primary/10 border-l-2 border-l-primary"
                   )}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium truncate">
+                  <div className="flex items-center justify-between gap-2 min-w-0">
+                    <span className="text-sm font-medium truncate min-w-0 flex-1">
                       {e.from_name || e.from_email}
                     </span>
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    <div className="flex items-center gap-1 shrink-0">
                       {e.has_attachments && <Paperclip className="h-3 w-3 text-muted-foreground" />}
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
                         {e.date ? format(new Date(e.date), "MMM d") : ""}
                       </span>
                     </div>
                   </div>
-                  <p className="text-sm truncate">{e.subject || "(no subject)"}</p>
-                  <p className="text-xs text-muted-foreground truncate">{e.snippet}</p>
+                  <p className="text-xs text-muted-foreground truncate">{e.subject || "(no subject)"}</p>
                 </button>
               ))
             )}
