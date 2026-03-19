@@ -198,26 +198,8 @@ div { page-break-inside: avoid; }
         <div className="flex-1 overflow-y-auto bg-muted/40">
           <div id="proposal-preview-content" className="max-w-[720px] mx-auto bg-white shadow-md my-6" style={{ color: charcoal }}>
 
-            {/* ═══ A/B/C Website URL Test — REMOVE AFTER PICKING ═══ */}
-            <div style={{ padding: "20px 48px", borderBottom: "2px dashed #e2e8f0", background: "#fefce8" }}>
-              <div style={{ fontSize: "8pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1.5, color: slate, marginBottom: 10 }}>
-                🧪 Pick your favorite website URL style:
-              </div>
-              <div style={{ display: "flex", gap: 32, alignItems: "center" }}>
-                <div>
-                  <div style={{ fontSize: "7pt", fontWeight: 700, color: slate, marginBottom: 4 }}>A) Darkened green</div>
-                  <span style={{ fontSize: "9pt", color: "hsl(65 69% 38%)", fontWeight: 600 }}>{company?.website || "www.example.com"}</span>
-                </div>
-                <div>
-                  <div style={{ fontSize: "7pt", fontWeight: 700, color: slate, marginBottom: 4 }}>B) Lime on dark pill</div>
-                  <span style={{ fontSize: "9pt", color: amber, fontWeight: 700, background: charcoal, padding: "2px 10px", borderRadius: 4 }}>{company?.website || "www.example.com"}</span>
-                </div>
-                <div>
-                  <div style={{ fontSize: "7pt", fontWeight: 700, color: slate, marginBottom: 4 }}>C) Bold + underline</div>
-                  <span style={{ fontSize: "9pt", color: amber, fontWeight: 700, textDecoration: "underline", textUnderlineOffset: 3 }}>{company?.website || "www.example.com"}</span>
-                </div>
-              </div>
-            </div>
+
+
 
             <div style={{ padding: "36px 48px 28px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: `1px solid ${borderColor}` }}>
               <div>
