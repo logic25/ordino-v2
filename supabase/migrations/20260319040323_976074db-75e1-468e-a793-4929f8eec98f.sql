@@ -1,0 +1,1 @@
+UPDATE companies SET settings = jsonb_set(settings::jsonb, '{company_logo_url}', '"https://mimlfjkisguktiqqkpkm.supabase.co/storage/v1/object/public/company-assets/logos/GLE_Final_Logo.webp"') WHERE id = '01993413-d3e8-4377-9e21-70f270f04487';
