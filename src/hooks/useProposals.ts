@@ -97,6 +97,102 @@ export interface ProposalQueryOptions {
   statusFilter?: string | null;
 }
 
+/**
+ * Safely migrate proposal contacts to a project by finding or creating client_contacts.
+ * Matching order: 1) exact name match, 2) email+name match, 3) create new.
+ * Only migrates applicant, bill_to, sign roles — skips cc and others.
+ */
+export async function migrateProposalContactsToProject({
+  proposalId,
+  projectId,
+  companyId,
+  clientId,
+}: {
+  proposalId: string;
+  projectId: string;
+  companyId: string;
+  clientId: string | null;
+}) {
+  const { data: propContacts } = await (supabase.from("proposal_contacts" as any) as any)
+    .select("name, email, phone, company_name, role, client_id")
+    .eq("proposal_id", proposalId);
+
+  if (!propContacts || propContacts.length === 0) return;
+
+  const migrateRoles = ["applicant", "bill_to", "sign"];
+
+  for (const pc of propContacts) {
+    if (!pc.name) continue;
+    if (pc.role && !migrateRoles.includes(pc.role)) continue;
+
+    let contactId: string | null = null;
+    const normalizedName = (pc.name || "").trim().toLowerCase();
+
+    // 1. Try exact name match first (most reliable)
+    {
+      const { data: byName } = await supabase
+        .from("client_contacts")
+        .select("id, name")
+        .eq("company_id", companyId)
+        .ilike("name", pc.name)
+        .limit(1)
+        .maybeSingle();
+      if (byName) contactId = byName.id;
+    }
+
+    // 2. If no name match but has email, try email + verify name similarity
+    if (!contactId && pc.email) {
+      const { data: byEmail } = await supabase
+        .from("client_contacts")
+        .select("id, name")
+        .eq("company_id", companyId)
+        .ilike("email", pc.email);
+
+      if (byEmail && byEmail.length > 0) {
+        // Only use email match if the name also matches
+        const nameMatch = byEmail.find(
+          (c: any) => (c.name || "").trim().toLowerCase() === normalizedName
+        );
+        if (nameMatch) contactId = nameMatch.id;
+      }
+    }
+
+    // 3. Create new contact if not found
+    if (!contactId) {
+      const nameParts = (pc.name || "").trim().split(/\s+/);
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ") || "";
+      const { data: newContact } = await supabase
+        .from("client_contacts")
+        .insert({
+          company_id: companyId,
+          name: pc.name,
+          first_name: firstName || null,
+          last_name: lastName || null,
+          email: pc.email || null,
+          phone: pc.phone || null,
+          company_name: pc.company_name || null,
+          client_id: pc.client_id || clientId,
+        } as any)
+        .select("id")
+        .single();
+      if (newContact) contactId = newContact.id;
+    }
+
+    // Link to project
+    if (contactId) {
+      await (supabase.from("project_contacts" as any) as any)
+        .insert({
+          project_id: projectId,
+          contact_id: contactId,
+          company_id: companyId,
+          role: pc.role || null,
+        })
+        .then(() => {}); // ignore duplicates
+    }
+  }
+}
+
 export function useProposals(options?: ProposalQueryOptions) {
   const page = options?.page ?? 0;
   const pageSize = options?.pageSize ?? 25;
