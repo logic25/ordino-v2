@@ -262,7 +262,7 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
                     if (idx < filtered.length - 1) openDrawer(filtered[idx + 1]);
                   }}><ChevronRight className="h-4 w-4" /></Button>
                 </div>
-                <SheetDescription>Filed {selectedApp.fileDate ? format(new Date(selectedApp.fileDate), "MMMM d, yyyy") : "Unknown"}</SheetDescription>
+                <SheetDescription>Filed {formatDateSafe(selectedApp.fileDate, "MMMM d, yyyy")}</SheetDescription>
               </SheetHeader>
 
               <div className="space-y-4 mt-4">
