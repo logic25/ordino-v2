@@ -245,7 +245,7 @@ table { page-break-inside: avoid; }
             <div style={{ padding: "32px 48px 40px" }}>
 
               {/* Account & Project Info */}
-              <div style={{ display: "flex", gap: 32, marginBottom: 28 }}>
+              <div className="no-break" style={{ display: "flex", gap: 32, marginBottom: 28 }}>
                 <div style={{ flex: 1, background: lightBg, padding: "16px 20px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
                 <div style={{ fontSize: "8pt", textTransform: "uppercase", letterSpacing: 1.5, color: slate, marginBottom: 8, fontWeight: 700 }}>
                     Prepared For
