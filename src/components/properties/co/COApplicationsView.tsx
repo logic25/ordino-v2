@@ -31,6 +31,12 @@ const SOURCE_FILTERS = ["All", "Legacy DOB", "DOB NOW Build"];
 const STATUS_FILTERS = ["All", "Permit Issued", "Approved", "In Process", "Signed Off", "Plan Exam - Approved"];
 const ACTION_FILTERS = ["All", "Needs LOC", "Needs FDNY LOA", "Needs Cost Affidavit", "Needs Plans", "Withdrawal Candidate"];
 
+const formatDateSafe = (value: string | null | undefined, pattern: string, fallback = "Unknown") => {
+  if (!value) return fallback;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? fallback : format(date, pattern);
+};
+
 export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeFilter }: COApplicationsViewProps) {
   const [search, setSearch] = useState("");
   const [workTypeFilter, setWorkTypeFilter] = useState(initialWorkTypeFilter || "All");
