@@ -233,22 +233,24 @@ export async function fetchDOBApplications(bin: string): Promise<COApplication[]
     });
   }
 
-  // Deduplicate: if same job number exists in both sources, prefer DOB_JOB_FILINGS (more authoritative)
+  // Deduplicate: key on job# + doc# (to preserve subsequents/PAAs)
+  // If same key exists in both sources, prefer DOB_JOB_FILINGS (more authoritative)
   const seen = new Map<string, number>();
   const deduped: COApplication[] = [];
   for (const r of results) {
-    const key = r.jobNum.replace(/\D/g, ""); // normalize to digits only
-    if (!key) {
+    const jobDigits = r.jobNum.replace(/\D/g, "");
+    if (!jobDigits) {
       deduped.push(r);
       continue;
     }
+    const key = `${jobDigits}-${r.docNum || "01"}`;
     const existing = seen.get(key);
     if (existing !== undefined) {
       // Keep the DOB_JOB_FILINGS version if there's a conflict
       if (r.source === "DOB_JOB_FILINGS" && deduped[existing]?.source === "DOB_NOW_BUILD") {
         deduped[existing] = r;
       }
-      // Otherwise skip the duplicate
+      // Otherwise skip the duplicate row
     } else {
       seen.set(key, deduped.length);
       deduped.push(r);
