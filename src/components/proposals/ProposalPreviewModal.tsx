@@ -119,11 +119,16 @@ export function ProposalPreviewModal({ proposal, open, onOpenChange, onSend, onS
   @bottom-center { content: "${(company?.address || "").replace(/"/g, '')}  ·  Tel: ${company?.phone || ""}  ·  ${company?.email || ""}"; font-size: 7pt; color: #94a3b8; font-family: 'Inter', sans-serif; }
   @bottom-right { content: "Page " counter(page) " of " counter(pages); font-size: 7pt; color: #94a3b8; font-family: 'Inter', sans-serif; }
 }
+@page :first {
+  @top-left { content: none; }
+  @top-right { content: none; }
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 720px; margin: 0 auto; font-size: 10pt; line-height: 1.55; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 img { max-width: 100%; height: auto; }
 table { page-break-inside: avoid; }
-div { page-break-inside: avoid; }
+.no-break { page-break-inside: avoid; }
+.proposal-content-footer { display: none; }
 </style></head><body>`);
     w.document.write(el.innerHTML);
     w.document.write("</body></html>");
@@ -240,7 +245,7 @@ div { page-break-inside: avoid; }
             <div style={{ padding: "32px 48px 40px" }}>
 
               {/* Account & Project Info */}
-              <div style={{ display: "flex", gap: 32, marginBottom: 28 }}>
+              <div className="no-break" style={{ display: "flex", gap: 32, marginBottom: 28 }}>
                 <div style={{ flex: 1, background: lightBg, padding: "16px 20px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
                 <div style={{ fontSize: "8pt", textTransform: "uppercase", letterSpacing: 1.5, color: slate, marginBottom: 8, fontWeight: 700 }}>
                     Prepared For
@@ -461,7 +466,7 @@ div { page-break-inside: avoid; }
               }
 
               {/* ═══ Signature Block ═══ */}
-              <div style={{ marginTop: 40 }}>
+              <div className="no-break" style={{ marginTop: 40 }}>
                 <p style={{ fontWeight: 600, fontSize: "10pt", color: slate, marginBottom: 4 }}>
                   Please sign the designated space provided below and return a copy
                 </p>
@@ -518,7 +523,7 @@ div { page-break-inside: avoid; }
               </div>
 
               {/* ═══ Footer ═══ */}
-              <div style={{ textAlign: "center", fontSize: "8.5pt", color: slate, marginTop: 36, paddingTop: 12, borderTop: "1px solid #e2e8f0" }}>
+              <div className="proposal-content-footer" style={{ textAlign: "center", fontSize: "8.5pt", color: slate, marginTop: 36, paddingTop: 12, borderTop: "1px solid #e2e8f0" }}>
                 {company?.address && <div>{company.address}</div>}
                 <div>
                   {company?.phone && <span>Tel: {company.phone}</span>}
