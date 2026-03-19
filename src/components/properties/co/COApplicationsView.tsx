@@ -327,7 +327,7 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
                     ].map((h, i) => (
                       <div key={i} className="flex items-center gap-3 text-sm">
                         <h.icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="text-muted-foreground">{format(new Date(h.date), "MM/dd/yyyy")}</span>
+                        <span className="text-muted-foreground">{formatDateSafe(h.date, "MM/dd/yyyy")}</span>
                         <span>{h.event}</span>
                       </div>
                     ))}
