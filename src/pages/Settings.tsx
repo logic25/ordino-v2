@@ -253,6 +253,7 @@ export default function Settings() {
       case "automation": return <AutomationRulesSettings />;
       case "partner_templates": return <PartnerEmailTemplateSettings />;
       case "instruction_templates": return <InstructionTemplateSettings />;
+      case "email_gallery": return <EmailTemplateGallery />;
       case "signal": return <SignalSettings />;
       case "roles": return <RolesSettings />;
       case "notifications": return <NotificationSettings />;
