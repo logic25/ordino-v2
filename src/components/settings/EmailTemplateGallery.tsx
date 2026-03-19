@@ -226,25 +226,30 @@ function buildPreviewHtml(
   };
 
   const doc = docLabels[template.id] || { label: template.name };
+  const logoLockup = co.logoUrl
+    ? `<div style="max-width:240px;height:48px;display:flex;align-items:center;overflow:hidden;">
+         <img src="${co.logoUrl}" alt="${co.name}" style="display:block;max-width:100%;max-height:48px;width:auto;height:auto;object-fit:contain;object-position:left center;" />
+       </div>`
+    : `<span style="font-size:18px;font-weight:700;color:${accent};">${co.name}</span>`;
 
   // Template-specific body content
   const templateBody = buildTemplateBody(template.id, { greeting, bodyText, ctaText, signoffText, accent, accentFg, btnRadius, co });
 
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:${CARD_BG};font-family:${font};">
+<body style="margin:0;padding:0;background:${CARD_BG};font-family:${font};overflow-x:hidden;">
   <div style="max-width:600px;margin:0 auto;padding:32px 16px;">
-    <div style="background:#ffffff;padding:28px 32px;border-radius:12px 12px 0 0;border:1px solid ${BORDER};border-bottom:none;">
-      <table style="width:100%;" cellpadding="0" cellspacing="0"><tr>
-        <td style="vertical-align:top;">
-          ${co.logoUrl ? `<img src="${co.logoUrl}" alt="${co.name}" style="max-height:44px;display:block;" />` : `<span style="font-size:18px;font-weight:700;color:${accent};">${co.name}</span>`}
-          ${co.address ? `<p style="margin:6px 0 0;color:${MUTED};font-size:11px;line-height:1.4;">${co.address}</p>` : ""}
-          ${contactLine ? `<p style="margin:2px 0 0;color:${MUTED};font-size:11px;">${contactLine}</p>` : ""}
+    <div style="background:#ffffff;padding:28px 32px;border-radius:12px 12px 0 0;border:1px solid ${BORDER};border-bottom:none;overflow:hidden;">
+      <table style="width:100%;table-layout:fixed;" cellpadding="0" cellspacing="0"><tr>
+        <td style="vertical-align:top;width:70%;padding-right:20px;">
+          ${logoLockup}
+          ${co.address ? `<p style="margin:10px 0 0;color:${MUTED};font-size:11px;line-height:1.4;max-width:280px;">${co.address}</p>` : ""}
+          ${contactLine ? `<p style="margin:4px 0 0;color:${MUTED};font-size:11px;line-height:1.4;max-width:280px;word-break:break-word;">${contactLine}</p>` : ""}
         </td>
-        ${doc.number ? `<td style="vertical-align:top;text-align:right;white-space:nowrap;width:140px;">
+        ${doc.number ? `<td style="vertical-align:top;text-align:right;white-space:nowrap;width:30%;">
           <p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:${MUTED};font-weight:600;">${doc.label}</p>
           <p style="margin:2px 0 0;font-size:20px;font-weight:800;color:${HEADING};letter-spacing:-0.3px;line-height:1;">${doc.number}</p>
-        </td>` : `<td style="vertical-align:top;text-align:right;">
+        </td>` : `<td style="vertical-align:top;text-align:right;width:30%;">
           <p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:${MUTED};font-weight:600;">${doc.label}</p>
         </td>`}
       </tr></table>
