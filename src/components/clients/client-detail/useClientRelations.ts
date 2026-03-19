@@ -64,6 +64,12 @@ export function useClientRelations(clientId: string | undefined) {
       ].filter(Boolean) as string[];
       const lastActivity = dates.length ? dates.sort((a, b) => b.localeCompare(a))[0] : null;
 
+      const referralCount = referrals.length;
+      const referralConverted = referrals.filter((r: any) => r.status === "executed").length;
+      const referralValue = referrals
+        .filter((r: any) => r.status === "executed")
+        .reduce((sum: number, r: any) => sum + (r.total_amount || 0), 0);
+
       const stats: ClientStats = {
         totalProposals: proposals.length,
         acceptedProposals,
@@ -72,6 +78,9 @@ export function useClientRelations(clientId: string | undefined) {
         totalRevenue,
         activeProjects,
         lastActivity,
+        referralCount,
+        referralValue,
+        referralConverted,
       };
 
       return { projects, proposals, stats };

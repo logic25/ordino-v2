@@ -151,25 +151,41 @@ export default function ReferralReports() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Referrer</TableHead>
-                    <TableHead className="text-right">Proposals</TableHead>
-                    <TableHead className="text-right">Converted</TableHead>
-                    <TableHead className="text-right">Rate</TableHead>
-                    <TableHead className="text-right">Total Value</TableHead>
-                    <TableHead className="text-right">Converted Value</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.topReferrers.map((r) => (
-                    <TableRow key={r.name}>
-                      <TableCell className="font-medium">{r.name}</TableCell>
-                      <TableCell className="text-right">{r.proposals}</TableCell>
-                      <TableCell className="text-right">{r.converted}</TableCell>
-                      <TableCell className="text-right">{r.conversionRate}%</TableCell>
-                      <TableCell className="text-right">${r.totalValue.toLocaleString()}</TableCell>
-                      <TableCell className="text-right">${r.convertedValue.toLocaleString()}</TableCell>
-                    </TableRow>
-                  ))}
+                     <TableHead>Referrer</TableHead>
+                     <TableHead>Tier</TableHead>
+                     <TableHead>Type</TableHead>
+                     <TableHead className="text-right">Proposals</TableHead>
+                     <TableHead className="text-right">Converted</TableHead>
+                     <TableHead className="text-right">Rate</TableHead>
+                     <TableHead className="text-right">Total Value</TableHead>
+                     <TableHead className="text-right">Converted Value</TableHead>
+                     <TableHead className="text-right">Last Referral</TableHead>
+                   </TableRow>
+                 </TableHeader>
+                 <TableBody>
+                   {data.topReferrers.map((r) => (
+                     <TableRow key={r.name}>
+                       <TableCell className="font-medium">{r.name}</TableCell>
+                       <TableCell>
+                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                           r.tier === "Gold" ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400" :
+                           r.tier === "Silver" ? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" :
+                           "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+                         }`}>{r.tier}</span>
+                       </TableCell>
+                       <TableCell>
+                         <span className="text-xs text-muted-foreground">{r.isRepeat ? "Repeat" : "One-time"}</span>
+                       </TableCell>
+                       <TableCell className="text-right">{r.proposals}</TableCell>
+                       <TableCell className="text-right">{r.converted}</TableCell>
+                       <TableCell className="text-right">{r.conversionRate}%</TableCell>
+                       <TableCell className="text-right">${r.totalValue.toLocaleString()}</TableCell>
+                       <TableCell className="text-right">${r.convertedValue.toLocaleString()}</TableCell>
+                       <TableCell className="text-right text-xs text-muted-foreground">
+                         {r.lastReferralDate ? new Date(r.lastReferralDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                       </TableCell>
+                     </TableRow>
+                   ))}
                 </TableBody>
               </Table>
             </div>
