@@ -120,7 +120,10 @@ export function ProposalPreviewModal({ proposal, open, onOpenChange, onSend, onS
   @bottom-right { content: "Page " counter(page) " of " counter(pages); font-size: 7pt; color: #94a3b8; font-family: 'Inter', sans-serif; }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 720px; margin: 0 auto; font-size: 10pt; line-height: 1.55; }
+body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 720px; margin: 0 auto; font-size: 10pt; line-height: 1.55; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+img { max-width: 100%; height: auto; }
+table { page-break-inside: avoid; }
+div { page-break-inside: avoid; }
 </style></head><body>`);
     w.document.write(el.innerHTML);
     w.document.write("</body></html>");
