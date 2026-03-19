@@ -5,7 +5,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Mail, Eye } from "lucide-react";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
-import hostedCompanyLogo from "@/assets/company-logo-hosted.png";
 
 const SAMPLE = {
   companyName: "Green Light Expediting",
@@ -34,8 +33,7 @@ const CARD_BG = "#f8fafc";
 const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif";
 
 function resolvePreviewLogoUrl(rawLogoUrl?: string | null) {
-  if (!rawLogoUrl) return hostedCompanyLogo;
-  return /squarespace/i.test(rawLogoUrl) ? hostedCompanyLogo : rawLogoUrl;
+  return rawLogoUrl?.trim() || null;
 }
 
 /** Shared outer shell used by every template */
