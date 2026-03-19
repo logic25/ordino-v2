@@ -28,3 +28,28 @@
 
 **5. SignalStatusBadge updated** ✅
 - Gift icon shown for complimentary subscriptions
+
+---
+
+## Fix: Wrong & Duplicate Contacts on Converted Projects — Complete
+
+### Bugs fixed:
+
+**1. Contact matching used email-only (caused wrong CRM match)** ✅
+- `migrateProposalContactsToProject()` now matches by: exact name first → email+name verification → create new
+- Prevents "same email, different person" collisions (e.g. Marrina → Mike Diller)
+- Extracted into a shared utility used by both `useSignProposalInternal` and `useMarkProposalApproved`
+
+**2. `useMarkProposalApproved` was missing contact migration entirely** ✅
+- Added `migrateProposalContactsToProject()` call to the approval flow
+
+**3. Contacts tab showed duplicates from multiple sources** ✅
+- `useProjectContacts` now: if project has linked `project_contacts`, show ONLY those
+- Falls back to client contacts + proposal contacts only when no linked contacts exist
+- Deduplication uses name+email normalization instead of mixing id-based and string-based keys
+
+### Files changed:
+- `src/hooks/useProposals.ts` — extracted `migrateProposalContactsToProject()`, simplified internal sign contact migration
+- `src/hooks/useProposalFollowUps.ts` — added contact migration to approval flow
+- `src/hooks/useProjectDetail.ts` — rewrote `useProjectContacts` with proper source priority and deduplication
+- `src/test/contactMigration.test.ts` — 7 regression tests covering matching, deduplication, and role filtering
