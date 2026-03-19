@@ -234,7 +234,7 @@ div { page-break-inside: avoid; }
             </div>
 
             {/* ═══ Accent line ═══ */}
-            <div style={{ height: 3, background: amber }} />
+            <div style={{ height: 1.5, background: amber }} />
 
             {/* ═══ Body ═══ */}
             <div style={{ padding: "32px 48px 40px" }}>
