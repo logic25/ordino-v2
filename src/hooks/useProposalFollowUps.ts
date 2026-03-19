@@ -216,8 +216,19 @@ export function useMarkProposalApproved() {
         } catch (rfiErr) {
           console.error("Error creating welcome RFI:", rfiErr);
         }
-      }
+        }
 
+        // Migrate proposal contacts to project
+        try {
+          await migrateProposalContactsToProject({
+            proposalId: id,
+            projectId,
+            companyId: profile.company_id,
+            clientId: proposal.client_id || null,
+          });
+        } catch (contactMigErr) {
+          console.error("Error migrating proposal contacts to project:", contactMigErr);
+        }
       // Update proposal status + link to project
       const { error } = await supabase
         .from("proposals")
