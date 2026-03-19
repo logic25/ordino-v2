@@ -20,10 +20,14 @@ export function InvoicePDFPreview({ invoice, open, onOpenChange }: InvoicePDFPre
 
   if (!invoice) return null;
 
+  const logoUrl = companyData?.logo_url || companyData?.settings?.company_logo_url || "";
+
   const pdfDoc = (
     <InvoicePDF
       invoice={invoice}
       settings={companyData?.settings}
+      companyName={companyData?.name}
+      logoUrl={logoUrl}
     />
   );
 
