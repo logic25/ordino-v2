@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { BlobProvider } from "@react-pdf/renderer";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -8,6 +8,7 @@ import { Loader2, Download } from "lucide-react";
 import { InvoicePDF } from "./InvoicePDF";
 import type { InvoiceWithRelations } from "@/hooks/useInvoices";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { getLogoDataUrl } from "@/utils/logoToDataUrl";
 
 interface InvoicePDFPreviewProps {
   invoice: InvoiceWithRelations | null;
