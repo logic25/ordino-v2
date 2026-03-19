@@ -15,6 +15,7 @@ interface ChangeOrderPDFProps {
   projectNumber?: string;
   clientName?: string;
   signerName?: string;
+  logoUrl?: string;
 }
 
 /* ── Palette matching Proposal ─────────────────────── */
