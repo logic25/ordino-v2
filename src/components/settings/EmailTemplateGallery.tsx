@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Mail, Eye } from "lucide-react";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import hostedCompanyLogo from "@/assets/company-logo-hosted.png";
 
 const SAMPLE = {
   companyName: "Green Light Expediting",
@@ -31,6 +32,11 @@ const MUTED = "#94a3b8";
 const BORDER = "#e2e8f0";
 const CARD_BG = "#f8fafc";
 const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif";
+
+function resolvePreviewLogoUrl(rawLogoUrl?: string | null) {
+  if (!rawLogoUrl) return hostedCompanyLogo;
+  return /squarespace/i.test(rawLogoUrl) ? hostedCompanyLogo : rawLogoUrl;
+}
 
 /** Shared outer shell used by every template */
 function shell({
@@ -372,9 +378,10 @@ const categoryColors: Record<string, string> = {
 
 export function EmailTemplateGallery() {
   const { data: company } = useCompanySettings();
-  const logoUrl = company?.logo_url || (company as any)?.settings?.company_logo_url || null;
+  const storedLogoUrl = company?.logo_url || (company as any)?.settings?.company_logo_url || null;
+  const logoUrl = resolvePreviewLogoUrl(storedLogoUrl);
   const [previewId, setPreviewId] = useState<string | null>(null);
-  const previewTemplate = TEMPLATES.find(t => t.id === previewId);
+  const previewTemplate = TEMPLATES.find((t) => t.id === previewId);
   const previewHtml = useMemo(() => previewTemplate?.buildHtml(logoUrl) || "", [previewId, logoUrl]);
 
   return (
