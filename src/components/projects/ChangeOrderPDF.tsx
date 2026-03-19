@@ -125,7 +125,10 @@ export function ChangeOrderPDF({
         {/* ═══ Header Banner ═══ */}
         <View style={s.headerBanner}>
           <View>
-            <Text style={s.companyName}>{companyName || "Your Company"}</Text>
+            {logoUrl ? (
+              <Image style={s.logo} src={logoUrl} />
+            ) : null}
+            <Text style={[s.companyName, logoUrl ? { fontSize: 14 } : {}]}>{companyName || "Your Company"}</Text>
             {companyAddress ? <Text style={s.headerDetail}>{companyAddress}</Text> : null}
             <Text style={s.headerDetail}>
               {companyPhone ? `Tel: ${companyPhone}` : ""}
