@@ -335,7 +335,7 @@ export function CompanySettings() {
             />
             {logoUrl && (
               <div className="border rounded-lg p-3 bg-muted/30 flex items-center gap-3">
-                <img src={logoUrl} alt="Logo preview" className="h-10 w-auto max-w-[160px] object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                <img src={logoUrl} alt="Logo preview" className="h-10 w-auto max-w-[280px] object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                 <span className="text-xs text-muted-foreground">Preview</span>
               </div>
             )}
