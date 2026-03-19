@@ -115,8 +115,10 @@ export async function generateInvoicePDFBlob(
   logoUrl?: string,
 ): Promise<Blob> {
   const { pdf } = await import("@react-pdf/renderer");
+  const { getLogoDataUrl } = await import("@/utils/logoToDataUrl");
+  const resolvedLogo = await getLogoDataUrl(logoUrl);
   const blob = await pdf(
-    <InvoicePDF invoice={invoice} settings={settings} companyName={companyName} logoUrl={logoUrl} />
+    <InvoicePDF invoice={invoice} settings={settings} companyName={companyName} logoUrl={resolvedLogo} />
   ).toBlob();
   return blob;
 }
