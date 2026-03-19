@@ -106,6 +106,7 @@ export function ChangeOrderPDF({
   projectNumber,
   clientName,
   signerName,
+  logoUrl,
 }: ChangeOrderPDFProps) {
   const lineItems: COLineItem[] = Array.isArray(co.line_items) && co.line_items.length > 0
     ? co.line_items
