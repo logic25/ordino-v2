@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { DEFAULT_PIS_SECTIONS } from "@/hooks/useRfi";
+import { migrateProposalContactsToProject } from "@/hooks/useProposals";
 
 export interface ProposalFollowUp {
   id: string;
@@ -215,8 +216,19 @@ export function useMarkProposalApproved() {
         } catch (rfiErr) {
           console.error("Error creating welcome RFI:", rfiErr);
         }
-      }
+        }
 
+        // Migrate proposal contacts to project
+        try {
+          await migrateProposalContactsToProject({
+            proposalId: id,
+            projectId,
+            companyId: profile.company_id,
+            clientId: proposal.client_id || null,
+          });
+        } catch (contactMigErr) {
+          console.error("Error migrating proposal contacts to project:", contactMigErr);
+        }
       // Update proposal status + link to project
       const { error } = await supabase
         .from("proposals")
