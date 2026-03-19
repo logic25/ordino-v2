@@ -166,7 +166,7 @@ function DeleteAccountDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   );
 }
 
-type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists" | "roles" | "partner_templates" | "signal" | "instruction_templates" | "notifications" | "beacon" | "billing_notifications" | "reports";
+type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists" | "roles" | "partner_templates" | "signal" | "instruction_templates" | "notifications" | "beacon" | "billing_notifications" | "reports" | "email_gallery";
 
 interface SettingsSectionDef {
   id: SettingsSection;
