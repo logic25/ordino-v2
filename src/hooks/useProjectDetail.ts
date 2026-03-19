@@ -122,47 +122,21 @@ export function useProjectContacts(projectId: string | undefined, clientId: stri
       if (!projectId) return [];
 
       const contacts: MockContact[] = [];
-      const seen = new Set<string>();
+      const seen = new Set<string>(); // track by client_contact id
 
-      // 1. Client contacts (from the project's own client)
-      if (clientId) {
-        const { data: clientContacts } = await supabase
-          .from("client_contacts")
-          .select("id, name, email, phone, title, company_name, is_primary, first_name, last_name, client_id")
-          .eq("client_id", clientId)
-          .order("is_primary", { ascending: false });
-
-        (clientContacts || []).forEach((cc: any) => {
-          const key = cc.id;
-          if (seen.has(key)) return;
-          seen.add(key);
-          contacts.push({
-            id: cc.id,
-            name: cc.name,
-            role: cc.title || (cc.is_primary ? "Primary Contact" : "Contact"),
-            company: cc.company_name || "",
-            phone: cc.phone || "",
-            email: cc.email || "",
-            dobRole: "owner",
-            source: "proposal",
-            dobRegistered: "unknown",
-            client_id: cc.client_id,
-            first_name: cc.first_name || "",
-            last_name: cc.last_name || "",
-            title: cc.title || "",
-            is_primary: cc.is_primary || false,
-          });
-        });
-      }
-
-      // 2. Explicitly linked contacts (from project_contacts join table)
+      // 1. Check for explicitly linked project_contacts first
       const { data: linkedRows } = await (supabase.from("project_contacts" as any) as any)
-        .select("contact_id")
+        .select("contact_id, role")
         .eq("project_id", projectId);
 
-      if (linkedRows?.length) {
-        const linkedIds = (linkedRows as any[]).map((r: any) => r.contact_id).filter((id: string) => !seen.has(id));
-        if (linkedIds.length) {
+      const hasLinkedContacts = linkedRows && linkedRows.length > 0;
+
+      if (hasLinkedContacts) {
+        // Fetch linked contact details
+        const linkedIds = (linkedRows as any[]).map((r: any) => r.contact_id);
+        const roleMap = new Map((linkedRows as any[]).map((r: any) => [r.contact_id, r.role]));
+
+        if (linkedIds.length > 0) {
           const { data: linkedContacts } = await supabase
             .from("client_contacts")
             .select("id, name, email, phone, title, company_name, is_primary, first_name, last_name, client_id")
@@ -171,14 +145,15 @@ export function useProjectContacts(projectId: string | undefined, clientId: stri
           (linkedContacts || []).forEach((cc: any) => {
             if (seen.has(cc.id)) return;
             seen.add(cc.id);
+            const linkedRole = roleMap.get(cc.id);
             contacts.push({
               id: cc.id,
               name: cc.name,
-              role: cc.title || "Contact",
+              role: cc.title || (linkedRole === "applicant" ? "Applicant" : linkedRole === "bill_to" ? "Bill To" : linkedRole === "sign" ? "Signer" : cc.is_primary ? "Primary Contact" : "Contact"),
               company: cc.company_name || "",
               phone: cc.phone || "",
               email: cc.email || "",
-              dobRole: "other",
+              dobRole: linkedRole === "applicant" ? "owner" : "other",
               source: "manual",
               dobRegistered: "unknown",
               client_id: cc.client_id,
@@ -191,29 +166,69 @@ export function useProjectContacts(projectId: string | undefined, clientId: stri
         }
       }
 
-      // 3. Proposal contacts
-      if (proposalId) {
-        const { data: propContacts } = await (supabase.from("proposal_contacts" as any) as any)
-          .select("id, name, email, phone, company_name, role")
-          .eq("proposal_id", proposalId)
-          .order("sort_order");
+      // 2. If no linked project_contacts, fall back to client contacts + proposal contacts
+      if (!hasLinkedContacts) {
+        // Client contacts
+        if (clientId) {
+          const { data: clientContacts } = await supabase
+            .from("client_contacts")
+            .select("id, name, email, phone, title, company_name, is_primary, first_name, last_name, client_id")
+            .eq("client_id", clientId)
+            .order("is_primary", { ascending: false });
 
-        (propContacts || []).forEach((pc: any) => {
-          const key = (pc.email || pc.name).toLowerCase();
-          if (seen.has(key)) return;
-          seen.add(key);
-          contacts.push({
-            id: pc.id,
-            name: pc.name,
-            role: pc.role === "bill_to" ? "Bill To" : pc.role === "sign" ? "Signer" : pc.role === "cc" ? "CC" : pc.role,
-            company: pc.company_name || "",
-            phone: pc.phone || "",
-            email: pc.email || "",
-            dobRole: "other",
-            source: "proposal",
-            dobRegistered: "unknown",
+          (clientContacts || []).forEach((cc: any) => {
+            if (seen.has(cc.id)) return;
+            seen.add(cc.id);
+            contacts.push({
+              id: cc.id,
+              name: cc.name,
+              role: cc.title || (cc.is_primary ? "Primary Contact" : "Contact"),
+              company: cc.company_name || "",
+              phone: cc.phone || "",
+              email: cc.email || "",
+              dobRole: "owner",
+              source: "proposal",
+              dobRegistered: "unknown",
+              client_id: cc.client_id,
+              first_name: cc.first_name || "",
+              last_name: cc.last_name || "",
+              title: cc.title || "",
+              is_primary: cc.is_primary || false,
+            });
           });
-        });
+        }
+
+        // Proposal contacts (only as fallback when no linked contacts)
+        if (proposalId) {
+          const { data: propContacts } = await (supabase.from("proposal_contacts" as any) as any)
+            .select("id, name, email, phone, company_name, role")
+            .eq("proposal_id", proposalId)
+            .order("sort_order");
+
+          (propContacts || []).forEach((pc: any) => {
+            // Dedupe by normalized name+email
+            const dedupeKey = `${(pc.name || "").trim().toLowerCase()}|${(pc.email || "").trim().toLowerCase()}`;
+            // Also check if any existing contact matches this name or email
+            const alreadyPresent = contacts.some(
+              (c) =>
+                c.name.trim().toLowerCase() === (pc.name || "").trim().toLowerCase() ||
+                (c.email && pc.email && c.email.trim().toLowerCase() === pc.email.trim().toLowerCase())
+            );
+            if (seen.has(dedupeKey) || alreadyPresent) return;
+            seen.add(dedupeKey);
+            contacts.push({
+              id: pc.id,
+              name: pc.name,
+              role: pc.role === "bill_to" ? "Bill To" : pc.role === "sign" ? "Signer" : pc.role === "cc" ? "CC" : pc.role === "applicant" ? "Applicant" : pc.role,
+              company: pc.company_name || "",
+              phone: pc.phone || "",
+              email: pc.email || "",
+              dobRole: "other",
+              source: "proposal",
+              dobRegistered: "unknown",
+            });
+          });
+        }
       }
 
       return contacts;
