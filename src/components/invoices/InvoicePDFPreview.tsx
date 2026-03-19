@@ -20,10 +20,14 @@ export function InvoicePDFPreview({ invoice, open, onOpenChange }: InvoicePDFPre
 
   if (!invoice) return null;
 
+  const logoUrl = companyData?.logo_url || companyData?.settings?.company_logo_url || "";
+
   const pdfDoc = (
     <InvoicePDF
       invoice={invoice}
       settings={companyData?.settings}
+      companyName={companyData?.name}
+      logoUrl={logoUrl}
     />
   );
 
@@ -99,10 +103,12 @@ export function InvoicePDFPreview({ invoice, open, onOpenChange }: InvoicePDFPre
 export async function generateInvoicePDFBlob(
   invoice: InvoiceWithRelations,
   settings?: import("@/hooks/useCompanySettings").CompanySettings,
+  companyName?: string,
+  logoUrl?: string,
 ): Promise<Blob> {
   const { pdf } = await import("@react-pdf/renderer");
   const blob = await pdf(
-    <InvoicePDF invoice={invoice} settings={settings} />
+    <InvoicePDF invoice={invoice} settings={settings} companyName={companyName} logoUrl={logoUrl} />
   ).toBlob();
   return blob;
 }

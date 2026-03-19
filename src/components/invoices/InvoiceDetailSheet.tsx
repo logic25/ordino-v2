@@ -219,7 +219,8 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
                 <Button variant="outline" size="sm" className="flex-1" disabled={downloading} onClick={async () => {
                   setDownloading(true);
                   try {
-                    const blob = await generateInvoicePDFBlob(invoice, actions.companyData?.settings);
+                    const logoUrl = actions.companyData?.logo_url || actions.companyData?.settings?.company_logo_url || "";
+                    const blob = await generateInvoicePDFBlob(invoice, actions.companyData?.settings, actions.companyData?.name, logoUrl);
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement("a");
                     a.href = url; a.download = `${invoice.invoice_number}.pdf`; a.click();

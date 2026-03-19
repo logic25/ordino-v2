@@ -15,6 +15,7 @@ interface ChangeOrderPDFProps {
   projectNumber?: string;
   clientName?: string;
   signerName?: string;
+  logoUrl?: string;
 }
 
 /* ── Palette matching Proposal ─────────────────────── */
@@ -29,6 +30,7 @@ const s = StyleSheet.create({
 
   /* Header banner */
   headerBanner: { backgroundColor: charcoal, paddingHorizontal: 48, paddingTop: 32, paddingBottom: 28, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+  logo: { maxHeight: 40, maxWidth: 160, objectFit: "contain" as any, marginBottom: 10 },
   companyName: { fontSize: 18, fontFamily: "Helvetica-Bold", color: "#ffffff", marginBottom: 6, letterSpacing: -0.3 },
   headerDetail: { fontSize: 8.5, color: "#94a3b8", lineHeight: 1.55 },
   headerRight: { alignItems: "flex-end" },
@@ -104,6 +106,7 @@ export function ChangeOrderPDF({
   projectNumber,
   clientName,
   signerName,
+  logoUrl,
 }: ChangeOrderPDFProps) {
   const lineItems: COLineItem[] = Array.isArray(co.line_items) && co.line_items.length > 0
     ? co.line_items
@@ -122,7 +125,10 @@ export function ChangeOrderPDF({
         {/* ═══ Header Banner ═══ */}
         <View style={s.headerBanner}>
           <View>
-            <Text style={s.companyName}>{companyName || "Your Company"}</Text>
+            {logoUrl ? (
+              <Image style={s.logo} src={logoUrl} />
+            ) : null}
+            <Text style={[s.companyName, logoUrl ? { fontSize: 14 } : {}]}>{companyName || "Your Company"}</Text>
             {companyAddress ? <Text style={s.headerDetail}>{companyAddress}</Text> : null}
             <Text style={s.headerDetail}>
               {companyPhone ? `Tel: ${companyPhone}` : ""}
