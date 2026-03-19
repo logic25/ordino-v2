@@ -482,6 +482,9 @@ function buildTemplateBody(
           <td style="width:16px;"></td>
           ${infoCard("Billed By", "Sarah Johnson", "Mar 19, 2026 · 2:30 PM")}
         </tr></table>
+        <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
+          ${infoCard("Billed To", "John Smith", "ABC Construction LLC")}
+        </tr></table>
         ${greetingHtml}${bodyHtml}
         <div style="border:1px solid ${BORDER};border-radius:8px;overflow:hidden;margin-bottom:24px;">
           <table style="width:100%;border-collapse:collapse;">
