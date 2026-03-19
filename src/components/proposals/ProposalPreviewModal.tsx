@@ -513,9 +513,9 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                     <div style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 24, color: charcoal }}>
                       {billTo?.company_name || proposal.client_name || "Client"}
                     </div>
-                    <div style={{ borderBottom: `2px solid ${charcoal}`, height: 32, marginBottom: 4 }}>
+                    <div style={{ borderBottom: `2px solid ${charcoal}`, height: 48, marginBottom: 4, display: "flex", alignItems: "flex-end" }}>
                       {(proposal as any).client_signature_data && (
-                        <img src={(proposal as any).client_signature_data} alt="Client Signature" style={{ height: 28, objectFit: "contain" }} />
+                        <img src={(proposal as any).client_signature_data} alt="Client Signature" style={{ height: 44, objectFit: "contain" }} />
                       )}
                     </div>
                     <div style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>
