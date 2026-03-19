@@ -120,7 +120,10 @@ export function ProposalPreviewModal({ proposal, open, onOpenChange, onSend, onS
   @bottom-right { content: "Page " counter(page) " of " counter(pages); font-size: 7pt; color: #94a3b8; font-family: 'Inter', sans-serif; }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 720px; margin: 0 auto; font-size: 10pt; line-height: 1.55; }
+body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 720px; margin: 0 auto; font-size: 10pt; line-height: 1.55; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+img { max-width: 100%; height: auto; }
+table { page-break-inside: avoid; }
+div { page-break-inside: avoid; }
 </style></head><body>`);
     w.document.write(el.innerHTML);
     w.document.write("</body></html>");
@@ -195,26 +198,8 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
         <div className="flex-1 overflow-y-auto bg-muted/40">
           <div id="proposal-preview-content" className="max-w-[720px] mx-auto bg-white shadow-md my-6" style={{ color: charcoal }}>
 
-            {/* ═══ A/B/C Website URL Test — REMOVE AFTER PICKING ═══ */}
-            <div style={{ padding: "20px 48px", borderBottom: "2px dashed #e2e8f0", background: "#fefce8" }}>
-              <div style={{ fontSize: "8pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1.5, color: slate, marginBottom: 10 }}>
-                🧪 Pick your favorite website URL style:
-              </div>
-              <div style={{ display: "flex", gap: 32, alignItems: "center" }}>
-                <div>
-                  <div style={{ fontSize: "7pt", fontWeight: 700, color: slate, marginBottom: 4 }}>A) Darkened green</div>
-                  <span style={{ fontSize: "9pt", color: "hsl(65 69% 38%)", fontWeight: 600 }}>{company?.website || "www.example.com"}</span>
-                </div>
-                <div>
-                  <div style={{ fontSize: "7pt", fontWeight: 700, color: slate, marginBottom: 4 }}>B) Lime on dark pill</div>
-                  <span style={{ fontSize: "9pt", color: amber, fontWeight: 700, background: charcoal, padding: "2px 10px", borderRadius: 4 }}>{company?.website || "www.example.com"}</span>
-                </div>
-                <div>
-                  <div style={{ fontSize: "7pt", fontWeight: 700, color: slate, marginBottom: 4 }}>C) Bold + underline</div>
-                  <span style={{ fontSize: "9pt", color: amber, fontWeight: 700, textDecoration: "underline", textUnderlineOffset: 3 }}>{company?.website || "www.example.com"}</span>
-                </div>
-              </div>
-            </div>
+
+
 
             <div style={{ padding: "36px 48px 28px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: `1px solid ${borderColor}` }}>
               <div>
@@ -232,14 +217,14 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                     {company?.fax && <span style={{ marginLeft: 12 }}>Fax: {company.fax}</span>}
                   </div>
                   {company?.email && <div>{company.email}</div>}
-                  {company?.website && <div style={{ color: "#4a7a2e", fontWeight: 600 }}>{company.website}</div>}
+                  {company?.website && <div style={{ color: "hsl(65 69% 38%)", fontWeight: 600 }}>{company.website}</div>}
                 </div>
               </div>
               <div style={{ textAlign: "right", minWidth: 148, whiteSpace: "nowrap", flexShrink: 0 }}>
                 <div style={{ fontSize: "9pt", textTransform: "uppercase", letterSpacing: 2, color: slate, fontWeight: 600, marginBottom: 4 }}>
                   Proposal
                 </div>
-                <div style={{ fontSize: "18pt", fontWeight: 800, color: charcoal, whiteSpace: "nowrap", lineHeight: 1, letterSpacing: -0.5 }}>
+                <div style={{ fontSize: "14pt", fontWeight: 700, color: charcoal, whiteSpace: "nowrap", lineHeight: 1, letterSpacing: -0.3 }}>
                   #{proposal.proposal_number}
                 </div>
                 <div style={{ fontSize: "9pt", color: slate, marginTop: 8 }}>
@@ -486,9 +471,9 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                   {/* Company */}
                   <div style={{ flex: 1, padding: "16px 20px", background: lightBg, borderRadius: 6, border: "1px solid #e2e8f0" }}>
                     <div style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 24, color: charcoal }}>{company?.name || "Your Company"}</div>
-                    <div style={{ borderBottom: `2px solid ${charcoal}`, height: 32, marginBottom: 4 }}>
+                    <div style={{ borderBottom: `2px solid ${charcoal}`, height: 48, marginBottom: 4, display: "flex", alignItems: "flex-end" }}>
                       {proposal.internal_signature_data && (
-                        <img src={proposal.internal_signature_data} alt="Signature" style={{ height: 28, objectFit: "contain" }} />
+                        <img src={proposal.internal_signature_data} alt="Signature" style={{ height: 44, objectFit: "contain" }} />
                       )}
                     </div>
                     <div style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>
@@ -513,9 +498,9 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                     <div style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 24, color: charcoal }}>
                       {billTo?.company_name || proposal.client_name || "Client"}
                     </div>
-                    <div style={{ borderBottom: `2px solid ${charcoal}`, height: 32, marginBottom: 4 }}>
+                    <div style={{ borderBottom: `2px solid ${charcoal}`, height: 48, marginBottom: 4, display: "flex", alignItems: "flex-end" }}>
                       {(proposal as any).client_signature_data && (
-                        <img src={(proposal as any).client_signature_data} alt="Client Signature" style={{ height: 28, objectFit: "contain" }} />
+                        <img src={(proposal as any).client_signature_data} alt="Client Signature" style={{ height: 44, objectFit: "contain" }} />
                       )}
                     </div>
                     <div style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>
@@ -537,7 +522,7 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                   {company?.fax && <span style={{ marginLeft: 10 }}>Fax: {company.fax}</span>}
                   {company?.email && <span style={{ marginLeft: 10 }}>{company.email}</span>}
                 </div>
-                {company?.website && <div style={{ color: "#4a7a2e", fontWeight: 600, marginTop: 2 }}>{company.website}</div>}
+                {company?.website && <div style={{ color: "hsl(65 69% 38%)", fontWeight: 600, marginTop: 2 }}>{company.website}</div>}
               </div>
             </div>
           </div>
