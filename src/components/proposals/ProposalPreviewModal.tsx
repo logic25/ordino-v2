@@ -239,7 +239,7 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                 <div style={{ fontSize: "9pt", textTransform: "uppercase", letterSpacing: 2, color: slate, fontWeight: 600, marginBottom: 4 }}>
                   Proposal
                 </div>
-                <div style={{ fontSize: "18pt", fontWeight: 800, color: charcoal, whiteSpace: "nowrap", lineHeight: 1, letterSpacing: -0.5 }}>
+                <div style={{ fontSize: "14pt", fontWeight: 700, color: charcoal, whiteSpace: "nowrap", lineHeight: 1, letterSpacing: -0.3 }}>
                   #{proposal.proposal_number}
                 </div>
                 <div style={{ fontSize: "9pt", color: slate, marginTop: 8 }}>
