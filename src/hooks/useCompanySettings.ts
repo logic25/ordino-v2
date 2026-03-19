@@ -106,6 +106,19 @@ export interface CompanySettings {
   gchat_space_id?: string;
   // Filing checklist defaults
   filing_checklist_defaults?: { id: string; label: string; required: boolean }[];
+  // Email template editor
+  email_style?: {
+    accent_color?: string;
+    font_family?: string;
+    button_radius?: string;
+  };
+  email_template_overrides?: Record<string, {
+    subject?: string;
+    greeting?: string;
+    body_text?: string;
+    cta_text?: string;
+    signoff?: string;
+  }>;
 }
 
 export function useCompanySettings() {
