@@ -472,11 +472,11 @@ div { page-break-inside: avoid; }
 
                 <div style={{ display: "flex", gap: 32 }}>
                   {/* Company */}
-                  <div style={{ flex: 1, padding: "16px 20px", background: lightBg, borderRadius: 6, border: "1px solid #e2e8f0" }}>
-                    <div style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 24, color: charcoal }}>{company?.name || "Your Company"}</div>
-                    <div style={{ borderBottom: `2px solid ${charcoal}`, height: 64, marginBottom: 4, display: "flex", alignItems: "flex-end" }}>
+                  <div style={{ flex: 1, padding: "20px 24px", background: "white", borderRadius: 6, border: "1px solid #e2e8f0" }}>
+                    <div style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 16, color: charcoal }}>{company?.name || "Your Company"}</div>
+                    <div style={{ borderBottom: `1.5px solid ${charcoal}`, paddingBottom: 6, marginBottom: 6, minHeight: 56, display: "flex", alignItems: "flex-end" }}>
                       {proposal.internal_signature_data && (
-                        <img src={proposal.internal_signature_data} alt="Signature" style={{ height: 58, objectFit: "contain" }} />
+                        <img src={proposal.internal_signature_data} alt="Signature" style={{ width: "70%", maxHeight: 72, objectFit: "contain", objectPosition: "left bottom" }} />
                       )}
                     </div>
                     <div style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>
@@ -497,13 +497,13 @@ div { page-break-inside: avoid; }
                   </div>
 
                   {/* Client */}
-                  <div style={{ flex: 1, padding: "16px 20px", background: lightBg, borderRadius: 6, border: "1px solid #e2e8f0" }}>
-                    <div style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 24, color: charcoal }}>
+                  <div style={{ flex: 1, padding: "20px 24px", background: "white", borderRadius: 6, border: "1px solid #e2e8f0" }}>
+                    <div style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 16, color: charcoal }}>
                       {billTo?.company_name || proposal.client_name || "Client"}
                     </div>
-                    <div style={{ borderBottom: `2px solid ${charcoal}`, height: 48, marginBottom: 4, display: "flex", alignItems: "flex-end" }}>
+                    <div style={{ borderBottom: `1.5px solid ${charcoal}`, paddingBottom: 6, marginBottom: 6, minHeight: 56, display: "flex", alignItems: "flex-end" }}>
                       {(proposal as any).client_signature_data && (
-                        <img src={(proposal as any).client_signature_data} alt="Client Signature" style={{ height: 44, objectFit: "contain" }} />
+                        <img src={(proposal as any).client_signature_data} alt="Client Signature" style={{ width: "70%", maxHeight: 72, objectFit: "contain", objectPosition: "left bottom" }} />
                       )}
                     </div>
                     <div style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>
