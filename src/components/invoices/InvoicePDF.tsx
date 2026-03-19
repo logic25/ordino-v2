@@ -23,7 +23,7 @@ const s = StyleSheet.create({
 
   /* Header banner */
   headerBanner: { backgroundColor: charcoal, paddingHorizontal: 48, paddingTop: 32, paddingBottom: 28, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  logo: { maxHeight: 40, maxWidth: 160, objectFit: "contain" as any, marginBottom: 10 },
+  logo: { maxHeight: 40, maxWidth: 240, objectFit: "contain" as any, marginBottom: 10 },
   companyName: { fontSize: 18, fontFamily: "Helvetica-Bold", color: "#ffffff", marginBottom: 6, letterSpacing: -0.3 },
   headerDetail: { fontSize: 8.5, color: "#94a3b8", lineHeight: 1.55 },
   headerRight: { alignItems: "flex-end" },
