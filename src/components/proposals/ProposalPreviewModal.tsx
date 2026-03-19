@@ -224,7 +224,7 @@ div { page-break-inside: avoid; }
                 <div style={{ fontSize: "9pt", textTransform: "uppercase", letterSpacing: 2, color: slate, fontWeight: 600, marginBottom: 4 }}>
                   Proposal
                 </div>
-                <div style={{ fontSize: "14pt", fontWeight: 700, color: charcoal, whiteSpace: "nowrap", lineHeight: 1, letterSpacing: -0.3 }}>
+                <div style={{ fontSize: "11pt", fontWeight: 700, color: charcoal, whiteSpace: "nowrap", lineHeight: 1, letterSpacing: -0.2 }}>
                   #{proposal.proposal_number}
                 </div>
                 <div style={{ fontSize: "9pt", color: slate, marginTop: 8 }}>
