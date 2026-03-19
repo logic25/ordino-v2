@@ -25,6 +25,7 @@ import { RolesSettings } from "@/components/settings/RolesSettings";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import { BillingNotificationSettings } from "@/components/settings/BillingNotificationSettings";
 import { ReportSettings } from "@/components/settings/ReportSettings";
+import { EmailTemplateGallery } from "@/components/settings/EmailTemplateGallery";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { Mail, Brain, ExternalLink, BarChart3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -165,7 +166,7 @@ function DeleteAccountDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   );
 }
 
-type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists" | "roles" | "partner_templates" | "signal" | "instruction_templates" | "notifications" | "beacon" | "billing_notifications" | "reports";
+type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists" | "roles" | "partner_templates" | "signal" | "instruction_templates" | "notifications" | "beacon" | "billing_notifications" | "reports" | "email_gallery";
 
 interface SettingsSectionDef {
   id: SettingsSection;
@@ -204,6 +205,7 @@ const settingsGroups: SettingsGroup[] = [
       { id: "rfi_templates", title: "RFI Templates", description: "Configure client questionnaire forms", icon: FileText },
       { id: "instruction_templates", title: "Instruction Templates", description: "Reusable email templates for DOB instructions", icon: Mail },
       { id: "partner_templates", title: "Partner Outreach Templates", description: "Email templates for RFP partner notifications", icon: Mail },
+      { id: "email_gallery", title: "Email Template Gallery", description: "Preview all branded email templates side-by-side", icon: Mail },
       { id: "lists", title: "Lists & Lookups", description: "Company types, review categories, and lead sources", icon: ListChecks },
     ],
   },
@@ -251,6 +253,7 @@ export default function Settings() {
       case "automation": return <AutomationRulesSettings />;
       case "partner_templates": return <PartnerEmailTemplateSettings />;
       case "instruction_templates": return <InstructionTemplateSettings />;
+      case "email_gallery": return <EmailTemplateGallery />;
       case "signal": return <SignalSettings />;
       case "roles": return <RolesSettings />;
       case "notifications": return <NotificationSettings />;
