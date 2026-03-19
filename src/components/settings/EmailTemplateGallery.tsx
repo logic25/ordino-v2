@@ -428,7 +428,7 @@ function buildTemplateBody(
           <table style="width:100%;"><tr>
             <td style="text-align:center;">
               <p style="margin:0;font-size:10px;text-transform:uppercase;color:${MUTED};font-weight:600;letter-spacing:0.8px;">Total Billed</p>
-              <p style="margin:4px 0 0;font-size:24px;font-weight:800;color:${HEADING};">$24,500</p>
+              <p style="margin:4px 0 0;font-size:24px;font-weight:800;color:${accent};">$24,500</p>
             </td>
             <td style="text-align:center;">
               <p style="margin:0;font-size:10px;text-transform:uppercase;color:${MUTED};font-weight:600;letter-spacing:0.8px;">Requests</p>
@@ -440,18 +440,64 @@ function buildTemplateBody(
           <table style="width:100%;border-collapse:collapse;">
             <thead><tr style="background:${CARD_BG};">
               <th style="padding:10px 16px;text-align:left;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;">Service</th>
+              <th style="padding:10px 16px;text-align:left;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;">Billed By</th>
               <th style="padding:10px 16px;text-align:left;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;">Project</th>
               <th style="padding:10px 16px;text-align:right;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;">Amount</th>
             </tr></thead>
             <tbody>
-              <tr><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:${HEADING};">DOB Filing</td><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#64748b;">2026-0012</td><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;text-align:right;color:${HEADING};">$3,500</td></tr>
-              <tr><td style="padding:10px 16px;font-size:14px;color:${HEADING};">Expediting</td><td style="padding:10px 16px;font-size:13px;color:#64748b;">2026-0018</td><td style="padding:10px 16px;font-size:14px;text-align:right;color:${HEADING};">$8,400</td></tr>
+              <tr>
+                <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:${HEADING};">DOB Filing</td>
+                <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#64748b;">Sarah J.</td>
+                <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#64748b;">2026-0012</td>
+                <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;text-align:right;color:${HEADING};">$3,500</td>
+              </tr>
+              <tr>
+                <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:${HEADING};">Expediting</td>
+                <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#64748b;">Mike R.</td>
+                <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#64748b;">2026-0018</td>
+                <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;text-align:right;color:${HEADING};">$8,400</td>
+              </tr>
+              <tr>
+                <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:${HEADING};">Asbestos Testing</td>
+                <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#64748b;">Sarah J.</td>
+                <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#64748b;">2026-0012</td>
+                <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;text-align:right;color:${HEADING};">$4,200</td>
+              </tr>
+              <tr>
+                <td style="padding:10px 16px;font-size:14px;color:${HEADING};">Plan Review</td>
+                <td style="padding:10px 16px;font-size:13px;color:#64748b;">Mike R.</td>
+                <td style="padding:10px 16px;font-size:13px;color:#64748b;">2026-0022</td>
+                <td style="padding:10px 16px;font-size:14px;text-align:right;color:${HEADING};">$8,400</td>
+              </tr>
             </tbody>
           </table>
         </div>
         ${ctaHtml}${signoffHtml}`;
 
-    case "partner_outreach":
+    case "billing_alert":
+      return `
+        <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
+          ${infoCard("Project", "2026-0012 – Alt-1 Interior Renovation")}
+          <td style="width:16px;"></td>
+          ${infoCard("Billed By", "Sarah Johnson", "Mar 19, 2026 · 2:30 PM")}
+        </tr></table>
+        ${greetingHtml}${bodyHtml}
+        <div style="border:1px solid ${BORDER};border-radius:8px;overflow:hidden;margin-bottom:24px;">
+          <table style="width:100%;border-collapse:collapse;">
+            <thead><tr style="background:${CARD_BG};">
+              <th style="padding:10px 16px;text-align:left;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;">Service</th>
+              <th style="padding:10px 16px;text-align:right;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;">Amount</th>
+            </tr></thead>
+            <tbody>
+              <tr><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:${HEADING};">DOB Filing &amp; Expediting</td><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;text-align:right;color:${HEADING};">$3,500</td></tr>
+              <tr><td style="padding:10px 16px;font-size:14px;color:${HEADING};">Asbestos Testing</td><td style="padding:10px 16px;font-size:14px;text-align:right;color:${HEADING};">$1,200</td></tr>
+            </tbody>
+          </table>
+          <div style="border-top:1px solid ${BORDER};padding:14px 16px;">
+            <table style="width:100%;"><tr><td style="font-size:15px;font-weight:700;color:${HEADING};">Total</td><td style="font-size:18px;font-weight:800;color:${accent};text-align:right;">$4,700</td></tr></table>
+          </div>
+        </div>
+        ${ctaHtml}${signoffHtml}`;
       return `
         ${greetingHtml}${bodyHtml}
         <div style="border:1px solid ${BORDER};border-radius:8px;overflow:hidden;margin-bottom:24px;">
