@@ -427,7 +427,8 @@ export function ChangeOrderDetailSheet({
       internal_signed_at: co.internal_signed_at || new Date().toISOString(),
       internal_signer_name: co.internal_signer_name || signerName || null,
     } : co;
-    const logoUrl = companySettings?.logo_url || settings?.company_logo_url || "";
+    const { getLogoDataUrl } = await import("@/utils/logoToDataUrl");
+    const logoUrl = await getLogoDataUrl(companySettings?.logo_url || settings?.company_logo_url || "");
     const blob = await pdf(
       <ChangeOrderPDF
         co={coForPdf}
