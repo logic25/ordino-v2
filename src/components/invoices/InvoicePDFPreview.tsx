@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { BlobProvider } from "@react-pdf/renderer";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -8,6 +8,7 @@ import { Loader2, Download } from "lucide-react";
 import { InvoicePDF } from "./InvoicePDF";
 import type { InvoiceWithRelations } from "@/hooks/useInvoices";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { getLogoDataUrl } from "@/utils/logoToDataUrl";
 
 interface InvoicePDFPreviewProps {
   invoice: InvoiceWithRelations | null;
@@ -18,16 +19,23 @@ interface InvoicePDFPreviewProps {
 export function InvoicePDFPreview({ invoice, open, onOpenChange }: InvoicePDFPreviewProps) {
   const { data: companyData } = useCompanySettings();
 
-  if (!invoice) return null;
+  const [logoDataUrl, setLogoDataUrl] = useState<string>("");
 
-  const logoUrl = companyData?.logo_url || companyData?.settings?.company_logo_url || "";
+  useEffect(() => {
+    if (open) {
+      const rawUrl = companyData?.logo_url || companyData?.settings?.company_logo_url || "";
+      getLogoDataUrl(rawUrl).then(setLogoDataUrl);
+    }
+  }, [open, companyData]);
+
+  if (!invoice) return null;
 
   const pdfDoc = (
     <InvoicePDF
       invoice={invoice}
       settings={companyData?.settings}
       companyName={companyData?.name}
-      logoUrl={logoUrl}
+      logoUrl={logoDataUrl}
     />
   );
 
@@ -107,8 +115,10 @@ export async function generateInvoicePDFBlob(
   logoUrl?: string,
 ): Promise<Blob> {
   const { pdf } = await import("@react-pdf/renderer");
+  const { getLogoDataUrl } = await import("@/utils/logoToDataUrl");
+  const resolvedLogo = await getLogoDataUrl(logoUrl);
   const blob = await pdf(
-    <InvoicePDF invoice={invoice} settings={settings} companyName={companyName} logoUrl={logoUrl} />
+    <InvoicePDF invoice={invoice} settings={settings} companyName={companyName} logoUrl={resolvedLogo} />
   ).toBlob();
   return blob;
 }
