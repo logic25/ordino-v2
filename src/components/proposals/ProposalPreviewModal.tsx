@@ -284,8 +284,11 @@ div { page-break-inside: avoid; }
                 </div>
               </div>
 
-              {/* Architect / Engineer info */}
-              {((proposal as any).architect_company || (proposal as any).architect_name) && (
+              {/* Architect / Engineer info — hide if same as bill_to client */}
+              {((proposal as any).architect_company || (proposal as any).architect_name) && !(
+                (billTo?.company_name && billTo.company_name === (proposal as any).architect_company) ||
+                (billTo?.name && billTo.name === (proposal as any).architect_name && !(proposal as any).architect_company)
+              ) && (
                 <div style={{ display: "flex", gap: 32, marginBottom: 28 }}>
                   <div style={{ flex: 1, background: lightBg, padding: "16px 20px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
                     <div style={{ fontSize: "8pt", textTransform: "uppercase", letterSpacing: 1.5, color: slate, marginBottom: 8, fontWeight: 700 }}>
