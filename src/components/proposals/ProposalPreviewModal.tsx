@@ -474,9 +474,9 @@ div { page-break-inside: avoid; }
                   {/* Company */}
                   <div style={{ flex: 1, padding: "16px 20px", background: lightBg, borderRadius: 6, border: "1px solid #e2e8f0" }}>
                     <div style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 24, color: charcoal }}>{company?.name || "Your Company"}</div>
-                    <div style={{ borderBottom: `2px solid ${charcoal}`, height: 48, marginBottom: 4, display: "flex", alignItems: "flex-end" }}>
+                    <div style={{ borderBottom: `2px solid ${charcoal}`, height: 64, marginBottom: 4, display: "flex", alignItems: "flex-end" }}>
                       {proposal.internal_signature_data && (
-                        <img src={proposal.internal_signature_data} alt="Signature" style={{ height: 44, objectFit: "contain" }} />
+                        <img src={proposal.internal_signature_data} alt="Signature" style={{ height: 58, objectFit: "contain" }} />
                       )}
                     </div>
                     <div style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>
