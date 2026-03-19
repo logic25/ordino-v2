@@ -201,7 +201,7 @@ div { page-break-inside: avoid; }
 
 
 
-            <div style={{ padding: "36px 48px 28px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: `1px solid ${borderColor}` }}>
+            <div style={{ padding: "36px 48px 28px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
                 {company?.logo_url ? (
                   <img src={company.logo_url} alt={company.name} style={{ maxHeight: 52, marginBottom: 14 }} />
