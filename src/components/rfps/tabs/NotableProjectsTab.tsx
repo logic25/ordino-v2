@@ -5,11 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   Loader2, MapPin, Search, X, Plus, CheckCircle, AlertTriangle,
-  Calendar, FileText, Building2, DollarSign,
+  Calendar, FileText, Building2, DollarSign, Image as ImageIcon, Trash2,
 } from "lucide-react";
 import { useNotableApplications, useUpdateApplicationRfpInfo } from "@/hooks/useRfpContent";
+import { useProjectSheets, useDeleteProjectSheet, getProjectPhotoUrl, type ProjectSheet } from "@/hooks/useProjectSheets";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
+import { AddProjectSheetDialog } from "./AddProjectSheetDialog";
 
 const COMMON_TAGS = [
   "nycedc", "nycha", "doe", "nyc_parks", "dot", "dep", "lpc",
@@ -19,13 +21,18 @@ const COMMON_TAGS = [
 ];
 
 export function NotableProjectsTab() {
-  const { data: projects = [], isLoading } = useNotableApplications();
+  const { data: projects = [], isLoading: loadingApps } = useNotableApplications();
+  const { data: sheets = [], isLoading: loadingSheets } = useProjectSheets();
   const updateMutation = useUpdateApplicationRfpInfo();
+  const deleteMutation = useDeleteProjectSheet();
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [editingTagsId, setEditingTagsId] = useState<string | null>(null);
   const [newTag, setNewTag] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+
+  const isLoading = loadingApps || loadingSheets;
 
   const filtered = projects.filter((p) => {
     const q = search.toLowerCase();
@@ -34,6 +41,17 @@ export function NotableProjectsTab() {
     const desc = p.description?.toLowerCase() || "";
     const type = p.application_type?.toLowerCase() || "";
     return addr.includes(q) || desc.includes(q) || type.includes(q);
+  });
+
+  const filteredSheets = sheets.filter((s) => {
+    const q = search.toLowerCase();
+    if (!q) return true;
+    return (
+      s.title.toLowerCase().includes(q) ||
+      (s.description?.toLowerCase() || "").includes(q) ||
+      (s.location?.toLowerCase() || "").includes(q) ||
+      (s.client_name?.toLowerCase() || "").includes(q)
+    );
   });
 
   const addTag = async (projId: string, currentTags: string[], tag: string) => {
@@ -54,6 +72,15 @@ export function NotableProjectsTab() {
     }
   };
 
+  const handleDeleteSheet = async (sheet: ProjectSheet) => {
+    try {
+      await deleteMutation.mutateAsync(sheet);
+      toast({ title: "Project sheet deleted" });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -62,6 +89,8 @@ export function NotableProjectsTab() {
     );
   }
 
+  const totalCount = filtered.length + filteredSheets.length;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -69,29 +98,176 @@ export function NotableProjectsTab() {
           <div className="w-2.5 h-2.5 rounded-full bg-accent shadow-amber" />
           <h3 className="text-lg font-semibold">Notable Projects</h3>
           <Badge variant="outline" className="text-xs bg-accent/10 text-accent border-accent/30 tabular-nums">
-            {filtered.length}
+            {totalCount}
           </Badge>
         </div>
-        <div className="relative w-64">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search projects..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8"
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative w-64">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search projects..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+          <Button size="sm" className="gap-1.5" onClick={() => setShowAddDialog(true)}>
+            <Plus className="h-4 w-4" />
+            Add Project
+          </Button>
         </div>
       </div>
 
       <p className="text-sm text-muted-foreground">
-        Projects marked as "Notable" in Applications will appear here. Add tags and reference contacts for RFP matching.
+        Projects marked as "Notable" in Applications appear here automatically. You can also add custom project sheets with descriptions and photos.
       </p>
 
-      {filtered.length === 0 ? (
+      {/* Manual project sheets */}
+      {filteredSheets.length > 0 && (
+        <div className="space-y-3">
+          {filteredSheets.map((sheet) => {
+            const isExpanded = expandedId === sheet.id;
+            return (
+              <Card
+                key={sheet.id}
+                className="overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 border-l-4 border-l-primary"
+              >
+                <CardContent className="py-4">
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Building2 className="h-4 w-4 text-primary flex-shrink-0" />
+                          <p className="font-semibold text-base">{sheet.title}</p>
+                          <Badge className="text-xs bg-primary/10 text-primary border-primary/30" variant="outline">
+                            <FileText className="h-3 w-3 mr-1" />
+                            Custom
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1.5 flex-wrap">
+                          {sheet.location && (
+                            <span className="flex items-center gap-1 text-info">
+                              <MapPin className="h-3.5 w-3.5" />
+                              {sheet.location}
+                            </span>
+                          )}
+                          {sheet.client_name && (
+                            <span className="text-muted-foreground">{sheet.client_name}</span>
+                          )}
+                          {sheet.estimated_value && (
+                            <span className="flex items-center gap-1 text-success font-medium tabular-nums">
+                              <DollarSign className="h-3.5 w-3.5" />
+                              {sheet.estimated_value.toLocaleString()}
+                            </span>
+                          )}
+                          {sheet.completion_date && (
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3.5 w-3.5 text-accent" />
+                              Completed {format(new Date(sheet.completion_date), "MMM yyyy")}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="text-right text-sm flex-shrink-0 flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs h-6 px-2 text-accent hover:text-accent"
+                          onClick={() => setExpandedId(isExpanded ? null : sheet.id)}
+                        >
+                          {isExpanded ? "Less" : "More"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                          onClick={() => handleDeleteSheet(sheet)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {sheet.description && (
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {sheet.description}
+                      </p>
+                    )}
+
+                    {/* Photos preview */}
+                    {sheet.photos.length > 0 && (
+                      <div className="flex gap-2 overflow-x-auto pb-1">
+                        {sheet.photos.map((p) => {
+                          const url = getProjectPhotoUrl(p);
+                          const isPdf = p.endsWith(".pdf");
+                          return (
+                            <div key={p} className="w-20 h-20 rounded-lg overflow-hidden border bg-muted flex-shrink-0">
+                              {isPdf ? (
+                                <div className="flex items-center justify-center h-full text-muted-foreground">
+                                  <FileText className="h-6 w-6" />
+                                </div>
+                              ) : (
+                                <img src={url} alt="" className="w-full h-full object-cover" />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Expanded details */}
+                    {isExpanded && (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-4 rounded-xl bg-primary/5 border border-primary/10 text-sm animate-fade-in">
+                        {sheet.reference_contact_name && (
+                          <div className="space-y-0.5">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Contact</p>
+                            <p className="font-medium">{sheet.reference_contact_name}</p>
+                          </div>
+                        )}
+                        {sheet.reference_contact_title && (
+                          <div className="space-y-0.5">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Title</p>
+                            <p className="font-medium">{sheet.reference_contact_title}</p>
+                          </div>
+                        )}
+                        {sheet.reference_contact_email && (
+                          <div className="space-y-0.5">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Email</p>
+                            <p className="font-medium">{sheet.reference_contact_email}</p>
+                          </div>
+                        )}
+                        {sheet.reference_contact_phone && (
+                          <div className="space-y-0.5">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Phone</p>
+                            <p className="font-medium">{sheet.reference_contact_phone}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Tags */}
+                    <div className="flex flex-wrap gap-1.5 items-center">
+                      {sheet.tags.map((tag) => (
+                        <Badge key={tag} className="text-xs bg-accent/10 text-accent border border-accent/20" variant="outline">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Notable applications from DOB */}
+      {filtered.length === 0 && filteredSheets.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="py-8 text-center text-muted-foreground text-sm">
-            {projects.length === 0
-              ? 'No notable projects yet. Mark applications as "Notable" to showcase them in RFPs.'
+            {projects.length === 0 && sheets.length === 0
+              ? 'No notable projects yet. Click "Add Project" to create one, or mark applications as "Notable".'
               : "No projects match your search."}
           </CardContent>
         </Card>
@@ -113,7 +289,6 @@ export function NotableProjectsTab() {
               >
                 <CardContent className="py-4">
                   <div className="space-y-3">
-                    {/* Header row */}
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -142,8 +317,6 @@ export function NotableProjectsTab() {
                             </Badge>
                           )}
                         </div>
-
-                        {/* Key info row */}
                         <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1.5 flex-wrap">
                           <span className="flex items-center gap-1 text-info">
                             <MapPin className="h-3.5 w-3.5" />
@@ -169,7 +342,6 @@ export function NotableProjectsTab() {
                         </div>
                       </div>
 
-                      {/* Reference contact & expand */}
                       <div className="text-right text-sm flex-shrink-0">
                         {proj.reference_contact_name ? (
                           <div className="flex items-center gap-1 justify-end">
@@ -201,14 +373,12 @@ export function NotableProjectsTab() {
                       </div>
                     </div>
 
-                    {/* Description */}
                     {proj.description && (
                       <p className="text-sm text-muted-foreground leading-relaxed">
                         {proj.description}
                       </p>
                     )}
 
-                    {/* Expanded details */}
                     {isExpanded && (
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-4 rounded-xl bg-primary/5 border border-primary/10 text-sm animate-fade-in">
                         {proj.approved_date && (
@@ -256,7 +426,6 @@ export function NotableProjectsTab() {
                       </div>
                     )}
 
-                    {/* Tags */}
                     <div className="flex flex-wrap gap-1.5 items-center">
                       {tags.map((tag) => (
                         <Badge key={tag} className="text-xs gap-1 bg-accent/10 text-accent border border-accent/20 hover:bg-accent/20" variant="outline">
@@ -323,6 +492,8 @@ export function NotableProjectsTab() {
           })}
         </div>
       )}
+
+      <AddProjectSheetDialog open={showAddDialog} onOpenChange={setShowAddDialog} />
     </div>
   );
 }
