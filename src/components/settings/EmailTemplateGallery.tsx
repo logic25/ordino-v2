@@ -74,11 +74,11 @@ const TEMPLATES: TemplateDef[] = [
     description: "Sent when a proposal is emailed to a client for review & signing",
     category: "client",
     defaults: {
-      subject: "Your Proposal is Ready — {{PROPOSAL_NUMBER}}",
+      subject: "Proposal {{PROPOSAL_NUMBER}} · {{PROJECT_TITLE}}",
       greeting: "Dear {{CLIENT_NAME}},",
-      body_text: "Thank you for the opportunity to work with you. We've prepared a proposal for your review.",
+      body_text: "We've put together a detailed scope and fee proposal for your project at {{PROPERTY_ADDRESS}}. Everything is outlined below — review the services, pricing, and terms, then sign electronically when you're ready.",
       cta_text: "Review & Sign Proposal",
-      signoff: "Please don't hesitate to reach out if you have any questions.",
+      signoff: "Questions about scope or pricing? Reply to this email and we'll get back to you the same day.",
     },
   },
   {
@@ -89,9 +89,9 @@ const TEMPLATES: TemplateDef[] = [
     defaults: {
       subject: "Change Order {{CO_NUMBER}} — {{PROJECT_TITLE}}",
       greeting: "Hi {{CLIENT_NAME}},",
-      body_text: "{{COMPANY_NAME}} has issued Change Order {{CO_NUMBER}} for your project. Please review the details below.",
+      body_text: "There's been a scope change on your project at {{PROPERTY_ADDRESS}}. We've documented the additional work and updated pricing below. Please review and sign to keep things moving.",
       cta_text: "Review & Sign",
-      signoff: "Please don't hesitate to reach out if you have any questions.",
+      signoff: "If you have questions about this change, just reply to this email or call us directly.",
     },
   },
   {
@@ -102,9 +102,9 @@ const TEMPLATES: TemplateDef[] = [
     defaults: {
       subject: "Welcome! Let's get started on {{PROJECT_TITLE}}",
       greeting: "Hi {{CLIENT_NAME}},",
-      body_text: "Thank you for choosing {{COMPANY_NAME}}. We're excited to get started on {{PROJECT_TITLE}} at {{PROPERTY_ADDRESS}}.",
+      body_text: "Your proposal has been signed and your project is officially underway. Your Project Manager is {{PM_NAME}} — they'll be your main point of contact throughout the process.",
       cta_text: "Fill Out Project Information Sheet",
-      signoff: "To get started, please fill out the Project Information Sheet so we can begin work on your behalf.",
+      signoff: "One thing we need from you to get moving: please fill out the Project Information Sheet below. This gives us the owner info, access details, and contacts we need to file on your behalf.",
     },
   },
   {
@@ -115,9 +115,9 @@ const TEMPLATES: TemplateDef[] = [
     defaults: {
       subject: "Invoice {{INVOICE_NUMBER}} — {{PROJECT_TITLE}}",
       greeting: "Dear {{CLIENT_NAME}},",
-      body_text: "Please find the details for invoice {{INVOICE_NUMBER}} below.",
+      body_text: "Here are the details for invoice {{INVOICE_NUMBER}}. Payment is due by {{DUE_DATE}}.",
       cta_text: "",
-      signoff: "Thank you for your business.",
+      signoff: "Payment can be made by check or wire transfer. Details are on the attached invoice. Questions? Just reply to this email.",
     },
   },
   {
@@ -128,9 +128,9 @@ const TEMPLATES: TemplateDef[] = [
     defaults: {
       subject: "Payment Reminder — {{INVOICE_NUMBER}}",
       greeting: "Dear {{CLIENT_NAME}},",
-      body_text: "This is a friendly reminder that payment of {{AMOUNT}} for invoice {{INVOICE_NUMBER}} is now {{DAYS_OVERDUE}} days past due.",
+      body_text: "Invoice {{INVOICE_NUMBER}} for {{AMOUNT}} was due {{DAYS_OVERDUE}} days ago. If payment has already been sent, thank you — please disregard this notice. Otherwise, we'd appreciate prompt attention.",
       cta_text: "",
-      signoff: "We would appreciate your prompt attention to this matter. If payment has already been sent, please disregard this notice.",
+      signoff: "If there's an issue with this invoice, please let us know so we can resolve it.",
     },
   },
   {
@@ -167,9 +167,88 @@ const TEMPLATES: TemplateDef[] = [
     defaults: {
       subject: "Partnership Opportunity — {{RFP_TITLE}}",
       greeting: "Hello,",
-      body_text: "We'd like to offer our firm's inspection and filing support for this upcoming requirement. Our team has extensive experience with compliance and filings.",
+      body_text: "Green Light Expediting is a NYC-based DOB filing and expediting firm. We're reaching out because we can provide inspection coordination, permit expediting, and compliance support for this RFP. We've handled similar scopes across Manhattan, Brooklyn, and Queens.",
       cta_text: "I'm Interested",
       signoff: "",
+    },
+  },
+  // ── New templates ──
+  {
+    id: "checklist_followup",
+    name: "Checklist Follow-up",
+    description: "Nudges clients when project checklist items are outstanding",
+    category: "client",
+    defaults: {
+      subject: "Action Needed — {{PROJECT_TITLE}}",
+      greeting: "Hi {{CLIENT_NAME}},",
+      body_text: "We need a few things from you before we can move forward with filing. These items are holding up your project — the sooner we receive them, the sooner we can submit to DOB.",
+      cta_text: "",
+      signoff: "You can reply to this email with the documents attached, or send them directly to your PM.",
+    },
+  },
+  {
+    id: "project_closeout",
+    name: "Project Closeout",
+    description: "Sent when a project is fully signed off and closed in BIS",
+    category: "client",
+    defaults: {
+      subject: "Project Complete — {{PROJECT_TITLE}}",
+      greeting: "Hi {{CLIENT_NAME}},",
+      body_text: "Your project at {{PROPERTY_ADDRESS}} is officially complete. All DOB applications have been signed off, inspections passed, and the job is closed in BIS.",
+      cta_text: "",
+      signoff: "It was a pleasure working with you. If you need anything down the road — additional filings, inspections, or CO processing — we're a phone call away.",
+    },
+  },
+  {
+    id: "payment_received",
+    name: "Payment Received",
+    description: "Confirmation sent when a payment is logged against an invoice",
+    category: "client",
+    defaults: {
+      subject: "Payment Received — {{INVOICE_NUMBER}}",
+      greeting: "Hi {{CLIENT_NAME}},",
+      body_text: "We've received your payment of {{AMOUNT}} for invoice {{INVOICE_NUMBER}}. Your account balance is now {{BALANCE}}.",
+      cta_text: "",
+      signoff: "We appreciate your prompt payment. If you need anything else, don't hesitate to reach out.",
+    },
+  },
+  {
+    id: "status_update",
+    name: "Project Status Update",
+    description: "Periodic milestone update with completed tasks and blockers",
+    category: "client",
+    defaults: {
+      subject: "Project Update — {{PROJECT_TITLE}}",
+      greeting: "Hi {{CLIENT_NAME}},",
+      body_text: "Here's a status update on your project at {{PROPERTY_ADDRESS}}. Below is a summary of what's been completed, what's in progress, and any items that need attention.",
+      cta_text: "",
+      signoff: "Questions or concerns? Reply to this email or contact your PM directly.",
+    },
+  },
+  {
+    id: "demand_letter",
+    name: "Demand Letter",
+    description: "Formal payment escalation for severely overdue invoices",
+    category: "client",
+    defaults: {
+      subject: "FORMAL DEMAND — {{INVOICE_NUMBER}}",
+      greeting: "Dear {{CLIENT_NAME}},",
+      body_text: "Despite multiple prior communications, invoice {{INVOICE_NUMBER}} in the amount of {{AMOUNT}} remains unpaid and is now {{DAYS_OVERDUE}} days past due. This letter serves as a formal demand for immediate payment in full.",
+      cta_text: "",
+      signoff: "We expect payment within 10 business days of this notice. Failure to remit payment may result in further collection action. If you believe this is in error, contact us immediately.",
+    },
+  },
+  {
+    id: "referral_thankyou",
+    name: "Referral / Thank You",
+    description: "Post-completion relationship nurture and referral request",
+    category: "client",
+    defaults: {
+      subject: "Thank You — {{PROJECT_TITLE}}",
+      greeting: "Hi {{CLIENT_NAME}},",
+      body_text: "Thank you for trusting {{COMPANY_NAME}} with your project at {{PROPERTY_ADDRESS}}. We hope the experience was smooth from start to finish. If you know anyone who could use our services, we'd greatly appreciate the referral.",
+      cta_text: "Leave a Review",
+      signoff: "It was a pleasure working with you. We hope to work together again soon.",
     },
   },
 ];
@@ -218,7 +297,9 @@ function buildPreviewHtml(
       .replace(/\{\{PM_NAME\}\}/g, "Sarah Johnson")
       .replace(/\{\{PM_EMAIL\}\}/g, "sarah@company.com")
       .replace(/\{\{PM_PHONE\}\}/g, "(555) 555-5678")
-      .replace(/\{\{PROJECT_NUMBER\}\}/g, "2026-0012");
+      .replace(/\{\{PROJECT_NUMBER\}\}/g, "2026-0012")
+      .replace(/\{\{DUE_DATE\}\}/g, "April 18, 2026")
+      .replace(/\{\{BALANCE\}\}/g, "$0.00");
 
   const contactLine = [co.phone, co.email].filter(Boolean).join(" · ");
   const greeting = resolve(overrides.greeting);
@@ -238,6 +319,12 @@ function buildPreviewHtml(
     billing_digest: { label: "Billing Digest", number: "Daily" },
     billing_alert: { label: "Billing Alert" },
     partner_outreach: { label: "RFP Outreach" },
+    checklist_followup: { label: "Action Needed" },
+    project_closeout: { label: "Project Complete" },
+    payment_received: { label: "Payment Received", number: "INV-00042" },
+    status_update: { label: "Status Update" },
+    demand_letter: { label: "Formal Demand", number: "INV-00042" },
+    referral_thankyou: { label: "Thank You" },
   };
 
   const doc = docLabels[template.id] || { label: template.name };
@@ -249,6 +336,11 @@ function buildPreviewHtml(
 
   // Template-specific body content
   const templateBody = buildTemplateBody(template.id, { greeting, bodyText, ctaText, signoffText, accent, accentFg, btnRadius, co });
+
+  // Determine accent stripe color per template
+  const stripeColor = template.id === "demand_letter" ? "#ef4444"
+    : template.id === "checklist_followup" ? "#f59e0b"
+    : accent;
 
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -269,7 +361,7 @@ function buildPreviewHtml(
         </td>`}
       </tr></table>
     </div>
-    <div style="height:3px;background:${accent};margin:0 48px;"></div>
+    <div style="height:3px;background:${stripeColor};margin:0 48px;"></div>
     <div style="background:#ffffff;padding:32px;border:1px solid ${BORDER};border-top:none;border-radius:0 0 12px 12px;font-family:${font};">
       ${templateBody}
     </div>
@@ -316,6 +408,10 @@ function buildTemplateBody(
        <p style="margin:16px 0 0;font-size:15px;color:${HEADING};">Best regards,<br/><strong>${co.name}</strong></p>`
     : `<p style="margin:16px 0 0;font-size:15px;color:${HEADING};">— ${co.name}</p>`;
 
+  const thStyle = `padding:10px 16px;text-align:left;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;`;
+  const tdStyle = `padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:${HEADING};`;
+  const tdMutedStyle = `padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;color:${MUTED};font-weight:600;`;
+
   switch (templateId) {
     case "proposal":
       return `
@@ -328,12 +424,12 @@ function buildTemplateBody(
         <div style="border:1px solid ${BORDER};border-radius:8px;overflow:hidden;margin-bottom:24px;">
           <table style="width:100%;border-collapse:collapse;">
             <thead><tr style="background:${CARD_BG};">
-              <th style="padding:10px 16px;text-align:left;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;">Service</th>
-              <th style="padding:10px 16px;text-align:right;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;">Amount</th>
+              <th style="${thStyle}">Service</th>
+              <th style="${thStyle}text-align:right;">Amount</th>
             </tr></thead>
             <tbody>
-              <tr><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:${HEADING};">DOB Filing &amp; Expediting</td><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;text-align:right;color:${HEADING};">$3,500</td></tr>
-              <tr><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:${HEADING};">Architectural Plans</td><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;text-align:right;color:${HEADING};">$2,800</td></tr>
+              <tr><td style="${tdStyle}">DOB Filing &amp; Expediting</td><td style="${tdStyle}text-align:right;">$3,500</td></tr>
+              <tr><td style="${tdStyle}">Architectural Plans</td><td style="${tdStyle}text-align:right;">$2,800</td></tr>
             </tbody>
           </table>
           <div style="border-top:1px solid ${BORDER};padding:14px 16px;">
@@ -352,10 +448,10 @@ function buildTemplateBody(
         ${greetingHtml}${bodyHtml}
         <div style="border:1px solid ${BORDER};border-radius:8px;overflow:hidden;margin-bottom:24px;">
           <table style="width:100%;border-collapse:collapse;">
-            <thead><tr style="background:${CARD_BG};"><th style="padding:10px 16px;text-align:left;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;">Detail</th><th style="padding:10px 16px;text-align:right;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;"></th></tr></thead>
+            <thead><tr style="background:${CARD_BG};"><th style="${thStyle}">Detail</th><th style="${thStyle}text-align:right;"></th></tr></thead>
             <tbody>
-              <tr><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;color:${MUTED};font-weight:600;">Title</td><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:${HEADING};">Additional Asbestos Abatement</td></tr>
-              <tr><td style="padding:10px 16px;font-size:13px;color:${MUTED};font-weight:600;">Reason</td><td style="padding:10px 16px;font-size:14px;color:${HEADING};">Expanded scope after testing</td></tr>
+              <tr><td style="${tdMutedStyle}">Title</td><td style="${tdStyle}">Additional Asbestos Abatement</td></tr>
+              <tr><td style="${tdMutedStyle}border-bottom:none;">Reason</td><td style="${tdStyle}border-bottom:none;">Expanded scope after testing</td></tr>
             </tbody>
           </table>
           <div style="border-top:1px solid ${BORDER};padding:14px 16px;">
@@ -388,10 +484,10 @@ function buildTemplateBody(
         ${greetingHtml}${bodyHtml}
         <div style="border:1px solid ${BORDER};border-radius:8px;overflow:hidden;margin-bottom:24px;">
           <table style="width:100%;border-collapse:collapse;">
-            <thead><tr style="background:${CARD_BG};"><th style="padding:10px 16px;text-align:left;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;">Detail</th><th style="padding:10px 16px;text-align:right;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;"></th></tr></thead>
+            <thead><tr style="background:${CARD_BG};"><th style="${thStyle}">Detail</th><th style="${thStyle}text-align:right;"></th></tr></thead>
             <tbody>
-              <tr><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;color:${MUTED};font-weight:600;">Payment Terms</td><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:${HEADING};text-align:right;">Net 30</td></tr>
-              <tr><td style="padding:10px 16px;font-size:13px;color:${MUTED};font-weight:600;">Due Date</td><td style="padding:10px 16px;font-size:14px;color:${HEADING};text-align:right;">April 18, 2026</td></tr>
+              <tr><td style="${tdMutedStyle}">Payment Terms</td><td style="${tdStyle}text-align:right;">Net 30</td></tr>
+              <tr><td style="${tdMutedStyle}border-bottom:none;">Due Date</td><td style="${tdStyle}text-align:right;border-bottom:none;">April 18, 2026</td></tr>
             </tbody>
           </table>
           <div style="border-top:1px solid ${BORDER};padding:14px 16px;">
@@ -440,35 +536,35 @@ function buildTemplateBody(
         <div style="border:1px solid ${BORDER};border-radius:8px;overflow:hidden;margin-bottom:24px;">
           <table style="width:100%;border-collapse:collapse;">
             <thead><tr style="background:${CARD_BG};">
-              <th style="padding:10px 16px;text-align:left;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;">Service</th>
-              <th style="padding:10px 16px;text-align:left;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;">Billed By</th>
-              <th style="padding:10px 16px;text-align:left;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;">Project</th>
-              <th style="padding:10px 16px;text-align:right;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;">Amount</th>
+              <th style="${thStyle}">Service</th>
+              <th style="${thStyle}">Billed By</th>
+              <th style="${thStyle}">Project</th>
+              <th style="${thStyle}text-align:right;">Amount</th>
             </tr></thead>
             <tbody>
               <tr>
-                <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:${HEADING};">DOB Filing</td>
-                <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#64748b;">Sarah J.</td>
-                <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#64748b;">2026-0012</td>
-                <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;text-align:right;color:${HEADING};">$3,500</td>
+                <td style="${tdStyle}">DOB Filing</td>
+                <td style="${tdStyle}font-size:13px;color:#64748b;">Sarah J.</td>
+                <td style="${tdStyle}font-size:13px;color:#64748b;">2026-0012</td>
+                <td style="${tdStyle}text-align:right;">$3,500</td>
               </tr>
               <tr>
-                <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:${HEADING};">Expediting</td>
-                <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#64748b;">Mike R.</td>
-                <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#64748b;">2026-0018</td>
-                <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;text-align:right;color:${HEADING};">$8,400</td>
+                <td style="${tdStyle}">Expediting</td>
+                <td style="${tdStyle}font-size:13px;color:#64748b;">Mike R.</td>
+                <td style="${tdStyle}font-size:13px;color:#64748b;">2026-0018</td>
+                <td style="${tdStyle}text-align:right;">$8,400</td>
               </tr>
               <tr>
-                <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:${HEADING};">Asbestos Testing</td>
-                <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#64748b;">Sarah J.</td>
-                <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#64748b;">2026-0012</td>
-                <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;text-align:right;color:${HEADING};">$4,200</td>
+                <td style="${tdStyle}">Asbestos Testing</td>
+                <td style="${tdStyle}font-size:13px;color:#64748b;">Sarah J.</td>
+                <td style="${tdStyle}font-size:13px;color:#64748b;">2026-0012</td>
+                <td style="${tdStyle}text-align:right;">$4,200</td>
               </tr>
               <tr>
-                <td style="padding:10px 16px;font-size:14px;color:${HEADING};">Plan Review</td>
-                <td style="padding:10px 16px;font-size:13px;color:#64748b;">Mike R.</td>
-                <td style="padding:10px 16px;font-size:13px;color:#64748b;">2026-0022</td>
-                <td style="padding:10px 16px;font-size:14px;text-align:right;color:${HEADING};">$8,400</td>
+                <td style="${tdStyle}border-bottom:none;">Plan Review</td>
+                <td style="${tdStyle}border-bottom:none;font-size:13px;color:#64748b;">Mike R.</td>
+                <td style="${tdStyle}border-bottom:none;font-size:13px;color:#64748b;">2026-0022</td>
+                <td style="${tdStyle}border-bottom:none;text-align:right;">$8,400</td>
               </tr>
             </tbody>
           </table>
@@ -489,12 +585,12 @@ function buildTemplateBody(
         <div style="border:1px solid ${BORDER};border-radius:8px;overflow:hidden;margin-bottom:24px;">
           <table style="width:100%;border-collapse:collapse;">
             <thead><tr style="background:${CARD_BG};">
-              <th style="padding:10px 16px;text-align:left;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;">Service</th>
-              <th style="padding:10px 16px;text-align:right;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;">Amount</th>
+              <th style="${thStyle}">Service</th>
+              <th style="${thStyle}text-align:right;">Amount</th>
             </tr></thead>
             <tbody>
-              <tr><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:${HEADING};">DOB Filing &amp; Expediting</td><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;text-align:right;color:${HEADING};">$3,500</td></tr>
-              <tr><td style="padding:10px 16px;font-size:14px;color:${HEADING};">Asbestos Testing</td><td style="padding:10px 16px;font-size:14px;text-align:right;color:${HEADING};">$1,200</td></tr>
+              <tr><td style="${tdStyle}">DOB Filing &amp; Expediting</td><td style="${tdStyle}text-align:right;">$3,500</td></tr>
+              <tr><td style="${tdStyle}border-bottom:none;">Asbestos Testing</td><td style="${tdStyle}border-bottom:none;text-align:right;">$1,200</td></tr>
             </tbody>
           </table>
           <div style="border-top:1px solid ${BORDER};padding:14px 16px;">
@@ -508,11 +604,11 @@ function buildTemplateBody(
         ${greetingHtml}${bodyHtml}
         <div style="border:1px solid ${BORDER};border-radius:8px;overflow:hidden;margin-bottom:24px;">
           <table style="width:100%;border-collapse:collapse;">
-            <thead><tr style="background:${CARD_BG};"><th colspan="2" style="padding:10px 16px;text-align:left;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;">RFP Details</th></tr></thead>
+            <thead><tr style="background:${CARD_BG};"><th colspan="2" style="${thStyle}">RFP Details</th></tr></thead>
             <tbody>
-              <tr><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;color:${MUTED};font-weight:600;width:120px;">Title</td><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:${HEADING};">Facade Inspection &amp; Safety Program</td></tr>
-              <tr><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;color:${MUTED};font-weight:600;">Agency</td><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:${HEADING};">NYC Dept. of Buildings</td></tr>
-              <tr><td style="padding:10px 16px;font-size:13px;color:${MUTED};font-weight:600;">Est. Value</td><td style="padding:10px 16px;font-size:14px;font-weight:700;color:${HEADING};">$85,000</td></tr>
+              <tr><td style="${tdMutedStyle}width:120px;">Title</td><td style="${tdStyle}">Facade Inspection &amp; Safety Program</td></tr>
+              <tr><td style="${tdMutedStyle}">Agency</td><td style="${tdStyle}">NYC Dept. of Buildings</td></tr>
+              <tr><td style="${tdMutedStyle}border-bottom:none;">Est. Value</td><td style="${tdStyle}border-bottom:none;font-weight:700;">$85,000</td></tr>
             </tbody>
           </table>
         </div>
@@ -520,6 +616,178 @@ function buildTemplateBody(
           <a href="#" style="display:inline-block;background:${accent};color:${accentFg};text-decoration:none;padding:14px 36px;border-radius:${btnRadius};font-size:16px;font-weight:700;">${ctaText}</a>
           <span style="display:inline-block;width:12px;"></span>
           <a href="#" style="display:inline-block;background:#ffffff;color:${MUTED};text-decoration:none;padding:14px 36px;border-radius:${btnRadius};font-size:16px;font-weight:600;border:1px solid ${BORDER};">Pass</a>
+        </div>
+        ${signoffHtml}`;
+
+    // ── New template bodies ──
+
+    case "checklist_followup":
+      return `
+        <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
+          ${infoCard("Project", "Alt-1 Interior Renovation", "456 Park Avenue, New York, NY")}
+        </tr></table>
+        ${greetingHtml}${bodyHtml}
+        <div style="border-left:4px solid #f59e0b;padding-left:16px;margin-bottom:24px;">
+          <div style="border:1px solid ${BORDER};border-radius:8px;overflow:hidden;">
+            <table style="width:100%;border-collapse:collapse;">
+              <thead><tr style="background:#fef3c7;">
+                <th style="padding:10px 16px;text-align:left;font-size:10px;text-transform:uppercase;color:#92400e;letter-spacing:0.8px;font-weight:600;width:32px;"></th>
+                <th style="padding:10px 16px;text-align:left;font-size:10px;text-transform:uppercase;color:#92400e;letter-spacing:0.8px;font-weight:600;">Item Needed</th>
+                <th style="padding:10px 16px;text-align:right;font-size:10px;text-transform:uppercase;color:#92400e;letter-spacing:0.8px;font-weight:600;">Requested</th>
+              </tr></thead>
+              <tbody>
+                <tr>
+                  <td style="${tdStyle}"><span style="display:inline-block;width:16px;height:16px;border:2px solid #d97706;border-radius:3px;"></span></td>
+                  <td style="${tdStyle}">Owner Authorization Letter</td>
+                  <td style="${tdStyle}text-align:right;font-size:13px;color:#64748b;">Mar 5, 2026</td>
+                </tr>
+                <tr>
+                  <td style="${tdStyle}"><span style="display:inline-block;width:16px;height:16px;border:2px solid #d97706;border-radius:3px;"></span></td>
+                  <td style="${tdStyle}">Certificate of Insurance</td>
+                  <td style="${tdStyle}text-align:right;font-size:13px;color:#64748b;">Mar 8, 2026</td>
+                </tr>
+                <tr>
+                  <td style="${tdStyle}border-bottom:none;"><span style="display:inline-block;width:16px;height:16px;border:2px solid #d97706;border-radius:3px;"></span></td>
+                  <td style="${tdStyle}border-bottom:none;">Site Access Schedule</td>
+                  <td style="${tdStyle}border-bottom:none;text-align:right;font-size:13px;color:#64748b;">Mar 12, 2026</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div style="background:${CARD_BG};border:1px solid ${BORDER};border-radius:8px;padding:20px;margin-bottom:24px;">
+          <p style="margin:0 0 8px;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;">Your Project Manager</p>
+          <p style="margin:0;font-size:16px;font-weight:700;color:${HEADING};">Sarah Johnson</p>
+          <p style="margin:4px 0 0;font-size:14px;color:${BODY_COLOR};">sarah@company.com · (555) 555-5678</p>
+        </div>
+        ${signoffHtml}`;
+
+    case "project_closeout":
+      return `
+        <div style="text-align:center;margin-bottom:24px;">
+          <div style="display:inline-block;width:56px;height:56px;border-radius:50%;background:#dcfce7;line-height:56px;font-size:28px;color:#16a34a;">✓</div>
+        </div>
+        <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
+          ${infoCard("Project", "Alt-1 Interior Renovation", "456 Park Avenue, New York, NY")}
+        </tr></table>
+        ${greetingHtml}${bodyHtml}
+        <div style="border:1px solid ${BORDER};border-radius:8px;overflow:hidden;margin-bottom:24px;">
+          <table style="width:100%;border-collapse:collapse;">
+            <thead><tr style="background:${CARD_BG};">
+              <th style="${thStyle}">Application Type</th>
+              <th style="${thStyle}">Job Number</th>
+              <th style="${thStyle}">Filed</th>
+              <th style="${thStyle}">Sign-Off</th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td style="${tdStyle}font-weight:600;">Alt-1</td>
+                <td style="${tdStyle}font-family:monospace;">B00987654</td>
+                <td style="${tdStyle}font-size:13px;color:#64748b;">Jan 15, 2026</td>
+                <td style="${tdStyle}font-size:13px;color:#16a34a;font-weight:600;">Mar 10, 2026</td>
+              </tr>
+              <tr>
+                <td style="${tdStyle}border-bottom:none;font-weight:600;">Elevator</td>
+                <td style="${tdStyle}border-bottom:none;font-family:monospace;">E00123456</td>
+                <td style="${tdStyle}border-bottom:none;font-size:13px;color:#64748b;">Feb 3, 2026</td>
+                <td style="${tdStyle}border-bottom:none;font-size:13px;color:#16a34a;font-weight:600;">Mar 14, 2026</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        ${signoffHtml}`;
+
+    case "payment_received":
+      return `
+        <div style="text-align:center;margin-bottom:24px;">
+          <div style="display:inline-block;width:56px;height:56px;border-radius:50%;background:#dcfce7;line-height:56px;font-size:28px;color:#16a34a;">✓</div>
+          <p style="margin:12px 0 0;font-size:32px;font-weight:800;color:#16a34a;">$8,500.00</p>
+          <p style="margin:4px 0 0;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:${MUTED};font-weight:600;">Payment Received</p>
+        </div>
+        ${greetingHtml}${bodyHtml}
+        <div style="border:1px solid ${BORDER};border-radius:8px;overflow:hidden;margin-bottom:24px;">
+          <table style="width:100%;border-collapse:collapse;">
+            <tbody>
+              <tr><td style="${tdMutedStyle}">Payment Date</td><td style="${tdStyle}text-align:right;">March 19, 2026</td></tr>
+              <tr><td style="${tdMutedStyle}">Method</td><td style="${tdStyle}text-align:right;">Wire Transfer</td></tr>
+              <tr><td style="${tdMutedStyle}">Invoice</td><td style="${tdStyle}text-align:right;font-family:monospace;">INV-00042</td></tr>
+              <tr><td style="${tdMutedStyle}border-bottom:none;">Remaining Balance</td><td style="${tdStyle}border-bottom:none;text-align:right;font-weight:700;color:#16a34a;">$0.00</td></tr>
+            </tbody>
+          </table>
+        </div>
+        ${signoffHtml}`;
+
+    case "status_update":
+      return `
+        <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
+          ${infoCard("Project", "Alt-1 Interior Renovation", "456 Park Avenue, New York, NY")}
+        </tr></table>
+        ${greetingHtml}${bodyHtml}
+        <div style="border:1px solid ${BORDER};border-radius:8px;overflow:hidden;margin-bottom:24px;">
+          <table style="width:100%;border-collapse:collapse;">
+            <thead><tr style="background:${CARD_BG};">
+              <th style="${thStyle}">Task</th>
+              <th style="${thStyle}text-align:right;">Status</th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td style="${tdStyle}">DOB Filing Submitted</td>
+                <td style="${tdStyle}text-align:right;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#16a34a;margin-right:6px;vertical-align:middle;"></span><span style="color:#16a34a;font-weight:600;font-size:13px;">Complete</span></td>
+              </tr>
+              <tr>
+                <td style="${tdStyle}">Plan Examiner Review</td>
+                <td style="${tdStyle}text-align:right;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;margin-right:6px;vertical-align:middle;"></span><span style="color:#d97706;font-weight:600;font-size:13px;">In Progress</span></td>
+              </tr>
+              <tr>
+                <td style="${tdStyle}border-bottom:none;">Permit Issuance</td>
+                <td style="${tdStyle}border-bottom:none;text-align:right;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${MUTED};margin-right:6px;vertical-align:middle;"></span><span style="color:${MUTED};font-weight:600;font-size:13px;">Pending</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:16px;margin-bottom:24px;">
+          <p style="margin:0 0 6px;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#92400e;font-weight:700;">⚠ Blockers</p>
+          <p style="margin:0;font-size:14px;color:#92400e;line-height:1.5;">Awaiting owner authorization letter to proceed with plan examiner review. Please submit as soon as possible to avoid delays.</p>
+        </div>
+        ${signoffHtml}`;
+
+    case "demand_letter":
+      return `
+        <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
+          ${infoCard("Client", "John Smith")}
+          <td style="width:16px;"></td>
+          ${infoCard("Invoice", "INV-00042", "45 days past due")}
+        </tr></table>
+        <div style="text-align:center;margin-bottom:24px;">
+          <p style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#dc2626;font-weight:700;">FORMAL DEMAND FOR PAYMENT</p>
+          <p style="margin:8px 0 0;font-size:36px;font-weight:800;color:#dc2626;">$8,500.00</p>
+          <p style="margin:4px 0 0;font-size:14px;color:#ef4444;font-weight:600;">45 days overdue</p>
+        </div>
+        ${greetingHtml}
+        <div style="border-left:4px solid #ef4444;padding-left:16px;margin-bottom:24px;">
+          <p style="margin:0;font-size:15px;color:${BODY_COLOR};line-height:1.7;font-family:Georgia, 'Times New Roman', serif;">${bodyText}</p>
+        </div>
+        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px;margin-bottom:24px;">
+          <p style="margin:0 0 6px;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#991b1b;font-weight:700;">⚠ NOTICE</p>
+          <p style="margin:0;font-size:13px;color:#991b1b;line-height:1.5;">Failure to remit payment within 10 business days may result in referral to a collections agency and/or legal action. All associated costs will be added to the outstanding balance.</p>
+        </div>
+        ${signoffHtml}`;
+
+    case "referral_thankyou":
+      return `
+        <div style="text-align:center;margin-bottom:24px;">
+          <div style="display:inline-block;width:56px;height:56px;border-radius:50%;background:#dcfce7;line-height:56px;font-size:28px;color:#16a34a;">✓</div>
+          <p style="margin:12px 0 0;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:${MUTED};font-weight:600;">Project Complete</p>
+        </div>
+        <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
+          ${infoCard("Project", "Alt-1 Interior Renovation", "456 Park Avenue, New York, NY")}
+        </tr></table>
+        ${greetingHtml}${bodyHtml}
+        <div style="text-align:center;margin:32px 0;">
+          <a href="#" style="display:inline-block;background:${accent};color:${accentFg};text-decoration:none;padding:14px 36px;border-radius:${btnRadius};font-size:16px;font-weight:700;">${ctaText || "Leave a Review"}</a>
+        </div>
+        <div style="text-align:center;margin-bottom:24px;">
+          <a href="#" style="font-size:14px;color:${accent};text-decoration:underline;">Know someone who needs our services? Refer a colleague →</a>
         </div>
         ${signoffHtml}`;
 
@@ -681,6 +949,8 @@ export function EmailTemplateGallery() {
     "{{INVOICE_NUMBER}}": "Invoice #",
     "{{AMOUNT}}": "Dollar amount",
     "{{DAYS_OVERDUE}}": "Days past due",
+    "{{DUE_DATE}}": "Invoice due date",
+    "{{BALANCE}}": "Remaining account balance",
   };
 
   return (
@@ -920,7 +1190,9 @@ export function EmailTemplateGallery() {
                     .replace(/\{\{AMOUNT\}\}/g, "$8,500.00")
                     .replace(/\{\{DAYS_OVERDUE\}\}/g, "15")
                     .replace(/\{\{DATE_RANGE\}\}/g, "Mar 12 – Mar 19")
-                    .replace(/\{\{RFP_TITLE\}\}/g, "Facade Inspection")}
+                    .replace(/\{\{RFP_TITLE\}\}/g, "Facade Inspection")
+                    .replace(/\{\{DUE_DATE\}\}/g, "April 18, 2026")
+                    .replace(/\{\{BALANCE\}\}/g, "$0.00")}
                 </span>
               </div>
             </div>
