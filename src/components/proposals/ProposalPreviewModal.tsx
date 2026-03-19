@@ -232,7 +232,7 @@ body { font-family: 'Inter', system-ui, sans-serif; color: #1a1a1a; max-width: 7
                     {company?.fax && <span style={{ marginLeft: 12 }}>Fax: {company.fax}</span>}
                   </div>
                   {company?.email && <div>{company.email}</div>}
-                  {company?.website && <div style={{ color: "#4a7a2e", fontWeight: 600 }}>{company.website}</div>}
+                  {company?.website && <div style={{ color: "hsl(65 69% 38%)", fontWeight: 600 }}>{company.website}</div>}
                 </div>
               </div>
               <div style={{ textAlign: "right", minWidth: 148, whiteSpace: "nowrap", flexShrink: 0 }}>
