@@ -412,7 +412,7 @@ div { page-break-inside: avoid; }
               }
 
               {/* ═══ Total ═══ */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderRadius: 8, marginTop: 28, border: `2px solid ${charcoal}` }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 20px", borderRadius: 6, marginTop: 28, border: `1px solid ${charcoal}` }}>
                 <span style={{ fontSize: "12pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: charcoal }}>Total</span>
                 <span style={{ fontSize: "16pt", fontWeight: 800, color: charcoal }} className="font-bold text-base">{fmt(totalAmount)}</span>
               </div>
