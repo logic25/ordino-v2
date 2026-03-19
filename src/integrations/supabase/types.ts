@@ -6845,6 +6845,87 @@ export type Database = {
           },
         ]
       }
+      rfp_project_sheets: {
+        Row: {
+          client_name: string | null
+          company_id: string
+          completion_date: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          documents: string[] | null
+          estimated_value: number | null
+          id: string
+          location: string | null
+          photos: string[] | null
+          reference_contact_email: string | null
+          reference_contact_name: string | null
+          reference_contact_phone: string | null
+          reference_contact_title: string | null
+          reference_notes: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          client_name?: string | null
+          company_id: string
+          completion_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          documents?: string[] | null
+          estimated_value?: number | null
+          id?: string
+          location?: string | null
+          photos?: string[] | null
+          reference_contact_email?: string | null
+          reference_contact_name?: string | null
+          reference_contact_phone?: string | null
+          reference_contact_title?: string | null
+          reference_notes?: string | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          client_name?: string | null
+          company_id?: string
+          completion_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          documents?: string[] | null
+          estimated_value?: number | null
+          id?: string
+          location?: string | null
+          photos?: string[] | null
+          reference_contact_email?: string | null
+          reference_contact_name?: string | null
+          reference_contact_phone?: string | null
+          reference_contact_title?: string | null
+          reference_notes?: string | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rfp_project_sheets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfp_project_sheets_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rfp_response_drafts: {
         Row: {
           company_id: string
