@@ -25,6 +25,7 @@ import { RolesSettings } from "@/components/settings/RolesSettings";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import { BillingNotificationSettings } from "@/components/settings/BillingNotificationSettings";
 import { ReportSettings } from "@/components/settings/ReportSettings";
+import { EmailTemplateGallery } from "@/components/settings/EmailTemplateGallery";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { Mail, Brain, ExternalLink, BarChart3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
