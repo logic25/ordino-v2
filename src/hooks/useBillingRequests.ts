@@ -341,11 +341,35 @@ async function triggerBillingNotifications(billingRequest: any) {
       .eq("id", billingRequest.project_id)
       .single();
 
+    // Get biller name (who created this billing request)
+    let billerName = "Unknown";
+    if (billingRequest.created_by) {
+      const { data: billerProfile } = await supabase
+        .from("profiles")
+        .select("display_name, first_name, last_name")
+        .eq("id", billingRequest.created_by)
+        .single();
+      if (billerProfile) {
+        billerName = billerProfile.display_name || `${billerProfile.first_name || ""} ${billerProfile.last_name || ""}`.trim() || "Unknown";
+      }
+    }
+
+    // Get billed-to contact name
+    let billedToName: string | null = null;
+    if (billingRequest.billed_to_contact_id) {
+      const { data: contact } = await supabase
+        .from("client_contacts")
+        .select("name")
+        .eq("id", billingRequest.billed_to_contact_id)
+        .single();
+      billedToName = contact?.name || null;
+    }
+
     const services = (billingRequest.services as any[]) || [];
 
     for (const pref of prefs) {
       if ((pref as any).frequency === "immediate") {
-        // Get user email
+        // Get recipient profile
         const { data: profile } = await supabase
           .from("profiles")
           .select("first_name, last_name, display_name")
@@ -365,8 +389,12 @@ async function triggerBillingNotifications(billingRequest: any) {
               name: s.name,
               description: s.description,
               price: s.amount || s.billed_amount || 0,
+              billed_by: billerName,
+              billed_to_contact: billedToName,
             })),
             total_price: billingRequest.total_amount,
+            billed_by: billerName,
+            billed_to_contact: billedToName,
           },
         });
       } else {
