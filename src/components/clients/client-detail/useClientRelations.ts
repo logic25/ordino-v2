@@ -9,6 +9,9 @@ export interface ClientStats {
   totalRevenue: number;
   activeProjects: number;
   lastActivity: string | null;
+  referralCount: number;
+  referralValue: number;
+  referralConverted: number;
 }
 
 export function useClientRelations(clientId: string | undefined) {
@@ -17,7 +20,13 @@ export function useClientRelations(clientId: string | undefined) {
     queryFn: async () => {
       if (!clientId) return { projects: [], proposals: [], stats: null as ClientStats | null };
 
-      const [projectsRes, proposalsRes] = await Promise.all([
+      const clientName = await supabase
+        .from("clients")
+        .select("name")
+        .eq("id", clientId)
+        .single();
+
+      const [projectsRes, proposalsRes, referralsRes] = await Promise.all([
         supabase
           .from("projects")
           .select("id, name, project_number, status, created_at, properties(address)")
@@ -28,10 +37,18 @@ export function useClientRelations(clientId: string | undefined) {
           .select("id, title, proposal_number, status, total_amount, created_at")
           .eq("client_id", clientId)
           .order("created_at", { ascending: false }),
+        // Proposals referred BY this client's name
+        clientName.data?.name
+          ? supabase
+              .from("proposals")
+              .select("id, status, total_amount")
+              .eq("referred_by", clientName.data.name)
+          : Promise.resolve({ data: [] }),
       ]);
 
       const projects = projectsRes.data || [];
       const proposals = proposalsRes.data || [];
+      const referrals = referralsRes.data || [];
 
       const acceptedProposals = proposals.filter((p) => p.status === "executed").length;
       const rejectedProposals = proposals.filter((p) => p.status === "rejected").length;
@@ -47,6 +64,12 @@ export function useClientRelations(clientId: string | undefined) {
       ].filter(Boolean) as string[];
       const lastActivity = dates.length ? dates.sort((a, b) => b.localeCompare(a))[0] : null;
 
+      const referralCount = referrals.length;
+      const referralConverted = referrals.filter((r: any) => r.status === "executed").length;
+      const referralValue = referrals
+        .filter((r: any) => r.status === "executed")
+        .reduce((sum: number, r: any) => sum + (r.total_amount || 0), 0);
+
       const stats: ClientStats = {
         totalProposals: proposals.length,
         acceptedProposals,
@@ -55,6 +78,9 @@ export function useClientRelations(clientId: string | undefined) {
         totalRevenue,
         activeProjects,
         lastActivity,
+        referralCount,
+        referralValue,
+        referralConverted,
       };
 
       return { projects, proposals, stats };
