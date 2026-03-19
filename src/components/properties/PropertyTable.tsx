@@ -218,7 +218,7 @@ export function PropertyTable({
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <SignalStatusBadge status={property.signalSubscription?.status || null} />
+                            <SignalStatusBadge status={property.signalSubscription?.status || null} isComplimentary={property.signalSubscription?.is_complimentary} />
                             {property.violationCounts && property.violationCounts.open > 0 && (
                               <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 text-xs">
                                 {property.violationCounts.open} open
