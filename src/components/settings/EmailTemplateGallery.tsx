@@ -234,7 +234,8 @@ function buildPreviewHtml(
     welcome: { label: "Welcome" },
     invoice: { label: "Invoice", number: "INV-00042" },
     reminder: { label: "Payment Reminder", number: "INV-00042" },
-    billing_digest: { label: "Billing Summary", number: "Weekly" },
+    billing_digest: { label: "Billing Digest", number: "Daily" },
+    billing_alert: { label: "Billing Alert" },
     partner_outreach: { label: "RFP Outreach" },
   };
 
