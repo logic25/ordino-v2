@@ -217,7 +217,8 @@ function buildPreviewHtml(
       .replace(/\{\{RFP_TITLE\}\}/g, "Facade Inspection & Safety Program")
       .replace(/\{\{PM_NAME\}\}/g, "Sarah Johnson")
       .replace(/\{\{PM_EMAIL\}\}/g, "sarah@company.com")
-      .replace(/\{\{PM_PHONE\}\}/g, "(555) 555-5678");
+      .replace(/\{\{PM_PHONE\}\}/g, "(555) 555-5678")
+      .replace(/\{\{PROJECT_NUMBER\}\}/g, "2026-0012");
 
   const contactLine = [co.phone, co.email].filter(Boolean).join(" · ");
   const greeting = resolve(overrides.greeting);
