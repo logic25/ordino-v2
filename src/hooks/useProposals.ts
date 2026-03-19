@@ -787,77 +787,12 @@ export function useSignProposalInternal() {
 
       // Migrate proposal contacts → project contacts (find or create client_contacts, then link)
       try {
-        const { data: propContacts } = await (supabase.from("proposal_contacts" as any) as any)
-          .select("name, email, phone, company_name, role, client_id")
-          .eq("proposal_id", id);
-
-        if (propContacts && propContacts.length > 0) {
-          // Only migrate contacts with a meaningful project role; skip CC-only contacts
-          const migrateRoles = ["applicant", "bill_to", "sign"];
-          for (const pc of propContacts) {
-            if (!pc.name) continue;
-            if (pc.role && !migrateRoles.includes(pc.role)) continue;
-            let contactId: string | null = null;
-
-            // Try to find an existing client_contact by email or name
-            if (pc.email) {
-              const { data: existing } = await supabase
-                .from("client_contacts")
-                .select("id")
-                .eq("company_id", profile.company_id)
-                .ilike("email", pc.email)
-                .limit(1)
-                .maybeSingle();
-              if (existing) contactId = existing.id;
-            }
-
-            if (!contactId) {
-              const { data: byName } = await supabase
-                .from("client_contacts")
-                .select("id")
-                .eq("company_id", profile.company_id)
-                .ilike("name", pc.name)
-                .limit(1)
-                .maybeSingle();
-              if (byName) contactId = byName.id;
-            }
-
-            // Create if not found
-            if (!contactId) {
-              // Split name into first/last for proper CRM records
-              const nameParts = (pc.name || "").trim().split(/\s+/);
-              const firstName = nameParts[0] || "";
-              const lastName = nameParts.slice(1).join(" ") || "";
-              const { data: newContact } = await supabase
-                .from("client_contacts")
-                .insert({
-                  company_id: profile.company_id,
-                  name: pc.name,
-                  first_name: firstName || null,
-                  last_name: lastName || null,
-                  email: pc.email || null,
-                  phone: pc.phone || null,
-                  company_name: pc.company_name || null,
-                  client_id: pc.client_id || (proposal.client_id || null),
-                } as any)
-                .select("id")
-                .single();
-              if (newContact) contactId = newContact.id;
-            }
-
-            // Link to project
-            if (contactId) {
-              await (supabase.from("project_contacts" as any) as any)
-                .insert({
-                  project_id: (project as any).id,
-                  contact_id: contactId,
-                  company_id: profile.company_id,
-                  role: pc.role || null,
-                })
-                .then(() => {}); // ignore duplicates
-            }
-          }
-        }
+        await migrateProposalContactsToProject({
+          proposalId: id,
+          projectId: (project as any).id,
+          companyId: profile.company_id,
+          clientId: proposal.client_id || null,
+        });
       } catch (contactMigErr) {
         console.error("Error migrating proposal contacts to project:", contactMigErr);
       }

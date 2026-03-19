@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { DEFAULT_PIS_SECTIONS } from "@/hooks/useRfi";
+import { migrateProposalContactsToProject } from "@/hooks/useProposals";
 
 export interface ProposalFollowUp {
   id: string;
