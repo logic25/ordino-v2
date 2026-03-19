@@ -20,7 +20,13 @@ export function useClientRelations(clientId: string | undefined) {
     queryFn: async () => {
       if (!clientId) return { projects: [], proposals: [], stats: null as ClientStats | null };
 
-      const [projectsRes, proposalsRes] = await Promise.all([
+      const clientName = await supabase
+        .from("clients")
+        .select("name")
+        .eq("id", clientId)
+        .single();
+
+      const [projectsRes, proposalsRes, referralsRes] = await Promise.all([
         supabase
           .from("projects")
           .select("id, name, project_number, status, created_at, properties(address)")
@@ -31,6 +37,13 @@ export function useClientRelations(clientId: string | undefined) {
           .select("id, title, proposal_number, status, total_amount, created_at")
           .eq("client_id", clientId)
           .order("created_at", { ascending: false }),
+        // Proposals referred BY this client's name
+        clientName.data?.name
+          ? supabase
+              .from("proposals")
+              .select("id, status, total_amount")
+              .eq("referred_by", clientName.data.name)
+          : Promise.resolve({ data: [] }),
       ]);
 
       const projects = projectsRes.data || [];
