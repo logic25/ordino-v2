@@ -498,6 +498,8 @@ function buildTemplateBody(
           </div>
         </div>
         ${ctaHtml}${signoffHtml}`;
+
+    case "partner_outreach":
       return `
         ${greetingHtml}${bodyHtml}
         <div style="border:1px solid ${BORDER};border-radius:8px;overflow:hidden;margin-bottom:24px;">
