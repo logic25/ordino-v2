@@ -523,7 +523,7 @@ table { page-break-inside: avoid; }
               </div>
 
               {/* ═══ Footer ═══ */}
-              <div style={{ textAlign: "center", fontSize: "8.5pt", color: slate, marginTop: 36, paddingTop: 12, borderTop: "1px solid #e2e8f0" }}>
+              <div className="proposal-content-footer" style={{ textAlign: "center", fontSize: "8.5pt", color: slate, marginTop: 36, paddingTop: 12, borderTop: "1px solid #e2e8f0" }}>
                 {company?.address && <div>{company.address}</div>}
                 <div>
                   {company?.phone && <span>Tel: {company.phone}</span>}
