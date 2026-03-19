@@ -477,12 +477,12 @@ function buildTemplateBody(
 
     case "billing_alert":
       return `
-        <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
-          ${infoCard("Project", "2026-0012 – Alt-1 Interior Renovation")}
-          <td style="width:16px;"></td>
-          ${infoCard("Billed By", "Sarah Johnson", "Mar 19, 2026 · 2:30 PM")}
+        <table style="width:100%;margin-bottom:16px;" cellpadding="0" cellspacing="0"><tr>
+          ${infoCard("Project", "2026-0012 – Alt-1 Interior Renovation", "456 Park Avenue, New York, NY")}
         </tr></table>
         <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
+          ${infoCard("Billed By", "Sarah Johnson", "Mar 19, 2026 · 2:30 PM")}
+          <td style="width:16px;"></td>
           ${infoCard("Billed To", "John Smith", "ABC Construction LLC")}
         </tr></table>
         ${greetingHtml}${bodyHtml}
