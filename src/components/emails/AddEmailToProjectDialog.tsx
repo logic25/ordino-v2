@@ -16,7 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Paperclip, Search, Mail } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,7 +37,6 @@ export function AddEmailToProjectDialog({ open, onOpenChange, projectId }: AddEm
   const { toast } = useToast();
   const tagEmail = useTagEmail();
 
-  // Fetch recent emails (not already tagged to this project)
   const { data: emails = [], isLoading } = useQuery({
     queryKey: ["emails-for-tagging", projectId],
     queryFn: async () => {
@@ -48,6 +46,7 @@ export function AddEmailToProjectDialog({ open, onOpenChange, projectId }: AddEm
         .is("archived_at", null)
         .order("date", { ascending: false })
         .limit(200);
+
       if (error) throw error;
       return data ?? [];
     },
@@ -55,23 +54,25 @@ export function AddEmailToProjectDialog({ open, onOpenChange, projectId }: AddEm
   });
 
   const availableEmails = useMemo(() => {
-    // Filter out emails already tagged to this project
     const untagged = emails.filter(
       (e: any) => !e.email_project_tags?.some((t: any) => t.project_id === projectId)
     );
+
     if (!search.trim()) return untagged.slice(0, 50);
+
     const term = search.toLowerCase();
     return untagged.filter(
       (e: any) =>
-        (e.subject?.toLowerCase().includes(term)) ||
-        (e.from_name?.toLowerCase().includes(term)) ||
-        (e.from_email?.toLowerCase().includes(term)) ||
-        (e.snippet?.toLowerCase().includes(term))
+        e.subject?.toLowerCase().includes(term) ||
+        e.from_name?.toLowerCase().includes(term) ||
+        e.from_email?.toLowerCase().includes(term) ||
+        e.snippet?.toLowerCase().includes(term)
     ).slice(0, 50);
   }, [emails, search, projectId]);
 
   const handleSave = async () => {
     if (!selectedEmailId) return;
+
     try {
       await tagEmail.mutateAsync({ emailId: selectedEmailId, projectId, category });
       toast({ title: "Email added to project" });
@@ -86,61 +87,63 @@ export function AddEmailToProjectDialog({ open, onOpenChange, projectId }: AddEm
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md w-[92vw]">
-        <DialogHeader>
+      <DialogContent className="w-[min(92vw,32rem)] max-w-[32rem] overflow-hidden p-0">
+        <DialogHeader className="min-w-0 px-6 pt-6">
           <DialogTitle>Add Email to Project</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="relative">
+        <div className="min-w-0 space-y-4 px-6 pb-6">
+          <div className="relative min-w-0">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search emails by subject, sender..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
+              className="w-full pl-9"
             />
           </div>
 
-          <div className="max-h-64 overflow-y-auto overflow-x-hidden border rounded-md divide-y">
+          <div className="w-full min-w-0 max-h-64 overflow-y-auto overflow-x-hidden rounded-md border divide-y">
             {isLoading ? (
               <p className="p-3 text-sm text-muted-foreground">Loading emails...</p>
             ) : availableEmails.length === 0 ? (
               <div className="flex flex-col items-center py-6 text-muted-foreground">
-                <Mail className="h-6 w-6 mb-1 opacity-40" />
+                <Mail className="mb-1 h-6 w-6 opacity-40" />
                 <p className="text-sm">No matching emails found</p>
               </div>
             ) : (
               availableEmails.map((e: any) => (
                 <button
                   key={e.id}
+                  type="button"
                   onClick={() => setSelectedEmailId(e.id)}
                   className={cn(
-                    "w-full text-left px-3 py-2.5 hover:bg-muted/50 transition-colors overflow-hidden",
-                    selectedEmailId === e.id && "bg-primary/10 border-l-2 border-l-primary"
+                    "flex w-full min-w-0 flex-col gap-1 overflow-hidden px-3 py-2.5 text-left transition-colors hover:bg-muted/50",
+                    selectedEmailId === e.id && "border-l-2 border-l-primary bg-primary/10"
                   )}
                 >
-                  <div className="flex items-center justify-between gap-2 min-w-0">
-                    <span className="text-sm font-medium truncate min-w-0 flex-1">
+                  <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+                    <span className="block min-w-0 truncate text-sm font-medium">
                       {e.from_name || e.from_email}
                     </span>
-                    <div className="flex items-center gap-1 shrink-0">
-                      {e.has_attachments && <Paperclip className="h-3 w-3 text-muted-foreground" />}
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {e.date ? format(new Date(e.date), "MMM d") : ""}
-                      </span>
+                    <div className="flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground">
+                      {e.has_attachments && <Paperclip className="h-3 w-3 shrink-0" />}
+                      <span>{e.date ? format(new Date(e.date), "MMM d") : ""}</span>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground truncate">{e.subject || "(no subject)"}</p>
+
+                  <p className="block w-full truncate text-xs text-muted-foreground">
+                    {e.subject || "(no subject)"}
+                  </p>
                 </button>
               ))
             )}
           </div>
 
-          <div className="space-y-2">
+          <div className="min-w-0 space-y-2">
             <Label>Category</Label>
             <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full min-w-0">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -154,8 +157,10 @@ export function AddEmailToProjectDialog({ open, onOpenChange, projectId }: AddEm
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+        <DialogFooter className="px-6 pb-6">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
           <Button onClick={handleSave} disabled={!selectedEmailId || tagEmail.isPending}>
             {tagEmail.isPending ? "Adding..." : "Add to Project"}
           </Button>
