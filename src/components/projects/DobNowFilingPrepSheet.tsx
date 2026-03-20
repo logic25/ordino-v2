@@ -401,6 +401,7 @@ export function DobNowFilingPrepSheet({
       setAgentError(null);
       setSubmitStep("agent");
 
+      // Audit log (fire-and-forget)
       (supabase.from("filing_audit_log" as any).insert({
         company_id: currentUser.company_id,
         project_id: project.id,
@@ -413,7 +414,53 @@ export function DobNowFilingPrepSheet({
         payload_snapshot: payload,
       }) as any).then(() => {});
 
-      toast({ title: "Agent queued", description: "The filing agent will start processing shortly." });
+      // Actually invoke the filing-agent-proxy edge function
+      console.log("[FilingAgent] Invoking filing-agent-proxy with action=start-filing", {
+        project_id: project.id,
+        service_id: service.id,
+      });
+
+      const { data: agentData, error: agentError } = await supabase.functions.invoke(
+        "filing-agent-proxy",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: { project_id: project.id, service_id: service.id },
+        }
+      );
+
+      // Append query param for action routing
+      // Note: supabase.functions.invoke doesn't support query params natively,
+      // so we need to use a direct fetch instead
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      console.log("[FilingAgent] Sending request to filing-agent-proxy...");
+      const proxyRes = await fetch(
+        `${supabaseUrl}/functions/v1/filing-agent-proxy?action=start-filing`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({
+            project_id: project.id,
+            service_id: service.id,
+          }),
+        }
+      );
+
+      const proxyResult = await proxyRes.json();
+      console.log("[FilingAgent] Proxy response:", proxyRes.status, proxyResult);
+
+      if (!proxyRes.ok) {
+        console.error("[FilingAgent] Proxy error:", proxyResult);
+        toast({ title: "Agent error", description: proxyResult?.error || "Failed to reach filing agent.", variant: "destructive" });
+      } else {
+        toast({ title: "Agent launched", description: "The filing agent has started processing." });
+      }
     } finally {
       setLaunchingAgent(false);
     }
