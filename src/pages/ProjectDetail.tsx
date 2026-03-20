@@ -840,10 +840,19 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
 
   const outstanding = items.filter(i => i.status === "open");
   const completed = items.filter(i => i.status === "done" || i.status === "dismissed");
-  const grouped = Object.entries(checklistCategoryLabels).map(([key, { label, icon }]) => ({
-    key, label, icon,
-    items: outstanding.filter(i => i.category === key),
-  })).filter(g => g.items.length > 0);
+  const grouped = (() => {
+    const knownGroups = Object.entries(checklistCategoryLabels).map(([key, { label, icon }]) => ({
+      key, label, icon,
+      items: outstanding.filter(i => i.category === key),
+    })).filter(g => g.items.length > 0);
+    // Catch items with unknown categories
+    const knownKeys = new Set(Object.keys(checklistCategoryLabels));
+    const uncategorized = outstanding.filter(i => !knownKeys.has(i.category));
+    if (uncategorized.length > 0) {
+      knownGroups.push({ key: "_other", label: "Other", icon: "📌", items: uncategorized });
+    }
+    return knownGroups;
+  })();
 
   const pisComplete = pisStatus.completedFields === pisStatus.totalFields;
 
@@ -1122,22 +1131,22 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
                           {daysWaiting}d
                         </Badge>
                         <div className="flex items-center gap-1 shrink-0">
-                          {item.category === "missing_document" && (
+                          {(item.category === "missing_document" || item.category === "document") && (
                             <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 text-muted-foreground hover:text-foreground" onClick={() => toast({ title: "Request Sent", description: `Requested "${item.label}" from ${item.from_whom}` })}>
                               <Mail className="h-3 w-3" /> Request
                             </Button>
                           )}
-                          {item.category === "missing_info" && (
+                          {(item.category === "missing_info" || item.category === "field") && (
                             <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 text-muted-foreground hover:text-foreground" onClick={() => toast({ title: "Email Draft", description: `Drafting email to request "${item.label}"` })}>
                               <Mail className="h-3 w-3" /> Email
                             </Button>
                           )}
-                          {item.category === "pending_signature" && (
-                            <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 text-muted-foreground hover:text-foreground" onClick={() => toast({ title: "Reminder Sent", description: `Signature reminder sent for "${item.label}"` })}>
+                          {(item.category === "pending_signature" || item.category === "approval") && (
+                            <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 text-muted-foreground hover:text-foreground" onClick={() => toast({ title: "Reminder Sent", description: `Reminder sent for "${item.label}"` })}>
                               <Send className="h-3 w-3" /> Remind
                             </Button>
                           )}
-                          {item.category === "pending_response" && (
+                          {(item.category === "pending_response" || item.category === "inspection") && (
                             <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 text-muted-foreground hover:text-foreground" onClick={() => toast({ title: "Follow-up Sent", description: `Follow-up sent for "${item.label}"` })}>
                               <Phone className="h-3 w-3" /> Follow Up
                             </Button>
@@ -1200,7 +1209,7 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-2 pt-1 flex-wrap">
+               <div className="flex items-center gap-2 pt-1 flex-wrap">
                 <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowAddForm(true)}>
                   <Plus className="h-3.5 w-3.5" /> Add Item
                 </Button>
@@ -1225,9 +1234,6 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
                     )}
                   </Button>
                 )}
-                <Button variant="outline" size="sm" className="gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5" /> Extract from Emails
-                </Button>
                 {outstanding.length > 0 && (
                   <Button
                     variant="outline"
