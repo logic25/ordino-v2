@@ -240,9 +240,11 @@ export function DobNowFilingPrepSheet({
   };
 
   const toggleChecklist = (id: string) => {
-    setChecklist((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, checked: !item.checked } : item))
-    );
+    setChecklist((prev) => {
+      const updated = prev.map((item) => (item.id === id ? { ...item, checked: !item.checked } : item));
+      saveChecklistToStorage(updated);
+      return updated;
+    });
     setChecklistWarning(false);
   };
 
