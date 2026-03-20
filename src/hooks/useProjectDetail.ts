@@ -523,12 +523,26 @@ export function useProjectPISStatus(projectId: string | undefined) {
         missingBySection[contractorsHeading].push("Special Inspector (TBD)");
       }
 
+      // Build answered fields list for display
+      const answeredFields: Array<{ label: string; value: string; section: string }> = [];
+      for (const f of allFields) {
+        if (isMissing(f)) continue;
+        const flatVal = responses[f.id];
+        const prefixedVal = responses[`${f.sectionId}_${f.id}`];
+        const val = prefixedVal ?? flatVal;
+        const heading = fieldHeadingMap.get(f.id) || "Other";
+        const rawLabel = (f.label.includes(" — ") ? f.label.split(" — ").slice(1).join(" — ") : f.label);
+        const displayVal = Array.isArray(val) ? val.join(", ") : String(val);
+        answeredFields.push({ label: rawLabel, value: displayVal, section: heading });
+      }
+
       return {
         sentDate: format(new Date(rfi.created_at), "MM/dd/yyyy"),
         totalFields,
         completedFields,
         missingFields,
         missingBySection,
+        answeredFields,
       };
     },
     enabled: !!projectId,
