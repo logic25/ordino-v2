@@ -263,6 +263,14 @@ export function FilingAgentSupervisionPanel({
     return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
   }, [run?.started_at, run?.created_at, run?.completed_at, run?.status, tick]);
 
+  // Auto-open browser modal when live_url first becomes available
+  useEffect(() => {
+    if (run?.live_url && !prevLiveUrlRef.current && isRunningStatus(run.status)) {
+      setBrowserModalOpen(true);
+    }
+    prevLiveUrlRef.current = run?.live_url || null;
+  }, [run?.live_url, run?.status]);
+
   // Detect login-required step
   const needsLogin = useMemo(() => {
     if (!run || !isRunningStatus(run.status)) return false;
