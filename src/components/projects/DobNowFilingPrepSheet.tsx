@@ -315,6 +315,23 @@ export function DobNowFilingPrepSheet({
     } as MockContact];
   }
 
+  // Auto-populate filing rep from company data + assigned PM (it's always "us")
+  if (!contactsByRole["filing_rep"]?.length && companyData) {
+    const pmName = (project as any).assigned_pm?.display_name
+      || (project as any).assigned_pm?.first_name
+        ? `${(project as any).assigned_pm?.first_name} ${(project as any).assigned_pm?.last_name || ""}`.trim()
+        : currentUser?.display_name || "";
+    contactsByRole["filing_rep"] = [{
+      id: "auto-filing-rep",
+      name: pmName || companyData.name || "Filing Representative",
+      email: companyData.email || "",
+      phone: companyData.phone || "",
+      company: companyData.name || "",
+      dobRole: "filing_rep",
+      dobRegistered: "registered",
+    } as MockContact];
+  }
+
   const allFields = [...propertyFields, ...filingFields];
   const missingFields = allFields.filter((f) => !f.value && !f.optional);
   const missingContacts = ["applicant", "owner", "filing_rep"].filter(
