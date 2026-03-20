@@ -487,6 +487,14 @@ export default function Documents() {
               <Label>Description (optional)</Label>
               <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Brief description..." className="mt-1" rows={2} />
             </div>
+            <EntityLinkingFields
+              projectId={linkProjectId}
+              propertyId={linkPropertyId}
+              proposalId={linkProposalId}
+              onProjectChange={setLinkProjectId}
+              onPropertyChange={setLinkPropertyId}
+              onProposalChange={setLinkProposalId}
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setUploadOpen(false); resetForm(); }}>Cancel</Button>
