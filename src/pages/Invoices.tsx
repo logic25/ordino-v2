@@ -90,7 +90,7 @@ export default function Invoices() {
     );
   }, [dbInvoices, search]);
 
-  const handleDelete = async (id: string) => {
+  const confirmDelete = async (id: string) => {
     try {
       await deleteInvoice.mutateAsync(id);
       toast({ title: "Invoice deleted" });
@@ -98,6 +98,16 @@ export default function Invoices() {
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
+  };
+
+  const handleDelete = (id: string) => setDeleteConfirmId(id);
+
+  const handleBulkDelete = async () => {
+    for (const id of selectedIds) {
+      await confirmDelete(id);
+    }
+    setBulkDeleteOpen(false);
+    setSelectedIds([]);
   };
 
   const handleSendInvoice = (inv: InvoiceWithRelations) => {
