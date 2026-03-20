@@ -230,6 +230,7 @@ Deno.serve(async (req) => {
         ],
         notes: `Deposit payment received via ${paymentMethodLabel} on client proposal page.`,
         retainer_id: retainer.id,
+        idempotency_key: idempotencyKey,
       })
       .select("id, invoice_number, created_at")
       .single();
