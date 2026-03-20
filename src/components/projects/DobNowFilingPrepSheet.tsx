@@ -1194,71 +1194,71 @@ export function DobNowFilingPrepSheet({
           </div>
         </div>
       </SheetContent>
-
-      {/* DOB NOW Login Session Modal (Step 1) — custom portal, no focus trap */}
-      {sessionModalOpen && dobSessionLiveUrl && createPortal(
-        <>
-          <div
-            className="fixed inset-0 z-[100] bg-black/60"
-            onClick={(e) => {
-              e.stopPropagation();
-              setSessionModalOpen(false);
-            }}
-          />
-          <div
-            className="fixed z-[101] bg-background border rounded-lg shadow-2xl flex flex-col overflow-hidden pointer-events-auto"
-            onClick={(e) => e.stopPropagation()}
-            style={{ top: "5vh", left: "4vw", width: "92vw", height: "85vh" }}
-          >
-            {/* Title bar */}
-            <div className="flex items-center gap-3 px-4 py-2.5 border-b bg-muted/30 shrink-0">
-              <Monitor className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-semibold flex-1">DOB NOW — Log In to Continue</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 gap-1 text-xs"
-                onClick={() => setSessionModalOpen(false)}
-              >
-                <Minimize2 className="h-3.5 w-3.5" /> Minimize
-              </Button>
-            </div>
-
-            {/* Login instruction banner */}
-            <div className="px-4 py-3 border-b bg-blue-50 dark:bg-blue-900/20 flex items-start gap-3">
-              <LogIn className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
-              <div className="flex-1 space-y-1.5">
-                <p className="text-xs font-semibold text-blue-800 dark:text-blue-200">Navigate to DOB NOW in the browser below:</p>
-                <ol className="text-xs text-blue-700 dark:text-blue-300 space-y-0.5 list-decimal list-inside">
-                  <li>Click the <strong>address bar</strong> in the browser above</li>
-                  <li>Type <code className="px-1 py-0.5 rounded bg-blue-100 dark:bg-blue-800/40 font-mono text-[11px]">a810-dobnow.nyc.gov</code> and press Enter</li>
-                  <li>Solve the CAPTCHA if shown</li>
-                  <li>Log in with your <strong>NYC.ID</strong> credentials</li>
-                  <li>Click <strong>"I'm Logged In"</strong> when you see the DOB NOW dashboard</li>
-                </ol>
-              </div>
-              <Button
-                size="sm"
-                className="h-8 gap-1.5 text-xs shrink-0 mt-1"
-                onClick={handleConfirmLoggedIn}
-              >
-                <CheckCircle2 className="h-3.5 w-3.5" /> I'm Logged In
-              </Button>
-            </div>
-
-            {/* Full-size iframe */}
-            <iframe
-              src={dobSessionLiveUrl}
-              className="flex-1 w-full border-0"
-              allow="clipboard-read; clipboard-write; autoplay; encrypted-media; fullscreen"
-              tabIndex={0}
-              style={{ pointerEvents: "auto" }}
-            />
-          </div>
-        </>,
-        document.body
-      )}
     </Sheet>
+
+    {/* DOB NOW Login Session Modal — rendered OUTSIDE the Sheet to prevent Radix from intercepting clicks */}
+    {sessionModalOpen && dobSessionLiveUrl && createPortal(
+      <>
+        <div
+          className="fixed inset-0 z-[100] bg-black/60"
+          onClick={(e) => {
+            e.stopPropagation();
+            setSessionModalOpen(false);
+          }}
+        />
+        <div
+          className="fixed z-[101] bg-background border rounded-lg shadow-2xl flex flex-col overflow-hidden pointer-events-auto"
+          onClick={(e) => e.stopPropagation()}
+          style={{ top: "5vh", left: "4vw", width: "92vw", height: "85vh" }}
+        >
+          {/* Title bar */}
+          <div className="flex items-center gap-3 px-4 py-2.5 border-b bg-muted/30 shrink-0">
+            <Monitor className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-semibold flex-1">DOB NOW — Log In to Continue</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 text-xs"
+              onClick={() => setSessionModalOpen(false)}
+            >
+              <Minimize2 className="h-3.5 w-3.5" /> Minimize
+            </Button>
+          </div>
+
+          {/* Login instruction banner */}
+          <div className="px-4 py-3 border-b bg-blue-50 dark:bg-blue-900/20 flex items-start gap-3">
+            <LogIn className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+            <div className="flex-1 space-y-1.5">
+              <p className="text-xs font-semibold text-blue-800 dark:text-blue-200">Navigate to DOB NOW in the browser below:</p>
+              <ol className="text-xs text-blue-700 dark:text-blue-300 space-y-0.5 list-decimal list-inside">
+                <li>Click the <strong>address bar</strong> in the browser above</li>
+                <li>Type <code className="px-1 py-0.5 rounded bg-blue-100 dark:bg-blue-800/40 font-mono text-[11px]">a810-dobnow.nyc.gov</code> and press Enter</li>
+                <li>Solve the CAPTCHA if shown</li>
+                <li>Log in with your <strong>NYC.ID</strong> credentials</li>
+                <li>Click <strong>"I'm Logged In"</strong> when you see the DOB NOW dashboard</li>
+              </ol>
+            </div>
+            <Button
+              size="sm"
+              className="h-8 gap-1.5 text-xs shrink-0 mt-1"
+              onClick={handleConfirmLoggedIn}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" /> I'm Logged In
+            </Button>
+          </div>
+
+          {/* Full-size iframe */}
+          <iframe
+            src={dobSessionLiveUrl}
+            className="flex-1 w-full border-0"
+            allow="clipboard-read; clipboard-write; autoplay; encrypted-media; fullscreen"
+            tabIndex={0}
+            style={{ pointerEvents: "auto" }}
+          />
+        </div>
+      </>,
+      document.body
+    )}
   );
 }
 
