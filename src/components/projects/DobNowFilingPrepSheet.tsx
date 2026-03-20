@@ -166,25 +166,7 @@ export function DobNowFilingPrepSheet({
   const [launchingAgent, setLaunchingAgent] = useState(false);
   const [confirmingFiled, setConfirmingFiled] = useState(false);
 
-  // Realtime subscription for agent progress
-  useEffect(() => {
-    if (!agentRunId) return;
-    const channel = supabase
-      .channel(`filing-run-${agentRunId}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "filing_runs", filter: `id=eq.${agentRunId}` },
-        (payload: any) => {
-          const row = payload.new;
-          setAgentStatus(row.status);
-          setAgentQueuedAt(row.created_at || row.started_at || null);
-          setAgentProgress(Array.isArray(row.progress_log) ? row.progress_log : []);
-          if (row.error_message) setAgentError(row.error_message);
-        }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [agentRunId]);
+  // Realtime is now handled inside FilingAgentSupervisionPanel
 
   // Initialize checklist from company defaults, then restore saved checked state
   useEffect(() => {
