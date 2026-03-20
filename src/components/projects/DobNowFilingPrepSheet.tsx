@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { format } from "date-fns";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -141,7 +142,9 @@ export function DobNowFilingPrepSheet({
   const [agentStatus, setAgentStatus] = useState<string | null>(null);
   const [agentProgress, setAgentProgress] = useState<FilingRunProgress[]>([]);
   const [agentError, setAgentError] = useState<string | null>(null);
+  const [agentQueuedAt, setAgentQueuedAt] = useState<string | null>(null);
   const [launchingAgent, setLaunchingAgent] = useState(false);
+  const [confirmingFiled, setConfirmingFiled] = useState(false);
 
   // Realtime subscription for agent progress
   useEffect(() => {
@@ -154,6 +157,7 @@ export function DobNowFilingPrepSheet({
         (payload: any) => {
           const row = payload.new;
           setAgentStatus(row.status);
+          setAgentQueuedAt(row.created_at || row.started_at || null);
           setAgentProgress(Array.isArray(row.progress_log) ? row.progress_log : []);
           if (row.error_message) setAgentError(row.error_message);
         }
@@ -388,7 +392,7 @@ export function DobNowFilingPrepSheet({
         status: "queued",
         payload_snapshot: payload,
         created_by: currentUser.id,
-      }).select("id").single();
+      }).select("id, created_at").single();
 
       if (error || !run) {
         toast({ title: "Error", description: "Failed to create filing run.", variant: "destructive" });
@@ -396,30 +400,15 @@ export function DobNowFilingPrepSheet({
       }
 
       setAgentRunId(run.id);
+      setAgentQueuedAt(run.created_at || new Date().toISOString());
       setAgentStatus("queued");
       setAgentProgress([]);
       setAgentError(null);
       setSubmitStep("agent");
 
-      // Audit log (fire-and-forget)
-      (supabase.from("filing_audit_log" as any).insert({
-        company_id: currentUser.company_id,
-        project_id: project.id,
-        service_id: service.id,
-        initiated_by: currentUser.id,
-        filing_type: service.name,
-        work_types: workTypes,
-        property_address: property?.address || null,
-        method: "agent",
-        payload_snapshot: payload,
-      }) as any).then(() => {});
-
-      // Actually invoke the filing-agent-proxy edge function
-      // Invoke filing-agent-proxy with action=start-filing
-      // supabase.functions.invoke doesn't support query params, so use direct fetch
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       console.log("[FilingAgent] Sending request to filing-agent-proxy...", {
         project_id: project.id,
         service_id: service.id,
@@ -445,13 +434,66 @@ export function DobNowFilingPrepSheet({
       console.log("[FilingAgent] Proxy response:", proxyRes.status, proxyResult);
 
       if (!proxyRes.ok) {
+        await (supabase.from("filing_runs") as any)
+          .update({ status: "failed", error_message: proxyResult?.details || proxyResult?.error || "Failed to reach filing agent." })
+          .eq("id", run.id);
+
+        setAgentStatus("failed");
+        setAgentError(proxyResult?.details || proxyResult?.error || "Failed to reach filing agent.");
         console.error("[FilingAgent] Proxy error:", proxyResult);
-        toast({ title: "Agent error", description: proxyResult?.error || "Failed to reach filing agent.", variant: "destructive" });
-      } else {
-        toast({ title: "Agent launched", description: "The filing agent has started processing." });
+        toast({ title: "Agent error", description: proxyResult?.details || proxyResult?.error || "Failed to reach filing agent.", variant: "destructive" });
+        return;
       }
+
+      toast({ title: "Agent launched", description: "The filing agent has started processing." });
     } finally {
       setLaunchingAgent(false);
+    }
+  };
+
+  const isQueuedTooLong = useMemo(() => {
+    if (agentStatus !== "queued" || !agentQueuedAt) return false;
+    return Date.now() - new Date(agentQueuedAt).getTime() > 2 * 60 * 1000;
+  }, [agentStatus, agentQueuedAt]);
+
+  const resetAgentState = () => {
+    setAgentRunId(null);
+    setAgentStatus(null);
+    setAgentProgress([]);
+    setAgentError(null);
+    setAgentQueuedAt(null);
+    setSubmitStep("idle");
+  };
+
+  const handleConfirmFiled = async () => {
+    if (!currentUser) return;
+    setConfirmingFiled(true);
+    try {
+      const payload = buildPayload();
+      const now = new Date();
+      const { error } = await (supabase.from("filing_audit_log" as any).insert({
+        company_id: currentUser.company_id,
+        project_id: project.id,
+        service_id: service.id,
+        initiated_by: currentUser.id,
+        filing_type: service.name,
+        work_types: workTypes,
+        property_address: property?.address || null,
+        method: "manual_confirm",
+        payload_snapshot: { ...payload, confirmed_filed_at: now.toISOString() },
+      }) as any);
+
+      if (error) {
+        toast({ title: "Error", description: "Failed to confirm filing.", variant: "destructive" });
+        return;
+      }
+
+      setFiledAt(now);
+      setFilerName(currentUser.display_name || "Unknown");
+      setSubmitStep("success");
+      toast({ title: "Filed confirmed", description: "Service marked as filed." });
+    } finally {
+      setConfirmingFiled(false);
     }
   };
 
@@ -479,7 +521,7 @@ export function DobNowFilingPrepSheet({
     ].join("\n");
     await navigator.clipboard.writeText(allData);
 
-    // Fire-and-forget audit log
+    // Fire-and-forget audit log for opening the manual flow only
     if (currentUser) {
       (supabase.from("filing_audit_log" as any).insert({
         company_id: currentUser.company_id,
@@ -489,13 +531,11 @@ export function DobNowFilingPrepSheet({
         filing_type: service.name,
         work_types: workTypes,
         property_address: property?.address || null,
-        method: "clipboard",
+        method: "clipboard_opened",
         payload_snapshot: payload,
       }) as any).then(() => {});
     }
 
-    setFiledAt(new Date());
-    setFilerName(currentUser?.display_name || "Unknown");
     setSubmitStep("success");
 
     // Open DOB NOW
@@ -794,11 +834,22 @@ export function DobNowFilingPrepSheet({
                   <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                   <div>
                     <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                      Filed on {filedAt?.toLocaleDateString()} at {filedAt?.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} by {filerName}
+                      {filedAt
+                        ? `Filed on ${format(filedAt, "MM/dd/yy")} at ${filedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} by ${filerName}`
+                        : "DOB NOW opened — confirm once you have manually submitted the filing."}
                     </p>
-                    <Badge variant="outline" className="text-[10px] mt-1">Method: Clipboard</Badge>
+                    <Badge variant="outline" className="text-[10px] mt-1">
+                      Method: {filedAt ? "Manual confirmation" : "Clipboard"}
+                    </Badge>
                   </div>
                 </div>
+
+                {!filedAt && (
+                  <Button className="w-full gap-2" onClick={handleConfirmFiled} disabled={confirmingFiled}>
+                    {confirmingFiled ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                    Confirm Filed
+                  </Button>
+                )}
 
                 {/* Job Number entry */}
                 <div className="p-3 rounded-lg border bg-background">
@@ -818,22 +869,8 @@ export function DobNowFilingPrepSheet({
                   </div>
                 </div>
 
-                {/* Pull from DOB NOW */}
-                <div className="p-3 rounded-lg border bg-background">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full gap-1.5"
-                    onClick={() => {
-                      toast({ title: "Looking up filings...", description: `Searching DOB NOW for ${property?.address || "this property"}. This feature is coming soon.` });
-                    }}
-                  >
-                    <Download className="h-3.5 w-3.5" /> Pull Job # from DOB NOW
-                  </Button>
-                </div>
-
                 <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground" onClick={() => setSubmitStep("idle")}>
-                  Submit Again
+                  Back to filing prep
                 </Button>
               </div>
             )}
@@ -915,38 +952,33 @@ export function DobNowFilingPrepSheet({
                 )}
 
                 {/* Actions */}
-                <div className="flex items-center gap-2">
-                  {(agentStatus === "failed" || agentStatus === "review_needed") && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1.5"
-                      onClick={() => {
-                        setAgentRunId(null);
-                        setAgentStatus(null);
-                        setAgentProgress([]);
-                        setAgentError(null);
-                        setSubmitStep("idle");
-                      }}
-                    >
-                      <ArrowLeft className="h-3.5 w-3.5" /> Try Again
+                <div className="flex items-center gap-2 flex-wrap">
+                  {((agentStatus === "failed") || (agentStatus === "review_needed") || agentStatus === "error" || isQueuedTooLong) && (
+                    <>
+                      <Button variant="outline" size="sm" className="gap-1.5" onClick={handleLaunchAgent} disabled={launchingAgent}>
+                        {launchingAgent ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bot className="h-3.5 w-3.5" />}
+                        {isQueuedTooLong ? "Retry Launch" : "Retry Launch"}
+                      </Button>
+                      <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={resetAgentState}>
+                        <ArrowLeft className="h-3.5 w-3.5" /> Reset
+                      </Button>
+                    </>
+                  )}
+                  {agentStatus === "queued" && !isQueuedTooLong && (
+                    <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={resetAgentState}>
+                      <ArrowLeft className="h-3.5 w-3.5" /> Reset
                     </Button>
                   )}
                   {agentStatus === "completed" && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-xs text-muted-foreground"
-                      onClick={() => {
-                        setAgentRunId(null);
-                        setAgentStatus(null);
-                        setAgentProgress([]);
-                        setAgentError(null);
-                        setSubmitStep("idle");
-                      }}
-                    >
-                      Done
-                    </Button>
+                    <>
+                      <Button size="sm" className="gap-1.5" onClick={handleConfirmFiled} disabled={confirmingFiled}>
+                        {confirmingFiled ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                        Confirm Filed
+                      </Button>
+                      <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={resetAgentState}>
+                        Done
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>
