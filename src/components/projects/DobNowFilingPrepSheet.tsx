@@ -825,11 +825,22 @@ export function DobNowFilingPrepSheet({
                   <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                   <div>
                     <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                      Filed on {filedAt?.toLocaleDateString()} at {filedAt?.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} by {filerName}
+                      {filedAt
+                        ? `Filed on ${format(filedAt, "MM/dd/yy")} at ${filedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} by ${filerName}`
+                        : "DOB NOW opened — confirm once you have manually submitted the filing."}
                     </p>
-                    <Badge variant="outline" className="text-[10px] mt-1">Method: Clipboard</Badge>
+                    <Badge variant="outline" className="text-[10px] mt-1">
+                      Method: {filedAt ? "Manual confirmation" : "Clipboard"}
+                    </Badge>
                   </div>
                 </div>
+
+                {!filedAt && (
+                  <Button className="w-full gap-2" onClick={handleConfirmFiled} disabled={confirmingFiled}>
+                    {confirmingFiled ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                    Confirm Filed
+                  </Button>
+                )}
 
                 {/* Job Number entry */}
                 <div className="p-3 rounded-lg border bg-background">
@@ -849,22 +860,8 @@ export function DobNowFilingPrepSheet({
                   </div>
                 </div>
 
-                {/* Pull from DOB NOW */}
-                <div className="p-3 rounded-lg border bg-background">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full gap-1.5"
-                    onClick={() => {
-                      toast({ title: "Looking up filings...", description: `Searching DOB NOW for ${property?.address || "this property"}. This feature is coming soon.` });
-                    }}
-                  >
-                    <Download className="h-3.5 w-3.5" /> Pull Job # from DOB NOW
-                  </Button>
-                </div>
-
                 <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground" onClick={() => setSubmitStep("idle")}>
-                  Submit Again
+                  Back to filing prep
                 </Button>
               </div>
             )}
