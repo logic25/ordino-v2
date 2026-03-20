@@ -400,6 +400,7 @@ export function DobNowFilingPrepSheet({
       }
 
       setAgentRunId(run.id);
+      setAgentQueuedAt(run.created_at || new Date().toISOString());
       setAgentStatus("queued");
       setAgentProgress([]);
       setAgentError(null);
