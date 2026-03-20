@@ -276,13 +276,14 @@ export function DobNowFilingPrepSheet({
 
   const handleSheetOpenChange = useCallback(
     (nextOpen: boolean) => {
-      if (!nextOpen && sessionModalOpen) {
+      // Block close while session modal is open or agent is actively running
+      if (!nextOpen && (sessionModalOpen || launchingAgent || (agentStatus && !["completed", "failed"].includes(agentStatus)))) {
         return;
       }
 
       onOpenChange(nextOpen);
     },
-    [onOpenChange, sessionModalOpen]
+    [onOpenChange, sessionModalOpen, launchingAgent, agentStatus]
   );
 
   const handleConfirmLoggedIn = useCallback(() => {
@@ -793,12 +794,12 @@ export function DobNowFilingPrepSheet({
       <SheetContent
         className="sm:max-w-[560px] overflow-y-auto"
         onInteractOutside={(event) => {
-          if (sessionModalOpen) {
+          if (sessionModalOpen || launchingAgent || (agentStatus && !["completed", "failed"].includes(agentStatus))) {
             event.preventDefault();
           }
         }}
         onPointerDownOutside={(event) => {
-          if (sessionModalOpen) {
+          if (sessionModalOpen || launchingAgent || (agentStatus && !["completed", "failed"].includes(agentStatus))) {
             event.preventDefault();
           }
         }}
