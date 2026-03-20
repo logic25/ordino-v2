@@ -1114,6 +1114,44 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
               </div>
             )}
 
+            {/* PIS Submitted Data */}
+            {pisStatus.answeredFields && pisStatus.answeredFields.length > 0 && (
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground h-7 px-2">
+                    <ChevronRight className="h-3 w-3 transition-transform data-[state=open]:rotate-90" />
+                    📋 PIS Responses ({pisStatus.answeredFields.length})
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2">
+                  <div className="rounded-lg border bg-muted/10 overflow-hidden">
+                    {(() => {
+                      const bySection: Record<string, Array<{ label: string; value: string }>> = {};
+                      for (const f of pisStatus.answeredFields!) {
+                        if (!bySection[f.section]) bySection[f.section] = [];
+                        bySection[f.section].push({ label: f.label, value: f.value });
+                      }
+                      return Object.entries(bySection).map(([section, fields]) => (
+                        <div key={section} className="border-b last:border-b-0">
+                          <div className="px-3 py-1.5 bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                            {section}
+                          </div>
+                          <div className="divide-y">
+                            {fields.map((f, i) => (
+                              <div key={i} className="flex items-start gap-3 px-3 py-2 text-sm">
+                                <span className="text-muted-foreground min-w-[140px] shrink-0">{f.label}</span>
+                                <span className="font-medium break-words">{f.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+
             {grouped.map(({ key, label, icon, items: groupItems }) => (
               <div key={key}>
                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
