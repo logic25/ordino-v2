@@ -294,9 +294,7 @@ export function FilingAgentSupervisionPanel({
   const isError = ["failed", "error"].includes(run.status);
   const screenshots = run.screenshots || [];
 
-  // Determine which URL to use for the Watch button
-  const watchUrl = isRunning ? (run.live_url || run.session_url) : (run.recording_url || run.session_url);
-  const watchLabel = isRunning ? "Watch Live" : "View Recording";
+
 
   return (
     <div className="space-y-3">
