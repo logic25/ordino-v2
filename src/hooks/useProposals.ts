@@ -775,7 +775,7 @@ export function useSignProposalInternal() {
       // Get proposal with items
       const { data: proposal, error: proposalError } = await supabase
         .from("proposals")
-        .select("*, items:proposal_items(*), properties(address)")
+        .select("*, items:proposal_items(*), milestones:proposal_milestones(*), properties(address)")
         .eq("id", id)
         .single();
 
