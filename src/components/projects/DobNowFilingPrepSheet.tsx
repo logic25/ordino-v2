@@ -444,7 +444,9 @@ export function DobNowFilingPrepSheet({
       }
 
       setDobSessionId(result.session_id);
-      setDobSessionLiveUrl(result.live_url || null);
+      // Use Browserbase's embeddable live view URL (not devtools inspector)
+      const liveViewUrl = `https://www.browserbase.com/sessions/${result.session_id}/live`;
+      setDobSessionLiveUrl(result.live_url || liveViewUrl);
       setSessionModalOpen(true);
       toast({ title: "Browser session started", description: "Log in to DOB NOW, then click 'I'm Logged In'." });
     } catch (err) {
