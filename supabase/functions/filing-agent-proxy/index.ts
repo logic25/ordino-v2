@@ -350,6 +350,26 @@ Deno.serve(async (req) => {
 
       const agentText = await agentRes.text();
 
+      // If the external agent doesn't know about this job, fall back to the DB record
+      if (agentRes.status === 404) {
+        const { data: dbRun } = await supabase
+          .from("filing_runs")
+          .select("id, status, progress_log, error_message, session_url, recording_url, live_url, screenshots, started_at, completed_at")
+          .eq("agent_session_id", jobId)
+          .maybeSingle();
+
+        if (dbRun) {
+          return new Response(JSON.stringify(dbRun), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        return new Response(JSON.stringify({ status: "unknown", message: "Job not found in agent or database" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       // Persist live_url, session_url, recording_url if returned
       try {
         const agentJson = JSON.parse(agentText);
@@ -359,7 +379,6 @@ Deno.serve(async (req) => {
         if (agentJson.recording_url) updates.recording_url = agentJson.recording_url;
 
         if (Object.keys(updates).length > 0) {
-          // Find filing_run by agent_session_id
           await supabase
             .from("filing_runs")
             .update(updates)
