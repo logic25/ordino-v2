@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { FilingAgentSupervisionPanel } from "./FilingAgentSupervisionPanel";
 import { format } from "date-fns";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -165,25 +166,7 @@ export function DobNowFilingPrepSheet({
   const [launchingAgent, setLaunchingAgent] = useState(false);
   const [confirmingFiled, setConfirmingFiled] = useState(false);
 
-  // Realtime subscription for agent progress
-  useEffect(() => {
-    if (!agentRunId) return;
-    const channel = supabase
-      .channel(`filing-run-${agentRunId}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "filing_runs", filter: `id=eq.${agentRunId}` },
-        (payload: any) => {
-          const row = payload.new;
-          setAgentStatus(row.status);
-          setAgentQueuedAt(row.created_at || row.started_at || null);
-          setAgentProgress(Array.isArray(row.progress_log) ? row.progress_log : []);
-          if (row.error_message) setAgentError(row.error_message);
-        }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [agentRunId]);
+  // Realtime is now handled inside FilingAgentSupervisionPanel
 
   // Initialize checklist from company defaults, then restore saved checked state
   useEffect(() => {
@@ -477,14 +460,18 @@ export function DobNowFilingPrepSheet({
         return;
       }
 
-      // Update filing_run with agent job_id and set to running
+      // Update filing_run with agent job_id, session URLs, and set to running
       const agentJobId = proxyResult?.job_id || null;
+      const updateData: Record<string, any> = {
+        status: "running",
+        started_at: new Date().toISOString(),
+        agent_session_id: agentJobId,
+      };
+      if (proxyResult?.session_url) updateData.session_url = proxyResult.session_url;
+      if (proxyResult?.recording_url) updateData.recording_url = proxyResult.recording_url;
+
       await (supabase.from("filing_runs") as any)
-        .update({
-          status: "running",
-          started_at: new Date().toISOString(),
-          agent_session_id: agentJobId,
-        })
+        .update(updateData)
         .eq("id", run.id);
       setAgentStatus("running");
 
@@ -918,113 +905,16 @@ export function DobNowFilingPrepSheet({
               </div>
             )}
 
-            {/* Agent Progress View */}
-            {submitStep === "agent" && (
-              <div className="space-y-3">
-                {/* Status Header */}
-                <div className={`flex items-center gap-3 p-3 rounded-lg border text-sm ${
-                  agentStatus === "completed"
-                    ? "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800"
-                    : agentStatus === "failed"
-                    ? "bg-destructive/10 border-destructive/30"
-                    : agentStatus === "review_needed"
-                    ? "bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800"
-                    : "bg-primary/5 border-primary/20"
-                }`}>
-                  {agentStatus === "queued" && (
-                    <>
-                      <Circle className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium text-muted-foreground">Agent queued — waiting to start...</span>
-                    </>
-                  )}
-                  {agentStatus === "running" && (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                      <span className="font-medium text-primary">Agent is filling forms on DOB NOW...</span>
-                    </>
-                  )}
-                  {agentStatus === "completed" && (
-                    <>
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      <span className="font-medium text-emerald-700 dark:text-emerald-300">Filing completed successfully</span>
-                    </>
-                  )}
-                  {agentStatus === "failed" && (
-                    <>
-                      <XCircle className="h-4 w-4 text-destructive" />
-                      <span className="font-medium text-destructive">Filing failed</span>
-                    </>
-                  )}
-                  {agentStatus === "review_needed" && (
-                    <>
-                      <Eye className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                      <span className="font-medium text-amber-700 dark:text-amber-300">Review needed before submission</span>
-                    </>
-                  )}
-                </div>
-
-                {/* Error Message */}
-                {agentError && (
-                  <div className="p-3 rounded-lg border border-destructive/30 bg-destructive/5 text-sm text-destructive">
-                    {agentError}
-                  </div>
-                )}
-
-                {/* Progress Log */}
-                {agentProgress.length > 0 && (
-                  <div className="p-3 rounded-lg border bg-background">
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Progress</h4>
-                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                      {agentProgress.map((entry, i) => (
-                        <div key={i} className="flex items-center gap-2 text-xs">
-                          {entry.status === "success" ? (
-                            <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
-                          ) : entry.status === "error" ? (
-                            <XCircle className="h-3 w-3 text-destructive shrink-0" />
-                          ) : (
-                            <Loader2 className="h-3 w-3 animate-spin text-primary shrink-0" />
-                          )}
-                          <span className="text-muted-foreground">{entry.step}</span>
-                          <span className="ml-auto text-[10px] text-muted-foreground/50">
-                            {new Date(entry.timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Actions */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  {((agentStatus === "failed") || (agentStatus === "review_needed") || agentStatus === "error" || isQueuedTooLong) && (
-                    <>
-                      <Button variant="outline" size="sm" className="gap-1.5" onClick={handleLaunchAgent} disabled={launchingAgent}>
-                        {launchingAgent ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bot className="h-3.5 w-3.5" />}
-                        {isQueuedTooLong ? "Retry Launch" : "Retry Launch"}
-                      </Button>
-                      <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={resetAgentState}>
-                        <ArrowLeft className="h-3.5 w-3.5" /> Reset
-                      </Button>
-                    </>
-                  )}
-                  {agentStatus === "queued" && !isQueuedTooLong && (
-                    <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={resetAgentState}>
-                      <ArrowLeft className="h-3.5 w-3.5" /> Reset
-                    </Button>
-                  )}
-                  {agentStatus === "completed" && (
-                    <>
-                      <Button size="sm" className="gap-1.5" onClick={handleConfirmFiled} disabled={confirmingFiled}>
-                        {confirmingFiled ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                        Confirm Filed
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={resetAgentState}>
-                        Done
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
+            {/* Agent Supervision Panel */}
+            {submitStep === "agent" && agentRunId && (
+              <FilingAgentSupervisionPanel
+                runId={agentRunId}
+                onReset={resetAgentState}
+                onRetry={handleLaunchAgent}
+                onConfirmFiled={handleConfirmFiled}
+                retrying={launchingAgent}
+                confirmingFiled={confirmingFiled}
+              />
             )}
           </div>
         </div>
