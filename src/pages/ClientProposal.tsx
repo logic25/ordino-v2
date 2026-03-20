@@ -469,7 +469,7 @@ export default function ClientProposalPage() {
                       </Button>
                     </div>
                   </>
-                ) : paymentStep === "form" && selectedPayment === "ach" ? (
+                ) : paymentStep === "form" && selectedPayment === "ach" && showTestPayment ? (
                   <>
                     <div className="flex items-center gap-2 mb-4">
                       <button onClick={() => { setPaymentStep("select"); setSelectedPayment(null); }} style={{ fontSize: "8.5pt", color: amber, background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>← Back</button>
