@@ -781,7 +781,7 @@ export default function Proposals() {
               <UserPlus className="h-4 w-4" />
               Leads
               <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">
-                {displayLeads.length}
+                {leads.length}
               </Badge>
             </TabsTrigger>
           </TabsList>
