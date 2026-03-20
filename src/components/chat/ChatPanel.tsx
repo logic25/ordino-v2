@@ -164,6 +164,18 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
       queryClient.invalidateQueries({ queryKey: ["widget-messages"] });
     } catch (err) {
       console.error("Beacon direct message error:", err);
+      // Show error in chat so user knows it failed
+      try {
+        await supabase.from("widget_messages" as any).insert({
+          user_email: email,
+          role: "assistant",
+          content: "Sorry, I couldn't process that request. Please try again.",
+          metadata: { isError: true },
+        });
+        queryClient.invalidateQueries({ queryKey: ["widget-messages"] });
+      } catch (insertErr) {
+        console.error("Failed to insert error message:", insertErr);
+      }
     } finally {
       setBeaconSending(false);
       setIsWaitingForBeacon(false);

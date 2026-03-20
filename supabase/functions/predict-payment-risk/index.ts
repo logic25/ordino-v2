@@ -169,7 +169,8 @@ Respond in JSON only:
 
     if (error) throw error;
 
-    return new Response(JSON.stringify(data), {
+    const responseBody = aiParseWarning ? { ...data, warning: aiParseWarning } : data;
+    return new Response(JSON.stringify(responseBody), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

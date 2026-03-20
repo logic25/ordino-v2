@@ -172,12 +172,14 @@ Respond in JSON only:
       };
     }
 
-    return new Response(JSON.stringify({
+    const responseBody: Record<string, any> = {
       subject: parsed.subject,
       body: parsed.body,
       tone: selectedTone,
       urgency: selectedUrgency,
-    }), {
+    };
+    if (aiParseWarning) responseBody.warning = aiParseWarning;
+    return new Response(JSON.stringify(responseBody), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

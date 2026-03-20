@@ -243,7 +243,9 @@ export async function fetchDOBApplications(bin: string): Promise<COApplication[]
       deduped.push(r);
       continue;
     }
-    const key = `${jobDigits}-${r.docNum || "01"}`;
+    const key = r.source === "DOB_NOW_BUILD" && !r.docNum
+      ? `NOW-${r.jobNum}`
+      : `${jobDigits}-${r.docNum || "01"}`;
     const existing = seen.get(key);
     if (existing !== undefined) {
       // Keep the DOB_JOB_FILINGS version if there's a conflict

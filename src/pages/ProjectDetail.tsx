@@ -125,19 +125,8 @@ function LitigationButton({ onClick }: { onClick: () => void }) {
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { data: projects = [], isLoading } = useProjects();
+  const { data: project, isLoading } = useProject(id);
   const { data: assignableProfiles = [] } = useAssignableProfiles();
-  const updateProject = useUpdateProject();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [litigationDialogOpen, setLitigationDialogOpen] = useState(false);
-  const [coDialogOpen, setCoDialogOpen] = useState(false);
-  const [selectedCOId, setSelectedCOId] = useState<string | null>(null);
-  const [coSheetOpen, setCoSheetOpen] = useState(false);
-  const [coAutoSign, setCoAutoSign] = useState(false);
-
-  const project = projects.find((p) => p.id === id);
 
   // Real data hooks — use URL id directly so services don't wait for useProjects() to resolve
   const { data: realServices = [], isLoading: servicesLoading } = useProjectServices(id);

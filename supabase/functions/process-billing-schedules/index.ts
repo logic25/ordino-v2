@@ -88,7 +88,7 @@ serve(async (req) => {
           .from("invoices")
           .insert({
             company_id: schedule.company_id,
-            invoice_number: "",
+            invoice_number: null,
             project_id: schedule.project_id,
             client_id: schedule.projects?.client_id || null,
             billing_request_id: billingReq.id,

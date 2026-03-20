@@ -169,7 +169,8 @@ Context: Invoice ${invoice_number || "unknown"} for client ${client_name || "unk
     const aiData = await aiResponse.json();
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall) {
-      return new Response(JSON.stringify({ tasks: [], promises: [] }), {
+      console.error("No tool call in AI response:", JSON.stringify(aiData));
+      return new Response(JSON.stringify({ tasks: [], promises: [], warning: "AI response could not be parsed, showing defaults" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -178,7 +179,8 @@ Context: Invoice ${invoice_number || "unknown"} for client ${client_name || "unk
     try {
       extracted = JSON.parse(toolCall.function.arguments);
     } catch {
-      return new Response(JSON.stringify({ tasks: [], promises: [] }), {
+      console.error("Failed to parse tool call arguments:", toolCall.function.arguments);
+      return new Response(JSON.stringify({ tasks: [], promises: [], warning: "AI response could not be parsed, showing defaults" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
