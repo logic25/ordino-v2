@@ -143,11 +143,15 @@ Deno.serve(async (req) => {
         .maybeSingle();
       const pis = pisData?.responses || {};
 
-      // Fetch contacts
-      const { data: contacts } = await supabase
-        .from("client_contacts")
-        .select("id, name, email, phone, company, dob_role, dob_registered, discipline, address_line1, address_line2, address_city, address_state, address_zip")
-        .eq("project_id", project_id);
+      // Fetch contacts via project's client
+      let contacts: any[] = [];
+      if (project.client_id) {
+        const { data: contactData } = await supabase
+          .from("client_contacts")
+          .select("id, name, email, phone, company_name, specialty, license_number, license_type, address_1, address_2, city, state, zip")
+          .eq("client_id", project.client_id);
+        contacts = contactData || [];
+      }
 
       // Build structured payload
       const property = project.properties;
