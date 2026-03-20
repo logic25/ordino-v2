@@ -617,7 +617,7 @@ export function DobNowFilingPrepSheet({
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
       <SheetContent className="sm:max-w-[560px] overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
