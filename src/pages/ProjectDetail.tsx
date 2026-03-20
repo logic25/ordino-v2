@@ -744,6 +744,7 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
   const { data: pendingDrafts = [] } = useChecklistFollowupDrafts(projectId);
   const approveDraft = useApproveDraft();
   const dismissDraft = useDismissDraft();
+  const generateChecklist = useGenerateProjectChecklist();
 
   // Fetch RFI record for reminder sending
   const { data: rfiRecord } = useQuery({
