@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
       // Verify token matches a real CO first
       const { data: existing } = await supabase
         .from("change_orders")
-        .select("id, status, client_signed_at, deposit_paid_at, deposit_percentage")
+        .select("id, status, client_signed_at, deposit_paid_at, deposit_percentage, amount, company_id, project_id, co_number, title")
         .eq("public_token", token)
         .maybeSingle();
 
@@ -149,6 +149,22 @@ Deno.serve(async (req) => {
           .eq("id", existing.id);
 
         if (error) throw error;
+
+        // Create billing request for approved CO
+        if (existing.amount > 0) {
+          try {
+            await supabase.from("billing_requests").insert({
+              company_id: existing.company_id,
+              project_id: existing.project_id,
+              services: [{ name: existing.title, quantity: 1, rate: existing.amount, amount: existing.amount }],
+              total_amount: existing.amount,
+              status: "pending",
+            });
+          } catch (brErr) {
+            console.error("Error creating billing request for CO:", brErr);
+          }
+        }
+
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -162,12 +178,80 @@ Deno.serve(async (req) => {
           });
         }
 
+        const depositPct = existing.deposit_percentage || 0;
+        const depositAmount = Math.round(existing.amount * depositPct) / 100;
+        const { payment_method } = body;
+
+        // Update CO timestamp
         const { error } = await supabase
           .from("change_orders")
           .update({ deposit_paid_at: new Date().toISOString() })
           .eq("id", existing.id);
 
         if (error) throw error;
+
+        // Get project's client_id
+        let clientId: string | null = null;
+        if (existing.project_id) {
+          const { data: proj } = await supabase
+            .from("projects")
+            .select("client_id")
+            .eq("id", existing.project_id)
+            .maybeSingle();
+          clientId = proj?.client_id || null;
+        }
+
+        // Create client_retainers record
+        if (depositAmount > 0 && clientId) {
+          try {
+            const { data: retainer } = await supabase
+              .from("client_retainers")
+              .insert({
+                company_id: existing.company_id,
+                client_id: clientId,
+                project_id: existing.project_id,
+                initial_amount: depositAmount,
+                current_balance: depositAmount,
+                source: `CO ${existing.co_number} deposit`,
+              } as any)
+              .select("id")
+              .single();
+
+            if (retainer) {
+              await supabase.from("retainer_transactions").insert({
+                company_id: existing.company_id,
+                retainer_id: retainer.id,
+                type: "deposit",
+                amount: depositAmount,
+                description: `Deposit for Change Order ${existing.co_number}`,
+              } as any);
+            }
+          } catch (retErr) {
+            console.error("Error creating retainer for CO deposit:", retErr);
+          }
+        }
+
+        // Create paid invoice for the deposit
+        if (depositAmount > 0) {
+          try {
+            await supabase.from("invoices").insert({
+              company_id: existing.company_id,
+              project_id: existing.project_id,
+              client_id: clientId,
+              line_items: [{ description: `Deposit — ${existing.co_number}: ${existing.title}`, quantity: 1, rate: depositAmount, amount: depositAmount }],
+              subtotal: depositAmount,
+              total_due: depositAmount,
+              status: "paid",
+              payment_amount: depositAmount,
+              payment_method: payment_method || "check",
+              payment_date: new Date().toISOString().split("T")[0],
+              paid_at: new Date().toISOString(),
+            } as any);
+          } catch (invErr) {
+            console.error("Error creating deposit invoice for CO:", invErr);
+          }
+        }
+
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
