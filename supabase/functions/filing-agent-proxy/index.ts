@@ -73,6 +73,7 @@ Deno.serve(async (req) => {
     if (action === "start-filing") {
       const body = await req.json();
       const { project_id, service_id } = body;
+      console.log("[filing-agent-proxy] start-filing received:", JSON.stringify({ project_id, service_id }));
 
       if (!project_id) {
         return new Response(JSON.stringify({ error: "project_id is required" }), {
@@ -85,8 +86,8 @@ Deno.serve(async (req) => {
       const { data: project, error: projError } = await supabase
         .from("projects")
         .select(`
-          id, company_id, project_number, name, phase, status,
-          floor_number, unit_number, estimated_value, estimated_job_cost, notes,
+          id, company_id, client_id, project_number, name, phase, status,
+          floor_number, unit_number, estimated_job_cost, notes,
           filing_type, client_reference_number,
           gc_company_name, gc_contact_name, gc_phone, gc_email,
           building_owner_name, building_owner_id,
@@ -94,14 +95,20 @@ Deno.serve(async (req) => {
           tpp_name, tpp_email,
           architect_license_type, architect_license_number,
           properties (
-            id, address, borough, block, lot, bin, bbl
+            id, address, borough, block, lot, bin
           )
         `)
         .eq("id", project_id)
         .maybeSingle();
 
+      if (projError) {
+        console.error("[filing-agent-proxy] Project query error:", JSON.stringify(projError));
+      }
+      if (!project) {
+        console.error("[filing-agent-proxy] Project not found for id:", project_id);
+      }
       if (projError || !project) {
-        return new Response(JSON.stringify({ error: "Project not found" }), {
+        return new Response(JSON.stringify({ error: "Project not found", details: projError?.message || "no rows" }), {
           status: 404,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -136,11 +143,15 @@ Deno.serve(async (req) => {
         .maybeSingle();
       const pis = pisData?.responses || {};
 
-      // Fetch contacts
-      const { data: contacts } = await supabase
-        .from("client_contacts")
-        .select("id, name, email, phone, company, dob_role, dob_registered, discipline, address_line1, address_line2, address_city, address_state, address_zip")
-        .eq("project_id", project_id);
+      // Fetch contacts via project's client
+      let contacts: any[] = [];
+      if (project.client_id) {
+        const { data: contactData } = await supabase
+          .from("client_contacts")
+          .select("id, name, email, phone, company_name, specialty, license_number, license_type, address_1, address_2, city, state, zip")
+          .eq("client_id", project.client_id);
+        contacts = contactData || [];
+      }
 
       // Build structured payload
       const property = project.properties;
@@ -179,7 +190,9 @@ Deno.serve(async (req) => {
           block: property?.block || null,
           lot: property?.lot || null,
           bin: property?.bin || null,
-          bbl: property?.bbl || null,
+          bbl: (property?.borough && property?.block && property?.lot)
+            ? `${property.borough}${String(property.block).padStart(5, '0')}${String(property.lot).padStart(4, '0')}`
+            : null,
         },
 
         applicant_owner: {
@@ -196,7 +209,7 @@ Deno.serve(async (req) => {
           floor: project.floor_number || null,
           unit: project.unit_number || null,
           square_footage: sqFt,
-          estimated_cost: project.estimated_job_cost || project.estimated_value || null,
+          estimated_cost: project.estimated_job_cost || null,
           client_reference_number: project.client_reference_number || null,
         },
 
@@ -221,17 +234,17 @@ Deno.serve(async (req) => {
           },
         },
 
-        contacts: (contacts || []).map((c: any) => ({
+        contacts: contacts.map((c: any) => ({
           id: c.id,
           name: c.name,
           email: c.email,
           phone: c.phone,
-          company: c.company,
-          dob_role: c.dob_role,
-          dob_registered: c.dob_registered,
-          discipline: c.discipline,
-          address: c.address_line1
-            ? [c.address_line1, c.address_line2, `${c.address_city || ""} ${c.address_state || ""} ${c.address_zip || ""}`.trim()].filter(Boolean).join(", ")
+          company: c.company_name,
+          specialty: c.specialty,
+          license_number: c.license_number,
+          license_type: c.license_type,
+          address: c.address_1
+            ? [c.address_1, c.address_2, `${c.city || ""} ${c.state || ""} ${c.zip || ""}`.trim()].filter(Boolean).join(", ")
             : null,
         })),
       };
