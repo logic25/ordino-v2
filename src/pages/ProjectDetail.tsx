@@ -1699,20 +1699,21 @@ function ServicesFull({ services: initialServices, project, contacts, allService
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Query filing audit logs for all services in this project to show filed/not-filed badges
+  // Query only explicit manual filing confirmations for filed badges
   const { data: filingAuditLogs = [] } = useQuery({
     queryKey: ["filing-audit-logs", project.id],
     queryFn: async () => {
       const { data } = await (supabase.from("filing_audit_log" as any)
-        .select("service_id, created_at")
+        .select("service_id, created_at, method")
         .eq("project_id", project.id)
+        .eq("method", "manual_confirm")
         .order("created_at", { ascending: false }) as any);
-      return (data || []) as { service_id: string; created_at: string }[];
+      return (data || []) as { service_id: string; created_at: string; method: string }[];
     },
     enabled: !!project.id,
   });
 
-  // Map: service_id -> most recent filing date
+  // Map: service_id -> most recent confirmed filing date
   const filingStatusByService = useMemo(() => {
     const map: Record<string, string> = {};
     for (const log of filingAuditLogs) {
