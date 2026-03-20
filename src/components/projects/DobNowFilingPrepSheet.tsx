@@ -274,6 +274,17 @@ export function DobNowFilingPrepSheet({
     console.log("[FilingAgent] Render state:", { dobSessionId, loginConfirmed, submitStep });
   }, [dobSessionId, loginConfirmed, submitStep]);
 
+  const handleSheetOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen && sessionModalOpen) {
+        return;
+      }
+
+      onOpenChange(nextOpen);
+    },
+    [onOpenChange, sessionModalOpen]
+  );
+
   const handleConfirmLoggedIn = useCallback(() => {
     if (!dobSessionId) {
       toast({
@@ -778,8 +789,20 @@ export function DobNowFilingPrepSheet({
 
   return (
     <>
-    <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
-      <SheetContent className="sm:max-w-[560px] overflow-y-auto">
+    <Sheet open={open} onOpenChange={handleSheetOpenChange} modal={false}>
+      <SheetContent
+        className="sm:max-w-[560px] overflow-y-auto"
+        onInteractOutside={(event) => {
+          if (sessionModalOpen) {
+            event.preventDefault();
+          }
+        }}
+        onPointerDownOutside={(event) => {
+          if (sessionModalOpen) {
+            event.preventDefault();
+          }
+        }}
+      >
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <Building2 className="h-5 w-5" />
