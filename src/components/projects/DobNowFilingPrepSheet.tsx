@@ -917,19 +917,81 @@ export function DobNowFilingPrepSheet({
                 <Button className="w-full gap-2" onClick={handleSubmitClick}>
                   <ExternalLink className="h-4 w-4" /> Submit to DOB NOW (Manual)
                 </Button>
-                <Button
-                  variant="outline"
-                  className="w-full gap-2 border-primary/30 hover:bg-primary/5"
-                  onClick={handleLaunchAgent}
-                  disabled={launchingAgent}
-                >
-                  {launchingAgent ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Bot className="h-4 w-4" />
-                  )}
-                  Launch Filing Agent
-                </Button>
+
+                <Separator className="my-3" />
+
+                {/* Two-step agent flow */}
+                {!dobSessionId && !loginConfirmed && (
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2 border-primary/30 hover:bg-primary/5"
+                    onClick={handleStartSession}
+                    disabled={creatingSession}
+                  >
+                    {creatingSession ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Monitor className="h-4 w-4" />
+                    )}
+                    Step 1: Start DOB NOW Session
+                  </Button>
+                )}
+
+                {dobSessionId && !loginConfirmed && (
+                  <div className="space-y-2">
+                    <div className="p-3 rounded-lg border-2 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <LogIn className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        <span className="text-sm font-medium text-blue-800 dark:text-blue-200">Session active — log in to DOB NOW</span>
+                      </div>
+                      <p className="text-xs text-blue-700 dark:text-blue-300">
+                        Click "Open Browser" to log in, then come back and click "I'm Logged In".
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 gap-1.5"
+                        onClick={() => setSessionModalOpen(true)}
+                      >
+                        <Maximize2 className="h-3.5 w-3.5" /> Open Browser
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="flex-1 gap-1.5"
+                        onClick={() => {
+                          setLoginConfirmed(true);
+                          setSessionModalOpen(false);
+                          toast({ title: "Login confirmed", description: "You can now launch the filing agent." });
+                        }}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" /> I'm Logged In
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {loginConfirmed && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 p-2 rounded-md bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800 text-sm">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      <span className="text-emerald-700 dark:text-emerald-300 text-xs font-medium">DOB NOW session ready</span>
+                    </div>
+                    <Button
+                      className="w-full gap-2"
+                      onClick={handleLaunchAgent}
+                      disabled={launchingAgent}
+                    >
+                      {launchingAgent ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Bot className="h-4 w-4" />
+                      )}
+                      Step 2: Launch Filing Agent
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
