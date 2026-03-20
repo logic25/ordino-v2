@@ -9,6 +9,7 @@ import {
   Loader2, CheckCircle2, XCircle, Eye, Bot, ArrowLeft,
   ExternalLink, Clock, Image as ImageIcon, ThumbsUp, ThumbsDown,
   RotateCcw, Trash2, ChevronDown, ChevronRight, LogIn,
+  Maximize2, Minimize2, Monitor,
 } from "lucide-react";
 
 interface FilingRunProgress {
