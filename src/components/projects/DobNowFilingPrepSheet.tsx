@@ -193,6 +193,12 @@ export function DobNowFilingPrepSheet({
         items = DEFAULT_CHECKLIST.map((item) => ({ ...item, checked: false }));
       }
 
+      // Filter out previously deleted items
+      const deletedIds = loadDeletedIds();
+      if (deletedIds.length > 0) {
+        items = items.filter(item => !deletedIds.includes(item.id));
+      }
+
       // Restore checked state from localStorage
       const savedChecked = loadChecklistFromStorage();
       if (savedChecked) {
@@ -202,7 +208,7 @@ export function DobNowFilingPrepSheet({
       setChecklist(items);
       setChecklistInitialized(true);
     }
-  }, [companyData, checklistInitialized, loadChecklistFromStorage]);
+  }, [companyData, checklistInitialized, loadChecklistFromStorage, loadDeletedIds]);
 
   // Fetch PIS (rfi_requests) data for this project
   const { data: pisResponses } = useQuery({
