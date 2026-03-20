@@ -445,7 +445,13 @@ export function DobNowFilingPrepSheet({
         }
       );
 
-      const proxyResult = await proxyRes.json();
+      let proxyResult: any;
+      const proxyText = await proxyRes.text();
+      try {
+        proxyResult = JSON.parse(proxyText);
+      } catch {
+        proxyResult = { error: proxyText.substring(0, 200) };
+      }
       console.log("[FilingAgent] Proxy response:", proxyRes.status, proxyResult);
 
       if (!proxyRes.ok) {
