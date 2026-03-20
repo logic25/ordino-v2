@@ -777,6 +777,7 @@ export function DobNowFilingPrepSheet({
   };
 
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
       <SheetContent className="sm:max-w-[560px] overflow-y-auto">
         <SheetHeader>
@@ -1195,7 +1196,6 @@ export function DobNowFilingPrepSheet({
         </div>
       </SheetContent>
     </Sheet>
-
     {/* DOB NOW Login Session Modal — rendered OUTSIDE the Sheet to prevent Radix from intercepting clicks */}
     {sessionModalOpen && dobSessionLiveUrl && createPortal(
       <>
@@ -1259,8 +1259,8 @@ export function DobNowFilingPrepSheet({
       </>,
       document.body
     )}
+    </>
   );
-  // The above return needs to be wrapped in a fragment since we have siblings
 }
 
 // ---- Confirmation Card ----
