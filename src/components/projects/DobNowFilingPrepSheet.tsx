@@ -796,14 +796,10 @@ export function DobNowFilingPrepSheet({
       <SheetContent
         className="sm:max-w-[560px] overflow-y-auto"
         onInteractOutside={(event) => {
-          if (sessionModalOpen || launchingAgent || (agentStatus && !["completed", "failed"].includes(agentStatus))) {
-            event.preventDefault();
-          }
+          if (shouldBlockClose) event.preventDefault();
         }}
         onPointerDownOutside={(event) => {
-          if (sessionModalOpen || launchingAgent || (agentStatus && !["completed", "failed"].includes(agentStatus))) {
-            event.preventDefault();
-          }
+          if (shouldBlockClose) event.preventDefault();
         }}
       >
         <SheetHeader>
