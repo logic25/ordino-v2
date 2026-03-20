@@ -143,6 +143,8 @@ export function FilingAgentSupervisionPanel({
       .eq("id", runId)
       .maybeSingle();
 
+    console.log("[FilingSupervision] fetchRun live_url:", data?.live_url, data);
+
     if (data) {
       setRun({
         ...data,
@@ -173,6 +175,7 @@ export function FilingAgentSupervisionPanel({
 
       if (res.ok) {
         const agentData = await res.json();
+        console.log("[FilingSupervision] polled agent data live_url:", agentData?.live_url, agentData);
         const updates: Record<string, any> = {};
         if (agentData.session_url) updates.session_url = agentData.session_url;
         if (agentData.recording_url) updates.recording_url = agentData.recording_url;
@@ -328,6 +331,8 @@ export function FilingAgentSupervisionPanel({
           : (!isRunning && TERMINAL_STATUSES.includes(run.status))
             ? (run.recording_url || run.session_url)
             : null;
+
+        console.log("[FilingSupervision] iframe render live_url:", run.live_url, "session_url:", run.session_url, "recording_url:", run.recording_url, "iframeSrc:", iframeSrc);
 
         if (iframeSrc) {
           return (
