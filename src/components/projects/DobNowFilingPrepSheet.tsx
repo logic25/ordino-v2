@@ -457,6 +457,7 @@ export function DobNowFilingPrepSheet({
           body: JSON.stringify({
             project_id: project.id,
             service_id: service.id,
+            filing_run_id: run.id,
           }),
         }
       );
@@ -475,6 +476,17 @@ export function DobNowFilingPrepSheet({
         toast({ title: "Agent error", description: proxyResult?.details || proxyResult?.error || "Failed to reach filing agent.", variant: "destructive" });
         return;
       }
+
+      // Update filing_run with agent job_id and set to running
+      const agentJobId = proxyResult?.job_id || null;
+      await (supabase.from("filing_runs") as any)
+        .update({
+          status: "running",
+          started_at: new Date().toISOString(),
+          agent_session_id: agentJobId,
+        })
+        .eq("id", run.id);
+      setAgentStatus("running");
 
       toast({ title: "Agent launched", description: "The filing agent has started processing." });
     } finally {
