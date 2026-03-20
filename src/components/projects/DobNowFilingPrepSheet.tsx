@@ -221,15 +221,36 @@ export function DobNowFilingPrepSheet({
   const property = project.properties;
   const proj = project as any;
 
-  // PIS-derived values
+  // PIS-derived values (try both internal and public-form prefixes)
   const pisSquareFootage = getPISValue(pisResponses, "building_scope", "sq_ft");
   const pisJobDescription = getPISValue(pisResponses, "building_scope", "job_description");
   const pisWorkTypes = getPISArrayValue(pisResponses, "building_scope", "work_types");
+  const pisFloor = getPISValue(pisResponses, "building_scope", "floors");
+  const pisUnit = getPISValue(pisResponses, "building_scope", "apt_numbers");
+  const pisEstimatedJobCost = getPISValue(pisResponses, "building_scope", "estimated_job_cost");
+  const pisApplicantName = getPISValue(pisResponses, "applicant", "applicant_name");
+  const pisApplicantEmail = getPISValue(pisResponses, "applicant", "applicant_email");
+  const pisApplicantPhone = getPISValue(pisResponses, "applicant", "applicant_phone");
+  const pisApplicantCompany = getPISValue(pisResponses, "applicant", "applicant_business_name");
 
   // Prefer PIS job description over service's
   const jobDescription = pisJobDescription || service.jobDescription || null;
   // Prefer PIS work types over service's subServices
   const workTypes = pisWorkTypes && pisWorkTypes.length > 0 ? pisWorkTypes : (service.subServices || []);
+
+  // Floor: prefer project field, fallback to PIS
+  const floorValue = proj.floor_number || pisFloor || null;
+  const floorFromPIS = !proj.floor_number && !!pisFloor;
+  // Unit: prefer project field, fallback to PIS
+  const unitValue = proj.unit_number || pisUnit || null;
+  const unitFromPIS = !proj.unit_number && !!pisUnit;
+  // Estimated Job Cost: prefer service costs, then PIS, then project estimated_value
+  const estCostValue = service.estimatedCosts && (service.estimatedCosts || []).length > 0
+    ? (service.estimatedCosts || []).map(ec => `${ec.discipline}: $${ec.amount.toLocaleString()}`).join("; ")
+    : pisEstimatedJobCost
+      ? `$${Number(pisEstimatedJobCost).toLocaleString()}`
+      : (proj.estimated_value ? `$${Number(proj.estimated_value).toLocaleString()}` : null);
+  const estCostFromPIS = !(service.estimatedCosts && (service.estimatedCosts || []).length > 0) && !!pisEstimatedJobCost;
 
   const propertyFields: DobField[] = [
     { label: "House Number", value: property?.address?.match(/^(\d+[\w-]*)/)?.[1], category: "property", dobFieldName: "House Number" },
@@ -242,12 +263,12 @@ export function DobNowFilingPrepSheet({
 
   const filingFields: DobField[] = [
     { label: "Filing Type", value: service.name, category: "filing", dobFieldName: "Filing Type" },
-    { label: "Work Types / Disciplines", value: workTypes.length > 0 ? workTypes.join(", ") : null, category: "filing", dobFieldName: "Work Type" },
-    { label: "Floor", value: proj.floor_number, category: "filing", dobFieldName: "Floor" },
-    { label: "Unit / Apt", value: proj.unit_number, category: "filing", dobFieldName: "Apt/Suite" },
-    { label: "Floor Area (sq ft)", value: pisSquareFootage, category: "filing", dobFieldName: "Floor Area (sq ft)" },
-    { label: "Estimated Job Cost", value: service.estimatedCosts && (service.estimatedCosts || []).length > 0 ? (service.estimatedCosts || []).map(ec => `${ec.discipline}: $${ec.amount.toLocaleString()}`).join("; ") : (proj.estimated_value ? `$${Number(proj.estimated_value).toLocaleString()}` : null), category: "filing", dobFieldName: "Estimated Job Cost" },
-    { label: "Job Description", value: jobDescription, category: "filing", dobFieldName: "Description of Work", editable: true },
+    { label: "Work Types / Disciplines", value: workTypes.length > 0 ? workTypes.join(", ") : null, category: "filing", dobFieldName: "Work Type", fromPIS: !!(pisWorkTypes && pisWorkTypes.length > 0) },
+    { label: "Floor", value: floorValue, category: "filing", dobFieldName: "Floor", fromPIS: floorFromPIS },
+    { label: "Unit / Apt", value: unitValue, category: "filing", dobFieldName: "Apt/Suite", fromPIS: unitFromPIS },
+    { label: "Floor Area (sq ft)", value: pisSquareFootage, category: "filing", dobFieldName: "Floor Area (sq ft)", fromPIS: !!pisSquareFootage },
+    { label: "Estimated Job Cost", value: estCostValue, category: "filing", dobFieldName: "Estimated Job Cost", fromPIS: estCostFromPIS },
+    { label: "Job Description", value: jobDescription, category: "filing", dobFieldName: "Description of Work", editable: true, fromPIS: !!pisJobDescription },
   ];
 
   // Map contacts by DOB role
