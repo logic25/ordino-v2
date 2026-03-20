@@ -1198,10 +1198,31 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-2 pt-1">
+              <div className="flex items-center gap-2 pt-1 flex-wrap">
                 <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowAddForm(true)}>
                   <Plus className="h-3.5 w-3.5" /> Add Item
                 </Button>
+                {items.length === 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 border-primary/30 text-primary hover:bg-primary/5"
+                    onClick={() => {
+                      generateChecklist.mutate({
+                        project_id: projectId,
+                        filing_type: (window as any).__currentFilingType,
+                        project_description: projectName,
+                      });
+                    }}
+                    disabled={generateChecklist.isPending}
+                  >
+                    {generateChecklist.isPending ? (
+                      <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Generating...</>
+                    ) : (
+                      <><Sparkles className="h-3.5 w-3.5" /> Generate AI Checklist</>
+                    )}
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" className="gap-1.5">
                   <Sparkles className="h-3.5 w-3.5" /> Extract from Emails
                 </Button>
