@@ -173,6 +173,9 @@ export default function Documents() {
         description: description.trim() || undefined,
         category,
         folder_id: selectedFolderId || undefined,
+        project_id: linkProjectId,
+        property_id: linkPropertyId,
+        proposal_id: linkProposalId,
       } as any);
 
       // If uploading to a beacon folder, sync to Beacon
