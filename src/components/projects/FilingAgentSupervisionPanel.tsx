@@ -238,8 +238,17 @@ export function FilingAgentSupervisionPanel({
     }
   };
 
-  // Elapsed time
+  // Elapsed time — re-computed every tick via state counter
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!run || TERMINAL_STATUSES.includes(run.status)) return;
+    const interval = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(interval);
+  }, [run?.status]);
+
   const elapsed = useMemo(() => {
+    // Reference tick so useMemo recomputes each second
+    void tick;
     if (!run) return "";
     const start = run.started_at || run.created_at;
     const end = run.completed_at || (TERMINAL_STATUSES.includes(run.status) ? run.completed_at : null);
@@ -249,15 +258,7 @@ export function FilingAgentSupervisionPanel({
     const mins = Math.floor(diff / 60000);
     const secs = Math.floor((diff % 60000) / 1000);
     return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-  }, [run?.started_at, run?.created_at, run?.completed_at, run?.status]);
-
-  // Re-compute elapsed every second when running
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    if (!run || TERMINAL_STATUSES.includes(run.status)) return;
-    const interval = setInterval(() => setTick(t => t + 1), 1000);
-    return () => clearInterval(interval);
-  }, [run?.status]);
+  }, [run?.started_at, run?.created_at, run?.completed_at, run?.status, tick]);
 
   // Detect login-required step
   const needsLogin = useMemo(() => {
