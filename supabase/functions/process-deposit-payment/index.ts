@@ -6,38 +6,57 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// In-memory rate limiting: max 5 requests per IP per minute
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + 60_000 });
+    return false;
+  }
+  entry.count++;
+  return entry.count > 5;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Only allow POST
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Rate limit by IP
+  const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("cf-connecting-ip") || "unknown";
+  if (isRateLimited(clientIp)) {
+    return new Response(JSON.stringify({ error: "Too many requests. Please try again later." }), {
+      status: 429,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
-    // Auth: verify JWT
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const authClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const jwtToken = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(jwtToken);
-    if (claimsError || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
     const { proposal_token, payment_method, amount } = await req.json();
 
     if (!proposal_token || !payment_method || !amount) {
       return new Response(
         JSON.stringify({ error: "Missing required fields: proposal_token, payment_method, amount" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate token format (should be a 32-char hex string)
+    if (typeof proposal_token !== "string" || proposal_token.length < 16) {
+      return new Response(
+        JSON.stringify({ error: "Invalid token" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -99,6 +118,59 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Amount must be greater than zero" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Idempotency check: look for an invoice created for this proposal within the last 60 seconds
+    const sixtySecondsAgo = new Date(Date.now() - 60_000).toISOString();
+    const { data: existingInvoices } = await supabase
+      .from("invoices")
+      .select("id, invoice_number, created_at, payment_amount, payment_method")
+      .eq("project_id", projectId)
+      .eq("client_id", clientId)
+      .eq("payment_amount", depositAmount)
+      .gte("created_at", sixtySecondsAgo)
+      .limit(1);
+
+    if (existingInvoices && existingInvoices.length > 0) {
+      const existing = existingInvoices[0];
+      // Return the existing record instead of creating a duplicate
+      const { data: project } = await supabase
+        .from("projects")
+        .select("name, project_number")
+        .eq("id", projectId)
+        .single();
+
+      const { data: companyData } = await supabase
+        .from("companies")
+        .select("name, address, phone, email, settings")
+        .eq("id", companyId)
+        .single();
+
+      const settings = (companyData?.settings || {}) as Record<string, string>;
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          deduplicated: true,
+          receipt: {
+            invoice_number: existing.invoice_number,
+            invoice_id: existing.id,
+            date: existing.created_at,
+            amount: depositAmount,
+            payment_method: existing.payment_method,
+            proposal_number: proposal.proposal_number,
+            client_name: proposal.client_name,
+            client_email: proposal.client_email,
+            project_name: project?.name || "",
+            project_number: project?.project_number || "",
+            company_name: companyData?.name || "",
+            company_address: settings.company_address || companyData?.address || "",
+            company_phone: settings.company_phone || companyData?.phone || "",
+            company_email: settings.company_email || companyData?.email || "",
+          },
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
