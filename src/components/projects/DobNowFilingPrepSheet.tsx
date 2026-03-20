@@ -106,6 +106,48 @@ interface FilingRunProgress {
   timestamp: string;
 }
 
+interface StoredDobSessionState {
+  sessionId: string;
+  liveUrl: string | null;
+  loginConfirmed: boolean;
+  createdAt: number;
+}
+
+function readStoredDobSessionState(storageKey: string): StoredDobSessionState | null {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<StoredDobSessionState>;
+    if (!parsed?.sessionId || typeof parsed.sessionId !== "string") return null;
+
+    return {
+      sessionId: parsed.sessionId,
+      liveUrl: typeof parsed.liveUrl === "string" ? parsed.liveUrl : null,
+      loginConfirmed: Boolean(parsed.loginConfirmed),
+      createdAt: typeof parsed.createdAt === "number" ? parsed.createdAt : Date.now(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredDobSessionState(storageKey: string, state: StoredDobSessionState) {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(state));
+  } catch {
+    // noop
+  }
+}
+
+function clearStoredDobSessionState(storageKey: string) {
+  try {
+    localStorage.removeItem(storageKey);
+  } catch {
+    // noop
+  }
+}
+
 // ---- Component ----
 
 interface DobNowFilingPrepSheetProps {
@@ -138,6 +180,11 @@ export function DobNowFilingPrepSheet({
   // Persist checklist checked state per project+service in localStorage
   const checklistStorageKey = `filing-checklist-${project.id}-${service.id}`;
   const checklistDeletedKey = `filing-checklist-deleted-${project.id}-${service.id}`;
+  const dobSessionStorageKey = `dob_session_${service.id}`;
+  const restoredDobSession = useMemo(
+    () => readStoredDobSessionState(dobSessionStorageKey),
+    [dobSessionStorageKey]
+  );
 
   const saveChecklistToStorage = useCallback((items: ChecklistItem[]) => {
     try {
@@ -182,11 +229,59 @@ export function DobNowFilingPrepSheet({
   const [confirmingFiled, setConfirmingFiled] = useState(false);
 
   // Two-step session flow state
-  const [dobSessionId, setDobSessionId] = useState<string | null>(null);
-  const [dobSessionLiveUrl, setDobSessionLiveUrl] = useState<string | null>(null);
+  const [dobSessionId, setDobSessionId] = useState<string | null>(restoredDobSession?.sessionId ?? null);
+  const [dobSessionLiveUrl, setDobSessionLiveUrl] = useState<string | null>(restoredDobSession?.liveUrl ?? null);
   const [creatingSession, setCreatingSession] = useState(false);
-  const [loginConfirmed, setLoginConfirmed] = useState(false);
+  const [loginConfirmed, setLoginConfirmed] = useState(restoredDobSession?.loginConfirmed ?? false);
   const [sessionModalOpen, setSessionModalOpen] = useState(false);
+
+  const persistDobSessionState = useCallback(
+    (sessionId: string, liveUrl: string | null, confirmed: boolean) => {
+      writeStoredDobSessionState(dobSessionStorageKey, {
+        sessionId,
+        liveUrl,
+        loginConfirmed: confirmed,
+        createdAt: Date.now(),
+      });
+    },
+    [dobSessionStorageKey]
+  );
+
+  const clearDobSessionState = useCallback(() => {
+    clearStoredDobSessionState(dobSessionStorageKey);
+  }, [dobSessionStorageKey]);
+
+  useEffect(() => {
+    const restored = readStoredDobSessionState(dobSessionStorageKey);
+    if (restored) {
+      console.log("[FilingAgent] Restored stored session:", restored);
+    }
+    setDobSessionId(restored?.sessionId ?? null);
+    setDobSessionLiveUrl(restored?.liveUrl ?? null);
+    setLoginConfirmed(restored?.loginConfirmed ?? false);
+    setSessionModalOpen(false);
+  }, [dobSessionStorageKey]);
+
+  useEffect(() => {
+    console.log("[FilingAgent] Render state:", { dobSessionId, loginConfirmed, submitStep });
+  }, [dobSessionId, loginConfirmed, submitStep]);
+
+  const handleConfirmLoggedIn = useCallback(() => {
+    if (!dobSessionId) {
+      toast({
+        title: "Session missing",
+        description: "Start a DOB NOW session before confirming login.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    console.log("[FilingAgent] I'm Logged In clicked. session_id:", dobSessionId, "submitStep:", submitStep);
+    persistDobSessionState(dobSessionId, dobSessionLiveUrl, true);
+    setLoginConfirmed(true);
+    setSessionModalOpen(false);
+    toast({ title: "Login confirmed", description: "You can now launch the filing agent." });
+  }, [dobSessionId, dobSessionLiveUrl, persistDobSessionState, submitStep, toast]);
 
   // Realtime is now handled inside FilingAgentSupervisionPanel
 
@@ -446,7 +541,10 @@ export function DobNowFilingPrepSheet({
       setDobSessionId(result.session_id);
       // Use Browserbase's embeddable live view URL (not devtools inspector)
       const liveViewUrl = `https://www.browserbase.com/sessions/${result.session_id}/live`;
-      setDobSessionLiveUrl(result.live_url || liveViewUrl);
+      const resolvedLiveUrl = result.live_url || liveViewUrl;
+      setDobSessionLiveUrl(resolvedLiveUrl);
+      setLoginConfirmed(false);
+      persistDobSessionState(result.session_id, resolvedLiveUrl, false);
       setSessionModalOpen(true);
       toast({ title: "Browser session started", description: "Log in to DOB NOW, then click 'I'm Logged In'." });
     } catch (err) {
@@ -459,10 +557,15 @@ export function DobNowFilingPrepSheet({
 
   // Launch filing agent (Step 2 — passes existing session_id)
   const handleLaunchAgent = async () => {
-    if (!currentUser || !checklistComplete) {
+    const activeSessionId = dobSessionId ?? readStoredDobSessionState(dobSessionStorageKey)?.sessionId ?? null;
+
+    if (!currentUser || !checklistComplete || !activeSessionId) {
       if (!checklistComplete) {
         setChecklistWarning(true);
         toast({ title: "Checklist incomplete", description: "Complete all required checklist items before launching the agent.", variant: "destructive" });
+      }
+      if (!activeSessionId) {
+        toast({ title: "Session missing", description: "Start and confirm a DOB NOW session before launching the agent.", variant: "destructive" });
       }
       return;
     }
@@ -496,7 +599,7 @@ export function DobNowFilingPrepSheet({
       console.log("[FilingAgent] Sending request to filing-agent-proxy...", {
         project_id: project.id,
         service_id: service.id,
-        session_id: dobSessionId,
+        session_id: activeSessionId,
       });
 
       const proxyRes = await fetch(
@@ -512,7 +615,7 @@ export function DobNowFilingPrepSheet({
             project_id: project.id,
             service_id: service.id,
             filing_run_id: run.id,
-            session_id: dobSessionId || undefined,
+            session_id: activeSessionId,
           }),
         }
       );
@@ -576,6 +679,7 @@ export function DobNowFilingPrepSheet({
     setDobSessionLiveUrl(null);
     setLoginConfirmed(false);
     setSessionModalOpen(false);
+    clearDobSessionState();
     setSubmitStep("idle");
   };
 
@@ -924,7 +1028,6 @@ export function DobNowFilingPrepSheet({
                 <Separator className="my-3" />
 
                 {/* Two-step agent flow */}
-                {(() => { console.log("[FilingAgent] Render state:", { dobSessionId, loginConfirmed, submitStep }); return null; })()}
                 {!dobSessionId && !loginConfirmed && (
                   <Button
                     variant="outline"
@@ -964,12 +1067,7 @@ export function DobNowFilingPrepSheet({
                       <Button
                         size="sm"
                         className="flex-1 gap-1.5"
-                        onClick={() => {
-                          console.log("[FilingAgent] I'm Logged In clicked. session_id:", dobSessionId, "submitStep:", submitStep);
-                          setLoginConfirmed(true);
-                          setSessionModalOpen(false);
-                          toast({ title: "Login confirmed", description: "You can now launch the filing agent." });
-                        }}
+                        onClick={handleConfirmLoggedIn}
                       >
                         <CheckCircle2 className="h-3.5 w-3.5" /> I'm Logged In
                       </Button>
@@ -977,12 +1075,11 @@ export function DobNowFilingPrepSheet({
                   </div>
                 )}
 
-                {loginConfirmed && (
+                {loginConfirmed && dobSessionId && (
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2 p-2 rounded-md bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800 text-sm">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      <span className="text-emerald-700 dark:text-emerald-300 text-xs font-medium">DOB NOW session ready</span>
-                    </div>
+                    <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary">
+                      Session active — logged in ✓
+                    </Badge>
                     <Button
                       className="w-full gap-2"
                       onClick={handleLaunchAgent}
@@ -1131,11 +1228,7 @@ export function DobNowFilingPrepSheet({
               <Button
                 size="sm"
                 className="h-8 gap-1.5 text-xs shrink-0 mt-1"
-                onClick={() => {
-                  setLoginConfirmed(true);
-                  setSessionModalOpen(false);
-                  toast({ title: "Login confirmed", description: "You can now launch the filing agent." });
-                }}
+                onClick={handleConfirmLoggedIn}
               >
                 <CheckCircle2 className="h-3.5 w-3.5" /> I'm Logged In
               </Button>
