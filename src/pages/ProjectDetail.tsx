@@ -2019,7 +2019,7 @@ function ServicesFull({ services: initialServices, project, contacts, allService
                                   className="text-[10px] px-1.5 py-0 text-emerald-600 border-emerald-200 cursor-pointer"
                                   onClick={() => setDobPrepService(svc)}
                                 >
-                                  ✓ Filed {new Date(filingStatusByService[svc.id]).toLocaleDateString("en-US", { month: "numeric", day: "numeric" })}
+                                  ✓ Filed {format(new Date(filingStatusByService[svc.id]), "MM/dd/yy")}
                                 </Badge>
                               ) : (
                                 <Badge

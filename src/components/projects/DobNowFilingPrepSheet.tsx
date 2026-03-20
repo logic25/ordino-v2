@@ -943,38 +943,33 @@ export function DobNowFilingPrepSheet({
                 )}
 
                 {/* Actions */}
-                <div className="flex items-center gap-2">
-                  {(agentStatus === "failed" || agentStatus === "review_needed") && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1.5"
-                      onClick={() => {
-                        setAgentRunId(null);
-                        setAgentStatus(null);
-                        setAgentProgress([]);
-                        setAgentError(null);
-                        setSubmitStep("idle");
-                      }}
-                    >
-                      <ArrowLeft className="h-3.5 w-3.5" /> Try Again
+                <div className="flex items-center gap-2 flex-wrap">
+                  {((agentStatus === "failed") || (agentStatus === "review_needed") || agentStatus === "error") && (
+                    <>
+                      <Button variant="outline" size="sm" className="gap-1.5" onClick={handleLaunchAgent} disabled={launchingAgent}>
+                        {launchingAgent ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bot className="h-3.5 w-3.5" />}
+                        Retry Launch
+                      </Button>
+                      <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={resetAgentState}>
+                        <ArrowLeft className="h-3.5 w-3.5" /> Reset
+                      </Button>
+                    </>
+                  )}
+                  {agentStatus === "queued" && (
+                    <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={resetAgentState}>
+                      <ArrowLeft className="h-3.5 w-3.5" /> Reset
                     </Button>
                   )}
                   {agentStatus === "completed" && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-xs text-muted-foreground"
-                      onClick={() => {
-                        setAgentRunId(null);
-                        setAgentStatus(null);
-                        setAgentProgress([]);
-                        setAgentError(null);
-                        setSubmitStep("idle");
-                      }}
-                    >
-                      Done
-                    </Button>
+                    <>
+                      <Button size="sm" className="gap-1.5" onClick={handleConfirmFiled} disabled={confirmingFiled}>
+                        {confirmingFiled ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                        Confirm Filed
+                      </Button>
+                      <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={resetAgentState}>
+                        Done
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>
