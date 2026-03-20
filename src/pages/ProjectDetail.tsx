@@ -334,8 +334,9 @@ export default function ProjectDetail() {
                   const clientOwner = (project as any).building_owner?.name;
                   const propertyOwner = project.properties?.owner_name;
                   // Prefer PIS-synced owner, then client record, then property record
-                  const displayOwner = pisOwner || clientOwner || propertyOwner;
-                  if (!displayOwner) return null;
+                   const cleanProperty = propertyOwner && propertyOwner !== "UNAVAILABLE OWNER" ? propertyOwner : null;
+                   const displayOwner = pisOwner || clientOwner || cleanProperty;
+                   if (!displayOwner) return null;
                   // Check for mismatch between sources
                   const hasMismatch = pisOwner && (
                     (clientOwner && clientOwner !== pisOwner) ||
