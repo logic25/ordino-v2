@@ -840,10 +840,19 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
 
   const outstanding = items.filter(i => i.status === "open");
   const completed = items.filter(i => i.status === "done" || i.status === "dismissed");
-  const grouped = Object.entries(checklistCategoryLabels).map(([key, { label, icon }]) => ({
-    key, label, icon,
-    items: outstanding.filter(i => i.category === key),
-  })).filter(g => g.items.length > 0);
+  const grouped = (() => {
+    const knownGroups = Object.entries(checklistCategoryLabels).map(([key, { label, icon }]) => ({
+      key, label, icon,
+      items: outstanding.filter(i => i.category === key),
+    })).filter(g => g.items.length > 0);
+    // Catch items with unknown categories
+    const knownKeys = new Set(Object.keys(checklistCategoryLabels));
+    const uncategorized = outstanding.filter(i => !knownKeys.has(i.category));
+    if (uncategorized.length > 0) {
+      knownGroups.push({ key: "_other", label: "Other", icon: "📌", items: uncategorized });
+    }
+    return knownGroups;
+  })();
 
   const pisComplete = pisStatus.completedFields === pisStatus.totalFields;
 
