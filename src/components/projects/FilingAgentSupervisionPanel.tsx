@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -75,7 +76,9 @@ export function FilingAgentSupervisionPanel({
   const [rejecting, setRejecting] = useState(false);
   const [screenshotIndex, setScreenshotIndex] = useState(0);
   const [stepsExpanded, setStepsExpanded] = useState(true);
+  const [browserModalOpen, setBrowserModalOpen] = useState(false);
   const [iframeExpanded, setIframeExpanded] = useState(false);
+  const prevLiveUrlRef = useRef<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Fetch initial run data
@@ -260,6 +263,14 @@ export function FilingAgentSupervisionPanel({
     return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
   }, [run?.started_at, run?.created_at, run?.completed_at, run?.status, tick]);
 
+  // Auto-open browser modal when live_url first becomes available
+  useEffect(() => {
+    if (run?.live_url && !prevLiveUrlRef.current && isRunningStatus(run.status)) {
+      setBrowserModalOpen(true);
+    }
+    prevLiveUrlRef.current = run?.live_url || null;
+  }, [run?.live_url, run?.status]);
+
   // Detect login-required step
   const needsLogin = useMemo(() => {
     if (!run || !isRunningStatus(run.status)) return false;
@@ -325,7 +336,7 @@ export function FilingAgentSupervisionPanel({
         </div>
       )}
 
-      {/* ── EMBEDDED BROWSER VIEW ── */}
+      {/* ── EMBEDDED BROWSER VIEW (inline small preview + open modal button) ── */}
       {(() => {
         const iframeSrc = isRunning
           ? (run.live_url || run.session_url)
@@ -333,27 +344,22 @@ export function FilingAgentSupervisionPanel({
             ? (run.recording_url || run.session_url)
             : null;
 
-        console.log("[FilingSupervision] iframe render live_url:", run.live_url, "session_url:", run.session_url, "recording_url:", run.recording_url, "iframeSrc:", iframeSrc);
-
         if (iframeSrc) {
           return (
-            <div className={`rounded-lg border bg-background overflow-hidden ${iframeExpanded ? "fixed inset-4 z-50 shadow-2xl flex flex-col" : ""}`}>
+            <div className="rounded-lg border bg-background overflow-hidden">
               {/* Toolbar */}
               <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/30">
                 <Monitor className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="text-xs font-medium text-muted-foreground flex-1">
-                  {isRunning ? "Live Browser — Interactive" : "Session Recording — Replay"}
+                  {isRunning ? "Live Browser" : "Session Recording"}
                 </span>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  className="h-6 w-6 p-0"
-                  onClick={() => setIframeExpanded(!iframeExpanded)}
-                  title={iframeExpanded ? "Collapse" : "Expand"}
+                  className="h-6 gap-1 text-xs px-2"
+                  onClick={() => setBrowserModalOpen(true)}
                 >
-                  {iframeExpanded
-                    ? <Minimize2 className="h-3.5 w-3.5" />
-                    : <Maximize2 className="h-3.5 w-3.5" />}
+                  <Maximize2 className="h-3 w-3" /> Open Full View
                 </Button>
                 <Button
                   variant="ghost"
@@ -365,11 +371,12 @@ export function FilingAgentSupervisionPanel({
                   <ExternalLink className="h-3.5 w-3.5" />
                 </Button>
               </div>
-              {/* iframe — no sandbox to avoid Browserbase login redirect */}
+              {/* Small inline preview iframe — fully interactive */}
               <iframe
                 src={iframeSrc}
-                className={`w-full border-0 ${iframeExpanded ? "flex-1" : "h-[500px]"}`}
+                className="w-full border-0 h-[280px]"
                 allow="clipboard-read; clipboard-write"
+                style={{ pointerEvents: "auto" }}
               />
             </div>
           );
@@ -393,13 +400,77 @@ export function FilingAgentSupervisionPanel({
         return null;
       })()}
 
-      {/* Fullscreen backdrop */}
-      {iframeExpanded && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50"
-          onClick={() => setIframeExpanded(false)}
-        />
-      )}
+      {/* ── BROWSER MODAL (Dialog) ── */}
+      {(() => {
+        const modalSrc = isRunning
+          ? (run.live_url || run.session_url)
+          : (!isRunning && TERMINAL_STATUSES.includes(run.status))
+            ? (run.recording_url || run.session_url)
+            : null;
+
+        if (!modalSrc) return null;
+
+        return (
+          <Dialog open={browserModalOpen} onOpenChange={setBrowserModalOpen}>
+            <DialogContent
+              className="max-w-[92vw] w-[92vw] h-[85vh] p-0 gap-0 flex flex-col overflow-hidden"
+              onPointerDownOutside={(e) => e.preventDefault()}
+            >
+              {/* Title bar */}
+              <div className="flex items-center gap-3 px-4 py-2.5 border-b bg-muted/30 shrink-0">
+                <Monitor className="h-4 w-4 text-muted-foreground" />
+                <DialogTitle className="text-sm font-semibold flex-1">
+                  DOB NOW Filing Agent — {isRunning ? "Live Browser" : "Session Recording"}
+                </DialogTitle>
+                <div className={`flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full border ${statusConfig.color}`}>
+                  <StatusIcon className={`h-3 w-3 ${isRunning && run.status !== "queued" ? "animate-spin" : ""}`} />
+                  {statusConfig.label}
+                </div>
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  <span className="font-mono">{elapsed}</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1 text-xs"
+                  onClick={() => setBrowserModalOpen(false)}
+                >
+                  <Minimize2 className="h-3.5 w-3.5" /> Minimize
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  onClick={() => window.open(modalSrc, "_blank")}
+                  title="Open in new tab"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+
+              {/* Login banner inside modal */}
+              {needsLogin && (
+                <div className="px-4 py-2 border-b bg-blue-50 dark:bg-blue-900/20 flex items-center gap-2">
+                  <LogIn className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                  <p className="text-xs text-blue-800 dark:text-blue-200">
+                    <span className="font-semibold">Login required.</span>{" "}
+                    Type your DOB NOW credentials directly in the browser below.
+                  </p>
+                </div>
+              )}
+
+              {/* Full-size iframe — NO sandbox, NO pointer-events blocking */}
+              <iframe
+                src={modalSrc}
+                className="flex-1 w-full border-0"
+                allow="clipboard-read; clipboard-write"
+                style={{ pointerEvents: "auto" }}
+              />
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
 
       <Separator />
 
