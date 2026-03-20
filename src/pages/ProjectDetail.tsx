@@ -330,12 +330,13 @@ export default function ProjectDetail() {
                   <span className="flex items-center gap-1"><Building2 className="h-3.5 w-3.5" /> {project.clients.name}</span>
                 )}
                 {(() => {
-                  const pisOwner = (project as any).building_owner_name || pisStatus?.pisOwnerName;
-                  const clientOwner = (project as any).building_owner?.name;
-                  const propertyOwner = project.properties?.owner_name;
-                  // Prefer PIS-synced owner, then PIS response, then client record, then property record
+                   // PIS owner (from hook) takes top priority, then DB-synced building_owner_name
+                   const pisOwner = pisStatus?.pisOwnerName || (project as any).building_owner_name;
+                   const clientOwner = (project as any).building_owner?.name;
+                   const propertyOwner = project.properties?.owner_name;
+                   const cleanPis = pisOwner && pisOwner !== "UNAVAILABLE OWNER" ? pisOwner : null;
                    const cleanProperty = propertyOwner && propertyOwner !== "UNAVAILABLE OWNER" ? propertyOwner : null;
-                   const displayOwner = pisOwner || clientOwner || cleanProperty;
+                   const displayOwner = cleanPis || clientOwner || cleanProperty;
                    if (!displayOwner) return null;
                   // Check for mismatch between sources
                   const hasMismatch = pisOwner && (

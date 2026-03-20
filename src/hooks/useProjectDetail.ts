@@ -536,8 +536,10 @@ export function useProjectPISStatus(projectId: string | undefined) {
         answeredFields.push({ label: rawLabel, value: displayVal, section: heading });
       }
 
-      // Extract PIS owner name for header display
-      const pisOwnerName = responses["applicant_and_owner_owner_name"] || null;
+      // Extract PIS owner name for header display — combine company + person
+      const pisOwnerCompany = responses["applicant_and_owner_owner_company"] || "";
+      const pisOwnerPerson = responses["applicant_and_owner_owner_name"] || "";
+      const pisOwnerName = [pisOwnerCompany, pisOwnerPerson].filter(Boolean).join(" — ") || null;
 
       return {
         sentDate: format(new Date(rfi.created_at), "MM/dd/yyyy"),
