@@ -4077,6 +4077,7 @@ export type Database = {
           fees: Json | null
           gmail_message_id: string | null
           id: string
+          idempotency_key: string | null
           invoice_number: string
           line_items: Json
           paid_at: string | null
@@ -4110,6 +4111,7 @@ export type Database = {
           fees?: Json | null
           gmail_message_id?: string | null
           id?: string
+          idempotency_key?: string | null
           invoice_number: string
           line_items?: Json
           paid_at?: string | null
@@ -4143,6 +4145,7 @@ export type Database = {
           fees?: Json | null
           gmail_message_id?: string | null
           id?: string
+          idempotency_key?: string | null
           invoice_number?: string
           line_items?: Json
           paid_at?: string | null
