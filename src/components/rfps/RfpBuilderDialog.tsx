@@ -92,6 +92,22 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   const { data: pricing = [] } = useRfpContent("pricing");
   const { data: certs = [] } = useRfpContent("certification");
   const { data: notableProjects = [] } = useNotableApplications();
+  const { data: projectSheets = [] } = useProjectSheets();
+
+  // Merge notable applications + custom project sheets into a unified list
+  const allNotableProjects = [
+    ...notableProjects,
+    ...projectSheets.map((s) => ({
+      id: s.id,
+      description: s.description,
+      properties: { address: s.location },
+      application_type: null,
+      estimated_value: s.estimated_value,
+      _isSheet: true,
+      _title: s.title,
+      client_name: s.client_name,
+    })),
+  ];
 
   // Load draft only once on open
   useEffect(() => {
