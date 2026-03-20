@@ -167,6 +167,7 @@ export interface MockPISStatus {
   completedFields: number;
   missingFields: string[];
   missingBySection?: Record<string, string[]>;
+  answeredFields?: Array<{ label: string; value: string; section: string }>;
 }
 
 // --- Checklist Items ---
