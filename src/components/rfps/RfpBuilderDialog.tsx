@@ -27,6 +27,7 @@ import {
   arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { useRfpContent, useNotableApplications } from "@/hooks/useRfpContent";
+import { useProjectSheets } from "@/hooks/useProjectSheets";
 import { useUpdateRfpStatus, type Rfp, type RfpStatus } from "@/hooks/useRfps";
 import { useRfpDraft, useUpsertRfpDraft, useDeleteRfpDraft } from "@/hooks/useRfpDraft";
 import { useToast } from "@/hooks/use-toast";
@@ -91,6 +92,22 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   const { data: pricing = [] } = useRfpContent("pricing");
   const { data: certs = [] } = useRfpContent("certification");
   const { data: notableProjects = [] } = useNotableApplications();
+  const { data: projectSheets = [] } = useProjectSheets();
+
+  // Merge notable applications + custom project sheets into a unified list
+  const allNotableProjects = [
+    ...notableProjects,
+    ...projectSheets.map((s) => ({
+      id: s.id,
+      description: s.description,
+      properties: { address: s.location },
+      application_type: null,
+      estimated_value: s.estimated_value,
+      _isSheet: true,
+      _title: s.title,
+      client_name: s.client_name,
+    })),
+  ];
 
   // Load draft only once on open
   useEffect(() => {
@@ -210,7 +227,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     company_info: companyInfo.length,
     staff_bios: staffBios.length,
     org_chart: staffBios.filter((s) => (s.content as any)?.include_in_org_chart !== false).length,
-    notable_projects: notableProjects.length,
+    notable_projects: allNotableProjects.length,
     narratives: narratives.length + firmHistory.length,
     pricing: pricing.length,
     certifications: certs.length,
@@ -221,7 +238,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     company_info: { items: companyInfo, type: "company_info" },
     staff_bios: { items: staffBios, type: "staff_bio" },
     org_chart: { items: staffBios, type: "staff_bio" },
-    notable_projects: { items: notableProjects, type: "notable_project" },
+    notable_projects: { items: allNotableProjects, type: "notable_project" },
     narratives: { items: [...firmHistory, ...narratives], type: "narrative" },
     pricing: { items: pricing, type: "pricing" },
     certifications: { items: certs, type: "certification" },
@@ -232,7 +249,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     sections: sectionOrder.filter((s) => selectedSections.includes(s)),
     companyInfo: companyInfo[0],
     staffBios,
-    notableProjects,
+    notableProjects: allNotableProjects,
     narratives: [...firmHistory, ...narratives],
     pricing: pricing[0],
     certs,
@@ -247,7 +264,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   const goToLibrary = (tab?: string | null) => {
     saveDraft();
     onOpenChange(false);
-    navigate(`/rfps/library${tab ? `?tab=${tab}` : ""}`);
+    navigate(`/rfps/library${tab ? `?tab=${tab}` : ""}${rfp?.id ? `${tab ? "&" : "?"}returnTo=${rfp.id}` : ""}`);
   };
 
   return (
@@ -528,11 +545,20 @@ function SectionContentPreview({ item, type }: { item: any; type: string }) {
 
   if (type === "notable_projects") {
     const props = item.properties as any;
+    const isSheet = item._isSheet;
     return (
       <div className="text-xs bg-card rounded-lg p-2.5 border">
-        <p className="font-medium">{props?.address || item.description || "Project"}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="font-medium">{isSheet ? item._title : (props?.address || item.description || "Project")}</p>
+          {isSheet && (
+            <Badge variant="outline" className="text-[10px] px-1 py-0">Custom</Badge>
+          )}
+        </div>
         <p className="text-muted-foreground mt-0.5">
-          {item.application_type}{item.estimated_value ? ` · $${item.estimated_value.toLocaleString("en-US")}` : ""}
+          {isSheet
+            ? [item.client_name, item.estimated_value ? `$${item.estimated_value.toLocaleString("en-US")}` : null].filter(Boolean).join(" · ") || "Project Sheet"
+            : `${item.application_type || ""}${item.estimated_value ? ` · $${item.estimated_value.toLocaleString("en-US")}` : ""}`
+          }
         </p>
       </div>
     );
