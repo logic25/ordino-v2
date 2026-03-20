@@ -257,17 +257,63 @@ Deno.serve(async (req) => {
         })),
       };
 
+      // Build the request body in the structure the agent expects
+      const callbackUrl = `${supabaseUrl}/functions/v1/filing-status`;
+      const requestBody = {
+        filing_data: {
+          filing_type: filingPayload.filing_details.filing_type,
+          property: {
+            house_number: filingPayload.location.house_number,
+            street_name: filingPayload.location.street_name,
+            borough: filingPayload.location.borough,
+            block: filingPayload.location.block,
+            lot: filingPayload.location.lot,
+            bin: filingPayload.location.bin,
+            bbl: filingPayload.location.bbl,
+          },
+          filing_details: {
+            work_type: Array.isArray(filingPayload.filing_details.work_types)
+              ? filingPayload.filing_details.work_types.join(", ")
+              : filingPayload.filing_details.work_types,
+            work_types: filingPayload.filing_details.work_types,
+            job_description: filingPayload.filing_details.job_description,
+            floor: filingPayload.filing_details.floor,
+            unit: filingPayload.filing_details.unit,
+            square_footage: filingPayload.filing_details.square_footage,
+            estimated_cost: filingPayload.filing_details.estimated_cost,
+            client_reference_number: filingPayload.filing_details.client_reference_number,
+          },
+          contacts: {
+            applicant: {
+              license_type: filingPayload.applicant_owner.applicant_license_type,
+              license_number: filingPayload.applicant_owner.applicant_license_number,
+            },
+            owner: {
+              name: filingPayload.applicant_owner.owner_name,
+            },
+            gc: filingPayload.stakeholders.gc,
+            sia: filingPayload.stakeholders.sia,
+            tpp: filingPayload.stakeholders.tpp,
+            additional: filingPayload.contacts,
+          },
+        },
+        project_id: project.id,
+        service_id: service_id || null,
+        initiated_by: profile.id,
+        callback_url: callbackUrl,
+      };
+
       // Forward to filing agent
       const targetUrl = `${FILING_AGENT_URL}/api/file`;
       console.log("[filing-agent-proxy] Sending POST to:", targetUrl);
-      console.log("[filing-agent-proxy] Payload project_id:", filingPayload.project_id, "service_id:", filingPayload.service_id);
+      console.log("[filing-agent-proxy] Request body:", JSON.stringify(requestBody));
 
       let agentRes: Response;
       try {
         agentRes = await fetch(targetUrl, {
           method: "POST",
           headers: agentHeaders,
-          body: JSON.stringify({ filing_data: filingPayload }),
+          body: JSON.stringify(requestBody),
         });
       } catch (fetchErr) {
         console.error("[filing-agent-proxy] Fetch error:", fetchErr);
