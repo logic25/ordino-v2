@@ -274,16 +274,18 @@ export function DobNowFilingPrepSheet({
     console.log("[FilingAgent] Render state:", { dobSessionId, loginConfirmed, submitStep });
   }, [dobSessionId, loginConfirmed, submitStep]);
 
+  const shouldBlockClose = sessionModalOpen || launchingAgent || submitStep === "agent" || (agentStatus && !["completed", "failed"].includes(agentStatus));
+
   const handleSheetOpenChange = useCallback(
     (nextOpen: boolean) => {
       // Block close while session modal is open or agent is actively running
-      if (!nextOpen && (sessionModalOpen || launchingAgent || (agentStatus && !["completed", "failed"].includes(agentStatus)))) {
+      if (!nextOpen && shouldBlockClose) {
         return;
       }
 
       onOpenChange(nextOpen);
     },
-    [onOpenChange, sessionModalOpen, launchingAgent, agentStatus]
+    [onOpenChange, shouldBlockClose]
   );
 
   const handleConfirmLoggedIn = useCallback(() => {
@@ -794,14 +796,10 @@ export function DobNowFilingPrepSheet({
       <SheetContent
         className="sm:max-w-[560px] overflow-y-auto"
         onInteractOutside={(event) => {
-          if (sessionModalOpen || launchingAgent || (agentStatus && !["completed", "failed"].includes(agentStatus))) {
-            event.preventDefault();
-          }
+          if (shouldBlockClose) event.preventDefault();
         }}
         onPointerDownOutside={(event) => {
-          if (sessionModalOpen || launchingAgent || (agentStatus && !["completed", "failed"].includes(agentStatus))) {
-            event.preventDefault();
-          }
+          if (shouldBlockClose) event.preventDefault();
         }}
       >
         <SheetHeader>
