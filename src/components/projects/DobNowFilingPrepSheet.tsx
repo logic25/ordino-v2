@@ -414,7 +414,47 @@ export function DobNowFilingPrepSheet({
     };
   };
 
-  // Launch filing agent
+  // Start DOB NOW browser session (Step 1)
+  const handleStartSession = async () => {
+    setCreatingSession(true);
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const res = await fetch(
+        `${supabaseUrl}/functions/v1/filing-agent-proxy?action=create-session`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({}),
+        }
+      );
+
+      const result = await res.json();
+      console.log("[FilingAgent] create-session result:", result);
+
+      if (!res.ok || !result.session_id) {
+        toast({ title: "Session error", description: result?.error || "Failed to create browser session.", variant: "destructive" });
+        return;
+      }
+
+      setDobSessionId(result.session_id);
+      setDobSessionLiveUrl(result.live_url || null);
+      setSessionModalOpen(true);
+      toast({ title: "Browser session started", description: "Log in to DOB NOW, then click 'I'm Logged In'." });
+    } catch (err) {
+      console.error("[FilingAgent] create-session error:", err);
+      toast({ title: "Error", description: "Failed to start browser session.", variant: "destructive" });
+    } finally {
+      setCreatingSession(false);
+    }
+  };
+
+  // Launch filing agent (Step 2 — passes existing session_id)
   const handleLaunchAgent = async () => {
     if (!currentUser || !checklistComplete) {
       if (!checklistComplete) {
@@ -453,6 +493,7 @@ export function DobNowFilingPrepSheet({
       console.log("[FilingAgent] Sending request to filing-agent-proxy...", {
         project_id: project.id,
         service_id: service.id,
+        session_id: dobSessionId,
       });
 
       const proxyRes = await fetch(
@@ -468,6 +509,7 @@ export function DobNowFilingPrepSheet({
             project_id: project.id,
             service_id: service.id,
             filing_run_id: run.id,
+            session_id: dobSessionId || undefined,
           }),
         }
       );
@@ -480,7 +522,6 @@ export function DobNowFilingPrepSheet({
         proxyResult = { error: proxyText.substring(0, 200) };
       }
       console.log("[FilingAgent] Proxy response:", proxyRes.status, proxyResult);
-      console.log("[FilingAgent] proxyResult.live_url:", proxyResult?.live_url);
 
       if (!proxyRes.ok) {
         await (supabase.from("filing_runs") as any)
@@ -489,7 +530,6 @@ export function DobNowFilingPrepSheet({
 
         setAgentStatus("failed");
         setAgentError(proxyResult?.details || proxyResult?.error || "Failed to reach filing agent.");
-        console.error("[FilingAgent] Proxy error:", proxyResult);
         toast({ title: "Agent error", description: proxyResult?.details || proxyResult?.error || "Failed to reach filing agent.", variant: "destructive" });
         return;
       }
@@ -504,21 +544,15 @@ export function DobNowFilingPrepSheet({
       if (proxyResult?.session_url) updateData.session_url = proxyResult.session_url;
       if (proxyResult?.recording_url) updateData.recording_url = proxyResult.recording_url;
       if (proxyResult?.live_url) updateData.live_url = proxyResult.live_url;
-
-      console.log("[FilingAgent] filing_runs updateData:", updateData);
+      // If we have a pre-existing session live_url, use that
+      if (!updateData.live_url && dobSessionLiveUrl) updateData.live_url = dobSessionLiveUrl;
 
       await (supabase.from("filing_runs") as any)
         .update(updateData)
         .eq("id", run.id);
       setAgentStatus("running");
 
-      // Auto-open live browser in new tab as fallback for iframe auth issues
-      const liveUrl = proxyResult?.live_url;
-      if (liveUrl) {
-        window.open(liveUrl, "_blank");
-      }
-
-      toast({ title: "Agent launched", description: "The filing agent has started processing." + (liveUrl ? " Browser opened in new tab." : "") });
+      toast({ title: "Agent launched", description: "The filing agent has started processing." });
     } finally {
       setLaunchingAgent(false);
     }
