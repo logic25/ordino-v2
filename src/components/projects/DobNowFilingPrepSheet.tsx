@@ -26,6 +26,7 @@ interface DobField {
   category: string;
   dobFieldName?: string;
   editable?: boolean;
+  fromPIS?: boolean;
 }
 
 interface ChecklistItem {
