@@ -84,7 +84,9 @@ function getPISValue(responses: Record<string, any> | null, sectionPrefix: strin
 function getPISArrayValue(responses: Record<string, any> | null, sectionPrefix: string, fieldName: string): string[] | null {
   if (!responses) return null;
   const prefixed = `${sectionPrefix}_${fieldName}`;
-  const val = responses[prefixed] ?? responses[fieldName];
+  const publicPrefix = PUBLIC_PREFIX_MAP[sectionPrefix];
+  const publicPrefixed = publicPrefix ? `${publicPrefix}_${fieldName}` : null;
+  const val = responses[prefixed] ?? (publicPrefixed ? responses[publicPrefixed] : undefined) ?? responses[fieldName];
   if (!val) return null;
   if (Array.isArray(val)) return val.filter(Boolean);
   try { const parsed = JSON.parse(val); if (Array.isArray(parsed)) return parsed; } catch {}
