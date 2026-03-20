@@ -267,7 +267,7 @@ Deno.serve(async (req) => {
         agentRes = await fetch(targetUrl, {
           method: "POST",
           headers: agentHeaders,
-          body: JSON.stringify(filingPayload),
+          body: JSON.stringify({ filing_data: filingPayload }),
         });
       } catch (fetchErr) {
         console.error("[filing-agent-proxy] Fetch error:", fetchErr);
