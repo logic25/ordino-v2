@@ -803,11 +803,6 @@ export default function Proposals() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {showingMockProposals && (
-                  <div className="mb-4 px-3 py-2 rounded-md bg-muted/50 border border-border text-sm text-muted-foreground">
-                    📋 Showing sample data. Create your first proposal or capture a lead to get started.
-                  </div>
-                )}
                 {isLoading ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
