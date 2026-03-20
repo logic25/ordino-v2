@@ -461,6 +461,7 @@ Deno.serve(async (req) => {
         filing_run_id: filing_run_id || null,
         initiated_by: profile.id,
         callback_url: callbackUrl,
+        ...(existingSessionId ? { session_id: existingSessionId } : {}),
       };
 
       // Forward to filing agent
