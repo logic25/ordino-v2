@@ -301,6 +301,19 @@ export function DobNowFilingPrepSheet({
     return acc;
   }, {} as Record<string, MockContact[]>);
 
+  // If no applicant contact exists, try to fill from PIS applicant data
+  if (!contactsByRole["applicant"]?.length && pisApplicantName) {
+    contactsByRole["applicant"] = [{
+      id: "pis-applicant",
+      name: pisApplicantName,
+      email: pisApplicantEmail || "",
+      phone: pisApplicantPhone || "",
+      company: pisApplicantCompany || "",
+      dobRole: "applicant",
+      dobRegistered: "unknown",
+    } as MockContact];
+  }
+
   const allFields = [...propertyFields, ...filingFields];
   const missingFields = allFields.filter((f) => !f.value);
   const missingContacts = ["applicant", "owner", "filing_rep"].filter(
