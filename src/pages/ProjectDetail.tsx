@@ -1114,40 +1114,44 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
               </div>
             )}
 
-            {/* PIS Submitted Data */}
-            {pisStatus.answeredFields && pisStatus.answeredFields.length > 0 && (
-              <Collapsible>
+            {/* PIS Submitted Data — always show field count like "23/23" */}
+            {pisStatus.sentDate && (
+              <Collapsible defaultOpen={pisStatus.completedFields === pisStatus.totalFields}>
                 <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground h-7 px-2">
-                    <ChevronRight className="h-3 w-3 transition-transform data-[state=open]:rotate-90" />
-                    📋 PIS Responses ({pisStatus.answeredFields.length})
+                  <Button variant="ghost" size="sm" className="gap-1.5 text-xs h-7 px-2">
+                    <ChevronRight className="h-3 w-3" />
+                    📋 PIS Responses — {pisStatus.completedFields}/{pisStatus.totalFields} fields
                   </Button>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-2">
-                  <div className="rounded-lg border bg-muted/10 overflow-hidden">
-                    {(() => {
-                      const bySection: Record<string, Array<{ label: string; value: string }>> = {};
-                      for (const f of pisStatus.answeredFields!) {
-                        if (!bySection[f.section]) bySection[f.section] = [];
-                        bySection[f.section].push({ label: f.label, value: f.value });
-                      }
-                      return Object.entries(bySection).map(([section, fields]) => (
-                        <div key={section} className="border-b last:border-b-0">
-                          <div className="px-3 py-1.5 bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                            {section}
+                  {pisStatus.answeredFields && pisStatus.answeredFields.length > 0 ? (
+                    <div className="rounded-lg border bg-muted/10 overflow-hidden">
+                      {(() => {
+                        const bySection: Record<string, Array<{ label: string; value: string }>> = {};
+                        for (const f of pisStatus.answeredFields!) {
+                          if (!bySection[f.section]) bySection[f.section] = [];
+                          bySection[f.section].push({ label: f.label, value: f.value });
+                        }
+                        return Object.entries(bySection).map(([section, fields]) => (
+                          <div key={section} className="border-b last:border-b-0">
+                            <div className="px-3 py-1.5 bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                              {section}
+                            </div>
+                            <div className="divide-y">
+                              {fields.map((f, i) => (
+                                <div key={i} className="flex items-start gap-3 px-3 py-2 text-sm">
+                                  <span className="text-muted-foreground min-w-[140px] shrink-0">{f.label}</span>
+                                  <span className="font-medium break-words">{f.value}</span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                          <div className="divide-y">
-                            {fields.map((f, i) => (
-                              <div key={i} className="flex items-start gap-3 px-3 py-2 text-sm">
-                                <span className="text-muted-foreground min-w-[140px] shrink-0">{f.label}</span>
-                                <span className="font-medium break-words">{f.value}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ));
-                    })()}
-                  </div>
+                        ));
+                      })()}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-muted-foreground p-3 text-center">No responses submitted yet.</div>
+                  )}
                 </CollapsibleContent>
               </Collapsible>
             )}
