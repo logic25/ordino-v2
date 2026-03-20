@@ -154,6 +154,35 @@ export function useDeleteTimeEntry() {
   });
 }
 
+// Update a time entry
+export function useUpdateTimeEntry() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: {
+      id: string;
+      duration_minutes?: number;
+      description?: string;
+      activity_date?: string;
+      billable?: boolean;
+    }) => {
+      const { data, error } = await supabase
+        .from("activities")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["time-entries"] });
+      qc.invalidateQueries({ queryKey: ["time-summary"] });
+    },
+  });
+}
+
 // Format minutes to Xh Ym display
 export function formatMinutes(minutes: number): string {
   const h = Math.floor(minutes / 60);

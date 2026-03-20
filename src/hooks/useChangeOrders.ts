@@ -256,7 +256,7 @@ export function useSendCOToClient() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, project_id, sent_to_email }: { id: string; project_id: string; sent_to_email?: string }) => {
+    mutationFn: async ({ id, project_id, sent_to_email, public_token }: { id: string; project_id: string; sent_to_email?: string; public_token?: string }) => {
       const { data, error } = await supabase
         .from("change_orders" as any)
         .update({
@@ -269,7 +269,25 @@ export function useSendCOToClient() {
         .single();
 
       if (error) throw error;
-      return cast<ChangeOrder>(data);
+      const co = cast<ChangeOrder>(data);
+
+      // Send email via gmail-send if we have a recipient
+      if (sent_to_email && public_token) {
+        try {
+          const publicUrl = `${window.location.origin}/co/${public_token}`;
+          await supabase.functions.invoke("gmail-send", {
+            body: {
+              to: sent_to_email,
+              subject: `Change Order ${co.co_number} — ${co.title}`,
+              html_body: `<p>A change order has been prepared for your review and signature.</p><p><strong>${co.co_number}: ${co.title}</strong></p><p>Amount: $${co.amount.toLocaleString()}</p><p><a href="${publicUrl}" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">Review &amp; Sign</a></p>`,
+            },
+          });
+        } catch (emailErr) {
+          console.error("Error sending CO email:", emailErr);
+        }
+      }
+
+      return co;
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: QK(data.project_id) });
