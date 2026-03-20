@@ -451,11 +451,17 @@ export function DobNowFilingPrepSheet({
     }
   };
 
+  const isQueuedTooLong = useMemo(() => {
+    if (agentStatus !== "queued" || !agentQueuedAt) return false;
+    return Date.now() - new Date(agentQueuedAt).getTime() > 2 * 60 * 1000;
+  }, [agentStatus, agentQueuedAt]);
+
   const resetAgentState = () => {
     setAgentRunId(null);
     setAgentStatus(null);
     setAgentProgress([]);
     setAgentError(null);
+    setAgentQueuedAt(null);
     setSubmitStep("idle");
   };
 
