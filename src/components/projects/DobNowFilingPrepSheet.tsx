@@ -136,6 +136,7 @@ export function DobNowFilingPrepSheet({
 
   // Persist checklist checked state per project+service in localStorage
   const checklistStorageKey = `filing-checklist-${project.id}-${service.id}`;
+  const checklistDeletedKey = `filing-checklist-deleted-${project.id}-${service.id}`;
 
   const saveChecklistToStorage = useCallback((items: ChecklistItem[]) => {
     try {
@@ -144,6 +145,19 @@ export function DobNowFilingPrepSheet({
       localStorage.setItem(checklistStorageKey, JSON.stringify(checked));
     } catch { /* noop */ }
   }, [checklistStorageKey]);
+
+  const saveDeletedIds = useCallback((ids: string[]) => {
+    try {
+      localStorage.setItem(checklistDeletedKey, JSON.stringify(ids));
+    } catch { /* noop */ }
+  }, [checklistDeletedKey]);
+
+  const loadDeletedIds = useCallback((): string[] => {
+    try {
+      const raw = localStorage.getItem(checklistDeletedKey);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  }, [checklistDeletedKey]);
 
   const loadChecklistFromStorage = useCallback((): Record<string, boolean> | null => {
     try {
@@ -179,6 +193,12 @@ export function DobNowFilingPrepSheet({
         items = DEFAULT_CHECKLIST.map((item) => ({ ...item, checked: false }));
       }
 
+      // Filter out previously deleted items
+      const deletedIds = loadDeletedIds();
+      if (deletedIds.length > 0) {
+        items = items.filter(item => !deletedIds.includes(item.id));
+      }
+
       // Restore checked state from localStorage
       const savedChecked = loadChecklistFromStorage();
       if (savedChecked) {
@@ -188,7 +208,7 @@ export function DobNowFilingPrepSheet({
       setChecklist(items);
       setChecklistInitialized(true);
     }
-  }, [companyData, checklistInitialized, loadChecklistFromStorage]);
+  }, [companyData, checklistInitialized, loadChecklistFromStorage, loadDeletedIds]);
 
   // Fetch PIS (rfi_requests) data for this project
   const { data: pisResponses } = useQuery({
@@ -749,12 +769,17 @@ export function DobNowFilingPrepSheet({
                   size="sm"
                   className="h-6 text-[10px] gap-1 text-muted-foreground"
                   onClick={() => {
+                    saveDeletedIds([]);
                     const saved = companyData?.settings?.filing_checklist_defaults;
                     if (saved && Array.isArray(saved) && saved.length > 0) {
-                      setChecklist(saved.map((item: any) => ({ id: item.id, label: item.label, required: !!item.required, checked: false })));
+                      const items = saved.map((item: any) => ({ id: item.id, label: item.label, required: !!item.required, checked: false }));
+                      setChecklist(items);
+                      saveChecklistToStorage(items);
                       toast({ title: "Checklist reset", description: "Loaded company default checklist items." });
                     } else {
-                      setChecklist(DEFAULT_CHECKLIST.map((item) => ({ ...item, checked: false })));
+                      const items = DEFAULT_CHECKLIST.map((item) => ({ ...item, checked: false }));
+                      setChecklist(items);
+                      saveChecklistToStorage(items);
                       toast({ title: "Checklist reset", description: "No saved defaults found — using built-in defaults." });
                     }
                   }}
@@ -812,7 +837,15 @@ export function DobNowFilingPrepSheet({
                   )}
                   <button
                     className="opacity-0 group-hover/check:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                    onClick={() => setChecklist((prev) => prev.filter((c) => c.id !== item.id))}
+                    onClick={() => {
+                      const deletedIds = loadDeletedIds();
+                      saveDeletedIds([...deletedIds, item.id]);
+                      setChecklist((prev) => {
+                        const updated = prev.filter((c) => c.id !== item.id);
+                        saveChecklistToStorage(updated);
+                        return updated;
+                      });
+                    }}
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
