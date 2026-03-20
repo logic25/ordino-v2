@@ -40,6 +40,8 @@ export default function Invoices() {
   const [detailInvoice, setDetailInvoice] = useState<InvoiceWithRelations | null>(null);
   const [sendInvoice, setSendInvoice] = useState<InvoiceWithRelations | null>(null);
   const [billingOpen, setBillingOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const { track } = useTelemetry();
 
   const isSpecialTab = ["to_invoice", "deposits", "analytics", "schedules", "paid"].includes(activeFilter);
