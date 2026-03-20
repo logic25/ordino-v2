@@ -1585,13 +1585,25 @@ export default function RfiForm() {
               )}
             </Button>
           ) : (
-            <Button
-              onClick={goNext}
-              className="bg-amber-600 hover:bg-amber-500 text-white font-semibold px-6 h-11 rounded-xl ml-auto"
-            >
-              {currentStep === totalSteps - 1 ? "Review" : "Continue"}
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
+            <div className="flex items-center gap-2 ml-auto">
+              {currentStep > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={goBack}
+                  className="font-semibold px-5 h-11 rounded-xl border-stone-300 text-stone-600 hover:bg-stone-100"
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Back
+                </Button>
+              )}
+              <Button
+                onClick={goNext}
+                className="bg-amber-600 hover:bg-amber-500 text-white font-semibold px-6 h-11 rounded-xl"
+              >
+                {currentStep === totalSteps - 1 ? "Review" : "Continue"}
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
           )}
         </div>
       </div>
