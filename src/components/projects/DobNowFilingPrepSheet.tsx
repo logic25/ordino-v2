@@ -121,11 +121,19 @@ function readStoredDobSessionState(storageKey: string): StoredDobSessionState | 
     const parsed = JSON.parse(raw) as Partial<StoredDobSessionState>;
     if (!parsed?.sessionId || typeof parsed.sessionId !== "string") return null;
 
+    // Expire after 15 minutes
+    const SESSION_TTL_MS = 15 * 60 * 1000;
+    const createdAt = typeof parsed.createdAt === "number" ? parsed.createdAt : 0;
+    if (Date.now() - createdAt > SESSION_TTL_MS) {
+      localStorage.removeItem(storageKey);
+      return null;
+    }
+
     return {
       sessionId: parsed.sessionId,
       liveUrl: typeof parsed.liveUrl === "string" ? parsed.liveUrl : null,
       loginConfirmed: Boolean(parsed.loginConfirmed),
-      createdAt: typeof parsed.createdAt === "number" ? parsed.createdAt : Date.now(),
+      createdAt,
     };
   } catch {
     return null;
@@ -1192,10 +1200,14 @@ export function DobNowFilingPrepSheet({
         <>
           <div
             className="fixed inset-0 z-[100] bg-black/60"
-            onClick={() => setSessionModalOpen(false)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSessionModalOpen(false);
+            }}
           />
           <div
             className="fixed z-[101] bg-background border rounded-lg shadow-2xl flex flex-col overflow-hidden pointer-events-auto"
+            onClick={(e) => e.stopPropagation()}
             style={{ top: "5vh", left: "4vw", width: "92vw", height: "85vh" }}
           >
             {/* Title bar */}
