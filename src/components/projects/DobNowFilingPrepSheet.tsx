@@ -390,7 +390,7 @@ export function DobNowFilingPrepSheet({
         status: "queued",
         payload_snapshot: payload,
         created_by: currentUser.id,
-      }).select("id").single();
+      }).select("id, created_at").single();
 
       if (error || !run) {
         toast({ title: "Error", description: "Failed to create filing run.", variant: "destructive" });
@@ -403,25 +403,9 @@ export function DobNowFilingPrepSheet({
       setAgentError(null);
       setSubmitStep("agent");
 
-      // Audit log (fire-and-forget)
-      (supabase.from("filing_audit_log" as any).insert({
-        company_id: currentUser.company_id,
-        project_id: project.id,
-        service_id: service.id,
-        initiated_by: currentUser.id,
-        filing_type: service.name,
-        work_types: workTypes,
-        property_address: property?.address || null,
-        method: "agent",
-        payload_snapshot: payload,
-      }) as any).then(() => {});
-
-      // Actually invoke the filing-agent-proxy edge function
-      // Invoke filing-agent-proxy with action=start-filing
-      // supabase.functions.invoke doesn't support query params, so use direct fetch
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       console.log("[FilingAgent] Sending request to filing-agent-proxy...", {
         project_id: project.id,
         service_id: service.id,
@@ -447,13 +431,60 @@ export function DobNowFilingPrepSheet({
       console.log("[FilingAgent] Proxy response:", proxyRes.status, proxyResult);
 
       if (!proxyRes.ok) {
+        await (supabase.from("filing_runs") as any)
+          .update({ status: "failed", error_message: proxyResult?.details || proxyResult?.error || "Failed to reach filing agent." })
+          .eq("id", run.id);
+
+        setAgentStatus("failed");
+        setAgentError(proxyResult?.details || proxyResult?.error || "Failed to reach filing agent.");
         console.error("[FilingAgent] Proxy error:", proxyResult);
-        toast({ title: "Agent error", description: proxyResult?.error || "Failed to reach filing agent.", variant: "destructive" });
-      } else {
-        toast({ title: "Agent launched", description: "The filing agent has started processing." });
+        toast({ title: "Agent error", description: proxyResult?.details || proxyResult?.error || "Failed to reach filing agent.", variant: "destructive" });
+        return;
       }
+
+      toast({ title: "Agent launched", description: "The filing agent has started processing." });
     } finally {
       setLaunchingAgent(false);
+    }
+  };
+
+  const resetAgentState = () => {
+    setAgentRunId(null);
+    setAgentStatus(null);
+    setAgentProgress([]);
+    setAgentError(null);
+    setSubmitStep("idle");
+  };
+
+  const handleConfirmFiled = async () => {
+    if (!currentUser) return;
+    setConfirmingFiled(true);
+    try {
+      const payload = buildPayload();
+      const now = new Date();
+      const { error } = await (supabase.from("filing_audit_log" as any).insert({
+        company_id: currentUser.company_id,
+        project_id: project.id,
+        service_id: service.id,
+        initiated_by: currentUser.id,
+        filing_type: service.name,
+        work_types: workTypes,
+        property_address: property?.address || null,
+        method: "manual_confirm",
+        payload_snapshot: { ...payload, confirmed_filed_at: now.toISOString() },
+      }) as any);
+
+      if (error) {
+        toast({ title: "Error", description: "Failed to confirm filing.", variant: "destructive" });
+        return;
+      }
+
+      setFiledAt(now);
+      setFilerName(currentUser.display_name || "Unknown");
+      setSubmitStep("success");
+      toast({ title: "Filed confirmed", description: "Service marked as filed." });
+    } finally {
+      setConfirmingFiled(false);
     }
   };
 
