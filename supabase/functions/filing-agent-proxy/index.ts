@@ -237,13 +237,28 @@ Deno.serve(async (req) => {
       };
 
       // Forward to filing agent
-      const agentRes = await fetch(`${FILING_AGENT_URL}/api/file`, {
-        method: "POST",
-        headers: agentHeaders,
-        body: JSON.stringify(filingPayload),
-      });
+      const targetUrl = `${FILING_AGENT_URL}/api/file`;
+      console.log("[filing-agent-proxy] Sending POST to:", targetUrl);
+      console.log("[filing-agent-proxy] Payload project_id:", filingPayload.project_id, "service_id:", filingPayload.service_id);
+
+      let agentRes: Response;
+      try {
+        agentRes = await fetch(targetUrl, {
+          method: "POST",
+          headers: agentHeaders,
+          body: JSON.stringify(filingPayload),
+        });
+      } catch (fetchErr) {
+        console.error("[filing-agent-proxy] Fetch error:", fetchErr);
+        return new Response(JSON.stringify({ error: "Failed to reach filing agent", details: String(fetchErr) }), {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
       const agentData = await agentRes.text();
+      console.log("[filing-agent-proxy] Agent response status:", agentRes.status, "body:", agentData.substring(0, 500));
+
       return new Response(agentData, {
         status: agentRes.status,
         headers: { ...corsHeaders, "Content-Type": agentRes.headers.get("Content-Type") || "application/json" },
