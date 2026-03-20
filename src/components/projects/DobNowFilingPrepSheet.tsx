@@ -516,16 +516,16 @@ export function DobNowFilingPrepSheet({
               {filingFields.map((field) => (
                 <div key={field.label}>
                   <FieldRow field={field} onCopy={copyToClipboard} />
-                  {field.label === "Job Description" && field.value && (
-                    <div className="flex items-center gap-1 mt-1 ml-3">
+                  <div className="flex items-center gap-1 mt-1 ml-3">
+                    {field.label === "Job Description" && field.value && (
                       <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 text-muted-foreground" onClick={handleStripFormatting}>
                         <Type className="h-3 w-3" /> Strip Formatting
                       </Button>
-                      {pisJobDescription && (
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-blue-600 border-blue-200">From PIS</Badge>
-                      )}
-                    </div>
-                  )}
+                    )}
+                    {field.fromPIS && field.value && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-blue-600 border-blue-200">From PIS</Badge>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
