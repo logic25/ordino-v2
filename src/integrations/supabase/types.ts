@@ -3649,6 +3649,7 @@ export type Database = {
           created_by: string | null
           error_message: string | null
           id: string
+          live_url: string | null
           payload_snapshot: Json | null
           progress_log: Json
           project_id: string
@@ -3668,6 +3669,7 @@ export type Database = {
           created_by?: string | null
           error_message?: string | null
           id?: string
+          live_url?: string | null
           payload_snapshot?: Json | null
           progress_log?: Json
           project_id: string
@@ -3687,6 +3689,7 @@ export type Database = {
           created_by?: string | null
           error_message?: string | null
           id?: string
+          live_url?: string | null
           payload_snapshot?: Json | null
           progress_log?: Json
           project_id?: string
