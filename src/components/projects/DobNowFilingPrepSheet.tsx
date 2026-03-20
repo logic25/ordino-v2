@@ -180,6 +180,13 @@ export function DobNowFilingPrepSheet({
   const [launchingAgent, setLaunchingAgent] = useState(false);
   const [confirmingFiled, setConfirmingFiled] = useState(false);
 
+  // Two-step session flow state
+  const [dobSessionId, setDobSessionId] = useState<string | null>(null);
+  const [dobSessionLiveUrl, setDobSessionLiveUrl] = useState<string | null>(null);
+  const [creatingSession, setCreatingSession] = useState(false);
+  const [loginConfirmed, setLoginConfirmed] = useState(false);
+  const [sessionModalOpen, setSessionModalOpen] = useState(false);
+
   // Realtime is now handled inside FilingAgentSupervisionPanel
 
   // Initialize checklist from company defaults, then restore saved checked state
