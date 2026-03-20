@@ -275,16 +275,27 @@ Deno.serve(async (req) => {
 
       // ── Notify attendees (in-app + email) ──
       if (attendee_ids?.length) {
-        const creatorName = (await supabaseAdmin
+        const creatorProfile = (await supabaseAdmin
           .from("profiles")
-          .select("display_name, email")
+          .select("display_name, user_id")
           .eq("id", profile.id)
           .single()).data;
 
         const { data: attendeeProfiles } = await supabaseAdmin
           .from("profiles")
-          .select("id, display_name, email, user_id")
+          .select("id, display_name, user_id")
           .in("id", attendee_ids);
+
+        // Resolve emails from auth.users for attendees
+        const attendeeEmails: Record<string, string> = {};
+        for (const att of (attendeeProfiles || [])) {
+          if (att.user_id) {
+            try {
+              const { data: { user: authUser } } = await supabaseAdmin.auth.admin.getUserById(att.user_id);
+              if (authUser?.email) attendeeEmails[att.id] = authUser.email;
+            } catch (_) { /* skip */ }
+          }
+        }
 
         const formatDate = (iso: string, isAllDay: boolean) => {
           const d = new Date(iso);
@@ -301,13 +312,14 @@ Deno.serve(async (req) => {
             user_id: att.id,
             type: "calendar_event",
             title: "New Calendar Event",
-            body: `${creatorName?.display_name || "Someone"} invited you to: ${title}`,
+            body: `${creatorProfile?.display_name || "Someone"} invited you to: ${title}`,
             link: "/calendar",
             metadata: { event_id: dbEvent.id, start_time, event_type: event_type || "general" },
           });
 
           // Email notification
-          if (att.email) {
+          const attEmail = attendeeEmails[att.id];
+          if (attEmail) {
             const startFormatted = formatDate(start_time, all_day || false);
             const endFormatted = formatDate(end_time, all_day || false);
             const htmlBody = `
@@ -315,7 +327,7 @@ Deno.serve(async (req) => {
 <html><head><meta charset="utf-8"></head>
 <body style="font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; line-height: 1.6; max-width: 640px; margin: 0 auto; padding: 20px;">
   <p>Hi ${att.display_name || "there"},</p>
-  <p><strong>${creatorName?.display_name || "A team member"}</strong> has invited you to an event:</p>
+  <p><strong>${creatorProfile?.display_name || "A team member"}</strong> has invited you to an event:</p>
   <div style="margin: 16px 0; padding: 16px; background: #f5f5f5; border-radius: 8px; border-left: 4px solid #333;">
     <p style="margin: 0 0 8px; font-size: 18px; font-weight: bold;">${title}</p>
     <p style="margin: 0 0 4px;">📅 ${startFormatted}${all_day ? "" : ` — ${endFormatted}`}</p>
@@ -328,13 +340,13 @@ Deno.serve(async (req) => {
             try {
               await supabaseAdmin.functions.invoke("gmail-send", {
                 body: {
-                  to: att.email,
+                  to: attEmail,
                   subject: `Calendar: ${title} — ${startFormatted}`,
                   html_body: htmlBody,
                 },
               });
             } catch (emailErr) {
-              console.error("Failed to send calendar email to", att.email, emailErr);
+              console.error("Failed to send calendar email to", attEmail, emailErr);
             }
           }
         }
