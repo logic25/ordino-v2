@@ -1,5 +1,3 @@
-
-
 ## CitiSignal Complimentary Subscription Safeguards — Complete
 
 ### What was built:
@@ -53,3 +51,31 @@
 - `src/hooks/useProposalFollowUps.ts` — added contact migration to approval flow
 - `src/hooks/useProjectDetail.ts` — rewrote `useProjectContacts` with proper source priority and deduplication
 - `src/test/contactMigration.test.ts` — 7 regression tests covering matching, deduplication, and role filtering
+
+---
+
+## Fixes 8–14 — Complete
+
+### Fix 8: Beacon Error Handling ✅
+- `ChatPanel.tsx`: catch block now inserts an error message into `widget_messages` and invalidates the query so user sees "Sorry, I couldn't process that request."
+
+### Fix 9: ProjectDetail Performance ✅
+- `ProjectDetail.tsx`: Replaced `useProjects()` (fetches ALL) with `useProject(id)` (fetches single record by ID)
+
+### Fix 10: Property Detail Not Found — Already Done ✅
+- No changes needed; existing code handles this
+
+### Fix 11: DOB NOW PAA Dedup ✅
+- `useDOBApplications.ts`: DOB_NOW_BUILD records with null `docNum` now use `NOW-{jobNum}` as dedup key instead of `{jobDigits}-01`
+
+### Fix 12: Blank Invoice Numbers ✅
+- `process-billing-schedules/index.ts`: Changed `invoice_number: ""` to `invoice_number: null` to explicitly trigger the `generate_invoice_number()` DB trigger
+
+### Fix 13: AI JSON Parsing Warnings ✅
+- `extract-tasks/index.ts`: Logs raw response and adds `warning` field on parse failure
+- `predict-payment-risk/index.ts`: Logs raw response and adds `warning` field on parse failure
+- `generate-collection-message/index.ts`: Logs raw response and adds `warning` field on parse failure
+- `analyze-telemetry/index.ts`: Already returns HTTP 500 on parse failure (no silent fallback)
+
+### Fix 14: Auth Callback Timeout UX ✅
+- `AuthCallback.tsx`: Shows "Sign-in is taking longer than expected" message with a link to `/auth` instead of silently redirecting
