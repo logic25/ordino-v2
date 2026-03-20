@@ -342,8 +342,8 @@ export function DobNowFilingPrepSheet({
       filing: [
         { label: "Filing Type", value: service.name },
         { label: "Work Types", value: workTypes.join(", ") || null },
-        { label: "Floor", value: editOverrides["Floor"] ?? proj.floor_number ?? null },
-        { label: "Unit / Apt", value: editOverrides["Unit / Apt"] ?? proj.unit_number ?? null },
+        { label: "Floor", value: editOverrides["Floor"] ?? floorValue ?? null },
+        { label: "Unit / Apt", value: editOverrides["Unit / Apt"] ?? unitValue ?? null },
         { label: "Floor Area (sq ft)", value: editOverrides["Floor Area (sq ft)"] ?? pisSquareFootage ?? null },
         { label: "Estimated Job Cost", value: editOverrides["Estimated Job Cost"] ?? filingFields.find(f => f.label === "Estimated Job Cost")?.value ?? null },
         { label: "Job Description", value: cleanedJobDesc || null },
