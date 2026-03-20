@@ -132,6 +132,25 @@ export function DobNowFilingPrepSheet({
   const [checklist, setChecklist] = useState<ChecklistItem[]>(
     DEFAULT_CHECKLIST.map((item) => ({ ...item, checked: false }))
   );
+
+  // Persist checklist checked state per project+service in localStorage
+  const checklistStorageKey = `filing-checklist-${project.id}-${service.id}`;
+
+  const saveChecklistToStorage = useCallback((items: ChecklistItem[]) => {
+    try {
+      const checked: Record<string, boolean> = {};
+      items.forEach(i => { checked[i.id] = i.checked; });
+      localStorage.setItem(checklistStorageKey, JSON.stringify(checked));
+    } catch { /* noop */ }
+  }, [checklistStorageKey]);
+
+  const loadChecklistFromStorage = useCallback((): Record<string, boolean> | null => {
+    try {
+      const raw = localStorage.getItem(checklistStorageKey);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }, [checklistStorageKey]);
+
   const [submitStep, setSubmitStep] = useState<SubmitStep>("idle");
   const [confirmSectionOpen, setConfirmSectionOpen] = useState<Record<string, boolean>>({ location: true, stakeholders: true, filing: true });
   const [editOverrides, setEditOverrides] = useState<Record<string, string>>({});
@@ -166,17 +185,27 @@ export function DobNowFilingPrepSheet({
     return () => { supabase.removeChannel(channel); };
   }, [agentRunId]);
 
-
-
+  // Initialize checklist from company defaults, then restore saved checked state
   useEffect(() => {
     if (companyData && !checklistInitialized) {
       const saved = companyData.settings?.filing_checklist_defaults;
+      let items: ChecklistItem[];
       if (saved && Array.isArray(saved) && saved.length > 0) {
-        setChecklist(saved.map((item: any) => ({ id: item.id, label: item.label, required: !!item.required, checked: false })));
+        items = saved.map((item: any) => ({ id: item.id, label: item.label, required: !!item.required, checked: false }));
+      } else {
+        items = DEFAULT_CHECKLIST.map((item) => ({ ...item, checked: false }));
       }
+
+      // Restore checked state from localStorage
+      const savedChecked = loadChecklistFromStorage();
+      if (savedChecked) {
+        items = items.map(item => ({ ...item, checked: !!savedChecked[item.id] }));
+      }
+
+      setChecklist(items);
       setChecklistInitialized(true);
     }
-  }, [companyData, checklistInitialized]);
+  }, [companyData, checklistInitialized, loadChecklistFromStorage]);
 
   // Fetch PIS (rfi_requests) data for this project
   const { data: pisResponses } = useQuery({
