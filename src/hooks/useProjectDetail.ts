@@ -13,7 +13,7 @@ export function useProjectServices(projectId: string | undefined) {
     queryFn: async () => {
       if (!projectId) return [];
 
-      const [{ data, error }, { data: billingReqs }] = await Promise.all([
+      const [{ data, error }, { data: billingReqs }, { data: pisData }] = await Promise.all([
         supabase
           .from("services")
           .select("*")
@@ -24,6 +24,12 @@ export function useProjectServices(projectId: string | undefined) {
           .select("services, invoices(id, sent_at, paid_at)")
           .eq("project_id", projectId)
           .in("status", ["pending", "invoiced"]),
+        (supabase.from("rfi_requests") as any)
+          .select("responses")
+          .eq("project_id", projectId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
       ]);
 
       if (error) throw error;
@@ -75,6 +81,31 @@ export function useProjectServices(projectId: string | undefined) {
         await Promise.all(reconcilePromises);
       }
 
+      // Extract PIS data for enrichment
+      const pisResponses = (pisData?.responses as Record<string, any>) || {};
+      const pisJobDescription = pisResponses["building_scope_job_description"] || pisResponses["building_and_scope_job_description"] || pisResponses["job_description"] || null;
+      const pisEstimatedCost = pisResponses["building_scope_estimated_job_cost"] || pisResponses["building_and_scope_estimated_job_cost"] || pisResponses["estimated_job_cost"] || null;
+
+      // Build estimated costs from PIS work_types_cost_* fields
+      const buildEstimatedCosts = (): { discipline: string; amount: number }[] | undefined => {
+        const costs: { discipline: string; amount: number }[] = [];
+        for (const [key, val] of Object.entries(pisResponses)) {
+          const match = key.match(/work_types_cost_(.+)$/);
+          if (match && val) {
+            const discipline = match[1].replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+            costs.push({ discipline, amount: Number(val) || 0 });
+          }
+        }
+        if (costs.length > 0) return costs;
+        // Fallback: single estimated cost
+        if (pisEstimatedCost) {
+          return [{ discipline: "Total", amount: Number(pisEstimatedCost) || 0 }];
+        }
+        return undefined;
+      };
+
+      const pisEstimatedCosts = buildEstimatedCosts();
+
       return (data || []).map((svc: any): MockService => ({
         id: svc.id,
         name: svc.name || "Untitled Service",
@@ -98,8 +129,8 @@ export function useProjectServices(projectId: string | undefined) {
           ? format(new Date(paidDateMap[svc.name]!), "MM/dd/yyyy")
           : null,
         scopeOfWork: svc.description || "",
-        jobDescription: svc.job_description || undefined,
-        estimatedCosts: undefined,
+        jobDescription: svc.job_description || pisJobDescription || undefined,
+        estimatedCosts: pisEstimatedCosts,
         notes: svc.notes || "",
         needsDobFiling: svc.needs_dob_filing ?? false,
         tasks: [],
