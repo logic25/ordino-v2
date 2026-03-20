@@ -86,6 +86,21 @@ export default function Calendar() {
   const syncCalendar = useSyncCalendar();
   const deleteEvent = useDeleteCalendarEvent();
 
+  // Auto-sync calendar on page load if stale (>15 min since last sync)
+  useEffect(() => {
+    if (!gmailConnection) return;
+    const SYNC_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
+    const lastSync = localStorage.getItem("last_calendar_sync");
+    const lastSyncTime = lastSync ? parseInt(lastSync, 10) : 0;
+    if (Date.now() - lastSyncTime > SYNC_INTERVAL_MS) {
+      syncCalendar.mutateAsync({}).then(() => {
+        localStorage.setItem("last_calendar_sync", Date.now().toString());
+      }).catch(() => {
+        // Silent fail on auto-sync
+      });
+    }
+  }, [gmailConnection]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Compute date range based on view
   const { calStart, calEnd } = useMemo(() => {
     if (viewMode === "week") {

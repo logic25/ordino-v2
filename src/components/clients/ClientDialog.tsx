@@ -125,7 +125,7 @@ export function ClientDialog({
   }, [watchedName, allClients, isEditing, client?.id]);
 
   const handleSubmit = async (data: FormData) => {
-    track("clients", isEditing ? "create_completed" : "create_completed", { is_edit: isEditing });
+    track("clients", isEditing ? "edit_completed" : "create_completed", { is_edit: isEditing });
     try {
       await onSubmit({
         name: data.name,

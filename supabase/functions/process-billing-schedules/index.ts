@@ -111,6 +111,36 @@ serve(async (req) => {
           await supabase.from("billing_requests")
             .update({ status: "invoiced", invoice_id: invoice.id })
             .eq("id", billingReq.id);
+
+          // If auto_send, actually email the invoice to the client
+          if (schedule.auto_send && schedule.billed_to_contact_id) {
+            try {
+              const { data: contact } = await supabase
+                .from("client_contacts")
+                .select("email, name")
+                .eq("id", schedule.billed_to_contact_id)
+                .maybeSingle();
+
+              if (contact?.email) {
+                const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+                const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+                await fetch(`${supabaseUrl}/functions/v1/gmail-send`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${serviceRoleKey}`,
+                  },
+                  body: JSON.stringify({
+                    to: contact.email,
+                    subject: `Invoice ${invoice.invoice_number} — ${serviceItem.name}`,
+                    html_body: `<p>Dear ${contact.name || "Client"},</p><p>Please find attached your invoice <strong>${invoice.invoice_number}</strong> for <strong>$${serviceItem.amount.toFixed(2)}</strong>.</p><p>Payment terms: Net 30</p>`,
+                  }),
+                });
+              }
+            } catch (emailErr) {
+              console.error(`Failed to send invoice email for schedule ${schedule.id}:`, emailErr);
+            }
+          }
         }
       }
 

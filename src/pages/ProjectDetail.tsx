@@ -44,6 +44,7 @@ import {
   GripVertical, ArrowUp, ArrowDown, UserPlus, ArrowUpDown,
 } from "lucide-react";
 import { useProject, useUpdateProject, ProjectWithRelations } from "@/hooks/useProjects";
+import { useProjectTimer } from "@/hooks/useProjectTimer";
 import { useSendProposal } from "@/hooks/useProposals";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { useAssignableProfiles, useCompanyProfiles } from "@/hooks/useProfiles";
@@ -128,6 +129,7 @@ export default function ProjectDetail() {
   const { data: project, isLoading } = useProject(id);
   const { data: assignableProfiles = [] } = useAssignableProfiles();
   const updateProject = useUpdateProject();
+  const projectTimer = useProjectTimer();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -368,6 +370,19 @@ export default function ProjectDetail() {
             </div>
           </div>
           <div className="flex items-center gap-2 ml-10 sm:ml-0 sm:justify-end">
+            {projectTimer.isRunning && projectTimer.timer?.projectId === id ? (
+              <Button size="sm" variant="destructive" className="gap-1.5" onClick={() => projectTimer.stop()}>
+                <Clock className="h-3.5 w-3.5" /> Stop Timer
+              </Button>
+            ) : (
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => {
+                const appId = dobApplications[0]?.id;
+                projectTimer.start(id!, project.name || project.properties?.address || "Project", appId);
+                toast({ title: "Timer started", description: `Tracking time for ${project.name || project.properties?.address || "this project"}` });
+              }}>
+                <Clock className="h-3.5 w-3.5" /> Start Timer
+              </Button>
+            )}
             <LitigationButton onClick={() => setLitigationDialogOpen(true)} />
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditDialogOpen(true)}>
               <Pencil className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Edit Project</span><span className="sm:hidden">Edit</span>

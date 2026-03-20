@@ -775,7 +775,7 @@ export function useSignProposalInternal() {
       // Get proposal with items
       const { data: proposal, error: proposalError } = await supabase
         .from("proposals")
-        .select("*, items:proposal_items(*), properties(address)")
+        .select("*, items:proposal_items(*), milestones:proposal_milestones(*), properties(address)")
         .eq("id", id)
         .single();
 
@@ -792,7 +792,6 @@ export function useSignProposalInternal() {
           assigned_pm_id: assignedPmId,
           client_id: proposal.client_id || null,
           retainer_amount: (proposal as any).retainer_amount || 0,
-          retainer_balance: (proposal as any).retainer_amount || 0,
           status: "open",
           created_by: profile.id,
           notes: `Created from proposal ${proposal.proposal_number}`,
@@ -869,6 +868,35 @@ export function useSignProposalInternal() {
             console.error("Error creating services:", servicesError);
           }
         }
+      }
+
+      // Auto-create billing schedules from proposal milestones
+      try {
+        const milestones = (proposal as any).milestones || [];
+        if (milestones.length > 0) {
+          const schedulesToInsert = milestones
+            .filter((m: any) => (m.amount || m.percentage) && m.due_date)
+            .map((m: any) => ({
+              company_id: profile.company_id,
+              project_id: (project as any).id,
+              service_name: m.name || "Milestone payment",
+              description: m.description || null,
+              billing_method: m.percentage ? "percentage" : "amount",
+              billing_value: m.percentage || m.amount || 0,
+              frequency: "monthly", // one-time but needs valid enum
+              next_bill_date: m.due_date,
+              auto_approve: false,
+              auto_send: false,
+              is_active: true,
+              created_by: profile.id,
+            }));
+
+          if (schedulesToInsert.length > 0) {
+            await supabase.from("billing_schedules").insert(schedulesToInsert as any);
+          }
+        }
+      } catch (milestoneErr) {
+        console.error("Error creating billing schedules from milestones:", milestoneErr);
       }
 
       // Link plan documents from proposal to the new project
