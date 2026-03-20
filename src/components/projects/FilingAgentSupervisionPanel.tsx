@@ -75,6 +75,7 @@ export function FilingAgentSupervisionPanel({
   const [rejecting, setRejecting] = useState(false);
   const [screenshotIndex, setScreenshotIndex] = useState(0);
   const [stepsExpanded, setStepsExpanded] = useState(true);
+  const [iframeExpanded, setIframeExpanded] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Fetch initial run data
