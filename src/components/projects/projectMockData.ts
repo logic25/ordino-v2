@@ -570,9 +570,13 @@ export const docCategoryLabels: Record<string, string> = {
 
 export const checklistCategoryLabels: Record<string, { label: string; icon: string }> = {
   missing_document: { label: "Missing Documents", icon: "📄" },
+  document: { label: "Documents", icon: "📄" },
   missing_info: { label: "Missing Info", icon: "❓" },
+  field: { label: "Field Data", icon: "📋" },
   pending_signature: { label: "Pending Signatures", icon: "✍️" },
+  approval: { label: "Approvals", icon: "✅" },
   pending_response: { label: "Pending Responses", icon: "⏳" },
+  inspection: { label: "Inspections", icon: "🔍" },
   ai_follow_up: { label: "AI Follow-Up", icon: "🤖" },
 };
 
