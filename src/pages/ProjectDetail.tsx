@@ -330,10 +330,10 @@ export default function ProjectDetail() {
                   <span className="flex items-center gap-1"><Building2 className="h-3.5 w-3.5" /> {project.clients.name}</span>
                 )}
                 {(() => {
-                  const pisOwner = (project as any).building_owner_name;
+                  const pisOwner = (project as any).building_owner_name || pisStatus?.pisOwnerName;
                   const clientOwner = (project as any).building_owner?.name;
                   const propertyOwner = project.properties?.owner_name;
-                  // Prefer PIS-synced owner, then client record, then property record
+                  // Prefer PIS-synced owner, then PIS response, then client record, then property record
                    const cleanProperty = propertyOwner && propertyOwner !== "UNAVAILABLE OWNER" ? propertyOwner : null;
                    const displayOwner = pisOwner || clientOwner || cleanProperty;
                    if (!displayOwner) return null;
