@@ -6,6 +6,21 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const normalizeFilingRunStatus = (status?: string | null) => {
+  if (!status) return null;
+
+  switch (status) {
+    case "in_progress":
+      return "running";
+    case "ready_for_review":
+      return "review_needed";
+    case "error":
+      return "failed";
+    default:
+      return status;
+  }
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -43,6 +58,7 @@ Deno.serve(async (req) => {
       const body = await req.json();
       const { filing_run_id, status, step, error_message, agent_session_id, job_id, live_url, session_url, recording_url, screenshots } = body;
       const runId = filing_run_id ?? url.searchParams.get("run_id");
+      const normalizedStatus = normalizeFilingRunStatus(status);
 
       if (!runId) {
         return new Response(JSON.stringify({ error: "filing_run_id is required" }), {
@@ -66,11 +82,11 @@ Deno.serve(async (req) => {
 
       const progressLog = Array.isArray(run.progress_log) ? [...run.progress_log] : [];
       if (step) {
-        progressLog.push({ step, status: status || "running", timestamp: new Date().toISOString() });
+        progressLog.push({ step, status: normalizedStatus || "running", timestamp: new Date().toISOString() });
       }
 
       const update: Record<string, any> = { progress_log: progressLog };
-      if (status) update.status = status;
+      if (normalizedStatus) update.status = normalizedStatus;
       if (agent_session_id || job_id) update.agent_session_id = agent_session_id || job_id;
       if (error_message) update.error_message = error_message;
       if (live_url) update.live_url = live_url;
@@ -78,10 +94,10 @@ Deno.serve(async (req) => {
       if (recording_url) update.recording_url = recording_url;
       if (Array.isArray(screenshots) && screenshots.length > 0) update.screenshots = screenshots;
 
-      if (status === "running" && !run.status?.includes("running")) {
+      if (normalizedStatus === "running" && !run.status?.includes("running")) {
         update.started_at = new Date().toISOString();
       }
-      if (["completed", "failed", "review_needed"].includes(status)) {
+      if (normalizedStatus && ["completed", "failed", "review_needed"].includes(normalizedStatus)) {
         update.completed_at = new Date().toISOString();
       }
 
@@ -98,7 +114,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      console.log("[filing-agent-proxy] callback processed for run:", runId, "status:", status || "(no change)");
+      console.log("[filing-agent-proxy] callback processed for run:", runId, "status:", normalizedStatus || "(no change)");
       return new Response(JSON.stringify({ success: true }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
