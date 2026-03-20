@@ -186,7 +186,9 @@ Deno.serve(async (req) => {
           block: property?.block || null,
           lot: property?.lot || null,
           bin: property?.bin || null,
-          bbl: property?.bbl || null,
+          bbl: (property?.borough && property?.block && property?.lot)
+            ? `${property.borough}${String(property.block).padStart(5, '0')}${String(property.lot).padStart(4, '0')}`
+            : null,
         },
 
         applicant_owner: {
