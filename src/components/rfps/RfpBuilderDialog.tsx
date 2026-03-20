@@ -227,7 +227,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     company_info: companyInfo.length,
     staff_bios: staffBios.length,
     org_chart: staffBios.filter((s) => (s.content as any)?.include_in_org_chart !== false).length,
-    notable_projects: notableProjects.length,
+    notable_projects: allNotableProjects.length,
     narratives: narratives.length + firmHistory.length,
     pricing: pricing.length,
     certifications: certs.length,
