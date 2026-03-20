@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { proposal_token, payment_method, amount } = await req.json();
+    const { proposal_token, payment_method, amount, idempotency_key: clientKey } = await req.json();
 
     if (!proposal_token || !payment_method || !amount) {
       return new Response(
@@ -52,6 +52,9 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Build idempotency key: prefer client-supplied, fallback to deterministic key
+    const idempotencyKey = clientKey || `deposit_${proposal_token}_${amount}_${payment_method}`;
 
     // Validate token format (should be a 32-char hex string)
     if (typeof proposal_token !== "string" || proposal_token.length < 16) {
