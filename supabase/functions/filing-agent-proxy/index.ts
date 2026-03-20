@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
     if (action === "start-filing") {
       const body = await req.json();
       const { project_id, service_id } = body;
-      console.log("[filing-agent-proxy] start-filing received:", JSON.stringify({ project_id, service_id }));
+      console.log("[filing-agent-proxy] start-filing received:", JSON.stringify({ project_id, service_id, user_company_id: profile.company_id }));
 
       if (!project_id) {
         return new Response(JSON.stringify({ error: "project_id is required" }), {
@@ -82,30 +82,24 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Fetch filing payload using the existing filing-payload logic
+      // Read project data with the service role client after JWT auth has already passed.
+      // We still enforce tenant isolation explicitly via company_id below.
       const { data: project, error: projError } = await supabase
         .from("projects")
         .select(`
-          id, company_id, client_id, project_number, name, phase, status,
-          floor_number, unit_number, estimated_job_cost, notes,
-          filing_type, client_reference_number,
-          gc_company_name, gc_contact_name, gc_phone, gc_email,
-          building_owner_name, building_owner_id,
-          sia_name, sia_company, sia_phone, sia_email, sia_number, sia_nys_lic,
-          tpp_name, tpp_email,
-          architect_license_type, architect_license_number,
-          properties (
-            id, address, borough, block, lot, bin
-          )
+          *,
+          properties (*),
+          services (*),
+          project_contacts (*, client_contacts (*))
         `)
         .eq("id", project_id)
-        .maybeSingle();
+        .single();
 
       if (projError) {
         console.error("[filing-agent-proxy] Project query error:", JSON.stringify(projError));
       }
       if (!project) {
-        console.error("[filing-agent-proxy] Project not found for id:", project_id);
+        console.error("[filing-agent-proxy] Project not found for id:", project_id, "user_company_id:", profile.company_id);
       }
       if (projError || !project) {
         return new Response(JSON.stringify({ error: "Project not found", details: projError?.message || "no rows" }), {
@@ -113,6 +107,12 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      console.log("[filing-agent-proxy] Project found:", JSON.stringify({
+        project_id: project.id,
+        project_company_id: project.company_id,
+        user_company_id: profile.company_id,
+      }));
 
       // Company scope check
       if (project.company_id !== profile.company_id) {
