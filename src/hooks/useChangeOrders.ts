@@ -190,6 +190,7 @@ export function useSignCOInternal() {
 
 export function useMarkCOApproved() {
   const qc = useQueryClient();
+  const { profile } = useAuth();
 
   return useMutation({
     mutationFn: async ({ id, project_id, clientSignerName, clientSignatureData }: {
@@ -214,10 +215,39 @@ export function useMarkCOApproved() {
         .single();
 
       if (error) throw error;
-      return cast<ChangeOrder>(data);
+      const co = cast<ChangeOrder>(data);
+
+      // Create a billing_request for the CO amount
+      if (profile?.company_id && co.amount > 0) {
+        try {
+          const lineItems = co.line_items?.length
+            ? co.line_items.map((li: COLineItem) => ({
+                name: li.name,
+                description: li.description || "",
+                quantity: 1,
+                rate: li.amount,
+                amount: li.amount,
+              }))
+            : [{ name: co.title, description: co.description || "", quantity: 1, rate: co.amount, amount: co.amount }];
+
+          await supabase.from("billing_requests").insert({
+            company_id: profile.company_id,
+            project_id: co.project_id,
+            created_by: profile.id,
+            services: lineItems,
+            total_amount: co.amount,
+            status: "pending",
+          } as any);
+        } catch (brErr) {
+          console.error("Error creating billing request for CO:", brErr);
+        }
+      }
+
+      return co;
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: QK(data.project_id) });
+      qc.invalidateQueries({ queryKey: ["billing-requests"] });
     },
   });
 }
