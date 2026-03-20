@@ -44,6 +44,7 @@ import {
   GripVertical, ArrowUp, ArrowDown, UserPlus, ArrowUpDown,
 } from "lucide-react";
 import { useProject, useUpdateProject, ProjectWithRelations } from "@/hooks/useProjects";
+import { useProjectTimer } from "@/hooks/useProjectTimer";
 import { useSendProposal } from "@/hooks/useProposals";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { useAssignableProfiles, useCompanyProfiles } from "@/hooks/useProfiles";
