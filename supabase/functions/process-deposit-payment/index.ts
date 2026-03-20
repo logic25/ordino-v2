@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { proposal_token, payment_method, amount } = await req.json();
+    const { proposal_token, payment_method, amount, idempotency_key: clientKey } = await req.json();
 
     if (!proposal_token || !payment_method || !amount) {
       return new Response(
@@ -52,6 +52,9 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Build idempotency key: prefer client-supplied, fallback to deterministic key
+    const idempotencyKey = clientKey || `deposit_${proposal_token}_${amount}_${payment_method}`;
 
     // Validate token format (should be a 32-char hex string)
     if (typeof proposal_token !== "string" || proposal_token.length < 16) {
@@ -121,20 +124,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Idempotency check: look for an invoice created for this proposal within the last 60 seconds
-    const sixtySecondsAgo = new Date(Date.now() - 60_000).toISOString();
+    // Idempotency check: look for an existing invoice with this key
     const { data: existingInvoices } = await supabase
       .from("invoices")
       .select("id, invoice_number, created_at, payment_amount, payment_method")
-      .eq("project_id", projectId)
-      .eq("client_id", clientId)
-      .eq("payment_amount", depositAmount)
-      .gte("created_at", sixtySecondsAgo)
+      .eq("idempotency_key", idempotencyKey)
       .limit(1);
 
     if (existingInvoices && existingInvoices.length > 0) {
       const existing = existingInvoices[0];
-      // Return the existing record instead of creating a duplicate
       const { data: project } = await supabase
         .from("projects")
         .select("name, project_number")
@@ -232,6 +230,7 @@ Deno.serve(async (req) => {
         ],
         notes: `Deposit payment received via ${paymentMethodLabel} on client proposal page.`,
         retainer_id: retainer.id,
+        idempotency_key: idempotencyKey,
       })
       .select("id, invoice_number, created_at")
       .single();
