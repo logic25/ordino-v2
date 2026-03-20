@@ -136,6 +136,7 @@ export function DobNowFilingPrepSheet({
 
   // Persist checklist checked state per project+service in localStorage
   const checklistStorageKey = `filing-checklist-${project.id}-${service.id}`;
+  const checklistDeletedKey = `filing-checklist-deleted-${project.id}-${service.id}`;
 
   const saveChecklistToStorage = useCallback((items: ChecklistItem[]) => {
     try {
@@ -144,6 +145,19 @@ export function DobNowFilingPrepSheet({
       localStorage.setItem(checklistStorageKey, JSON.stringify(checked));
     } catch { /* noop */ }
   }, [checklistStorageKey]);
+
+  const saveDeletedIds = useCallback((ids: string[]) => {
+    try {
+      localStorage.setItem(checklistDeletedKey, JSON.stringify(ids));
+    } catch { /* noop */ }
+  }, [checklistDeletedKey]);
+
+  const loadDeletedIds = useCallback((): string[] => {
+    try {
+      const raw = localStorage.getItem(checklistDeletedKey);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  }, [checklistDeletedKey]);
 
   const loadChecklistFromStorage = useCallback((): Record<string, boolean> | null => {
     try {
