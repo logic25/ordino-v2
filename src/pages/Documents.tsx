@@ -269,6 +269,7 @@ export default function Documents() {
   const resetForm = () => {
     setTitle(""); setDescription(""); setCategory("general");
     setSelectedFile(null);
+    setLinkProjectId(undefined); setLinkPropertyId(undefined); setLinkProposalId(undefined);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
