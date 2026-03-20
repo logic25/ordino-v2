@@ -334,7 +334,7 @@ Deno.serve(async (req) => {
       };
 
       // Build the request body in the structure the agent expects
-      const callbackUrl = `${supabaseUrl}/functions/v1/filing-status?run_id=${encodeURIComponent(filing_run_id || "")}`;
+      const callbackUrl = `${supabaseUrl}/functions/v1/filing-agent-proxy?action=callback&run_id=${encodeURIComponent(filing_run_id || "")}`;
       const requestBody = {
         filing_data: {
           filing_type: filingPayload.filing_details.filing_type,
