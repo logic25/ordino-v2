@@ -415,27 +415,16 @@ export function DobNowFilingPrepSheet({
       }) as any).then(() => {});
 
       // Actually invoke the filing-agent-proxy edge function
-      console.log("[FilingAgent] Invoking filing-agent-proxy with action=start-filing", {
+      // Invoke filing-agent-proxy with action=start-filing
+      // supabase.functions.invoke doesn't support query params, so use direct fetch
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      console.log("[FilingAgent] Sending request to filing-agent-proxy...", {
         project_id: project.id,
         service_id: service.id,
       });
 
-      const { data: agentData, error: agentError } = await supabase.functions.invoke(
-        "filing-agent-proxy",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: { project_id: project.id, service_id: service.id },
-        }
-      );
-
-      // Append query param for action routing
-      // Note: supabase.functions.invoke doesn't support query params natively,
-      // so we need to use a direct fetch instead
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      console.log("[FilingAgent] Sending request to filing-agent-proxy...");
       const proxyRes = await fetch(
         `${supabaseUrl}/functions/v1/filing-agent-proxy?action=start-filing`,
         {
