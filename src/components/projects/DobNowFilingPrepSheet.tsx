@@ -924,6 +924,7 @@ export function DobNowFilingPrepSheet({
                 <Separator className="my-3" />
 
                 {/* Two-step agent flow */}
+                {(() => { console.log("[FilingAgent] Render state:", { dobSessionId, loginConfirmed, submitStep }); return null; })()}
                 {!dobSessionId && !loginConfirmed && (
                   <Button
                     variant="outline"
@@ -964,6 +965,7 @@ export function DobNowFilingPrepSheet({
                         size="sm"
                         className="flex-1 gap-1.5"
                         onClick={() => {
+                          console.log("[FilingAgent] I'm Logged In clicked. session_id:", dobSessionId, "submitStep:", submitStep);
                           setLoginConfirmed(true);
                           setSessionModalOpen(false);
                           toast({ title: "Login confirmed", description: "You can now launch the filing agent." });
