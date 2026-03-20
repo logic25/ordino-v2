@@ -182,10 +182,56 @@ Deno.serve(async (req) => {
       "X-Agent-Secret": FILING_AGENT_SECRET,
     };
 
+    // ─── action: create-session ───
+    if (action === "create-session") {
+      console.log("[filing-agent-proxy] create-session requested by user:", user.id);
+
+      let agentRes: Response;
+      try {
+        agentRes = await fetch(`${FILING_AGENT_URL}/api/session`, {
+          method: "POST",
+          headers: agentHeaders,
+          body: JSON.stringify({ initiated_by: profile.id }),
+        });
+      } catch (fetchErr) {
+        console.error("[filing-agent-proxy] create-session fetch error:", fetchErr);
+        return new Response(JSON.stringify({ error: "Failed to reach filing agent", details: String(fetchErr) }), {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const agentText = await agentRes.text();
+      console.log("[filing-agent-proxy] create-session agent response:", agentRes.status, agentText.substring(0, 500));
+
+      if (!agentRes.ok) {
+        return new Response(agentText, {
+          status: agentRes.status,
+          headers: { ...corsHeaders, "Content-Type": agentRes.headers.get("Content-Type") || "application/json" },
+        });
+      }
+
+      try {
+        const agentJson = JSON.parse(agentText);
+        const sessionId = agentJson.session_id || null;
+        const liveUrl = agentJson.live_url || buildBrowserbaseSessionUrl(sessionId);
+
+        return new Response(JSON.stringify({ session_id: sessionId, live_url: liveUrl || "" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch {
+        return new Response(agentText, {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": agentRes.headers.get("Content-Type") || "application/json" },
+        });
+      }
+    }
+
     // ─── action: start-filing ───
     if (action === "start-filing") {
       const body = await req.json();
-      const { project_id, service_id, filing_run_id } = body;
+      const { project_id, service_id, filing_run_id, session_id: existingSessionId } = body;
       console.log("[filing-agent-proxy] start-filing received:", JSON.stringify({ project_id, service_id, filing_run_id, user_company_id: profile.company_id }));
 
       if (!project_id) {
@@ -415,6 +461,7 @@ Deno.serve(async (req) => {
         filing_run_id: filing_run_id || null,
         initiated_by: profile.id,
         callback_url: callbackUrl,
+        ...(existingSessionId ? { session_id: existingSessionId } : {}),
       };
 
       // Forward to filing agent
