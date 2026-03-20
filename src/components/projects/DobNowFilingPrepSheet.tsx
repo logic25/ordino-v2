@@ -157,6 +157,7 @@ export function DobNowFilingPrepSheet({
         (payload: any) => {
           const row = payload.new;
           setAgentStatus(row.status);
+          setAgentQueuedAt(row.created_at || row.started_at || null);
           setAgentProgress(Array.isArray(row.progress_log) ? row.progress_log : []);
           if (row.error_message) setAgentError(row.error_message);
         }
