@@ -143,6 +143,7 @@ export function DobNowFilingPrepSheet({
   const [agentProgress, setAgentProgress] = useState<FilingRunProgress[]>([]);
   const [agentError, setAgentError] = useState<string | null>(null);
   const [launchingAgent, setLaunchingAgent] = useState(false);
+  const [confirmingFiled, setConfirmingFiled] = useState(false);
 
   // Realtime subscription for agent progress
   useEffect(() => {
