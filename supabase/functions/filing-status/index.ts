@@ -19,13 +19,17 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const url = new URL(req.url);
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Authenticate: service role key in Authorization header or DOB_AGENT_SECRET
+    // Authenticate: service role key in Authorization header or shared agent secret
     const authHeader = req.headers.get("authorization") ?? "";
     const agentSecret = req.headers.get("x-agent-secret") ?? "";
-    const expectedAgentSecret = Deno.env.get("DOB_AGENT_SECRET") ?? "";
+    const expectedAgentSecret =
+      Deno.env.get("DOB_AGENT_SECRET") ??
+      Deno.env.get("FILING_AGENT_SECRET") ??
+      "";
 
     const isServiceRole = authHeader === `Bearer ${serviceRoleKey}`;
     const isAgentAuth = expectedAgentSecret && agentSecret === expectedAgentSecret;
@@ -49,9 +53,22 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const body = await req.json();
-    const { filing_run_id, status, step, error_message, agent_session_id, live_url, session_url, recording_url, screenshots: incomingScreenshots } = body;
+    const queryRunId = url.searchParams.get("run_id");
+    const {
+      filing_run_id,
+      status,
+      step,
+      error_message,
+      agent_session_id,
+      job_id,
+      live_url,
+      session_url,
+      recording_url,
+      screenshots: incomingScreenshots,
+    } = body;
+    const effectiveRunId = filing_run_id ?? queryRunId;
 
-    if (!filing_run_id) {
+    if (!effectiveRunId) {
       return new Response(JSON.stringify({ error: "filing_run_id is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -62,7 +79,7 @@ Deno.serve(async (req) => {
     const { data: run, error: fetchError } = await supabase
       .from("filing_runs")
       .select("id, progress_log, status")
-      .eq("id", filing_run_id)
+      .eq("id", effectiveRunId)
       .maybeSingle();
 
     if (fetchError || !run) {
@@ -87,7 +104,7 @@ Deno.serve(async (req) => {
     };
 
     if (status) update.status = status;
-    if (agent_session_id) update.agent_session_id = agent_session_id;
+    if (agent_session_id || job_id) update.agent_session_id = agent_session_id || job_id;
     if (error_message) update.error_message = error_message;
     if (live_url) update.live_url = live_url;
     if (session_url) update.session_url = session_url;
@@ -106,7 +123,7 @@ Deno.serve(async (req) => {
     const { error: updateError } = await supabase
       .from("filing_runs")
       .update(update)
-      .eq("id", filing_run_id);
+      .eq("id", effectiveRunId);
 
     if (updateError) {
       console.error("Failed to update filing_runs:", updateError);
