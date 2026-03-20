@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Loader2, CheckCircle2, XCircle, Eye, Bot, ArrowLeft,
   ExternalLink, Clock, Image as ImageIcon, ThumbsUp, ThumbsDown,
-  RotateCcw, Trash2, ChevronDown, ChevronRight,
+  RotateCcw, Trash2, ChevronDown, ChevronRight, LogIn,
 } from "lucide-react";
 
 interface FilingRunProgress {
@@ -28,6 +28,7 @@ interface FilingRunData {
   agent_session_id: string | null;
   session_url: string | null;
   recording_url: string | null;
+  live_url: string | null;
   progress_log: FilingRunProgress[];
   screenshots: Array<{ url: string; step: string; timestamp: string }>;
 }
@@ -94,7 +95,7 @@ export function FilingAgentSupervisionPanel({
     if (!isTerminal && !pollRef.current) {
       pollRef.current = setInterval(() => {
         pollAgentStatus();
-        fetchRun(); // also refresh from DB
+        fetchRun();
       }, 5000);
     }
 
@@ -124,6 +125,7 @@ export function FilingAgentSupervisionPanel({
             started_at: row.started_at,
             session_url: row.session_url,
             recording_url: row.recording_url,
+            live_url: row.live_url,
             screenshots: Array.isArray(row.screenshots) ? row.screenshots : [],
           } : null);
         }
@@ -135,7 +137,7 @@ export function FilingAgentSupervisionPanel({
 
   const fetchRun = async () => {
     const { data, error } = await (supabase.from("filing_runs") as any)
-      .select("id, status, created_at, started_at, completed_at, error_message, agent_session_id, session_url, recording_url, progress_log, screenshots")
+      .select("id, status, created_at, started_at, completed_at, error_message, agent_session_id, session_url, recording_url, live_url, progress_log, screenshots")
       .eq("id", runId)
       .maybeSingle();
 
@@ -169,18 +171,22 @@ export function FilingAgentSupervisionPanel({
 
       if (res.ok) {
         const agentData = await res.json();
-        // If agent reports session/recording URLs, persist them
-        if (agentData.session_url || agentData.recording_url) {
-          const updates: Record<string, any> = {};
-          if (agentData.session_url) updates.session_url = agentData.session_url;
-          if (agentData.recording_url) updates.recording_url = agentData.recording_url;
+        const updates: Record<string, any> = {};
+        if (agentData.session_url) updates.session_url = agentData.session_url;
+        if (agentData.recording_url) updates.recording_url = agentData.recording_url;
+        if (agentData.live_url) updates.live_url = agentData.live_url;
 
+        if (Object.keys(updates).length > 0) {
           await (supabase.from("filing_runs") as any)
             .update(updates)
             .eq("id", runId);
         }
 
-        // Update screenshots if provided
+        // Update local state with live_url immediately
+        if (agentData.live_url) {
+          setRun(prev => prev ? { ...prev, live_url: agentData.live_url } : null);
+        }
+
         if (agentData.screenshots && Array.isArray(agentData.screenshots)) {
           await (supabase.from("filing_runs") as any)
             .update({ screenshots: agentData.screenshots })
@@ -248,6 +254,18 @@ export function FilingAgentSupervisionPanel({
     return () => clearInterval(interval);
   }, [run?.status]);
 
+  // Detect login-required step
+  const needsLogin = useMemo(() => {
+    if (!run || !isRunningStatus(run.status)) return false;
+    return run.progress_log.some(
+      (entry) =>
+        entry.step?.toLowerCase().includes("login_required") ||
+        entry.step?.toLowerCase().includes("waiting_for_login") ||
+        entry.status?.toLowerCase().includes("login_required") ||
+        entry.status?.toLowerCase().includes("waiting_for_login")
+    );
+  }, [run?.progress_log, run?.status]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center gap-2 p-6 text-sm text-muted-foreground">
@@ -269,10 +287,14 @@ export function FilingAgentSupervisionPanel({
 
   const statusConfig = STATUS_CONFIG[run.status] || STATUS_CONFIG.queued;
   const StatusIcon = statusConfig.icon;
-  const isRunning = ["queued", "running", "in_progress"].includes(run.status);
+  const isRunning = isRunningStatus(run.status);
   const isReviewable = ["ready_for_review", "review_needed"].includes(run.status);
   const isError = ["failed", "error"].includes(run.status);
   const screenshots = run.screenshots || [];
+
+  // Determine which URL to use for the Watch button
+  const watchUrl = isRunning ? (run.live_url || run.session_url) : (run.recording_url || run.session_url);
+  const watchLabel = isRunning ? "Watch Live" : "View Recording";
 
   return (
     <div className="space-y-3">
@@ -286,19 +308,37 @@ export function FilingAgentSupervisionPanel({
         </div>
       </div>
 
+      {/* ── LOGIN REQUIRED BANNER ── */}
+      {needsLogin && run.live_url && (
+        <div className="p-3 rounded-lg border-2 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 space-y-2">
+          <div className="flex items-start gap-2">
+            <LogIn className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+            <p className="text-sm text-blue-800 dark:text-blue-200">
+              <span className="font-semibold">DOB NOW requires login.</span>{" "}
+              Click below to open the browser and log in. The agent will continue automatically after you sign in.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={() => window.open(run.live_url!, "_blank")}
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            Open Browser to Log In
+          </Button>
+        </div>
+      )}
+
       {/* Watch Live / Recording button */}
-      {(run.session_url || run.recording_url) && (
+      {watchUrl && (
         <Button
           variant="outline"
           size="sm"
           className="w-full gap-2 text-xs"
-          onClick={() => {
-            const url = run.recording_url || run.session_url;
-            if (url) window.open(url, "_blank");
-          }}
+          onClick={() => window.open(watchUrl, "_blank")}
         >
           <ExternalLink className="h-3.5 w-3.5" />
-          {isRunning ? "Watch Live" : "View Recording"}
+          {watchLabel}
         </Button>
       )}
 
@@ -502,4 +542,8 @@ export function FilingAgentSupervisionPanel({
       )}
     </div>
   );
+}
+
+function isRunningStatus(status: string): boolean {
+  return ["queued", "running", "in_progress"].includes(status);
 }

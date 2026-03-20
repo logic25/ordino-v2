@@ -348,8 +348,26 @@ Deno.serve(async (req) => {
         headers: agentHeaders,
       });
 
-      const agentData = await agentRes.text();
-      return new Response(agentData, {
+      const agentText = await agentRes.text();
+
+      // Persist live_url, session_url, recording_url if returned
+      try {
+        const agentJson = JSON.parse(agentText);
+        const updates: Record<string, any> = {};
+        if (agentJson.live_url) updates.live_url = agentJson.live_url;
+        if (agentJson.session_url) updates.session_url = agentJson.session_url;
+        if (agentJson.recording_url) updates.recording_url = agentJson.recording_url;
+
+        if (Object.keys(updates).length > 0) {
+          // Find filing_run by agent_session_id
+          await supabase
+            .from("filing_runs")
+            .update(updates)
+            .eq("agent_session_id", jobId);
+        }
+      } catch { /* not JSON or no URLs */ }
+
+      return new Response(agentText, {
         status: agentRes.status,
         headers: { ...corsHeaders, "Content-Type": agentRes.headers.get("Content-Type") || "application/json" },
       });

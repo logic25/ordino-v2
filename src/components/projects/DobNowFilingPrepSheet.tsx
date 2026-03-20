@@ -469,6 +469,7 @@ export function DobNowFilingPrepSheet({
       };
       if (proxyResult?.session_url) updateData.session_url = proxyResult.session_url;
       if (proxyResult?.recording_url) updateData.recording_url = proxyResult.recording_url;
+      if (proxyResult?.live_url) updateData.live_url = proxyResult.live_url;
 
       await (supabase.from("filing_runs") as any)
         .update(updateData)

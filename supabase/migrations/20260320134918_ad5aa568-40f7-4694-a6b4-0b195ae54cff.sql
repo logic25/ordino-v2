@@ -1,0 +1,1 @@
+ALTER TABLE public.filing_runs ADD COLUMN IF NOT EXISTS live_url text;
