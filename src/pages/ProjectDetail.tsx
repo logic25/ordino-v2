@@ -43,7 +43,7 @@ import {
   FileSpreadsheet, Download, Sparkles, Eye, ShieldCheck, PenLine,
   GripVertical, ArrowUp, ArrowDown, UserPlus, ArrowUpDown,
 } from "lucide-react";
-import { useProjects, useUpdateProject, ProjectWithRelations } from "@/hooks/useProjects";
+import { useProject, useUpdateProject, ProjectWithRelations } from "@/hooks/useProjects";
 import { useSendProposal } from "@/hooks/useProposals";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { useAssignableProfiles, useCompanyProfiles } from "@/hooks/useProfiles";
@@ -125,7 +125,7 @@ function LitigationButton({ onClick }: { onClick: () => void }) {
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { data: projects = [], isLoading } = useProjects();
+  const { data: project, isLoading } = useProject(id);
   const { data: assignableProfiles = [] } = useAssignableProfiles();
   const updateProject = useUpdateProject();
   const { toast } = useToast();
@@ -136,8 +136,6 @@ export default function ProjectDetail() {
   const [selectedCOId, setSelectedCOId] = useState<string | null>(null);
   const [coSheetOpen, setCoSheetOpen] = useState(false);
   const [coAutoSign, setCoAutoSign] = useState(false);
-
-  const project = projects.find((p) => p.id === id);
 
   // Real data hooks — use URL id directly so services don't wait for useProjects() to resolve
   const { data: realServices = [], isLoading: servicesLoading } = useProjectServices(id);

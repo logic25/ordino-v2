@@ -1,76 +1,81 @@
+## CitiSignal Complimentary Subscription Safeguards — Complete
 
+### What was built:
 
-# Plan: Fixes 8–14
+**1. Database migration** ✅
+- Added 6 columns to `signal_subscriptions`: `is_complimentary`, `enrolled_by`, `linked_project_id`, `monthly_rate`, `billing_start_date`, `comp_reason`
 
-## Summary
+**2. useSignalSubscriptions hook updated** ✅
+- Types include all new fields + joined `enrolled_by_name`, `linked_project_name`, `linked_project_phase`
+- `useEnrollProperty` auto-sets `enrolled_by` to current user's profile ID
+- `useSignalSubscription` fetches joined profile name and project info
 
-Seven targeted fixes across frontend components, edge functions, and a data hook. One fix (Property not-found state) is already implemented and will be skipped.
+**3. SignalEnrollDialog enhanced** ✅
+- Complimentary toggle (only enabled when property has active projects)
+- Linked project selector (required when complimentary)
+- Comp reason textarea
+- Monthly rate + billing start date inputs (for paid active subs)
+- Trial auto-expiry (14 days), comp auto-expiry (1 year)
+- Enrolled-by shown read-only on edit
 
----
+**4. SignalSection updated** ✅
+- Shows "Sold by: [Name]"
+- Shows "Complimentary — linked to [Project Name]" or "Paid — $X/mo"
+- Expiration countdown with color warnings
+- Warning badge if linked project closed or no linked project on comp
 
-## Fix 8: Beacon Error Handling
-**File:** `src/components/chat/ChatPanel.tsx`
-
-Add a visible error message in the `sendBeaconDirectMessage` catch block. After `console.error`, insert a bot error message into widget_messages so it appears in the chat, then invalidate the query to show it.
-
-## Fix 9: ProjectDetail Performance
-**File:** `src/pages/ProjectDetail.tsx`
-
-Replace `useProjects()` (fetches ALL projects) with the existing `useProject(id)` hook from `src/hooks/useProjects.ts`. Change line 128 from `const { data: projects = [], isLoading } = useProjects()` to `const { data: project, isLoading } = useProject(id)` and remove the `.find()` on line 140.
-
-## Fix 10: Property Detail Not Found — ALREADY DONE
-**File:** `src/pages/PropertyDetail.tsx`
-
-Lines 212-222 already show "Property not found" with a back button. No changes needed.
-
-## Fix 11: DOB NOW PAA Dedup
-**File:** `src/hooks/useDOBApplications.ts`
-
-For DOB_NOW_BUILD records where `docNum` is null, use the full `job_filing_number` (which includes filing-specific suffixes) as the dedup key instead of defaulting to `"01"`. Change line 246:
-```
-const key = r.source === "DOB_NOW_BUILD" && !r.docNum
-  ? `NOW-${r.jobNum}`
-  : `${jobDigits}-${r.docNum || "01"}`;
-```
-
-## Fix 12: Blank Invoice Numbers
-**File:** `supabase/functions/process-billing-schedules/index.ts`
-
-The `invoices` table has a `generate_invoice_number()` trigger that fires on INSERT and sets `invoice_number` when it's NULL or empty. The current code sets `invoice_number: ""` which the trigger checks for. The trigger already handles this — but the empty string `""` passes the `IS NULL OR = ''` check in the trigger. Verify trigger logic handles empty string. The trigger at line `IF NEW.invoice_number IS NULL OR NEW.invoice_number = '' THEN` does handle it. So the fix is simply to pass `null` instead of `""` to be explicit and let the trigger do its job.
-
-## Fix 13: AI JSON Parsing Silent Failures
-**Files:** Edge functions that parse AI JSON responses and silently return defaults on failure.
-
-Key files to update:
-- `supabase/functions/extract-tasks/index.ts` — returns empty `{ tasks: [], promises: [] }` on parse failure
-- `supabase/functions/predict-payment-risk/index.ts` — falls back to defaults
-- `supabase/functions/analyze-telemetry/index.ts` — falls back to empty array
-- `supabase/functions/generate-collection-message/index.ts` — falls back to defaults
-
-For each: log the raw AI response, add a `warning` field to the response JSON when falling back. No HTTP status change needed — just add `warning: "AI response could not be parsed, showing defaults"` to the response body.
-
-Frontend: No universal toast needed — each caller can check for `warning` field. This is a low-priority enhancement; will add the `warning` field server-side only.
-
-## Fix 14: Auth Callback Timeout
-**File:** `src/pages/AuthCallback.tsx`
-
-Replace the silent redirect with a stateful timeout message. Add a `timedOut` state. When the 10s timeout fires, set `timedOut = true` instead of navigating. Render a message with a link to `/auth` instead of `<LoadingScreen />`.
+**5. SignalStatusBadge updated** ✅
+- Gift icon shown for complimentary subscriptions
 
 ---
 
-## Files Changed
+## Fix: Wrong & Duplicate Contacts on Converted Projects — Complete
 
-| File | Fix |
-|------|-----|
-| `src/components/chat/ChatPanel.tsx` | #8 |
-| `src/pages/ProjectDetail.tsx` | #9 |
-| `src/hooks/useDOBApplications.ts` | #11 |
-| `supabase/functions/process-billing-schedules/index.ts` | #12 |
-| `supabase/functions/extract-tasks/index.ts` | #13 |
-| `supabase/functions/predict-payment-risk/index.ts` | #13 |
-| `supabase/functions/analyze-telemetry/index.ts` | #13 |
-| `supabase/functions/generate-collection-message/index.ts` | #13 |
-| `src/pages/AuthCallback.tsx` | #14 |
+### Bugs fixed:
 
-No database migrations required. No new dependencies.
+**1. Contact matching used email-only (caused wrong CRM match)** ✅
+- `migrateProposalContactsToProject()` now matches by: exact name first → email+name verification → create new
+- Prevents "same email, different person" collisions (e.g. Marrina → Mike Diller)
+- Extracted into a shared utility used by both `useSignProposalInternal` and `useMarkProposalApproved`
 
+**2. `useMarkProposalApproved` was missing contact migration entirely** ✅
+- Added `migrateProposalContactsToProject()` call to the approval flow
+
+**3. Contacts tab showed duplicates from multiple sources** ✅
+- `useProjectContacts` now: if project has linked `project_contacts`, show ONLY those
+- Falls back to client contacts + proposal contacts only when no linked contacts exist
+- Deduplication uses name+email normalization instead of mixing id-based and string-based keys
+
+### Files changed:
+- `src/hooks/useProposals.ts` — extracted `migrateProposalContactsToProject()`, simplified internal sign contact migration
+- `src/hooks/useProposalFollowUps.ts` — added contact migration to approval flow
+- `src/hooks/useProjectDetail.ts` — rewrote `useProjectContacts` with proper source priority and deduplication
+- `src/test/contactMigration.test.ts` — 7 regression tests covering matching, deduplication, and role filtering
+
+---
+
+## Fixes 8–14 — Complete
+
+### Fix 8: Beacon Error Handling ✅
+- `ChatPanel.tsx`: catch block now inserts an error message into `widget_messages` and invalidates the query so user sees "Sorry, I couldn't process that request."
+
+### Fix 9: ProjectDetail Performance ✅
+- `ProjectDetail.tsx`: Replaced `useProjects()` (fetches ALL) with `useProject(id)` (fetches single record by ID)
+
+### Fix 10: Property Detail Not Found — Already Done ✅
+- No changes needed; existing code handles this
+
+### Fix 11: DOB NOW PAA Dedup ✅
+- `useDOBApplications.ts`: DOB_NOW_BUILD records with null `docNum` now use `NOW-{jobNum}` as dedup key instead of `{jobDigits}-01`
+
+### Fix 12: Blank Invoice Numbers ✅
+- `process-billing-schedules/index.ts`: Changed `invoice_number: ""` to `invoice_number: null` to explicitly trigger the `generate_invoice_number()` DB trigger
+
+### Fix 13: AI JSON Parsing Warnings ✅
+- `extract-tasks/index.ts`: Logs raw response and adds `warning` field on parse failure
+- `predict-payment-risk/index.ts`: Logs raw response and adds `warning` field on parse failure
+- `generate-collection-message/index.ts`: Logs raw response and adds `warning` field on parse failure
+- `analyze-telemetry/index.ts`: Already returns HTTP 500 on parse failure (no silent fallback)
+
+### Fix 14: Auth Callback Timeout UX ✅
+- `AuthCallback.tsx`: Shows "Sign-in is taking longer than expected" message with a link to `/auth` instead of silently redirecting
