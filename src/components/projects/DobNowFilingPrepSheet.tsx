@@ -505,7 +505,13 @@ export function DobNowFilingPrepSheet({
         .eq("id", run.id);
       setAgentStatus("running");
 
-      toast({ title: "Agent launched", description: "The filing agent has started processing." });
+      // Auto-open live browser in new tab as fallback for iframe auth issues
+      const liveUrl = proxyResult?.live_url;
+      if (liveUrl) {
+        window.open(liveUrl, "_blank");
+      }
+
+      toast({ title: "Agent launched", description: "The filing agent has started processing." + (liveUrl ? " Browser opened in new tab." : "") });
     } finally {
       setLaunchingAgent(false);
     }

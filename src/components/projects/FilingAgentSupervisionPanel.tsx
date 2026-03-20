@@ -365,12 +365,11 @@ export function FilingAgentSupervisionPanel({
                   <ExternalLink className="h-3.5 w-3.5" />
                 </Button>
               </div>
-              {/* iframe */}
+              {/* iframe — no sandbox to avoid Browserbase login redirect */}
               <iframe
                 src={iframeSrc}
                 className={`w-full border-0 ${iframeExpanded ? "flex-1" : "h-[500px]"}`}
                 allow="clipboard-read; clipboard-write"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
               />
             </div>
           );
