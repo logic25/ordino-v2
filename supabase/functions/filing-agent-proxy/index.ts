@@ -61,11 +61,17 @@ Deno.serve(async (req) => {
 
       const supabase = createClient(supabaseUrl, serviceRoleKey);
       const body = await req.json();
+      console.log("[filing-agent-proxy] CALLBACK raw body:", JSON.stringify(body));
+
       const { filing_run_id, status, step, error_message, agent_session_id, job_id, live_url, session_url, recording_url, screenshots, session_id } = body;
       const runId = filing_run_id ?? url.searchParams.get("run_id");
+      console.log("[filing-agent-proxy] CALLBACK run_id:", runId, "| from body:", filing_run_id, "| from URL:", url.searchParams.get("run_id"));
+      console.log("[filing-agent-proxy] CALLBACK fields — status:", status, "| live_url:", live_url, "| session_id:", session_id, "| recording_url:", recording_url, "| step:", step);
+
       const normalizedStatus = normalizeFilingRunStatus(status);
       const resolvedLiveUrl = live_url || buildBrowserbaseSessionUrl(session_id);
       const resolvedRecordingUrl = recording_url || buildBrowserbaseSessionUrl(session_id);
+      console.log("[filing-agent-proxy] CALLBACK resolved — normalizedStatus:", normalizedStatus, "| resolvedLiveUrl:", resolvedLiveUrl, "| resolvedRecordingUrl:", resolvedRecordingUrl);
 
       if (!runId) {
         return new Response(JSON.stringify({ error: "filing_run_id is required" }), {
@@ -81,11 +87,14 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (fetchError || !run) {
+        console.error("[filing-agent-proxy] CALLBACK run not found — runId:", runId, "fetchError:", JSON.stringify(fetchError));
         return new Response(JSON.stringify({ error: "Filing run not found" }), {
           status: 404,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      console.log("[filing-agent-proxy] CALLBACK existing run — id:", run.id, "| current status:", run.status);
 
       const progressLog = Array.isArray(run.progress_log) ? [...run.progress_log] : [];
       if (step) {
@@ -108,18 +117,23 @@ Deno.serve(async (req) => {
         update.completed_at = new Date().toISOString();
       }
 
-      const { error: updateError } = await supabase
+      console.log("[filing-agent-proxy] CALLBACK update payload:", JSON.stringify(update));
+
+      const { error: updateError, data: updateResult } = await supabase
         .from("filing_runs")
         .update(update)
-        .eq("id", runId);
+        .eq("id", runId)
+        .select("id, live_url, recording_url, status");
 
       if (updateError) {
-        console.error("[filing-agent-proxy] callback update error:", updateError);
+        console.error("[filing-agent-proxy] CALLBACK update error:", JSON.stringify(updateError));
         return new Response(JSON.stringify({ error: "Failed to update" }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      console.log("[filing-agent-proxy] CALLBACK update SUCCESS — result:", JSON.stringify(updateResult));
 
       console.log("[filing-agent-proxy] callback processed for run:", runId, "status:", normalizedStatus || "(no change)");
       return new Response(JSON.stringify({ success: true }), {
