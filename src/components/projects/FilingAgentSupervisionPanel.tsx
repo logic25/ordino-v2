@@ -77,13 +77,18 @@ export function FilingAgentSupervisionPanel({
   const [screenshotIndex, setScreenshotIndex] = useState(0);
   const [stepsExpanded, setStepsExpanded] = useState(true);
   const [browserModalOpen, setBrowserModalOpen] = useState(false);
-  const [iframeExpanded, setIframeExpanded] = useState(false);
+  const [activeBrowserUrl, setActiveBrowserUrl] = useState<string | null>(null);
   const prevLiveUrlRef = useRef<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Fetch initial run data
   useEffect(() => {
     fetchRun();
+  }, [runId]);
+
+  useEffect(() => {
+    setActiveBrowserUrl(null);
+    prevLiveUrlRef.current = null;
   }, [runId]);
 
   // Poll for status updates + realtime subscription
@@ -128,9 +133,9 @@ export function FilingAgentSupervisionPanel({
             error_message: row.error_message,
             completed_at: row.completed_at,
             started_at: row.started_at,
-            session_url: row.session_url,
-            recording_url: row.recording_url,
-            live_url: row.live_url,
+            session_url: row.session_url || prev.session_url,
+            recording_url: row.recording_url || prev.recording_url,
+            live_url: row.live_url || prev.live_url,
             screenshots: Array.isArray(row.screenshots) ? row.screenshots : [],
           } : null);
         }
@@ -149,11 +154,14 @@ export function FilingAgentSupervisionPanel({
     console.log("[FilingSupervision] fetchRun live_url:", data?.live_url, data);
 
     if (data) {
-      setRun({
+      setRun((prev) => ({
         ...data,
+        session_url: data.session_url || prev?.session_url || null,
+        recording_url: data.recording_url || prev?.recording_url || null,
+        live_url: data.live_url || prev?.live_url || null,
         progress_log: Array.isArray(data.progress_log) ? data.progress_log : [],
         screenshots: Array.isArray(data.screenshots) ? data.screenshots : [],
-      });
+      }));
     }
     setLoading(false);
   };
@@ -271,6 +279,22 @@ export function FilingAgentSupervisionPanel({
     prevLiveUrlRef.current = run?.live_url || null;
   }, [run?.live_url, run?.status]);
 
+  useEffect(() => {
+    if (!run) return;
+
+    setActiveBrowserUrl((prev) => {
+      if (isRunningStatus(run.status)) {
+        return run.live_url || run.session_url || prev || null;
+      }
+
+      if (TERMINAL_STATUSES.includes(run.status)) {
+        return run.recording_url || run.live_url || run.session_url || prev || null;
+      }
+
+      return prev || run.live_url || run.session_url || run.recording_url || null;
+    });
+  }, [run?.status, run?.live_url, run?.session_url, run?.recording_url]);
+
   // Detect login-required step
   const needsLogin = useMemo(() => {
     if (!run || !isRunningStatus(run.status)) return false;
@@ -338,11 +362,7 @@ export function FilingAgentSupervisionPanel({
 
       {/* ── EMBEDDED BROWSER VIEW (inline small preview + open modal button) ── */}
       {(() => {
-        const iframeSrc = isRunning
-          ? (run.live_url || run.session_url)
-          : (!isRunning && TERMINAL_STATUSES.includes(run.status))
-            ? (run.recording_url || run.session_url)
-            : null;
+        const iframeSrc = activeBrowserUrl;
 
         if (iframeSrc) {
           return (
@@ -376,7 +396,8 @@ export function FilingAgentSupervisionPanel({
                 src={iframeSrc}
                 className="w-full border-0 h-[280px]"
                 allow="clipboard-read; clipboard-write; autoplay; encrypted-media; fullscreen"
-                style={{ pointerEvents: "auto" }}
+                 tabIndex={0}
+                 style={{ pointerEvents: "auto" }}
               />
             </div>
           );
@@ -402,11 +423,7 @@ export function FilingAgentSupervisionPanel({
 
       {/* ── BROWSER MODAL (custom portal — no focus trap, no pointer interception) ── */}
       {(() => {
-        const modalSrc = isRunning
-          ? (run.live_url || run.session_url)
-          : (!isRunning && TERMINAL_STATUSES.includes(run.status))
-            ? (run.recording_url || run.session_url)
-            : null;
+        const modalSrc = activeBrowserUrl;
 
         if (!modalSrc || !browserModalOpen) return null;
 
@@ -419,7 +436,7 @@ export function FilingAgentSupervisionPanel({
             />
             {/* Modal panel */}
             <div
-              className="fixed z-[101] bg-background border rounded-lg shadow-2xl flex flex-col overflow-hidden"
+              className="fixed z-[101] bg-background border rounded-lg shadow-2xl flex flex-col overflow-hidden pointer-events-auto"
               style={{
                 top: "5vh",
                 left: "4vw",
@@ -476,6 +493,7 @@ export function FilingAgentSupervisionPanel({
                 src={modalSrc}
                 className="flex-1 w-full border-0"
                 allow="clipboard-read; clipboard-write; autoplay; encrypted-media; fullscreen"
+                tabIndex={0}
                 style={{ pointerEvents: "auto" }}
               />
             </div>
