@@ -75,6 +75,7 @@ export function FilingAgentSupervisionPanel({
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [screenshotIndex, setScreenshotIndex] = useState(0);
+  const [stepsExpanded, setStepsExpanded] = useState(true);
   const [browserModalOpen, setBrowserModalOpen] = useState(false);
   const [iframeExpanded, setIframeExpanded] = useState(false);
   const prevLiveUrlRef = useRef<string | null>(null);
