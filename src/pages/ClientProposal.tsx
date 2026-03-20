@@ -26,12 +26,12 @@ export default function ClientProposalPage() {
   const [paymentStep, setPaymentStep] = useState<"select" | "form" | "processing" | "success">("select");
   const [welcomeEmailSent, setWelcomeEmailSent] = useState(false);
   const [pisAutoCreated, setPisAutoCreated] = useState(false);
-  // Mock card form
+  // Test-only payment form fields (only shown with ?test_payment=true)
+  const showTestPayment = new URLSearchParams(window.location.search).get("test_payment") === "true";
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvc, setCardCvc] = useState("");
   const [cardName, setCardName] = useState("");
-  // Mock ACH form
   const [bankRouting, setBankRouting] = useState("");
   const [bankAccount, setBankAccount] = useState("");
   const [bankName, setBankName] = useState("");
