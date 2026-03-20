@@ -460,14 +460,18 @@ export function DobNowFilingPrepSheet({
         return;
       }
 
-      // Update filing_run with agent job_id and set to running
+      // Update filing_run with agent job_id, session URLs, and set to running
       const agentJobId = proxyResult?.job_id || null;
+      const updateData: Record<string, any> = {
+        status: "running",
+        started_at: new Date().toISOString(),
+        agent_session_id: agentJobId,
+      };
+      if (proxyResult?.session_url) updateData.session_url = proxyResult.session_url;
+      if (proxyResult?.recording_url) updateData.recording_url = proxyResult.recording_url;
+
       await (supabase.from("filing_runs") as any)
-        .update({
-          status: "running",
-          started_at: new Date().toISOString(),
-          agent_session_id: agentJobId,
-        })
+        .update(updateData)
         .eq("id", run.id);
       setAgentStatus("running");
 
