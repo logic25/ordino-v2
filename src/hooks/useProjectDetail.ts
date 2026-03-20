@@ -13,7 +13,7 @@ export function useProjectServices(projectId: string | undefined) {
     queryFn: async () => {
       if (!projectId) return [];
 
-      const [{ data, error }, { data: billingReqs }] = await Promise.all([
+      const [{ data, error }, { data: billingReqs }, { data: pisData }] = await Promise.all([
         supabase
           .from("services")
           .select("*")
@@ -24,6 +24,12 @@ export function useProjectServices(projectId: string | undefined) {
           .select("services, invoices(id, sent_at, paid_at)")
           .eq("project_id", projectId)
           .in("status", ["pending", "invoiced"]),
+        (supabase.from("rfi_requests") as any)
+          .select("responses")
+          .eq("project_id", projectId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
       ]);
 
       if (error) throw error;
