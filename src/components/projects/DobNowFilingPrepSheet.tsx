@@ -794,12 +794,12 @@ export function DobNowFilingPrepSheet({
       <SheetContent
         className="sm:max-w-[560px] overflow-y-auto"
         onInteractOutside={(event) => {
-          if (sessionModalOpen) {
+          if (sessionModalOpen || launchingAgent || (agentStatus && !["completed", "failed"].includes(agentStatus))) {
             event.preventDefault();
           }
         }}
         onPointerDownOutside={(event) => {
-          if (sessionModalOpen) {
+          if (sessionModalOpen || launchingAgent || (agentStatus && !["completed", "failed"].includes(agentStatus))) {
             event.preventDefault();
           }
         }}
