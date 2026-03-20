@@ -264,7 +264,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   const goToLibrary = (tab?: string | null) => {
     saveDraft();
     onOpenChange(false);
-    navigate(`/rfps/library${tab ? `?tab=${tab}` : ""}`);
+    navigate(`/rfps/library${tab ? `?tab=${tab}` : ""}${rfp?.id ? `${tab ? "&" : "?"}returnTo=${rfp.id}` : ""}`);
   };
 
   return (
