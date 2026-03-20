@@ -502,6 +502,17 @@ export default function ClientProposalPage() {
                       </Button>
                     </div>
                   </>
+                ) : paymentStep === "form" && (selectedPayment === "card" || selectedPayment === "ach") && !showTestPayment ? (
+                  <div className="text-center py-8">
+                    <div className="flex items-center gap-2 mb-6">
+                      <button onClick={() => { setPaymentStep("select"); setSelectedPayment(null); }} style={{ fontSize: "8.5pt", color: amber, background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>← Back</button>
+                    </div>
+                    <Shield className="h-8 w-8 mx-auto mb-3" style={{ color: amber }} />
+                    <p style={{ fontSize: "10pt", fontWeight: 600, color: charcoal }}>Secure Payment</p>
+                    <p style={{ fontSize: "8.5pt", color: slate, marginTop: 6, maxWidth: 280, marginLeft: "auto", marginRight: "auto" }}>
+                      Payment details will be collected separately through our secure payment processor. Our team will reach out with payment instructions.
+                    </p>
+                  </div>
                 ) : paymentStep === "form" && selectedPayment === "check" ? (
                   <>
                     <div className="flex items-center gap-2 mb-4">
