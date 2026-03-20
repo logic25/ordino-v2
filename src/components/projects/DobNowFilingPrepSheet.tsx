@@ -477,6 +477,17 @@ export function DobNowFilingPrepSheet({
         return;
       }
 
+      // Update filing_run with agent job_id and set to running
+      const agentJobId = proxyResult?.job_id || null;
+      await (supabase.from("filing_runs") as any)
+        .update({
+          status: "running",
+          started_at: new Date().toISOString(),
+          agent_session_id: agentJobId,
+        })
+        .eq("id", run.id);
+      setAgentStatus("running");
+
       toast({ title: "Agent launched", description: "The filing agent has started processing." });
     } finally {
       setLaunchingAgent(false);
