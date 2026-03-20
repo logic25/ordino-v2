@@ -25,7 +25,87 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const action = url.searchParams.get("action");
 
-    // Verify JWT for all actions
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // ─── action: callback (server-to-server, no JWT) ───
+    if (action === "callback") {
+      const agentSecret = req.headers.get("x-agent-secret") ?? "";
+      if (!agentSecret || agentSecret !== FILING_AGENT_SECRET) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const supabase = createClient(supabaseUrl, serviceRoleKey);
+      const body = await req.json();
+      const { filing_run_id, status, step, error_message, agent_session_id, job_id, live_url, session_url, recording_url, screenshots } = body;
+      const runId = filing_run_id ?? url.searchParams.get("run_id");
+
+      if (!runId) {
+        return new Response(JSON.stringify({ error: "filing_run_id is required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: run, error: fetchError } = await supabase
+        .from("filing_runs")
+        .select("id, progress_log, status")
+        .eq("id", runId)
+        .maybeSingle();
+
+      if (fetchError || !run) {
+        return new Response(JSON.stringify({ error: "Filing run not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const progressLog = Array.isArray(run.progress_log) ? [...run.progress_log] : [];
+      if (step) {
+        progressLog.push({ step, status: status || "running", timestamp: new Date().toISOString() });
+      }
+
+      const update: Record<string, any> = { progress_log: progressLog };
+      if (status) update.status = status;
+      if (agent_session_id || job_id) update.agent_session_id = agent_session_id || job_id;
+      if (error_message) update.error_message = error_message;
+      if (live_url) update.live_url = live_url;
+      if (session_url) update.session_url = session_url;
+      if (recording_url) update.recording_url = recording_url;
+      if (Array.isArray(screenshots) && screenshots.length > 0) update.screenshots = screenshots;
+
+      if (status === "running" && !run.status?.includes("running")) {
+        update.started_at = new Date().toISOString();
+      }
+      if (["completed", "failed", "review_needed"].includes(status)) {
+        update.completed_at = new Date().toISOString();
+      }
+
+      const { error: updateError } = await supabase
+        .from("filing_runs")
+        .update(update)
+        .eq("id", runId);
+
+      if (updateError) {
+        console.error("[filing-agent-proxy] callback update error:", updateError);
+        return new Response(JSON.stringify({ error: "Failed to update" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      console.log("[filing-agent-proxy] callback processed for run:", runId, "status:", status || "(no change)");
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── All other actions require JWT ──
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -33,10 +113,6 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     const supabaseAuth = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
