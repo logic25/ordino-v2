@@ -89,6 +89,12 @@ Deno.serve(async (req) => {
     if (status) update.status = status;
     if (agent_session_id) update.agent_session_id = agent_session_id;
     if (error_message) update.error_message = error_message;
+    if (live_url) update.live_url = live_url;
+    if (session_url) update.session_url = session_url;
+    if (recording_url) update.recording_url = recording_url;
+    if (Array.isArray(incomingScreenshots) && incomingScreenshots.length > 0) {
+      update.screenshots = incomingScreenshots;
+    }
 
     if (status === "running" && !run.status?.includes("running")) {
       update.started_at = new Date().toISOString();
