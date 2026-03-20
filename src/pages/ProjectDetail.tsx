@@ -1209,7 +1209,7 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-2 pt-1 flex-wrap">
+               <div className="flex items-center gap-2 pt-1 flex-wrap">
                 <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowAddForm(true)}>
                   <Plus className="h-3.5 w-3.5" /> Add Item
                 </Button>
@@ -1234,9 +1234,6 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
                     )}
                   </Button>
                 )}
-                <Button variant="outline" size="sm" className="gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5" /> Extract from Emails
-                </Button>
                 {outstanding.length > 0 && (
                   <Button
                     variant="outline"
