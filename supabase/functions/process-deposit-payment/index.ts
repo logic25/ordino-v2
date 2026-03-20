@@ -124,20 +124,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Idempotency check: look for an invoice created for this proposal within the last 60 seconds
-    const sixtySecondsAgo = new Date(Date.now() - 60_000).toISOString();
+    // Idempotency check: look for an existing invoice with this key
     const { data: existingInvoices } = await supabase
       .from("invoices")
       .select("id, invoice_number, created_at, payment_amount, payment_method")
-      .eq("project_id", projectId)
-      .eq("client_id", clientId)
-      .eq("payment_amount", depositAmount)
-      .gte("created_at", sixtySecondsAgo)
+      .eq("idempotency_key", idempotencyKey)
       .limit(1);
 
     if (existingInvoices && existingInvoices.length > 0) {
       const existing = existingInvoices[0];
-      // Return the existing record instead of creating a duplicate
       const { data: project } = await supabase
         .from("projects")
         .select("name, project_number")
