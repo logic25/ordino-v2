@@ -722,8 +722,8 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
   projectName?: string; propertyAddress?: string; ownerName?: string; contactEmail?: string;
   contacts?: Array<{ id?: string; name: string; email?: string; phone?: string; [key: string]: any }>;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [showReceived, setShowReceived] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
+  const [showReceived, setShowReceived] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showEditPIS, setShowEditPIS] = useState(false);
   const [newLabel, setNewLabel] = useState("");
