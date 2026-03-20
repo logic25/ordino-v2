@@ -105,6 +105,9 @@ export default function Documents() {
   const [category, setCategory] = useState("general");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [linkProjectId, setLinkProjectId] = useState<string | undefined>();
+  const [linkPropertyId, setLinkPropertyId] = useState<string | undefined>();
+  const [linkProposalId, setLinkProposalId] = useState<string | undefined>();
 
   // Seed folders on first load
   useEffect(() => {
