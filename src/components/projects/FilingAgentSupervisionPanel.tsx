@@ -3,14 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
   Loader2, CheckCircle2, XCircle, Eye, Bot, ArrowLeft,
   ExternalLink, Clock, Image as ImageIcon, ThumbsUp, ThumbsDown,
   RotateCcw, Trash2, ChevronDown, ChevronRight, LogIn,
-  Maximize2, Minimize2, Monitor,
+  Monitor, ChevronLeft,
 } from "lucide-react";
 
 interface FilingRunProgress {
@@ -76,9 +75,6 @@ export function FilingAgentSupervisionPanel({
   const [rejecting, setRejecting] = useState(false);
   const [screenshotIndex, setScreenshotIndex] = useState(0);
   const [stepsExpanded, setStepsExpanded] = useState(true);
-  const [browserModalOpen, setBrowserModalOpen] = useState(false);
-  const [activeBrowserUrl, setActiveBrowserUrl] = useState<string | null>(null);
-  const prevLiveUrlRef = useRef<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Fetch initial run data
@@ -86,12 +82,7 @@ export function FilingAgentSupervisionPanel({
     fetchRun();
   }, [runId]);
 
-  useEffect(() => {
-    setActiveBrowserUrl(null);
-    prevLiveUrlRef.current = null;
-  }, [runId]);
-
-  // Poll for status updates + realtime subscription
+  // Poll for status updates
   useEffect(() => {
     if (!run) return;
 
@@ -151,8 +142,6 @@ export function FilingAgentSupervisionPanel({
       .eq("id", runId)
       .maybeSingle();
 
-    console.log("[FilingSupervision] fetchRun live_url:", data?.live_url, data);
-
     if (data) {
       setRun((prev) => ({
         ...data,
@@ -186,7 +175,6 @@ export function FilingAgentSupervisionPanel({
 
       if (res.ok) {
         const agentData = await res.json();
-        console.log("[FilingSupervision] polled agent data live_url:", agentData?.live_url, agentData);
         const updates: Record<string, any> = {};
         if (agentData.session_url) updates.session_url = agentData.session_url;
         if (agentData.recording_url) updates.recording_url = agentData.recording_url;
@@ -198,15 +186,11 @@ export function FilingAgentSupervisionPanel({
             .eq("id", runId);
         }
 
-        // Update local state with live_url immediately
-        if (agentData.live_url) {
-          setRun(prev => prev ? { ...prev, live_url: agentData.live_url } : null);
-        }
-
         if (agentData.screenshots && Array.isArray(agentData.screenshots)) {
           await (supabase.from("filing_runs") as any)
             .update({ screenshots: agentData.screenshots })
             .eq("id", runId);
+          setRun(prev => prev ? { ...prev, screenshots: agentData.screenshots } : null);
         }
       }
     } catch (err) {
@@ -249,7 +233,7 @@ export function FilingAgentSupervisionPanel({
     }
   };
 
-  // Elapsed time — re-computed every tick via state counter
+  // Elapsed time
   const [tick, setTick] = useState(0);
   useEffect(() => {
     if (!run || TERMINAL_STATUSES.includes(run.status)) return;
@@ -258,7 +242,6 @@ export function FilingAgentSupervisionPanel({
   }, [run?.status]);
 
   const elapsed = useMemo(() => {
-    // Reference tick so useMemo recomputes each second
     void tick;
     if (!run) return "";
     const start = run.started_at || run.created_at;
@@ -270,42 +253,6 @@ export function FilingAgentSupervisionPanel({
     const secs = Math.floor((diff % 60000) / 1000);
     return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
   }, [run?.started_at, run?.created_at, run?.completed_at, run?.status, tick]);
-
-  // Auto-open browser modal when live_url first becomes available
-  useEffect(() => {
-    if (run?.live_url && !prevLiveUrlRef.current && isRunningStatus(run.status)) {
-      setBrowserModalOpen(true);
-    }
-    prevLiveUrlRef.current = run?.live_url || null;
-  }, [run?.live_url, run?.status]);
-
-  useEffect(() => {
-    if (!run) return;
-
-    setActiveBrowserUrl((prev) => {
-      if (isRunningStatus(run.status)) {
-        return run.live_url || run.session_url || prev || null;
-      }
-
-      if (TERMINAL_STATUSES.includes(run.status)) {
-        return run.recording_url || run.live_url || run.session_url || prev || null;
-      }
-
-      return prev || run.live_url || run.session_url || run.recording_url || null;
-    });
-  }, [run?.status, run?.live_url, run?.session_url, run?.recording_url]);
-
-  // Detect login-required step
-  const needsLogin = useMemo(() => {
-    if (!run || !isRunningStatus(run.status)) return false;
-    return run.progress_log.some(
-      (entry) =>
-        entry.step?.toLowerCase().includes("login_required") ||
-        entry.step?.toLowerCase().includes("waiting_for_login") ||
-        entry.status?.toLowerCase().includes("login_required") ||
-        entry.status?.toLowerCase().includes("waiting_for_login")
-    );
-  }, [run?.progress_log, run?.status]);
 
   if (loading) {
     return (
@@ -332,8 +279,13 @@ export function FilingAgentSupervisionPanel({
   const isReviewable = ["ready_for_review", "review_needed"].includes(run.status);
   const isError = ["failed", "error"].includes(run.status);
   const screenshots = run.screenshots || [];
+  const isTerminal = TERMINAL_STATUSES.includes(run.status);
 
-
+  // Current step info for running state
+  const progressLog = run.progress_log || [];
+  const currentStepIndex = progressLog.length;
+  const latestStep = progressLog.length > 0 ? progressLog[progressLog.length - 1] : null;
+  const latestScreenshot = screenshots.length > 0 ? screenshots[screenshots.length - 1] : null;
 
   return (
     <div className="space-y-3">
@@ -347,246 +299,192 @@ export function FilingAgentSupervisionPanel({
         </div>
       </div>
 
-      {/* ── LOGIN REQUIRED BANNER ── */}
-      {needsLogin && (
-        <div className="p-3 rounded-lg border-2 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 space-y-1.5">
-          <div className="flex items-start gap-2">
-            <LogIn className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-            <p className="text-sm text-blue-800 dark:text-blue-200">
-              <span className="font-semibold">DOB NOW requires login.</span>{" "}
-              Log in directly in the browser view below. The agent will continue automatically after you sign in.
-            </p>
+      {/* ── LIVE AGENT VIEW (while running) ── */}
+      {isRunning && (
+        <div className="rounded-lg border bg-background overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/30">
+            <Monitor className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground flex-1">
+              Live Agent View
+            </span>
+            {screenshots.length > 0 && (
+              <span className="text-[10px] text-muted-foreground/60 font-mono">
+                {screenshots.length} screenshot{screenshots.length !== 1 ? "s" : ""}
+              </span>
+            )}
           </div>
+
+          {/* Latest screenshot */}
+          {latestScreenshot ? (
+            <div className="relative">
+              <img
+                src={latestScreenshot.url}
+                alt={latestScreenshot.step || "Agent screenshot"}
+                className="w-full h-auto"
+                key={latestScreenshot.url}
+              />
+              {/* Step overlay */}
+              <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white px-3 py-2 flex items-center gap-2">
+                <Loader2 className="h-3 w-3 animate-spin shrink-0" />
+                <span className="text-xs font-mono truncate">
+                  Step {currentStepIndex}{latestStep ? ` — ${latestStep.step}` : ""}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-2 p-8 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <p className="text-xs">Waiting for agent screenshots…</p>
+              {run.agent_session_id && (
+                <p className="font-mono text-[10px] text-muted-foreground/50 truncate max-w-full">
+                  Job: {run.agent_session_id}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Steps log below screenshot */}
+          {progressLog.length > 0 && (
+            <div className="border-t">
+              <button
+                className="flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+                onClick={() => setStepsExpanded(!stepsExpanded)}
+              >
+                {stepsExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                Steps ({progressLog.length})
+              </button>
+              {stepsExpanded && (
+                <div className="px-3 pb-3 space-y-1 max-h-40 overflow-y-auto">
+                  {progressLog.map((entry, i) => {
+                    const isLast = i === progressLog.length - 1;
+                    const isCurrent = isLast && entry.status !== "success" && entry.status !== "error";
+                    return (
+                      <div key={i} className="flex items-start gap-2 text-xs">
+                        {entry.status === "success" || entry.status === "completed" ? (
+                          <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0 mt-0.5" />
+                        ) : entry.status === "error" || entry.status === "failed" ? (
+                          <XCircle className="h-3 w-3 text-destructive shrink-0 mt-0.5" />
+                        ) : isCurrent ? (
+                          <Loader2 className="h-3 w-3 animate-spin text-primary shrink-0 mt-0.5" />
+                        ) : (
+                          <CheckCircle2 className="h-3 w-3 text-muted-foreground/40 shrink-0 mt-0.5" />
+                        )}
+                        <span className={`flex-1 font-mono ${isCurrent ? "text-foreground" : "text-muted-foreground"}`}>
+                          {entry.step}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground/50 shrink-0">
+                          {new Date(entry.timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
-      {/* ── EMBEDDED BROWSER VIEW (inline small preview + open modal button) ── */}
-      {(() => {
-        const iframeSrc = activeBrowserUrl;
+      {/* ── COMPLETED / REVIEW: SCREENSHOT GALLERY ── */}
+      {isTerminal && screenshots.length > 0 && (
+        <div className="rounded-lg border bg-background overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/30">
+            <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground flex-1">
+              Screenshot Gallery
+            </span>
+            <span className="text-[10px] text-muted-foreground/60">
+              {screenshotIndex + 1} / {screenshots.length}
+            </span>
+          </div>
 
-        if (iframeSrc) {
-          return (
-            <div className="rounded-lg border bg-background overflow-hidden">
-              {/* Toolbar */}
-              <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/30">
-                <Monitor className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground flex-1">
-                  {isRunning ? "Live Browser" : "Session Recording"}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-6 gap-1 text-xs px-2"
-                  onClick={() => setBrowserModalOpen(true)}
-                >
-                  <Maximize2 className="h-3 w-3" /> Open Full View
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0"
-                  onClick={() => window.open(iframeSrc, "_blank")}
-                  title="Open in new tab"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              {/* Small inline preview iframe — fully interactive */}
-              <iframe
-                src={iframeSrc}
-                className="w-full border-0 h-[280px]"
-                allow="clipboard-read; clipboard-write; autoplay; encrypted-media; fullscreen"
-                 tabIndex={0}
-                 style={{ pointerEvents: "auto" }}
-              />
-            </div>
-          );
-        }
-
-        // No URL available yet
-        if (isRunning) {
-          return (
-            <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2.5 text-center">
-              <Loader2 className="h-3.5 w-3.5 animate-spin inline mr-1.5" />
-              Waiting for browser session…
-              {run.agent_session_id && (
-                <div className="mt-1 font-mono text-[10px] text-muted-foreground/60 truncate">
-                  Job: {run.agent_session_id}
-                </div>
-              )}
-            </div>
-          );
-        }
-
-        return null;
-      })()}
-
-      {/* ── BROWSER MODAL (custom portal — no focus trap, no pointer interception) ── */}
-      {(() => {
-        const modalSrc = activeBrowserUrl;
-
-        if (!modalSrc || !browserModalOpen) return null;
-
-        return createPortal(
-          <>
-            {/* Backdrop */}
-            <div
-              className="fixed inset-0 z-[100] bg-black/60"
-              onClick={() => setBrowserModalOpen(false)}
+          {/* Main screenshot */}
+          <div className="relative">
+            <img
+              src={screenshots[screenshotIndex]?.url}
+              alt={screenshots[screenshotIndex]?.step || `Screenshot ${screenshotIndex + 1}`}
+              className="w-full h-auto"
             />
-            {/* Modal panel */}
-            <div
-              className="fixed z-[101] bg-background border rounded-lg shadow-2xl flex flex-col overflow-hidden pointer-events-auto"
-              style={{
-                top: "5vh",
-                left: "4vw",
-                width: "92vw",
-                height: "85vh",
-              }}
-            >
-              {/* Title bar */}
-              <div className="flex items-center gap-3 px-4 py-2.5 border-b bg-muted/30 shrink-0">
-                <Monitor className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-semibold flex-1">
-                  DOB NOW Filing Agent — {isRunning ? "Live Browser" : "Session Recording"}
-                </span>
-                <div className={`flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full border ${statusConfig.color}`}>
-                  <StatusIcon className={`h-3 w-3 ${isRunning && run.status !== "queued" ? "animate-spin" : ""}`} />
-                  {statusConfig.label}
-                </div>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  <span className="font-mono">{elapsed}</span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 gap-1 text-xs"
-                  onClick={() => setBrowserModalOpen(false)}
-                >
-                  <Minimize2 className="h-3.5 w-3.5" /> Minimize
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0"
-                  onClick={() => window.open(modalSrc, "_blank")}
-                  title="Open in new tab"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-
-              {/* Login banner inside modal */}
-              {needsLogin && (
-                <div className="px-4 py-2 border-b bg-blue-50 dark:bg-blue-900/20 flex items-center gap-2">
-                  <LogIn className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
-                  <p className="text-xs text-blue-800 dark:text-blue-200">
-                    <span className="font-semibold">Login required.</span>{" "}
-                    Type your DOB NOW credentials directly in the browser below.
-                  </p>
-                </div>
-              )}
-
-              {/* Full-size iframe — fully interactive, no focus trap */}
-              <iframe
-                src={modalSrc}
-                className="flex-1 w-full border-0"
-                allow="clipboard-read; clipboard-write; autoplay; encrypted-media; fullscreen"
-                tabIndex={0}
-                style={{ pointerEvents: "auto" }}
-              />
+            <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs px-3 py-2 font-mono">
+              {screenshots[screenshotIndex]?.step || `Step ${screenshotIndex + 1}`}
             </div>
-          </>,
-          document.body
-        );
-      })()}
+          </div>
 
-      <Separator />
+          {/* Navigation */}
+          {screenshots.length > 1 && (
+            <div className="flex items-center justify-between px-3 py-2 border-t">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1 text-xs"
+                disabled={screenshotIndex === 0}
+                onClick={() => setScreenshotIndex(i => i - 1)}
+              >
+                <ChevronLeft className="h-3.5 w-3.5" /> Prev
+              </Button>
+              <span className="text-xs text-muted-foreground font-mono">
+                {screenshotIndex + 1} / {screenshots.length}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1 text-xs"
+                disabled={screenshotIndex >= screenshots.length - 1}
+                onClick={() => setScreenshotIndex(i => i + 1)}
+              >
+                Next <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* ── STEPS LOG ── */}
-      {run.progress_log.length > 0 && (
+      {/* ── VIEW FULL RECORDING link (terminal states) ── */}
+      {isTerminal && run.recording_url && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full gap-1.5 text-xs"
+          onClick={() => window.open(run.recording_url!, "_blank")}
+        >
+          <ExternalLink className="h-3.5 w-3.5" /> View Full Recording
+        </Button>
+      )}
+
+      {/* ── STEPS LOG (terminal, if no screenshots) ── */}
+      {isTerminal && screenshots.length === 0 && progressLog.length > 0 && (
         <div className="rounded-lg border bg-background">
           <button
             className="flex items-center gap-2 w-full p-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
             onClick={() => setStepsExpanded(!stepsExpanded)}
           >
             {stepsExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-            Steps ({run.progress_log.length})
+            Steps ({progressLog.length})
           </button>
           {stepsExpanded && (
             <div className="px-3 pb-3 space-y-1.5 max-h-56 overflow-y-auto">
-              {run.progress_log.map((entry, i) => {
-                const isLast = i === run.progress_log.length - 1;
-                const isCurrent = isLast && isRunning && entry.status !== "success" && entry.status !== "error";
-                return (
-                  <div key={i} className="flex items-start gap-2 text-xs">
-                    {entry.status === "success" || entry.status === "completed" ? (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
-                    ) : entry.status === "error" || entry.status === "failed" ? (
-                      <XCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
-                    ) : isCurrent ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0 mt-0.5" />
-                    ) : (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0 mt-0.5" />
-                    )}
-                    <span className={`flex-1 ${isCurrent ? "text-foreground font-medium" : "text-muted-foreground"}`}>
-                      {entry.step}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground/50 shrink-0">
-                      {new Date(entry.timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}
-                    </span>
-                  </div>
-                );
-              })}
+              {progressLog.map((entry, i) => (
+                <div key={i} className="flex items-start gap-2 text-xs">
+                  {entry.status === "success" || entry.status === "completed" ? (
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                  ) : entry.status === "error" || entry.status === "failed" ? (
+                    <XCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+                  ) : (
+                    <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0 mt-0.5" />
+                  )}
+                  <span className="flex-1 text-muted-foreground">{entry.step}</span>
+                  <span className="text-[10px] text-muted-foreground/50 shrink-0">
+                    {new Date(entry.timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
         </div>
       )}
 
-      {/* ── SCREENSHOT GALLERY ── */}
-      {screenshots.length > 0 && (isReviewable || run.status === "completed" || run.status === "reviewed") && (
-        <div className="rounded-lg border bg-background p-3 space-y-2">
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-            <ImageIcon className="h-3.5 w-3.5" /> Screenshots ({screenshots.length})
-          </h4>
-          <div className="relative rounded-md overflow-hidden border bg-muted/30">
-            <img
-              src={screenshots[screenshotIndex]?.url}
-              alt={screenshots[screenshotIndex]?.step || `Screenshot ${screenshotIndex + 1}`}
-              className="w-full h-auto max-h-64 object-contain"
-            />
-            <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-2 py-1">
-              {screenshots[screenshotIndex]?.step || `Step ${screenshotIndex + 1}`}
-            </div>
-          </div>
-          {screenshots.length > 1 && (
-            <div className="flex items-center justify-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 text-xs"
-                disabled={screenshotIndex === 0}
-                onClick={() => setScreenshotIndex(i => i - 1)}
-              >
-                ← Prev
-              </Button>
-              <span className="text-xs text-muted-foreground">
-                {screenshotIndex + 1} / {screenshots.length}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 text-xs"
-                disabled={screenshotIndex >= screenshots.length - 1}
-                onClick={() => setScreenshotIndex(i => i + 1)}
-              >
-                Next →
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
+      <Separator />
 
       {/* ── REVIEW ACTIONS ── */}
       {isReviewable && !showRejectForm && (
@@ -694,7 +592,7 @@ export function FilingAgentSupervisionPanel({
         </div>
       )}
 
-      {/* Running state — show subtle cancel */}
+      {/* Running state — subtle cancel */}
       {isRunning && (
         <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground" onClick={onReset}>
           <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Cancel & Reset
