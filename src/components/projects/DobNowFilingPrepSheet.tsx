@@ -769,12 +769,17 @@ export function DobNowFilingPrepSheet({
                   size="sm"
                   className="h-6 text-[10px] gap-1 text-muted-foreground"
                   onClick={() => {
+                    saveDeletedIds([]);
                     const saved = companyData?.settings?.filing_checklist_defaults;
                     if (saved && Array.isArray(saved) && saved.length > 0) {
-                      setChecklist(saved.map((item: any) => ({ id: item.id, label: item.label, required: !!item.required, checked: false })));
+                      const items = saved.map((item: any) => ({ id: item.id, label: item.label, required: !!item.required, checked: false }));
+                      setChecklist(items);
+                      saveChecklistToStorage(items);
                       toast({ title: "Checklist reset", description: "Loaded company default checklist items." });
                     } else {
-                      setChecklist(DEFAULT_CHECKLIST.map((item) => ({ ...item, checked: false })));
+                      const items = DEFAULT_CHECKLIST.map((item) => ({ ...item, checked: false }));
+                      setChecklist(items);
+                      saveChecklistToStorage(items);
                       toast({ title: "Checklist reset", description: "No saved defaults found — using built-in defaults." });
                     }
                   }}
