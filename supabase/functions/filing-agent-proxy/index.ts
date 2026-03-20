@@ -258,7 +258,7 @@ Deno.serve(async (req) => {
       };
 
       // Build the request body in the structure the agent expects
-      const callbackUrl = `${supabaseUrl}/functions/v1/filing-status`;
+      const callbackUrl = `${supabaseUrl}/functions/v1/filing-status?run_id=${encodeURIComponent(filing_run_id || "")}`;
       const requestBody = {
         filing_data: {
           filing_type: filingPayload.filing_details.filing_type,
@@ -326,6 +326,23 @@ Deno.serve(async (req) => {
 
       const agentData = await agentRes.text();
       console.log("[filing-agent-proxy] Agent response status:", agentRes.status, "body:", agentData.substring(0, 500));
+
+      try {
+        const agentJson = JSON.parse(agentData);
+        const updates: Record<string, any> = {};
+        if (agentJson.job_id) updates.agent_session_id = agentJson.job_id;
+        if (agentJson.session_url) updates.session_url = agentJson.session_url;
+        if (agentJson.recording_url) updates.recording_url = agentJson.recording_url;
+        if (agentJson.live_url) updates.live_url = agentJson.live_url;
+        if (filing_run_id && Object.keys(updates).length > 0) {
+          await supabase
+            .from("filing_runs")
+            .update(updates)
+            .eq("id", filing_run_id);
+        }
+      } catch {
+        // Non-JSON agent response; just proxy it through.
+      }
 
       return new Response(agentData, {
         status: agentRes.status,
