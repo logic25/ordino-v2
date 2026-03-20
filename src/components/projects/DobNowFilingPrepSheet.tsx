@@ -832,7 +832,15 @@ export function DobNowFilingPrepSheet({
                   )}
                   <button
                     className="opacity-0 group-hover/check:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                    onClick={() => setChecklist((prev) => prev.filter((c) => c.id !== item.id))}
+                    onClick={() => {
+                      const deletedIds = loadDeletedIds();
+                      saveDeletedIds([...deletedIds, item.id]);
+                      setChecklist((prev) => {
+                        const updated = prev.filter((c) => c.id !== item.id);
+                        saveChecklistToStorage(updated);
+                        return updated;
+                      });
+                    }}
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
