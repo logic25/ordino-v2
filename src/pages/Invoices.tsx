@@ -187,7 +187,7 @@ export default function Invoices() {
                 variant="outline"
                 size="sm"
                 className="text-destructive"
-                onClick={() => selectedIds.forEach(handleDelete)}
+                onClick={() => setBulkDeleteOpen(true)}
               >
                 <Trash2 className="h-4 w-4 mr-1" /> Delete
               </Button>
