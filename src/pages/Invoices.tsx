@@ -4,6 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Search, Send, Trash2 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { BillingInboxView } from "@/components/invoices/BillingInboxView";
 import { BillingSchedulesView } from "@/components/invoices/BillingSchedulesView";
 import { InvoiceSummaryCards } from "@/components/invoices/InvoiceSummaryCards";
@@ -36,6 +40,8 @@ export default function Invoices() {
   const [detailInvoice, setDetailInvoice] = useState<InvoiceWithRelations | null>(null);
   const [sendInvoice, setSendInvoice] = useState<InvoiceWithRelations | null>(null);
   const [billingOpen, setBillingOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const { track } = useTelemetry();
 
   const isSpecialTab = ["to_invoice", "deposits", "analytics", "schedules", "paid"].includes(activeFilter);
@@ -84,7 +90,7 @@ export default function Invoices() {
     );
   }, [dbInvoices, search]);
 
-  const handleDelete = async (id: string) => {
+  const confirmDelete = async (id: string) => {
     try {
       await deleteInvoice.mutateAsync(id);
       toast({ title: "Invoice deleted" });
@@ -92,6 +98,16 @@ export default function Invoices() {
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
+  };
+
+  const handleDelete = (id: string) => setDeleteConfirmId(id);
+
+  const handleBulkDelete = async () => {
+    for (const id of selectedIds) {
+      await confirmDelete(id);
+    }
+    setBulkDeleteOpen(false);
+    setSelectedIds([]);
   };
 
   const handleSendInvoice = (inv: InvoiceWithRelations) => {
@@ -171,7 +187,7 @@ export default function Invoices() {
                 variant="outline"
                 size="sm"
                 className="text-destructive"
-                onClick={() => selectedIds.forEach(handleDelete)}
+                onClick={() => setBulkDeleteOpen(true)}
               >
                 <Trash2 className="h-4 w-4 mr-1" /> Delete
               </Button>
@@ -228,6 +244,34 @@ export default function Invoices() {
         onOpenChange={(open) => !open && setSendInvoice(null)}
         onSent={() => setSendInvoice(null)}
       />
+
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete invoice?</AlertDialogTitle>
+            <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (deleteConfirmId) { confirmDelete(deleteConfirmId); setDeleteConfirmId(null); } }}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedIds.length} invoices?</AlertDialogTitle>
+            <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
