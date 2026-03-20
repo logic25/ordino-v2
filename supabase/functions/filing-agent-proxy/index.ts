@@ -299,6 +299,7 @@ Deno.serve(async (req) => {
         },
         project_id: project.id,
         service_id: service_id || null,
+        filing_run_id: filing_run_id || null,
         initiated_by: profile.id,
         callback_url: callbackUrl,
       };
