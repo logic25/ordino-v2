@@ -375,7 +375,7 @@ export function FilingAgentSupervisionPanel({
               <iframe
                 src={iframeSrc}
                 className="w-full border-0 h-[280px]"
-                allow="clipboard-read; clipboard-write"
+                allow="clipboard-read; clipboard-write; autoplay; encrypted-media; fullscreen"
                 style={{ pointerEvents: "auto" }}
               />
             </div>
