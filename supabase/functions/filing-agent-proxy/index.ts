@@ -143,9 +143,17 @@ Deno.serve(async (req) => {
         .maybeSingle();
       const pis = pisData?.responses || {};
 
-      // Fetch contacts via project's client
+      // Prefer explicitly linked project contacts from project_contacts; fall back to client contacts if none are linked
       let contacts: any[] = [];
-      if (project.client_id) {
+      const linkedContacts = Array.isArray(project.project_contacts)
+        ? project.project_contacts
+            .map((pc: any) => pc.client_contacts)
+            .filter(Boolean)
+        : [];
+
+      if (linkedContacts.length > 0) {
+        contacts = linkedContacts;
+      } else if (project.client_id) {
         const { data: contactData } = await supabase
           .from("client_contacts")
           .select("id, name, email, phone, company_name, specialty, license_number, license_type, address_1, address_2, city, state, zip")
