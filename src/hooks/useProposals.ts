@@ -870,6 +870,35 @@ export function useSignProposalInternal() {
         }
       }
 
+      // Auto-create billing schedules from proposal milestones
+      try {
+        const milestones = (proposal as any).milestones || [];
+        if (milestones.length > 0) {
+          const schedulesToInsert = milestones
+            .filter((m: any) => (m.amount || m.percentage) && m.due_date)
+            .map((m: any) => ({
+              company_id: profile.company_id,
+              project_id: (project as any).id,
+              service_name: m.name || "Milestone payment",
+              description: m.description || null,
+              billing_method: m.percentage ? "percentage" : "amount",
+              billing_value: m.percentage || m.amount || 0,
+              frequency: "monthly", // one-time but needs valid enum
+              next_bill_date: m.due_date,
+              auto_approve: false,
+              auto_send: false,
+              is_active: true,
+              created_by: profile.id,
+            }));
+
+          if (schedulesToInsert.length > 0) {
+            await supabase.from("billing_schedules").insert(schedulesToInsert as any);
+          }
+        }
+      } catch (milestoneErr) {
+        console.error("Error creating billing schedules from milestones:", milestoneErr);
+      }
+
       // Link plan documents from proposal to the new project
       try {
         await (supabase.from("universal_documents") as any)
