@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -375,7 +375,7 @@ export function FilingAgentSupervisionPanel({
               <iframe
                 src={iframeSrc}
                 className="w-full border-0 h-[280px]"
-                allow="clipboard-read; clipboard-write"
+                allow="clipboard-read; clipboard-write; autoplay; encrypted-media; fullscreen"
                 style={{ pointerEvents: "auto" }}
               />
             </div>
@@ -400,7 +400,7 @@ export function FilingAgentSupervisionPanel({
         return null;
       })()}
 
-      {/* ── BROWSER MODAL (Dialog) ── */}
+      {/* ── BROWSER MODAL (custom portal — no focus trap, no pointer interception) ── */}
       {(() => {
         const modalSrc = isRunning
           ? (run.live_url || run.session_url)
@@ -408,20 +408,31 @@ export function FilingAgentSupervisionPanel({
             ? (run.recording_url || run.session_url)
             : null;
 
-        if (!modalSrc) return null;
+        if (!modalSrc || !browserModalOpen) return null;
 
-        return (
-          <Dialog open={browserModalOpen} onOpenChange={setBrowserModalOpen}>
-            <DialogContent
-              className="max-w-[92vw] w-[92vw] h-[85vh] p-0 gap-0 flex flex-col overflow-hidden"
-              onPointerDownOutside={(e) => e.preventDefault()}
+        return createPortal(
+          <>
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 z-[100] bg-black/60"
+              onClick={() => setBrowserModalOpen(false)}
+            />
+            {/* Modal panel */}
+            <div
+              className="fixed z-[101] bg-background border rounded-lg shadow-2xl flex flex-col overflow-hidden"
+              style={{
+                top: "5vh",
+                left: "4vw",
+                width: "92vw",
+                height: "85vh",
+              }}
             >
               {/* Title bar */}
               <div className="flex items-center gap-3 px-4 py-2.5 border-b bg-muted/30 shrink-0">
                 <Monitor className="h-4 w-4 text-muted-foreground" />
-                <DialogTitle className="text-sm font-semibold flex-1">
+                <span className="text-sm font-semibold flex-1">
                   DOB NOW Filing Agent — {isRunning ? "Live Browser" : "Session Recording"}
-                </DialogTitle>
+                </span>
                 <div className={`flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full border ${statusConfig.color}`}>
                   <StatusIcon className={`h-3 w-3 ${isRunning && run.status !== "queued" ? "animate-spin" : ""}`} />
                   {statusConfig.label}
@@ -460,15 +471,16 @@ export function FilingAgentSupervisionPanel({
                 </div>
               )}
 
-              {/* Full-size iframe — NO sandbox, NO pointer-events blocking */}
+              {/* Full-size iframe — fully interactive, no focus trap */}
               <iframe
                 src={modalSrc}
                 className="flex-1 w-full border-0"
-                allow="clipboard-read; clipboard-write"
+                allow="clipboard-read; clipboard-write; autoplay; encrypted-media; fullscreen"
                 style={{ pointerEvents: "auto" }}
               />
-            </DialogContent>
-          </Dialog>
+            </div>
+          </>,
+          document.body
         );
       })()}
 
