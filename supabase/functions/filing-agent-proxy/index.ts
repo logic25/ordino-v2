@@ -234,17 +234,17 @@ Deno.serve(async (req) => {
           },
         },
 
-        contacts: (contacts || []).map((c: any) => ({
+        contacts: contacts.map((c: any) => ({
           id: c.id,
           name: c.name,
           email: c.email,
           phone: c.phone,
-          company: c.company,
-          dob_role: c.dob_role,
-          dob_registered: c.dob_registered,
-          discipline: c.discipline,
-          address: c.address_line1
-            ? [c.address_line1, c.address_line2, `${c.address_city || ""} ${c.address_state || ""} ${c.address_zip || ""}`.trim()].filter(Boolean).join(", ")
+          company: c.company_name,
+          specialty: c.specialty,
+          license_number: c.license_number,
+          license_type: c.license_type,
+          address: c.address_1
+            ? [c.address_1, c.address_2, `${c.city || ""} ${c.state || ""} ${c.zip || ""}`.trim()].filter(Boolean).join(", ")
             : null,
         })),
       };
