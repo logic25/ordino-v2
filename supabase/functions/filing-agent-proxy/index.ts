@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
       const { data: project, error: projError } = await supabase
         .from("projects")
         .select(`
-          id, company_id, project_number, name, phase, status,
+          id, company_id, client_id, project_number, name, phase, status,
           floor_number, unit_number, estimated_job_cost, notes,
           filing_type, client_reference_number,
           gc_company_name, gc_contact_name, gc_phone, gc_email,
