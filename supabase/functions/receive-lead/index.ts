@@ -165,6 +165,26 @@ serve(async (req) => {
 
     console.log(`Lead received: ${contactName} -> Proposal ${proposal.proposal_number}`);
 
+    // Also create a lead record so it appears in the Leads tab
+    try {
+      await supabase.from("leads").insert({
+        company_id: companyId,
+        full_name: contactName,
+        contact_email: email || null,
+        contact_phone: phone || null,
+        property_address: address || null,
+        source: source,
+        subject: service_needed || null,
+        notes: description || null,
+        assigned_to: assignedPmId,
+        proposal_id: proposal.id,
+        status: "new",
+      });
+    } catch (leadErr) {
+      console.error("Error creating lead record:", leadErr);
+      // Non-fatal — proposal was already created
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
