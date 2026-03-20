@@ -9,6 +9,7 @@ import {
   Loader2, CheckCircle2, XCircle, Eye, Bot, ArrowLeft,
   ExternalLink, Clock, Image as ImageIcon, ThumbsUp, ThumbsDown,
   RotateCcw, Trash2, ChevronDown, ChevronRight, LogIn,
+  Maximize2, Minimize2, Monitor,
 } from "lucide-react";
 
 interface FilingRunProgress {
@@ -74,6 +75,7 @@ export function FilingAgentSupervisionPanel({
   const [rejecting, setRejecting] = useState(false);
   const [screenshotIndex, setScreenshotIndex] = useState(0);
   const [stepsExpanded, setStepsExpanded] = useState(true);
+  const [iframeExpanded, setIframeExpanded] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Fetch initial run data
@@ -292,9 +294,7 @@ export function FilingAgentSupervisionPanel({
   const isError = ["failed", "error"].includes(run.status);
   const screenshots = run.screenshots || [];
 
-  // Determine which URL to use for the Watch button
-  const watchUrl = isRunning ? (run.live_url || run.session_url) : (run.recording_url || run.session_url);
-  const watchLabel = isRunning ? "Watch Live" : "View Recording";
+
 
   return (
     <div className="space-y-3">
@@ -309,48 +309,92 @@ export function FilingAgentSupervisionPanel({
       </div>
 
       {/* ── LOGIN REQUIRED BANNER ── */}
-      {needsLogin && run.live_url && (
-        <div className="p-3 rounded-lg border-2 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 space-y-2">
+      {needsLogin && (
+        <div className="p-3 rounded-lg border-2 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 space-y-1.5">
           <div className="flex items-start gap-2">
             <LogIn className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
             <p className="text-sm text-blue-800 dark:text-blue-200">
               <span className="font-semibold">DOB NOW requires login.</span>{" "}
-              Click below to open the browser and log in. The agent will continue automatically after you sign in.
+              Log in directly in the browser view below. The agent will continue automatically after you sign in.
             </p>
           </div>
-          <Button
-            size="sm"
-            className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-            onClick={() => window.open(run.live_url!, "_blank")}
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-            Open Browser to Log In
-          </Button>
         </div>
       )}
 
-      {/* Watch Live / Recording button */}
-      {watchUrl ? (
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full gap-2 text-xs"
-          onClick={() => window.open(watchUrl, "_blank")}
-        >
-          <ExternalLink className="h-3.5 w-3.5" />
-          {watchLabel}
-        </Button>
-      ) : isRunning ? (
-        <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2.5 text-center">
-          <Loader2 className="h-3.5 w-3.5 animate-spin inline mr-1.5" />
-          Waiting for browser session URL from agent…
-          {run.agent_session_id && (
-            <div className="mt-1 font-mono text-[10px] text-muted-foreground/60 truncate">
-              Job: {run.agent_session_id}
+      {/* ── EMBEDDED BROWSER VIEW ── */}
+      {(() => {
+        const iframeSrc = isRunning
+          ? (run.live_url || run.session_url)
+          : (!isRunning && TERMINAL_STATUSES.includes(run.status))
+            ? (run.recording_url || run.session_url)
+            : null;
+
+        if (iframeSrc) {
+          return (
+            <div className={`rounded-lg border bg-background overflow-hidden ${iframeExpanded ? "fixed inset-4 z-50 shadow-2xl flex flex-col" : ""}`}>
+              {/* Toolbar */}
+              <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/30">
+                <Monitor className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground flex-1">
+                  {isRunning ? "Live Browser — Interactive" : "Session Recording — Replay"}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => setIframeExpanded(!iframeExpanded)}
+                  title={iframeExpanded ? "Collapse" : "Expand"}
+                >
+                  {iframeExpanded
+                    ? <Minimize2 className="h-3.5 w-3.5" />
+                    : <Maximize2 className="h-3.5 w-3.5" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => window.open(iframeSrc, "_blank")}
+                  title="Open in new tab"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              {/* iframe */}
+              <iframe
+                src={iframeSrc}
+                className={`w-full border-0 ${iframeExpanded ? "flex-1" : "h-[500px]"}`}
+                allow="clipboard-read; clipboard-write"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+              />
             </div>
-          )}
-        </div>
-      ) : null}
+          );
+        }
+
+        // No URL available yet
+        if (isRunning) {
+          return (
+            <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2.5 text-center">
+              <Loader2 className="h-3.5 w-3.5 animate-spin inline mr-1.5" />
+              Waiting for browser session…
+              {run.agent_session_id && (
+                <div className="mt-1 font-mono text-[10px] text-muted-foreground/60 truncate">
+                  Job: {run.agent_session_id}
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        return null;
+      })()}
+
+      {/* Fullscreen backdrop */}
+      {iframeExpanded && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50"
+          onClick={() => setIframeExpanded(false)}
+        />
+      )}
 
       <Separator />
 
