@@ -36,6 +36,7 @@ import { NewFolderDialog } from "@/components/documents/NewFolderDialog";
 import { syncDocumentToBeacon } from "@/services/beaconApi";
 import { useQueryClient } from "@tanstack/react-query";
 import { KnowledgeBaseView } from "@/components/documents/KnowledgeBaseView";
+import { EntityLinkingFields } from "@/components/documents/EntityLinkingFields";
 
 const CATEGORIES = [
   { value: "general", label: "General" },
@@ -105,6 +106,9 @@ export default function Documents() {
   const [category, setCategory] = useState("general");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [linkProjectId, setLinkProjectId] = useState<string | undefined>();
+  const [linkPropertyId, setLinkPropertyId] = useState<string | undefined>();
+  const [linkProposalId, setLinkProposalId] = useState<string | undefined>();
 
   // Seed folders on first load
   useEffect(() => {
@@ -170,6 +174,9 @@ export default function Documents() {
         description: description.trim() || undefined,
         category,
         folder_id: selectedFolderId || undefined,
+        project_id: linkProjectId,
+        property_id: linkPropertyId,
+        proposal_id: linkProposalId,
       } as any);
 
       // If uploading to a beacon folder, sync to Beacon
@@ -266,6 +273,7 @@ export default function Documents() {
   const resetForm = () => {
     setTitle(""); setDescription(""); setCategory("general");
     setSelectedFile(null);
+    setLinkProjectId(undefined); setLinkPropertyId(undefined); setLinkProposalId(undefined);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -480,6 +488,14 @@ export default function Documents() {
               <Label>Description (optional)</Label>
               <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Brief description..." className="mt-1" rows={2} />
             </div>
+            <EntityLinkingFields
+              projectId={linkProjectId}
+              propertyId={linkPropertyId}
+              proposalId={linkProposalId}
+              onProjectChange={setLinkProjectId}
+              onPropertyChange={setLinkPropertyId}
+              onProposalChange={setLinkProposalId}
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setUploadOpen(false); resetForm(); }}>Cancel</Button>
