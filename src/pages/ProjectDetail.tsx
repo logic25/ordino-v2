@@ -58,6 +58,7 @@ import { DobNowFilingPrepSheet } from "@/components/projects/DobNowFilingPrepShe
 import { EditPISDialog } from "@/components/projects/EditPISDialog";
 import { ResearchWorkspace } from "@/components/projects/ResearchWorkspace";
 import { ResearchTabContainer } from "@/components/projects/ResearchTabContainer";
+import { useGenerateProjectChecklist } from "@/hooks/useGenerateChecklist";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
