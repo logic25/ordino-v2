@@ -73,6 +73,7 @@ Deno.serve(async (req) => {
     if (action === "start-filing") {
       const body = await req.json();
       const { project_id, service_id } = body;
+      console.log("[filing-agent-proxy] start-filing received:", JSON.stringify({ project_id, service_id }));
 
       if (!project_id) {
         return new Response(JSON.stringify({ error: "project_id is required" }), {
