@@ -129,6 +129,7 @@ export default function ProjectDetail() {
   const { data: project, isLoading } = useProject(id);
   const { data: assignableProfiles = [] } = useAssignableProfiles();
   const updateProject = useUpdateProject();
+  const projectTimer = useProjectTimer();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
