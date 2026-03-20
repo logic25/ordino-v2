@@ -21,6 +21,11 @@ const normalizeFilingRunStatus = (status?: string | null) => {
   }
 };
 
+const buildBrowserbaseSessionUrl = (sessionId?: string | null) => {
+  if (!sessionId) return null;
+  return `https://www.browserbase.com/sessions/${sessionId}`;
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -56,9 +61,11 @@ Deno.serve(async (req) => {
 
       const supabase = createClient(supabaseUrl, serviceRoleKey);
       const body = await req.json();
-      const { filing_run_id, status, step, error_message, agent_session_id, job_id, live_url, session_url, recording_url, screenshots } = body;
+      const { filing_run_id, status, step, error_message, agent_session_id, job_id, live_url, session_url, recording_url, screenshots, session_id } = body;
       const runId = filing_run_id ?? url.searchParams.get("run_id");
       const normalizedStatus = normalizeFilingRunStatus(status);
+      const resolvedLiveUrl = live_url || buildBrowserbaseSessionUrl(session_id);
+      const resolvedRecordingUrl = recording_url || buildBrowserbaseSessionUrl(session_id);
 
       if (!runId) {
         return new Response(JSON.stringify({ error: "filing_run_id is required" }), {
@@ -89,9 +96,9 @@ Deno.serve(async (req) => {
       if (normalizedStatus) update.status = normalizedStatus;
       if (agent_session_id || job_id) update.agent_session_id = agent_session_id || job_id;
       if (error_message) update.error_message = error_message;
-      if (live_url) update.live_url = live_url;
+      if (resolvedLiveUrl) update.live_url = resolvedLiveUrl;
       if (session_url) update.session_url = session_url;
-      if (recording_url) update.recording_url = recording_url;
+      if (resolvedRecordingUrl) update.recording_url = resolvedRecordingUrl;
       if (Array.isArray(screenshots) && screenshots.length > 0) update.screenshots = screenshots;
 
       if (normalizedStatus === "running" && !run.status?.includes("running")) {
@@ -417,21 +424,34 @@ Deno.serve(async (req) => {
       }
 
       const agentData = await agentRes.text();
+      console.log("[filing-agent-proxy] Agent raw response body:", agentData);
       console.log("[filing-agent-proxy] Agent response status:", agentRes.status, "body:", agentData.substring(0, 500));
 
       try {
         const agentJson = JSON.parse(agentData);
+        const resolvedLiveUrl = agentJson.live_url || buildBrowserbaseSessionUrl(agentJson.session_id);
+        const resolvedRecordingUrl = agentJson.recording_url || buildBrowserbaseSessionUrl(agentJson.session_id);
+        const responsePayload = {
+          ...agentJson,
+          live_url: resolvedLiveUrl || agentJson.live_url || "",
+          recording_url: resolvedRecordingUrl || agentJson.recording_url || "",
+        };
         const updates: Record<string, any> = {};
         if (agentJson.job_id) updates.agent_session_id = agentJson.job_id;
         if (agentJson.session_url) updates.session_url = agentJson.session_url;
-        if (agentJson.recording_url) updates.recording_url = agentJson.recording_url;
-        if (agentJson.live_url) updates.live_url = agentJson.live_url;
+        if (resolvedRecordingUrl) updates.recording_url = resolvedRecordingUrl;
+        if (resolvedLiveUrl) updates.live_url = resolvedLiveUrl;
         if (filing_run_id && Object.keys(updates).length > 0) {
           await supabase
             .from("filing_runs")
             .update(updates)
             .eq("id", filing_run_id);
         }
+
+        return new Response(JSON.stringify(responsePayload), {
+          status: agentRes.status,
+          headers: { ...corsHeaders, "Content-Type": agentRes.headers.get("Content-Type") || "application/json" },
+        });
       } catch {
         // Non-JSON agent response; just proxy it through.
       }
@@ -483,9 +503,11 @@ Deno.serve(async (req) => {
       try {
         const agentJson = JSON.parse(agentText);
         const updates: Record<string, any> = {};
-        if (agentJson.live_url) updates.live_url = agentJson.live_url;
+        const resolvedLiveUrl = agentJson.live_url || buildBrowserbaseSessionUrl(agentJson.session_id);
+        const resolvedRecordingUrl = agentJson.recording_url || buildBrowserbaseSessionUrl(agentJson.session_id);
+        if (resolvedLiveUrl) updates.live_url = resolvedLiveUrl;
         if (agentJson.session_url) updates.session_url = agentJson.session_url;
-        if (agentJson.recording_url) updates.recording_url = agentJson.recording_url;
+        if (resolvedRecordingUrl) updates.recording_url = resolvedRecordingUrl;
 
         if (Object.keys(updates).length > 0) {
           await supabase

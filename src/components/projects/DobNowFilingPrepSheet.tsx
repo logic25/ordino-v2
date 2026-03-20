@@ -473,6 +473,7 @@ export function DobNowFilingPrepSheet({
         proxyResult = { error: proxyText.substring(0, 200) };
       }
       console.log("[FilingAgent] Proxy response:", proxyRes.status, proxyResult);
+      console.log("[FilingAgent] proxyResult.live_url:", proxyResult?.live_url);
 
       if (!proxyRes.ok) {
         await (supabase.from("filing_runs") as any)
@@ -496,6 +497,8 @@ export function DobNowFilingPrepSheet({
       if (proxyResult?.session_url) updateData.session_url = proxyResult.session_url;
       if (proxyResult?.recording_url) updateData.recording_url = proxyResult.recording_url;
       if (proxyResult?.live_url) updateData.live_url = proxyResult.live_url;
+
+      console.log("[FilingAgent] filing_runs updateData:", updateData);
 
       await (supabase.from("filing_runs") as any)
         .update(updateData)
