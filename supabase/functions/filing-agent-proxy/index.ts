@@ -100,8 +100,14 @@ Deno.serve(async (req) => {
         .eq("id", project_id)
         .maybeSingle();
 
+      if (projError) {
+        console.error("[filing-agent-proxy] Project query error:", JSON.stringify(projError));
+      }
+      if (!project) {
+        console.error("[filing-agent-proxy] Project not found for id:", project_id);
+      }
       if (projError || !project) {
-        return new Response(JSON.stringify({ error: "Project not found" }), {
+        return new Response(JSON.stringify({ error: "Project not found", details: projError?.message || "no rows" }), {
           status: 404,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
