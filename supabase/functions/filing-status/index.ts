@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const body = await req.json();
-    const { filing_run_id, status, step, error_message, agent_session_id } = body;
+    const { filing_run_id, status, step, error_message, agent_session_id, live_url, session_url, recording_url, screenshots: incomingScreenshots } = body;
 
     if (!filing_run_id) {
       return new Response(JSON.stringify({ error: "filing_run_id is required" }), {
