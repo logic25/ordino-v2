@@ -330,7 +330,7 @@ export function FilingAgentSupervisionPanel({
       )}
 
       {/* Watch Live / Recording button */}
-      {watchUrl && (
+      {watchUrl ? (
         <Button
           variant="outline"
           size="sm"
@@ -340,7 +340,17 @@ export function FilingAgentSupervisionPanel({
           <ExternalLink className="h-3.5 w-3.5" />
           {watchLabel}
         </Button>
-      )}
+      ) : isRunning ? (
+        <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2.5 text-center">
+          <Loader2 className="h-3.5 w-3.5 animate-spin inline mr-1.5" />
+          Waiting for browser session URL from agent…
+          {run.agent_session_id && (
+            <div className="mt-1 font-mono text-[10px] text-muted-foreground/60 truncate">
+              Job: {run.agent_session_id}
+            </div>
+          )}
+        </div>
+      ) : null}
 
       <Separator />
 
