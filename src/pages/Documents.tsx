@@ -36,6 +36,7 @@ import { NewFolderDialog } from "@/components/documents/NewFolderDialog";
 import { syncDocumentToBeacon } from "@/services/beaconApi";
 import { useQueryClient } from "@tanstack/react-query";
 import { KnowledgeBaseView } from "@/components/documents/KnowledgeBaseView";
+import { EntityLinkingFields } from "@/components/documents/EntityLinkingFields";
 
 const CATEGORIES = [
   { value: "general", label: "General" },
