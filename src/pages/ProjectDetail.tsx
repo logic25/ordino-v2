@@ -1131,22 +1131,22 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
                           {daysWaiting}d
                         </Badge>
                         <div className="flex items-center gap-1 shrink-0">
-                          {item.category === "missing_document" && (
+                          {(item.category === "missing_document" || item.category === "document") && (
                             <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 text-muted-foreground hover:text-foreground" onClick={() => toast({ title: "Request Sent", description: `Requested "${item.label}" from ${item.from_whom}` })}>
                               <Mail className="h-3 w-3" /> Request
                             </Button>
                           )}
-                          {item.category === "missing_info" && (
+                          {(item.category === "missing_info" || item.category === "field") && (
                             <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 text-muted-foreground hover:text-foreground" onClick={() => toast({ title: "Email Draft", description: `Drafting email to request "${item.label}"` })}>
                               <Mail className="h-3 w-3" /> Email
                             </Button>
                           )}
-                          {item.category === "pending_signature" && (
-                            <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 text-muted-foreground hover:text-foreground" onClick={() => toast({ title: "Reminder Sent", description: `Signature reminder sent for "${item.label}"` })}>
+                          {(item.category === "pending_signature" || item.category === "approval") && (
+                            <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 text-muted-foreground hover:text-foreground" onClick={() => toast({ title: "Reminder Sent", description: `Reminder sent for "${item.label}"` })}>
                               <Send className="h-3 w-3" /> Remind
                             </Button>
                           )}
-                          {item.category === "pending_response" && (
+                          {(item.category === "pending_response" || item.category === "inspection") && (
                             <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 text-muted-foreground hover:text-foreground" onClick={() => toast({ title: "Follow-up Sent", description: `Follow-up sent for "${item.label}"` })}>
                               <Phone className="h-3 w-3" /> Follow Up
                             </Button>
