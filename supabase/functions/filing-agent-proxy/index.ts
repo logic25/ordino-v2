@@ -205,7 +205,7 @@ Deno.serve(async (req) => {
           floor: project.floor_number || null,
           unit: project.unit_number || null,
           square_footage: sqFt,
-          estimated_cost: project.estimated_job_cost || project.estimated_value || null,
+          estimated_cost: project.estimated_job_cost || null,
           client_reference_number: project.client_reference_number || null,
         },
 
