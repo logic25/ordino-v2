@@ -3652,7 +3652,10 @@ export type Database = {
           payload_snapshot: Json | null
           progress_log: Json
           project_id: string
+          recording_url: string | null
+          screenshots: Json | null
           service_id: string | null
+          session_url: string | null
           started_at: string | null
           status: string
           updated_at: string
@@ -3668,7 +3671,10 @@ export type Database = {
           payload_snapshot?: Json | null
           progress_log?: Json
           project_id: string
+          recording_url?: string | null
+          screenshots?: Json | null
           service_id?: string | null
+          session_url?: string | null
           started_at?: string | null
           status?: string
           updated_at?: string
@@ -3684,7 +3690,10 @@ export type Database = {
           payload_snapshot?: Json | null
           progress_log?: Json
           project_id?: string
+          recording_url?: string | null
+          screenshots?: Json | null
           service_id?: string | null
+          session_url?: string | null
           started_at?: string | null
           status?: string
           updated_at?: string
