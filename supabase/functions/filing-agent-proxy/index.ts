@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
           tpp_name, tpp_email,
           architect_license_type, architect_license_number,
           properties (
-            id, address, borough, block, lot, bin, bbl
+            id, address, borough, block, lot, bin
           )
         `)
         .eq("id", project_id)
