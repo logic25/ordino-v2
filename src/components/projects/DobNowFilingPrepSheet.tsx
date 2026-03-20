@@ -953,18 +953,18 @@ export function DobNowFilingPrepSheet({
 
                 {/* Actions */}
                 <div className="flex items-center gap-2 flex-wrap">
-                  {((agentStatus === "failed") || (agentStatus === "review_needed") || agentStatus === "error") && (
+                  {((agentStatus === "failed") || (agentStatus === "review_needed") || agentStatus === "error" || isQueuedTooLong) && (
                     <>
                       <Button variant="outline" size="sm" className="gap-1.5" onClick={handleLaunchAgent} disabled={launchingAgent}>
                         {launchingAgent ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bot className="h-3.5 w-3.5" />}
-                        Retry Launch
+                        {isQueuedTooLong ? "Retry Launch" : "Retry Launch"}
                       </Button>
                       <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={resetAgentState}>
                         <ArrowLeft className="h-3.5 w-3.5" /> Reset
                       </Button>
                     </>
                   )}
-                  {agentStatus === "queued" && (
+                  {agentStatus === "queued" && !isQueuedTooLong && (
                     <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={resetAgentState}>
                       <ArrowLeft className="h-3.5 w-3.5" /> Reset
                     </Button>
