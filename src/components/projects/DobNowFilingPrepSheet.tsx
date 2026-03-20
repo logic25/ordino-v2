@@ -1091,18 +1091,22 @@ function FieldRow({
   if (!field.value && !editing) {
     return (
       <div
-        className={`flex items-center justify-between py-1.5 px-3 rounded-md bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/30 dark:border-amber-800/30 ${field.editable ? "cursor-pointer" : ""}`}
+        className={`flex items-center justify-between py-1.5 px-3 rounded-md ${field.optional ? "bg-muted/30 border border-border/50" : "bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/30 dark:border-amber-800/30"} ${field.editable ? "cursor-pointer" : ""}`}
         onClick={() => field.editable && setEditing(true)}
       >
         <div className="flex items-center gap-2 text-sm">
-          <AlertTriangle className="h-3 w-3 text-amber-500" />
+          {field.optional ? (
+            <Circle className="h-3 w-3 text-muted-foreground/50" />
+          ) : (
+            <AlertTriangle className="h-3 w-3 text-amber-500" />
+          )}
           <span className="text-muted-foreground">{field.label}</span>
           {field.dobFieldName && (
             <span className="text-[10px] text-muted-foreground/60 font-mono">({field.dobFieldName})</span>
           )}
         </div>
-        <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-          {field.editable ? "Click to edit" : "Missing"}
+        <span className={`text-xs font-medium ${field.optional ? "text-muted-foreground" : "text-amber-600 dark:text-amber-400"}`}>
+          {field.editable ? "Click to edit" : field.optional ? "Optional" : "Missing"}
         </span>
       </div>
     );
