@@ -907,14 +907,23 @@ export function DobNowFilingPrepSheet({
 
             {/* Agent Supervision Panel */}
             {submitStep === "agent" && agentRunId && (
-              <FilingAgentSupervisionPanel
-                runId={agentRunId}
-                onReset={resetAgentState}
-                onRetry={handleLaunchAgent}
-                onConfirmFiled={handleConfirmFiled}
-                retrying={launchingAgent}
-                confirmingFiled={confirmingFiled}
-              />
+              <div
+                ref={(el) => { el?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+                className="rounded-lg border-2 border-primary/30 bg-primary/5 p-4 shadow-sm"
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <Bot className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold">Filing Agent</h3>
+                </div>
+                <FilingAgentSupervisionPanel
+                  runId={agentRunId}
+                  onReset={resetAgentState}
+                  onRetry={handleLaunchAgent}
+                  onConfirmFiled={handleConfirmFiled}
+                  retrying={launchingAgent}
+                  confirmingFiled={confirmingFiled}
+                />
+              </div>
             )}
           </div>
         </div>
