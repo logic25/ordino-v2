@@ -316,7 +316,7 @@ export function DobNowFilingPrepSheet({
   }
 
   const allFields = [...propertyFields, ...filingFields];
-  const missingFields = allFields.filter((f) => !f.value);
+  const missingFields = allFields.filter((f) => !f.value && !f.optional);
   const missingContacts = ["applicant", "owner", "filing_rep"].filter(
     (role) => !contactsByRole[role]?.length
   );
