@@ -43,7 +43,7 @@ import {
   FileSpreadsheet, Download, Sparkles, Eye, ShieldCheck, PenLine,
   GripVertical, ArrowUp, ArrowDown, UserPlus, ArrowUpDown,
 } from "lucide-react";
-import { useProjects, useUpdateProject, ProjectWithRelations } from "@/hooks/useProjects";
+import { useProject, useUpdateProject, ProjectWithRelations } from "@/hooks/useProjects";
 import { useSendProposal } from "@/hooks/useProposals";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { useAssignableProfiles, useCompanyProfiles } from "@/hooks/useProfiles";
