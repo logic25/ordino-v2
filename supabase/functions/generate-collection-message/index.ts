@@ -159,11 +159,13 @@ Respond in JSON only:
     }
 
     let parsed;
+    let aiParseWarning: string | undefined;
     try {
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       parsed = JSON.parse(jsonMatch ? jsonMatch[0] : content);
     } catch {
-      console.error("Failed to parse AI response:", content);
+      console.error("Failed to parse AI response. Raw content:", content);
+      aiParseWarning = "AI response could not be parsed, showing defaults";
       parsed = {
         subject: `Payment Reminder: Invoice ${invoice.invoice_number}`,
         body: `Dear ${invoice.clients?.name || "Client"},\n\nThis is a reminder that invoice ${invoice.invoice_number} for $${Number(invoice.total_due).toFixed(2)} is ${daysOverdue} days past due. Please remit payment at your earliest convenience.\n\nThank you,\n${company?.name || "Our Team"}`,
