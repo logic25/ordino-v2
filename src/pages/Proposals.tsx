@@ -898,14 +898,21 @@ export default function Proposals() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {showingMockLeads && (
-                  <div className="mb-4 px-3 py-2 rounded-md bg-muted/50 border border-border text-sm text-muted-foreground">
-                    📋 Showing sample data. Capture your first lead to get started.
-                  </div>
-                )}
                 {leadsLoading ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : filteredLeads.length === 0 && !searchQuery ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <UserPlus className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                    <h3 className="text-lg font-medium">No leads yet</h3>
+                    <p className="text-muted-foreground mt-1 mb-4">
+                      Capture your first lead to start tracking prospects
+                    </p>
+                    <Button variant="outline" onClick={() => setLeadDialogOpen(true)}>
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Capture Lead
+                    </Button>
                   </div>
                 ) : (
                   <LeadsTable
