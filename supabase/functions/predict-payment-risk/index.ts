@@ -130,11 +130,13 @@ Respond in JSON only:
 
     // Parse JSON from response (handle markdown code blocks)
     let parsed;
+    let aiParseWarning: string | undefined;
     try {
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       parsed = JSON.parse(jsonMatch ? jsonMatch[0] : content);
     } catch {
-      console.error("Failed to parse AI response:", content);
+      console.error("Failed to parse AI response. Raw content:", content);
+      aiParseWarning = "AI response could not be parsed, showing defaults";
       parsed = {
         risk_score: daysOverdue > 60 ? 70 : daysOverdue > 30 ? 50 : 30,
         predicted_days_late: daysOverdue + 15,
