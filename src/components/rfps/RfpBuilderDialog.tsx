@@ -238,7 +238,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     company_info: { items: companyInfo, type: "company_info" },
     staff_bios: { items: staffBios, type: "staff_bio" },
     org_chart: { items: staffBios, type: "staff_bio" },
-    notable_projects: { items: notableProjects, type: "notable_project" },
+    notable_projects: { items: allNotableProjects, type: "notable_project" },
     narratives: { items: [...firmHistory, ...narratives], type: "narrative" },
     pricing: { items: pricing, type: "pricing" },
     certifications: { items: certs, type: "certification" },
