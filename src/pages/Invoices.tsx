@@ -4,6 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Search, Send, Trash2 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { BillingInboxView } from "@/components/invoices/BillingInboxView";
 import { BillingSchedulesView } from "@/components/invoices/BillingSchedulesView";
 import { InvoiceSummaryCards } from "@/components/invoices/InvoiceSummaryCards";
