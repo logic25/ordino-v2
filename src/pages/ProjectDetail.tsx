@@ -329,11 +329,29 @@ export default function ProjectDetail() {
                 {project.clients?.name && (
                   <span className="flex items-center gap-1"><Building2 className="h-3.5 w-3.5" /> {project.clients.name}</span>
                 )}
-                {((project as any).building_owner?.name || (project as any).building_owner_name) && (
-                  <span className="flex items-center gap-1 text-xs">
-                    Owner: {(project as any).building_owner?.name || (project as any).building_owner_name}
-                  </span>
-                )}
+                {(() => {
+                  const pisOwner = (project as any).building_owner_name;
+                  const clientOwner = (project as any).building_owner?.name;
+                  const propertyOwner = project.properties?.owner_name;
+                  // Prefer PIS-synced owner, then client record, then property record
+                  const displayOwner = pisOwner || clientOwner || propertyOwner;
+                  if (!displayOwner) return null;
+                  // Check for mismatch between sources
+                  const hasMismatch = pisOwner && (
+                    (clientOwner && clientOwner !== pisOwner) ||
+                    (propertyOwner && propertyOwner !== pisOwner && propertyOwner !== "UNAVAILABLE OWNER")
+                  );
+                  return (
+                    <span className="flex items-center gap-1 text-xs">
+                      Owner: {displayOwner}
+                      {hasMismatch && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300" title={`Property record: ${propertyOwner || "—"}, Client record: ${clientOwner || "—"}, PIS: ${pisOwner || "—"}`}>
+                          ⚠ Owner mismatch
+                        </span>
+                      )}
+                    </span>
+                  );
+                })()}
                 {primaryContact && (
                   <span className="flex items-center gap-1">
                     <Users className="h-3.5 w-3.5" />
