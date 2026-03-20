@@ -545,11 +545,20 @@ function SectionContentPreview({ item, type }: { item: any; type: string }) {
 
   if (type === "notable_projects") {
     const props = item.properties as any;
+    const isSheet = item._isSheet;
     return (
       <div className="text-xs bg-card rounded-lg p-2.5 border">
-        <p className="font-medium">{props?.address || item.description || "Project"}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="font-medium">{isSheet ? item._title : (props?.address || item.description || "Project")}</p>
+          {isSheet && (
+            <Badge variant="outline" className="text-[10px] px-1 py-0">Custom</Badge>
+          )}
+        </div>
         <p className="text-muted-foreground mt-0.5">
-          {item.application_type}{item.estimated_value ? ` · $${item.estimated_value.toLocaleString("en-US")}` : ""}
+          {isSheet
+            ? [item.client_name, item.estimated_value ? `$${item.estimated_value.toLocaleString("en-US")}` : null].filter(Boolean).join(" · ") || "Project Sheet"
+            : `${item.application_type || ""}${item.estimated_value ? ` · $${item.estimated_value.toLocaleString("en-US")}` : ""}`
+          }
         </p>
       </div>
     );
