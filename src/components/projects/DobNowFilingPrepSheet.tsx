@@ -142,6 +142,7 @@ export function DobNowFilingPrepSheet({
   const [agentStatus, setAgentStatus] = useState<string | null>(null);
   const [agentProgress, setAgentProgress] = useState<FilingRunProgress[]>([]);
   const [agentError, setAgentError] = useState<string | null>(null);
+  const [agentQueuedAt, setAgentQueuedAt] = useState<string | null>(null);
   const [launchingAgent, setLaunchingAgent] = useState(false);
   const [confirmingFiled, setConfirmingFiled] = useState(false);
 
