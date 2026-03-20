@@ -20,6 +20,7 @@ interface Props {
 }
 
 const quickPrompts = [
+  "/readiness",
   "Any proposals to follow up on?",
   "What's overdue this week?",
   "Show me open tasks",
