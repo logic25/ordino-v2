@@ -370,6 +370,19 @@ export default function ProjectDetail() {
             </div>
           </div>
           <div className="flex items-center gap-2 ml-10 sm:ml-0 sm:justify-end">
+            {projectTimer.isRunning && projectTimer.timer?.projectId === id ? (
+              <Button size="sm" variant="destructive" className="gap-1.5" onClick={() => projectTimer.stop()}>
+                <Clock className="h-3.5 w-3.5" /> Stop Timer
+              </Button>
+            ) : (
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => {
+                const appId = dobApplications[0]?.id;
+                projectTimer.start(id!, project.name || project.properties?.address || "Project", appId);
+                toast({ title: "Timer started", description: `Tracking time for ${project.name || project.properties?.address || "this project"}` });
+              }}>
+                <Clock className="h-3.5 w-3.5" /> Start Timer
+              </Button>
+            )}
             <LitigationButton onClick={() => setLitigationDialogOpen(true)} />
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditDialogOpen(true)}>
               <Pencil className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Edit Project</span><span className="sm:hidden">Edit</span>
