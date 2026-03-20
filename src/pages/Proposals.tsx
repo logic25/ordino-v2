@@ -111,10 +111,8 @@ export default function Proposals() {
   const deleteLead = useDeleteLead();
   const updateLead = useUpdateLead();
 
-  const displayProposals = proposals.length > 0 ? proposals : (currentPage === 0 && !debouncedSearch && !statusFilter ? MOCK_PROPOSALS : []);
-  const displayLeads = leads.length > 0 ? leads : MOCK_LEADS;
-  const showingMockProposals = proposals.length === 0 && !isLoading && currentPage === 0 && !debouncedSearch && !statusFilter;
-  const showingMockLeads = leads.length === 0 && !leadsLoading;
+  const displayProposals = proposals;
+  const displayLeads = leads;
 
   // Open dialog if coming from properties with a property pre-selected (once only)
   const didAutoOpen = useRef(false);
