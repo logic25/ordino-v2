@@ -249,7 +249,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     sections: sectionOrder.filter((s) => selectedSections.includes(s)),
     companyInfo: companyInfo[0],
     staffBios,
-    notableProjects,
+    notableProjects: allNotableProjects,
     narratives: [...firmHistory, ...narratives],
     pricing: pricing[0],
     certs,
