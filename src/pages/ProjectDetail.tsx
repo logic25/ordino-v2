@@ -1116,7 +1116,7 @@ function ReadinessChecklist({ items, pisStatus, projectId, projectName, property
 
             {/* PIS Submitted Data — always show field count like "23/23" */}
             {pisStatus.sentDate && (
-              <Collapsible defaultOpen={pisStatus.completedFields === pisStatus.totalFields}>
+              <Collapsible defaultOpen>
                 <CollapsibleTrigger asChild>
                   <Button variant="ghost" size="sm" className="gap-1.5 text-xs h-7 px-2">
                     <ChevronRight className="h-3 w-3" />
