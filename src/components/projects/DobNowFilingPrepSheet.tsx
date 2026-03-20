@@ -924,6 +924,7 @@ export function DobNowFilingPrepSheet({
                 <Separator className="my-3" />
 
                 {/* Two-step agent flow */}
+                {(() => { console.log("[FilingAgent] Render state:", { dobSessionId, loginConfirmed, submitStep }); return null; })()}
                 {!dobSessionId && !loginConfirmed && (
                   <Button
                     variant="outline"
