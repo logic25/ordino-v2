@@ -792,7 +792,6 @@ export function useSignProposalInternal() {
           assigned_pm_id: assignedPmId,
           client_id: proposal.client_id || null,
           retainer_amount: (proposal as any).retainer_amount || 0,
-          retainer_balance: (proposal as any).retainer_amount || 0,
           status: "open",
           created_by: profile.id,
           notes: `Created from proposal ${proposal.proposal_number}`,
