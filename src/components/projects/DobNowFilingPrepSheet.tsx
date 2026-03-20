@@ -62,11 +62,21 @@ function stripFormatting(text: string): string {
   return cleaned;
 }
 
+// Public PIS form uses "building_and_scope_" prefix, internal uses "building_scope_"
+const PUBLIC_PREFIX_MAP: Record<string, string> = {
+  building_scope: "building_and_scope",
+  applicant: "applicant_and_owner",
+  gc: "contractors_inspections",
+};
+
 function getPISValue(responses: Record<string, any> | null, sectionPrefix: string, fieldName: string): string | null {
   if (!responses) return null;
-  // Try prefixed key first, then bare field name
+  // Try internal prefixed key first
   const prefixed = `${sectionPrefix}_${fieldName}`;
-  const val = responses[prefixed] ?? responses[fieldName];
+  // Then try public-form prefixed key
+  const publicPrefix = PUBLIC_PREFIX_MAP[sectionPrefix];
+  const publicPrefixed = publicPrefix ? `${publicPrefix}_${fieldName}` : null;
+  const val = responses[prefixed] ?? (publicPrefixed ? responses[publicPrefixed] : undefined) ?? responses[fieldName];
   if (val === null || val === undefined || val === "") return null;
   return String(val);
 }
