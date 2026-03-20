@@ -512,7 +512,7 @@ export function DobNowFilingPrepSheet({
     ].join("\n");
     await navigator.clipboard.writeText(allData);
 
-    // Fire-and-forget audit log
+    // Fire-and-forget audit log for opening the manual flow only
     if (currentUser) {
       (supabase.from("filing_audit_log" as any).insert({
         company_id: currentUser.company_id,
@@ -522,13 +522,11 @@ export function DobNowFilingPrepSheet({
         filing_type: service.name,
         work_types: workTypes,
         property_address: property?.address || null,
-        method: "clipboard",
+        method: "clipboard_opened",
         payload_snapshot: payload,
       }) as any).then(() => {});
     }
 
-    setFiledAt(new Date());
-    setFilerName(currentUser?.display_name || "Unknown");
     setSubmitStep("success");
 
     // Open DOB NOW
