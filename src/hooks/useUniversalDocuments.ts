@@ -44,7 +44,17 @@ export function useUploadDocument() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: { file: File; title: string; description?: string; category: string; tags?: string[]; folder_id?: string }) => {
+    mutationFn: async (input: {
+      file: File;
+      title: string;
+      description?: string;
+      category: string;
+      tags?: string[];
+      folder_id?: string;
+      project_id?: string;
+      property_id?: string;
+      proposal_id?: string;
+    }) => {
       if (!profile?.company_id) throw new Error("No company");
       const ext = input.file.name.split(".").pop();
       const path = `${profile.company_id}/${crypto.randomUUID()}.${ext}`;
@@ -66,6 +76,9 @@ export function useUploadDocument() {
         uploaded_by: profile.id,
         tags: input.tags || [],
         folder_id: input.folder_id || null,
+        project_id: input.project_id || null,
+        property_id: input.property_id || null,
+        proposal_id: input.proposal_id || null,
       } as any);
       if (error) throw error;
     },

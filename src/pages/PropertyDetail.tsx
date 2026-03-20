@@ -117,6 +117,43 @@ export default function PropertyDetail() {
         setCoComplaints(complaints);
         setCoImported(true);
         setLastSynced(format(new Date(), "MM/dd/yyyy h:mm a"));
+
+        // Persist DOB data to signal tables
+        if (profile?.company_id && id) {
+          try {
+            if (apps.length > 0) {
+              const appRows = apps.map((a: any) => ({
+                property_id: id,
+                company_id: profile.company_id,
+                job_number: a.jobNum || a.job_number || "",
+                application_type: a.workType || a.application_type || "Unknown",
+                filing_status: a.status || null,
+                applicant_name: a.applicant || null,
+                filed_date: a.filedDate || null,
+                description: a.description || null,
+                raw_data: a,
+              }));
+              await supabase.from("signal_applications").upsert(appRows as any, { onConflict: "property_id,job_number" });
+            }
+            if (viols.length > 0) {
+              const violRows = viols.map((v: any) => ({
+                property_id: id,
+                company_id: profile.company_id,
+                violation_number: v.violationNum || v.violation_number || "",
+                agency: v.agency || "DOB",
+                status: v.status || "open",
+                description: v.description || null,
+                penalty_amount: v.penaltyAmount || v.penalty_amount || 0,
+                issued_date: v.issuedDate || null,
+                raw_data: v,
+              }));
+              await supabase.from("signal_violations").upsert(violRows as any, { onConflict: "property_id,violation_number" });
+            }
+          } catch (persistErr) {
+            console.error("Error persisting DOB data:", persistErr);
+          }
+        }
+
         if (apps.length === 0) {
           toast({
             title: "No DOB applications found",
@@ -129,7 +166,7 @@ export default function PropertyDetail() {
         setCoImporting(false);
       }
     })();
-  }, [property?.bin, isSubscriptionActive, coImported, coImporting, toast]);
+  }, [property?.bin, isSubscriptionActive, coImported, coImporting, toast, profile?.company_id, id]);
 
   // Import DOB data (real NYC Open Data)
   const handleImportDOBData = useCallback(async () => {
