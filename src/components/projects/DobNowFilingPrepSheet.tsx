@@ -569,6 +569,10 @@ export function DobNowFilingPrepSheet({
     setAgentProgress([]);
     setAgentError(null);
     setAgentQueuedAt(null);
+    setDobSessionId(null);
+    setDobSessionLiveUrl(null);
+    setLoginConfirmed(false);
+    setSessionModalOpen(false);
     setSubmitStep("idle");
   };
 
