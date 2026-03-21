@@ -159,13 +159,13 @@ Deno.serve(async (req) => {
     }) => {
       if (!attendee_ids?.length) return;
 
-      const newAttendeeIds = attendee_ids
+      // Include creator in the notification list — they get a confirmation too
+      const allRecipientIds = attendee_ids
         .filter(Boolean)
         .filter((id, index, ids) => ids.indexOf(id) === index)
-        .filter((id) => id !== profile.id)
         .filter((id) => !previous_attendee_ids.includes(id));
 
-      if (!newAttendeeIds.length) return;
+      if (!allRecipientIds.length) return;
 
       const creatorProfile = (
         await supabaseAdmin
