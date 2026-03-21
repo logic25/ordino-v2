@@ -553,7 +553,12 @@ export function ProductRoadmap() {
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {item.created_by_profile?.display_name || item.created_by_profile?.first_name || "System"}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {new Date(item.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </TableCell>
                         <Badge variant="secondary" className="text-[10px] capitalize">{item.category}</Badge>
                       </TableCell>
                       <TableCell>
