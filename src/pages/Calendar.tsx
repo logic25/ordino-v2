@@ -432,17 +432,18 @@ export default function Calendar() {
                   const dayEvents = eventsByDay[key] || [];
                   const singleDayEvents = dayEvents.filter((ev) => {
                     if (!ev.all_day || !ev.end_time) return true;
-                    return differenceInDays(new Date(ev.end_time), new Date(ev.start_time)) === 0;
+                    const { startKey, endKey } = getAllDayRange(ev);
+                    return startKey === endKey;
                   });
                   const multiDayStarting = dayEvents.filter((ev) => {
                     if (!ev.all_day || !ev.end_time) return false;
-                    const spanDays = differenceInDays(new Date(ev.end_time), new Date(ev.start_time));
-                    return spanDays > 0 && isSameDay(new Date(ev.start_time), day);
+                    const { startKey, endKey } = getAllDayRange(ev);
+                    return startKey !== endKey && startKey === key;
                   });
                   const multiDayContinuing = dayEvents.filter((ev) => {
                     if (!ev.all_day || !ev.end_time) return false;
-                    const spanDays = differenceInDays(new Date(ev.end_time), new Date(ev.start_time));
-                    return spanDays > 0 && !isSameDay(new Date(ev.start_time), day);
+                    const { startKey, endKey } = getAllDayRange(ev);
+                    return startKey !== endKey && startKey !== key;
                   });
 
                   const inMonth = isSameMonth(day, currentDate);
@@ -487,7 +488,7 @@ export default function Calendar() {
                       <div className="space-y-0.5">
                         {multiDayStarting.map((ev) => {
                           const spanDays = Math.min(
-                            differenceInDays(new Date(ev.end_time), new Date(ev.start_time)) + 1,
+                            getAllDaySpanDays(ev),
                             7 - day.getDay()
                           );
                           return (
