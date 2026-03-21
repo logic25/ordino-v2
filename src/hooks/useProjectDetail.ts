@@ -16,7 +16,7 @@ export function useProjectServices(projectId: string | undefined) {
       const [{ data, error }, { data: billingReqs }, { data: pisData }] = await Promise.all([
         supabase
           .from("services")
-          .select("*")
+          .select("*, dob_applications(job_number, filed_date)")
           .eq("project_id", projectId)
           .order("created_at", { ascending: true }),
         supabase
@@ -140,6 +140,9 @@ export function useProjectServices(projectId: string | undefined) {
         changeOrderId: svc.change_order_id || null,
         depositAmount: Number(svc.deposit_amount ?? 0),
         depositPaid: svc.deposit_paid ?? false,
+        applicationId: svc.application_id || null,
+        filedDate: svc.dob_applications?.filed_date || null,
+        jobNumber: svc.dob_applications?.job_number || null,
       }));
     },
     enabled: !!projectId,
