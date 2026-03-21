@@ -437,7 +437,7 @@ export default function Calendar() {
                       onDragLeave={() => setDragOverCell(null)}
                       onDrop={(e) => handleMonthDrop(e, day)}
                       className={cn(
-                        "min-h-[110px] p-1.5 border-b border-r border-border/15 cursor-pointer transition-all duration-200",
+                        "min-h-[110px] p-1.5 border-b border-r border-border/15 cursor-pointer transition-all duration-200 overflow-hidden",
                         !inMonth && "bg-background/30",
                         inMonth && "bg-card/40",
                         today && "cal-today-glow bg-primary/[0.03]",
