@@ -33,7 +33,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Users, X, ChevronsUpDown, Check } from "lucide-react";
+import { Users, X, ChevronsUpDown, Check, Bell, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useProjects } from "@/hooks/useProjects";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
@@ -49,6 +49,27 @@ const EVENT_TYPES = [
   { value: "site_visit", label: "Site Visit" },
   { value: "filing", label: "Filing" },
   { value: "milestone", label: "Milestone" },
+];
+
+const REMINDER_OPTIONS = [
+  { value: 0, label: "At time of event" },
+  { value: 5, label: "5 minutes before" },
+  { value: 15, label: "15 minutes before" },
+  { value: 30, label: "30 minutes before" },
+  { value: 60, label: "1 hour before" },
+  { value: 120, label: "2 hours before" },
+  { value: 1440, label: "1 day before" },
+  { value: 2880, label: "2 days before" },
+  { value: 10080, label: "1 week before" },
+];
+
+const RECURRENCE_OPTIONS = [
+  { value: "", label: "Does not repeat" },
+  { value: "FREQ=DAILY", label: "Daily" },
+  { value: "FREQ=WEEKLY", label: "Weekly" },
+  { value: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR", label: "Every weekday (Mon–Fri)" },
+  { value: "FREQ=MONTHLY", label: "Monthly" },
+  { value: "FREQ=YEARLY", label: "Yearly" },
 ];
 
 function getProjectLabel(p: any): string {
@@ -150,6 +171,8 @@ export function CalendarEventDialog({
   const [projectId, setProjectId] = useState<string>("");
   const [attendeeIds, setAttendeeIds] = useState<string[]>([]);
   const [locationManuallyEdited, setLocationManuallyEdited] = useState(false);
+  const [reminderMinutes, setReminderMinutes] = useState<number[]>([30]);
+  const [recurrenceRule, setRecurrenceRule] = useState("");
 
   useEffect(() => {
     if (event) {
@@ -160,9 +183,10 @@ export function CalendarEventDialog({
       setEventType(event.event_type);
       setProjectId(event.project_id || "");
       setAttendeeIds(event.metadata?.attendee_ids || []);
+      setReminderMinutes(event.reminder_minutes || [30]);
+      setRecurrenceRule((event as any).recurrence_rule || "");
       const start = new Date(event.start_time);
       const end = new Date(event.end_time);
-      // Use local date/time parts so the form fields match what the user originally entered
       const pad = (n: number) => String(n).padStart(2, "0");
       setStartDate(`${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`);
       setStartTime(`${pad(start.getHours())}:${pad(start.getMinutes())}`);
@@ -183,6 +207,8 @@ export function CalendarEventDialog({
       setProjectId("");
       setAttendeeIds([]);
       setLocationManuallyEdited(false);
+      setReminderMinutes([30]);
+      setRecurrenceRule("");
     }
   }, [event, defaultDate, open]);
 
@@ -206,10 +232,15 @@ export function CalendarEventDialog({
     setAttendeeIds((prev) => prev.filter((a) => a !== id));
   };
 
+  const toggleReminder = (mins: number) => {
+    setReminderMinutes((prev) =>
+      prev.includes(mins) ? prev.filter((m) => m !== mins) : [...prev, mins].sort((a, b) => a - b)
+    );
+  };
+
   const handleSubmit = async () => {
     if (!title || !startDate || !endDate) return;
 
-    // Build ISO strings with local timezone offset so the server stores the correct absolute time
     const tzOffset = (d: string, t: string) => {
       const local = new Date(`${d}T${t}:00`);
       const off = -local.getTimezoneOffset();
@@ -226,33 +257,26 @@ export function CalendarEventDialog({
       ? `${endDate}T23:59:59`
       : tzOffset(endDate, endTime);
 
+    const payload = {
+      title,
+      description,
+      location,
+      start_time: startISO,
+      end_time: endISO,
+      all_day: allDay,
+      event_type: eventType,
+      project_id: projectId || undefined,
+      attendee_ids: attendeeIds,
+      reminder_minutes: reminderMinutes.length > 0 ? reminderMinutes : undefined,
+      recurrence_rule: recurrenceRule || undefined,
+    };
+
     try {
       if (event) {
-        await updateEvent.mutateAsync({
-          event_id: event.id,
-          title,
-          description,
-          location,
-          start_time: startISO,
-          end_time: endISO,
-          all_day: allDay,
-          event_type: eventType,
-          project_id: projectId || undefined,
-          attendee_ids: attendeeIds,
-        });
+        await updateEvent.mutateAsync({ event_id: event.id, ...payload });
         toast({ title: "Event updated" });
       } else {
-        await createEvent.mutateAsync({
-          title,
-          description,
-          location,
-          start_time: startISO,
-          end_time: endISO,
-          all_day: allDay,
-          event_type: eventType,
-          project_id: projectId || undefined,
-          attendee_ids: attendeeIds,
-        });
+        await createEvent.mutateAsync(payload);
         toast({ title: "Event created" });
       }
       onOpenChange(false);
@@ -271,7 +295,7 @@ export function CalendarEventDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{event ? "Edit Event" : "New Event"}</DialogTitle>
         </DialogHeader>
@@ -412,6 +436,71 @@ export function CalendarEventDialog({
                 />
               </div>
             )}
+          </div>
+
+          {/* Recurrence */}
+          <div className="grid gap-2">
+            <Label className="flex items-center gap-1.5">
+              <Repeat className="h-3.5 w-3.5 text-muted-foreground" />
+              Repeat
+            </Label>
+            <Select value={recurrenceRule} onValueChange={setRecurrenceRule}>
+              <SelectTrigger>
+                <SelectValue placeholder="Does not repeat" />
+              </SelectTrigger>
+              <SelectContent>
+                {RECURRENCE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value || "__none__"}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Reminders */}
+          <div className="grid gap-2">
+            <Label className="flex items-center gap-1.5">
+              <Bell className="h-3.5 w-3.5 text-muted-foreground" />
+              Reminders
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="justify-start font-normal h-auto min-h-10" type="button">
+                  {reminderMinutes.length === 0 ? (
+                    <span className="text-muted-foreground">No reminders</span>
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {reminderMinutes.map((m) => {
+                        const opt = REMINDER_OPTIONS.find((o) => o.value === m);
+                        return (
+                          <Badge key={m} variant="secondary" className="text-xs gap-1">
+                            {opt?.label || `${m} min`}
+                            <X className="h-3 w-3 cursor-pointer" onClick={(e) => { e.stopPropagation(); toggleReminder(m); }} />
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-2" align="start">
+                <div className="space-y-1 max-h-48 overflow-y-auto">
+                  {REMINDER_OPTIONS.map((opt) => (
+                    <label
+                      key={opt.value}
+                      className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-sm"
+                    >
+                      <Checkbox
+                        checked={reminderMinutes.includes(opt.value)}
+                        onCheckedChange={() => toggleReminder(opt.value)}
+                      />
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="grid gap-2">
