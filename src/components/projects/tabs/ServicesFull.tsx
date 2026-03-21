@@ -626,26 +626,36 @@ export function ServicesFull({ services: initialServices, project, contacts, all
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           {svc.needsDobFiling ? (() => {
-                            const filedAt = filingStatusByService[svc.id];
+                            const filedAt = filingStatusByService[svc.id] || svc.filedDate;
                             if (filedAt) {
                               return (
-                                <Badge className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0">
-                                  ✓ Filed {format(new Date(filedAt), "M/d")}
-                                </Badge>
+                                <div className="flex flex-col gap-0.5">
+                                  <Badge className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0">
+                                    ✓ Filed {format(new Date(filedAt), "M/d")}
+                                  </Badge>
+                                  {svc.jobNumber && (
+                                    <span className="text-[10px] text-muted-foreground">#{svc.jobNumber}</span>
+                                  )}
+                                </div>
                               );
                             }
                             return (
                               <Button variant="outline" size="sm" className="text-xs gap-1" onClick={() => setDobPrepService(svc)}>
-                                <Building2 className="h-3 w-3" /> File DOB
+                                <Building2 className="h-3 w-3" /> Submit
                               </Button>
                             );
                           })() : svc.status !== "dropped" ? (() => {
-                            const filedAt = filingStatusByService[svc.id];
+                            const filedAt = filingStatusByService[svc.id] || svc.filedDate;
                             if (filedAt) {
                               return (
-                                <Badge className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0">
-                                  ✓ Filed {format(new Date(filedAt), "M/d")}
-                                </Badge>
+                                <div className="flex flex-col gap-0.5">
+                                  <Badge className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0">
+                                    ✓ Filed {format(new Date(filedAt), "M/d")}
+                                  </Badge>
+                                  {svc.jobNumber && (
+                                    <span className="text-[10px] text-muted-foreground">#{svc.jobNumber}</span>
+                                  )}
+                                </div>
                               );
                             }
                             return (
