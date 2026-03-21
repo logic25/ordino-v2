@@ -83,6 +83,8 @@ export function useCreateCalendarEvent() {
       client_id?: string;
       application_id?: string;
       attendee_ids?: string[];
+      reminder_minutes?: number[];
+      recurrence_rule?: string;
     }) => {
       const { data, error } = await supabase.functions.invoke("google-calendar-sync", {
         body: { action: "create", ...event },
