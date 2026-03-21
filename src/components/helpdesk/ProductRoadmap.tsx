@@ -521,6 +521,8 @@ export function ProductRoadmap() {
                 <TableHead>Status</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Priority</TableHead>
+                <TableHead>Submitted By</TableHead>
+                <TableHead>Date</TableHead>
                 <TableHead className="w-[50px]" />
               </TableRow>
             </TableHeader>
