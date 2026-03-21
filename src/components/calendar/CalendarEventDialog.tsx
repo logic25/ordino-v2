@@ -162,10 +162,12 @@ export function CalendarEventDialog({
       setAttendeeIds(event.metadata?.attendee_ids || []);
       const start = new Date(event.start_time);
       const end = new Date(event.end_time);
-      setStartDate(start.toISOString().split("T")[0]);
-      setStartTime(start.toTimeString().slice(0, 5));
-      setEndDate(end.toISOString().split("T")[0]);
-      setEndTime(end.toTimeString().slice(0, 5));
+      // Use local date/time parts so the form fields match what the user originally entered
+      const pad = (n: number) => String(n).padStart(2, "0");
+      setStartDate(`${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`);
+      setStartTime(`${pad(start.getHours())}:${pad(start.getMinutes())}`);
+      setEndDate(`${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`);
+      setEndTime(`${pad(end.getHours())}:${pad(end.getMinutes())}`);
     } else {
       const d = defaultDate || new Date();
       const dateStr = d.toISOString().split("T")[0];
