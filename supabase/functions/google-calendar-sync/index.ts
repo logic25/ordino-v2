@@ -180,7 +180,7 @@ Deno.serve(async (req) => {
       const { data: attendeeProfiles, error: attendeeError } = await supabaseAdmin
         .from("profiles")
         .select("id, display_name, first_name, last_name, user_id")
-        .in("id", newAttendeeIds);
+        .in("id", allRecipientIds);
 
       if (attendeeError) {
         console.error("Failed to load attendee profiles:", attendeeError);
