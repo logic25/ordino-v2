@@ -14,7 +14,7 @@ interface ServicesStepProps {
   handleDragEnd: (event: DragEndEvent) => void;
   serviceCatalog: any[];
   lastAddedIndex: number | null;
-  workTypeDisciplines: Record<string, string[]>;
+  workTypeDisciplines: readonly string[];
 }
 
 export function ServicesStep({
