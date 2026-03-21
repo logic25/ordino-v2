@@ -87,6 +87,14 @@ import { ActionItemsTab } from "@/components/projects/ActionItemsTab";
 import { SendToBillingDialog } from "@/components/invoices/SendToBillingDialog";
 import { ComposeEmailDialog } from "@/components/emails/ComposeEmailDialog";
 import type { ChangeOrder } from "@/hooks/useChangeOrders";
+// Extracted tab components
+import { ProposalExecutionBanner } from "@/components/projects/tabs/ProposalExecutionBanner";
+import { EmailsFullLive } from "@/components/projects/tabs/EmailsFullLive";
+import { ContactsFull } from "@/components/projects/tabs/ContactsFull";
+import { TimelineFull } from "@/components/projects/tabs/TimelineFull";
+import { DocumentsFull } from "@/components/projects/tabs/DocumentsFull";
+import { ChangeOrdersFull } from "@/components/projects/tabs/ChangeOrdersFull";
+import { JobCostingFull } from "@/components/projects/tabs/JobCostingFull";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   open: { label: "Open", variant: "default" },
