@@ -66,6 +66,8 @@ interface RoadmapItem {
   stress_test_result: StressTestResult | null;
   stress_tested_at: string | null;
   created_at: string;
+  created_by: string | null;
+  created_by_profile?: { display_name: string | null; first_name: string | null } | null;
 }
 
 type RoadmapStatus = "gap" | "planned" | "in_progress" | "done";
@@ -95,7 +97,7 @@ function useRoadmapItems() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("roadmap_items")
-        .select("*")
+        .select("*, created_by_profile:profiles!roadmap_items_created_by_fkey(display_name, first_name)")
         .order("sort_order", { ascending: true });
       if (error) throw error;
       return (data || []) as unknown as RoadmapItem[];
@@ -181,6 +183,11 @@ function SortableRoadmapCard({
                 <Sparkles className="h-2.5 w-2.5" /> AI tested
               </Badge>
             )}
+          </div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">
+            {item.created_by_profile?.display_name || item.created_by_profile?.first_name || "System"}
+            {" · "}
+            {new Date(item.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
           </div>
         </CardContent>
       </Card>
@@ -514,6 +521,8 @@ export function ProductRoadmap() {
                 <TableHead>Status</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Priority</TableHead>
+                <TableHead>Submitted By</TableHead>
+                <TableHead>Date</TableHead>
                 <TableHead className="w-[50px]" />
               </TableRow>
             </TableHeader>
@@ -550,6 +559,12 @@ export function ProductRoadmap() {
                       <TableCell>
                         <Badge variant="outline" className={`text-[10px] ${PRIORITY_STYLES[item.priority] || ""}`}>{item.priority}</Badge>
                       </TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {item.created_by_profile?.display_name || item.created_by_profile?.first_name || "System"}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {new Date(item.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </TableCell>
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -566,7 +581,7 @@ export function ProductRoadmap() {
                 })}
               {items.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No roadmap items yet</TableCell>
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No roadmap items yet</TableCell>
                 </TableRow>
               )}
             </TableBody>
