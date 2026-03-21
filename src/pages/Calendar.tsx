@@ -134,17 +134,27 @@ export default function Calendar() {
   }, [events, billingItems, showBilling, hiddenTypes]);
 
   // Build eventsByDay including multi-day event span
+  // For all-day events, extract the date portion directly from the ISO string
+  // to avoid timezone shifts (e.g., UTC midnight → previous day in local tz).
   const eventsByDay = useMemo(() => {
     const map: Record<string, UnifiedEvent[]> = {};
+
+    const toDateKey = (isoString: string, allDay: boolean | null | undefined): string => {
+      if (allDay && isoString.length >= 10) {
+        return isoString.slice(0, 10); // "2026-03-20"
+      }
+      return format(new Date(isoString), "yyyy-MM-dd");
+    };
+
     allEvents.forEach((ev) => {
       if (!ev.start_time) return;
-      const startD = new Date(ev.start_time);
-      if (isNaN(startD.getTime())) return;
-      const endD = ev.end_time ? new Date(ev.end_time) : startD;
-      const spanDays = Math.max(0, differenceInDays(endD, startD));
+      const startKey = toDateKey(ev.start_time, ev.all_day);
+      const endKey = ev.end_time ? toDateKey(ev.end_time, ev.all_day) : startKey;
 
-      // For multi-day events, add to each day in the span
-      if (spanDays > 0 && ev.all_day) {
+      // For multi-day all-day events, add to each day in the span
+      if (ev.all_day && startKey !== endKey) {
+        const startD = new Date(startKey + "T00:00:00");
+        const endD = new Date(endKey + "T00:00:00");
         const evDays = eachDayOfInterval({ start: startD, end: endD });
         evDays.forEach((d) => {
           const key = format(d, "yyyy-MM-dd");
@@ -152,9 +162,8 @@ export default function Calendar() {
           map[key].push(ev);
         });
       } else {
-        const key = format(startD, "yyyy-MM-dd");
-        if (!map[key]) map[key] = [];
-        map[key].push(ev);
+        if (!map[startKey]) map[startKey] = [];
+        map[startKey].push(ev);
       }
     });
     return map;
