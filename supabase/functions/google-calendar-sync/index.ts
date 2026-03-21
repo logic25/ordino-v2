@@ -204,14 +204,20 @@ Deno.serve(async (req) => {
       const endFormatted = formatEventDate(end_time, all_day);
 
       for (const attendee of attendeeProfiles || []) {
+        const isCreator = attendee.id === profile.id;
         const attendeeName = attendee.display_name || [attendee.first_name, attendee.last_name].filter(Boolean).join(" ") || "there";
+
+        const notifBody = isCreator
+          ? `You created an event: ${title}`
+          : `${creatorName} invited you to: ${title}`;
+        const notifTitle = isCreator ? "Event Created" : "New Calendar Event";
 
         const { error: notificationError } = await supabaseAdmin.from("notifications").insert({
           company_id: profile.company_id,
           user_id: attendee.id,
           type: "calendar_event",
-          title: "New Calendar Event",
-          body: `${creatorName} invited you to: ${title}`,
+          title: notifTitle,
+          body: notifBody,
           link: "/calendar",
         });
 
