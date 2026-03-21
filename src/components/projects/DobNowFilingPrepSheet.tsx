@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { createPortal } from "react-dom";
 import { FilingAgentSupervisionPanel } from "./FilingAgentSupervisionPanel";
 import { format } from "date-fns";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -17,7 +16,7 @@ import {
   Copy, CheckCircle2, AlertTriangle, MapPin, Building2,
   User, Phone, Mail, ExternalLink, ClipboardList, Save,
   Plus, Trash2, Settings, Download, Type, ChevronDown, ChevronRight,
-  ArrowLeft, Loader2, Bot, Circle, XCircle, Eye, Monitor, LogIn, Maximize2, Minimize2,
+  ArrowLeft, Loader2, Bot, Circle, XCircle, Eye,
 } from "lucide-react";
 import type { MockService, MockContact } from "./projectMockData";
 import { engineerDisciplineLabels } from "./projectMockData";
@@ -57,16 +56,15 @@ const DEFAULT_CHECKLIST: Omit<ChecklistItem, "checked">[] = [
 
 function stripFormatting(text: string): string {
   let cleaned = text
-    .replace(/<[^>]*>/g, "")          // Remove HTML tags
-    .replace(/&nbsp;/gi, " ")         // Replace &nbsp;
-    .replace(/[\u201C\u201D]/g, '"')  // Curly double quotes → straight
-    .replace(/[\u2018\u2019]/g, "'")  // Curly single quotes → straight
-    .replace(/\s{2,}/g, " ")          // Collapse multiple spaces
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/\s{2,}/g, " ")
     .trim();
   return cleaned;
 }
 
-// Public PIS form uses "building_and_scope_" prefix, internal uses "building_scope_"
 const PUBLIC_PREFIX_MAP: Record<string, string> = {
   building_scope: "building_and_scope",
   applicant: "applicant_and_owner",
@@ -75,9 +73,7 @@ const PUBLIC_PREFIX_MAP: Record<string, string> = {
 
 function getPISValue(responses: Record<string, any> | null, sectionPrefix: string, fieldName: string): string | null {
   if (!responses) return null;
-  // Try internal prefixed key first
   const prefixed = `${sectionPrefix}_${fieldName}`;
-  // Then try public-form prefixed key
   const publicPrefix = PUBLIC_PREFIX_MAP[sectionPrefix];
   const publicPrefixed = publicPrefix ? `${publicPrefix}_${fieldName}` : null;
   const val = responses[prefixed] ?? (publicPrefixed ? responses[publicPrefixed] : undefined) ?? responses[fieldName];
@@ -104,56 +100,6 @@ interface FilingRunProgress {
   step: string;
   status: string;
   timestamp: string;
-}
-
-interface StoredDobSessionState {
-  sessionId: string;
-  liveUrl: string | null;
-  loginConfirmed: boolean;
-  createdAt: number;
-}
-
-function readStoredDobSessionState(storageKey: string): StoredDobSessionState | null {
-  try {
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) return null;
-
-    const parsed = JSON.parse(raw) as Partial<StoredDobSessionState>;
-    if (!parsed?.sessionId || typeof parsed.sessionId !== "string") return null;
-
-    // Expire after 15 minutes
-    const SESSION_TTL_MS = 15 * 60 * 1000;
-    const createdAt = typeof parsed.createdAt === "number" ? parsed.createdAt : 0;
-    if (Date.now() - createdAt > SESSION_TTL_MS) {
-      localStorage.removeItem(storageKey);
-      return null;
-    }
-
-    return {
-      sessionId: parsed.sessionId,
-      liveUrl: typeof parsed.liveUrl === "string" ? parsed.liveUrl : null,
-      loginConfirmed: Boolean(parsed.loginConfirmed),
-      createdAt,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function writeStoredDobSessionState(storageKey: string, state: StoredDobSessionState) {
-  try {
-    localStorage.setItem(storageKey, JSON.stringify(state));
-  } catch {
-    // noop
-  }
-}
-
-function clearStoredDobSessionState(storageKey: string) {
-  try {
-    localStorage.removeItem(storageKey);
-  } catch {
-    // noop
-  }
 }
 
 // ---- Component ----
@@ -188,11 +134,6 @@ export function DobNowFilingPrepSheet({
   // Persist checklist checked state per project+service in localStorage
   const checklistStorageKey = `filing-checklist-${project.id}-${service.id}`;
   const checklistDeletedKey = `filing-checklist-deleted-${project.id}-${service.id}`;
-  const dobSessionStorageKey = `dob_session_${service.id}`;
-  const restoredDobSession = useMemo(
-    () => readStoredDobSessionState(dobSessionStorageKey),
-    [dobSessionStorageKey]
-  );
 
   const saveChecklistToStorage = useCallback((items: ChecklistItem[]) => {
     try {
@@ -236,76 +177,17 @@ export function DobNowFilingPrepSheet({
   const [launchingAgent, setLaunchingAgent] = useState(false);
   const [confirmingFiled, setConfirmingFiled] = useState(false);
 
-  // Two-step session flow state
-  const [dobSessionId, setDobSessionId] = useState<string | null>(restoredDobSession?.sessionId ?? null);
-  const [dobSessionLiveUrl, setDobSessionLiveUrl] = useState<string | null>(restoredDobSession?.liveUrl ?? null);
-  const [creatingSession, setCreatingSession] = useState(false);
-  const [loginConfirmed, setLoginConfirmed] = useState(restoredDobSession?.loginConfirmed ?? false);
-  const [sessionModalOpen, setSessionModalOpen] = useState(false);
-
-  const persistDobSessionState = useCallback(
-    (sessionId: string, liveUrl: string | null, confirmed: boolean) => {
-      writeStoredDobSessionState(dobSessionStorageKey, {
-        sessionId,
-        liveUrl,
-        loginConfirmed: confirmed,
-        createdAt: Date.now(),
-      });
-    },
-    [dobSessionStorageKey]
-  );
-
-  const clearDobSessionState = useCallback(() => {
-    clearStoredDobSessionState(dobSessionStorageKey);
-  }, [dobSessionStorageKey]);
-
-  useEffect(() => {
-    const restored = readStoredDobSessionState(dobSessionStorageKey);
-    if (restored) {
-      console.log("[FilingAgent] Restored stored session:", restored);
-    }
-    setDobSessionId(restored?.sessionId ?? null);
-    setDobSessionLiveUrl(restored?.liveUrl ?? null);
-    setLoginConfirmed(restored?.loginConfirmed ?? false);
-    setSessionModalOpen(false);
-  }, [dobSessionStorageKey]);
-
-  useEffect(() => {
-    console.log("[FilingAgent] Render state:", { dobSessionId, loginConfirmed, submitStep });
-  }, [dobSessionId, loginConfirmed, submitStep]);
-
-  const shouldBlockClose = sessionModalOpen || launchingAgent || submitStep === "agent" || (agentStatus && !["completed", "failed"].includes(agentStatus));
+  const shouldBlockClose = launchingAgent || submitStep === "agent" || (agentStatus && !["completed", "failed"].includes(agentStatus));
 
   const handleSheetOpenChange = useCallback(
     (nextOpen: boolean) => {
-      // Block close while session modal is open or agent is actively running
       if (!nextOpen && shouldBlockClose) {
         return;
       }
-
       onOpenChange(nextOpen);
     },
     [onOpenChange, shouldBlockClose]
   );
-
-  const handleConfirmLoggedIn = useCallback(() => {
-    if (!dobSessionId) {
-      toast({
-        title: "Session missing",
-        description: "Start a DOB NOW session before confirming login.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    console.log("[FilingAgent] I'm Logged In clicked. session_id:", dobSessionId, "submitStep:", submitStep);
-    persistDobSessionState(dobSessionId, dobSessionLiveUrl, true);
-    setLoginConfirmed(true);
-    setSessionModalOpen(false);
-    toast({ title: "Login confirmed", description: "You can now launch the filing agent." });
-  }, [dobSessionId, dobSessionLiveUrl, persistDobSessionState, submitStep, toast]);
-
-  // Realtime is now handled inside FilingAgentSupervisionPanel
 
   // Initialize checklist from company defaults, then restore saved checked state
   useEffect(() => {
@@ -318,13 +200,11 @@ export function DobNowFilingPrepSheet({
         items = DEFAULT_CHECKLIST.map((item) => ({ ...item, checked: false }));
       }
 
-      // Filter out previously deleted items
       const deletedIds = loadDeletedIds();
       if (deletedIds.length > 0) {
         items = items.filter(item => !deletedIds.includes(item.id));
       }
 
-      // Restore checked state from localStorage
       const savedChecked = loadChecklistFromStorage();
       if (savedChecked) {
         items = items.map(item => ({ ...item, checked: !!savedChecked[item.id] }));
@@ -385,7 +265,6 @@ export function DobNowFilingPrepSheet({
   const property = project.properties;
   const proj = project as any;
 
-  // PIS-derived values (try both internal and public-form prefixes)
   const pisSquareFootage = getPISValue(pisResponses, "building_scope", "sq_ft");
   const pisJobDescription = getPISValue(pisResponses, "building_scope", "job_description");
   const pisWorkTypes = getPISArrayValue(pisResponses, "building_scope", "work_types");
@@ -397,18 +276,13 @@ export function DobNowFilingPrepSheet({
   const pisApplicantPhone = getPISValue(pisResponses, "applicant", "applicant_phone");
   const pisApplicantCompany = getPISValue(pisResponses, "applicant", "applicant_business_name");
 
-  // Prefer PIS job description over service's
   const jobDescription = pisJobDescription || service.jobDescription || null;
-  // Prefer PIS work types over service's subServices
   const workTypes = pisWorkTypes && pisWorkTypes.length > 0 ? pisWorkTypes : (service.subServices || []);
 
-  // Floor: prefer project field, fallback to PIS
   const floorValue = proj.floor_number || pisFloor || null;
   const floorFromPIS = !proj.floor_number && !!pisFloor;
-  // Unit: prefer project field, fallback to PIS
   const unitValue = proj.unit_number || pisUnit || null;
   const unitFromPIS = !proj.unit_number && !!pisUnit;
-  // Estimated Job Cost: prefer service costs, then PIS, then project estimated_value
   const estCostValue = service.estimatedCosts && (service.estimatedCosts || []).length > 0
     ? (service.estimatedCosts || []).map(ec => `${ec.discipline}: $${ec.amount.toLocaleString()}`).join("; ")
     : pisEstimatedJobCost
@@ -435,7 +309,6 @@ export function DobNowFilingPrepSheet({
     { label: "Job Description", value: jobDescription, category: "filing", dobFieldName: "Description of Work", editable: true, fromPIS: !!pisJobDescription },
   ];
 
-  // Map contacts by DOB role
   const dobRoleLabelsMap: Record<string, string> = {
     applicant: "Applicant",
     owner: "Owner",
@@ -465,7 +338,6 @@ export function DobNowFilingPrepSheet({
     return acc;
   }, {} as Record<string, MockContact[]>);
 
-  // If no applicant contact exists, try to fill from PIS applicant data
   if (!contactsByRole["applicant"]?.length && pisApplicantName) {
     contactsByRole["applicant"] = [{
       id: "pis-applicant",
@@ -478,7 +350,6 @@ export function DobNowFilingPrepSheet({
     } as MockContact];
   }
 
-  // Auto-populate filing rep from company data + assigned PM (it's always "us")
   if (!contactsByRole["filing_rep"]?.length && companyData) {
     const pmName = (project as any).assigned_pm?.display_name
       || (project as any).assigned_pm?.first_name
@@ -504,7 +375,6 @@ export function DobNowFilingPrepSheet({
   const requiredTotal = checklist.filter((c) => c.required).length;
   const checklistComplete = checklist.filter((c) => c.required).every((c) => c.checked);
 
-  // Build full payload for confirmation card
   const buildPayload = () => {
     const cleanedJobDesc = stripFormatting(editOverrides["Job Description"] || jobDescription || "");
     return {
@@ -532,62 +402,12 @@ export function DobNowFilingPrepSheet({
     };
   };
 
-  // Start DOB NOW browser session (Step 1)
-  const handleStartSession = async () => {
-    setCreatingSession(true);
-    try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const { data: { session } } = await supabase.auth.getSession();
-
-      const res = await fetch(
-        `${supabaseUrl}/functions/v1/filing-agent-proxy?action=create-session`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session?.access_token}`,
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          },
-          body: JSON.stringify({}),
-        }
-      );
-
-      const result = await res.json();
-      console.log("[FilingAgent] create-session result:", result);
-
-      if (!res.ok || !result.session_id) {
-        toast({ title: "Session error", description: result?.error || "Failed to create browser session.", variant: "destructive" });
-        return;
-      }
-
-      setDobSessionId(result.session_id);
-      // Use Browserbase's embeddable live view URL (not devtools inspector)
-      const liveViewUrl = `https://www.browserbase.com/sessions/${result.session_id}/live`;
-      const resolvedLiveUrl = result.live_url || liveViewUrl;
-      setDobSessionLiveUrl(resolvedLiveUrl);
-      setLoginConfirmed(false);
-      persistDobSessionState(result.session_id, resolvedLiveUrl, false);
-      setSessionModalOpen(true);
-      toast({ title: "Browser session started", description: "Log in to DOB NOW, then click 'I'm Logged In'." });
-    } catch (err) {
-      console.error("[FilingAgent] create-session error:", err);
-      toast({ title: "Error", description: "Failed to start browser session.", variant: "destructive" });
-    } finally {
-      setCreatingSession(false);
-    }
-  };
-
-  // Launch filing agent (Step 2 — passes existing session_id)
+  // Launch filing agent directly (no session step needed)
   const handleLaunchAgent = async () => {
-    const activeSessionId = dobSessionId ?? readStoredDobSessionState(dobSessionStorageKey)?.sessionId ?? null;
-
-    if (!currentUser || !checklistComplete || !activeSessionId) {
+    if (!currentUser || !checklistComplete) {
       if (!checklistComplete) {
         setChecklistWarning(true);
         toast({ title: "Checklist incomplete", description: "Complete all required checklist items before launching the agent.", variant: "destructive" });
-      }
-      if (!activeSessionId) {
-        toast({ title: "Session missing", description: "Start and confirm a DOB NOW session before launching the agent.", variant: "destructive" });
       }
       return;
     }
@@ -621,7 +441,6 @@ export function DobNowFilingPrepSheet({
       console.log("[FilingAgent] Sending request to filing-agent-proxy...", {
         project_id: project.id,
         service_id: service.id,
-        session_id: activeSessionId,
       });
 
       const proxyRes = await fetch(
@@ -637,7 +456,6 @@ export function DobNowFilingPrepSheet({
             project_id: project.id,
             service_id: service.id,
             filing_run_id: run.id,
-            session_id: activeSessionId,
           }),
         }
       );
@@ -662,18 +480,13 @@ export function DobNowFilingPrepSheet({
         return;
       }
 
-      // Update filing_run with agent job_id, session URLs, and set to running
+      // Update filing_run with agent job_id and set to running
       const agentJobId = proxyResult?.job_id || null;
       const updateData: Record<string, any> = {
         status: "running",
         started_at: new Date().toISOString(),
         agent_session_id: agentJobId,
       };
-      if (proxyResult?.session_url) updateData.session_url = proxyResult.session_url;
-      if (proxyResult?.recording_url) updateData.recording_url = proxyResult.recording_url;
-      if (proxyResult?.live_url) updateData.live_url = proxyResult.live_url;
-      // If we have a pre-existing session live_url, use that
-      if (!updateData.live_url && dobSessionLiveUrl) updateData.live_url = dobSessionLiveUrl;
 
       await (supabase.from("filing_runs") as any)
         .update(updateData)
@@ -697,11 +510,6 @@ export function DobNowFilingPrepSheet({
     setAgentProgress([]);
     setAgentError(null);
     setAgentQueuedAt(null);
-    setDobSessionId(null);
-    setDobSessionLiveUrl(null);
-    setLoginConfirmed(false);
-    setSessionModalOpen(false);
-    clearDobSessionState();
     setSubmitStep("idle");
   };
 
@@ -750,7 +558,6 @@ export function DobNowFilingPrepSheet({
     setSubmitStep("submitting");
     const payload = buildPayload();
 
-    // Copy to clipboard
     const allData = [
       ...payload.location.filter(f => f.value).map(f => `${f.label}: ${f.value}`),
       "",
@@ -761,7 +568,6 @@ export function DobNowFilingPrepSheet({
     ].join("\n");
     await navigator.clipboard.writeText(allData);
 
-    // Fire-and-forget audit log for opening the manual flow only
     if (currentUser) {
       (supabase.from("filing_audit_log" as any).insert({
         company_id: currentUser.company_id,
@@ -778,7 +584,6 @@ export function DobNowFilingPrepSheet({
 
     setSubmitStep("success");
 
-    // Open DOB NOW
     setTimeout(() => window.open("https://a810-dobnow.nyc.gov/publish/#!/", "_blank"), 400);
     toast({ title: "Fields copied to clipboard", description: "Opening DOB NOW BUILD — paste fields into the application form." });
   };
@@ -791,7 +596,6 @@ export function DobNowFilingPrepSheet({
   };
 
   return (
-    <>
     <Sheet open={open} onOpenChange={handleSheetOpenChange} modal={false}>
       <SheetContent
         className="sm:max-w-[560px] overflow-y-auto"
@@ -1058,73 +862,22 @@ export function DobNowFilingPrepSheet({
 
                 <Separator className="my-3" />
 
-                {/* Two-step agent flow */}
-                {!dobSessionId && !loginConfirmed && (
-                  <Button
-                    variant="outline"
-                    className="w-full gap-2 border-primary/30 hover:bg-primary/5"
-                    onClick={handleStartSession}
-                    disabled={creatingSession}
-                  >
-                    {creatingSession ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Monitor className="h-4 w-4" />
-                    )}
-                    Step 1: Start DOB NOW Session
-                  </Button>
-                )}
-
-                {dobSessionId && !loginConfirmed && (
-                  <div className="space-y-2">
-                    <div className="p-3 rounded-lg border-2 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <LogIn className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                        <span className="text-sm font-medium text-blue-800 dark:text-blue-200">Session active — log in to DOB NOW</span>
-                      </div>
-                      <p className="text-xs text-blue-700 dark:text-blue-300">
-                        Click "Open Browser" to log in, then come back and click "I'm Logged In".
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 gap-1.5"
-                        onClick={() => setSessionModalOpen(true)}
-                      >
-                        <Maximize2 className="h-3.5 w-3.5" /> Open Browser
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="flex-1 gap-1.5"
-                        onClick={handleConfirmLoggedIn}
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5" /> I'm Logged In
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {loginConfirmed && dobSessionId && (
-                  <div className="space-y-2">
-                    <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary">
-                      Session active — logged in ✓
-                    </Badge>
-                    <Button
-                      className="w-full gap-2"
-                      onClick={handleLaunchAgent}
-                      disabled={launchingAgent}
-                    >
-                      {launchingAgent ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Bot className="h-4 w-4" />
-                      )}
-                      Step 2: Launch Filing Agent
-                    </Button>
-                  </div>
-                )}
+                <Button
+                  className="w-full gap-2"
+                  variant="outline"
+                  onClick={handleLaunchAgent}
+                  disabled={launchingAgent || !checklistComplete}
+                >
+                  {launchingAgent ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Bot className="h-4 w-4" />
+                  )}
+                  Launch Filing Agent
+                </Button>
+                <p className="text-xs text-muted-foreground text-center">
+                  The agent will log in, fill the DOB NOW form, and take screenshots for your review.
+                </p>
               </div>
             )}
 
@@ -1218,70 +971,6 @@ export function DobNowFilingPrepSheet({
         </div>
       </SheetContent>
     </Sheet>
-    {/* DOB NOW Login Session Modal — rendered OUTSIDE the Sheet to prevent Radix from intercepting clicks */}
-    {sessionModalOpen && dobSessionLiveUrl && createPortal(
-      <>
-        <div
-          className="fixed inset-0 z-[100] bg-black/60"
-          onClick={(e) => {
-            e.stopPropagation();
-            setSessionModalOpen(false);
-          }}
-        />
-        <div
-          className="fixed z-[101] bg-background border rounded-lg shadow-2xl flex flex-col overflow-hidden pointer-events-auto"
-          onClick={(e) => e.stopPropagation()}
-          style={{ top: "5vh", left: "4vw", width: "92vw", height: "85vh" }}
-        >
-          {/* Title bar */}
-          <div className="flex items-center gap-3 px-4 py-2.5 border-b bg-muted/30 shrink-0">
-            <Monitor className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-semibold flex-1">DOB NOW — Log In to Continue</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 gap-1 text-xs"
-              onClick={() => setSessionModalOpen(false)}
-            >
-              <Minimize2 className="h-3.5 w-3.5" /> Minimize
-            </Button>
-          </div>
-
-          {/* Login instruction banner */}
-          <div className="px-4 py-3 border-b bg-blue-50 dark:bg-blue-900/20 flex items-start gap-3">
-            <LogIn className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
-            <div className="flex-1 space-y-1.5">
-              <p className="text-xs font-semibold text-blue-800 dark:text-blue-200">Navigate to DOB NOW in the browser below:</p>
-              <ol className="text-xs text-blue-700 dark:text-blue-300 space-y-0.5 list-decimal list-inside">
-                <li>Click the <strong>address bar</strong> in the browser above</li>
-                <li>Type <code className="px-1 py-0.5 rounded bg-blue-100 dark:bg-blue-800/40 font-mono text-[11px]">a810-dobnow.nyc.gov</code> and press Enter</li>
-                <li>Solve the CAPTCHA if shown</li>
-                <li>Log in with your <strong>NYC.ID</strong> credentials</li>
-                <li>Click <strong>"I'm Logged In"</strong> when you see the DOB NOW dashboard</li>
-              </ol>
-            </div>
-            <Button
-              size="sm"
-              className="h-8 gap-1.5 text-xs shrink-0 mt-1"
-              onClick={handleConfirmLoggedIn}
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" /> I'm Logged In
-            </Button>
-          </div>
-
-          {/* Full-size iframe */}
-          <iframe
-            src={dobSessionLiveUrl}
-            className="flex-1 w-full border-0"
-            allow="clipboard-read; clipboard-write; autoplay; encrypted-media; fullscreen"
-            tabIndex={0}
-            style={{ pointerEvents: "auto" }}
-          />
-        </div>
-      </>,
-      document.body
-    )}
-    </>
   );
 }
 
@@ -1379,11 +1068,7 @@ function ConfirmationCard({
                 );
               }
               if (f.label === "Job Description") {
-                const val = editOverrides[f.label] ?? f.value ?? "";
-                const truncated = val.length > 200;
-                return (
-                  <ConfirmFieldRow key={f.label} label={f.label} value={val} truncateAt={200} onEdit={(v) => setEditOverrides(prev => ({ ...prev, [f.label]: v }))} />
-                );
+                return <ConfirmFieldRow key={f.label} label={f.label} value={editOverrides[f.label] ?? f.value ?? ""} truncateAt={200} onEdit={(v) => setEditOverrides(prev => ({ ...prev, [f.label]: v }))} />;
               }
               return <ConfirmFieldRow key={f.label} label={f.label} value={editOverrides[f.label] ?? f.value} onEdit={(val) => setEditOverrides(prev => ({ ...prev, [f.label]: val }))} />;
             })}

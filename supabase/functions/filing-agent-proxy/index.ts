@@ -8,7 +8,6 @@ const corsHeaders = {
 
 const normalizeFilingRunStatus = (status?: string | null) => {
   if (!status) return null;
-
   switch (status) {
     case "in_progress":
       return "running";
@@ -19,11 +18,6 @@ const normalizeFilingRunStatus = (status?: string | null) => {
     default:
       return status;
   }
-};
-
-const buildBrowserbaseSessionUrl = (sessionId?: string | null) => {
-  if (!sessionId) return null;
-  return `https://www.browserbase.com/sessions/${sessionId}`;
 };
 
 Deno.serve(async (req) => {
@@ -63,15 +57,11 @@ Deno.serve(async (req) => {
       const body = await req.json();
       console.log("[filing-agent-proxy] CALLBACK raw body:", JSON.stringify(body));
 
-      const { filing_run_id, status, step, error_message, agent_session_id, job_id, live_url, session_url, recording_url, screenshots, session_id } = body;
+      const { filing_run_id, status, step, error_message, agent_session_id, job_id, screenshots } = body;
       const runId = filing_run_id ?? url.searchParams.get("run_id");
-      console.log("[filing-agent-proxy] CALLBACK run_id:", runId, "| from body:", filing_run_id, "| from URL:", url.searchParams.get("run_id"));
-      console.log("[filing-agent-proxy] CALLBACK fields — status:", status, "| live_url:", live_url, "| session_id:", session_id, "| recording_url:", recording_url, "| step:", step);
+      console.log("[filing-agent-proxy] CALLBACK run_id:", runId, "| status:", status, "| step:", step);
 
       const normalizedStatus = normalizeFilingRunStatus(status);
-      const resolvedLiveUrl = live_url || buildBrowserbaseSessionUrl(session_id);
-      const resolvedRecordingUrl = recording_url || buildBrowserbaseSessionUrl(session_id);
-      console.log("[filing-agent-proxy] CALLBACK resolved — normalizedStatus:", normalizedStatus, "| resolvedLiveUrl:", resolvedLiveUrl, "| resolvedRecordingUrl:", resolvedRecordingUrl);
 
       if (!runId) {
         return new Response(JSON.stringify({ error: "filing_run_id is required" }), {
@@ -87,14 +77,12 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (fetchError || !run) {
-        console.error("[filing-agent-proxy] CALLBACK run not found — runId:", runId, "fetchError:", JSON.stringify(fetchError));
+        console.error("[filing-agent-proxy] CALLBACK run not found — runId:", runId);
         return new Response(JSON.stringify({ error: "Filing run not found" }), {
           status: 404,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-
-      console.log("[filing-agent-proxy] CALLBACK existing run — id:", run.id, "| current status:", run.status);
 
       const progressLog = Array.isArray(run.progress_log) ? [...run.progress_log] : [];
       if (step) {
@@ -105,9 +93,6 @@ Deno.serve(async (req) => {
       if (normalizedStatus) update.status = normalizedStatus;
       if (agent_session_id || job_id) update.agent_session_id = agent_session_id || job_id;
       if (error_message) update.error_message = error_message;
-      if (resolvedLiveUrl) update.live_url = resolvedLiveUrl;
-      if (session_url) update.session_url = session_url;
-      if (resolvedRecordingUrl) update.recording_url = resolvedRecordingUrl;
       if (Array.isArray(screenshots) && screenshots.length > 0) update.screenshots = screenshots;
 
       if (normalizedStatus === "running" && !run.status?.includes("running")) {
@@ -119,11 +104,10 @@ Deno.serve(async (req) => {
 
       console.log("[filing-agent-proxy] CALLBACK update payload:", JSON.stringify(update));
 
-      const { error: updateError, data: updateResult } = await supabase
+      const { error: updateError } = await supabase
         .from("filing_runs")
         .update(update)
-        .eq("id", runId)
-        .select("id, live_url, recording_url, status");
+        .eq("id", runId);
 
       if (updateError) {
         console.error("[filing-agent-proxy] CALLBACK update error:", JSON.stringify(updateError));
@@ -133,9 +117,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      console.log("[filing-agent-proxy] CALLBACK update SUCCESS — result:", JSON.stringify(updateResult));
-
-      console.log("[filing-agent-proxy] callback processed for run:", runId, "status:", normalizedStatus || "(no change)");
       return new Response(JSON.stringify({ success: true }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -162,7 +143,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get user profile for company scoping
     const supabase = createClient(supabaseUrl, serviceRoleKey);
     const { data: profile } = await supabase
       .from("profiles")
@@ -182,56 +162,10 @@ Deno.serve(async (req) => {
       "X-Agent-Secret": FILING_AGENT_SECRET,
     };
 
-    // ─── action: create-session ───
-    if (action === "create-session") {
-      console.log("[filing-agent-proxy] create-session requested by user:", user.id);
-
-      let agentRes: Response;
-      try {
-        agentRes = await fetch(`${FILING_AGENT_URL}/api/session`, {
-          method: "POST",
-          headers: agentHeaders,
-          body: JSON.stringify({ initiated_by: profile.id }),
-        });
-      } catch (fetchErr) {
-        console.error("[filing-agent-proxy] create-session fetch error:", fetchErr);
-        return new Response(JSON.stringify({ error: "Failed to reach filing agent", details: String(fetchErr) }), {
-          status: 502,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      const agentText = await agentRes.text();
-      console.log("[filing-agent-proxy] create-session agent response:", agentRes.status, agentText.substring(0, 500));
-
-      if (!agentRes.ok) {
-        return new Response(agentText, {
-          status: agentRes.status,
-          headers: { ...corsHeaders, "Content-Type": agentRes.headers.get("Content-Type") || "application/json" },
-        });
-      }
-
-      try {
-        const agentJson = JSON.parse(agentText);
-        const sessionId = agentJson.session_id || null;
-        const liveUrl = agentJson.live_url || buildBrowserbaseSessionUrl(sessionId);
-
-        return new Response(JSON.stringify({ session_id: sessionId, live_url: liveUrl || "" }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      } catch {
-        return new Response(agentText, {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": agentRes.headers.get("Content-Type") || "application/json" },
-        });
-      }
-    }
-
     // ─── action: start-filing ───
     if (action === "start-filing") {
       const body = await req.json();
-      const { project_id, service_id, filing_run_id, session_id: existingSessionId } = body;
+      const { project_id, service_id, filing_run_id } = body;
       console.log("[filing-agent-proxy] start-filing received:", JSON.stringify({ project_id, service_id, filing_run_id, user_company_id: profile.company_id }));
 
       if (!project_id) {
@@ -241,8 +175,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Read project data with the service role client after JWT auth has already passed.
-      // We still enforce tenant isolation explicitly via company_id below.
       const { data: project, error: projError } = await supabase
         .from("projects")
         .select(`
@@ -254,26 +186,14 @@ Deno.serve(async (req) => {
         .eq("id", project_id)
         .single();
 
-      if (projError) {
-        console.error("[filing-agent-proxy] Project query error:", JSON.stringify(projError));
-      }
-      if (!project) {
-        console.error("[filing-agent-proxy] Project not found for id:", project_id, "user_company_id:", profile.company_id);
-      }
       if (projError || !project) {
+        console.error("[filing-agent-proxy] Project not found:", project_id);
         return new Response(JSON.stringify({ error: "Project not found", details: projError?.message || "no rows" }), {
           status: 404,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      console.log("[filing-agent-proxy] Project found:", JSON.stringify({
-        project_id: project.id,
-        project_company_id: project.company_id,
-        user_company_id: profile.company_id,
-      }));
-
-      // Company scope check
       if (project.company_id !== profile.company_id) {
         return new Response(JSON.stringify({ error: "Forbidden" }), {
           status: 403,
@@ -281,7 +201,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Fetch service if provided
       let service: any = null;
       if (service_id) {
         const { data } = await supabase
@@ -292,7 +211,6 @@ Deno.serve(async (req) => {
         service = data;
       }
 
-      // Fetch PIS responses
       const { data: pisData } = await supabase
         .from("rfi_requests")
         .select("responses")
@@ -302,7 +220,6 @@ Deno.serve(async (req) => {
         .maybeSingle();
       const pis = pisData?.responses || {};
 
-      // Prefer explicitly linked project contacts from project_contacts; fall back to client contacts if none are linked
       let contacts: any[] = [];
       const linkedContacts = Array.isArray(project.project_contacts)
         ? project.project_contacts
@@ -320,7 +237,6 @@ Deno.serve(async (req) => {
         contacts = contactData || [];
       }
 
-      // Build structured payload
       const property = project.properties;
       const address = property?.address || "";
       const houseNumber = address.match(/^(\d+[\w-]*)/)?.[1] || null;
@@ -416,7 +332,6 @@ Deno.serve(async (req) => {
         })),
       };
 
-      // Build the request body in the structure the agent expects
       const callbackUrl = `${supabaseUrl}/functions/v1/filing-agent-proxy?action=callback&run_id=${encodeURIComponent(filing_run_id || "")}`;
       const requestBody = {
         filing_data: {
@@ -461,13 +376,10 @@ Deno.serve(async (req) => {
         filing_run_id: filing_run_id || null,
         initiated_by: profile.id,
         callback_url: callbackUrl,
-        ...(existingSessionId ? { session_id: existingSessionId } : {}),
       };
 
-      // Forward to filing agent
       const targetUrl = `${FILING_AGENT_URL}/api/file`;
       console.log("[filing-agent-proxy] Sending POST to:", targetUrl);
-      console.log("[filing-agent-proxy] Request body:", JSON.stringify(requestBody));
 
       let agentRes: Response;
       try {
@@ -485,23 +397,12 @@ Deno.serve(async (req) => {
       }
 
       const agentData = await agentRes.text();
-      console.log("[filing-agent-proxy] Agent raw response body:", agentData);
-      console.log("[filing-agent-proxy] Agent response status:", agentRes.status, "body:", agentData.substring(0, 500));
+      console.log("[filing-agent-proxy] Agent response:", agentRes.status, agentData.substring(0, 500));
 
       try {
         const agentJson = JSON.parse(agentData);
-        const resolvedLiveUrl = agentJson.live_url || buildBrowserbaseSessionUrl(agentJson.session_id);
-        const resolvedRecordingUrl = agentJson.recording_url || buildBrowserbaseSessionUrl(agentJson.session_id);
-        const responsePayload = {
-          ...agentJson,
-          live_url: resolvedLiveUrl || agentJson.live_url || "",
-          recording_url: resolvedRecordingUrl || agentJson.recording_url || "",
-        };
         const updates: Record<string, any> = {};
         if (agentJson.job_id) updates.agent_session_id = agentJson.job_id;
-        if (agentJson.session_url) updates.session_url = agentJson.session_url;
-        if (resolvedRecordingUrl) updates.recording_url = resolvedRecordingUrl;
-        if (resolvedLiveUrl) updates.live_url = resolvedLiveUrl;
         if (filing_run_id && Object.keys(updates).length > 0) {
           await supabase
             .from("filing_runs")
@@ -509,12 +410,12 @@ Deno.serve(async (req) => {
             .eq("id", filing_run_id);
         }
 
-        return new Response(JSON.stringify(responsePayload), {
+        return new Response(JSON.stringify(agentJson), {
           status: agentRes.status,
-          headers: { ...corsHeaders, "Content-Type": agentRes.headers.get("Content-Type") || "application/json" },
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       } catch {
-        // Non-JSON agent response; just proxy it through.
+        // Non-JSON response
       }
 
       return new Response(agentData, {
@@ -540,11 +441,10 @@ Deno.serve(async (req) => {
 
       const agentText = await agentRes.text();
 
-      // If the external agent doesn't know about this job, fall back to the DB record
       if (agentRes.status === 404) {
         const { data: dbRun } = await supabase
           .from("filing_runs")
-          .select("id, status, progress_log, error_message, session_url, recording_url, live_url, screenshots, started_at, completed_at")
+          .select("id, status, progress_log, error_message, screenshots, started_at, completed_at")
           .eq("agent_session_id", jobId)
           .maybeSingle();
 
@@ -559,24 +459,6 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-
-      // Persist live_url, session_url, recording_url if returned
-      try {
-        const agentJson = JSON.parse(agentText);
-        const updates: Record<string, any> = {};
-        const resolvedLiveUrl = agentJson.live_url || buildBrowserbaseSessionUrl(agentJson.session_id);
-        const resolvedRecordingUrl = agentJson.recording_url || buildBrowserbaseSessionUrl(agentJson.session_id);
-        if (resolvedLiveUrl) updates.live_url = resolvedLiveUrl;
-        if (agentJson.session_url) updates.session_url = agentJson.session_url;
-        if (resolvedRecordingUrl) updates.recording_url = resolvedRecordingUrl;
-
-        if (Object.keys(updates).length > 0) {
-          await supabase
-            .from("filing_runs")
-            .update(updates)
-            .eq("agent_session_id", jobId);
-        }
-      } catch { /* not JSON or no URLs */ }
 
       return new Response(agentText, {
         status: agentRes.status,
@@ -610,7 +492,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Verify all projects belong to user's company
       const { data: projects } = await supabase
         .from("projects")
         .select("id, company_id")
