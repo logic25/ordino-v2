@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatCompactCurrency } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -41,10 +42,7 @@ export function useYearOverYearRevenue() {
   });
 }
 
-const formatCurrency = (v: number) => {
-  if (v >= 1000) return `$${(v / 1000).toFixed(0)}k`;
-  return `$${v}`;
-};
+const formatCurrency = formatCompactCurrency;
 
 export function YearOverYearChart() {
   const { data, isLoading } = useYearOverYearRevenue();

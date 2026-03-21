@@ -116,6 +116,5 @@ export function calculateLineTotal(item: { quantity?: number; unit_price?: numbe
   return subtotal - subtotal * (discountPct / 100);
 }
 
-export function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
-}
+// Re-export from canonical location for backward compat
+export { formatCurrency } from "@/lib/utils";

@@ -103,11 +103,5 @@ export const statusVariant: Record<string, "default" | "secondary" | "outline" |
   expired: "outline",
 };
 
-export const formatCurrency = (value: number | null) => {
-  if (!value) return "$0";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-  }).format(value);
-};
+// Re-export from canonical location for backward compat
+export { formatCurrency } from "@/lib/utils";

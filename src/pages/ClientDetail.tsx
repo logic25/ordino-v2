@@ -1,3 +1,4 @@
+import { formatCurrency } from "@/lib/utils";
 import { useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -115,8 +116,6 @@ function useClientStats(clientId: string | undefined) {
   });
 }
 
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 }).format(value);
 
 function formatPhone(value: string | null | undefined): string {
   if (!value) return "";

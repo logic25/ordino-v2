@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table";
 import { Loader2, FileText } from "lucide-react";
 import { format } from "date-fns";
+import { formatCurrency } from "@/lib/utils";
 
 interface ClientProposalsModalProps {
   open: boolean;
@@ -24,9 +25,6 @@ interface ClientProposalsModalProps {
   clientId: string;
   clientName: string;
 }
-
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(value);
 
 const statusColors: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",

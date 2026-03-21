@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatCompactCurrency } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -43,10 +44,7 @@ export function AdminCompanyView({ isVisible }: { isVisible?: (id: string) => bo
     { label: "Overdue Invoices", value: stats?.overdueInvoices ?? 0, icon: TrendingUp, href: "/billing" },
   ];
 
-  const formatCurrency = (v: number) => {
-    if (v >= 1000) return `$${(v / 1000).toFixed(0)}k`;
-    return `$${v}`;
-  };
+  const formatCurrency = formatCompactCurrency;
 
   return (
     <div className="space-y-6">

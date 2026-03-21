@@ -22,6 +22,15 @@ export function formatCurrency(value: number | string | null | undefined, decima
 }
 
 /**
+ * Compact currency for charts/axis labels: $120k, $1.2M, etc.
+ */
+export function formatCompactCurrency(value: number): string {
+  if (Math.abs(value) >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(value) >= 1_000) return `$${(value / 1_000).toFixed(0)}k`;
+  return `$${value}`;
+}
+
+/**
  * Format a number with commas (no currency symbol).
  */
 export function formatNumber(value: number | string | null | undefined): string {

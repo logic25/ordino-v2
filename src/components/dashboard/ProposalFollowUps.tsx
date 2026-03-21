@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatCurrency } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -74,10 +75,6 @@ export function ProposalFollowUps() {
     return "outline";
   };
 
-  const formatCurrency = (value: number | null) => {
-    if (!value) return "";
-    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(value);
-  };
 
   return (
     <Card>

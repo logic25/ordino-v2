@@ -1,3 +1,4 @@
+import { formatCurrency } from "@/lib/utils";
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -68,12 +69,6 @@ export default function Projects() {
     0
   );
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 0,
-    }).format(value);
 
   const handleOpenCreate = () => {
     setEditingProject(null);
