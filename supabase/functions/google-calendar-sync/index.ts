@@ -118,6 +118,144 @@ Deno.serve(async (req) => {
       );
     }
 
+    const formatEventDate = (iso: string, isAllDay: boolean) => {
+      const d = new Date(iso);
+      if (isAllDay) {
+        return d.toLocaleDateString("en-US", {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        });
+      }
+      return d.toLocaleString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+    };
+
+    const sendAttendeeNotifications = async ({
+      title,
+      description,
+      location,
+      start_time,
+      end_time,
+      all_day,
+      attendee_ids,
+      previous_attendee_ids = [],
+    }: {
+      title: string;
+      description?: string | null;
+      location?: string | null;
+      start_time: string;
+      end_time: string;
+      all_day: boolean;
+      attendee_ids?: string[];
+      previous_attendee_ids?: string[];
+    }) => {
+      if (!attendee_ids?.length) return;
+
+      const newAttendeeIds = attendee_ids
+        .filter(Boolean)
+        .filter((id, index, ids) => ids.indexOf(id) === index)
+        .filter((id) => id !== profile.id)
+        .filter((id) => !previous_attendee_ids.includes(id));
+
+      if (!newAttendeeIds.length) return;
+
+      const creatorProfile = (
+        await supabaseAdmin
+          .from("profiles")
+          .select("display_name, first_name, last_name")
+          .eq("id", profile.id)
+          .single()
+      ).data;
+
+      const creatorName = creatorProfile?.display_name || [creatorProfile?.first_name, creatorProfile?.last_name].filter(Boolean).join(" ") || "Someone";
+
+      const { data: attendeeProfiles, error: attendeeError } = await supabaseAdmin
+        .from("profiles")
+        .select("id, display_name, first_name, last_name, user_id")
+        .in("id", newAttendeeIds);
+
+      if (attendeeError) {
+        console.error("Failed to load attendee profiles:", attendeeError);
+        return;
+      }
+
+      const attendeeEmails: Record<string, string> = {};
+      for (const attendee of attendeeProfiles || []) {
+        if (!attendee.user_id) continue;
+        try {
+          const {
+            data: { user: authUser },
+          } = await supabaseAdmin.auth.admin.getUserById(attendee.user_id);
+          if (authUser?.email) attendeeEmails[attendee.id] = authUser.email;
+        } catch (emailLookupError) {
+          console.error("Failed to resolve attendee email:", attendee.id, emailLookupError);
+        }
+      }
+
+      const startFormatted = formatEventDate(start_time, all_day);
+      const endFormatted = formatEventDate(end_time, all_day);
+
+      for (const attendee of attendeeProfiles || []) {
+        const attendeeName = attendee.display_name || [attendee.first_name, attendee.last_name].filter(Boolean).join(" ") || "there";
+
+        const { error: notificationError } = await supabaseAdmin.from("notifications").insert({
+          company_id: profile.company_id,
+          user_id: attendee.id,
+          type: "calendar_event",
+          title: "New Calendar Event",
+          body: `${creatorName} invited you to: ${title}`,
+          link: "/calendar",
+        });
+
+        if (notificationError) {
+          console.error("Failed to insert calendar notification:", attendee.id, notificationError);
+        }
+
+        const attendeeEmail = attendeeEmails[attendee.id];
+        if (!attendeeEmail) continue;
+
+        const htmlBody = `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; line-height: 1.6; max-width: 640px; margin: 0 auto; padding: 20px;">
+  <p>Hi ${attendeeName},</p>
+  <p><strong>${creatorName}</strong> has invited you to an event:</p>
+  <div style="margin: 16px 0; padding: 16px; background: #f5f5f5; border-radius: 8px; border-left: 4px solid #333;">
+    <p style="margin: 0 0 8px; font-size: 18px; font-weight: bold;">${title}</p>
+    <p style="margin: 0 0 4px;">📅 ${startFormatted}${all_day ? "" : ` — ${endFormatted}`}</p>
+    ${location ? `<p style="margin: 0 0 4px;">📍 ${location}</p>` : ""}
+    ${description ? `<p style="margin: 8px 0 0; color: #555;">${description}</p>` : ""}
+  </div>
+  <p>Thanks,<br/>Ordino</p>
+</body></html>`.trim();
+
+        try {
+          const { data: emailData, error: emailError } = await supabaseAdmin.functions.invoke("gmail-send", {
+            body: {
+              to: attendeeEmail,
+              subject: `Calendar: ${title} — ${startFormatted}`,
+              html_body: htmlBody,
+              user_id: profile.id,
+            },
+          });
+
+          if (emailError || emailData?.error) {
+            console.error("Failed to send calendar email:", attendeeEmail, emailError || emailData?.error);
+          }
+        } catch (emailError) {
+          console.error("Failed to send calendar email:", attendeeEmail, emailError);
+        }
+      }
+    };
+
     // ─── SYNC: Pull events from Google Calendar ───
     if (action === "sync") {
       const { time_min, time_max } = body;
@@ -206,7 +344,6 @@ Deno.serve(async (req) => {
       let googleEventId: string | null = null;
       let htmlLink: string | null = null;
 
-      // Push to Google Calendar if connected
       if (accessToken) {
         const gcalEvent: any = {
           summary: title,
@@ -273,84 +410,15 @@ Deno.serve(async (req) => {
         );
       }
 
-      // ── Notify attendees (in-app + email) ──
-      if (attendee_ids?.length) {
-        const creatorProfile = (await supabaseAdmin
-          .from("profiles")
-          .select("display_name, user_id")
-          .eq("id", profile.id)
-          .single()).data;
-
-        const { data: attendeeProfiles } = await supabaseAdmin
-          .from("profiles")
-          .select("id, display_name, user_id")
-          .in("id", attendee_ids);
-
-        // Resolve emails from auth.users for attendees
-        const attendeeEmails: Record<string, string> = {};
-        for (const att of (attendeeProfiles || [])) {
-          if (att.user_id) {
-            try {
-              const { data: { user: authUser } } = await supabaseAdmin.auth.admin.getUserById(att.user_id);
-              if (authUser?.email) attendeeEmails[att.id] = authUser.email;
-            } catch (_) { /* skip */ }
-          }
-        }
-
-        const formatDate = (iso: string, isAllDay: boolean) => {
-          const d = new Date(iso);
-          if (isAllDay) return d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
-          return d.toLocaleString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
-        };
-
-        for (const att of (attendeeProfiles || [])) {
-          if (att.id === profile.id) continue; // don't notify creator
-
-          // In-app notification
-          const { error: notifErr } = await supabaseAdmin.from("notifications").insert({
-            company_id: profile.company_id,
-            user_id: att.id,
-            type: "calendar_event",
-            title: "New Calendar Event",
-            body: `${creatorProfile?.display_name || "Someone"} invited you to: ${title}`,
-            link: "/calendar",
-          });
-          if (notifErr) console.error("Failed to insert notification for", att.id, notifErr);
-
-          // Email notification
-          const attEmail = attendeeEmails[att.id];
-          if (attEmail) {
-            const startFormatted = formatDate(start_time, all_day || false);
-            const endFormatted = formatDate(end_time, all_day || false);
-            const htmlBody = `
-<!DOCTYPE html>
-<html><head><meta charset="utf-8"></head>
-<body style="font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; line-height: 1.6; max-width: 640px; margin: 0 auto; padding: 20px;">
-  <p>Hi ${att.display_name || "there"},</p>
-  <p><strong>${creatorProfile?.display_name || "A team member"}</strong> has invited you to an event:</p>
-  <div style="margin: 16px 0; padding: 16px; background: #f5f5f5; border-radius: 8px; border-left: 4px solid #333;">
-    <p style="margin: 0 0 8px; font-size: 18px; font-weight: bold;">${title}</p>
-    <p style="margin: 0 0 4px;">📅 ${startFormatted}${all_day ? "" : ` — ${endFormatted}`}</p>
-    ${location ? `<p style="margin: 0 0 4px;">📍 ${location}</p>` : ""}
-    ${description ? `<p style="margin: 8px 0 0; color: #555;">${description}</p>` : ""}
-  </div>
-  <p>Thanks,<br/>Ordino</p>
-</body></html>`.trim();
-
-            try {
-              await supabaseAdmin.functions.invoke("gmail-send", {
-                body: {
-                  to: attEmail,
-                  subject: `Calendar: ${title} — ${startFormatted}`,
-                  html_body: htmlBody,
-                },
-              });
-            } catch (emailErr) {
-              console.error("Failed to send calendar email to", attEmail, emailErr);
-            }
-          }
-        }
-      }
+      await sendAttendeeNotifications({
+        title,
+        description,
+        location,
+        start_time,
+        end_time,
+        all_day: all_day || false,
+        attendee_ids,
+      });
 
       return new Response(
         JSON.stringify({ success: true, event: dbEvent }),
@@ -430,6 +498,17 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      await sendAttendeeNotifications({
+        title,
+        description,
+        location,
+        start_time,
+        end_time,
+        all_day: all_day || false,
+        attendee_ids,
+        previous_attendee_ids: ((existing as any).metadata?.attendee_ids || []) as string[],
+      });
 
       return new Response(JSON.stringify({ success: true, event: updated }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
