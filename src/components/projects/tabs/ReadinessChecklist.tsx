@@ -308,45 +308,56 @@ export function ReadinessChecklist({
         <CollapsibleContent>
           <CardContent className="pt-0 space-y-4">
             {pisStatus.sentDate ? (
-              !pisComplete && (
-                <div className="flex items-center gap-4 p-3 rounded-lg bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-800/30">
+                <div className={`flex items-center gap-4 p-3 rounded-lg border ${
+                  pisComplete
+                    ? "bg-green-50/50 dark:bg-green-900/10 border-green-200/50 dark:border-green-800/30"
+                    : "bg-amber-50/50 dark:bg-amber-900/10 border-amber-200/50 dark:border-amber-800/30"
+                }`}>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between text-sm mb-1">
                       <span className="font-medium">Project Information Sheet</span>
                       <span className="text-muted-foreground text-xs">Sent {pisStatus.sentDate}</span>
                     </div>
-                    <Progress value={(pisStatus.completedFields / pisStatus.totalFields) * 100} className="h-2" />
-                    {pisStatus.missingBySection && Object.keys(pisStatus.missingBySection).length > 0 ? (
-                      <div className="mt-2 space-y-1.5">
-                        {Object.entries(pisStatus.missingBySection).map(([section, fields]) => (
-                          <div key={section} className="text-xs">
-                            <span className="font-medium text-foreground/70">{section}:</span>{" "}
-                            <span className="text-muted-foreground">{fields.join(", ")}</span>
+                    {!pisComplete && (
+                      <>
+                        <Progress value={(pisStatus.completedFields / pisStatus.totalFields) * 100} className="h-2" />
+                        {pisStatus.missingBySection && Object.keys(pisStatus.missingBySection).length > 0 ? (
+                          <div className="mt-2 space-y-1.5">
+                            {Object.entries(pisStatus.missingBySection).map(([section, fields]) => (
+                              <div key={section} className="text-xs">
+                                <span className="font-medium text-foreground/70">{section}:</span>{" "}
+                                <span className="text-muted-foreground">{fields.join(", ")}</span>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-xs text-muted-foreground mt-1">
-                        Missing: {pisStatus.missingFields.join(", ")}
-                      </div>
+                        ) : (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Missing: {pisStatus.missingFields.join(", ")}
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {pisComplete && (
+                      <p className="text-xs text-green-700 dark:text-green-400">{pisStatus.completedFields}/{pisStatus.totalFields} fields complete</p>
                     )}
                   </div>
                   <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={() => setShowEditPIS(true)}>
                     <Pencil className="h-3.5 w-3.5" /> Edit PIS
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="shrink-0 gap-1.5"
-                    onClick={() => {
-                      setReminderEmail(rfiRecord?.recipient_email || contactEmail || "");
-                      setShowReminderDialog(true);
-                    }}
-                  >
-                    <Send className="h-3.5 w-3.5" /> Send Reminder
-                  </Button>
+                  {!pisComplete && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0 gap-1.5"
+                      onClick={() => {
+                        setReminderEmail(rfiRecord?.recipient_email || contactEmail || "");
+                        setShowReminderDialog(true);
+                      }}
+                    >
+                      <Send className="h-3.5 w-3.5" /> Send Reminder
+                    </Button>
+                  )}
                 </div>
-              )
             ) : (
               <div className="flex items-center gap-4 p-3 rounded-lg bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200/50 dark:border-blue-800/30">
                 <div className="flex-1 min-w-0">
