@@ -390,7 +390,42 @@ export function ProductRoadmap() {
     }
   };
 
-  const handleEdit = (item: RoadmapItem) => {
+  const handleMergeInto = async (source: RoadmapItem, target: RoadmapItem) => {
+    try {
+      // Merge descriptions
+      const mergedDesc = [target.description, source.description].filter(Boolean).join("\n\n---\n\n");
+      // Merge challenges from stress tests
+      const targetChallenges = target.stress_test_result?.challenges || [];
+      const sourceChallenges = source.stress_test_result?.challenges || [];
+      const mergedChallenges = [...targetChallenges, ...sourceChallenges];
+      // Keep target's stress test but enrich with merged challenges
+      const mergedStressTest = target.stress_test_result
+        ? { ...target.stress_test_result, challenges: mergedChallenges }
+        : source.stress_test_result
+          ? { ...source.stress_test_result, challenges: mergedChallenges }
+          : null;
+      // Use higher priority
+      const priorityRank = { high: 0, medium: 1, low: 2 };
+      const mergedPriority = (priorityRank[source.priority as keyof typeof priorityRank] ?? 1) < (priorityRank[target.priority as keyof typeof priorityRank] ?? 1) ? source.priority : target.priority;
+
+      await supabase.from("roadmap_items").update({
+        description: mergedDesc,
+        priority: mergedPriority,
+        stress_test_result: mergedStressTest as any,
+        stress_tested_at: target.stress_tested_at || source.stress_tested_at,
+        updated_at: new Date().toISOString(),
+      } as any).eq("id", target.id);
+
+      await supabase.from("roadmap_items").delete().eq("id", source.id);
+
+      queryClient.invalidateQueries({ queryKey: ["roadmap-items"] });
+      closeDialog();
+      toast({ title: "Items merged", description: `"${source.title}" merged into "${target.title}"` });
+    } catch (err: any) {
+      toast({ title: "Merge failed", description: err.message, variant: "destructive" });
+    }
+  };
+
     setEditingItem(item);
     setForm({ title: item.title, description: item.description, category: item.category, status: item.status, priority: item.priority });
     setDialogTab("quick");
