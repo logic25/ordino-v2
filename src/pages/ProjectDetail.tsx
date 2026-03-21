@@ -623,7 +623,8 @@ export default function ProjectDetail() {
 
 // ProposalExecutionBanner moved to src/components/projects/tabs/ProposalExecutionBanner.tsx
 
-  items: ChecklistItem[]; pisStatus: MockPISStatus; projectId: string;
+function ReadinessChecklist({
+  items, pisStatus, projectId,
   projectName?: string; propertyAddress?: string; ownerName?: string; contactEmail?: string;
   contacts?: Array<{ id?: string; name: string; email?: string; phone?: string; [key: string]: any }>;
 }) {
