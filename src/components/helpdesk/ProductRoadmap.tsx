@@ -184,6 +184,11 @@ function SortableRoadmapCard({
               </Badge>
             )}
           </div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">
+            {item.created_by_profile?.display_name || item.created_by_profile?.first_name || "System"}
+            {" · "}
+            {new Date(item.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+          </div>
         </CardContent>
       </Card>
     </div>
