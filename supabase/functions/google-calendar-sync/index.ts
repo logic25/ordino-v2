@@ -8,6 +8,75 @@ const corsHeaders = {
 
 const CALENDAR_API = "https://www.googleapis.com/calendar/v3";
 
+function classifyCalendarApiError(status: number, errText: string) {
+  let parsed: any = null;
+  try {
+    parsed = JSON.parse(errText);
+  } catch {
+    parsed = null;
+  }
+
+  const googleError = parsed?.error;
+  const details = Array.isArray(googleError?.details) ? googleError.details : [];
+  const errors = Array.isArray(googleError?.errors) ? googleError.errors : [];
+  const reasonSet = new Set<string>([
+    ...errors.map((item: any) => item?.reason).filter(Boolean),
+    ...details.map((item: any) => item?.reason).filter(Boolean),
+  ]);
+
+  const googleMessage = googleError?.message || errText || `Calendar API error: ${status}`;
+  const lowerMessage = googleMessage.toLowerCase();
+
+  const apiDisabled =
+    reasonSet.has("SERVICE_DISABLED") ||
+    reasonSet.has("accessNotConfigured") ||
+    lowerMessage.includes("calendar api has not been used") ||
+    lowerMessage.includes("is disabled");
+
+  if (apiDisabled) {
+    return {
+      status: 403,
+      body: {
+        error: "Google Calendar API is disabled for the connected Google project.",
+        error_code: "calendar_api_disabled",
+        needs_reauth: false,
+        details: "Enable the Google Calendar API in Google Cloud for the Gmail integration project, then try again.",
+      },
+    };
+  }
+
+  const needsReauth =
+    status === 401 ||
+    reasonSet.has("authError") ||
+    reasonSet.has("insufficientPermissions") ||
+    lowerMessage.includes("invalid credentials") ||
+    lowerMessage.includes("invalid_grant") ||
+    lowerMessage.includes("insufficient permissions") ||
+    lowerMessage.includes("request had insufficient authentication scopes");
+
+  if (needsReauth) {
+    return {
+      status: 403,
+      body: {
+        error: "Google Calendar access needs to be reconnected.",
+        error_code: "calendar_reauth_required",
+        needs_reauth: true,
+        details: "Reconnect Gmail and approve Calendar permissions, then try again.",
+      },
+    };
+  }
+
+  return {
+    status,
+    body: {
+      error: `Calendar API error: ${status}`,
+      error_code: "calendar_api_error",
+      needs_reauth: false,
+      details: googleMessage,
+    },
+  };
+}
+
 async function refreshAccessToken(refreshToken: string, clientId: string, clientSecret: string) {
   const resp = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
@@ -284,9 +353,10 @@ Deno.serve(async (req) => {
       if (!resp.ok) {
         const errText = await resp.text();
         console.error("Calendar API error:", resp.status, errText);
+        const classifiedError = classifyCalendarApiError(resp.status, errText);
         return new Response(
-          JSON.stringify({ error: `Calendar API error: ${resp.status}`, needs_reauth: resp.status === 403 }),
-          { status: resp.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify(classifiedError.body),
+          { status: classifiedError.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 

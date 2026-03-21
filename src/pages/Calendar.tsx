@@ -179,7 +179,7 @@ export default function Calendar() {
     } catch (err: any) {
       toast({
         title: "Sync failed",
-        description: err.message.includes("needs_reauth") ? "Please reconnect Gmail with Calendar permissions" : err.message,
+        description: err instanceof Error ? err.message : "Calendar sync failed.",
         variant: "destructive",
       });
     }
