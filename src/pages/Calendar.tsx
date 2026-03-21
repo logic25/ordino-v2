@@ -286,19 +286,19 @@ export default function Calendar() {
 
   return (
     <AppLayout>
-      <div className="p-6 space-y-6 max-w-7xl mx-auto" data-tour="calendar-page">
-        {/* Header */}
+      <div className="p-6 space-y-5 max-w-7xl mx-auto" data-tour="calendar-page">
+        {/* Cinematic Header */}
         <div className="flex items-center justify-between" data-tour="calendar-header">
           <div>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">Calendar</h1>
-            <p className="text-sm text-muted-foreground">
+            <h1 className="cal-heading-cinematic text-foreground">Calendar</h1>
+            <p className="text-sm text-muted-foreground/60 font-light mt-0.5">
               Appointments, inspections, RFP deadlines & project milestones
             </p>
           </div>
           <div className="flex items-center gap-2">
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="rounded-xl border-border/40 bg-card/50 backdrop-blur-sm hover:bg-card/80">
                   <SlidersHorizontal className="h-4 w-4 mr-1" />
                   Filter
                   {hiddenTypes.size > 0 && (
@@ -308,16 +308,16 @@ export default function Calendar() {
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-56 p-3" align="end">
-                <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">Show / Hide</p>
+              <PopoverContent className="w-56 p-3 cal-glass-strong cal-depth-md rounded-xl border-border/30" align="end">
+                <p className="text-[9px] font-bold text-muted-foreground/50 mb-2 uppercase tracking-widest">Show / Hide</p>
                 <div className="space-y-1.5">
                   {Object.entries(EVENT_TYPE_LABELS)
                     .filter(([type]) => canAccessBilling || !BILLING_EVENT_TYPES.has(type))
                     .map(([type, label]) => (
-                      <label key={type} className="flex items-center gap-2 cursor-pointer rounded px-1.5 py-1 hover:bg-accent/40 transition-colors">
+                      <label key={type} className="flex items-center gap-2 cursor-pointer rounded-lg px-1.5 py-1 hover:bg-accent/10 transition-colors">
                         <Checkbox checked={!hiddenTypes.has(type)} onCheckedChange={() => toggleType(type)} />
                         <span className={cn("w-2 h-2 rounded-full shrink-0", EVENT_TYPE_COLORS[type]?.split(" ")[0] || "bg-muted")} />
-                        <span className="text-sm text-foreground">{label}</span>
+                        <span className="text-sm text-foreground/80">{label}</span>
                       </label>
                     ))}
                 </div>
@@ -329,52 +329,52 @@ export default function Calendar() {
               </PopoverContent>
             </Popover>
             {canAccessBilling && (
-              <Button variant={showBilling ? "default" : "outline"} size="sm" onClick={() => setShowBilling(!showBilling)}>
+              <Button variant={showBilling ? "default" : "outline"} size="sm" className="rounded-xl" onClick={() => setShowBilling(!showBilling)}>
                 <DollarSign className="h-4 w-4 mr-1" />
                 Billing Dates
               </Button>
             )}
             {gmailConnection && (
-              <Button variant="outline" size="sm" onClick={handleSync} disabled={syncCalendar.isPending}>
+              <Button variant="outline" size="sm" className="rounded-xl border-border/40 bg-card/50 backdrop-blur-sm" onClick={handleSync} disabled={syncCalendar.isPending}>
                 <RefreshCw className={cn("h-4 w-4 mr-2", syncCalendar.isPending && "animate-spin")} />
                 Sync
               </Button>
             )}
-            <Button size="sm" onClick={() => { setEditingEvent(null); setSelectedDate(new Date()); setDialogOpen(true); }}>
+            <Button size="sm" className="rounded-xl glow-amber" onClick={() => { setEditingEvent(null); setSelectedDate(new Date()); setDialogOpen(true); }}>
               <Plus className="h-4 w-4 mr-2" />
               New Event
             </Button>
           </div>
         </div>
 
-        {/* Month nav + view switcher */}
-        <div className="flex items-center justify-between bg-card border border-border rounded-xl px-5 py-3">
-          <Button variant="ghost" size="icon" onClick={navigatePrev}>
+        {/* Navigation bar — glass surface */}
+        <div className="flex items-center justify-between cal-glass-strong cal-depth-sm rounded-2xl px-5 py-3">
+          <Button variant="ghost" size="icon" className="rounded-xl hover:bg-accent/10" onClick={navigatePrev}>
             <ChevronLeft className="h-5 w-5" />
           </Button>
           <div className="text-center flex-1">
-            <h2 className="text-xl font-bold text-foreground tracking-tight">{headingText}</h2>
-            <p className="text-xs text-muted-foreground">
-              {allEvents.length} event{allEvents.length !== 1 ? "s" : ""}
+            <h2 className="text-xl font-extrabold text-foreground tracking-tighter">{headingText}</h2>
+            <p className="text-[10px] text-muted-foreground/40 font-medium uppercase tracking-wider mt-0.5">
+              {allEvents.length} event{allEvents.length !== 1 ? "s" : ""} in view
             </p>
           </div>
           <div className="flex items-center gap-2">
             <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as CalendarViewMode)}>
-              <TabsList className="h-8">
-                <TabsTrigger value="month" className="text-xs px-2.5 h-6">Month</TabsTrigger>
-                <TabsTrigger value="week" className="text-xs px-2.5 h-6">Week</TabsTrigger>
-                <TabsTrigger value="day" className="text-xs px-2.5 h-6">Day</TabsTrigger>
+              <TabsList className="h-8 rounded-xl bg-muted/30 backdrop-blur-sm">
+                <TabsTrigger value="month" className="text-xs px-3 h-6 rounded-lg data-[state=active]:shadow-sm">Month</TabsTrigger>
+                <TabsTrigger value="week" className="text-xs px-3 h-6 rounded-lg data-[state=active]:shadow-sm">Week</TabsTrigger>
+                <TabsTrigger value="day" className="text-xs px-3 h-6 rounded-lg data-[state=active]:shadow-sm">Day</TabsTrigger>
               </TabsList>
             </Tabs>
-            <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())}>Today</Button>
-            <Button variant="ghost" size="icon" onClick={navigateNext}>
+            <Button variant="outline" size="sm" className="rounded-xl border-border/40" onClick={() => setCurrentDate(new Date())}>Today</Button>
+            <Button variant="ghost" size="icon" className="rounded-xl hover:bg-accent/10" onClick={navigateNext}>
               <ChevronRight className="h-5 w-5" />
             </Button>
           </div>
         </div>
 
-        {/* Interactive Legend */}
-        <div className="flex flex-wrap items-center gap-2 text-[11px]">
+        {/* Interactive Legend — refined */}
+        <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
           {legendItems.map((item) => {
             const isHidden = hiddenTypes.has(item.type);
             return (
@@ -382,10 +382,11 @@ export default function Calendar() {
                 key={item.type}
                 onClick={() => toggleType(item.type)}
                 className={cn(
-                  "inline-flex items-center gap-1.5 px-2 py-0.5 rounded border transition-all cursor-pointer",
+                  "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-all duration-200 cursor-pointer font-medium",
                   isHidden
-                    ? "opacity-40 line-through bg-muted/30 text-muted-foreground border-border"
-                    : EVENT_TYPE_COLORS[item.type] || EVENT_TYPE_COLORS.general
+                    ? "opacity-30 line-through bg-muted/20 text-muted-foreground/50 border-border/20"
+                    : EVENT_TYPE_COLORS[item.type] || EVENT_TYPE_COLORS.general,
+                  !isHidden && "cal-event-chip"
                 )}
                 title={isHidden ? `Show ${item.label} events` : `Hide ${item.label} events`}
               >
@@ -395,31 +396,28 @@ export default function Calendar() {
           })}
         </div>
 
-        <div className="flex gap-6">
-          {/* Calendar views */}
+        <div className="flex gap-5">
+          {/* Month view */}
           {viewMode === "month" && (
             <div className="flex-1">
               <div className="grid grid-cols-7 mb-1">
                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-                  <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2">{d}</div>
+                  <div key={d} className="text-center text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/40 py-2">{d}</div>
                 ))}
               </div>
-              <div className="grid grid-cols-7 bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+              <div className="grid grid-cols-7 cal-glass cal-depth-md rounded-2xl overflow-hidden">
                 {days.map((day) => {
                   const key = format(day, "yyyy-MM-dd");
                   const dayEvents = eventsByDay[key] || [];
-                  // Filter out multi-day events from regular display (they show as bars)
                   const singleDayEvents = dayEvents.filter((ev) => {
                     if (!ev.all_day || !ev.end_time) return true;
                     return differenceInDays(new Date(ev.end_time), new Date(ev.start_time)) === 0;
                   });
-                  // Multi-day events starting on this day
                   const multiDayStarting = dayEvents.filter((ev) => {
                     if (!ev.all_day || !ev.end_time) return false;
                     const spanDays = differenceInDays(new Date(ev.end_time), new Date(ev.start_time));
                     return spanDays > 0 && isSameDay(new Date(ev.start_time), day);
                   });
-                  // Multi-day events continuing through this day (not starting)
                   const multiDayContinuing = dayEvents.filter((ev) => {
                     if (!ev.all_day || !ev.end_time) return false;
                     const spanDays = differenceInDays(new Date(ev.end_time), new Date(ev.start_time));
@@ -439,32 +437,37 @@ export default function Calendar() {
                       onDragLeave={() => setDragOverCell(null)}
                       onDrop={(e) => handleMonthDrop(e, day)}
                       className={cn(
-                        "min-h-[110px] p-1.5 border-b border-r border-border/50 cursor-pointer transition-all duration-150",
-                        !inMonth && "bg-muted/20",
-                        inMonth && "bg-card",
-                        selected && "bg-primary/5 ring-1 ring-primary/30 ring-inset",
-                        isDragOver && "bg-primary/10 ring-2 ring-primary/40 ring-inset",
-                        !selected && !isDragOver && "hover:bg-accent/20"
+                        "min-h-[110px] p-1.5 border-b border-r border-border/15 cursor-pointer transition-all duration-200",
+                        !inMonth && "bg-background/30",
+                        inMonth && "bg-card/40",
+                        today && "cal-today-glow bg-primary/[0.03]",
+                        selected && "bg-primary/8 ring-1 ring-primary/25 ring-inset",
+                        isDragOver && "bg-primary/12 ring-2 ring-primary/40 ring-inset",
+                        !selected && !isDragOver && !today && "cal-cell-hover"
                       )}
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <div className={cn("text-xs font-semibold w-7 h-7 flex items-center justify-center rounded-full transition-colors", !inMonth && "text-muted-foreground/40", today && "bg-primary text-primary-foreground shadow-sm", inMonth && !today && "text-foreground")}>
+                        <div className={cn(
+                          "text-xs font-bold w-7 h-7 flex items-center justify-center rounded-lg transition-all duration-300",
+                          !inMonth && "text-muted-foreground/25",
+                          today && "bg-primary text-primary-foreground shadow-md",
+                          inMonth && !today && "text-foreground/80"
+                        )}>
                           {format(day, "d")}
                         </div>
                         {dayEvents.length > 0 && !today && (
                           <span className="flex gap-0.5">
                             {dayEvents.slice(0, 3).map((_, i) => (
-                              <span key={i} className="w-1.5 h-1.5 rounded-full bg-primary/50" />
+                              <span key={i} className="w-1 h-1 rounded-full bg-primary/30" />
                             ))}
                           </span>
                         )}
                       </div>
                       <div className="space-y-0.5">
-                        {/* Multi-day bar starting here */}
                         {multiDayStarting.map((ev) => {
                           const spanDays = Math.min(
                             differenceInDays(new Date(ev.end_time), new Date(ev.start_time)) + 1,
-                            7 - day.getDay() // don't overflow past week row
+                            7 - day.getDay()
                           );
                           return (
                             <button
@@ -473,9 +476,10 @@ export default function Calendar() {
                               onDragStart={(e) => handleMonthDragStart(e, ev)}
                               onClick={(e) => { e.stopPropagation(); if (!ev.is_billing) { setEditingEvent(ev as CalendarEvent); setDialogOpen(true); } }}
                               className={cn(
-                                "text-left text-[10px] leading-tight px-1.5 py-0.5 rounded-l-md border-l border-t border-b truncate font-semibold cursor-grab active:cursor-grabbing",
+                                "text-left text-[10px] leading-tight px-2 py-0.5 rounded-l-lg border-l border-t border-b truncate font-semibold cal-event-chip",
                                 EVENT_TYPE_COLORS[ev.event_type] || EVENT_TYPE_COLORS.general,
-                                ev.is_billing && "italic cursor-default"
+                                ev.is_billing && "italic cursor-default",
+                                !ev.is_billing && "cursor-grab active:cursor-grabbing"
                               )}
                               style={{
                                 width: `calc(${spanDays * 100}% + ${(spanDays - 1) * 1}px)`,
@@ -487,32 +491,35 @@ export default function Calendar() {
                             </button>
                           );
                         })}
-                        {/* Continuation indicator */}
                         {multiDayContinuing.length > 0 && day.getDay() === 0 && multiDayContinuing.map((ev) => (
                           <div
                             key={`cont-${ev.id}`}
                             className={cn(
-                              "text-[10px] px-1.5 py-0.5 rounded-l-md border-l border-t border-b truncate font-medium opacity-70",
+                              "text-[10px] px-2 py-0.5 rounded-l-lg border-l border-t border-b truncate font-medium opacity-60",
                               EVENT_TYPE_COLORS[ev.event_type] || EVENT_TYPE_COLORS.general
                             )}
                           >
                             ↳ {ev.title}
                           </div>
                         ))}
-                        {/* Single-day events */}
                         {singleDayEvents.slice(0, 3).map((ev) => (
                           <button
                             key={ev.id}
                             draggable={!ev.is_billing}
                             onDragStart={(e) => handleMonthDragStart(e, ev)}
                             onClick={(e) => { e.stopPropagation(); if (!ev.is_billing) { setEditingEvent(ev as CalendarEvent); setDialogOpen(true); } }}
-                            className={cn("w-full text-left text-[10px] leading-tight px-1.5 py-0.5 rounded-md border truncate font-medium cursor-grab active:cursor-grabbing", EVENT_TYPE_COLORS[ev.event_type] || EVENT_TYPE_COLORS.general, ev.is_billing && "italic cursor-default")}
+                            className={cn(
+                              "w-full text-left text-[10px] leading-tight px-2 py-0.5 rounded-lg border truncate font-medium cal-event-chip",
+                              EVENT_TYPE_COLORS[ev.event_type] || EVENT_TYPE_COLORS.general,
+                              ev.is_billing && "italic cursor-default",
+                              !ev.is_billing && "cursor-grab active:cursor-grabbing"
+                            )}
                           >
                             {ev.title}
                           </button>
                         ))}
                         {singleDayEvents.length > 3 && (
-                          <span className="text-[10px] text-muted-foreground pl-1 font-medium">+{singleDayEvents.length - 3} more</span>
+                          <span className="text-[10px] text-muted-foreground/40 pl-1 font-medium">+{singleDayEvents.length - 3} more</span>
                         )}
                       </div>
                     </div>
@@ -541,67 +548,69 @@ export default function Calendar() {
             />
           )}
 
-          {/* Sidebar: Mini month + day detail */}
+          {/* Sidebar */}
           {viewMode !== "day" && (
             <div className="w-72 shrink-0 space-y-4">
-              {/* Mini month navigator */}
               <CalendarMiniMonth
                 selectedDate={selectedDate || currentDate}
                 onSelectDate={handleMiniMonthSelect}
               />
 
-              {/* Day detail */}
-              <div className="rounded-xl border border-border bg-card p-4 shadow-sm sticky top-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="p-1.5 rounded-lg bg-primary/10">
+              {/* Day detail — glass panel */}
+              <div className="rounded-2xl cal-glass cal-depth-sm p-4 sticky top-6">
+                <div className="flex items-center gap-2.5 mb-4">
+                  <div className="p-2 rounded-xl bg-primary/8">
                     <CalendarDays className="h-4 w-4 text-primary" />
                   </div>
-                  <h3 className="font-bold text-sm text-foreground">
+                  <h3 className="font-bold text-sm text-foreground tracking-tight">
                     {selectedDate ? format(selectedDate, "EEEE, MMM d") : "Select a day"}
                   </h3>
                 </div>
 
                 {selectedDate && (
                   <>
-                    <Button variant="outline" size="sm" className="w-full mb-4" onClick={() => handleDayClick(selectedDate)}>
+                    <Button variant="outline" size="sm" className="w-full mb-4 rounded-xl border-border/30 hover:bg-accent/10" onClick={() => handleDayClick(selectedDate)}>
                       <Plus className="h-3 w-3 mr-1" />
                       Add Event
                     </Button>
 
                     {selectedDayEvents.length === 0 ? (
-                      <div className="text-center py-8">
-                        <CalendarDays className="h-8 w-8 mx-auto text-muted-foreground/30 mb-2" />
-                        <p className="text-sm text-muted-foreground">No events scheduled</p>
-                        <p className="text-xs text-muted-foreground/60 mt-1">Click "Add Event" to create one</p>
+                      <div className="text-center py-10">
+                        <CalendarDays className="h-10 w-10 mx-auto text-muted-foreground/15 mb-3" />
+                        <p className="text-sm text-muted-foreground/50 font-medium">No events</p>
+                        <p className="text-[10px] text-muted-foreground/30 mt-1">Click "Add Event" to create one</p>
                       </div>
                     ) : (
-                      <div className="space-y-3">
+                      <div className="space-y-2.5">
                         {selectedDayEvents.map((ev) => (
-                          <div key={ev.id} className={cn("rounded-lg border p-3 space-y-1.5 transition-colors", EVENT_TYPE_COLORS[ev.event_type] || "border-border hover:bg-accent/30")}>
+                          <div key={ev.id} className={cn(
+                            "rounded-xl border p-3 space-y-1.5 transition-all duration-200 cal-event-chip",
+                            EVENT_TYPE_COLORS[ev.event_type] || "border-border/30 hover:bg-accent/10"
+                          )}>
                             <div className="flex items-start justify-between gap-2">
-                              <span className="text-sm font-semibold text-foreground leading-tight">{ev.title}</span>
-                              <Badge variant="outline" className={cn("text-[10px] shrink-0 capitalize", EVENT_TYPE_COLORS[ev.event_type] || EVENT_TYPE_COLORS.general)}>
+                              <span className="text-sm font-bold text-foreground leading-tight tracking-tight">{ev.title}</span>
+                              <Badge variant="outline" className={cn("text-[9px] shrink-0 capitalize rounded-md", EVENT_TYPE_COLORS[ev.event_type] || EVENT_TYPE_COLORS.general)}>
                                 {ev.event_type?.replace(/_/g, " ")}
                               </Badge>
                             </div>
                             {!ev.all_day && (
-                              <p className="text-xs text-muted-foreground font-medium">
+                              <p className="text-xs text-muted-foreground/60 font-medium tabular-nums">
                                 🕐 {format(new Date(ev.start_time), "h:mm a")} – {format(new Date(ev.end_time), "h:mm a")}
                               </p>
                             )}
-                            {ev.description && <p className="text-xs text-muted-foreground line-clamp-2">{ev.description}</p>}
-                            {ev.location && <p className="text-xs text-muted-foreground truncate">📍 {ev.location}</p>}
+                            {ev.description && <p className="text-xs text-muted-foreground/50 line-clamp-2">{ev.description}</p>}
+                            {ev.location && <p className="text-xs text-muted-foreground/50 truncate">📍 {ev.location}</p>}
                             {(ev as any).recurrence_rule && (
-                              <p className="text-[10px] text-muted-foreground">🔁 Recurring</p>
+                              <p className="text-[10px] text-muted-foreground/40">🔁 Recurring</p>
                             )}
                             {!ev.is_billing && (
                               <div className="flex gap-1 pt-1">
-                                <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={(e) => { e.stopPropagation(); setEditingEvent(ev as CalendarEvent); setDialogOpen(true); }}>Edit</Button>
-                                <Button variant="ghost" size="sm" className="h-6 text-xs px-2 text-destructive hover:text-destructive" onClick={() => handleDelete(ev.id)}>Delete</Button>
+                                <Button variant="ghost" size="sm" className="h-6 text-xs px-2 rounded-lg" onClick={(e) => { e.stopPropagation(); setEditingEvent(ev as CalendarEvent); setDialogOpen(true); }}>Edit</Button>
+                                <Button variant="ghost" size="sm" className="h-6 text-xs px-2 rounded-lg text-destructive hover:text-destructive" onClick={() => handleDelete(ev.id)}>Delete</Button>
                               </div>
                             )}
                             {ev.is_billing && (
-                              <p className="text-[10px] text-muted-foreground italic pt-1">
+                              <p className="text-[9px] text-muted-foreground/30 italic pt-1">
                                 Auto-generated from {ev.event_type === "rfp_deadline" ? "RFPs" : "Billing"}
                               </p>
                             )}

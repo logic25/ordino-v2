@@ -31,19 +31,19 @@ export function CalendarMiniMonth({ selectedDate, onSelectDate }: CalendarMiniMo
   const days = eachDayOfInterval({ start: calStart, end: calEnd });
 
   return (
-    <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
-      <div className="flex items-center justify-between mb-2">
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setViewMonth(subMonths(viewMonth, 1))}>
+    <div className="rounded-2xl cal-glass cal-depth-sm p-4">
+      <div className="flex items-center justify-between mb-3">
+        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-lg hover:bg-accent/10" onClick={() => setViewMonth(subMonths(viewMonth, 1))}>
           <ChevronLeft className="h-3.5 w-3.5" />
         </Button>
-        <span className="text-xs font-semibold text-foreground">{format(viewMonth, "MMM yyyy")}</span>
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setViewMonth(addMonths(viewMonth, 1))}>
+        <span className="text-xs font-bold text-foreground tracking-tight">{format(viewMonth, "MMM yyyy")}</span>
+        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-lg hover:bg-accent/10" onClick={() => setViewMonth(addMonths(viewMonth, 1))}>
           <ChevronRight className="h-3.5 w-3.5" />
         </Button>
       </div>
       <div className="grid grid-cols-7 gap-0">
         {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-          <div key={i} className="text-center text-[10px] font-medium text-muted-foreground py-1">{d}</div>
+          <div key={i} className="text-center text-[9px] uppercase tracking-wider font-semibold text-muted-foreground/40 py-1">{d}</div>
         ))}
         {days.map((day) => {
           const inMonth = isSameMonth(day, viewMonth);
@@ -54,11 +54,11 @@ export function CalendarMiniMonth({ selectedDate, onSelectDate }: CalendarMiniMo
               key={day.toISOString()}
               onClick={() => onSelectDate(day)}
               className={cn(
-                "w-7 h-7 flex items-center justify-center text-[11px] rounded-full transition-colors",
-                !inMonth && "text-muted-foreground/30",
-                inMonth && !today && !selected && "text-foreground hover:bg-accent/40",
-                today && !selected && "bg-primary/15 text-primary font-bold",
-                selected && "bg-primary text-primary-foreground font-bold"
+                "w-7 h-7 flex items-center justify-center text-[11px] rounded-lg transition-all duration-200",
+                !inMonth && "text-muted-foreground/20",
+                inMonth && !today && !selected && "text-foreground/80 hover:bg-accent/15 hover:text-foreground",
+                today && !selected && "bg-primary/10 text-primary font-bold",
+                selected && "bg-primary text-primary-foreground font-bold shadow-sm"
               )}
             >
               {format(day, "d")}
