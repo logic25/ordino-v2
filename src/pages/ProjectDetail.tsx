@@ -625,6 +625,10 @@ export default function ProjectDetail() {
 
 function ReadinessChecklist({
   items, pisStatus, projectId,
+  projectName, propertyAddress, ownerName, contactEmail,
+  contacts,
+}: {
+  items: ChecklistItem[]; pisStatus: MockPISStatus; projectId: string;
   projectName?: string; propertyAddress?: string; ownerName?: string; contactEmail?: string;
   contacts?: Array<{ id?: string; name: string; email?: string; phone?: string; [key: string]: any }>;
 }) {
