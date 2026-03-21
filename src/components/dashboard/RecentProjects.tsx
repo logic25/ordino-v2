@@ -82,7 +82,7 @@ export function RecentProjects({ showOnlyMine = false }: RecentProjectsProps) {
                     <h3 className="font-medium">
                       {project.name || project.properties?.address || "Untitled Project"}
                     </h3>
-                    {getStatusBadge(project.status)}
+                    <ProjectStatusBadge status={project.status} />
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {project.project_number && `#${project.project_number} • `}
