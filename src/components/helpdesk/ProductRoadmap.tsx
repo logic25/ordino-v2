@@ -738,10 +738,11 @@ export function ProductRoadmap() {
                           <p className="text-xs leading-relaxed">{ai.evidence}</p>
                         </div>
                         {ai.duplicate_warning && (() => {
-                          // Find the matching item by title similarity
-                          const matchTitle = ai.duplicate_warning.replace(/\s*\(\d+%\)\s*$/, '').replace(/^"?(.*?)"?$/, '$1').replace(/^Overlap with '?(.*?)'?$/, '$1');
+                          // Find matching items by checking if any item title appears in the warning text
+                          const warning = ai.duplicate_warning;
                           const matchItem = items.find((i) => i.id !== editingItem?.id && (
-                            i.title === matchTitle || i.title.includes(matchTitle) || matchTitle.includes(i.title)
+                            warning.toLowerCase().includes(i.title.toLowerCase()) ||
+                            i.title.toLowerCase().includes(warning.replace(/[^a-zA-Z\s]/g, '').trim().toLowerCase())
                           ));
                           return (
                             <div className="rounded-md border border-border bg-muted/30 px-3 py-2 space-y-2">
