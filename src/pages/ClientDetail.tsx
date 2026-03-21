@@ -116,7 +116,6 @@ function useClientStats(clientId: string | undefined) {
   });
 }
 
-// formatCurrency imported from @/lib/utils
 
 function formatPhone(value: string | null | undefined): string {
   if (!value) return "";
