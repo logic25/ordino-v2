@@ -66,6 +66,8 @@ interface RoadmapItem {
   stress_test_result: StressTestResult | null;
   stress_tested_at: string | null;
   created_at: string;
+  created_by: string | null;
+  created_by_profile?: { display_name: string | null; first_name: string | null } | null;
 }
 
 type RoadmapStatus = "gap" | "planned" | "in_progress" | "done";
