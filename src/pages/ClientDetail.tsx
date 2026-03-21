@@ -115,8 +115,7 @@ function useClientStats(clientId: string | undefined) {
   });
 }
 
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 }).format(value);
+// formatCurrency imported from @/lib/utils
 
 function formatPhone(value: string | null | undefined): string {
   if (!value) return "";

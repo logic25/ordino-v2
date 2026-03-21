@@ -75,10 +75,6 @@ export function ProposalFollowUps() {
     return "outline";
   };
 
-  const formatCurrency = (value: number | null) => {
-    if (!value) return "";
-    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(value);
-  };
 
   return (
     <Card>

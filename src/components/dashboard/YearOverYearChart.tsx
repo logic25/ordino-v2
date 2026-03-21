@@ -42,10 +42,7 @@ export function useYearOverYearRevenue() {
   });
 }
 
-const formatCurrency = (v: number) => {
-  if (v >= 1000) return `$${(v / 1000).toFixed(0)}k`;
-  return `$${v}`;
-};
+const formatCurrency = formatCompactCurrency;
 
 export function YearOverYearChart() {
   const { data, isLoading } = useYearOverYearRevenue();

@@ -187,21 +187,6 @@ export default function Proposals() {
     return nextDate && !dismissed && new Date(nextDate) <= new Date();
   }).length;
 
-  const formatCurrency = (value: number) => {
-    if (value >= 1000) {
-      return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-      }).format(value);
-    }
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 0,
-    }).format(value);
-  };
 
   const getDelta = (current: number, previous: number) => {
     if (previous === 0) return current > 0 ? 100 : 0;

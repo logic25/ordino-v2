@@ -582,7 +582,5 @@ export const checklistCategoryLabels: Record<string, { label: string; icon: stri
   ai_follow_up: { label: "AI Follow-Up", icon: "🤖" },
 };
 
-export const formatCurrency = (value: number | null) => {
-  if (value == null) return "—";
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(value);
-};
+// Re-export from canonical location for backward compat
+export { formatCurrency } from "@/lib/utils";
