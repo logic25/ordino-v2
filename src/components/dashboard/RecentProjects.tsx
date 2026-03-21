@@ -18,21 +18,8 @@ export function RecentProjects({ showOnlyMine = false }: RecentProjectsProps) {
   const projects = showOnlyMine ? myProjects : allProjects;
   const isLoading = showOnlyMine ? myLoading : allLoading;
 
-  const statusColors: Record<string, string> = {
-    open: "bg-green-500/10 text-green-700",
-    on_hold: "bg-amber-500/10 text-amber-700",
-    closed: "bg-muted text-muted-foreground",
-    paid: "bg-blue-500/10 text-blue-700",
-  };
 
-  const getStatusBadge = (status: string | null) => {
-    if (!status) return null;
-    return (
-      <Badge className={statusColors[status] || "bg-muted"}>
-        {status.replace("_", " ").replace(/\b\w/g, c => c.toUpperCase())}
-      </Badge>
-    );
-  };
+
 
   const formatTimeAgo = (dateStr: string | null) => {
     if (!dateStr) return "";
