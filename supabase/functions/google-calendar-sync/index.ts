@@ -307,15 +307,15 @@ Deno.serve(async (req) => {
           if (att.id === profile.id) continue; // don't notify creator
 
           // In-app notification
-          await supabaseAdmin.from("notifications").insert({
+          const { error: notifErr } = await supabaseAdmin.from("notifications").insert({
             company_id: profile.company_id,
             user_id: att.id,
             type: "calendar_event",
             title: "New Calendar Event",
             body: `${creatorProfile?.display_name || "Someone"} invited you to: ${title}`,
             link: "/calendar",
-            metadata: { event_id: dbEvent.id, start_time, event_type: event_type || "general" },
           });
+          if (notifErr) console.error("Failed to insert notification for", att.id, notifErr);
 
           // Email notification
           const attEmail = attendeeEmails[att.id];
