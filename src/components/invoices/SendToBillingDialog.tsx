@@ -1,4 +1,3 @@
-import { useState, useEffect, useMemo } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -8,16 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, AlertTriangle, Info } from "lucide-react";
-import { useProjects } from "@/hooks/useProjects";
-import { useClients, useClientContacts } from "@/hooks/useClients";
-import { useCreateBillingRequest, type BillingRequestService } from "@/hooks/useBillingRequests";
-import { useClientBillingRulesByClient } from "@/hooks/useClientBillingRules";
-import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
-import { ServiceSelectionList, type SelectedService, type BillingHistoryEntry } from "./billing/ServiceSelectionList";
+import { ServiceSelectionList } from "./billing/ServiceSelectionList";
 import { ManualServiceEntry } from "./billing/ManualServiceEntry";
+import { useSendToBilling } from "./billing/useSendToBilling";
 
 interface SendToBillingDialogProps {
   open: boolean;
@@ -26,220 +19,8 @@ interface SendToBillingDialogProps {
   preselectedServiceIds?: Set<string>;
 }
 
-interface ProjectService {
-  id: string;
-  name: string;
-  description: string | null;
-  total_amount: number | null;
-  fixed_price: number | null;
-  billing_type: string | null;
-  status: string | null;
-}
-
-function useProjectServices(projectId: string | null) {
-  return useQuery({
-    queryKey: ["project-services", projectId],
-    enabled: !!projectId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("services")
-        .select("id, name, description, total_amount, fixed_price, billing_type, status")
-        .eq("project_id", projectId!);
-      if (error) throw error;
-      return (data || []) as ProjectService[];
-    },
-  });
-}
-
-function usePreviouslyBilled(projectId: string | null) {
-  return useQuery({
-    queryKey: ["previously-billed", projectId],
-    enabled: !!projectId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("billing_requests")
-        .select("services, created_at, created_by, billed_to_contact_id")
-        .eq("project_id", projectId!)
-        .neq("status", "cancelled");
-      if (error) throw error;
-
-      const billedMap: Record<string, number> = {};
-      const historyMap: Record<string, BillingHistoryEntry[]> = {};
-
-      for (const req of data || []) {
-        const items = (req.services as any[]) || [];
-        for (const item of items) {
-          const key = item.name || "";
-          billedMap[key] = (billedMap[key] || 0) + (item.amount || item.billed_amount || 0);
-          if (!historyMap[key]) historyMap[key] = [];
-          historyMap[key].push({
-            amount: item.amount || item.billed_amount || 0,
-            billingMethod: item.billing_method || "full",
-            billingValue: item.billing_value,
-            date: req.created_at,
-            createdBy: req.created_by,
-            billedToContactId: req.billed_to_contact_id,
-          });
-        }
-      }
-      return { billedMap, historyMap };
-    },
-  });
-}
-
 export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId, preselectedServiceIds }: SendToBillingDialogProps) {
-  const [projectId, setProjectId] = useState(preselectedProjectId || "");
-  const [billedToContactId, setBilledToContactId] = useState("");
-  const [selectedServices, setSelectedServices] = useState<SelectedService[]>([]);
-  const [manualServices, setManualServices] = useState<BillingRequestService[]>([
-    { name: "", description: "", quantity: 1, rate: 0, amount: 0 },
-  ]);
-
-  const { data: projects } = useProjects();
-  const { data: clients } = useClients();
-  const createBillingRequest = useCreateBillingRequest();
-  const { data: projectServices = [] } = useProjectServices(projectId || null);
-  const { data: prevBilledData } = usePreviouslyBilled(projectId || null);
-  const previouslyBilled = prevBilledData?.billedMap || {};
-  const billingHistory = prevBilledData?.historyMap || {};
-
-  const selectedProject = projects?.find((p) => p.id === projectId);
-  const selectedClient = clients?.find((c) => c.id === selectedProject?.client_id);
-  const { data: contacts } = useClientContacts(selectedProject?.client_id);
-  const { data: billingRules } = useClientBillingRulesByClient(selectedProject?.client_id);
-  const activeRule = billingRules?.[0];
-  const hasProjectServices = projectServices.length > 0;
-
-  useEffect(() => { if (preselectedProjectId) setProjectId(preselectedProjectId); }, [preselectedProjectId]);
-  useEffect(() => { setBilledToContactId(""); setSelectedServices([]); }, [projectId]);
-  useEffect(() => {
-    if (contacts && contacts.length > 0 && !billedToContactId) {
-      const primary = contacts.find((c) => c.is_primary);
-      setBilledToContactId(primary?.id || contacts[0].id);
-    }
-  }, [contacts]);
-
-  useEffect(() => {
-    if (!open || !hasProjectServices || selectedServices.length > 0) return;
-    const toAutoSelect = preselectedServiceIds && preselectedServiceIds.size > 0
-      ? projectServices.filter(s => preselectedServiceIds.has(s.id))
-      : projectServices.length === 1 ? [projectServices[0]] : [];
-    if (toAutoSelect.length > 0) {
-      setSelectedServices(toAutoSelect.map(svc => {
-        const contractAmount = svc.total_amount || svc.fixed_price || 0;
-        const prevBilled = previouslyBilled[svc.name] || 0;
-        const remaining = Math.max(0, contractAmount - prevBilled);
-        return { serviceId: svc.id, name: svc.name, contractAmount, previouslyBilled: prevBilled, remaining, billingMode: "amount" as const, inputValue: remaining, billedAmount: remaining };
-      }));
-    }
-  }, [open, projectServices, preselectedServiceIds, previouslyBilled]);
-
-  const selectedContact = contacts?.find((c) => c.id === billedToContactId);
-
-  const toggleService = (svc: ProjectService) => {
-    setSelectedServices((prev) => {
-      const exists = prev.find((s) => s.serviceId === svc.id);
-      if (exists) return prev.filter((s) => s.serviceId !== svc.id);
-      const contractAmount = svc.total_amount || svc.fixed_price || 0;
-      const prevBilled = previouslyBilled[svc.name] || 0;
-      const remaining = Math.max(0, contractAmount - prevBilled);
-      return [...prev, { serviceId: svc.id, name: svc.name, contractAmount, previouslyBilled: prevBilled, remaining, billingMode: "amount", inputValue: remaining, billedAmount: remaining }];
-    });
-  };
-
-  const updateSelectedService = (serviceId: string, field: "billingMode" | "inputValue", value: any) => {
-    setSelectedServices((prev) =>
-      prev.map((s) => {
-        if (s.serviceId !== serviceId) return s;
-        const updated = { ...s, [field]: value };
-        if (updated.billingMode === "percent") {
-          const pct = Math.min(100, Math.max(0, Number(updated.inputValue) || 0));
-          updated.billedAmount = +(s.contractAmount * (pct / 100)).toFixed(2);
-        } else {
-          updated.billedAmount = Math.min(s.remaining, Math.max(0, Number(updated.inputValue) || 0));
-        }
-        return updated;
-      })
-    );
-  };
-
-  const updateManualService = (idx: number, field: keyof BillingRequestService, value: string | number) => {
-    setManualServices((prev) => {
-      const updated = [...prev];
-      (updated[idx] as any)[field] = value;
-      if (field === "quantity" || field === "rate") updated[idx].amount = Number(updated[idx].quantity) * Number(updated[idx].rate);
-      return updated;
-    });
-  };
-
-  const subtotal = hasProjectServices
-    ? selectedServices.reduce((sum, s) => sum + s.billedAmount, 0)
-    : manualServices.reduce((sum, s) => sum + s.amount, 0);
-
-  const fees = useMemo(() => {
-    const f: Record<string, number> = {};
-    if (activeRule?.wire_fee && activeRule.wire_fee > 0) f["Wire Fee"] = activeRule.wire_fee;
-    if (activeRule?.cc_markup && activeRule.cc_markup > 0) f["CC Processing Fee"] = +(subtotal * (activeRule.cc_markup / 100)).toFixed(2);
-    return f;
-  }, [activeRule, subtotal]);
-
-  const totalFees = Object.values(fees).reduce((s, v) => s + v, 0);
-  const totalAmount = subtotal + totalFees;
-
-  const handleBillAgain = (svc: ProjectService, entry: BillingHistoryEntry) => {
-    const contractAmount = svc.total_amount || svc.fixed_price || 0;
-    const prevBilled = previouslyBilled[svc.name] || 0;
-    const remaining = Math.max(0, contractAmount - prevBilled);
-    const mode = entry.billingMethod === "percentage" ? "percent" : "amount";
-    const billedAmt = mode === "percent" ? +(contractAmount * ((entry.billingValue || 100) / 100)).toFixed(2) : Math.min(remaining, entry.amount);
-    setSelectedServices((prev) => [
-      ...prev.filter((s) => s.serviceId !== svc.id),
-      { serviceId: svc.id, name: svc.name, contractAmount, previouslyBilled: prevBilled, remaining, billingMode: mode as "amount" | "percent", inputValue: mode === "percent" ? (entry.billingValue || 100) : Math.min(remaining, entry.amount), billedAmount: Math.min(remaining, billedAmt) },
-    ]);
-    if (entry.billedToContactId) setBilledToContactId(entry.billedToContactId);
-  };
-
-  const resetForm = () => {
-    if (!preselectedProjectId) setProjectId("");
-    setBilledToContactId(""); setSelectedServices([]);
-    setManualServices([{ name: "", description: "", quantity: 1, rate: 0, amount: 0 }]);
-  };
-
-  const handleSubmit = async () => {
-    if (!projectId) { toast({ title: "Select a project", variant: "destructive" }); return; }
-    const serviceLines: BillingRequestService[] = hasProjectServices
-      ? selectedServices.map((s) => ({
-          name: s.name,
-          description: s.billingMode === "percent" ? `${s.inputValue}% of $${s.contractAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "",
-          quantity: 1, rate: s.billedAmount, amount: s.billedAmount,
-          billing_method: s.billingMode === "percent" ? "percentage" : "amount",
-          billing_value: s.inputValue, billed_amount: s.billedAmount,
-          previously_billed: s.previouslyBilled, remaining_after: Math.max(0, s.remaining - s.billedAmount),
-        } as any))
-      : manualServices.filter((s) => s.name || s.amount > 0);
-
-    if (serviceLines.length === 0) { toast({ title: "Select at least one service to bill", variant: "destructive" }); return; }
-
-    try {
-      await createBillingRequest.mutateAsync({
-        project_id: projectId, client_id: selectedProject?.client_id,
-        services: serviceLines, total_amount: totalAmount,
-        billed_to_contact_id: billedToContactId || null,
-        fees: Object.keys(fees).length > 0 ? fees : undefined,
-        special_instructions: activeRule?.special_instructions || null,
-      });
-      for (const s of selectedServices) {
-        const totalBilledAfter = s.previouslyBilled + s.billedAmount;
-        if (s.contractAmount > 0 && totalBilledAfter >= s.contractAmount) {
-          await supabase.from("services").update({ status: "billed", billed_at: new Date().toISOString() }).eq("id", s.serviceId);
-        }
-      }
-      toast({ title: "Billing request submitted & invoice created" });
-      onOpenChange(false); resetForm();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    }
-  };
+  const billing = useSendToBilling({ open, preselectedProjectId, preselectedServiceIds, onOpenChange });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -253,10 +34,10 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId, 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Project</Label>
-              <Select value={projectId} onValueChange={setProjectId}>
+              <Select value={billing.projectId} onValueChange={billing.setProjectId}>
                 <SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger>
                 <SelectContent>
-                  {(projects || []).filter((p) => p.status === "open").map((p) => (
+                  {(billing.projects || []).filter((p) => p.status === "open").map((p) => (
                     <SelectItem key={p.id} value={p.id}>{p.project_number || "—"} - {p.name || "Untitled"}</SelectItem>
                   ))}
                 </SelectContent>
@@ -264,40 +45,40 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId, 
             </div>
             <div className="space-y-2">
               <Label>Client</Label>
-              <Input readOnly value={selectedClient?.name || "Auto-filled from project"} className="bg-muted" />
+              <Input readOnly value={billing.selectedClient?.name || "Auto-filled from project"} className="bg-muted" />
             </div>
           </div>
 
           <div className="space-y-2">
             <Label>Bill To (Contact)</Label>
-            <Select value={billedToContactId} onValueChange={setBilledToContactId}>
-              <SelectTrigger><SelectValue placeholder={contacts?.length ? "Select billing contact" : "Select a project first"} /></SelectTrigger>
+            <Select value={billing.billedToContactId} onValueChange={billing.setBilledToContactId}>
+              <SelectTrigger><SelectValue placeholder={billing.contacts?.length ? "Select billing contact" : "Select a project first"} /></SelectTrigger>
               <SelectContent>
-                {(contacts || []).map((c) => (
+                {(billing.contacts || []).map((c) => (
                   <SelectItem key={c.id} value={c.id}>{c.name}{c.title ? ` — ${c.title}` : ""}{c.is_primary ? " (Primary)" : ""}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {selectedContact && <p className="text-xs text-muted-foreground">{selectedContact.email || "No email"}{selectedContact.phone ? ` · ${selectedContact.phone}` : ""}</p>}
+            {billing.selectedContact && <p className="text-xs text-muted-foreground">{billing.selectedContact.email || "No email"}{billing.selectedContact.phone ? ` · ${billing.selectedContact.phone}` : ""}</p>}
           </div>
 
-          {activeRule && (
+          {billing.activeRule && (
             <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
               <div className="flex items-center gap-2">
                 <Info className="h-4 w-4 text-primary" />
                 <span className="text-sm font-medium">Client Billing Rules Applied</span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {activeRule.require_waiver && <Badge variant="outline" className="text-[10px]">Waiver Required</Badge>}
-                {activeRule.require_pay_app && <Badge variant="outline" className="text-[10px]">Pay App Required</Badge>}
-                {activeRule.special_portal_required && <Badge variant="outline" className="text-[10px]">Portal Upload Required</Badge>}
-                {activeRule.wire_fee && activeRule.wire_fee > 0 && <Badge variant="secondary" className="text-[10px]">Wire Fee: ${activeRule.wire_fee}</Badge>}
-                {activeRule.cc_markup && activeRule.cc_markup > 0 && <Badge variant="secondary" className="text-[10px]">CC Markup: {activeRule.cc_markup}%</Badge>}
-                {activeRule.vendor_id && <Badge variant="outline" className="text-[10px]">Vendor ID: {activeRule.vendor_id}</Badge>}
+                {billing.activeRule.require_waiver && <Badge variant="outline" className="text-[10px]">Waiver Required</Badge>}
+                {billing.activeRule.require_pay_app && <Badge variant="outline" className="text-[10px]">Pay App Required</Badge>}
+                {billing.activeRule.special_portal_required && <Badge variant="outline" className="text-[10px]">Portal Upload Required</Badge>}
+                {billing.activeRule.wire_fee && billing.activeRule.wire_fee > 0 && <Badge variant="secondary" className="text-[10px]">Wire Fee: ${billing.activeRule.wire_fee}</Badge>}
+                {billing.activeRule.cc_markup && billing.activeRule.cc_markup > 0 && <Badge variant="secondary" className="text-[10px]">CC Markup: {billing.activeRule.cc_markup}%</Badge>}
+                {billing.activeRule.vendor_id && <Badge variant="outline" className="text-[10px]">Vendor ID: {billing.activeRule.vendor_id}</Badge>}
               </div>
-              {activeRule.special_instructions && (
+              {billing.activeRule.special_instructions && (
                 <p className="text-xs text-muted-foreground flex items-start gap-1.5">
-                  <AlertTriangle className="h-3 w-3 mt-0.5 text-warning shrink-0" />{activeRule.special_instructions}
+                  <AlertTriangle className="h-3 w-3 mt-0.5 text-warning shrink-0" />{billing.activeRule.special_instructions}
                 </p>
               )}
             </div>
@@ -305,22 +86,22 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId, 
 
           <Separator />
 
-          {hasProjectServices ? (
+          {billing.hasProjectServices ? (
             <ServiceSelectionList
-              projectServices={projectServices}
-              selectedServices={selectedServices}
-              previouslyBilled={previouslyBilled}
-              billingHistory={billingHistory}
-              onToggleService={toggleService}
-              onUpdateService={updateSelectedService}
-              onBillAgain={handleBillAgain}
+              projectServices={billing.projectServices}
+              selectedServices={billing.selectedServices}
+              previouslyBilled={billing.previouslyBilled}
+              billingHistory={billing.billingHistory}
+              onToggleService={billing.toggleService}
+              onUpdateService={billing.updateSelectedService}
+              onBillAgain={billing.handleBillAgain}
             />
           ) : (
             <ManualServiceEntry
-              services={manualServices}
-              onUpdate={updateManualService}
-              onAdd={() => setManualServices((prev) => [...prev, { name: "", description: "", quantity: 1, rate: 0, amount: 0 }])}
-              onRemove={(idx) => { if (manualServices.length > 1) setManualServices((prev) => prev.filter((_, i) => i !== idx)); }}
+              services={billing.manualServices}
+              onUpdate={billing.updateManualService}
+              onAdd={() => billing.setManualServices((prev) => [...prev, { name: "", description: "", quantity: 1, rate: 0, amount: 0 }])}
+              onRemove={(idx) => { if (billing.manualServices.length > 1) billing.setManualServices((prev) => prev.filter((_, i) => i !== idx)); }}
             />
           )}
 
@@ -330,18 +111,18 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId, 
             <div className="text-right space-y-1">
               <div className="flex justify-between gap-8 text-sm">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span className="tabular-nums">${subtotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                <span className="tabular-nums">${billing.subtotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
               </div>
-              {Object.entries(fees).map(([label, amount]) => (
+              {Object.entries(billing.fees).map(([label, amount]) => (
                 <div key={label} className="flex justify-between gap-8 text-sm">
                   <span className="text-muted-foreground">{label}</span>
                   <span className="tabular-nums">${amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
                 </div>
               ))}
-              {totalFees > 0 && <Separator className="my-1" />}
+              {billing.totalFees > 0 && <Separator className="my-1" />}
               <div className="flex justify-between gap-8">
                 <span className="text-sm text-muted-foreground">Total</span>
-                <span className="text-xl font-bold tabular-nums">${totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                <span className="text-xl font-bold tabular-nums">${billing.totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
               </div>
             </div>
           </div>
@@ -349,8 +130,8 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId, 
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={createBillingRequest.isPending} className="bg-accent text-accent-foreground hover:bg-accent/90">
-            {createBillingRequest.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Submit
+          <Button onClick={billing.handleSubmit} disabled={billing.isSubmitting} className="bg-accent text-accent-foreground hover:bg-accent/90">
+            {billing.isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Submit
           </Button>
         </DialogFooter>
       </DialogContent>
