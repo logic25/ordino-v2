@@ -488,6 +488,8 @@ Deno.serve(async (req) => {
       if (project_id !== undefined) updates.project_id = project_id;
       if (property_id !== undefined) updates.property_id = property_id;
       if (client_id !== undefined) updates.client_id = client_id;
+      if (reminder_minutes !== undefined) updates.reminder_minutes = reminder_minutes;
+      if (recurrence_rule !== undefined) updates.recurrence_rule = recurrence_rule || null;
       if (attendee_ids !== undefined) {
         const existingMeta = (existing as any).metadata || {};
         updates.metadata = { ...existingMeta, attendee_ids };
