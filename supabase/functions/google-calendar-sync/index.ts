@@ -159,13 +159,13 @@ Deno.serve(async (req) => {
     }) => {
       if (!attendee_ids?.length) return;
 
-      const newAttendeeIds = attendee_ids
+      // Include creator in the notification list — they get a confirmation too
+      const allRecipientIds = attendee_ids
         .filter(Boolean)
         .filter((id, index, ids) => ids.indexOf(id) === index)
-        .filter((id) => id !== profile.id)
         .filter((id) => !previous_attendee_ids.includes(id));
 
-      if (!newAttendeeIds.length) return;
+      if (!allRecipientIds.length) return;
 
       const creatorProfile = (
         await supabaseAdmin
@@ -180,7 +180,7 @@ Deno.serve(async (req) => {
       const { data: attendeeProfiles, error: attendeeError } = await supabaseAdmin
         .from("profiles")
         .select("id, display_name, first_name, last_name, user_id")
-        .in("id", newAttendeeIds);
+        .in("id", allRecipientIds);
 
       if (attendeeError) {
         console.error("Failed to load attendee profiles:", attendeeError);
@@ -204,14 +204,20 @@ Deno.serve(async (req) => {
       const endFormatted = formatEventDate(end_time, all_day);
 
       for (const attendee of attendeeProfiles || []) {
+        const isCreator = attendee.id === profile.id;
         const attendeeName = attendee.display_name || [attendee.first_name, attendee.last_name].filter(Boolean).join(" ") || "there";
+
+        const notifBody = isCreator
+          ? `You created an event: ${title}`
+          : `${creatorName} invited you to: ${title}`;
+        const notifTitle = isCreator ? "Event Created" : "New Calendar Event";
 
         const { error: notificationError } = await supabaseAdmin.from("notifications").insert({
           company_id: profile.company_id,
           user_id: attendee.id,
           type: "calendar_event",
-          title: "New Calendar Event",
-          body: `${creatorName} invited you to: ${title}`,
+          title: notifTitle,
+          body: notifBody,
           link: "/calendar",
         });
 
