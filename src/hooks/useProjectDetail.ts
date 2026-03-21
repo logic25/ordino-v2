@@ -16,7 +16,7 @@ export function useProjectServices(projectId: string | undefined) {
       const [{ data, error }, { data: billingReqs }, { data: pisData }] = await Promise.all([
         supabase
           .from("services")
-          .select("*")
+          .select("*, dob_applications(job_number, filed_date)")
           .eq("project_id", projectId)
           .order("created_at", { ascending: true }),
         supabase
