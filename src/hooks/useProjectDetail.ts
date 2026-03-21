@@ -557,6 +557,17 @@ export function useProjectPISStatus(projectId: string | undefined) {
           const rawLabel = field.label || fieldId;
           const displayVal = Array.isArray(val) ? val.join(", ") : String(val);
           answeredFields.push({ label: rawLabel, value: displayVal, section: heading });
+          answeredFieldIds.add(fieldId);
+        }
+      }
+
+      // Include estimated_job_cost which may not be in stored sections but exists in responses
+      if (!answeredFieldIds.has("estimated_job_cost")) {
+        const costVal = responses["estimated_job_cost"] || responses["building_scope_estimated_job_cost"] || responses["building_and_scope_estimated_job_cost"];
+        if (costVal) {
+          const numVal = Number(costVal);
+          const displayVal = !isNaN(numVal) ? `$${numVal.toLocaleString()}` : String(costVal);
+          answeredFields.push({ label: "Estimated Job Cost", value: displayVal, section: "Scope of Work & Cost Breakdown" });
         }
       }
 
