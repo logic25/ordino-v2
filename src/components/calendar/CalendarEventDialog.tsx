@@ -207,12 +207,22 @@ export function CalendarEventDialog({
   const handleSubmit = async () => {
     if (!title || !startDate || !endDate) return;
 
+    // Build ISO strings with local timezone offset so the server stores the correct absolute time
+    const tzOffset = (d: string, t: string) => {
+      const local = new Date(`${d}T${t}:00`);
+      const off = -local.getTimezoneOffset();
+      const sign = off >= 0 ? "+" : "-";
+      const hh = String(Math.floor(Math.abs(off) / 60)).padStart(2, "0");
+      const mm = String(Math.abs(off) % 60).padStart(2, "0");
+      return `${d}T${t}:00${sign}${hh}:${mm}`;
+    };
+
     const startISO = allDay
       ? `${startDate}T00:00:00`
-      : `${startDate}T${startTime}:00`;
+      : tzOffset(startDate, startTime);
     const endISO = allDay
       ? `${endDate}T23:59:59`
-      : `${endDate}T${endTime}:00`;
+      : tzOffset(endDate, endTime);
 
     try {
       if (event) {
