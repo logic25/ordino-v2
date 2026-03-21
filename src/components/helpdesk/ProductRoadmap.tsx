@@ -390,6 +390,42 @@ export function ProductRoadmap() {
     }
   };
 
+  const handleMergeInto = async (source: RoadmapItem, target: RoadmapItem) => {
+    try {
+      // Merge descriptions
+      const mergedDesc = [target.description, source.description].filter(Boolean).join("\n\n---\n\n");
+      // Merge challenges from stress tests
+      const targetChallenges = target.stress_test_result?.challenges || [];
+      const sourceChallenges = source.stress_test_result?.challenges || [];
+      const mergedChallenges = [...targetChallenges, ...sourceChallenges];
+      // Keep target's stress test but enrich with merged challenges
+      const mergedStressTest = target.stress_test_result
+        ? { ...target.stress_test_result, challenges: mergedChallenges }
+        : source.stress_test_result
+          ? { ...source.stress_test_result, challenges: mergedChallenges }
+          : null;
+      // Use higher priority
+      const priorityRank = { high: 0, medium: 1, low: 2 };
+      const mergedPriority = (priorityRank[source.priority as keyof typeof priorityRank] ?? 1) < (priorityRank[target.priority as keyof typeof priorityRank] ?? 1) ? source.priority : target.priority;
+
+      await supabase.from("roadmap_items").update({
+        description: mergedDesc,
+        priority: mergedPriority,
+        stress_test_result: mergedStressTest as any,
+        stress_tested_at: target.stress_tested_at || source.stress_tested_at,
+        updated_at: new Date().toISOString(),
+      } as any).eq("id", target.id);
+
+      await supabase.from("roadmap_items").delete().eq("id", source.id);
+
+      queryClient.invalidateQueries({ queryKey: ["roadmap-items"] });
+      closeDialog();
+      toast({ title: "Items merged", description: `"${source.title}" merged into "${target.title}"` });
+    } catch (err: any) {
+      toast({ title: "Merge failed", description: err.message, variant: "destructive" });
+    }
+  };
+
   const handleEdit = (item: RoadmapItem) => {
     setEditingItem(item);
     setForm({ title: item.title, description: item.description, category: item.category, status: item.status, priority: item.priority });
@@ -701,15 +737,34 @@ export function ProductRoadmap() {
                           <p className="text-[10px] text-muted-foreground font-medium mb-0.5 uppercase tracking-wide">Evidence</p>
                           <p className="text-xs leading-relaxed">{ai.evidence}</p>
                         </div>
-                        {ai.duplicate_warning && (
-                          <div className="rounded-md border border-border bg-muted/30 px-3 py-2 flex items-start gap-2">
-                            <AlertCircle className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
-                            <div>
-                              <p className="text-[10px] text-foreground font-medium mb-0.5">Similar item exists</p>
-                              <p className="text-xs text-muted-foreground">"{ai.duplicate_warning}"</p>
+                        {ai.duplicate_warning && (() => {
+                          // Find the matching item by title similarity
+                          const matchTitle = ai.duplicate_warning.replace(/\s*\(\d+%\)\s*$/, '').replace(/^"?(.*?)"?$/, '$1').replace(/^Overlap with '?(.*?)'?$/, '$1');
+                          const matchItem = items.find((i) => i.id !== editingItem?.id && (
+                            i.title === matchTitle || i.title.includes(matchTitle) || matchTitle.includes(i.title)
+                          ));
+                          return (
+                            <div className="rounded-md border border-border bg-muted/30 px-3 py-2 space-y-2">
+                              <div className="flex items-start gap-2">
+                                <AlertCircle className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                                <div className="flex-1">
+                                  <p className="text-[10px] text-foreground font-medium mb-0.5">Similar item exists</p>
+                                  <p className="text-xs text-muted-foreground">"{ai.duplicate_warning}"</p>
+                                </div>
+                              </div>
+                              {matchItem && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full text-xs gap-1.5"
+                                  onClick={() => handleMergeInto(editingItem!, matchItem)}
+                                >
+                                  <ArrowRight className="h-3 w-3" /> Merge into "{matchItem.title}"
+                                </Button>
+                              )}
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
                          {ai.challenges?.length > 0 && (
                           <div className="space-y-1.5">
                             <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Implementation challenges</p>
