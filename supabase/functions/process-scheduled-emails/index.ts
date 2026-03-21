@@ -112,7 +112,6 @@ Deno.serve(async (req) => {
     }
 
     // Internal worker — uses service-role client for all DB ops
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const gmailClientId = Deno.env.get("GMAIL_CLIENT_ID");
     const gmailClientSecret = Deno.env.get("GMAIL_CLIENT_SECRET");
