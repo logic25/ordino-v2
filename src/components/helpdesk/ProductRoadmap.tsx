@@ -701,15 +701,34 @@ export function ProductRoadmap() {
                           <p className="text-[10px] text-muted-foreground font-medium mb-0.5 uppercase tracking-wide">Evidence</p>
                           <p className="text-xs leading-relaxed">{ai.evidence}</p>
                         </div>
-                        {ai.duplicate_warning && (
-                          <div className="rounded-md border border-border bg-muted/30 px-3 py-2 flex items-start gap-2">
-                            <AlertCircle className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
-                            <div>
-                              <p className="text-[10px] text-foreground font-medium mb-0.5">Similar item exists</p>
-                              <p className="text-xs text-muted-foreground">"{ai.duplicate_warning}"</p>
+                        {ai.duplicate_warning && (() => {
+                          // Find the matching item by title similarity
+                          const matchTitle = ai.duplicate_warning.replace(/\s*\(\d+%\)\s*$/, '').replace(/^"?(.*?)"?$/, '$1').replace(/^Overlap with '?(.*?)'?$/, '$1');
+                          const matchItem = items.find((i) => i.id !== editingItem?.id && (
+                            i.title === matchTitle || i.title.includes(matchTitle) || matchTitle.includes(i.title)
+                          ));
+                          return (
+                            <div className="rounded-md border border-border bg-muted/30 px-3 py-2 space-y-2">
+                              <div className="flex items-start gap-2">
+                                <AlertCircle className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                                <div className="flex-1">
+                                  <p className="text-[10px] text-foreground font-medium mb-0.5">Similar item exists</p>
+                                  <p className="text-xs text-muted-foreground">"{ai.duplicate_warning}"</p>
+                                </div>
+                              </div>
+                              {matchItem && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full text-xs gap-1.5"
+                                  onClick={() => handleMergeInto(editingItem!, matchItem)}
+                                >
+                                  <ArrowRight className="h-3 w-3" /> Merge into "{matchItem.title}"
+                                </Button>
+                              )}
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
                          {ai.challenges?.length > 0 && (
                           <div className="space-y-1.5">
                             <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Implementation challenges</p>
