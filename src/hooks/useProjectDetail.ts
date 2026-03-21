@@ -1,11 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { formatPhoneNumber } from "@/lib/formatters";
 import type {
   MockService, MockContact, MockMilestone,
   MockDocument, MockTimeEntry, MockChecklistItem, MockPISStatus,
 } from "@/components/projects/projectMockData";
 import { OPTIONAL_PIS_FIELD_IDS, EXCLUDED_PIS_SECTION_IDS } from "@/components/projects/EditPISDialog";
+
+// Field IDs that contain phone numbers and should be formatted
+const PHONE_FIELD_IDS = new Set([
+  "applicant_phone", "owner_phone", "gc_phone", "sia_phone",
+  "tpp_phone", "corp_officer_phone",
+]);
 
 export function useProjectServices(projectId: string | undefined) {
   return useQuery({
