@@ -345,7 +345,7 @@ Deno.serve(async (req) => {
 
     // ─── CREATE: Push a new event to Google Calendar ───
     if (action === "create") {
-      const { title, description, location, start_time, end_time, all_day, event_type, project_id, property_id, client_id, application_id, attendee_ids } = body;
+      const { title, description, location, start_time, end_time, all_day, event_type, project_id, property_id, client_id, application_id, attendee_ids, reminder_minutes, recurrence_rule } = body;
 
       let googleEventId: string | null = null;
       let htmlLink: string | null = null;
