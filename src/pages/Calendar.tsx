@@ -133,29 +133,51 @@ export default function Calendar() {
     return combined.filter(ev => !hiddenTypes.has(ev.event_type || "general"));
   }, [events, billingItems, showBilling, hiddenTypes]);
 
+  const toDateKey = useCallback((isoString: string, allDay: boolean | null | undefined): string => {
+    if (allDay && isoString.length >= 10) {
+      return isoString.slice(0, 10);
+    }
+    return format(new Date(isoString), "yyyy-MM-dd");
+  }, []);
+
+  const getAllDayRange = useCallback((ev: Pick<UnifiedEvent, "start_time" | "end_time" | "all_day">) => {
+    const startKey = toDateKey(ev.start_time, ev.all_day);
+    let endKey = ev.end_time ? toDateKey(ev.end_time, ev.all_day) : startKey;
+
+    if (ev.all_day && ev.end_time) {
+      const startDate = new Date(`${startKey}T00:00:00`);
+      const endDate = new Date(`${endKey}T00:00:00`);
+
+      if (endDate > startDate) {
+        endKey = format(addDays(endDate, -1), "yyyy-MM-dd");
+      }
+    }
+
+    return { startKey, endKey };
+  }, [toDateKey]);
+
+  const getAllDaySpanDays = useCallback((ev: Pick<UnifiedEvent, "start_time" | "end_time" | "all_day">) => {
+    const { startKey, endKey } = getAllDayRange(ev);
+    return differenceInDays(
+      new Date(`${endKey}T00:00:00`),
+      new Date(`${startKey}T00:00:00`)
+    ) + 1;
+  }, [getAllDayRange]);
+
   // Build eventsByDay including multi-day event span
-  // For all-day events, extract the date portion directly from the ISO string
-  // to avoid timezone shifts (e.g., UTC midnight → previous day in local tz).
   const eventsByDay = useMemo(() => {
     const map: Record<string, UnifiedEvent[]> = {};
 
-    const toDateKey = (isoString: string, allDay: boolean | null | undefined): string => {
-      if (allDay && isoString.length >= 10) {
-        return isoString.slice(0, 10); // "2026-03-20"
-      }
-      return format(new Date(isoString), "yyyy-MM-dd");
-    };
-
     allEvents.forEach((ev) => {
       if (!ev.start_time) return;
-      const startKey = toDateKey(ev.start_time, ev.all_day);
-      const endKey = ev.end_time ? toDateKey(ev.end_time, ev.all_day) : startKey;
 
-      // For multi-day all-day events, add to each day in the span
+      const { startKey, endKey } = getAllDayRange(ev);
+
       if (ev.all_day && startKey !== endKey) {
-        const startD = new Date(startKey + "T00:00:00");
-        const endD = new Date(endKey + "T00:00:00");
+        const startD = new Date(`${startKey}T00:00:00`);
+        const endD = new Date(`${endKey}T00:00:00`);
         const evDays = eachDayOfInterval({ start: startD, end: endD });
+
         evDays.forEach((d) => {
           const key = format(d, "yyyy-MM-dd");
           if (!map[key]) map[key] = [];
@@ -166,19 +188,9 @@ export default function Calendar() {
         map[startKey].push(ev);
       }
     });
-    return map;
-  }, [allEvents]);
 
-  // Multi-day bar positions for month view
-  const multiDayBars = useMemo(() => {
-    if (viewMode !== "month") return [];
-    return allEvents.filter((ev) => {
-      if (!ev.all_day || !ev.start_time || !ev.end_time) return false;
-      const startD = new Date(ev.start_time);
-      const endD = new Date(ev.end_time);
-      return differenceInDays(endD, startD) > 0;
-    });
-  }, [allEvents, viewMode]);
+    return map;
+  }, [allEvents, getAllDayRange]);
 
   const handleSync = async () => {
     track("calendar", "google_sync_triggered");
@@ -420,17 +432,18 @@ export default function Calendar() {
                   const dayEvents = eventsByDay[key] || [];
                   const singleDayEvents = dayEvents.filter((ev) => {
                     if (!ev.all_day || !ev.end_time) return true;
-                    return differenceInDays(new Date(ev.end_time), new Date(ev.start_time)) === 0;
+                    const { startKey, endKey } = getAllDayRange(ev);
+                    return startKey === endKey;
                   });
                   const multiDayStarting = dayEvents.filter((ev) => {
                     if (!ev.all_day || !ev.end_time) return false;
-                    const spanDays = differenceInDays(new Date(ev.end_time), new Date(ev.start_time));
-                    return spanDays > 0 && isSameDay(new Date(ev.start_time), day);
+                    const { startKey, endKey } = getAllDayRange(ev);
+                    return startKey !== endKey && startKey === key;
                   });
                   const multiDayContinuing = dayEvents.filter((ev) => {
                     if (!ev.all_day || !ev.end_time) return false;
-                    const spanDays = differenceInDays(new Date(ev.end_time), new Date(ev.start_time));
-                    return spanDays > 0 && !isSameDay(new Date(ev.start_time), day);
+                    const { startKey, endKey } = getAllDayRange(ev);
+                    return startKey !== endKey && startKey !== key;
                   });
 
                   const inMonth = isSameMonth(day, currentDate);
@@ -475,7 +488,7 @@ export default function Calendar() {
                       <div className="space-y-0.5">
                         {multiDayStarting.map((ev) => {
                           const spanDays = Math.min(
-                            differenceInDays(new Date(ev.end_time), new Date(ev.start_time)) + 1,
+                            getAllDaySpanDays(ev),
                             7 - day.getDay()
                           );
                           return (
