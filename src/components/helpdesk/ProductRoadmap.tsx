@@ -426,6 +426,7 @@ export function ProductRoadmap() {
     }
   };
 
+  const handleEdit = (item: RoadmapItem) => {
     setEditingItem(item);
     setForm({ title: item.title, description: item.description, category: item.category, status: item.status, priority: item.priority });
     setDialogTab("quick");
