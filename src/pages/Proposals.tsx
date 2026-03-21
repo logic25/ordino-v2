@@ -1,3 +1,4 @@
+import { formatCurrency } from "@/lib/utils";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { ComposeEmailDialog } from "@/components/emails/ComposeEmailDialog";
 import { useSearchParams } from "react-router-dom";
