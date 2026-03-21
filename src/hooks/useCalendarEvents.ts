@@ -2,6 +2,52 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
+type CalendarFunctionErrorPayload = {
+  error?: string;
+  error_code?: string;
+  details?: string;
+  needs_reauth?: boolean;
+};
+
+async function readCalendarFunctionError(error: any): Promise<CalendarFunctionErrorPayload | null> {
+  try {
+    if (typeof error?.context?.json === "function") {
+      return (await error.context.json()) as CalendarFunctionErrorPayload;
+    }
+  } catch {
+    // Ignore JSON parsing failures and fall back to the generic error message.
+  }
+
+  return null;
+}
+
+function formatCalendarFunctionError(payload: CalendarFunctionErrorPayload | null, fallback?: string) {
+  if (!payload?.error) return fallback || "Calendar request failed.";
+
+  switch (payload.error_code) {
+    case "calendar_api_disabled":
+      return "Google Calendar API is disabled for the connected Google project. Enable it in Google Cloud, then try again.";
+    case "calendar_reauth_required":
+      return "Reconnect Gmail and approve Calendar permissions, then try again.";
+    default:
+      return payload.details ? `${payload.error} ${payload.details}` : payload.error;
+  }
+}
+
+async function unwrapCalendarFunctionResult<T>(result: { data: T | null; error: any }) {
+  if (result.error) {
+    const payload = await readCalendarFunctionError(result.error);
+    throw new Error(formatCalendarFunctionError(payload, result.error.message));
+  }
+
+  const payload = result.data as CalendarFunctionErrorPayload | null;
+  if (payload?.error) {
+    throw new Error(formatCalendarFunctionError(payload));
+  }
+
+  return result.data as T;
+}
+
 export type CalendarEvent = {
   id: string;
   company_id: string;
@@ -53,12 +99,10 @@ export function useSyncCalendar() {
 
   return useMutation({
     mutationFn: async ({ time_min, time_max }: { time_min?: string; time_max?: string } = {}) => {
-      const { data, error } = await supabase.functions.invoke("google-calendar-sync", {
+      const result = await supabase.functions.invoke("google-calendar-sync", {
         body: { action: "sync", time_min, time_max },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      return data;
+      return unwrapCalendarFunctionResult(result);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
@@ -86,12 +130,10 @@ export function useCreateCalendarEvent() {
       reminder_minutes?: number[];
       recurrence_rule?: string;
     }) => {
-      const { data, error } = await supabase.functions.invoke("google-calendar-sync", {
+      const result = await supabase.functions.invoke("google-calendar-sync", {
         body: { action: "create", ...event },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      return data;
+      return unwrapCalendarFunctionResult(result);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
@@ -119,12 +161,10 @@ export function useUpdateCalendarEvent() {
       reminder_minutes?: number[];
       recurrence_rule?: string;
     }) => {
-      const { data, error } = await supabase.functions.invoke("google-calendar-sync", {
+      const result = await supabase.functions.invoke("google-calendar-sync", {
         body: { action: "update", ...event },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      return data;
+      return unwrapCalendarFunctionResult(result);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
@@ -137,12 +177,10 @@ export function useDeleteCalendarEvent() {
 
   return useMutation({
     mutationFn: async (eventId: string) => {
-      const { data, error } = await supabase.functions.invoke("google-calendar-sync", {
+      const result = await supabase.functions.invoke("google-calendar-sync", {
         body: { action: "delete", event_id: eventId },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      return data;
+      return unwrapCalendarFunctionResult(result);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
