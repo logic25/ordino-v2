@@ -95,6 +95,9 @@ import { TimelineFull } from "@/components/projects/tabs/TimelineFull";
 import { DocumentsFull } from "@/components/projects/tabs/DocumentsFull";
 import { ChangeOrdersFull } from "@/components/projects/tabs/ChangeOrdersFull";
 import { JobCostingFull } from "@/components/projects/tabs/JobCostingFull";
+import { ReadinessChecklist } from "@/components/projects/tabs/ReadinessChecklist";
+import { ServicesFull } from "@/components/projects/tabs/ServicesFull";
+import { TimeLogsFull } from "@/components/projects/tabs/TimeLogsFull";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   open: { label: "Open", variant: "default" },
