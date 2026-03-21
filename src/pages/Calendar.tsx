@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useTelemetry } from "@/hooks/useTelemetry";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ import {
   isSameMonth,
   isSameDay,
   isToday,
+  differenceInDays,
 } from "date-fns";
 import {
   useCalendarEvents,
@@ -41,6 +42,7 @@ import { useBillingCalendarItems } from "@/hooks/useBillingCalendarItems";
 import { CalendarEventDialog } from "@/components/calendar/CalendarEventDialog";
 import { CalendarWeekView } from "@/components/calendar/CalendarWeekView";
 import { CalendarDayView } from "@/components/calendar/CalendarDayView";
+import { CalendarMiniMonth } from "@/components/calendar/CalendarMiniMonth";
 import {
   EVENT_TYPE_LABELS,
   EVENT_TYPE_COLORS,
@@ -48,6 +50,7 @@ import {
   type UnifiedEvent,
   type CalendarViewMode,
 } from "@/components/calendar/calendarConstants";
+import { useCalendarDragDrop } from "@/hooks/useCalendarDragDrop";
 import { useGmailConnection } from "@/hooks/useGmailConnection";
 import { useCanAccessBilling } from "@/hooks/useUserRoles";
 import { useToast } from "@/hooks/use-toast";
@@ -73,6 +76,9 @@ export default function Calendar() {
     } catch { return new Set(); }
   });
 
+  const { moveEventToDate, moveEventToTime } = useCalendarDragDrop();
+  const [dragOverCell, setDragOverCell] = useState<string | null>(null);
+
   const toggleType = (type: string) => {
     setHiddenTypes(prev => {
       const next = new Set(prev);
@@ -86,22 +92,18 @@ export default function Calendar() {
   const syncCalendar = useSyncCalendar();
   const deleteEvent = useDeleteCalendarEvent();
 
-  // Auto-sync calendar on page load if stale (>15 min since last sync)
   useEffect(() => {
     if (!gmailConnection) return;
-    const SYNC_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
+    const SYNC_INTERVAL_MS = 15 * 60 * 1000;
     const lastSync = localStorage.getItem("last_calendar_sync");
     const lastSyncTime = lastSync ? parseInt(lastSync, 10) : 0;
     if (Date.now() - lastSyncTime > SYNC_INTERVAL_MS) {
       syncCalendar.mutateAsync({}).then(() => {
         localStorage.setItem("last_calendar_sync", Date.now().toString());
-      }).catch(() => {
-        // Silent fail on auto-sync
-      });
+      }).catch(() => {});
     }
   }, [gmailConnection]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Compute date range based on view
   const { calStart, calEnd } = useMemo(() => {
     if (viewMode === "week") {
       return {
@@ -131,18 +133,43 @@ export default function Calendar() {
     return combined.filter(ev => !hiddenTypes.has(ev.event_type || "general"));
   }, [events, billingItems, showBilling, hiddenTypes]);
 
+  // Build eventsByDay including multi-day event span
   const eventsByDay = useMemo(() => {
     const map: Record<string, UnifiedEvent[]> = {};
     allEvents.forEach((ev) => {
       if (!ev.start_time) return;
-      const d = new Date(ev.start_time);
-      if (isNaN(d.getTime())) return;
-      const key = format(d, "yyyy-MM-dd");
-      if (!map[key]) map[key] = [];
-      map[key].push(ev);
+      const startD = new Date(ev.start_time);
+      if (isNaN(startD.getTime())) return;
+      const endD = ev.end_time ? new Date(ev.end_time) : startD;
+      const spanDays = Math.max(0, differenceInDays(endD, startD));
+
+      // For multi-day events, add to each day in the span
+      if (spanDays > 0 && ev.all_day) {
+        const evDays = eachDayOfInterval({ start: startD, end: endD });
+        evDays.forEach((d) => {
+          const key = format(d, "yyyy-MM-dd");
+          if (!map[key]) map[key] = [];
+          map[key].push(ev);
+        });
+      } else {
+        const key = format(startD, "yyyy-MM-dd");
+        if (!map[key]) map[key] = [];
+        map[key].push(ev);
+      }
     });
     return map;
   }, [allEvents]);
+
+  // Multi-day bar positions for month view
+  const multiDayBars = useMemo(() => {
+    if (viewMode !== "month") return [];
+    return allEvents.filter((ev) => {
+      if (!ev.all_day || !ev.start_time || !ev.end_time) return false;
+      const startD = new Date(ev.start_time);
+      const endD = new Date(ev.end_time);
+      return differenceInDays(endD, startD) > 0;
+    });
+  }, [allEvents, viewMode]);
 
   const handleSync = async () => {
     track("calendar", "google_sync_triggered");
@@ -179,6 +206,45 @@ export default function Calendar() {
     }
   };
 
+  // Drag handlers for month grid
+  const handleMonthDragStart = (e: React.DragEvent, ev: UnifiedEvent) => {
+    if (ev.is_billing) { e.preventDefault(); return; }
+    e.dataTransfer.setData("text/plain", JSON.stringify(ev));
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleMonthDragOver = (e: React.DragEvent, cellKey: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverCell(cellKey);
+  };
+
+  const handleMonthDrop = (e: React.DragEvent, day: Date) => {
+    e.preventDefault();
+    setDragOverCell(null);
+    try {
+      const ev = JSON.parse(e.dataTransfer.getData("text/plain")) as CalendarEvent;
+      if (ev) moveEventToDate(ev, day);
+    } catch {}
+  };
+
+  // Week view drop handler
+  const handleWeekDrop = useCallback(
+    (ev: CalendarEvent, targetDate: Date, targetHour?: number) => {
+      if (targetHour !== undefined) {
+        moveEventToTime(ev, targetDate, targetHour);
+      } else {
+        moveEventToDate(ev, targetDate);
+      }
+    },
+    [moveEventToDate, moveEventToTime]
+  );
+
+  const handleMiniMonthSelect = (date: Date) => {
+    setCurrentDate(date);
+    setSelectedDate(date);
+  };
+
   const navigatePrev = () => {
     if (viewMode === "month") setCurrentDate(subMonths(currentDate, 1));
     else if (viewMode === "week") setCurrentDate(subWeeks(currentDate, 1));
@@ -199,7 +265,6 @@ export default function Calendar() {
 
   const selectedDayEvents = selectedDate ? eventsByDay[format(selectedDate, "yyyy-MM-dd")] || [] : [];
 
-  // Build legend items
   const legendItems = [
     { type: "inspection", label: "Inspection" },
     { type: "hearing", label: "Hearing" },
@@ -343,28 +408,50 @@ export default function Calendar() {
                 {days.map((day) => {
                   const key = format(day, "yyyy-MM-dd");
                   const dayEvents = eventsByDay[key] || [];
+                  // Filter out multi-day events from regular display (they show as bars)
+                  const singleDayEvents = dayEvents.filter((ev) => {
+                    if (!ev.all_day || !ev.end_time) return true;
+                    return differenceInDays(new Date(ev.end_time), new Date(ev.start_time)) === 0;
+                  });
+                  // Multi-day events starting on this day
+                  const multiDayStarting = dayEvents.filter((ev) => {
+                    if (!ev.all_day || !ev.end_time) return false;
+                    const spanDays = differenceInDays(new Date(ev.end_time), new Date(ev.start_time));
+                    return spanDays > 0 && isSameDay(new Date(ev.start_time), day);
+                  });
+                  // Multi-day events continuing through this day (not starting)
+                  const multiDayContinuing = dayEvents.filter((ev) => {
+                    if (!ev.all_day || !ev.end_time) return false;
+                    const spanDays = differenceInDays(new Date(ev.end_time), new Date(ev.start_time));
+                    return spanDays > 0 && !isSameDay(new Date(ev.start_time), day);
+                  });
+
                   const inMonth = isSameMonth(day, currentDate);
                   const today = isToday(day);
                   const selected = selectedDate && isSameDay(day, selectedDate);
-                  const hasEvents = dayEvents.length > 0;
+                  const isDragOver = dragOverCell === key;
 
                   return (
                     <div
                       key={key}
                       onClick={() => setSelectedDate(day)}
+                      onDragOver={(e) => handleMonthDragOver(e, key)}
+                      onDragLeave={() => setDragOverCell(null)}
+                      onDrop={(e) => handleMonthDrop(e, day)}
                       className={cn(
                         "min-h-[110px] p-1.5 border-b border-r border-border/50 cursor-pointer transition-all duration-150",
                         !inMonth && "bg-muted/20",
                         inMonth && "bg-card",
                         selected && "bg-primary/5 ring-1 ring-primary/30 ring-inset",
-                        !selected && "hover:bg-accent/20"
+                        isDragOver && "bg-primary/10 ring-2 ring-primary/40 ring-inset",
+                        !selected && !isDragOver && "hover:bg-accent/20"
                       )}
                     >
                       <div className="flex items-center justify-between mb-1">
                         <div className={cn("text-xs font-semibold w-7 h-7 flex items-center justify-center rounded-full transition-colors", !inMonth && "text-muted-foreground/40", today && "bg-primary text-primary-foreground shadow-sm", inMonth && !today && "text-foreground")}>
                           {format(day, "d")}
                         </div>
-                        {hasEvents && !today && (
+                        {dayEvents.length > 0 && !today && (
                           <span className="flex gap-0.5">
                             {dayEvents.slice(0, 3).map((_, i) => (
                               <span key={i} className="w-1.5 h-1.5 rounded-full bg-primary/50" />
@@ -373,17 +460,59 @@ export default function Calendar() {
                         )}
                       </div>
                       <div className="space-y-0.5">
-                        {dayEvents.slice(0, 3).map((ev) => (
+                        {/* Multi-day bar starting here */}
+                        {multiDayStarting.map((ev) => {
+                          const spanDays = Math.min(
+                            differenceInDays(new Date(ev.end_time), new Date(ev.start_time)) + 1,
+                            7 - day.getDay() // don't overflow past week row
+                          );
+                          return (
+                            <button
+                              key={`bar-${ev.id}`}
+                              draggable={!ev.is_billing}
+                              onDragStart={(e) => handleMonthDragStart(e, ev)}
+                              onClick={(e) => { e.stopPropagation(); if (!ev.is_billing) { setEditingEvent(ev as CalendarEvent); setDialogOpen(true); } }}
+                              className={cn(
+                                "text-left text-[10px] leading-tight px-1.5 py-0.5 rounded-l-md border-l border-t border-b truncate font-semibold cursor-grab active:cursor-grabbing",
+                                EVENT_TYPE_COLORS[ev.event_type] || EVENT_TYPE_COLORS.general,
+                                ev.is_billing && "italic cursor-default"
+                              )}
+                              style={{
+                                width: `calc(${spanDays * 100}% + ${(spanDays - 1) * 1}px)`,
+                                position: "relative",
+                                zIndex: 5,
+                              }}
+                            >
+                              {ev.title}
+                            </button>
+                          );
+                        })}
+                        {/* Continuation indicator */}
+                        {multiDayContinuing.length > 0 && day.getDay() === 0 && multiDayContinuing.map((ev) => (
+                          <div
+                            key={`cont-${ev.id}`}
+                            className={cn(
+                              "text-[10px] px-1.5 py-0.5 rounded-l-md border-l border-t border-b truncate font-medium opacity-70",
+                              EVENT_TYPE_COLORS[ev.event_type] || EVENT_TYPE_COLORS.general
+                            )}
+                          >
+                            ↳ {ev.title}
+                          </div>
+                        ))}
+                        {/* Single-day events */}
+                        {singleDayEvents.slice(0, 3).map((ev) => (
                           <button
                             key={ev.id}
+                            draggable={!ev.is_billing}
+                            onDragStart={(e) => handleMonthDragStart(e, ev)}
                             onClick={(e) => { e.stopPropagation(); if (!ev.is_billing) { setEditingEvent(ev as CalendarEvent); setDialogOpen(true); } }}
-                            className={cn("w-full text-left text-[10px] leading-tight px-1.5 py-0.5 rounded-md border truncate font-medium", EVENT_TYPE_COLORS[ev.event_type] || EVENT_TYPE_COLORS.general, ev.is_billing && "italic")}
+                            className={cn("w-full text-left text-[10px] leading-tight px-1.5 py-0.5 rounded-md border truncate font-medium cursor-grab active:cursor-grabbing", EVENT_TYPE_COLORS[ev.event_type] || EVENT_TYPE_COLORS.general, ev.is_billing && "italic cursor-default")}
                           >
                             {ev.title}
                           </button>
                         ))}
-                        {dayEvents.length > 3 && (
-                          <span className="text-[10px] text-muted-foreground pl-1 font-medium">+{dayEvents.length - 3} more</span>
+                        {singleDayEvents.length > 3 && (
+                          <span className="text-[10px] text-muted-foreground pl-1 font-medium">+{singleDayEvents.length - 3} more</span>
                         )}
                       </div>
                     </div>
@@ -400,6 +529,7 @@ export default function Calendar() {
               eventsByDay={eventsByDay}
               onSelectDate={setSelectedDate}
               onEventClick={handleEventClick}
+              onDropEvent={handleWeekDrop}
             />
           )}
 
@@ -411,9 +541,16 @@ export default function Calendar() {
             />
           )}
 
-          {/* Day detail sidebar */}
+          {/* Sidebar: Mini month + day detail */}
           {viewMode !== "day" && (
-            <div className="w-72 shrink-0">
+            <div className="w-72 shrink-0 space-y-4">
+              {/* Mini month navigator */}
+              <CalendarMiniMonth
+                selectedDate={selectedDate || currentDate}
+                onSelectDate={handleMiniMonthSelect}
+              />
+
+              {/* Day detail */}
               <div className="rounded-xl border border-border bg-card p-4 shadow-sm sticky top-6">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="p-1.5 rounded-lg bg-primary/10">
@@ -454,6 +591,9 @@ export default function Calendar() {
                             )}
                             {ev.description && <p className="text-xs text-muted-foreground line-clamp-2">{ev.description}</p>}
                             {ev.location && <p className="text-xs text-muted-foreground truncate">📍 {ev.location}</p>}
+                            {(ev as any).recurrence_rule && (
+                              <p className="text-[10px] text-muted-foreground">🔁 Recurring</p>
+                            )}
                             {!ev.is_billing && (
                               <div className="flex gap-1 pt-1">
                                 <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={(e) => { e.stopPropagation(); setEditingEvent(ev as CalendarEvent); setDialogOpen(true); }}>Edit</Button>
