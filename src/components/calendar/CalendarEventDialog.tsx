@@ -162,10 +162,12 @@ export function CalendarEventDialog({
       setAttendeeIds(event.metadata?.attendee_ids || []);
       const start = new Date(event.start_time);
       const end = new Date(event.end_time);
-      setStartDate(start.toISOString().split("T")[0]);
-      setStartTime(start.toTimeString().slice(0, 5));
-      setEndDate(end.toISOString().split("T")[0]);
-      setEndTime(end.toTimeString().slice(0, 5));
+      // Use local date/time parts so the form fields match what the user originally entered
+      const pad = (n: number) => String(n).padStart(2, "0");
+      setStartDate(`${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`);
+      setStartTime(`${pad(start.getHours())}:${pad(start.getMinutes())}`);
+      setEndDate(`${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`);
+      setEndTime(`${pad(end.getHours())}:${pad(end.getMinutes())}`);
     } else {
       const d = defaultDate || new Date();
       const dateStr = d.toISOString().split("T")[0];
@@ -207,12 +209,22 @@ export function CalendarEventDialog({
   const handleSubmit = async () => {
     if (!title || !startDate || !endDate) return;
 
+    // Build ISO strings with local timezone offset so the server stores the correct absolute time
+    const tzOffset = (d: string, t: string) => {
+      const local = new Date(`${d}T${t}:00`);
+      const off = -local.getTimezoneOffset();
+      const sign = off >= 0 ? "+" : "-";
+      const hh = String(Math.floor(Math.abs(off) / 60)).padStart(2, "0");
+      const mm = String(Math.abs(off) % 60).padStart(2, "0");
+      return `${d}T${t}:00${sign}${hh}:${mm}`;
+    };
+
     const startISO = allDay
       ? `${startDate}T00:00:00`
-      : `${startDate}T${startTime}:00`;
+      : tzOffset(startDate, startTime);
     const endISO = allDay
       ? `${endDate}T23:59:59`
-      : `${endDate}T${endTime}:00`;
+      : tzOffset(endDate, endTime);
 
     try {
       if (event) {
