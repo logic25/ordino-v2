@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState } from "react";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isToday, isSameDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { EVENT_TYPE_COLORS, type UnifiedEvent } from "./calendarConstants";
@@ -52,10 +52,10 @@ export function CalendarWeekView({
   };
 
   return (
-    <div className="flex-1 overflow-auto">
+    <div className="flex-1 overflow-auto rounded-2xl cal-glass cal-depth-md">
       {/* Day headers */}
-      <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-border bg-card rounded-t-xl sticky top-0 z-10 shadow-sm">
-        <div className="p-2 border-r border-border" />
+      <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-border/30 cal-glass-strong sticky top-0 z-10">
+        <div className="p-2 border-r border-border/20" />
         {days.map((day) => {
           const today = isToday(day);
           const selected = selectedDate && isSameDay(day, selectedDate);
@@ -64,16 +64,17 @@ export function CalendarWeekView({
               key={day.toISOString()}
               onClick={() => onSelectDate(day)}
               className={cn(
-                "p-2 text-center cursor-pointer border-l border-border/50 transition-colors",
+                "p-3 text-center cursor-pointer border-l border-border/20 transition-all duration-200",
                 selected && "bg-primary/5",
-                !selected && "hover:bg-accent/20"
+                today && "cal-today-glow",
+                !selected && "hover:bg-accent/10"
               )}
             >
-              <div className="text-xs text-muted-foreground">{format(day, "EEE")}</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-medium">{format(day, "EEE")}</div>
               <div
                 className={cn(
-                  "text-sm font-bold w-8 h-8 mx-auto flex items-center justify-center rounded-full",
-                  today && "bg-primary text-primary-foreground",
+                  "text-lg font-bold w-9 h-9 mx-auto flex items-center justify-center rounded-full transition-all duration-300",
+                  today && "bg-primary text-primary-foreground shadow-md",
                   !today && "text-foreground"
                 )}
               >
@@ -85,8 +86,8 @@ export function CalendarWeekView({
       </div>
 
       {/* All-day events row */}
-      <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-border bg-card">
-        <div className="p-1 text-[10px] text-muted-foreground text-right pr-2 pt-2 border-r border-border font-semibold">All day</div>
+      <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-border/20 cal-glass-subtle">
+        <div className="p-1 text-[9px] uppercase tracking-widest text-muted-foreground/60 text-right pr-2 pt-2 border-r border-border/20 font-semibold">All day</div>
         {days.map((day) => {
           const key = format(day, "yyyy-MM-dd");
           const allDayEvents = (eventsByDay[key] || []).filter((ev) => ev.all_day);
@@ -95,7 +96,7 @@ export function CalendarWeekView({
             <div
               key={key}
               className={cn(
-                "border-l border-border/50 p-1 min-h-[32px] transition-colors",
+                "border-l border-border/20 p-1 min-h-[36px] transition-all duration-200",
                 dragOverCell === cellKey && "bg-primary/10 ring-1 ring-primary/30 ring-inset"
               )}
               onDragOver={(e) => handleDragOver(e, cellKey)}
@@ -112,9 +113,10 @@ export function CalendarWeekView({
                     if (!ev.is_billing) onEventClick(ev as CalendarEvent);
                   }}
                   className={cn(
-                    "w-full text-left text-[10px] px-1.5 py-0.5 rounded border truncate font-medium mb-0.5 cursor-grab active:cursor-grabbing",
+                    "w-full text-left text-[10px] px-2 py-1 rounded-lg border truncate font-medium mb-0.5 cal-event-chip",
                     EVENT_TYPE_COLORS[ev.event_type] || EVENT_TYPE_COLORS.general,
-                    ev.is_billing && "italic cursor-default"
+                    ev.is_billing && "italic cursor-default",
+                    !ev.is_billing && "cursor-grab active:cursor-grabbing"
                   )}
                 >
                   {ev.title}
@@ -126,10 +128,10 @@ export function CalendarWeekView({
       </div>
 
       {/* Time grid */}
-      <div className="grid grid-cols-[60px_repeat(7,1fr)] bg-card border border-border rounded-b-xl overflow-hidden">
+      <div className="grid grid-cols-[60px_repeat(7,1fr)]">
         {hours.map((hour) => (
           <div key={hour} className="contents">
-            <div className="text-[11px] text-muted-foreground text-right pr-2 pt-1 h-16 border-b border-border/60 border-r border-border font-medium bg-muted/30">
+            <div className="text-[10px] text-muted-foreground/50 text-right pr-3 pt-1 h-16 border-b border-border/15 border-r border-border/20 font-medium tabular-nums">
               {format(new Date(2000, 0, 1, hour), "h a")}
             </div>
             {days.map((day) => {
@@ -140,11 +142,13 @@ export function CalendarWeekView({
                 const evHour = new Date(ev.start_time).getHours();
                 return evHour === hour;
               });
+              const today = isToday(day);
               return (
                 <div
                   key={cellKey}
                   className={cn(
-                    "border-l border-b border-border/60 h-16 p-0.5 relative hover:bg-accent/10 transition-colors",
+                    "border-l border-b border-border/15 h-16 p-0.5 relative cal-cell-hover",
+                    today && "bg-primary/[0.02]",
                     dragOverCell === cellKey && "bg-primary/10 ring-1 ring-primary/30 ring-inset"
                   )}
                   onClick={() => onSelectDate(day)}
@@ -162,9 +166,10 @@ export function CalendarWeekView({
                         if (!ev.is_billing) onEventClick(ev as CalendarEvent);
                       }}
                       className={cn(
-                        "w-full text-left text-[10px] px-1.5 py-0.5 rounded border truncate font-medium mb-0.5 cursor-grab active:cursor-grabbing",
+                        "w-full text-left text-[10px] px-2 py-1 rounded-lg border truncate font-medium mb-0.5 cal-event-chip",
                         EVENT_TYPE_COLORS[ev.event_type] || EVENT_TYPE_COLORS.general,
-                        ev.is_billing && "italic cursor-default"
+                        ev.is_billing && "italic cursor-default",
+                        !ev.is_billing && "cursor-grab active:cursor-grabbing"
                       )}
                     >
                       {format(new Date(ev.start_time), "h:mm")} {ev.title}
