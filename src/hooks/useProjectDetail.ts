@@ -526,10 +526,12 @@ export function useProjectPISStatus(projectId: string | undefined) {
         missingBySection[contractorsHeading].push("Special Inspector (TBD)");
       }
 
-      // Build answered fields list for display
+      // Build answered fields list for display (include optional fields that have values)
       const answeredFields: Array<{ label: string; value: string; section: string }> = [];
+      const answeredFieldIds = new Set<string>();
       for (const f of allFields) {
         if (isMissing(f)) continue;
+        answeredFieldIds.add(f.id);
         const flatVal = responses[f.id];
         const prefixedVal = responses[`${f.sectionId}_${f.id}`];
         const val = prefixedVal ?? flatVal;
@@ -537,6 +539,25 @@ export function useProjectPISStatus(projectId: string | undefined) {
         const rawLabel = (f.label.includes(" — ") ? f.label.split(" — ").slice(1).join(" — ") : f.label);
         const displayVal = Array.isArray(val) ? val.join(", ") : String(val);
         answeredFields.push({ label: rawLabel, value: displayVal, section: heading });
+      }
+      // Also include optional fields that have values but were excluded from allFields
+      for (const section of sections) {
+        if (EXCLUDED_PIS_SECTION_IDS.has(section.id)) continue;
+        const fields = (section.fields as any[]) || [];
+        for (const field of fields) {
+          if (field.type === "heading" || field.type === "file_upload" || field.type === "work_type_picker" || field.type === "checkbox_group") continue;
+          const fieldId = field.id as string;
+          if (answeredFieldIds.has(fieldId)) continue;
+          if (!OPTIONAL_PIS_FIELD_IDS.has(fieldId)) continue;
+          const flatVal = responses[fieldId];
+          const prefixedVal = responses[`${section.id}_${fieldId}`];
+          const val = prefixedVal ?? flatVal;
+          if (val === null || val === undefined || val === "" || (Array.isArray(val) && val.length === 0) || String(val).trim().length === 0) continue;
+          const heading = fieldHeadingMap.get(fieldId) || "Other";
+          const rawLabel = field.label || fieldId;
+          const displayVal = Array.isArray(val) ? val.join(", ") : String(val);
+          answeredFields.push({ label: rawLabel, value: displayVal, section: heading });
+        }
       }
 
       // Extract PIS owner name for header display — combine company + person
