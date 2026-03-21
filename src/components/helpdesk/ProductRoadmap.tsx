@@ -97,7 +97,7 @@ function useRoadmapItems() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("roadmap_items")
-        .select("*")
+        .select("*, created_by_profile:profiles!roadmap_items_created_by_fkey(display_name, first_name)")
         .order("sort_order", { ascending: true });
       if (error) throw error;
       return (data || []) as unknown as RoadmapItem[];
