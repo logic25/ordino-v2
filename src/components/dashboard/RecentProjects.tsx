@@ -1,10 +1,10 @@
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FolderKanban } from "lucide-react";
 import { useRecentProjects, useMyAssignedProjects } from "@/hooks/useDashboard";
+import { ProjectStatusBadge } from "@/components/ui/ProjectStatusBadge";
 
 interface RecentProjectsProps {
   showOnlyMine?: boolean;
@@ -18,21 +18,8 @@ export function RecentProjects({ showOnlyMine = false }: RecentProjectsProps) {
   const projects = showOnlyMine ? myProjects : allProjects;
   const isLoading = showOnlyMine ? myLoading : allLoading;
 
-  const statusColors: Record<string, string> = {
-    open: "bg-green-500/10 text-green-700",
-    on_hold: "bg-amber-500/10 text-amber-700",
-    closed: "bg-muted text-muted-foreground",
-    paid: "bg-blue-500/10 text-blue-700",
-  };
 
-  const getStatusBadge = (status: string | null) => {
-    if (!status) return null;
-    return (
-      <Badge className={statusColors[status] || "bg-muted"}>
-        {status.replace("_", " ").replace(/\b\w/g, c => c.toUpperCase())}
-      </Badge>
-    );
-  };
+
 
   const formatTimeAgo = (dateStr: string | null) => {
     if (!dateStr) return "";
@@ -95,7 +82,7 @@ export function RecentProjects({ showOnlyMine = false }: RecentProjectsProps) {
                     <h3 className="font-medium">
                       {project.name || project.properties?.address || "Untitled Project"}
                     </h3>
-                    {getStatusBadge(project.status)}
+                    <ProjectStatusBadge status={project.status} />
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {project.project_number && `#${project.project_number} • `}

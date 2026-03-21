@@ -1,27 +1,19 @@
-import { useState, lazy, Suspense } from "react";
+import { useState } from "react";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { InvoiceStatusBadge } from "./InvoiceStatusBadge";
-import { LineItemsEditor } from "./LineItemsEditor";
-import { generateInvoicePDFBlob } from "./InvoicePDFPreview";
-const InvoicePDFPreview = lazy(() => import("./InvoicePDFPreview").then(m => ({ default: m.InvoicePDFPreview })));
 import { type InvoiceWithRelations, type LineItem } from "@/hooks/useInvoices";
 import { useInvoiceFollowUps, useInvoiceActivityLog } from "@/hooks/useInvoiceFollowUps";
 import { useClientPaymentAnalytics } from "@/hooks/useClientAnalytics";
 import { usePaymentPrediction } from "@/hooks/usePaymentPredictions";
 import { usePaymentPromises } from "@/hooks/usePaymentPromises";
 import { format } from "date-fns";
-import {
-  Edit2, Save, X, Send, Mail, MailOpen, Clock, FileWarning, Loader2,
-  Eye, Download, Trash2, Gavel,
-} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 // Extracted sub-components
@@ -31,6 +23,10 @@ import { PaymentAnalyticsSection, RiskPredictionSection, PromisesSection } from 
 import { FollowUpNotesSection } from "./invoice-detail/FollowUpNotesSection";
 import { ActivityLogSection } from "./invoice-detail/ActivityLogSection";
 import { ActionDialogs } from "./invoice-detail/ActionDialogs";
+import { DeliveryStatusSection } from "./invoice-detail/DeliveryStatusSection";
+import { LineItemsSection } from "./invoice-detail/LineItemsSection";
+import { TotalsSection } from "./invoice-detail/TotalsSection";
+import { InvoiceActionsSection } from "./invoice-detail/InvoiceActionsSection";
 import { ClaimFlowDialog } from "./ClaimFlowDialog";
 
 interface InvoiceDetailSheetProps {
@@ -43,8 +39,6 @@ interface InvoiceDetailSheetProps {
 export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice }: InvoiceDetailSheetProps) {
   const [editing, setEditing] = useState(false);
   const [editItems, setEditItems] = useState<LineItem[]>([]);
-  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
-  const [downloading, setDownloading] = useState(false);
   const [claimFlowOpen, setClaimFlowOpen] = useState(false);
 
   const actions = useInvoiceActions(invoice);
@@ -57,8 +51,7 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
   if (!invoice) return null;
 
   const lineItems: LineItem[] = Array.isArray(invoice.line_items) ? invoice.line_items : [];
-  const isOverdue = invoice.status === "overdue";
-  const isSent = invoice.status === "sent";
+  const canEdit = invoice.status === "draft" || invoice.status === "ready_to_send" || invoice.status === "needs_review";
 
   const pmName = invoice.created_by_profile
     ? `${invoice.created_by_profile.first_name || ""} ${invoice.created_by_profile.last_name || ""}`.trim()
@@ -128,21 +121,7 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
             </section>
 
             <Separator />
-
-            {/* Delivery Status */}
-            <section>
-              <h4 className="text-sm font-medium text-muted-foreground mb-2">Delivery Status</h4>
-              {invoice.sent_at ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm"><Mail className="h-4 w-4 text-primary" /><span>Sent on {format(new Date(invoice.sent_at), "MMMM d, yyyy 'at' h:mm a")}</span></div>
-                  {invoice.paid_at && <div className="flex items-center gap-2 text-sm"><MailOpen className="h-4 w-4 text-success" /><span>Paid on {format(new Date(invoice.paid_at), "MMMM d, yyyy 'at' h:mm a")}</span></div>}
-                  {isOverdue && invoice.due_date && <div className="flex items-center gap-2 text-sm text-destructive"><Clock className="h-4 w-4" /><span>Overdue since {format(new Date(invoice.due_date), "MMMM d, yyyy")}</span></div>}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Not yet sent</p>
-              )}
-            </section>
-
+            <DeliveryStatusSection invoice={invoice} />
             <Separator />
             <ClientInfoSection invoice={invoice} />
             <Separator />
@@ -150,42 +129,20 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
             <RiskPredictionSection prediction={prediction} />
             <PromisesSection promises={promises} />
 
-            {/* Line Items */}
-            <section>
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-medium text-muted-foreground">Line Items</h4>
-                {!editing && (invoice.status === "draft" || invoice.status === "ready_to_send" || invoice.status === "needs_review") && (
-                  <Button variant="ghost" size="sm" onClick={startEdit}><Edit2 className="h-3 w-3 mr-1" /> Edit</Button>
-                )}
-                {editing && (
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" onClick={cancelEdit}><X className="h-3 w-3 mr-1" /> Cancel</Button>
-                    <Button size="sm" onClick={saveEdit} disabled={actions.updateInvoice.isPending}><Save className="h-3 w-3 mr-1" /> Save</Button>
-                  </div>
-                )}
-              </div>
-              <LineItemsEditor items={editing ? editItems : lineItems} onChange={setEditItems} readOnly={!editing} />
-            </section>
+            <LineItemsSection
+              lineItems={lineItems}
+              editing={editing}
+              editItems={editItems}
+              onEditItemsChange={setEditItems}
+              canEdit={canEdit}
+              onStartEdit={startEdit}
+              onCancelEdit={cancelEdit}
+              onSaveEdit={saveEdit}
+              saving={actions.updateInvoice.isPending}
+            />
 
             <Separator />
-
-            {/* Totals */}
-            <section className="space-y-1 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span className="tabular-nums" data-clarity-mask="true">${Number(invoice.subtotal).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
-              </div>
-              {Number(invoice.retainer_applied) > 0 && (
-                <div className="flex justify-between text-success">
-                  <span>Deposit Applied</span>
-                  <span className="tabular-nums" data-clarity-mask="true">-${Number(invoice.retainer_applied).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-base font-bold pt-1 border-t">
-                <span>Total Due</span>
-                <span className="tabular-nums" data-clarity-mask="true">${Number(invoice.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
-              </div>
-            </section>
+            <TotalsSection invoice={invoice} />
 
             {/* Payment Terms */}
             <section>
@@ -210,59 +167,12 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
             <ActivityLogSection invoice={invoice} activityLog={activityLog} />
             <Separator />
 
-            {/* Actions */}
-            <div className="flex flex-col gap-2">
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => setPdfPreviewOpen(true)}>
-                  <Eye className="h-4 w-4 mr-2" /> Preview PDF
-                </Button>
-                <Button variant="outline" size="sm" className="flex-1" disabled={downloading} onClick={async () => {
-                  setDownloading(true);
-                  try {
-                    const logoUrl = actions.companyData?.logo_url || actions.companyData?.settings?.company_logo_url || "";
-                    const blob = await generateInvoicePDFBlob(invoice, actions.companyData?.settings, actions.companyData?.name, logoUrl);
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url; a.download = `${invoice.invoice_number}.pdf`; a.click();
-                    URL.revokeObjectURL(url);
-                  } catch (err: any) {
-                    toast({ title: "PDF Error", description: err.message, variant: "destructive" });
-                  } finally { setDownloading(false); }
-                }}>
-                  {downloading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />} Download
-                </Button>
-              </div>
-
-              {(invoice.status === "draft" || invoice.status === "ready_to_send") && onSendInvoice && (
-                <Button onClick={() => onSendInvoice(invoice)} className="bg-accent text-accent-foreground hover:bg-accent/90">
-                  <Send className="h-4 w-4 mr-2" /> Send Invoice
-                </Button>
-              )}
-
-              {(isOverdue || isSent) && (
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-muted-foreground">Collections Actions</h4>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1" onClick={() => { actions.setActiveAction("reminder"); actions.setActionNote(""); }}>
-                      <Mail className="h-3.5 w-3.5 mr-1.5" /> Send Reminder
-                    </Button>
-                    <Button variant="outline" size="sm" className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={actions.openDemandLetter}>
-                      <FileWarning className="h-3.5 w-3.5 mr-1.5" /> Demand Letter
-                    </Button>
-                  </div>
-                  {isOverdue && (
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="sm" className="flex-1 text-muted-foreground" onClick={() => { actions.setActiveAction("writeoff"); actions.setActionNote(""); }}>
-                        <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Write Off
-                      </Button>
-                      <Button variant="outline" size="sm" className="flex-1" onClick={() => setClaimFlowOpen(true)}>
-                        <Gavel className="h-3.5 w-3.5 mr-1.5" /> ClaimCurrent
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            <InvoiceActionsSection
+              invoice={invoice}
+              actions={actions}
+              onSendInvoice={onSendInvoice}
+              onOpenClaimFlow={() => setClaimFlowOpen(true)}
+            />
           </div>
         </SheetContent>
       </Sheet>
@@ -282,10 +192,6 @@ export function InvoiceDetailSheet({ invoice, open, onOpenChange, onSendInvoice 
         onAction={actions.handleAction}
         onGenerateAi={actions.generateAiMessage}
       />
-
-      <Suspense fallback={null}>
-        <InvoicePDFPreview invoice={invoice} open={pdfPreviewOpen} onOpenChange={setPdfPreviewOpen} />
-      </Suspense>
 
       <ClaimFlowDialog
         open={claimFlowOpen}
