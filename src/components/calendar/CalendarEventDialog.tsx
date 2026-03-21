@@ -444,7 +444,7 @@ export function CalendarEventDialog({
               <Repeat className="h-3.5 w-3.5 text-muted-foreground" />
               Repeat
             </Label>
-            <Select value={recurrenceRule} onValueChange={setRecurrenceRule}>
+            <Select value={recurrenceRule || "__none__"} onValueChange={(v) => setRecurrenceRule(v === "__none__" ? "" : v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Does not repeat" />
               </SelectTrigger>
