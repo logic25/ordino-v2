@@ -533,9 +533,22 @@ export function useProjectPISStatus(projectId: string | undefined) {
         missingBySection[contractorsHeading].push("Special Inspector (TBD)");
       }
 
+      // Helper to format display values based on field type
+      const formatDisplayVal = (fieldId: string, val: any): string => {
+        const str = Array.isArray(val) ? val.join(", ") : String(val);
+        if (PHONE_FIELD_IDS.has(fieldId)) {
+          const digits = str.replace(/\D/g, "");
+          return digits.length >= 7 ? formatPhoneNumber(digits) : str;
+        }
+        return str;
+      };
+
       // Build answered fields list for display (include optional fields that have values)
       const answeredFields: Array<{ label: string; value: string; section: string }> = [];
       const answeredFieldIds = new Set<string>();
+      // Track section+value to deduplicate identical values within the same section (e.g. Owner Name = Company Name)
+      const sectionValueSet = new Set<string>();
+
       for (const f of allFields) {
         if (isMissing(f)) continue;
         answeredFieldIds.add(f.id);
@@ -544,7 +557,11 @@ export function useProjectPISStatus(projectId: string | undefined) {
         const val = prefixedVal ?? flatVal;
         const heading = fieldHeadingMap.get(f.id) || "Other";
         const rawLabel = (f.label.includes(" — ") ? f.label.split(" — ").slice(1).join(" — ") : f.label);
-        const displayVal = Array.isArray(val) ? val.join(", ") : String(val);
+        const displayVal = formatDisplayVal(f.id, val);
+        // Deduplicate identical values within the same section
+        const dedupeKey = `${heading}::${displayVal.toLowerCase().trim()}`;
+        if (sectionValueSet.has(dedupeKey)) continue;
+        sectionValueSet.add(dedupeKey);
         answeredFields.push({ label: rawLabel, value: displayVal, section: heading });
       }
       // Also include optional fields that have values but were excluded from allFields
@@ -562,7 +579,10 @@ export function useProjectPISStatus(projectId: string | undefined) {
           if (val === null || val === undefined || val === "" || (Array.isArray(val) && val.length === 0) || String(val).trim().length === 0) continue;
           const heading = fieldHeadingMap.get(fieldId) || "Other";
           const rawLabel = field.label || fieldId;
-          const displayVal = Array.isArray(val) ? val.join(", ") : String(val);
+          const displayVal = formatDisplayVal(fieldId, val);
+          const dedupeKey = `${heading}::${displayVal.toLowerCase().trim()}`;
+          if (sectionValueSet.has(dedupeKey)) continue;
+          sectionValueSet.add(dedupeKey);
           answeredFields.push({ label: rawLabel, value: displayVal, section: heading });
           answeredFieldIds.add(fieldId);
         }
