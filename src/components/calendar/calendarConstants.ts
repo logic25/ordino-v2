@@ -33,7 +33,7 @@ export const EVENT_TYPE_COLORS: Record<string, string> = {
   site_visit: "bg-green-500/20 text-green-700 border-green-300",
   filing: "bg-purple-500/20 text-purple-700 border-purple-300",
   milestone: "bg-pink-500/20 text-pink-700 border-pink-300",
-  general: "bg-muted text-muted-foreground border-border",
+  general: "bg-sky-500/20 text-sky-700 border-sky-300",
   invoice_due: "bg-emerald-500/20 text-emerald-700 border-emerald-300",
   follow_up: "bg-amber-500/20 text-amber-700 border-amber-300",
   installment: "bg-cyan-500/20 text-cyan-700 border-cyan-300",
