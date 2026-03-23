@@ -64,9 +64,13 @@ const PIS_SECTIONS: PisSection[] = [
     description: "Licensed professional filing the application",
     contactRole: "Applicant",
     fields: [
-      { id: "applicant_name", label: "Full Name", type: "text", width: "half" },
+      { id: "applicant_first_name", label: "First Name", type: "text", width: "half" },
+      { id: "applicant_last_name", label: "Last Name", type: "text", width: "half" },
       { id: "applicant_business_name", label: "Business Name", type: "text", width: "half" },
-      { id: "applicant_business_address", label: "Business Address", type: "text", width: "full" },
+      { id: "applicant_business_address", label: "Street Address", type: "text", width: "full" },
+      { id: "applicant_business_city", label: "City", type: "text", width: "half" },
+      { id: "applicant_business_state", label: "State", type: "text", width: "half" },
+      { id: "applicant_business_zip", label: "Zip", type: "text", width: "half" },
       { id: "applicant_phone", label: "Phone", type: "phone", width: "half" },
       { id: "applicant_email", label: "Email", type: "email", width: "half" },
       { id: "applicant_nys_lic", label: "NYS License #", type: "text", width: "half" },
@@ -81,10 +85,14 @@ const PIS_SECTIONS: PisSection[] = [
     fields: [
       { id: "ownership_type", label: "Ownership Type", type: "select", options: ["Individual", "Corporation", "Partnership", "Condo/Co-op", "Non-profit", "Government"], width: "half" },
       { id: "non_profit", label: "Non-Profit?", type: "select", options: ["Yes", "No"], width: "half" },
-      { id: "owner_name", label: "Owner Name", type: "text", width: "half" },
+      { id: "owner_first_name", label: "First Name", type: "text", width: "half" },
+      { id: "owner_last_name", label: "Last Name", type: "text", width: "half" },
       { id: "owner_title", label: "Title", type: "text", width: "half" },
       { id: "owner_company", label: "Company / Entity Name", type: "text", width: "full" },
-      { id: "owner_address", label: "Address", type: "text", width: "full" },
+      { id: "owner_street", label: "Street Address", type: "text", width: "full" },
+      { id: "owner_city", label: "City", type: "text", width: "half" },
+      { id: "owner_state", label: "State", type: "text", width: "half" },
+      { id: "owner_zip", label: "Zip", type: "text", width: "half" },
       { id: "owner_email", label: "Email", type: "email", width: "half" },
       { id: "owner_phone", label: "Phone", type: "phone", width: "half" },
     ],
@@ -379,13 +387,15 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
    const inlineAutoRef = useRef<HTMLDivElement>(null);
 
    // Name fields that should show inline contact autocomplete
-   const NAME_FIELD_TO_SECTION: Record<string, string> = {
-     applicant_name: "applicant",
-     owner_name: "owner",
-     gc_name: "gc",
-     sia_name: "sia",
-     tpp_name: "tpp",
-   };
+    const NAME_FIELD_TO_SECTION: Record<string, string> = {
+      applicant_first_name: "applicant",
+      applicant_name: "applicant",
+      owner_first_name: "owner",
+      owner_name: "owner",
+      gc_name: "gc",
+      sia_name: "sia",
+      tpp_name: "tpp",
+    };
 
    // Close inline autocomplete on outside click
    useEffect(() => {
