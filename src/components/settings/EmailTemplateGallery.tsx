@@ -914,6 +914,9 @@ export function EmailTemplateGallery() {
     accentColor: resolvedFromSettings.accentColor || DEFAULT_STYLE.accentColor,
     fontFamily: resolvedFromSettings.fontFamily || DEFAULT_STYLE.fontFamily,
     buttonRadius: resolvedFromSettings.buttonRadius || DEFAULT_STYLE.buttonRadius,
+    bodyColor: resolvedFromSettings.bodyColor || DEFAULT_STYLE.bodyColor,
+    headingColor: resolvedFromSettings.headingColor || DEFAULT_STYLE.headingColor,
+    bodyFontSize: resolvedFromSettings.bodyFontSize || DEFAULT_STYLE.bodyFontSize,
   });
 
   // Load saved overrides per template
