@@ -14,6 +14,7 @@ import { useTelemetry } from "@/hooks/useTelemetry";
 import { useGmailConnection } from "@/hooks/useGmailConnection";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
+import { getLogoDataUrl } from "@/utils/logoToDataUrl";
 import { buildProposalEmailHtml, resolveProposalEmailTemplate } from "./buildProposalEmailHtml";
 
 interface SendProposalDialogProps {

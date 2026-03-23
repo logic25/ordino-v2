@@ -46,9 +46,9 @@ export const DEFAULT_PROPOSAL_EMAIL_TEMPLATE: Required<ProposalEmailTemplateCont
 };
 
 const DEFAULT_PROPOSAL_EMAIL_STYLE: Required<ProposalEmailStyleConfig> = {
-  accentColor: "hsl(65 69% 54%)",
-  accentForeground: "hsl(220 20% 10%)",
-  fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif",
+  accentColor: "#d7df23",
+  accentForeground: "#1f2937",
+  fontFamily: "Arial, Helvetica, sans-serif",
   buttonRadius: "8px",
 };
 
