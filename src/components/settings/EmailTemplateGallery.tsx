@@ -385,10 +385,8 @@ function buildPreviewHtml(
 
   const doc = docLabels[template.id] || { label: template.name };
   const logoLockup = co.logoUrl
-    ? `<div style="max-width:320px;height:64px;display:flex;align-items:center;overflow:hidden;">
-         <img src="${co.logoUrl}" alt="${co.name}" style="display:block;max-width:100%;max-height:64px;width:auto;height:auto;object-fit:contain;object-position:left center;" />
-       </div>`
-    : `<span style="font-size:18px;font-weight:700;color:${accent};">${co.name}</span>`;
+    ? `<img src="${co.logoUrl}" alt="${co.name}" width="320" style="display:block;max-width:320px;max-height:64px;height:auto;border:0;outline:none;text-decoration:none;" />`
+    : `<span style="font-size:18px;font-weight:700;color:${accent};font-family:${font};">${co.name}</span>`;
 
   const templateBody = buildTemplateBody(template.id, { greeting, bodyText, ctaText, signoffText, accent, accentFg, btnRadius, co });
   const stripeColor = template.id === "demand_letter" ? "#ef4444"
