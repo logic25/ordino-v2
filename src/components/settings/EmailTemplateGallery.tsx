@@ -496,6 +496,7 @@ function buildTemplateBody(
     ctaText: string;
     signoffText: string;
     accent: string;
+    accentTextClr: string;
     accentFg: string;
     btnRadius: string;
     co: CoInfo;
@@ -504,7 +505,7 @@ function buildTemplateBody(
     fontSize: string;
   },
 ): string {
-  const { greeting, bodyText, ctaText, signoffText, accent, accentFg, btnRadius, co, headingClr, bodyClr, fontSize } = ctx;
+  const { greeting, bodyText, ctaText, signoffText, accent, accentTextClr, accentFg, btnRadius, co, headingClr, bodyClr, fontSize } = ctx;
 
   const greetingHtml = `<p style="margin:0 0 16px;font-size:${fontSize};color:${headingClr};line-height:1.6;">${greeting}</p>`;
   const bodyHtml = `<p style="margin:0 0 24px;font-size:${fontSize};color:${bodyClr};line-height:1.6;">${bodyText}</p>`;
