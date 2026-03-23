@@ -97,7 +97,30 @@ Deno.serve(async (req) => {
         project = data;
       }
 
-      return new Response(JSON.stringify({ co, company, project }), {
+      // Fetch contract summary: original contract total + prior approved COs
+      let contractSummary = null;
+      if (co.project_id) {
+        const { data: services } = await supabase
+          .from("services")
+          .select("total_amount, change_order_id")
+          .eq("project_id", co.project_id);
+        const originalTotal = (services || [])
+          .filter((s: any) => !s.change_order_id)
+          .reduce((sum: number, s: any) => sum + Number(s.total_amount || 0), 0);
+
+        const { data: approvedCOs } = await supabase
+          .from("change_orders")
+          .select("id, amount")
+          .eq("project_id", co.project_id)
+          .eq("status", "approved")
+          .neq("id", co.id);
+        const priorCOsTotal = (approvedCOs || []).reduce((sum: number, c: any) => sum + Number(c.amount || 0), 0);
+        const priorCOsCount = (approvedCOs || []).length;
+
+        contractSummary = { originalTotal, priorCOsTotal, priorCOsCount };
+      }
+
+      return new Response(JSON.stringify({ co, company, project, contractSummary }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
