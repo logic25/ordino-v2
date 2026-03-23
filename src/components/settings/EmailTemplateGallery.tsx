@@ -15,6 +15,7 @@ import {
   buildProposalEmailHtml,
   DEFAULT_PROPOSAL_EMAIL_STYLE,
   resolveProposalEmailTemplate,
+  resolveEmailStyle,
 } from "@/components/proposals/buildProposalEmailHtml";
 import { toast } from "sonner";
 
