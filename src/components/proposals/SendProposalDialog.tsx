@@ -45,11 +45,11 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
   const companyAddress = (company as any)?.address || companySettings.company_address || "";
   const emailStyle = useMemo(
     () => ({
-      accentColor: company?.settings?.email_style?.accent_color,
+      accentColor: company?.settings?.email_style?.accent_color || (company as any)?.theme?.primary_color,
       fontFamily: company?.settings?.email_style?.font_family,
       buttonRadius: company?.settings?.email_style?.button_radius,
     }),
-    [company?.settings],
+    [company],
   );
 
   // Build recipient options from contacts + fallback
@@ -279,7 +279,7 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
+      <DialogContent className="w-[min(96vw,1100px)] max-w-[1100px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Send className="h-5 w-5" />
@@ -330,14 +330,16 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
           {/* Email preview */}
           <div>
             <Label className="text-xs text-muted-foreground mb-1.5 block">Email Preview (exact HTML being sent)</Label>
-            <div className="overflow-hidden rounded-lg border bg-background">
+            <div className="overflow-x-auto rounded-lg border bg-muted/20">
               {previewHtml ? (
-                <iframe
-                  srcDoc={previewHtml}
-                  title="Proposal email preview"
-                  className="w-full border-0 bg-background"
-                  style={{ height: 720 }}
-                />
+                <div className="min-w-[640px] p-4">
+                  <iframe
+                    srcDoc={previewHtml}
+                    title="Proposal email preview"
+                    className="w-full border-0 bg-background rounded-md"
+                    style={{ height: 720 }}
+                  />
+                </div>
               ) : (
                 <div className="p-4 text-sm text-muted-foreground">Preview unavailable.</div>
               )}
