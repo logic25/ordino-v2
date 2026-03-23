@@ -537,7 +537,21 @@ export function ServicesFull({ services: initialServices, project, contacts, all
             <TableHead>Service</TableHead>
             <TableHead className="whitespace-nowrap">Status</TableHead>
             <TableHead>Work Types</TableHead>
-            <TableHead>Est. Bill Date</TableHead>
+            <TableHead>
+              <div className="flex items-center gap-1">
+                Est. Bill Date
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 text-muted-foreground hover:text-primary"
+                  title="AI predict bill dates from historical data"
+                  onClick={handlePredictBillDates}
+                  disabled={predicting}
+                >
+                  {predicting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                </Button>
+              </div>
+            </TableHead>
             <TableHead className="text-right">Price</TableHead>
             <TableHead className="text-right">Cost</TableHead>
             <TableHead className="text-right">Billed</TableHead>
