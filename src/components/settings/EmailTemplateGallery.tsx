@@ -1047,6 +1047,7 @@ export function EmailTemplateGallery() {
     const savedStyleStr = JSON.stringify(savedStyle || {});
     const currentStyleStr = JSON.stringify({
       accent_color: style.accentColor,
+      accent_text_color: style.accentTextColor,
       font_family: style.fontFamily,
       button_radius: style.buttonRadius,
       body_color: style.bodyColor,
