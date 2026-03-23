@@ -51,6 +51,7 @@ export const DEFAULT_PROPOSAL_EMAIL_TEMPLATE: Required<ProposalEmailTemplateCont
 
 export const DEFAULT_PROPOSAL_EMAIL_STYLE: Required<ProposalEmailStyleConfig> = {
   accentColor: "#d7df23",
+  accentTextColor: "#d7df23",
   accentForeground: "#1f2937",
   fontFamily: "Arial, Helvetica, sans-serif",
   buttonRadius: "8px",
