@@ -8,6 +8,12 @@ import {
 } from "@/components/ui/table";
 import { Search, Pencil, Check, X } from "lucide-react";
 import { format } from "date-fns";
+
+const formatDateSafe = (value: string | null | undefined, pattern: string, fallback = "—") => {
+  if (!value) return fallback;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? fallback : format(date, pattern);
+};
 import type { COViolation } from "./coMockData";
 import { STATUS_COLORS, PRIORITY_COLORS } from "./coMockData";
 
