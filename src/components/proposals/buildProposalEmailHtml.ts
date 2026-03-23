@@ -142,11 +142,17 @@ export function buildProposalEmailHtml({
   const contactLine = [companyPhone, companyEmail].filter(Boolean).join(" · ");
   const ctaSection = resolvedCtaText
     ? `<div style="text-align:center;margin:32px 0;">
-        <a href="${clientLink}" style="display:inline-block;background:${documentAccent};color:${documentAccentForeground};text-decoration:none;padding:14px 44px;border-radius:${resolvedStyle.buttonRadius};font-size:16px;font-weight:700;letter-spacing:0.2px;">
-          ${resolvedCtaText}
-        </a>
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+          <tr>
+            <td align="center" bgcolor="${documentAccent}" style="background:${documentAccent};border-radius:${resolvedStyle.buttonRadius};">
+              <a href="${clientLink}" style="display:inline-block;background:${documentAccent};color:${documentAccentForeground};text-decoration:none;padding:14px 44px;border-radius:${resolvedStyle.buttonRadius};font-size:16px;line-height:16px;font-weight:700;letter-spacing:0.2px;font-family:${resolvedStyle.fontFamily};">
+                ${resolvedCtaText}
+              </a>
+            </td>
+          </tr>
+        </table>
       </div>
-      <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;text-align:center;line-height:1.5;">
+      <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;text-align:center;line-height:1.5;font-family:${resolvedStyle.fontFamily};">
         The link above also includes a Project Information Sheet — please fill it out at your convenience so we can begin work on your behalf.
       </p>`
     : "";
