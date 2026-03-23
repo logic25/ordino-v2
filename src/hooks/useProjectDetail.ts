@@ -600,7 +600,9 @@ export function useProjectPISStatus(projectId: string | undefined) {
 
       // Extract PIS owner name for header display — combine company + person
       const pisOwnerCompany = responses["applicant_and_owner_owner_company"] || "";
-      const pisOwnerPerson = responses["applicant_and_owner_owner_name"] || "";
+      const pisOwnerFirstName = responses["applicant_and_owner_owner_first_name"] || "";
+      const pisOwnerLastName = responses["applicant_and_owner_owner_last_name"] || "";
+      const pisOwnerPerson = [pisOwnerFirstName, pisOwnerLastName].filter(Boolean).join(" ") || responses["applicant_and_owner_owner_name"] || "";
       const pisOwnerName = [pisOwnerCompany, pisOwnerPerson].filter(Boolean).join(" — ") || null;
 
       return {
