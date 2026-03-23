@@ -893,7 +893,7 @@ function buildTemplateBody(
           <a href="#" style="display:inline-block;background:${accent};color:${accentFg};text-decoration:none;padding:14px 36px;border-radius:${btnRadius};font-size:16px;font-weight:700;">${ctaText || "Leave a Review"}</a>
         </div>
         <div style="text-align:center;margin-bottom:24px;">
-          <a href="#" style="font-size:14px;color:${accent};text-decoration:underline;">Know someone who needs our services? Refer a colleague →</a>
+          <a href="#" style="font-size:14px;color:${accentTextClr};text-decoration:underline;">Know someone who needs our services? Refer a colleague →</a>
         </div>
         ${signoffHtml}`;
 
