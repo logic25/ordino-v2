@@ -689,7 +689,7 @@ export function COSummaryView({
               <div className="rounded-lg border p-4 border-green-500/30 bg-green-500/5 space-y-2">
                 <h4 className="font-semibold flex items-center gap-2">
                   <ArrowUpRight className="h-4 w-4 text-green-600" />
-                  Changes Since Last Report ({format(new Date(lastReportDate), "MMM d, yyyy h:mm a")})
+                  Changes Since Last Report ({safeFormat(lastReportDate, "MMM d, yyyy h:mm a")})
                 </h4>
                 {changedApps.length > 0 && (
                   <div>
