@@ -1091,19 +1091,31 @@ export function EmailTemplateGallery() {
 
       {/* Template selector */}
       <div className="flex gap-2 flex-wrap">
-        {TEMPLATES.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTemplateId(t.id)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-              activeTemplateId === t.id
-                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                : "bg-card text-muted-foreground border-border hover:border-primary/30 hover:text-foreground"
-            }`}
-          >
-            {t.name}
-          </button>
-        ))}
+        {TEMPLATES.map((t) => {
+          const isLive = LIVE_TEMPLATE_IDS.has(t.id);
+          return (
+            <button
+              key={t.id}
+              onClick={() => setActiveTemplateId(t.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 ${
+                activeTemplateId === t.id
+                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                  : "bg-card text-muted-foreground border-border hover:border-primary/30 hover:text-foreground"
+              }`}
+            >
+              {isLive ? (
+                <Circle className="h-2 w-2 fill-emerald-500 text-emerald-500 shrink-0" />
+              ) : (
+                <span className={`text-[9px] px-1 py-px rounded font-semibold shrink-0 ${
+                  activeTemplateId === t.id
+                    ? "bg-primary-foreground/20 text-primary-foreground"
+                    : "bg-muted text-muted-foreground"
+                }`}>SOON</span>
+              )}
+              {t.name}
+            </button>
+          );
+        })}
       </div>
 
       {/* Side-by-side layout */}
