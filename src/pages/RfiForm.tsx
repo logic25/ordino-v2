@@ -430,6 +430,11 @@ export default function RfiForm() {
         if (isEntity) {
           setIfEmpty("applicant_and_owner_owner_company", ownerVal);
         } else {
+          // Split into first/last
+          const parts = ownerVal.trim().split(/\s+/);
+          setIfEmpty("applicant_and_owner_owner_first_name", parts[0] || null);
+          setIfEmpty("applicant_and_owner_owner_last_name", parts.slice(1).join(" ") || null);
+          // Also keep legacy key for backward compat
           setIfEmpty("applicant_and_owner_owner_name", ownerVal);
         }
       }
