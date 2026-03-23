@@ -775,8 +775,8 @@ export default function RfiForm() {
         }
       }
     }
-    // Owner section — show search before owner_name
-    if (sectionId === "applicant_and_owner" && fieldId === "owner_name") {
+    // Owner section — show search before owner_first_name
+    if (sectionId === "applicant_and_owner" && (fieldId === "owner_first_name" || fieldId === "owner_name")) {
       return <PISContactSearchBox token={token} sectionId={sectionId} subSection="owner" onSelect={applyFields} label="Building Owner" />;
     }
     // Applicant section — show search before applicant_first_name
