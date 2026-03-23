@@ -470,10 +470,10 @@ function buildPreviewHtml(
 </body></html>`;
 }
 
-function infoCard(label: string, value: string, sub?: string) {
+function infoCard(label: string, value: string, sub?: string, headingClr: string = HEADING) {
   return `<td style="background:${CARD_BG};border:1px solid ${BORDER};border-radius:8px;padding:14px 18px;">
     <p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:${MUTED};font-weight:600;">${label}</p>
-    <p style="margin:4px 0 0;font-size:14px;color:${HEADING};font-weight:600;">${value}</p>
+    <p style="margin:4px 0 0;font-size:14px;color:${headingClr};font-weight:600;">${value}</p>
     ${sub ? `<p style="margin:2px 0 0;font-size:12px;color:#64748b;">${sub}</p>` : ""}
   </td>`;
 }
