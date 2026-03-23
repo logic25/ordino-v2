@@ -10,7 +10,10 @@ import { Loader2, RotateCcw, CheckCircle2, PenLine, CreditCard, Building2, FileT
 import { useToast } from "@/hooks/use-toast";
 import { BlobProvider } from "@react-pdf/renderer";
 import { DepositReceiptPDF, type DepositReceiptData } from "@/components/invoices/DepositReceiptPDF";
-import { parseTermsSections } from "@/components/proposals/proposalUtils";
+import {
+  buildProposalEmailHtml,
+  resolveProposalEmailTemplate,
+} from "@/components/proposals/buildProposalEmailHtml";
 
 export default function ClientProposalPage() {
   const { token } = useParams<{ token: string }>();
@@ -71,6 +74,7 @@ export default function ClientProposalPage() {
       email: s.company_email?.trim() || c.email || "",
       website: s.company_website?.trim() || c.website || "",
       logo_url: s.company_logo_url?.trim() || c.logo_url || "",
+      settings: s,
     };
   })() : null;
 
@@ -323,11 +327,60 @@ export default function ClientProposalPage() {
 
   const amber = "hsl(65 69% 54%)";
   const amberSoft = "hsl(65 69% 54% / 0.12)";
-  const amberBorder = "hsl(65 69% 54% / 0.28)";
   const charcoal = "#1c2127";
   const slate = "#64748b";
   const lightBg = "#f8f9fa";
-  const borderColor = "#e5e7eb";
+
+  const propertyAddress = proposal.properties?.address || "";
+  const emailStyle = {
+    accentColor: company?.settings?.email_style?.accent_color,
+    fontFamily: company?.settings?.email_style?.font_family,
+    buttonRadius: company?.settings?.email_style?.button_radius,
+  };
+  const proposalTemplate = resolveProposalEmailTemplate(
+    {
+      subject: company?.settings?.email_template_overrides?.proposal?.subject,
+      greeting: company?.settings?.email_template_overrides?.proposal?.greeting,
+      bodyText: company?.settings?.email_template_overrides?.proposal?.body_text,
+      ctaText: company?.settings?.email_template_overrides?.proposal?.cta_text,
+      signoff: company?.settings?.email_template_overrides?.proposal?.signoff,
+    },
+    {
+      COMPANY_NAME: company?.name || "",
+      CLIENT_NAME: billTo?.name || proposal.client_name || "Client",
+      PROJECT_TITLE: proposal.title || "Your Project",
+      PROPERTY_ADDRESS: propertyAddress || "your project",
+      PROPOSAL_NUMBER: proposal.proposal_number ? `#${proposal.proposal_number}` : "",
+      AMOUNT: fmt(totalAmount),
+    },
+  );
+  const preparedForName = billTo?.name || proposal.client_name || "";
+  const proposalHtml = buildProposalEmailHtml({
+    clientName: billTo?.name || proposal.client_name || "Client",
+    proposalTitle: proposal.title || "Your Project",
+    proposalNumber: proposal.proposal_number || "",
+    propertyAddress,
+    preparedFor: preparedForName || undefined,
+    totalAmount: fmt(totalAmount),
+    depositAmount: fmt(depositAmt),
+    clientLink: "#proposal-signature",
+    companyName: company?.name || "Your Company",
+    companyEmail: company?.email || "",
+    companyPhone: company?.phone || "",
+    logoUrl: company?.logo_url || undefined,
+    companyAddress: company?.address || "",
+    items: items.map((item: any) => ({
+      name: item.name,
+      total: fmt(Number(item.total_price || item.quantity * item.unit_price || 0)),
+      isOptional: !!item.is_optional,
+    })),
+    greetingText: proposalTemplate.greeting,
+    bodyText: proposalTemplate.bodyText,
+    ctaText: proposalTemplate.ctaText,
+    signoffText: proposalTemplate.signoff,
+    style: emailStyle,
+  });
+  const proposalDocumentHtml = proposalHtml.match(/<body[^>]*>([\s\S]*)<\/body>/i)?.[1] ?? proposalHtml;
 
   return (
     <div className="min-h-screen bg-[#f1f5f9]">
@@ -648,239 +701,11 @@ export default function ClientProposalPage() {
           </div>
         ) : (
           <>
-        {/* ═══ The Contract Document ═══ */}
-        <div className="bg-white shadow-md" style={{ color: charcoal }}>
-
-          {/* ═══ Header ═══ */}
-          <div style={{ padding: "36px 48px 28px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: `1px solid ${borderColor}` }}>
-            <div>
-              {company?.logo_url ? (
-                <img src={company.logo_url} alt={company?.name} style={{ maxHeight: 52, marginBottom: 14 }} />
-              ) : (
-                <div style={{ fontSize: "20pt", fontWeight: 800, letterSpacing: -0.5, marginBottom: 8, color: charcoal }}>
-                  {company?.name || ""}
-                </div>
-              )}
-              <div style={{ fontSize: "9pt", color: slate, lineHeight: 1.7 }}>
-                {company?.address && <div>{company.address}</div>}
-                <div>
-                  {company?.phone && <span>Tel: {company.phone}</span>}
-                  {company?.fax && <span style={{ marginLeft: 12 }}>Fax: {company.fax}</span>}
-                </div>
-                {company?.email && <div>{company.email}</div>}
-                {company?.website && <div style={{ color: amber }}>{company.website}</div>}
-              </div>
-            </div>
-            <div style={{ textAlign: "right", minWidth: 148, whiteSpace: "nowrap", flexShrink: 0 }}>
-              <div style={{ fontSize: "9pt", textTransform: "uppercase", letterSpacing: 2, color: slate, fontWeight: 600, marginBottom: 4 }}>
-                Proposal
-              </div>
-              <div style={{ fontSize: "18pt", fontWeight: 800, color: charcoal, fontFamily: "'JetBrains Mono', monospace", whiteSpace: "nowrap", lineHeight: 1 }}>
-                #{proposal.proposal_number}
-              </div>
-              <div style={{ fontSize: "9pt", color: slate, marginTop: 8 }}>
-                {fmtDate(proposal.created_at)}
-              </div>
-            </div>
-          </div>
-
-          {/* ═══ Accent line ═══ */}
-          <div style={{ height: 3, background: amber }} />
-
-          {/* ═══ Body ═══ */}
-          <div style={{ padding: "32px 48px 40px" }}>
-
-            {/* Account & Project Info */}
-            <div style={{ display: "flex", gap: 32, marginBottom: 28 }}>
-              <div style={{ flex: 1, background: lightBg, padding: "16px 20px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
-                <div style={{ fontSize: "8pt", textTransform: "uppercase", letterSpacing: 1.5, color: slate, marginBottom: 8, fontWeight: 700 }}>
-                  Prepared For
-                </div>
-                {billTo ? (
-                  <>
-                    <div style={{ fontWeight: 700, fontSize: "11pt" }}>{billTo.company_name || billTo.name}</div>
-                    {billTo.company_name && <div style={{ fontSize: "10pt" }}>{billTo.name}</div>}
-                    {billTo.email && <div style={{ fontSize: "9pt", color: slate }}>{billTo.email}</div>}
-                    {billTo.phone && <div style={{ fontSize: "9pt", color: slate }}>{billTo.phone}</div>}
-                  </>
-                ) : proposal.client_name ? (
-                  <>
-                    <div style={{ fontWeight: 700, fontSize: "11pt" }}>{proposal.client_name}</div>
-                    {proposal.client_email && <div style={{ fontSize: "9pt", color: slate }}>{proposal.client_email}</div>}
-                  </>
-                ) : (
-                  <div style={{ color: slate, fontStyle: "italic" }}>No client specified</div>
-                )}
-                {/* Billed To sub-block */}
-                {billTo && proposal.billed_to_name && proposal.billed_to_name !== billTo.name && (
-                  <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid #e2e8f0" }}>
-                    <div style={{ fontSize: "8pt", textTransform: "uppercase", letterSpacing: 1.2, color: slate, marginBottom: 4, fontWeight: 700 }}>Billed To</div>
-                    <div style={{ fontSize: "10pt", fontWeight: 600 }}>{proposal.billed_to_name}</div>
-                    {proposal.billed_to_email && <div style={{ fontSize: "9pt", color: slate }}>{proposal.billed_to_email}</div>}
-                  </div>
-                )}
-              </div>
-              <div style={{ flex: 1, background: lightBg, padding: "16px 20px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
-                <div style={{ fontSize: "8pt", textTransform: "uppercase", letterSpacing: 1.5, color: slate, marginBottom: 8, fontWeight: 700 }}>
-                  Project Details
-                </div>
-                <div style={{ fontSize: "10pt", marginBottom: 4 }}><strong>Project:</strong> {proposal.title}</div>
-                <div style={{ fontSize: "10pt", marginBottom: 4 }}><strong>Address:</strong> {proposal.properties?.address || "—"}</div>
-                {proposal.properties?.borough && (
-                  <div style={{ fontSize: "10pt" }}><strong>Borough:</strong> {proposal.properties.borough}</div>
-                )}
-                {proposal.valid_until && (
-                  <div style={{ fontSize: "9pt", color: slate, marginTop: 6 }}>Valid until {fmtDate(proposal.valid_until)}</div>
-                )}
-              </div>
+            <div className="bg-white shadow-md rounded-lg overflow-hidden">
+              <div dangerouslySetInnerHTML={{ __html: proposalDocumentHtml }} />
             </div>
 
-            {/* Greeting */}
-            {billTo && (
-              <div style={{ fontSize: "10.5pt", marginBottom: 24, lineHeight: 1.65 }}>
-                <p>{billTo.name?.split(" ")[0]},</p>
-                <p style={{ marginTop: 8 }}>
-                  Thank you for considering us to service your permit needs. Below is a detailed breakdown of the professional services we will provide at this address.
-                </p>
-              </div>
-            )}
-
-            {/* ═══ Scope of Work ═══ */}
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, marginTop: 8 }}>
-              <div style={{ width: 4, height: 28, background: amber, borderRadius: 2 }} />
-              <h2 style={{ fontSize: "15pt", fontWeight: 800, color: charcoal, margin: 0 }}>
-                Scope of Work
-              </h2>
-            </div>
-
-            {/* Service Items */}
-            {nonOptionalItems.map((item: any, i: number) => {
-              const bullets = parseBullets(item.description);
-              const price = Number(item.total_price || item.quantity * item.unit_price);
-              const note = feeNote(item.fee_type, item.quantity, price);
-              const disciplines: string[] = item.disciplines || [];
-              const disciplineFee = Number(item.discipline_fee) || 0;
-              return (
-                <div key={i} style={{ marginBottom: 20, paddingBottom: 18, borderBottom: i < nonOptionalItems.length - 1 ? "1px solid #e2e8f0" : "none" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-                    <span style={{ fontSize: "11pt", fontWeight: 700, color: charcoal }}>{item.name}</span>
-                    <span style={{ fontSize: "11pt", fontWeight: 700, color: charcoal, whiteSpace: "nowrap", fontFamily: "'JetBrains Mono', monospace" }}>{fmt(price)}</span>
-                  </div>
-                  {bullets.length > 0 ? (
-                    <ul style={{ listStyle: "none", margin: "4px 0 0 0", padding: 0, fontSize: "9.5pt", color: slate, lineHeight: 1.65 }}>
-                      {bullets.map((b, bi) => (
-                        <li key={bi} style={{ paddingLeft: 16, position: "relative" }}>
-                          <span style={{ position: "absolute", left: 0, color: amber, fontWeight: 700 }}>•</span>
-                          {b}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : item.description ? (
-                    <p style={{ fontSize: "9.5pt", color: slate, lineHeight: 1.6, margin: "4px 0 0" }}>{item.description}</p>
-                  ) : null}
-                  {disciplines.length > 0 && (
-                    <div style={{ marginTop: 8, padding: "8px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }}>
-                      <div style={{ fontSize: "8.5pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: slate, marginBottom: 6 }}>
-                        Work Types Included
-                        {disciplineFee > 0 && <span style={{ fontWeight: 400, marginLeft: 8 }}>({fmt(disciplineFee)} each)</span>}
-                      </div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                        {disciplines.map((d: string) => (
-                          <span key={d} style={{ fontSize: "8.5pt", padding: "2px 8px", background: "#e2e8f0", borderRadius: 4, color: charcoal, fontWeight: 500 }}>{d}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {note && (
-                    <div style={{ fontSize: "8.5pt", color: amber, fontWeight: 600, marginTop: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                      {note}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            {/* Optional Services — compact table */}
-            {optionalItems.length > 0 && (
-              <>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "24px 0 16px" }}>
-                  <div style={{ width: 4, height: 22, background: "#cbd5e1", borderRadius: 2 }} />
-                  <h3 style={{ fontSize: "12pt", fontWeight: 700, color: slate, margin: 0 }}>
-                    Optional Services
-                  </h3>
-                </div>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "9.5pt" }}>
-                  <tbody>
-                    {optionalItems.map((item: any, i: number) => {
-                      const price = Number(item.total_price || item.quantity * item.unit_price);
-                      return (
-                        <tr key={i} style={{ borderBottom: i < optionalItems.length - 1 ? "1px dashed #e2e8f0" : "none" }}>
-                          <td style={{ padding: "8px 0", color: charcoal }}>
-                            {item.name}
-                            {item.description && <span style={{ color: slate, marginLeft: 6 }}>— {item.description.split("\n")[0]}</span>}
-                          </td>
-                          <td style={{ padding: "8px 0", textAlign: "right", whiteSpace: "nowrap", fontWeight: 600, fontFamily: "'JetBrains Mono', monospace" }}>
-                            {fmt(price)}{item.quantity > 1 ? " each" : ""}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </>
-            )}
-
-            {/* ═══ Total ═══ */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderRadius: 8, marginTop: 28, border: `2px solid ${charcoal}` }}>
-              <span style={{ fontSize: "12pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: charcoal }}>Total</span>
-              <span style={{ fontSize: "16pt", fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", color: charcoal }}>{fmt(totalAmount)}</span>
-            </div>
-
-            {/* Deposit callout */}
-            {depositAmt > 0 && (
-              <div style={{ marginTop: 12, padding: "12px 20px", background: "#6db33f14", borderLeft: `4px solid ${amber}`, borderRadius: "0 6px 6px 0", fontSize: "10pt" }}>
-                <strong>Retainer Due Upon Signing:</strong> {fmt(depositAmt)}
-                {depositPct > 0 && <span style={{ color: slate, marginLeft: 6 }}>({depositPct}% of contract total)</span>}
-              </div>
-            )}
-
-            {/* ═══ Terms & Conditions ═══ */}
-            {(proposal.terms_conditions || proposal.payment_terms) && (
-              <div style={{ marginTop: 32 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-                  <div style={{ width: 4, height: 24, background: amber, borderRadius: 2 }} />
-                  <h2 style={{ fontSize: "13pt", fontWeight: 800, color: charcoal, margin: 0 }}>Terms & Conditions</h2>
-                </div>
-
-                {proposal.payment_terms && (
-                  <div style={{ marginBottom: 16 }}>
-                    <h4 style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 4, color: charcoal }}>Payment Schedule</h4>
-                    <p style={{ fontSize: "9.5pt", color: "#475569", whiteSpace: "pre-wrap", lineHeight: 1.65, margin: 0 }}>
-                      {interpolate(proposal.payment_terms)}
-                    </p>
-                  </div>
-                )}
-
-                {proposal.terms_conditions && (() => {
-                  const sections = parseTermsSections(interpolate(proposal.terms_conditions));
-                  return sections.map((sec: any, si: number) => (
-                    <div key={si} style={{ marginBottom: 14 }}>
-                      {sec.heading && (
-                        <h4 style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 4, color: charcoal }}>{sec.heading}</h4>
-                      )}
-                      {sec.body && (
-                        <p style={{ fontSize: "9.5pt", color: "#475569", whiteSpace: "pre-wrap", lineHeight: 1.65, margin: 0 }}>
-                          {sec.body}
-                        </p>
-                      )}
-                    </div>
-                  ));
-                })()}
-              </div>
-            )}
-
-            {/* ═══ Signature Block — identical layout to internal preview ═══ */}
-            <div style={{ marginTop: 40 }}>
+            <div id="proposal-signature" className="bg-white shadow-md rounded-lg mt-6 p-6 md:p-8">
               <p style={{ fontWeight: 600, fontSize: "10pt", color: slate, marginBottom: 4 }}>
                 Please sign the designated space provided below and return a copy
               </p>
@@ -889,9 +714,8 @@ export default function ClientProposalPage() {
                 <h3 style={{ fontSize: "12pt", fontWeight: 800, color: charcoal, margin: 0 }}>Agreed to and accepted by</h3>
               </div>
 
-              <div style={{ display: "flex", gap: 32 }}>
-                {/* Company side — static, shows company signature */}
-                <div style={{ flex: 1, padding: "16px 20px", background: lightBg, borderRadius: 6, border: "1px solid #e2e8f0" }}>
+              <div style={{ display: "flex", gap: 32, flexWrap: "wrap" }}>
+                <div style={{ flex: "1 1 280px", padding: "16px 20px", background: lightBg, borderRadius: 6, border: "1px solid #e2e8f0" }}>
                   <div style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 24, color: charcoal }}>{company?.name || ""}</div>
                   <div style={{ borderBottom: `2px solid ${charcoal}`, height: 32, marginBottom: 4 }}>
                     {proposal.internal_signature_data && (
@@ -909,8 +733,7 @@ export default function ClientProposalPage() {
                   </div>
                 </div>
 
-                {/* Client side — interactive if unsigned, static if signed */}
-                <div style={{ flex: 1, padding: "16px 20px", background: lightBg, borderRadius: 6, border: `1px solid ${alreadySigned ? "#e2e8f0" : amber}` }}>
+                <div style={{ flex: "1 1 280px", padding: "16px 20px", background: lightBg, borderRadius: 6, border: `1px solid ${alreadySigned ? "#e2e8f0" : amber}` }}>
                   <div style={{ fontSize: "10pt", fontWeight: 700, marginBottom: alreadySigned ? 24 : 8, color: charcoal }}>
                     {billTo?.company_name || proposal.client_name || "Client"}
                   </div>
@@ -990,40 +813,26 @@ export default function ClientProposalPage() {
               </div>
             </div>
 
-            {/* ═══ Footer ═══ */}
-            <div style={{ textAlign: "center", fontSize: "8.5pt", color: slate, marginTop: 36, paddingTop: 12, borderTop: "1px solid #e2e8f0" }}>
-              {company?.address && <div>{company.address}</div>}
-              <div>
-                {company?.phone && <span>Tel: {company.phone}</span>}
-                {company?.fax && <span style={{ marginLeft: 10 }}>Fax: {company.fax}</span>}
-                {company?.email && <span style={{ marginLeft: 10 }}>{company.email}</span>}
-              </div>
-              {company?.website && <div style={{ color: amber, marginTop: 2 }}>{company.website}</div>}
+            <div className="flex items-center justify-center gap-3 mt-4">
+              <Button
+                variant="outline"
+                onClick={() => window.print()}
+                className="gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Download PDF
+              </Button>
+              {alreadySigned && (
+                <Button
+                  variant="outline"
+                  onClick={() => setViewMode("next-steps")}
+                  className="gap-2"
+                >
+                  <ArrowRight className="h-4 w-4 rotate-180" />
+                  Back to Next Steps
+                </Button>
+              )}
             </div>
-          </div>
-        </div>
-
-        {/* Download & Back buttons */}
-        <div className="flex items-center justify-center gap-3 mt-4">
-          <Button
-            variant="outline"
-            onClick={() => window.print()}
-            className="gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Download PDF
-          </Button>
-          {alreadySigned && (
-            <Button
-              variant="outline"
-              onClick={() => setViewMode("next-steps")}
-              className="gap-2"
-            >
-              <ArrowRight className="h-4 w-4 rotate-180" />
-              Back to Next Steps
-            </Button>
-          )}
-        </div>
           </>
         )}
 
