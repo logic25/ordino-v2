@@ -317,6 +317,7 @@ function buildPreviewHtml(
   const headingClr = style.headingColor;
   const bodyClr = style.bodyColor;
   const fontSize = style.bodyFontSize;
+  const accentTextClr = style.accentTextColor;
 
   const resolve = (text: string) =>
     text
