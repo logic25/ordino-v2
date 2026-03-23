@@ -156,7 +156,7 @@ export function ChangeOrderPDF({
             {logoUrl ? (
               <Image style={s.logo} src={logoUrl} />
             ) : null}
-            {(!logoUrl) && <Text style={s.companyName}>{companyName || "Your Company"}</Text>}
+            <Text style={s.companyName}>{companyName || "Your Company"}</Text>
             {companyAddress ? <Text style={s.headerDetail}>{companyAddress}</Text> : null}
             <Text style={s.headerDetail}>
               {companyPhone ? `Tel: ${companyPhone}` : ""}
@@ -197,6 +197,9 @@ export function ChangeOrderPDF({
             <View style={s.sectionBar} />
             <Text style={s.sectionTitle}>Change scope of work</Text>
           </View>
+
+          {/* Description */}
+          {co.reason ? <Text style={[s.reasonText, { marginBottom: 10 }]}>{co.reason}</Text> : null}
 
           {/* Line Items */}
           {lineItems.map((item, i) => (
@@ -280,8 +283,8 @@ export function ChangeOrderPDF({
             </Text>
           </View>
 
-          {/* Reason */}
-          {co.reason ? (
+          {/* Reason — only show if different from title (avoid duplication) */}
+          {co.reason && co.reason !== co.title ? (
             <View style={s.reasonBlock}>
               <View style={[s.sectionHeading, { marginTop: 24 }]}>
                 <View style={s.sectionBar} />

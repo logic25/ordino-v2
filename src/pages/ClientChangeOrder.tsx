@@ -394,14 +394,13 @@ export default function ClientChangeOrderPage() {
             <div className="flex justify-between items-start">
               <div>
                 {company?.logo_url ? (
-                  <img src={company.logo_url} alt="Logo" className="h-12 mb-3" style={{ objectFit: "contain" }} />
-                ) : (
-                  <h1 className="text-lg font-bold tracking-tight" style={{ color: charcoal }}>{company?.name || "Company"}</h1>
-                )}
-                {company?.logo_url && <h1 className="text-lg font-bold tracking-tight" style={{ color: charcoal }}>{company?.name || "Company"}</h1>}
+                  <img src={company.logo_url} alt="Logo" className="h-12 mb-2" style={{ objectFit: "contain" }} />
+                ) : null}
+                <h1 className="text-lg font-bold tracking-tight" style={{ color: charcoal }}>{company?.name || "Company"}</h1>
                 {company?.address && <p className="text-xs" style={{ color: slate }}>{company.address}</p>}
-                {company?.phone && <p className="text-xs" style={{ color: slate }}>Tel: {company.phone}</p>}
+                {company?.phone && <p className="text-xs" style={{ color: slate }}>Tel: {company.phone}{company?.fax ? `    Fax: ${company.fax}` : ""}</p>}
                 {company?.email && <p className="text-xs" style={{ color: slate }}>{company.email}</p>}
+                {company?.website && <p className="text-xs" style={{ color: slate }}>{company.website}</p>}
               </div>
               <div className="text-right" style={{ minWidth: 148, whiteSpace: "nowrap", flexShrink: 0 }}>
                 <p className="text-[10px] font-semibold tracking-[2px] uppercase" style={{ color: slate }}>Change Order</p>
@@ -440,8 +439,8 @@ export default function ClientChangeOrderPage() {
               <h3 className="text-base font-bold" style={{ color: charcoal }}>Change scope of work</h3>
             </div>
 
-            {/* CO Title */}
-            <div className="text-sm font-bold mb-3" style={{ color: charcoal }}>{co.title}</div>
+            {/* CO Description — show reason as body text under the heading */}
+            {co.reason && <p className="text-sm mb-4" style={{ color: "#475569", lineHeight: 1.55 }}>{co.reason}</p>}
 
             {/* Line Items */}
             <div className="mb-5">
@@ -526,16 +525,7 @@ export default function ClientChangeOrderPage() {
               By signing this Change Order, you acknowledge that all terms and conditions of the original proposal/contract remain in full effect. This Change Order modifies only the scope and fees described above.
             </div>
 
-            {/* Reason */}
-            {co.reason && (
-              <div className="mb-5">
-                <div className="flex items-center gap-3 mb-3 mt-6">
-                  <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
-                  <h4 className="text-sm font-bold" style={{ color: charcoal }}>Reason for Change</h4>
-                </div>
-                <p className="text-sm co-reason-box" style={{ color: "#475569", lineHeight: 1.55 }}>{co.reason}</p>
-              </div>
-            )}
+            {/* Reason section removed — reason text is shown under the heading above */}
 
             {/* Signature Section */}
             <div className="mt-8">
