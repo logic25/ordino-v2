@@ -109,6 +109,7 @@ export interface CompanySettings {
   // Email template editor
   email_style?: {
     accent_color?: string;
+    accent_text_color?: string;
     font_family?: string;
     button_radius?: string;
     body_color?: string;

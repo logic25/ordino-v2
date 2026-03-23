@@ -1,5 +1,6 @@
 export interface ProposalEmailStyleConfig {
   accentColor?: string;
+  accentTextColor?: string;
   accentForeground?: string;
   fontFamily?: string;
   buttonRadius?: string;
@@ -50,6 +51,7 @@ export const DEFAULT_PROPOSAL_EMAIL_TEMPLATE: Required<ProposalEmailTemplateCont
 
 export const DEFAULT_PROPOSAL_EMAIL_STYLE: Required<ProposalEmailStyleConfig> = {
   accentColor: "#d7df23",
+  accentTextColor: "#d7df23",
   accentForeground: "#1f2937",
   fontFamily: "Arial, Helvetica, sans-serif",
   buttonRadius: "8px",
@@ -64,10 +66,11 @@ export const DEFAULT_PROPOSAL_EMAIL_STYLE: Required<ProposalEmailStyleConfig> = 
  * so the rendered email is identical everywhere.
  */
 export function resolveEmailStyle(
-  savedStyle?: { accent_color?: string; font_family?: string; button_radius?: string; body_color?: string; heading_color?: string; body_font_size?: string } | null,
+  savedStyle?: { accent_color?: string; accent_text_color?: string; font_family?: string; button_radius?: string; body_color?: string; heading_color?: string; body_font_size?: string } | null,
 ): ProposalEmailStyleConfig {
   return {
     accentColor: savedStyle?.accent_color || DEFAULT_PROPOSAL_EMAIL_STYLE.accentColor,
+    accentTextColor: savedStyle?.accent_text_color || savedStyle?.accent_color || DEFAULT_PROPOSAL_EMAIL_STYLE.accentTextColor,
     accentForeground: DEFAULT_PROPOSAL_EMAIL_STYLE.accentForeground,
     fontFamily: savedStyle?.font_family || DEFAULT_PROPOSAL_EMAIL_STYLE.fontFamily,
     buttonRadius: savedStyle?.button_radius || DEFAULT_PROPOSAL_EMAIL_STYLE.buttonRadius,
@@ -129,6 +132,7 @@ export function buildProposalEmailHtml({
 }: ProposalEmailParams): string {
   const resolvedStyle: Required<ProposalEmailStyleConfig> = {
     accentColor: style?.accentColor ?? DEFAULT_PROPOSAL_EMAIL_STYLE.accentColor,
+    accentTextColor: style?.accentTextColor ?? style?.accentColor ?? DEFAULT_PROPOSAL_EMAIL_STYLE.accentTextColor,
     accentForeground: style?.accentForeground ?? DEFAULT_PROPOSAL_EMAIL_STYLE.accentForeground,
     fontFamily: style?.fontFamily ?? DEFAULT_PROPOSAL_EMAIL_STYLE.fontFamily,
     buttonRadius: style?.buttonRadius ?? DEFAULT_PROPOSAL_EMAIL_STYLE.buttonRadius,

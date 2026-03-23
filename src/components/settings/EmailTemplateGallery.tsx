@@ -32,6 +32,7 @@ interface CoInfo {
 
 interface StyleConfig {
   accentColor: string;
+  accentTextColor: string;
   fontFamily: string;
   buttonRadius: string;
   bodyColor: string;
@@ -51,6 +52,7 @@ interface TemplateOverride {
 
 const DEFAULT_STYLE: StyleConfig = {
   accentColor: DEFAULT_PROPOSAL_EMAIL_STYLE.accentColor,
+  accentTextColor: DEFAULT_PROPOSAL_EMAIL_STYLE.accentColor,
   fontFamily: DEFAULT_PROPOSAL_EMAIL_STYLE.fontFamily,
   buttonRadius: DEFAULT_PROPOSAL_EMAIL_STYLE.buttonRadius,
   bodyColor: DEFAULT_PROPOSAL_EMAIL_STYLE.bodyColor,
@@ -315,6 +317,7 @@ function buildPreviewHtml(
   const headingClr = style.headingColor;
   const bodyClr = style.bodyColor;
   const fontSize = style.bodyFontSize;
+  const accentTextClr = style.accentTextColor;
 
   const resolve = (text: string) =>
     text
@@ -388,6 +391,7 @@ function buildPreviewHtml(
       signoffText: resolvedProposalTemplate.signoff,
       style: {
         accentColor: style.accentColor,
+        accentTextColor: style.accentTextColor,
         fontFamily: style.fontFamily,
         buttonRadius: style.buttonRadius,
         bodyColor: style.bodyColor,
@@ -421,7 +425,7 @@ function buildPreviewHtml(
     ? `<img src="${co.logoUrl}" alt="${co.name}" width="320" style="display:block;max-width:320px;max-height:64px;height:auto;border:0;outline:none;text-decoration:none;" />`
     : `<span style="font-size:18px;font-weight:700;color:${accent};font-family:${font};">${co.name}</span>`;
 
-  const templateBody = buildTemplateBody(template.id, { greeting, bodyText, ctaText, signoffText, accent, accentFg, btnRadius, co, headingClr, bodyClr, fontSize });
+  const templateBody = buildTemplateBody(template.id, { greeting, bodyText, ctaText, signoffText, accent, accentTextClr, accentFg, btnRadius, co, headingClr, bodyClr, fontSize });
   const stripeColor = template.id === "demand_letter" ? "#ef4444"
     : template.id === "checklist_followup" ? "#f59e0b"
     : accent;
@@ -493,6 +497,7 @@ function buildTemplateBody(
     ctaText: string;
     signoffText: string;
     accent: string;
+    accentTextClr: string;
     accentFg: string;
     btnRadius: string;
     co: CoInfo;
@@ -501,7 +506,7 @@ function buildTemplateBody(
     fontSize: string;
   },
 ): string {
-  const { greeting, bodyText, ctaText, signoffText, accent, accentFg, btnRadius, co, headingClr, bodyClr, fontSize } = ctx;
+  const { greeting, bodyText, ctaText, signoffText, accent, accentTextClr, accentFg, btnRadius, co, headingClr, bodyClr, fontSize } = ctx;
 
   const greetingHtml = `<p style="margin:0 0 16px;font-size:${fontSize};color:${headingClr};line-height:1.6;">${greeting}</p>`;
   const bodyHtml = `<p style="margin:0 0 24px;font-size:${fontSize};color:${bodyClr};line-height:1.6;">${bodyText}</p>`;
@@ -628,7 +633,7 @@ function buildTemplateBody(
           <table style="width:100%;"><tr>
             <td style="text-align:center;">
               <p style="margin:0;font-size:10px;text-transform:uppercase;color:${MUTED};font-weight:600;letter-spacing:0.8px;">Total Billed</p>
-              <p style="margin:4px 0 0;font-size:24px;font-weight:800;color:${accent};">$24,500</p>
+              <p style="margin:4px 0 0;font-size:24px;font-weight:800;color:${accentTextClr};">$24,500</p>
             </td>
             <td style="text-align:center;">
               <p style="margin:0;font-size:10px;text-transform:uppercase;color:${MUTED};font-weight:600;letter-spacing:0.8px;">Requests</p>
@@ -697,7 +702,7 @@ function buildTemplateBody(
             </tbody>
           </table>
           <div style="border-top:1px solid ${BORDER};padding:14px 16px;">
-            <table style="width:100%;"><tr><td style="font-size:15px;font-weight:700;color:${headingClr};">Total</td><td style="font-size:18px;font-weight:800;color:${accent};text-align:right;">$4,700</td></tr></table>
+            <table style="width:100%;"><tr><td style="font-size:15px;font-weight:700;color:${headingClr};">Total</td><td style="font-size:18px;font-weight:800;color:${accentTextClr};text-align:right;">$4,700</td></tr></table>
           </div>
         </div>
         ${ctaHtml}${signoffHtml}`;
@@ -890,7 +895,7 @@ function buildTemplateBody(
           <a href="#" style="display:inline-block;background:${accent};color:${accentFg};text-decoration:none;padding:14px 36px;border-radius:${btnRadius};font-size:16px;font-weight:700;">${ctaText || "Leave a Review"}</a>
         </div>
         <div style="text-align:center;margin-bottom:24px;">
-          <a href="#" style="font-size:14px;color:${accent};text-decoration:underline;">Know someone who needs our services? Refer a colleague →</a>
+          <a href="#" style="font-size:14px;color:${accentTextClr};text-decoration:underline;">Know someone who needs our services? Refer a colleague →</a>
         </div>
         ${signoffHtml}`;
 
@@ -921,6 +926,7 @@ export function EmailTemplateGallery() {
   const resolvedFromSettings = resolveEmailStyle(savedStyle);
   const [style, setStyle] = useState<StyleConfig>({
     accentColor: resolvedFromSettings.accentColor || DEFAULT_STYLE.accentColor,
+    accentTextColor: resolvedFromSettings.accentTextColor || resolvedFromSettings.accentColor || DEFAULT_STYLE.accentTextColor,
     fontFamily: resolvedFromSettings.fontFamily || DEFAULT_STYLE.fontFamily,
     buttonRadius: resolvedFromSettings.buttonRadius || DEFAULT_STYLE.buttonRadius,
     bodyColor: resolvedFromSettings.bodyColor || DEFAULT_STYLE.bodyColor,
@@ -940,6 +946,7 @@ export function EmailTemplateGallery() {
         const resolved = resolveEmailStyle(s.email_style);
         setStyle({
           accentColor: resolved.accentColor || DEFAULT_STYLE.accentColor,
+          accentTextColor: resolved.accentTextColor || resolved.accentColor || DEFAULT_STYLE.accentTextColor,
           fontFamily: resolved.fontFamily || DEFAULT_STYLE.fontFamily,
           buttonRadius: resolved.buttonRadius || DEFAULT_STYLE.buttonRadius,
           bodyColor: resolved.bodyColor || DEFAULT_STYLE.bodyColor,
@@ -1023,6 +1030,7 @@ export function EmailTemplateGallery() {
         settings: {
           email_style: {
             accent_color: style.accentColor,
+            accent_text_color: style.accentTextColor,
             font_family: style.fontFamily,
             button_radius: style.buttonRadius,
             body_color: style.bodyColor,
@@ -1042,6 +1050,7 @@ export function EmailTemplateGallery() {
     const savedStyleStr = JSON.stringify(savedStyle || {});
     const currentStyleStr = JSON.stringify({
       accent_color: style.accentColor,
+      accent_text_color: style.accentTextColor,
       font_family: style.fontFamily,
       button_radius: style.buttonRadius,
       body_color: style.bodyColor,
@@ -1245,7 +1254,25 @@ export function EmailTemplateGallery() {
                         placeholder="#c5d636"
                       />
                     </div>
-                    <p className="text-[10px] text-muted-foreground">Used for the accent line, buttons, and highlights</p>
+                    <p className="text-[10px] text-muted-foreground">Used for the accent stripe and buttons</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">Accent Text Color</Label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={style.accentTextColor}
+                        onChange={(e) => setStyle((s) => ({ ...s, accentTextColor: e.target.value }))}
+                        className="w-10 h-10 rounded-lg border border-border cursor-pointer"
+                      />
+                      <Input
+                        value={style.accentTextColor}
+                        onChange={(e) => setStyle((s) => ({ ...s, accentTextColor: e.target.value }))}
+                        className="text-sm font-mono flex-1"
+                        placeholder="#d7df23"
+                      />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Used for highlighted totals and accent text</p>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium">Font Family</Label>
