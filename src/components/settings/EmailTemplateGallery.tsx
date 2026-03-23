@@ -53,6 +53,9 @@ const DEFAULT_STYLE: StyleConfig = {
   accentColor: DEFAULT_PROPOSAL_EMAIL_STYLE.accentColor,
   fontFamily: DEFAULT_PROPOSAL_EMAIL_STYLE.fontFamily,
   buttonRadius: DEFAULT_PROPOSAL_EMAIL_STYLE.buttonRadius,
+  bodyColor: DEFAULT_PROPOSAL_EMAIL_STYLE.bodyColor,
+  headingColor: DEFAULT_PROPOSAL_EMAIL_STYLE.headingColor,
+  bodyFontSize: DEFAULT_PROPOSAL_EMAIL_STYLE.bodyFontSize,
 };
 
 const FONT_OPTIONS = [
