@@ -395,29 +395,45 @@ function buildPreviewHtml(
 
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:${CARD_BG};font-family:${font};overflow-x:hidden;">
-  <div style="max-width:600px;margin:0 auto;padding:32px 16px;">
-    <div style="background:#ffffff;padding:28px 32px;border-radius:12px 12px 0 0;border:1px solid ${BORDER};border-bottom:none;overflow:hidden;">
-      <table style="width:100%;table-layout:fixed;" cellpadding="0" cellspacing="0"><tr>
-        <td style="vertical-align:top;width:70%;padding-right:20px;">
-          ${logoLockup}
-          ${co.address ? `<p style="margin:10px 0 0;color:${MUTED};font-size:11px;line-height:1.4;max-width:280px;">${co.address}</p>` : ""}
-          ${contactLine ? `<p style="margin:4px 0 0;color:${MUTED};font-size:11px;line-height:1.4;max-width:280px;word-break:break-word;">${contactLine}</p>` : ""}
-        </td>
-        ${doc.number ? `<td style="vertical-align:top;text-align:right;white-space:nowrap;width:30%;">
-          <p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:${MUTED};font-weight:600;">${doc.label}</p>
-          <p style="margin:2px 0 0;font-size:20px;font-weight:800;color:${HEADING};letter-spacing:-0.3px;line-height:1;">${doc.number}</p>
-        </td>` : `<td style="vertical-align:top;text-align:right;width:30%;">
-          <p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:${MUTED};font-weight:600;">${doc.label}</p>
-        </td>`}
-      </tr></table>
-    </div>
-    <div style="height:3px;background:${stripeColor};margin:0 48px;"></div>
-    <div style="background:#ffffff;padding:32px;border:1px solid ${BORDER};border-top:none;border-radius:0 0 12px 12px;font-family:${font};">
-      ${templateBody}
-    </div>
-    ${contactLine ? `<div style="text-align:center;padding:16px;font-size:11px;color:${MUTED};">${contactLine}</div>` : ""}
-  </div>
+<body style="margin:0;padding:0;background:${CARD_BG};font-family:${font};">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${CARD_BG};margin:0;padding:0;font-family:${font};">
+    <tr>
+      <td align="center" style="padding:32px 16px;font-family:${font};">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;font-family:${font};">
+          <tr>
+            <td style="background:#ffffff;padding:28px 32px 0 32px;border:1px solid ${BORDER};border-bottom:none;border-radius:12px 12px 0 0;overflow:hidden;font-family:${font};">
+              <table role="presentation" style="width:100%;table-layout:fixed;" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="vertical-align:top;width:70%;padding-right:20px;font-family:${font};">
+                    ${logoLockup}
+                    ${co.address ? `<p style="margin:10px 0 0;color:${MUTED};font-size:11px;line-height:1.4;max-width:280px;font-family:${font};">${co.address}</p>` : ""}
+                    ${contactLine ? `<p style="margin:4px 0 0;color:${MUTED};font-size:11px;line-height:1.4;max-width:280px;word-break:break-word;font-family:${font};">${contactLine}</p>` : ""}
+                  </td>
+                  ${doc.number ? `<td style="vertical-align:top;text-align:right;white-space:nowrap;width:30%;font-family:${font};">
+                    <p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:${MUTED};font-weight:600;font-family:${font};">${doc.label}</p>
+                    <p style="margin:2px 0 0;font-size:20px;font-weight:800;color:${HEADING};letter-spacing:-0.3px;line-height:1;font-family:${font};">${doc.number}</p>
+                  </td>` : `<td style="vertical-align:top;text-align:right;width:30%;font-family:${font};">
+                    <p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:${MUTED};font-weight:600;font-family:${font};">${doc.label}</p>
+                  </td>`}
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#ffffff;padding:0 48px;">
+              <div style="height:3px;line-height:3px;font-size:3px;background:${stripeColor};">&nbsp;</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#ffffff;padding:32px;border:1px solid ${BORDER};border-top:none;border-radius:0 0 12px 12px;font-family:${font};">
+              ${templateBody}
+            </td>
+          </tr>
+          ${contactLine ? `<tr><td style="text-align:center;padding:16px;font-size:11px;color:${MUTED};font-family:${font};">${contactLine}</td></tr>` : ""}
+        </table>
+      </td>
+    </tr>
+  </table>
 </body></html>`;
 }
 
