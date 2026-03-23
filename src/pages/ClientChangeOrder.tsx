@@ -54,6 +54,7 @@ export default function ClientChangeOrderPage() {
   const co = coBundle?.co as any;
   const company = coBundle?.company as any;
   const projectData = coBundle?.project as any;
+  const contractSummary = coBundle?.contractSummary as { originalTotal: number; priorCOsTotal: number; priorCOsCount: number } | null;
 
   const project = projectData || null;
   const clientInfo = projectData?.clients || null;
