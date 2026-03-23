@@ -1,5 +1,6 @@
 export interface ProposalEmailStyleConfig {
   accentColor?: string;
+  accentTextColor?: string;
   accentForeground?: string;
   fontFamily?: string;
   buttonRadius?: string;

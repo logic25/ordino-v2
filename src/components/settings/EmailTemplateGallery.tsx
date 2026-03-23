@@ -52,6 +52,7 @@ interface TemplateOverride {
 
 const DEFAULT_STYLE: StyleConfig = {
   accentColor: DEFAULT_PROPOSAL_EMAIL_STYLE.accentColor,
+  accentTextColor: DEFAULT_PROPOSAL_EMAIL_STYLE.accentColor,
   fontFamily: DEFAULT_PROPOSAL_EMAIL_STYLE.fontFamily,
   buttonRadius: DEFAULT_PROPOSAL_EMAIL_STYLE.buttonRadius,
   bodyColor: DEFAULT_PROPOSAL_EMAIL_STYLE.bodyColor,
