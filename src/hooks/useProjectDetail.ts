@@ -41,6 +41,35 @@ export function useProjectServices(projectId: string | undefined) {
 
       if (error) throw error;
 
+      // Backfill disciplines from proposal_items if missing
+      const svcsNeedingDisciplines = (data || []).filter((s: any) => !s.disciplines || s.disciplines.length === 0);
+      if (svcsNeedingDisciplines.length > 0) {
+        const { data: sourceProposal } = await supabase
+          .from("proposals")
+          .select("id")
+          .eq("converted_project_id", projectId!)
+          .limit(1)
+          .maybeSingle();
+
+        if (sourceProposal) {
+          const { data: proposalItems } = await supabase
+            .from("proposal_items")
+            .select("name, disciplines")
+            .eq("proposal_id", sourceProposal.id);
+
+          if (proposalItems && proposalItems.length > 0) {
+            for (const svc of svcsNeedingDisciplines) {
+              const match = proposalItems.find((pi: any) => pi.name === svc.name);
+              if (match?.disciplines && match.disciplines.length > 0) {
+                (svc as any).disciplines = match.disciplines;
+                // Persist in background so this lookup only happens once
+                supabase.from("services").update({ disciplines: match.disciplines } as any).eq("id", svc.id).then(() => {});
+              }
+            }
+          }
+        }
+      }
+
       // Build maps of service name -> total billed and sent/paid dates from billing_requests
       const billedMap: Record<string, number> = {};
       const sentDateMap: Record<string, string | null> = {};
