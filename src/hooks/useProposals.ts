@@ -128,6 +128,8 @@ export async function migrateProposalContactsToProject({
 
   for (const pc of propContacts) {
     if (!pc.name) continue;
+    // Legacy "sign" role → treat as "bill_to"
+    if (pc.role === "sign") pc.role = "bill_to";
     if (pc.role && !migrateRoles.includes(pc.role)) continue;
 
     let contactId: string | null = null;

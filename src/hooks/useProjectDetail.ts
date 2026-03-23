@@ -303,7 +303,7 @@ export function useProjectContacts(projectId: string | undefined, clientId: stri
             contacts.push({
               id: pc.id,
               name: pc.name,
-              role: pc.role === "bill_to" ? "Bill To" : pc.role === "sign" ? "Signer" : pc.role === "cc" ? "CC" : pc.role === "applicant" ? "Applicant" : pc.role,
+              role: pc.role === "bill_to" ? "Bill To" : pc.role === "cc" ? "CC" : pc.role === "applicant" ? "Applicant" : pc.role === "owner" ? "Building Owner" : pc.role,
               company: pc.company_name || "",
               phone: pc.phone || "",
               email: pc.email || "",

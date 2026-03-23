@@ -24,8 +24,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 
 const ROLE_OPTIONS: { value: ContactRole; label: string }[] = [
   { value: "bill_to", label: "Bill To" },
-  { value: "sign", label: "Signer" },
   { value: "applicant", label: "Applicant" },
+  { value: "cc", label: "CC" },
 ];
 
 interface ClientContact {

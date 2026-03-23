@@ -304,7 +304,7 @@ export function ContactsFull({ contacts, pisStatus, projectId, clientId }: { con
                   </TableCell>
                   <TableCell className="font-medium">{c.name}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className="text-xs">{dobRoleLabels[c.dobRole]}</Badge>
+                    <Badge variant="secondary" className="text-xs">{c.role || "Contact"}</Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{c.company}</TableCell>
                   <TableCell>
