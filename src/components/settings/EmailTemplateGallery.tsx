@@ -1253,7 +1253,25 @@ export function EmailTemplateGallery() {
                         placeholder="#c5d636"
                       />
                     </div>
-                    <p className="text-[10px] text-muted-foreground">Used for the accent line, buttons, and highlights</p>
+                    <p className="text-[10px] text-muted-foreground">Used for the accent stripe and buttons</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">Accent Text Color</Label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={style.accentTextColor}
+                        onChange={(e) => setStyle((s) => ({ ...s, accentTextColor: e.target.value }))}
+                        className="w-10 h-10 rounded-lg border border-border cursor-pointer"
+                      />
+                      <Input
+                        value={style.accentTextColor}
+                        onChange={(e) => setStyle((s) => ({ ...s, accentTextColor: e.target.value }))}
+                        className="text-sm font-mono flex-1"
+                        placeholder="#d7df23"
+                      />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Used for highlighted totals and accent text</p>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium">Font Family</Label>
