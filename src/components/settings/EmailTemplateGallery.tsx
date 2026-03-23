@@ -871,24 +871,14 @@ export function EmailTemplateGallery() {
   const [activeTemplateId, setActiveTemplateId] = useState(TEMPLATES[0].id);
   const [tab, setTab] = useState<"content" | "style">("content");
 
-  // Resolve company info + logo data URL
-  const rawLogoUrl = company?.logo_url || company?.settings?.company_logo_url || null;
-  const [resolvedLogoUrl, setResolvedLogoUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!rawLogoUrl) { setResolvedLogoUrl(null); return; }
-    let active = true;
-    getLogoDataUrl(rawLogoUrl).then((url) => { if (active) setResolvedLogoUrl(url || rawLogoUrl); });
-    return () => { active = false; };
-  }, [rawLogoUrl]);
-
+  // Resolve company info — use raw URL for iframe preview (no data URL conversion needed)
   const coInfo: CoInfo = useMemo(() => ({
     name: company?.name || "Your Company",
     email: company?.email || company?.settings?.company_email || "",
     phone: company?.phone || company?.settings?.company_phone || "",
     address: company?.address || company?.settings?.company_address || "",
-    logoUrl: resolvedLogoUrl,
-  }), [company, resolvedLogoUrl]);
+    logoUrl: company?.logo_url || company?.settings?.company_logo_url || null,
+  }), [company]);
 
   // Load saved style
   const savedStyle = company?.settings?.email_style;
