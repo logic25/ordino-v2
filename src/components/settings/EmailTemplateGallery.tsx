@@ -631,7 +631,7 @@ function buildTemplateBody(
           <table style="width:100%;"><tr>
             <td style="text-align:center;">
               <p style="margin:0;font-size:10px;text-transform:uppercase;color:${MUTED};font-weight:600;letter-spacing:0.8px;">Total Billed</p>
-              <p style="margin:4px 0 0;font-size:24px;font-weight:800;color:${accent};">$24,500</p>
+              <p style="margin:4px 0 0;font-size:24px;font-weight:800;color:${accentTextClr};">$24,500</p>
             </td>
             <td style="text-align:center;">
               <p style="margin:0;font-size:10px;text-transform:uppercase;color:${MUTED};font-weight:600;letter-spacing:0.8px;">Requests</p>
