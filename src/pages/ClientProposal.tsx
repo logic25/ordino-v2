@@ -908,9 +908,9 @@ export default function ClientProposalPage() {
               <div style={{ display: "flex", gap: 32, flexWrap: "wrap" }}>
                 <div style={{ flex: "1 1 280px", padding: "16px 20px", background: lightBg, borderRadius: 6, border: "1px solid #e2e8f0" }}>
                   <div style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 24, color: charcoal }}>{company?.name || ""}</div>
-                  <div style={{ borderBottom: `2px solid ${charcoal}`, height: 32, marginBottom: 4 }}>
+                  <div style={{ borderBottom: `2px solid ${charcoal}`, minHeight: 56, marginBottom: 4, display: "flex", alignItems: "flex-end" }}>
                     {proposal.internal_signature_data && (
-                      <img src={proposal.internal_signature_data} alt="Signature" style={{ height: 28, objectFit: "contain" }} />
+                      <img src={proposal.internal_signature_data} alt="Signature" style={{ height: 48, objectFit: "contain" }} />
                     )}
                   </div>
                   <div style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>
