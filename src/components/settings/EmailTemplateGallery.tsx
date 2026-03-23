@@ -1035,6 +1035,9 @@ export function EmailTemplateGallery() {
       accent_color: style.accentColor,
       font_family: style.fontFamily,
       button_radius: style.buttonRadius,
+      body_color: style.bodyColor,
+      heading_color: style.headingColor,
+      body_font_size: style.bodyFontSize,
     });
     if (savedStyleStr !== currentStyleStr) return true;
     if (JSON.stringify(savedOverrides || {}) !== JSON.stringify(
