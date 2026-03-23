@@ -906,11 +906,23 @@ export default function ClientProposalPage() {
               </div>
 
               <div style={{ display: "flex", gap: 32, flexWrap: "wrap" }}>
-                <div style={{ flex: "1 1 280px", padding: "16px 20px", background: lightBg, borderRadius: 6, border: "1px solid #e2e8f0" }}>
+                <div style={{ flex: "1 1 280px", padding: "16px 20px", background: "hsl(0 0% 100%)", borderRadius: 6, border: "1px solid hsl(214 32% 91%)" }}>
                   <div style={{ fontSize: "10pt", fontWeight: 700, marginBottom: 24, color: charcoal }}>{company?.name || ""}</div>
-                  <div style={{ borderBottom: `2px solid ${charcoal}`, minHeight: 56, marginBottom: 4, display: "flex", alignItems: "flex-end" }}>
+                  <div style={{ borderBottom: `2px solid ${charcoal}`, minHeight: 72, marginBottom: 4, display: "flex", alignItems: "flex-end", overflow: "hidden" }}>
                     {proposal.internal_signature_data && (
-                      <img src={proposal.internal_signature_data} alt="Signature" style={{ height: 48, objectFit: "contain" }} />
+                      <img
+                        src={proposal.internal_signature_data}
+                        alt="Signature"
+                        style={{
+                          height: 56,
+                          width: "100%",
+                          objectFit: "contain",
+                          objectPosition: "left bottom",
+                          transform: "scale(1.45)",
+                          transformOrigin: "left bottom",
+                          display: "block",
+                        }}
+                      />
                     )}
                   </div>
                   <div style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>
@@ -924,16 +936,28 @@ export default function ClientProposalPage() {
                   </div>
                 </div>
 
-                <div style={{ flex: "1 1 280px", padding: "16px 20px", background: lightBg, borderRadius: 6, border: `1px solid ${alreadySigned ? "#e2e8f0" : amber}` }}>
+                <div style={{ flex: "1 1 280px", padding: "16px 20px", background: "hsl(0 0% 100%)", borderRadius: 6, border: `1px solid ${alreadySigned ? "hsl(214 32% 91%)" : amber}` }}>
                   <div style={{ fontSize: "10pt", fontWeight: 700, marginBottom: alreadySigned ? 24 : 8, color: charcoal }}>
                     {billTo?.company_name || proposal.client_name || "Client"}
                   </div>
 
                   {alreadySigned ? (
                     <>
-                      <div style={{ borderBottom: `2px solid ${charcoal}`, minHeight: 56, marginBottom: 4, display: "flex", alignItems: "flex-end" }}>
+                      <div style={{ borderBottom: `2px solid ${charcoal}`, minHeight: 72, marginBottom: 4, display: "flex", alignItems: "flex-end", overflow: "hidden" }}>
                         {proposal.client_signature_data && (
-                          <img src={proposal.client_signature_data} alt="Client Signature" style={{ height: 48, objectFit: "contain" }} />
+                          <img
+                            src={proposal.client_signature_data}
+                            alt="Client Signature"
+                            style={{
+                              height: 56,
+                              width: "100%",
+                              objectFit: "contain",
+                              objectPosition: "left bottom",
+                              transform: "scale(1.45)",
+                              transformOrigin: "left bottom",
+                              display: "block",
+                            }}
+                          />
                         )}
                       </div>
                       <div style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>
