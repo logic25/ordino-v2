@@ -1027,6 +1027,7 @@ export function EmailTemplateGallery() {
         settings: {
           email_style: {
             accent_color: style.accentColor,
+            accent_text_color: style.accentTextColor,
             font_family: style.fontFamily,
             button_radius: style.buttonRadius,
             body_color: style.bodyColor,
