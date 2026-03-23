@@ -466,11 +466,15 @@ function StepEditContent({
   sectionOrder,
   sectionContentMap,
   onGoToLibrary,
+  selectedProjectIds,
+  onToggleProject,
 }: {
   selectedSections: string[];
   sectionOrder: string[];
   sectionContentMap: Record<string, { items: any[]; type: string }>;
   onGoToLibrary: (tab?: string | null) => void;
+  selectedProjectIds: string[];
+  onToggleProject: (id: string) => void;
 }) {
   const activeSections = sectionOrder
     .filter((s) => selectedSections.includes(s) && s !== "cover_letter");
@@ -493,6 +497,8 @@ function StepEditContent({
           const Icon = def.icon;
           const content = sectionContentMap[sectionId];
           const items = content?.items || [];
+          const isNotableProjects = sectionId === "notable_projects";
+          const selectedCount = isNotableProjects ? selectedProjectIds.length : items.length;
 
           return (
             <Collapsible key={sectionId}>
@@ -501,8 +507,8 @@ function StepEditContent({
                   <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
                     <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     <span className="text-sm font-medium flex-1">{def.label}</span>
-                    <Badge variant={items.length > 0 ? "secondary" : "outline"} className="text-xs">
-                      {items.length} {items.length === 1 ? "item" : "items"}
+                    <Badge variant={selectedCount > 0 ? "secondary" : "outline"} className="text-xs">
+                      {isNotableProjects ? `${selectedCount}/${items.length} selected` : `${items.length} ${items.length === 1 ? "item" : "items"}`}
                     </Badge>
                     <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180" />
                   </button>
@@ -514,10 +520,21 @@ function StepEditContent({
                         No content yet. Use the button below to add items.
                       </p>
                     ) : (
-                      <ScrollArea className="max-h-[200px]">
+                      <ScrollArea className="max-h-[300px]">
                         <div className="space-y-2 pr-2">
                           {items.map((item: any, idx: number) => (
-                            <SectionContentPreview key={item.id || idx} item={item} type={sectionId} />
+                            <div key={item.id || idx} className="flex items-start gap-2">
+                              {isNotableProjects && (
+                                <Checkbox
+                                  checked={selectedProjectIds.includes(item.id)}
+                                  onCheckedChange={() => onToggleProject(item.id)}
+                                  className="mt-2.5 flex-shrink-0"
+                                />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <SectionContentPreview item={item} type={sectionId} />
+                              </div>
+                            </div>
                           ))}
                         </div>
                       </ScrollArea>
