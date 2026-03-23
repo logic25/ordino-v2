@@ -443,8 +443,8 @@ function buildPreviewHtml(
                     ${contactLine ? `<p style="margin:4px 0 0;color:${MUTED};font-size:11px;line-height:1.4;max-width:280px;word-break:break-word;font-family:${font};">${contactLine}</p>` : ""}
                   </td>
                   ${doc.number ? `<td style="vertical-align:top;text-align:right;white-space:nowrap;width:30%;font-family:${font};">
-                    <p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:${MUTED};font-weight:600;font-family:${font};">${doc.label}</p>
-                    <p style="margin:2px 0 0;font-size:20px;font-weight:800;color:${HEADING};letter-spacing:-0.3px;line-height:1;font-family:${font};">${doc.number}</p>
+                     <p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:${MUTED};font-weight:600;font-family:${font};">${doc.label}</p>
+                    <p style="margin:2px 0 0;font-size:20px;font-weight:800;color:${headingClr};letter-spacing:-0.3px;line-height:1;font-family:${font};">${doc.number}</p>
                   </td>` : `<td style="vertical-align:top;text-align:right;width:30%;font-family:${font};">
                     <p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:${MUTED};font-weight:600;font-family:${font};">${doc.label}</p>
                   </td>`}
