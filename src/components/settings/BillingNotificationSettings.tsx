@@ -67,7 +67,9 @@ export function BillingNotificationSettings() {
     if (!selectedUserId) return;
     setAdding(true);
     try {
-      const { data: profile } = await supabase.from("profiles").select("company_id").single();
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) throw new Error("Not authenticated");
+      const { data: profile } = await supabase.from("profiles").select("company_id").eq("user_id", authUser.id).single();
       if (!profile?.company_id) throw new Error("No company");
       await supabase.from("billing_notification_preferences" as any).insert({
         company_id: profile.company_id,
