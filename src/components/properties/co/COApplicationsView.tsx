@@ -374,9 +374,9 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
 
               <div className="space-y-4 mt-4">
                 <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline" className={selectedApp.source === "DOB_NOW_BUILD" ? "bg-blue-500/10 text-blue-700 border-blue-500/20" : "bg-muted text-muted-foreground"}>
-                    {selectedApp.source === "DOB_NOW_BUILD" ? "DOB NOW Build" : "Legacy DOB"}
-                  </Badge>
+                  {(() => { const sb = getSourceBadge(selectedApp.source); return (
+                    <Badge variant="outline" className={sb.className}>{sb.label === "Legacy" ? "Legacy DOB" : sb.label === "DOB NOW" ? "DOB NOW Build" : "DOB NOW Electrical"}</Badge>
+                  ); })()}
                   <Badge variant="outline" className={WORK_TYPE_COLORS[selectedApp.workType]}>{selectedApp.workType} — {WORK_TYPE_LABELS[selectedApp.workType]}</Badge>
                   <Badge variant="outline">{selectedApp.jobType}</Badge>
                   <Badge variant="outline" className={STATUS_COLORS[selectedApp.status]}>{selectedApp.status}</Badge>
