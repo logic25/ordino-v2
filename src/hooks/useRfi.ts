@@ -9,7 +9,7 @@ export interface RfiFieldConfig {
   placeholder?: string;
   required?: boolean;
   options?: string[];
-  width?: "full" | "half";
+  width?: "full" | "half" | "quarter";
   accept?: string;
   maxFiles?: number;
   /** If true, this field group (from this heading to the next heading) is repeatable */
