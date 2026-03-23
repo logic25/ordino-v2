@@ -74,6 +74,7 @@ export default function ClientProposalPage() {
       email: s.company_email?.trim() || c.email || "",
       website: s.company_website?.trim() || c.website || "",
       logo_url: s.company_logo_url?.trim() || c.logo_url || "",
+      settings: s,
     };
   })() : null;
 
