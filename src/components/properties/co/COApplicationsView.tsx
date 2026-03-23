@@ -57,6 +57,7 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
       if (workTypeFilter !== "All" && app.workType !== workTypeFilter) return false;
       if (sourceFilter === "Legacy DOB" && app.source !== "DOB_JOB_FILINGS") return false;
       if (sourceFilter === "DOB NOW Build" && app.source !== "DOB_NOW_BUILD") return false;
+      if (sourceFilter === "DOB NOW Electrical" && app.source !== "DOB_NOW_ELECTRICAL") return false;
       if (statusFilter !== "All" && app.status !== statusFilter) return false;
       if (actionFilter !== "All") {
         const a = app.action.toLowerCase();
