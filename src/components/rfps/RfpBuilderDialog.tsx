@@ -150,8 +150,9 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
       cover_letter: coverLetter || null,
       submit_email: submitEmail || null,
       wizard_step: overrideStep ?? step,
-    });
-  }, [rfp?.id, selectedSections, sectionOrder, coverLetter, submitEmail, step]);
+      selected_project_ids: selectedProjectIds,
+    } as any);
+  }, [rfp?.id, selectedSections, sectionOrder, coverLetter, submitEmail, step, selectedProjectIds]);
 
   // DnD
   const sensors = useSensors(
