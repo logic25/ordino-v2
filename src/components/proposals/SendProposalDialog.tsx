@@ -104,7 +104,7 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
   const depositPct = Number((proposal as any)?.deposit_percentage || 0);
   const depositAmt = Number((proposal as any)?.deposit_required || 0) || (depositPct > 0 ? totalAmount * (depositPct / 100) : 0);
 
-  const fmt = (v: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(v);
+  const fmt = (v: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 }).format(v);
 
   const [subject, setSubject] = useState("");
   const [emailPreview, setEmailPreview] = useState("");
