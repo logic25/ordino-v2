@@ -519,9 +519,9 @@ function buildTemplateBody(
     case "proposal":
       return `
         <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
-          ${infoCard("Prepared For", "John Smith")}
+          ${infoCard("Prepared For", "John Smith", undefined, headingClr)}
           <td style="width:16px;"></td>
-          ${infoCard("Project", "Alt-1 Interior Renovation", "456 Park Avenue, New York, NY")}
+          ${infoCard("Project", "Alt-1 Interior Renovation", "456 Park Avenue, New York, NY", headingClr)}
         </tr></table>
         ${greetingHtml}${bodyHtml}
         <div style="border:1px solid ${BORDER};border-radius:8px;overflow:hidden;margin-bottom:24px;">
@@ -544,9 +544,9 @@ function buildTemplateBody(
     case "change_order":
       return `
         <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
-          ${infoCard("Client", "John Smith")}
+          ${infoCard("Client", "John Smith", undefined, headingClr)}
           <td style="width:16px;"></td>
-          ${infoCard("Project", "Alt-1 Interior Renovation", "456 Park Avenue, New York, NY")}
+          ${infoCard("Project", "Alt-1 Interior Renovation", "456 Park Avenue, New York, NY", headingClr)}
         </tr></table>
         ${greetingHtml}${bodyHtml}
         <div style="border:1px solid ${BORDER};border-radius:8px;overflow:hidden;margin-bottom:24px;">
@@ -566,23 +566,23 @@ function buildTemplateBody(
     case "welcome":
       return `
         <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
-          ${infoCard("Project", "Alt-1 Interior Renovation", "456 Park Avenue, New York, NY")}
+          ${infoCard("Project", "Alt-1 Interior Renovation", "456 Park Avenue, New York, NY", headingClr)}
         </tr></table>
         ${greetingHtml}${bodyHtml}
         <p style="margin:0 0 20px;font-size:14px;color:#64748b;line-height:1.6;">📎 A copy of your fully executed proposal is attached to this email for your records.</p>
         <div style="background:${CARD_BG};border:1px solid ${BORDER};border-radius:8px;padding:20px;margin-bottom:24px;">
           <p style="margin:0 0 8px;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;">Your Project Manager</p>
-          <p style="margin:0;font-size:16px;font-weight:700;color:${HEADING};">Sarah Johnson</p>
-          <p style="margin:4px 0 0;font-size:14px;color:${BODY_COLOR};">sarah@company.com · (555) 555-5678</p>
+          <p style="margin:0;font-size:16px;font-weight:700;color:${headingClr};">Sarah Johnson</p>
+          <p style="margin:4px 0 0;font-size:14px;color:${bodyClr};">sarah@company.com · (555) 555-5678</p>
         </div>
         ${ctaHtml}${signoffHtml}`;
 
     case "invoice":
       return `
         <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
-          ${infoCard("Billed To", "John Smith")}
+          ${infoCard("Billed To", "John Smith", undefined, headingClr)}
           <td style="width:16px;"></td>
-          ${infoCard("Project", "Alt-1 Interior Renovation", "456 Park Avenue, New York, NY")}
+          ${infoCard("Project", "Alt-1 Interior Renovation", "456 Park Avenue, New York, NY", headingClr)}
         </tr></table>
         ${greetingHtml}${bodyHtml}
         <div style="border:1px solid ${BORDER};border-radius:8px;overflow:hidden;margin-bottom:24px;">
@@ -594,7 +594,7 @@ function buildTemplateBody(
             </tbody>
           </table>
           <div style="border-top:1px solid ${BORDER};padding:14px 16px;">
-            <table style="width:100%;"><tr><td style="font-size:15px;font-weight:700;color:${HEADING};">Amount Due</td><td style="font-size:18px;font-weight:800;color:${HEADING};text-align:right;">$8,500</td></tr></table>
+            <table style="width:100%;"><tr><td style="font-size:15px;font-weight:700;color:${headingClr};">Amount Due</td><td style="font-size:18px;font-weight:800;color:${headingClr};text-align:right;">$8,500</td></tr></table>
           </div>
         </div>
         ${signoffHtml}`;
@@ -602,16 +602,16 @@ function buildTemplateBody(
     case "reminder":
       return `
         <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
-          ${infoCard("Client", "John Smith")}
+          ${infoCard("Client", "John Smith", undefined, headingClr)}
           <td style="width:16px;"></td>
-          ${infoCard("Invoice", "INV-00042", "15 days past due")}
+          ${infoCard("Invoice", "INV-00042", "15 days past due", headingClr)}
         </tr></table>
         ${greetingHtml}${bodyHtml}
         <div style="background:${CARD_BG};border:1px solid ${BORDER};border-radius:8px;padding:20px;margin-bottom:24px;">
           <table style="width:100%;"><tr>
             <td style="text-align:center;">
               <p style="margin:0;font-size:10px;text-transform:uppercase;color:${MUTED};font-weight:600;letter-spacing:0.8px;">Amount Due</p>
-              <p style="margin:4px 0 0;font-size:24px;font-weight:800;color:${HEADING};">$8,500.00</p>
+              <p style="margin:4px 0 0;font-size:24px;font-weight:800;color:${headingClr};">$8,500.00</p>
             </td>
             <td style="text-align:center;">
               <p style="margin:0;font-size:10px;text-transform:uppercase;color:${MUTED};font-weight:600;letter-spacing:0.8px;">Days Overdue</p>
@@ -632,7 +632,7 @@ function buildTemplateBody(
             </td>
             <td style="text-align:center;">
               <p style="margin:0;font-size:10px;text-transform:uppercase;color:${MUTED};font-weight:600;letter-spacing:0.8px;">Requests</p>
-              <p style="margin:4px 0 0;font-size:24px;font-weight:800;color:${HEADING};">4</p>
+              <p style="margin:4px 0 0;font-size:24px;font-weight:800;color:${headingClr};">4</p>
             </td>
           </tr></table>
         </div>
@@ -677,12 +677,12 @@ function buildTemplateBody(
     case "billing_alert":
       return `
         <table style="width:100%;margin-bottom:16px;" cellpadding="0" cellspacing="0"><tr>
-          ${infoCard("Project", "2026-0012 – Alt-1 Interior Renovation", "456 Park Avenue, New York, NY")}
+          ${infoCard("Project", "2026-0012 – Alt-1 Interior Renovation", "456 Park Avenue, New York, NY", headingClr)}
         </tr></table>
         <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
-          ${infoCard("Billed By", "Sarah Johnson", "Mar 19, 2026 · 2:30 PM")}
+          ${infoCard("Billed By", "Sarah Johnson", "Mar 19, 2026 · 2:30 PM", headingClr)}
           <td style="width:16px;"></td>
-          ${infoCard("Billed To", "John Smith", "ABC Construction LLC")}
+          ${infoCard("Billed To", "John Smith", "ABC Construction LLC", headingClr)}
         </tr></table>
         ${greetingHtml}${bodyHtml}
         <div style="border:1px solid ${BORDER};border-radius:8px;overflow:hidden;margin-bottom:24px;">
@@ -697,7 +697,7 @@ function buildTemplateBody(
             </tbody>
           </table>
           <div style="border-top:1px solid ${BORDER};padding:14px 16px;">
-            <table style="width:100%;"><tr><td style="font-size:15px;font-weight:700;color:${HEADING};">Total</td><td style="font-size:18px;font-weight:800;color:${accent};text-align:right;">$4,700</td></tr></table>
+            <table style="width:100%;"><tr><td style="font-size:15px;font-weight:700;color:${headingClr};">Total</td><td style="font-size:18px;font-weight:800;color:${accent};text-align:right;">$4,700</td></tr></table>
           </div>
         </div>
         ${ctaHtml}${signoffHtml}`;
@@ -727,7 +727,7 @@ function buildTemplateBody(
     case "checklist_followup":
       return `
         <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
-          ${infoCard("Project", "Alt-1 Interior Renovation", "456 Park Avenue, New York, NY")}
+          ${infoCard("Project", "Alt-1 Interior Renovation", "456 Park Avenue, New York, NY", headingClr)}
         </tr></table>
         ${greetingHtml}${bodyHtml}
         <div style="border-left:4px solid #f59e0b;padding-left:16px;margin-bottom:24px;">
@@ -760,8 +760,8 @@ function buildTemplateBody(
         </div>
         <div style="background:${CARD_BG};border:1px solid ${BORDER};border-radius:8px;padding:20px;margin-bottom:24px;">
           <p style="margin:0 0 8px;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;">Your Project Manager</p>
-          <p style="margin:0;font-size:16px;font-weight:700;color:${HEADING};">Sarah Johnson</p>
-          <p style="margin:4px 0 0;font-size:14px;color:${BODY_COLOR};">sarah@company.com · (555) 555-5678</p>
+          <p style="margin:0;font-size:16px;font-weight:700;color:${headingClr};">Sarah Johnson</p>
+          <p style="margin:4px 0 0;font-size:14px;color:${bodyClr};">sarah@company.com · (555) 555-5678</p>
         </div>
         ${signoffHtml}`;
 
@@ -771,7 +771,7 @@ function buildTemplateBody(
           <div style="display:inline-block;width:56px;height:56px;border-radius:50%;background:#dcfce7;line-height:56px;font-size:28px;color:#16a34a;">✓</div>
         </div>
         <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
-          ${infoCard("Project", "Alt-1 Interior Renovation", "456 Park Avenue, New York, NY")}
+          ${infoCard("Project", "Alt-1 Interior Renovation", "456 Park Avenue, New York, NY", headingClr)}
         </tr></table>
         ${greetingHtml}${bodyHtml}
         <div style="border:1px solid ${BORDER};border-radius:8px;overflow:hidden;margin-bottom:24px;">
@@ -823,7 +823,7 @@ function buildTemplateBody(
     case "status_update":
       return `
         <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
-          ${infoCard("Project", "Alt-1 Interior Renovation", "456 Park Avenue, New York, NY")}
+          ${infoCard("Project", "Alt-1 Interior Renovation", "456 Park Avenue, New York, NY", headingClr)}
         </tr></table>
         ${greetingHtml}${bodyHtml}
         <div style="border:1px solid ${BORDER};border-radius:8px;overflow:hidden;margin-bottom:24px;">
@@ -857,9 +857,9 @@ function buildTemplateBody(
     case "demand_letter":
       return `
         <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
-          ${infoCard("Client", "John Smith")}
+          ${infoCard("Client", "John Smith", undefined, headingClr)}
           <td style="width:16px;"></td>
-          ${infoCard("Invoice", "INV-00042", "45 days past due")}
+          ${infoCard("Invoice", "INV-00042", "45 days past due", headingClr)}
         </tr></table>
         <div style="text-align:center;margin-bottom:24px;">
           <p style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#dc2626;font-weight:700;">FORMAL DEMAND FOR PAYMENT</p>
@@ -868,7 +868,7 @@ function buildTemplateBody(
         </div>
         ${greetingHtml}
         <div style="border-left:4px solid #ef4444;padding-left:16px;margin-bottom:24px;">
-          <p style="margin:0;font-size:15px;color:${BODY_COLOR};line-height:1.7;font-family:Georgia, 'Times New Roman', serif;">${bodyText}</p>
+          <p style="margin:0;font-size:15px;color:${bodyClr};line-height:1.7;font-family:Georgia, 'Times New Roman', serif;">${bodyText}</p>
         </div>
         <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px;margin-bottom:24px;">
           <p style="margin:0 0 6px;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#991b1b;font-weight:700;">⚠ NOTICE</p>
@@ -883,7 +883,7 @@ function buildTemplateBody(
           <p style="margin:12px 0 0;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:${MUTED};font-weight:600;">Project Complete</p>
         </div>
         <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
-          ${infoCard("Project", "Alt-1 Interior Renovation", "456 Park Avenue, New York, NY")}
+          ${infoCard("Project", "Alt-1 Interior Renovation", "456 Park Avenue, New York, NY", headingClr)}
         </tr></table>
         ${greetingHtml}${bodyHtml}
         <div style="text-align:center;margin:32px 0;">
