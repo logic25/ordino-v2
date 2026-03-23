@@ -1283,6 +1283,61 @@ export function EmailTemplateGallery() {
                     </div>
                   </div>
                   <Separator />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">Heading Text Color</Label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={style.headingColor}
+                        onChange={(e) => setStyle((s) => ({ ...s, headingColor: e.target.value }))}
+                        className="w-10 h-10 rounded-lg border border-border cursor-pointer"
+                      />
+                      <Input
+                        value={style.headingColor}
+                        onChange={(e) => setStyle((s) => ({ ...s, headingColor: e.target.value }))}
+                        className="text-sm font-mono flex-1"
+                        placeholder="#1e293b"
+                      />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Greeting, totals, and headings</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">Body Text Color</Label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={style.bodyColor}
+                        onChange={(e) => setStyle((s) => ({ ...s, bodyColor: e.target.value }))}
+                        className="w-10 h-10 rounded-lg border border-border cursor-pointer"
+                      />
+                      <Input
+                        value={style.bodyColor}
+                        onChange={(e) => setStyle((s) => ({ ...s, bodyColor: e.target.value }))}
+                        className="text-sm font-mono flex-1"
+                        placeholder="#334155"
+                      />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Main paragraph and sign-off text</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">Body Font Size</Label>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {FONT_SIZE_OPTIONS.map((fs) => (
+                        <button
+                          key={fs.value}
+                          onClick={() => setStyle((s) => ({ ...s, bodyFontSize: fs.value }))}
+                          className={`px-3 py-2 rounded-lg border text-xs transition-all ${
+                            style.bodyFontSize === fs.value
+                              ? "border-primary bg-primary/5 text-primary font-medium"
+                              : "border-border text-muted-foreground hover:border-primary/30"
+                          }`}
+                        >
+                          {fs.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <Separator />
                   <Button variant="ghost" size="sm" onClick={resetStyle} className="text-xs text-muted-foreground">
                     <RotateCcw className="h-3 w-3 mr-1" /> Reset Style
                   </Button>
