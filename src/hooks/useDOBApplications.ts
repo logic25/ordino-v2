@@ -306,7 +306,6 @@ export async function fetchDOBApplications(bin: string): Promise<COApplication[]
       action: inferAction(status, "EL"),
       assignedTo: null,
       priority: inferPriority(status, "EL"),
-      });
     });
   }
 
