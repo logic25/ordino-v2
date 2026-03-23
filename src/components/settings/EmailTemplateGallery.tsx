@@ -700,7 +700,7 @@ function buildTemplateBody(
             </tbody>
           </table>
           <div style="border-top:1px solid ${BORDER};padding:14px 16px;">
-            <table style="width:100%;"><tr><td style="font-size:15px;font-weight:700;color:${headingClr};">Total</td><td style="font-size:18px;font-weight:800;color:${accent};text-align:right;">$4,700</td></tr></table>
+            <table style="width:100%;"><tr><td style="font-size:15px;font-weight:700;color:${headingClr};">Total</td><td style="font-size:18px;font-weight:800;color:${accentTextClr};text-align:right;">$4,700</td></tr></table>
           </div>
         </div>
         ${ctaHtml}${signoffHtml}`;
