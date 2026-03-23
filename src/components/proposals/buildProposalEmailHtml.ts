@@ -1,3 +1,18 @@
+export interface ProposalEmailStyleConfig {
+  accentColor?: string;
+  accentForeground?: string;
+  fontFamily?: string;
+  buttonRadius?: string;
+}
+
+export interface ProposalEmailTemplateContent {
+  subject?: string;
+  greeting?: string;
+  bodyText?: string;
+  ctaText?: string;
+  signoff?: string;
+}
+
 export interface ProposalEmailParams {
   clientName: string;
   proposalTitle: string;
@@ -13,6 +28,57 @@ export interface ProposalEmailParams {
   companyEmail?: string;
   companyPhone?: string;
   items: { name: string; total: string; isOptional: boolean }[];
+  style?: ProposalEmailStyleConfig;
+  greetingText?: string;
+  bodyText?: string;
+  ctaText?: string;
+  signoffText?: string;
+}
+
+export const DEFAULT_PROPOSAL_EMAIL_TEMPLATE: Required<ProposalEmailTemplateContent> = {
+  subject: "Proposal {{PROPOSAL_NUMBER}} · {{PROJECT_TITLE}}",
+  greeting: "Dear {{CLIENT_NAME}},",
+  bodyText:
+    "We've put together a detailed scope and fee proposal for your project at {{PROPERTY_ADDRESS}}. Everything is outlined below — review the services, pricing, and terms, then sign electronically when you're ready.",
+  ctaText: "Review & Sign Proposal",
+  signoff:
+    "Questions about scope or pricing? Reply to this email and we'll get back to you the same day.",
+};
+
+const DEFAULT_PROPOSAL_EMAIL_STYLE: Required<ProposalEmailStyleConfig> = {
+  accentColor: "hsl(65 69% 54%)",
+  accentForeground: "hsl(220 20% 10%)",
+  fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif",
+  buttonRadius: "8px",
+};
+
+function replaceTemplateVariables(template: string, variables: Record<string, string>): string {
+  return Object.entries(variables).reduce(
+    (result, [key, value]) => result.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), value),
+    template,
+  );
+}
+
+export function resolveProposalEmailTemplate(
+  overrides: ProposalEmailTemplateContent | undefined,
+  variables: Record<string, string>,
+): Required<ProposalEmailTemplateContent> {
+  const cleanOverrides = Object.fromEntries(
+    Object.entries(overrides ?? {}).filter(([, value]) => value !== undefined),
+  ) as ProposalEmailTemplateContent;
+
+  const merged = {
+    ...DEFAULT_PROPOSAL_EMAIL_TEMPLATE,
+    ...cleanOverrides,
+  };
+
+  return {
+    subject: replaceTemplateVariables(merged.subject, variables),
+    greeting: replaceTemplateVariables(merged.greeting, variables),
+    bodyText: replaceTemplateVariables(merged.bodyText, variables),
+    ctaText: replaceTemplateVariables(merged.ctaText, variables),
+    signoff: replaceTemplateVariables(merged.signoff, variables),
+  };
 }
 
 export function buildProposalEmailHtml({
@@ -30,29 +96,72 @@ export function buildProposalEmailHtml({
   logoUrl,
   companyAddress,
   items,
+  style,
+  greetingText,
+  bodyText,
+  ctaText,
+  signoffText,
 }: ProposalEmailParams): string {
-  const documentAccent = "hsl(65 69% 54%)";
-  const documentAccentForeground = "hsl(220 20% 10%)";
+  const resolvedStyle = {
+    ...DEFAULT_PROPOSAL_EMAIL_STYLE,
+    ...(style ?? {}),
+  };
+
+  const fallbackTemplate = resolveProposalEmailTemplate(undefined, {
+    COMPANY_NAME: companyName,
+    CLIENT_NAME: clientName,
+    PROJECT_TITLE: proposalTitle,
+    PROPERTY_ADDRESS: propertyAddress || "your project",
+    PROPOSAL_NUMBER: proposalNumber ? `#${proposalNumber}` : "",
+    AMOUNT: totalAmount,
+  });
+
+  const documentAccent = resolvedStyle.accentColor;
+  const documentAccentForeground = resolvedStyle.accentForeground;
+  const resolvedGreeting = greetingText || fallbackTemplate.greeting;
+  const resolvedBodyText = bodyText || fallbackTemplate.bodyText;
+  const resolvedCtaText = ctaText || fallbackTemplate.ctaText;
+  const resolvedSignoffText = signoffText || fallbackTemplate.signoff;
 
   const serviceRows = items
-    .filter(i => !i.isOptional)
-    .map(i => `<tr><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:#1e293b;">${i.name}</td><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;text-align:right;color:#1e293b;">${i.total}</td></tr>`)
+    .filter((item) => !item.isOptional)
+    .map(
+      (item) =>
+        `<tr><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:#1e293b;">${item.name}</td><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;text-align:right;color:#1e293b;">${item.total}</td></tr>`,
+    )
     .join("");
 
   const optionalRows = items
-    .filter(i => i.isOptional)
-    .map(i => `<tr><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:#94a3b8;font-style:italic;">${i.name} (optional)</td><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;text-align:right;color:#94a3b8;">${i.total}</td></tr>`)
+    .filter((item) => item.isOptional)
+    .map(
+      (item) =>
+        `<tr><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:#94a3b8;font-style:italic;">${item.name} (optional)</td><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;text-align:right;color:#94a3b8;">${item.total}</td></tr>`,
+    )
     .join("");
 
   const contactLine = [companyPhone, companyEmail].filter(Boolean).join(" · ");
+  const ctaSection = resolvedCtaText
+    ? `<div style="text-align:center;margin:32px 0;">
+        <a href="${clientLink}" style="display:inline-block;background:${documentAccent};color:${documentAccentForeground};text-decoration:none;padding:14px 44px;border-radius:${resolvedStyle.buttonRadius};font-size:16px;font-weight:700;letter-spacing:0.2px;">
+          ${resolvedCtaText}
+        </a>
+      </div>
+      <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;text-align:center;line-height:1.5;">
+        The link above also includes a Project Information Sheet — please fill it out at your convenience so we can begin work on your behalf.
+      </p>`
+    : "";
+
+  const signoffSection = resolvedSignoffText
+    ? `<p style="margin:24px 0 0;font-size:15px;color:#334155;line-height:1.6;">${resolvedSignoffText}</p>
+       <p style="margin:16px 0 0;font-size:15px;color:#1e293b;">Best regards,<br/><strong>${companyName}</strong></p>`
+    : `<p style="margin:16px 0 0;font-size:15px;color:#1e293b;">Best regards,<br/><strong>${companyName}</strong></p>`;
 
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+<body style="margin:0;padding:0;background:#f8fafc;font-family:${resolvedStyle.fontFamily};">
   <div style="max-width:600px;margin:0 auto;padding:32px 16px;">
 
-    <!-- White Header -->
     <div style="background:#ffffff;padding:28px 32px;border-radius:12px 12px 0 0;border:1px solid #e2e8f0;border-bottom:none;overflow:hidden;">
       <table style="width:100%;table-layout:fixed;" cellpadding="0" cellspacing="0">
         <tr>
@@ -69,12 +178,9 @@ export function buildProposalEmailHtml({
       </table>
     </div>
 
-    <!-- Green accent line -->
     <div style="height:3px;background:${documentAccent};margin:0 48px;"></div>
 
-    <!-- Body Card -->
     <div style="background:#ffffff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;">
-
       ${preparedFor ? `
       <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0">
         <tr>
@@ -92,12 +198,11 @@ export function buildProposalEmailHtml({
       </table>
       ` : ""}
 
-      <p style="margin:0 0 16px;font-size:15px;color:#1e293b;line-height:1.6;">Dear ${clientName.split(" ")[0]},</p>
+      <p style="margin:0 0 16px;font-size:15px;color:#1e293b;line-height:1.6;">${resolvedGreeting}</p>
       <p style="margin:0 0 24px;font-size:15px;color:#334155;line-height:1.6;">
-        Thank you for the opportunity to work with you. We've prepared a proposal for your review.
+        ${resolvedBodyText}
       </p>
 
-      <!-- Services Table -->
       <div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:24px;">
         <table style="width:100%;border-collapse:collapse;">
           <thead>
@@ -125,26 +230,10 @@ export function buildProposalEmailHtml({
         </div>
       </div>
 
-      <!-- CTA Button -->
-      <div style="text-align:center;margin:32px 0;">
-        <a href="${clientLink}" style="display:inline-block;background:${documentAccent};color:${documentAccentForeground};text-decoration:none;padding:14px 44px;border-radius:8px;font-size:16px;font-weight:700;letter-spacing:0.2px;">
-          Review &amp; Sign Proposal
-        </a>
-      </div>
-
-      <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;text-align:center;line-height:1.5;">
-        The link above also includes a Project Information Sheet — please fill it out at your convenience so we can begin work on your behalf.
-      </p>
-
-      <p style="margin:24px 0 0;font-size:15px;color:#334155;line-height:1.6;">
-        Please don't hesitate to reach out if you have any questions.
-      </p>
-      <p style="margin:16px 0 0;font-size:15px;color:#1e293b;">
-        Best regards,<br/><strong>${companyName}</strong>
-      </p>
+      ${ctaSection}
+      ${signoffSection}
     </div>
 
-    <!-- Footer -->
     ${contactLine ? `<div style="text-align:center;padding:16px;font-size:11px;color:#94a3b8;">${contactLine}</div>` : ""}
   </div>
 </body>

@@ -13,6 +13,8 @@ import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useTelemetry } from "@/hooks/useTelemetry";
 import { useGmailConnection } from "@/hooks/useGmailConnection";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/utils";
+import { buildProposalEmailHtml, resolveProposalEmailTemplate } from "./buildProposalEmailHtml";
 
 interface SendProposalDialogProps {
   proposal: ProposalWithRelations | null;
@@ -22,8 +24,6 @@ interface SendProposalDialogProps {
   onPreviewPdf?: (proposal: ProposalWithRelations) => void;
   companyName?: string;
 }
-
-import { buildProposalEmailHtml } from "./buildProposalEmailHtml";
 
 export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend, onPreviewPdf, companyName: companyNameProp }: SendProposalDialogProps) {
   const [linkCopied, setLinkCopied] = useState(false);
@@ -36,10 +36,19 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
   const { toast } = useToast();
 
   const resolvedCompanyName = companyNameProp || (company as any)?.name || "Our Team";
-  const companyEmail = (company as any)?.email || "";
-  const companyPhone = (company as any)?.phone || "";
-  const companyLogoUrl = (company as any)?.logo_url || "";
-  const companyAddress = (company as any)?.address || "";
+  const companySettings = (company as any)?.settings || {};
+  const companyEmail = (company as any)?.email || companySettings.company_email || "";
+  const companyPhone = (company as any)?.phone || companySettings.company_phone || "";
+  const companyLogoUrl = (company as any)?.logo_url || companySettings.company_logo_url || "";
+  const companyAddress = (company as any)?.address || companySettings.company_address || "";
+  const emailStyle = useMemo(
+    () => ({
+      accentColor: company?.settings?.email_style?.accent_color,
+      fontFamily: company?.settings?.email_style?.font_family,
+      buttonRadius: company?.settings?.email_style?.button_radius,
+    }),
+    [company?.settings],
+  );
 
   // Build recipient options from contacts + fallback
   const recipientOptions = useMemo(() => {
@@ -61,7 +70,6 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
         });
       }
     }
-    // Fallback if no contacts with email
     if (opts.length === 0 && proposal?.client_email) {
       opts.push({
         id: "fallback",
@@ -75,7 +83,6 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
 
   const [selectedRecipientId, setSelectedRecipientId] = useState("");
 
-  // Auto-select bill_to or first available
   useEffect(() => {
     if (open && recipientOptions.length > 0) {
       const billTo = contacts.find(c => c.role === "bill_to" && c.email);
@@ -85,17 +92,14 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
         setSelectedRecipientId(recipientOptions[0].id);
       }
     }
-  }, [open, recipientOptions]);
+  }, [open, recipientOptions, contacts]);
 
   const selectedRecipient = recipientOptions.find(r => r.id === selectedRecipientId) || recipientOptions[0];
   const clientEmail = selectedRecipient?.email || "";
   const clientName = selectedRecipient?.name || "Client";
-  const firstName = clientName.split(" ")[0];
-
   const token = (proposal as any)?.public_token;
   const clientLink = token ? `${window.location.origin}/proposal/${token}` : null;
 
-  // Calculate non-optional total
   const items = (proposal as any)?.items || [];
   const nonOptionalTotal = items
     .filter((i: any) => !i.is_optional)
@@ -103,21 +107,49 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
   const totalAmount = nonOptionalTotal || Number(proposal?.total_amount || 0);
   const depositPct = Number((proposal as any)?.deposit_percentage || 0);
   const depositAmt = Number((proposal as any)?.deposit_required || 0) || (depositPct > 0 ? totalAmount * (depositPct / 100) : 0);
+  const fmt = (value: number) => formatCurrency(value, 2);
 
-  const fmt = (v: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 }).format(v);
+  const proposalTemplate = useMemo(
+    () => resolveProposalEmailTemplate(
+      {
+        subject: company?.settings?.email_template_overrides?.proposal?.subject,
+        greeting: company?.settings?.email_template_overrides?.proposal?.greeting,
+        bodyText: company?.settings?.email_template_overrides?.proposal?.body_text,
+        ctaText: company?.settings?.email_template_overrides?.proposal?.cta_text,
+        signoff: company?.settings?.email_template_overrides?.proposal?.signoff,
+      },
+      {
+        COMPANY_NAME: resolvedCompanyName,
+        CLIENT_NAME: clientName,
+        PROJECT_TITLE: proposal?.title || "Your Project",
+        PROPERTY_ADDRESS: proposal?.properties?.address || "your project",
+        PROPOSAL_NUMBER: proposal?.proposal_number ? `#${proposal.proposal_number}` : "",
+        AMOUNT: formatCurrency(totalAmount, 2),
+      },
+    ),
+    [
+      clientName,
+      company?.settings?.email_template_overrides,
+      proposal?.proposal_number,
+      proposal?.properties?.address,
+      proposal?.title,
+      resolvedCompanyName,
+      totalAmount,
+    ],
+  );
 
   const [subject, setSubject] = useState("");
   const [emailPreview, setEmailPreview] = useState("");
 
   useEffect(() => {
     if (proposal && open) {
-      setSubject(`Proposal ${proposal.proposal_number} — ${proposal.title}`);
+      setSubject(proposalTemplate.subject);
       setSent(false);
       setEmailPreview(
-        `Dear ${firstName},\n\nThank you for the opportunity to work with you. We've prepared a proposal for ${proposal.title} at ${proposal.properties?.address || "your project"}.\n\nTotal: ${fmt(totalAmount)}\nRetainer Due: ${fmt(depositAmt)}\n\nPlease review and sign using the link provided.\n\nBest regards,\n${resolvedCompanyName}`
+        `${proposalTemplate.greeting}\n\n${proposalTemplate.bodyText}\n\nTotal: ${fmt(totalAmount)}\nRetainer Due: ${fmt(depositAmt)}${clientLink ? `\n\n${proposalTemplate.ctaText}: ${clientLink}` : ""}\n\n${proposalTemplate.signoff}\n\nBest regards,\n${resolvedCompanyName}`,
       );
     }
-  }, [proposal?.id, open]);
+  }, [proposal?.id, open, proposalTemplate, totalAmount, depositAmt, clientLink, resolvedCompanyName]);
 
   if (!proposal) return null;
 
@@ -156,6 +188,11 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
           total: fmt(Number(i.total_price || i.quantity * i.unit_price || 0)),
           isOptional: !!i.is_optional,
         })),
+        greetingText: proposalTemplate.greeting,
+        bodyText: proposalTemplate.bodyText,
+        ctaText: proposalTemplate.ctaText,
+        signoffText: proposalTemplate.signoff,
+        style: emailStyle,
       });
 
       await sendBillingEmail({ to: clientEmail, subject, htmlBody });
