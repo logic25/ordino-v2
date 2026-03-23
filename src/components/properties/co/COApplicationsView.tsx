@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import {
-  Search, LayoutGrid, LayoutList, ChevronLeft, ChevronRight,
+  Search, LayoutGrid, LayoutList, ChevronLeft, ChevronRight, ChevronDown,
   Flag, FileText, CheckCircle2, Clock, AlertCircle, ClipboardList,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -26,8 +26,8 @@ interface COApplicationsViewProps {
   initialWorkTypeFilter?: string | null;
 }
 
-const WORK_TYPES = ["All", "OT", "PL", "MH", "SP", "FA", "FP", "SG", "EQ"];
-const SOURCE_FILTERS = ["All", "Legacy DOB", "DOB NOW Build"];
+const WORK_TYPES = ["All", "OT", "PL", "MH", "SP", "FA", "FP", "SG", "EQ", "EL"];
+const SOURCE_FILTERS = ["All", "Legacy DOB", "DOB NOW Build", "DOB NOW Electrical"];
 const STATUS_FILTERS = ["All", "Permit Issued", "Approved", "In Process", "Signed Off", "Plan Exam - Approved"];
 const ACTION_FILTERS = ["All", "Needs LOC", "Needs FDNY LOA", "Needs Cost Affidavit", "Needs Plans", "Withdrawal Candidate"];
 
@@ -57,6 +57,7 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
       if (workTypeFilter !== "All" && app.workType !== workTypeFilter) return false;
       if (sourceFilter === "Legacy DOB" && app.source !== "DOB_JOB_FILINGS") return false;
       if (sourceFilter === "DOB NOW Build" && app.source !== "DOB_NOW_BUILD") return false;
+      if (sourceFilter === "DOB NOW Electrical" && app.source !== "DOB_NOW_ELECTRICAL") return false;
       if (statusFilter !== "All" && app.status !== statusFilter) return false;
       if (actionFilter !== "All") {
         const a = app.action.toLowerCase();
@@ -74,8 +75,67 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
     });
   }, [applications, workTypeFilter, sourceFilter, statusFilter, actionFilter, search]);
 
-  const paginated = filtered.slice(page * pageSize, (page + 1) * pageSize);
-  const totalPages = Math.ceil(filtered.length / pageSize);
+  // Group applications by job number to nest subsequents/PAAs
+  const { groupedApps, expandedJobs, toggleExpand } = useMemo(() => {
+    // Group by base job number (digits only) for BIS filings
+    const jobGroups = new Map<string, COApplication[]>();
+    const standalone: COApplication[] = [];
+
+    for (const app of filtered) {
+      // Only group BIS filings that have docNum patterns (01, 02, etc.)
+      if (app.source === "DOB_JOB_FILINGS") {
+        const baseJob = app.jobNum.replace(/\D/g, "");
+        if (baseJob) {
+          if (!jobGroups.has(baseJob)) jobGroups.set(baseJob, []);
+          jobGroups.get(baseJob)!.push(app);
+          continue;
+        }
+      }
+      standalone.push(app);
+    }
+
+    // Build ordered list: groups with >1 entry get nested, singles stay flat
+    type GroupedApp = { type: "single"; app: COApplication } | { type: "group"; baseJob: string; initial: COApplication; subsequents: COApplication[] };
+    const result: GroupedApp[] = [];
+
+    // First, process groups - sort each group by docNum ascending (01 first)
+    for (const [baseJob, apps] of jobGroups) {
+      apps.sort((a, b) => (a.docNum || "01").localeCompare(b.docNum || "01"));
+      if (apps.length === 1) {
+        result.push({ type: "single", app: apps[0] });
+      } else {
+        result.push({ type: "group", baseJob, initial: apps[0], subsequents: apps.slice(1) });
+      }
+    }
+
+    // Add standalone apps
+    for (const app of standalone) {
+      result.push({ type: "single", app });
+    }
+
+    // Sort all entries by the primary app's fileDate descending
+    result.sort((a, b) => {
+      const dateA = a.type === "single" ? a.app.fileDate : a.initial.fileDate;
+      const dateB = b.type === "single" ? b.app.fileDate : b.initial.fileDate;
+      return (dateB || "").localeCompare(dateA || "");
+    });
+
+    return { groupedApps: result, expandedJobs: null as any, toggleExpand: null as any };
+  }, [filtered]);
+
+  const [expandedJobNums, setExpandedJobNums] = useState<Set<string>>(new Set());
+  const toggleJobExpand = (baseJob: string) => {
+    setExpandedJobNums(prev => {
+      const next = new Set(prev);
+      if (next.has(baseJob)) next.delete(baseJob);
+      else next.add(baseJob);
+      return next;
+    });
+  };
+
+  // Paginate on grouped entries
+  const paginatedGroups = groupedApps.slice(page * pageSize, (page + 1) * pageSize);
+  const totalPages = Math.ceil(groupedApps.length / pageSize);
 
   const openDrawer = (app: COApplication) => {
     setSelectedApp(app);
@@ -97,6 +157,67 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
   }, [filtered]);
 
   const openBisCount = (app: COApplication) => app.bisOpenItems?.filter(i => !i.resolved).length || 0;
+
+  const getSourceBadge = (source: string) => {
+    if (source === "DOB_NOW_BUILD") return { className: "bg-blue-500/10 text-blue-700 border-blue-500/20", label: "DOB NOW" };
+    if (source === "DOB_NOW_ELECTRICAL") return { className: "bg-amber-500/10 text-amber-700 border-amber-500/20", label: "Electrical" };
+    return { className: "bg-muted text-muted-foreground", label: "Legacy" };
+  };
+
+  const renderAppRow = (app: COApplication, rowNum: number | null, hasChildren: boolean, isExpanded: boolean, baseJob?: string, childCount?: number, isChild?: boolean) => {
+    const bisCount = openBisCount(app);
+    const sourceBadge = getSourceBadge(app.source);
+    return (
+      <TableRow
+        key={`${app.jobNum}-${app.docNum || "00"}`}
+        className={`cursor-pointer hover:bg-accent/5 ${isChild ? "bg-muted/30" : ""}`}
+        onClick={() => openDrawer(app)}
+      >
+        <TableCell className="w-8 px-1">
+          {hasChildren ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={(e) => { e.stopPropagation(); toggleJobExpand(baseJob!); }}
+            >
+              {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            </Button>
+          ) : isChild ? (
+            <span className="ml-2 text-muted-foreground">↳</span>
+          ) : null}
+        </TableCell>
+        <TableCell className="text-xs text-muted-foreground">{rowNum ?? ""}</TableCell>
+        <TableCell className="font-mono text-sm font-medium">
+          {app.jobNum}
+          {hasChildren && !isExpanded && (
+            <Badge variant="secondary" className="ml-1.5 text-[10px] px-1 py-0">{childCount} sub</Badge>
+          )}
+          {isChild && app.docNum && (
+            <span className="ml-1 text-xs text-muted-foreground">Doc {app.docNum}</span>
+          )}
+        </TableCell>
+        <TableCell>
+          <Badge variant="outline" className={sourceBadge.className}>{sourceBadge.label}</Badge>
+        </TableCell>
+        <TableCell className="text-sm max-w-[280px] truncate">{app.desc}</TableCell>
+        <TableCell className="text-sm">{app.tenant || "—"}</TableCell>
+        <TableCell className="text-sm">{app.floor}</TableCell>
+        <TableCell className="text-xs">{app.jobType}</TableCell>
+        <TableCell><Badge variant="outline" className={WORK_TYPE_COLORS[app.workType] || ""}>{app.workType}</Badge></TableCell>
+        <TableCell><Badge variant="outline" className={STATUS_COLORS[app.status] || ""}>{app.status}</Badge></TableCell>
+        <TableCell className="text-xs max-w-[200px] truncate text-muted-foreground">{app.action}</TableCell>
+        <TableCell>
+          {bisCount > 0 ? (
+            <Badge variant="outline" className="bg-purple-500/10 text-purple-700 border-purple-500/20 gap-1">
+              <AlertCircle className="h-3 w-3" />{bisCount}
+            </Badge>
+          ) : "—"}
+        </TableCell>
+        <TableCell><Badge variant="outline" className={PRIORITY_COLORS[app.priority]}>{app.priority}</Badge></TableCell>
+      </TableRow>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -142,6 +263,7 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
+                <TableHead className="w-8"></TableHead>
                 <TableHead className="w-10">#</TableHead>
                 <TableHead>Job #</TableHead>
                 <TableHead>Source</TableHead>
@@ -157,33 +279,18 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginated.map((app) => {
-                const bisCount = openBisCount(app);
+              {paginatedGroups.map((entry, idx) => {
+                if (entry.type === "single") {
+                  return renderAppRow(entry.app, idx + 1 + page * pageSize, false, false);
+                }
+                const isExpanded = expandedJobNums.has(entry.baseJob);
                 return (
-                  <TableRow key={app.jobNum} className="cursor-pointer hover:bg-accent/5" onClick={() => openDrawer(app)}>
-                    <TableCell className="text-xs text-muted-foreground">{app.num}</TableCell>
-                    <TableCell className="font-mono text-sm font-medium">{app.jobNum}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={app.source === "DOB_NOW_BUILD" ? "bg-blue-500/10 text-blue-700 border-blue-500/20" : "bg-muted text-muted-foreground"}>
-                        {app.source === "DOB_NOW_BUILD" ? "DOB NOW" : "Legacy"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm max-w-[280px] truncate">{app.desc}</TableCell>
-                    <TableCell className="text-sm">{app.tenant || "—"}</TableCell>
-                    <TableCell className="text-sm">{app.floor}</TableCell>
-                    <TableCell className="text-xs">{app.jobType}</TableCell>
-                    <TableCell><Badge variant="outline" className={WORK_TYPE_COLORS[app.workType] || ""}>{app.workType}</Badge></TableCell>
-                    <TableCell><Badge variant="outline" className={STATUS_COLORS[app.status] || ""}>{app.status}</Badge></TableCell>
-                    <TableCell className="text-xs max-w-[200px] truncate text-muted-foreground">{app.action}</TableCell>
-                    <TableCell>
-                      {bisCount > 0 ? (
-                        <Badge variant="outline" className="bg-purple-500/10 text-purple-700 border-purple-500/20 gap-1">
-                          <AlertCircle className="h-3 w-3" />{bisCount}
-                        </Badge>
-                      ) : "—"}
-                    </TableCell>
-                    <TableCell><Badge variant="outline" className={PRIORITY_COLORS[app.priority]}>{app.priority}</Badge></TableCell>
-                  </TableRow>
+                  <Fragment key={`group-${entry.baseJob}`}>
+                    {renderAppRow(entry.initial, idx + 1 + page * pageSize, true, isExpanded, entry.baseJob, entry.subsequents.length)}
+                    {isExpanded && entry.subsequents.map((sub, si) => (
+                      renderAppRow(sub, null, false, false, undefined, undefined, true)
+                    ))}
+                  </Fragment>
                 );
               })}
             </TableBody>
@@ -213,9 +320,9 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
                               <AlertCircle className="h-2.5 w-2.5" />{bisCount} open
                             </Badge>
                           )}
-                          <Badge variant="outline" className={app.source === "DOB_NOW_BUILD" ? "bg-blue-500/10 text-blue-700 border-blue-500/20" : "bg-muted text-muted-foreground text-[10px]"}>
-                            {app.source === "DOB_NOW_BUILD" ? "DOB NOW" : "Legacy"}
-                          </Badge>
+                          {(() => { const sb = getSourceBadge(app.source); return (
+                            <Badge variant="outline" className={`${sb.className} text-[10px]`}>{sb.label}</Badge>
+                          ); })()}
                         </div>
                       </div>
                       <p className="text-sm text-muted-foreground line-clamp-2">{app.desc}</p>
@@ -267,9 +374,9 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
 
               <div className="space-y-4 mt-4">
                 <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline" className={selectedApp.source === "DOB_NOW_BUILD" ? "bg-blue-500/10 text-blue-700 border-blue-500/20" : "bg-muted text-muted-foreground"}>
-                    {selectedApp.source === "DOB_NOW_BUILD" ? "DOB NOW Build" : "Legacy DOB"}
-                  </Badge>
+                  {(() => { const sb = getSourceBadge(selectedApp.source); return (
+                    <Badge variant="outline" className={sb.className}>{sb.label === "Legacy" ? "Legacy DOB" : sb.label === "DOB NOW" ? "DOB NOW Build" : "DOB NOW Electrical"}</Badge>
+                  ); })()}
                   <Badge variant="outline" className={WORK_TYPE_COLORS[selectedApp.workType]}>{selectedApp.workType} — {WORK_TYPE_LABELS[selectedApp.workType]}</Badge>
                   <Badge variant="outline">{selectedApp.jobType}</Badge>
                   <Badge variant="outline" className={STATUS_COLORS[selectedApp.status]}>{selectedApp.status}</Badge>

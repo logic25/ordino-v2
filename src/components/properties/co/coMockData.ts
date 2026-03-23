@@ -94,6 +94,7 @@ export const WORK_TYPE_LABELS: Record<string, string> = {
   FP: "Fire Protection",
   SG: "Signs",
   EQ: "Elevator",
+  EL: "Electrical",
 };
 
 export const WORK_TYPE_COLORS: Record<string, string> = {
@@ -105,6 +106,7 @@ export const WORK_TYPE_COLORS: Record<string, string> = {
   FP: "bg-green-500/10 text-green-700 border-green-500/20",
   SG: "bg-muted text-muted-foreground",
   EQ: "bg-teal-500/10 text-teal-700 border-teal-500/20",
+  EL: "bg-amber-500/10 text-amber-700 border-amber-500/20",
 };
 
 export const STATUS_COLORS: Record<string, string> = {
