@@ -147,7 +147,7 @@ function ServiceExpandedDetail({ service, projectName, projectId }: { service: M
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4">
         <div>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <DollarSign className="h-3.5 w-3.5" /> Estimated Job Cost
