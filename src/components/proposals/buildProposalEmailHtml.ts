@@ -53,24 +53,24 @@ export function buildProposalEmailHtml({
   <div style="max-width:600px;margin:0 auto;padding:32px 16px;">
 
     <!-- White Header -->
-    <div style="background:#ffffff;padding:28px 32px;border-radius:12px 12px 0 0;border:1px solid #e2e8f0;border-bottom:none;">
-      <table style="width:100%;" cellpadding="0" cellspacing="0">
+    <div style="background:#ffffff;padding:28px 32px;border-radius:12px 12px 0 0;border:1px solid #e2e8f0;border-bottom:none;overflow:hidden;">
+      <table style="width:100%;table-layout:fixed;" cellpadding="0" cellspacing="0">
         <tr>
-          <td style="vertical-align:top;">
-            ${logoUrl ? `<img src="${logoUrl}" alt="${companyName}" style="max-width:320px;max-height:64px;width:auto;height:auto;display:block;object-fit:contain;" />` : `<span style="font-size:18px;font-weight:700;color:${documentAccent};">${companyName}</span>`}
-            ${companyAddress ? `<p style="margin:6px 0 0;color:#94a3b8;font-size:11px;line-height:1.4;">${companyAddress}</p>` : ""}
-            ${contactLine ? `<p style="margin:2px 0 0;color:#94a3b8;font-size:11px;">${contactLine}</p>` : ""}
+          <td style="vertical-align:top;width:70%;padding-right:20px;">
+            ${logoUrl ? `<div style="max-width:320px;height:64px;overflow:hidden;"><img src="${logoUrl}" alt="${companyName}" style="display:block;max-width:100%;max-height:64px;width:auto;height:auto;object-fit:contain;object-position:left center;" /></div>` : `<span style="font-size:18px;font-weight:700;color:${documentAccent};">${companyName}</span>`}
+            ${companyAddress ? `<p style="margin:10px 0 0;color:#94a3b8;font-size:11px;line-height:1.4;max-width:280px;">${companyAddress}</p>` : ""}
+            ${contactLine ? `<p style="margin:4px 0 0;color:#94a3b8;font-size:11px;line-height:1.4;max-width:280px;word-break:break-word;">${contactLine}</p>` : ""}
           </td>
-          ${proposalNumber ? `<td style="vertical-align:top;text-align:right;white-space:nowrap;width:140px;">
+          ${proposalNumber ? `<td style="vertical-align:top;text-align:right;white-space:nowrap;width:30%;">
             <p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;font-weight:600;">Proposal</p>
-            <p style="margin:2px 0 0;font-size:20px;font-weight:800;color:#1e293b;letter-spacing:-0.3px;white-space:nowrap;line-height:1;">#${proposalNumber}</p>
+            <p style="margin:2px 0 0;font-size:20px;font-weight:800;color:#1e293b;letter-spacing:-0.3px;line-height:1;">#${proposalNumber}</p>
           </td>` : ""}
         </tr>
       </table>
     </div>
 
     <!-- Green accent line -->
-    <div style="height:3px;background:${documentAccent};"></div>
+    <div style="height:3px;background:${documentAccent};margin:0 48px;"></div>
 
     <!-- Body Card -->
     <div style="background:#ffffff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;">
@@ -111,7 +111,7 @@ export function buildProposalEmailHtml({
             ${optionalRows}
           </tbody>
         </table>
-        <div style="border-top:2px solid #e2e8f0;padding:14px 16px;">
+        <div style="border-top:1px solid #e2e8f0;padding:14px 16px;">
           <table style="width:100%;">
             <tr>
               <td style="font-size:15px;font-weight:700;color:#1e293b;">Total</td>
