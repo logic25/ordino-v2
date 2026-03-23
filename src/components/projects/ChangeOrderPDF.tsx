@@ -198,6 +198,9 @@ export function ChangeOrderPDF({
             <Text style={s.sectionTitle}>Change scope of work</Text>
           </View>
 
+          {/* Description */}
+          {co.reason ? <Text style={[s.reasonText, { marginBottom: 10 }]}>{co.reason}</Text> : null}
+
           {/* Line Items */}
           {lineItems.map((item, i) => (
             <View key={i} style={[s.lineItem, i === lineItems.length - 1 ? { borderBottomWidth: 0 } : {}]}>
