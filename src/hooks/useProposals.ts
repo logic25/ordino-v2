@@ -643,9 +643,11 @@ export function useSendProposal() {
       const clientLink = `${window.location.origin}/proposal/${token}`;
 
       // 3. Fetch company settings
+      const { data: { user: authUser } } = await supabase.auth.getUser();
       const { data: profile } = await supabase
         .from("profiles")
         .select("company_id")
+        .eq("user_id", authUser!.id)
         .single();
       let companyName = "Our Team";
       let companyEmail = "";
