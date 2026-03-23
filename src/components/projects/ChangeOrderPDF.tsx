@@ -18,28 +18,29 @@ interface ChangeOrderPDFProps {
   logoUrl?: string;
 }
 
-/* ── Palette matching Proposal ─────────────────────── */
-const amber = "hsl(65 69% 54%)";
-const charcoal = "#1c2127";
+/* ── Palette matching Proposal white-header style ─────── */
+const brand = "#d7df23";
+const charcoal = "#1e293b";
 const slate = "#64748b";
-const lightBg = "#f8f9fa";
+const lightBg = "#f8fafc";
 const borderColor = "#e2e8f0";
+const muted = "#94a3b8";
 
 const s = StyleSheet.create({
   page: { paddingBottom: 60, fontSize: 9.5, fontFamily: "Helvetica", color: charcoal },
 
-  /* Header banner */
-  headerBanner: { backgroundColor: charcoal, paddingHorizontal: 48, paddingTop: 32, paddingBottom: 28, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  logo: { maxHeight: 40, maxWidth: 240, objectFit: "contain" as any, marginBottom: 10 },
-  companyName: { fontSize: 18, fontFamily: "Helvetica-Bold", color: "#ffffff", marginBottom: 6, letterSpacing: -0.3 },
-  headerDetail: { fontSize: 8.5, color: "#94a3b8", lineHeight: 1.55 },
+  /* White header */
+  headerWrap: { paddingHorizontal: 48, paddingTop: 32, paddingBottom: 0, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+  logo: { maxHeight: 48, maxWidth: 240, objectFit: "contain" as any, marginBottom: 8 },
+  companyName: { fontSize: 16, fontFamily: "Helvetica-Bold", color: charcoal, marginBottom: 4 },
+  headerDetail: { fontSize: 8.5, color: muted, lineHeight: 1.55 },
   headerRight: { alignItems: "flex-end" },
-  headerLabel: { fontSize: 8, fontFamily: "Helvetica-Bold", color: amber, letterSpacing: 2, textTransform: "uppercase" as any, marginBottom: 3 },
-  headerNumber: { fontSize: 15, fontFamily: "Helvetica-Bold", color: "#ffffff", letterSpacing: 0.3 },
-  headerMeta: { fontSize: 8.5, color: "#94a3b8", marginTop: 5 },
+  headerLabel: { fontSize: 8, fontFamily: "Helvetica-Bold", color: muted, letterSpacing: 1.5, textTransform: "uppercase" as any, marginBottom: 2 },
+  headerNumber: { fontSize: 18, fontFamily: "Helvetica-Bold", color: charcoal, letterSpacing: -0.3 },
+  headerMeta: { fontSize: 8.5, color: muted, marginTop: 4 },
 
-  /* Accent bar */
-  accentBar: { height: 4, backgroundColor: amber },
+  /* Accent bar — matches proposal's 3px green line */
+  accentBar: { height: 3, backgroundColor: brand, marginHorizontal: 48, marginTop: 14, marginBottom: 0 },
 
   /* Body */
   body: { paddingHorizontal: 48, paddingTop: 28, paddingBottom: 40 },
@@ -47,13 +48,13 @@ const s = StyleSheet.create({
   /* Info cards row */
   infoRow: { flexDirection: "row", gap: 16, marginBottom: 24 },
   infoCard: { flex: 1, backgroundColor: lightBg, padding: "14px 18px" as any, borderRadius: 5, borderWidth: 1, borderColor },
-  infoLabel: { fontSize: 7.5, fontFamily: "Helvetica-Bold", color: slate, letterSpacing: 1.2, textTransform: "uppercase" as any, marginBottom: 6 },
+  infoLabel: { fontSize: 7.5, fontFamily: "Helvetica-Bold", color: muted, letterSpacing: 1.2, textTransform: "uppercase" as any, marginBottom: 6 },
   infoText: { fontSize: 9.5, marginBottom: 3 },
   infoBold: { fontSize: 10.5, fontFamily: "Helvetica-Bold", marginBottom: 3 },
 
   /* Section heading */
   sectionHeading: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14, marginTop: 8 },
-  sectionBar: { width: 4, height: 22, backgroundColor: amber, borderRadius: 2 },
+  sectionBar: { width: 4, height: 22, backgroundColor: brand, borderRadius: 2 },
   sectionTitle: { fontSize: 14, fontFamily: "Helvetica-Bold", color: charcoal },
 
   /* Line items */
@@ -64,9 +65,9 @@ const s = StyleSheet.create({
   lineItemDesc: { fontSize: 8.5, color: slate, lineHeight: 1.55, marginTop: 2 },
 
   /* Total bar */
-  totalBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: charcoal, padding: "12px 18px" as any, borderRadius: 5, marginTop: 20 },
-  totalLabel: { fontSize: 11, fontFamily: "Helvetica-Bold", color: "#ffffff", letterSpacing: 1, textTransform: "uppercase" as any },
-  totalValue: { fontSize: 15, fontFamily: "Helvetica-Bold", color: "#ffffff" },
+  totalBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: lightBg, padding: "14px 18px" as any, borderRadius: 5, marginTop: 20, borderWidth: 1, borderColor },
+  totalLabel: { fontSize: 12, fontFamily: "Helvetica-Bold", color: charcoal, letterSpacing: 0.5, textTransform: "uppercase" as any },
+  totalValue: { fontSize: 16, fontFamily: "Helvetica-Bold", color: charcoal },
 
   /* Reason block */
   reasonBlock: { marginTop: 20 },
@@ -84,8 +85,8 @@ const s = StyleSheet.create({
 
   /* Footer */
   footer: { position: "absolute", bottom: 24, left: 48, right: 48, borderTopWidth: 0.5, borderTopColor: borderColor, paddingTop: 8, alignItems: "center" },
-  footerText: { fontSize: 7.5, color: slate, textAlign: "center" },
-  footerAccent: { fontSize: 7.5, color: amber, textAlign: "center", marginTop: 2 },
+  footerText: { fontSize: 7.5, color: muted, textAlign: "center" },
+  footerAccent: { fontSize: 7.5, color: brand, textAlign: "center", marginTop: 2 },
 });
 
 const fmtCurrency = (n: number) =>
@@ -122,13 +123,13 @@ export function ChangeOrderPDF({
     <Document>
       <Page size="A4" style={s.page}>
 
-        {/* ═══ Header Banner ═══ */}
-        <View style={s.headerBanner}>
+        {/* ═══ White Header ═══ */}
+        <View style={s.headerWrap}>
           <View>
             {logoUrl ? (
               <Image style={s.logo} src={logoUrl} />
             ) : null}
-            <Text style={[s.companyName, logoUrl ? { fontSize: 14 } : {}]}>{companyName || "Your Company"}</Text>
+            {(!logoUrl) && <Text style={s.companyName}>{companyName || "Your Company"}</Text>}
             {companyAddress ? <Text style={s.headerDetail}>{companyAddress}</Text> : null}
             <Text style={s.headerDetail}>
               {companyPhone ? `Tel: ${companyPhone}` : ""}
@@ -145,7 +146,7 @@ export function ChangeOrderPDF({
           </View>
         </View>
 
-        {/* ═══ Amber accent bar ═══ */}
+        {/* ═══ Brand accent bar ═══ */}
         <View style={s.accentBar} />
 
         {/* ═══ Body ═══ */}
