@@ -111,6 +111,9 @@ export interface CompanySettings {
     accent_color?: string;
     font_family?: string;
     button_radius?: string;
+    body_color?: string;
+    heading_color?: string;
+    body_font_size?: string;
   };
   email_template_overrides?: Record<string, {
     subject?: string;

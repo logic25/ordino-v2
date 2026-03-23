@@ -191,9 +191,9 @@ export function buildProposalEmailHtml({
     : "";
 
   const signoffSection = resolvedSignoffText
-    ? `<p style="margin:24px 0 0;font-size:15px;color:#334155;line-height:1.6;">${resolvedSignoffText}</p>
-       <p style="margin:16px 0 0;font-size:15px;color:#1e293b;">Best regards,<br/><strong>${companyName}</strong></p>`
-    : `<p style="margin:16px 0 0;font-size:15px;color:#1e293b;">Best regards,<br/><strong>${companyName}</strong></p>`;
+    ? `<p style="margin:24px 0 0;font-size:${emailBodyFontSize};color:${emailBodyColor};line-height:1.6;">${resolvedSignoffText}</p>
+       <p style="margin:16px 0 0;font-size:${emailBodyFontSize};color:${emailHeadingColor};">Best regards,<br/><strong>${companyName}</strong></p>`
+    : `<p style="margin:16px 0 0;font-size:${emailBodyFontSize};color:${emailHeadingColor};">Best regards,<br/><strong>${companyName}</strong></p>`;
 
   return `<!DOCTYPE html>
 <html>
