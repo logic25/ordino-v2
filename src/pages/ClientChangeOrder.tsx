@@ -439,8 +439,8 @@ export default function ClientChangeOrderPage() {
               <h3 className="text-base font-bold" style={{ color: charcoal }}>Change scope of work</h3>
             </div>
 
-            {/* CO Title */}
-            <div className="text-sm font-bold mb-3" style={{ color: charcoal }}>{co.title}</div>
+            {/* CO Description — show reason as body text under the heading */}
+            {co.reason && <p className="text-sm mb-4" style={{ color: "#475569", lineHeight: 1.55 }}>{co.reason}</p>}
 
             {/* Line Items */}
             <div className="mb-5">
