@@ -71,6 +71,26 @@ const RADIUS_OPTIONS = [
   { label: "Pill", value: "24px" },
 ];
 
+const FONT_SIZE_OPTIONS = [
+  { label: "13px", value: "13px" },
+  { label: "14px", value: "14px" },
+  { label: "15px", value: "15px" },
+  { label: "16px", value: "16px" },
+];
+
+// ── Live template IDs (wired to actual send paths) ──
+const LIVE_TEMPLATE_IDS = new Set([
+  "proposal",
+  "change_order",
+  "welcome",
+  "invoice",
+  "reminder",
+  "billing_digest",
+  "billing_alert",
+  "partner_outreach",
+  "checklist_followup",
+  "demand_letter",
+]);
 // ── Template definitions ──
 
 interface TemplateDef {
