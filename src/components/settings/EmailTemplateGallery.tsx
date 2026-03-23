@@ -1047,20 +1047,25 @@ export function EmailTemplateGallery() {
   };
 
   const isDirty = useMemo(() => {
-    const savedStyleStr = JSON.stringify(savedStyle || {});
-    const currentStyleStr = JSON.stringify({
-      accent_color: style.accentColor,
-      accent_text_color: style.accentTextColor,
-      font_family: style.fontFamily,
-      button_radius: style.buttonRadius,
-      body_color: style.bodyColor,
-      heading_color: style.headingColor,
-      body_font_size: style.bodyFontSize,
-    });
-    if (savedStyleStr !== currentStyleStr) return true;
-    if (JSON.stringify(savedOverrides || {}) !== JSON.stringify(
-      Object.fromEntries(Object.entries(overrides).map(([k, v]) => [k, v]))
-    )) return true;
+    // Compare only the specific style keys we manage
+    const ss = savedStyle || {} as any;
+    const styleChanged =
+      (ss.accent_color || DEFAULT_STYLE.accentColor) !== style.accentColor ||
+      (ss.accent_text_color || ss.accent_color || DEFAULT_STYLE.accentTextColor) !== style.accentTextColor ||
+      (ss.font_family || DEFAULT_STYLE.fontFamily) !== style.fontFamily ||
+      (ss.button_radius || DEFAULT_STYLE.buttonRadius) !== style.buttonRadius ||
+      (ss.body_color || DEFAULT_STYLE.bodyColor) !== style.bodyColor ||
+      (ss.heading_color || DEFAULT_STYLE.headingColor) !== style.headingColor ||
+      (ss.body_font_size || DEFAULT_STYLE.bodyFontSize) !== style.bodyFontSize;
+    if (styleChanged) return true;
+
+    // Compare overrides — normalize both sides
+    const savedOv = savedOverrides || {};
+    const currentOv = Object.fromEntries(Object.entries(overrides).map(([k, v]) => [k, v]));
+    const allKeys = new Set([...Object.keys(savedOv), ...Object.keys(currentOv)]);
+    for (const key of allKeys) {
+      if (JSON.stringify((savedOv as any)[key] || {}) !== JSON.stringify(currentOv[key] || {})) return true;
+    }
     return false;
   }, [style, overrides, savedStyle, savedOverrides]);
 
