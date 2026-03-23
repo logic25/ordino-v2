@@ -109,9 +109,10 @@ function ServiceExpandedDetail({ service, projectName, projectId }: { service: M
   };
 
   return (
-    <div className="px-8 py-5 space-y-5 bg-muted/10">
-      <AssignedToField service={service} />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div className="px-8 py-4 space-y-4 bg-muted/10">
+      {/* AssignedToField commented out per user request */}
+      {/* <AssignedToField service={service} /> */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <FileText className="h-3.5 w-3.5" /> Scope of Work
