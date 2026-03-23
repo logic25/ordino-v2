@@ -928,7 +928,7 @@ export function COSummaryView({
                                   <p className="font-medium line-through opacity-70">{ri.name}</p>
                                   <div className="flex flex-wrap gap-x-3 text-muted-foreground">
                                     <span>From: <span className="text-foreground">{ri.receivedFrom || "—"}</span></span>
-                                    <span>Received: <span className="text-green-600 font-medium">{ri.dateReceived ? format(new Date(ri.dateReceived), "MM/dd/yyyy") : "—"}</span></span>
+                                    <span>Received: <span className="text-green-600 font-medium">{safeFormat(ri.dateReceived, "MM/dd/yyyy")}</span></span>
                                   </div>
                                 </div>
                               ))}
