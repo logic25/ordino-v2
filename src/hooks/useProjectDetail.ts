@@ -212,15 +212,29 @@ export function useProjectContacts(projectId: string | undefined, clientId: stri
             .select("id, name, email, phone, title, company_name, is_primary, first_name, last_name, client_id")
             .in("id", linkedIds);
 
+          // Build a map of client_id -> client name for company fallback
+          const clientIdsNeeding = (linkedContacts || [])
+            .filter((cc: any) => !cc.company_name && cc.client_id)
+            .map((cc: any) => cc.client_id);
+          const clientNameMap = new Map<string, string>();
+          if (clientIdsNeeding.length > 0) {
+            const { data: clients } = await supabase
+              .from("clients")
+              .select("id, name")
+              .in("id", [...new Set(clientIdsNeeding)]);
+            (clients || []).forEach((c: any) => clientNameMap.set(c.id, c.name));
+          }
+
           (linkedContacts || []).forEach((cc: any) => {
             if (seen.has(cc.id)) return;
             seen.add(cc.id);
             const linkedRole = roleMap.get(cc.id);
+            const companyName = cc.company_name || (cc.client_id ? clientNameMap.get(cc.client_id) : "") || "";
             contacts.push({
               id: cc.id,
               name: cc.name,
               role: cc.title || (linkedRole === "applicant" ? "Applicant" : linkedRole === "bill_to" ? "Bill To" : linkedRole === "sign" ? "Signer" : cc.is_primary ? "Primary Contact" : "Contact"),
-              company: cc.company_name || "",
+              company: companyName,
               phone: cc.phone || "",
               email: cc.email || "",
               dobRole: linkedRole === "applicant" ? "owner" : "other",
