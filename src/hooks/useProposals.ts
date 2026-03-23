@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { formatCurrency } from "@/lib/utils";
 import { getLogoDataUrl } from "@/utils/logoToDataUrl";
-import { buildProposalEmailHtml, resolveProposalEmailTemplate } from "@/components/proposals/buildProposalEmailHtml";
+import { buildProposalEmailHtml, resolveProposalEmailTemplate, resolveEmailStyle } from "@/components/proposals/buildProposalEmailHtml";
 import { DEFAULT_PIS_SECTIONS } from "@/hooks/useRfi";
 
 export type Proposal = Tables<"proposals">;
