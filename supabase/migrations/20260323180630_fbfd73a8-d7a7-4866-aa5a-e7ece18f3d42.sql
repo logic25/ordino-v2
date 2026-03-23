@@ -1,0 +1,1 @@
+ALTER TABLE public.rfp_response_drafts ADD COLUMN IF NOT EXISTS selected_project_ids text[] DEFAULT '{}';
