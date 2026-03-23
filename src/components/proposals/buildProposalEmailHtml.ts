@@ -132,6 +132,7 @@ export function buildProposalEmailHtml({
 }: ProposalEmailParams): string {
   const resolvedStyle: Required<ProposalEmailStyleConfig> = {
     accentColor: style?.accentColor ?? DEFAULT_PROPOSAL_EMAIL_STYLE.accentColor,
+    accentTextColor: style?.accentTextColor ?? style?.accentColor ?? DEFAULT_PROPOSAL_EMAIL_STYLE.accentTextColor,
     accentForeground: style?.accentForeground ?? DEFAULT_PROPOSAL_EMAIL_STYLE.accentForeground,
     fontFamily: style?.fontFamily ?? DEFAULT_PROPOSAL_EMAIL_STYLE.fontFamily,
     buttonRadius: style?.buttonRadius ?? DEFAULT_PROPOSAL_EMAIL_STYLE.buttonRadius,

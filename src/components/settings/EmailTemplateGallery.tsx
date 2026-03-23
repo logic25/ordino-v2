@@ -943,6 +943,7 @@ export function EmailTemplateGallery() {
         const resolved = resolveEmailStyle(s.email_style);
         setStyle({
           accentColor: resolved.accentColor || DEFAULT_STYLE.accentColor,
+          accentTextColor: resolved.accentTextColor || resolved.accentColor || DEFAULT_STYLE.accentTextColor,
           fontFamily: resolved.fontFamily || DEFAULT_STYLE.fontFamily,
           buttonRadius: resolved.buttonRadius || DEFAULT_STYLE.buttonRadius,
           bodyColor: resolved.bodyColor || DEFAULT_STYLE.bodyColor,
