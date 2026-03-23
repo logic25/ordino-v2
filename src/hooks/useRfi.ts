@@ -161,7 +161,9 @@ export function useCreateRfiTemplate() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: { name: string; description?: string; sections: RfiSectionConfig[]; is_default?: boolean }) => {
-      const { data: profile } = await supabase.from("profiles").select("company_id").single();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+      const { data: profile } = await supabase.from("profiles").select("company_id").eq("user_id", user.id).single();
       if (!profile?.company_id) throw new Error("No company found");
 
       const { data, error } = await (supabase.from("rfi_templates" as any) as any)
