@@ -138,7 +138,7 @@ export function useCompanySettings() {
 
       const { data, error } = await supabase
         .from("companies")
-        .select("id, name, email, phone, address, website, settings, logo_url")
+        .select("id, name, email, phone, address, website, settings, logo_url, theme")
         .eq("id", profile.company_id)
         .single();
 
@@ -151,6 +151,7 @@ export function useCompanySettings() {
         address: data.address,
         website: data.website,
         logo_url: data.logo_url,
+        theme: (data as any).theme || null,
         settings: (data.settings || {}) as CompanySettings,
       };
     },
