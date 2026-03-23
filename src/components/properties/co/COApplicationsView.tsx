@@ -158,6 +158,67 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
 
   const openBisCount = (app: COApplication) => app.bisOpenItems?.filter(i => !i.resolved).length || 0;
 
+  const getSourceBadge = (source: string) => {
+    if (source === "DOB_NOW_BUILD") return { className: "bg-blue-500/10 text-blue-700 border-blue-500/20", label: "DOB NOW" };
+    if (source === "DOB_NOW_ELECTRICAL") return { className: "bg-amber-500/10 text-amber-700 border-amber-500/20", label: "Electrical" };
+    return { className: "bg-muted text-muted-foreground", label: "Legacy" };
+  };
+
+  const renderAppRow = (app: COApplication, rowNum: number | null, hasChildren: boolean, isExpanded: boolean, baseJob?: string, childCount?: number, isChild?: boolean) => {
+    const bisCount = openBisCount(app);
+    const sourceBadge = getSourceBadge(app.source);
+    return (
+      <TableRow
+        key={`${app.jobNum}-${app.docNum || "00"}`}
+        className={`cursor-pointer hover:bg-accent/5 ${isChild ? "bg-muted/30" : ""}`}
+        onClick={() => openDrawer(app)}
+      >
+        <TableCell className="w-8 px-1">
+          {hasChildren ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={(e) => { e.stopPropagation(); toggleJobExpand(baseJob!); }}
+            >
+              {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            </Button>
+          ) : isChild ? (
+            <span className="ml-2 text-muted-foreground">↳</span>
+          ) : null}
+        </TableCell>
+        <TableCell className="text-xs text-muted-foreground">{rowNum ?? ""}</TableCell>
+        <TableCell className="font-mono text-sm font-medium">
+          {app.jobNum}
+          {hasChildren && !isExpanded && (
+            <Badge variant="secondary" className="ml-1.5 text-[10px] px-1 py-0">{childCount} sub</Badge>
+          )}
+          {isChild && app.docNum && (
+            <span className="ml-1 text-xs text-muted-foreground">Doc {app.docNum}</span>
+          )}
+        </TableCell>
+        <TableCell>
+          <Badge variant="outline" className={sourceBadge.className}>{sourceBadge.label}</Badge>
+        </TableCell>
+        <TableCell className="text-sm max-w-[280px] truncate">{app.desc}</TableCell>
+        <TableCell className="text-sm">{app.tenant || "—"}</TableCell>
+        <TableCell className="text-sm">{app.floor}</TableCell>
+        <TableCell className="text-xs">{app.jobType}</TableCell>
+        <TableCell><Badge variant="outline" className={WORK_TYPE_COLORS[app.workType] || ""}>{app.workType}</Badge></TableCell>
+        <TableCell><Badge variant="outline" className={STATUS_COLORS[app.status] || ""}>{app.status}</Badge></TableCell>
+        <TableCell className="text-xs max-w-[200px] truncate text-muted-foreground">{app.action}</TableCell>
+        <TableCell>
+          {bisCount > 0 ? (
+            <Badge variant="outline" className="bg-purple-500/10 text-purple-700 border-purple-500/20 gap-1">
+              <AlertCircle className="h-3 w-3" />{bisCount}
+            </Badge>
+          ) : "—"}
+        </TableCell>
+        <TableCell><Badge variant="outline" className={PRIORITY_COLORS[app.priority]}>{app.priority}</Badge></TableCell>
+      </TableRow>
+    );
+  };
+
   return (
     <div className="space-y-4">
       {/* Filters */}
