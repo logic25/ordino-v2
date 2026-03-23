@@ -148,6 +148,9 @@ export function buildProposalEmailHtml({
 
   const documentAccent = resolvedStyle.accentColor;
   const documentAccentForeground = resolvedStyle.accentForeground;
+  const emailBodyColor = resolvedStyle.bodyColor;
+  const emailHeadingColor = resolvedStyle.headingColor;
+  const emailBodyFontSize = resolvedStyle.bodyFontSize;
   const resolvedGreeting = greetingText || fallbackTemplate.greeting;
   const resolvedBodyText = bodyText || fallbackTemplate.bodyText;
   const resolvedCtaText = ctaText || fallbackTemplate.ctaText;
