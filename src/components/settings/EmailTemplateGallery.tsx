@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Mail, Save, RotateCcw, Palette, Type, Loader2 } from "lucide-react";
+import { Mail, Save, RotateCcw, Palette, Type, Loader2, Circle } from "lucide-react";
 import { useCompanySettings, useUpdateCompanySettings } from "@/hooks/useCompanySettings";
 import { formatCurrency } from "@/lib/utils";
 import {
