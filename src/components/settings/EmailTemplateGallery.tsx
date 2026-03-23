@@ -933,6 +933,9 @@ export function EmailTemplateGallery() {
           accentColor: resolved.accentColor || DEFAULT_STYLE.accentColor,
           fontFamily: resolved.fontFamily || DEFAULT_STYLE.fontFamily,
           buttonRadius: resolved.buttonRadius || DEFAULT_STYLE.buttonRadius,
+          bodyColor: resolved.bodyColor || DEFAULT_STYLE.bodyColor,
+          headingColor: resolved.headingColor || DEFAULT_STYLE.headingColor,
+          bodyFontSize: resolved.bodyFontSize || DEFAULT_STYLE.bodyFontSize,
         });
       }
       if (s.email_template_overrides) {
