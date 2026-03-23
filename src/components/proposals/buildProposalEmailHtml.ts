@@ -244,8 +244,8 @@ export function buildProposalEmailHtml({
               </table>
               ` : ""}
 
-              <p style="margin:0 0 16px;font-size:15px;color:#1e293b;line-height:1.6;font-family:${resolvedStyle.fontFamily};">${resolvedGreeting}</p>
-              <p style="margin:0 0 24px;font-size:15px;color:#334155;line-height:1.6;font-family:${resolvedStyle.fontFamily};">
+              <p style="margin:0 0 16px;font-size:${emailBodyFontSize};color:${emailHeadingColor};line-height:1.6;font-family:${resolvedStyle.fontFamily};">${resolvedGreeting}</p>
+              <p style="margin:0 0 24px;font-size:${emailBodyFontSize};color:${emailBodyColor};line-height:1.6;font-family:${resolvedStyle.fontFamily};">
                 ${resolvedBodyText}
               </p>
 
