@@ -1567,23 +1567,33 @@ export default function RfiForm() {
 
           {/* Action button */}
           {isReviewStep ? (
-            <Button
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-6 h-11 rounded-xl ml-auto disabled:opacity-50"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  <Send className="h-4 w-4 mr-2" />
-                  Submit
-                </>
-              )}
-            </Button>
+            <div className="flex items-center gap-2 ml-auto">
+              <Button
+                variant="outline"
+                onClick={goBack}
+                className="font-semibold px-5 h-11 rounded-xl border-stone-300 text-stone-600 hover:bg-stone-100"
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Back
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-6 h-11 rounded-xl disabled:opacity-50"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4 mr-2" />
+                    Submit
+                  </>
+                )}
+              </Button>
+            </div>
           ) : (
             <div className="flex items-center gap-2 ml-auto">
               {currentStep > 0 && (
