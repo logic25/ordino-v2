@@ -23,32 +23,42 @@ interface COViolationsViewProps {
 }
 
 const VIO_STATUS_FILTERS = ["All", "Active", "In Resolution", "Resolved", "Dismissed"];
+const AGENCY_FILTERS = ["All", "DOB ECB", "HPD"];
+
+const AGENCY_COLORS: Record<string, string> = {
+  "DOB ECB": "bg-orange-500/10 text-orange-700 border-orange-500/20",
+  "HPD": "bg-violet-500/10 text-violet-700 border-violet-500/20",
+};
 
 export function COViolationsView({ violations, onUpdateViolation }: COViolationsViewProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [agencyFilter, setAgencyFilter] = useState("All");
   const [editingPlan, setEditingPlan] = useState<string | null>(null);
   const [editPlanValue, setEditPlanValue] = useState("");
 
   const filtered = useMemo(() => {
     return violations.filter((v) => {
       if (statusFilter !== "All" && v.status !== statusFilter) return false;
+      if (agencyFilter !== "All" && v.agency !== agencyFilter) return false;
       if (search) {
         const q = search.toLowerCase();
         return v.violationNum.toLowerCase().includes(q) || v.type.toLowerCase().includes(q) || v.resolutionPlan.toLowerCase().includes(q);
       }
       return true;
     });
-  }, [violations, statusFilter, search]);
+  }, [violations, statusFilter, agencyFilter, search]);
 
   const activeCount = violations.filter(v => v.status === "Active").length;
   const inResCount = violations.filter(v => v.status === "In Resolution").length;
   const totalPenalty = violations.reduce((s, v) => s + (v.penalty || 0), 0);
+  const dobCount = violations.filter(v => v.agency === "DOB ECB").length;
+  const hpdCount = violations.filter(v => v.agency === "HPD").length;
 
   return (
     <div className="space-y-4">
       {/* Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div className="rounded-lg border p-3">
           <p className="text-xs text-muted-foreground">Total</p>
           <p className="text-2xl font-bold">{violations.length}</p>
@@ -65,6 +75,13 @@ export function COViolationsView({ violations, onUpdateViolation }: COViolations
           <p className="text-xs text-muted-foreground">Total Penalties</p>
           <p className="text-2xl font-bold">{totalPenalty > 0 ? `$${totalPenalty.toLocaleString()}` : "—"}</p>
         </div>
+        <div className="rounded-lg border p-3">
+          <p className="text-xs text-muted-foreground">By Agency</p>
+          <div className="flex gap-2 mt-1">
+            <Badge variant="outline" className={AGENCY_COLORS["DOB ECB"]}>DOB {dobCount}</Badge>
+            <Badge variant="outline" className={AGENCY_COLORS["HPD"]}>HPD {hpdCount}</Badge>
+          </div>
+        </div>
       </div>
 
       {/* Filters */}
@@ -80,6 +97,13 @@ export function COViolationsView({ violations, onUpdateViolation }: COViolations
             </Button>
           ))}
         </div>
+        <div className="flex gap-1.5 ml-1">
+          {AGENCY_FILTERS.map((f) => (
+            <Button key={f} variant={agencyFilter === f ? "default" : "outline"} size="sm" className="h-7 text-xs" onClick={() => setAgencyFilter(f)}>
+              {f}
+            </Button>
+          ))}
+        </div>
         <span className="text-xs text-muted-foreground ml-auto">{filtered.length} violations</span>
       </div>
 
@@ -89,6 +113,7 @@ export function COViolationsView({ violations, onUpdateViolation }: COViolations
           <TableHeader>
             <TableRow className="bg-muted/50">
               <TableHead>Violation #</TableHead>
+              <TableHead>Agency</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Filed</TableHead>
               <TableHead>Status</TableHead>
@@ -99,8 +124,13 @@ export function COViolationsView({ violations, onUpdateViolation }: COViolations
           </TableHeader>
           <TableBody>
             {filtered.map((v) => (
-              <TableRow key={v.violationNum}>
+              <TableRow key={`${v.agency}-${v.violationNum}`}>
                 <TableCell className="font-mono text-sm font-medium">{v.violationNum}</TableCell>
+                <TableCell>
+                  <Badge variant="outline" className={AGENCY_COLORS[v.agency || ""] || ""}>
+                    {v.agency || "DOB ECB"}
+                  </Badge>
+                </TableCell>
                 <TableCell className="text-sm">{v.type}</TableCell>
                 <TableCell className="text-sm">{formatDateSafe(v.fileDate, "MM/dd/yyyy")}</TableCell>
                 <TableCell><Badge variant="outline" className={STATUS_COLORS[v.status] || ""}>{v.status}</Badge></TableCell>
