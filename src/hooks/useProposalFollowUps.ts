@@ -171,6 +171,7 @@ export function useMarkProposalApproved() {
               billing_type: "fixed",
               status: "not_started",
               needs_dob_filing: item.needs_dob_filing ?? false,
+              disciplines: item.disciplines || null,
             }));
 
             await supabase.from("services").insert(servicesData);
