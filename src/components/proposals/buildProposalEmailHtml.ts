@@ -176,7 +176,8 @@ export function buildProposalEmailHtml({
     )
     .join("");
 
-  const contactLine = [companyPhone, companyEmail].filter(Boolean).join(" · ");
+  const emailLink = companyEmail ? `<a href="mailto:${companyEmail}" style="color:#94a3b8;text-decoration:none;">${companyEmail}</a>` : "";
+  const contactLine = [companyPhone, emailLink].filter(Boolean).join(" · ");
   const ctaSection = resolvedCtaText
     ? `<div style="text-align:center;margin:32px 0;">
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
