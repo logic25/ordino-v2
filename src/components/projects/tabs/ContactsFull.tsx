@@ -283,7 +283,7 @@ export function ContactsFull({ contacts, pisStatus, projectId, clientId }: { con
           <TableRow className="bg-muted/30 hover:bg-muted/30">
             <TableHead className="w-[36px]" />
             <TableHead>Name</TableHead>
-            <TableHead>DOB Role</TableHead>
+            <TableHead>Role</TableHead>
             <TableHead>Company</TableHead>
             <TableHead>Phone</TableHead>
             <TableHead>Email</TableHead>
