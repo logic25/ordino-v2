@@ -3,6 +3,9 @@ export interface ProposalEmailStyleConfig {
   accentForeground?: string;
   fontFamily?: string;
   buttonRadius?: string;
+  bodyColor?: string;
+  headingColor?: string;
+  bodyFontSize?: string;
 }
 
 export interface ProposalEmailTemplateContent {
@@ -50,6 +53,9 @@ export const DEFAULT_PROPOSAL_EMAIL_STYLE: Required<ProposalEmailStyleConfig> = 
   accentForeground: "#1f2937",
   fontFamily: "Arial, Helvetica, sans-serif",
   buttonRadius: "8px",
+  bodyColor: "#334155",
+  headingColor: "#1e293b",
+  bodyFontSize: "15px",
 };
 
 /**
@@ -58,13 +64,16 @@ export const DEFAULT_PROPOSAL_EMAIL_STYLE: Required<ProposalEmailStyleConfig> = 
  * so the rendered email is identical everywhere.
  */
 export function resolveEmailStyle(
-  savedStyle?: { accent_color?: string; font_family?: string; button_radius?: string } | null,
+  savedStyle?: { accent_color?: string; font_family?: string; button_radius?: string; body_color?: string; heading_color?: string; body_font_size?: string } | null,
 ): ProposalEmailStyleConfig {
   return {
     accentColor: savedStyle?.accent_color || DEFAULT_PROPOSAL_EMAIL_STYLE.accentColor,
     accentForeground: DEFAULT_PROPOSAL_EMAIL_STYLE.accentForeground,
     fontFamily: savedStyle?.font_family || DEFAULT_PROPOSAL_EMAIL_STYLE.fontFamily,
     buttonRadius: savedStyle?.button_radius || DEFAULT_PROPOSAL_EMAIL_STYLE.buttonRadius,
+    bodyColor: savedStyle?.body_color || DEFAULT_PROPOSAL_EMAIL_STYLE.bodyColor,
+    headingColor: savedStyle?.heading_color || DEFAULT_PROPOSAL_EMAIL_STYLE.headingColor,
+    bodyFontSize: savedStyle?.body_font_size || DEFAULT_PROPOSAL_EMAIL_STYLE.bodyFontSize,
   };
 }
 
@@ -123,6 +132,9 @@ export function buildProposalEmailHtml({
     accentForeground: style?.accentForeground ?? DEFAULT_PROPOSAL_EMAIL_STYLE.accentForeground,
     fontFamily: style?.fontFamily ?? DEFAULT_PROPOSAL_EMAIL_STYLE.fontFamily,
     buttonRadius: style?.buttonRadius ?? DEFAULT_PROPOSAL_EMAIL_STYLE.buttonRadius,
+    bodyColor: style?.bodyColor ?? DEFAULT_PROPOSAL_EMAIL_STYLE.bodyColor,
+    headingColor: style?.headingColor ?? DEFAULT_PROPOSAL_EMAIL_STYLE.headingColor,
+    bodyFontSize: style?.bodyFontSize ?? DEFAULT_PROPOSAL_EMAIL_STYLE.bodyFontSize,
   };
 
   const fallbackTemplate = resolveProposalEmailTemplate(undefined, {
@@ -136,6 +148,9 @@ export function buildProposalEmailHtml({
 
   const documentAccent = resolvedStyle.accentColor;
   const documentAccentForeground = resolvedStyle.accentForeground;
+  const emailBodyColor = resolvedStyle.bodyColor;
+  const emailHeadingColor = resolvedStyle.headingColor;
+  const emailBodyFontSize = resolvedStyle.bodyFontSize;
   const resolvedGreeting = greetingText || fallbackTemplate.greeting;
   const resolvedBodyText = bodyText || fallbackTemplate.bodyText;
   const resolvedCtaText = ctaText || fallbackTemplate.ctaText;
@@ -145,7 +160,7 @@ export function buildProposalEmailHtml({
     .filter((item) => !item.isOptional)
     .map(
       (item) =>
-        `<tr><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:#1e293b;">${item.name}</td><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;text-align:right;color:#1e293b;">${item.total}</td></tr>`,
+        `<tr><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:${emailHeadingColor};">${item.name}</td><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;text-align:right;color:${emailHeadingColor};">${item.total}</td></tr>`,
     )
     .join("");
 
@@ -176,9 +191,9 @@ export function buildProposalEmailHtml({
     : "";
 
   const signoffSection = resolvedSignoffText
-    ? `<p style="margin:24px 0 0;font-size:15px;color:#334155;line-height:1.6;">${resolvedSignoffText}</p>
-       <p style="margin:16px 0 0;font-size:15px;color:#1e293b;">Best regards,<br/><strong>${companyName}</strong></p>`
-    : `<p style="margin:16px 0 0;font-size:15px;color:#1e293b;">Best regards,<br/><strong>${companyName}</strong></p>`;
+    ? `<p style="margin:24px 0 0;font-size:${emailBodyFontSize};color:${emailBodyColor};line-height:1.6;">${resolvedSignoffText}</p>
+       <p style="margin:16px 0 0;font-size:${emailBodyFontSize};color:${emailHeadingColor};">Best regards,<br/><strong>${companyName}</strong></p>`
+    : `<p style="margin:16px 0 0;font-size:${emailBodyFontSize};color:${emailHeadingColor};">Best regards,<br/><strong>${companyName}</strong></p>`;
 
   return `<!DOCTYPE html>
 <html>
@@ -229,8 +244,8 @@ export function buildProposalEmailHtml({
               </table>
               ` : ""}
 
-              <p style="margin:0 0 16px;font-size:15px;color:#1e293b;line-height:1.6;font-family:${resolvedStyle.fontFamily};">${resolvedGreeting}</p>
-              <p style="margin:0 0 24px;font-size:15px;color:#334155;line-height:1.6;font-family:${resolvedStyle.fontFamily};">
+              <p style="margin:0 0 16px;font-size:${emailBodyFontSize};color:${emailHeadingColor};line-height:1.6;font-family:${resolvedStyle.fontFamily};">${resolvedGreeting}</p>
+              <p style="margin:0 0 24px;font-size:${emailBodyFontSize};color:${emailBodyColor};line-height:1.6;font-family:${resolvedStyle.fontFamily};">
                 ${resolvedBodyText}
               </p>
 
@@ -250,8 +265,8 @@ export function buildProposalEmailHtml({
                     <td colspan="2" style="border-top:1px solid #e2e8f0;padding:14px 16px;font-family:${resolvedStyle.fontFamily};">
                       <table role="presentation" style="width:100%;" cellpadding="0" cellspacing="0" border="0">
                         <tr>
-                          <td style="font-size:15px;font-weight:700;color:#1e293b;font-family:${resolvedStyle.fontFamily};">Total</td>
-                          <td style="font-size:18px;font-weight:800;color:#1e293b;text-align:right;font-family:${resolvedStyle.fontFamily};">${totalAmount}</td>
+                         <td style="font-size:15px;font-weight:700;color:${emailHeadingColor};font-family:${resolvedStyle.fontFamily};">Total</td>
+                          <td style="font-size:18px;font-weight:800;color:${emailHeadingColor};text-align:right;font-family:${resolvedStyle.fontFamily};">${totalAmount}</td>
                         </tr>
                         <tr>
                           <td style="font-size:13px;color:#94a3b8;padding-top:4px;font-family:${resolvedStyle.fontFamily};">Retainer Due</td>

@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Mail, Save, RotateCcw, Palette, Type, Loader2 } from "lucide-react";
+import { Mail, Save, RotateCcw, Palette, Type, Loader2, Circle } from "lucide-react";
 import { useCompanySettings, useUpdateCompanySettings } from "@/hooks/useCompanySettings";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -17,6 +17,7 @@ import {
   resolveProposalEmailTemplate,
   resolveEmailStyle,
 } from "@/components/proposals/buildProposalEmailHtml";
+import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 
 // ── Types ──
@@ -33,6 +34,9 @@ interface StyleConfig {
   accentColor: string;
   fontFamily: string;
   buttonRadius: string;
+  bodyColor: string;
+  headingColor: string;
+  bodyFontSize: string;
 }
 
 interface TemplateOverride {
@@ -49,6 +53,9 @@ const DEFAULT_STYLE: StyleConfig = {
   accentColor: DEFAULT_PROPOSAL_EMAIL_STYLE.accentColor,
   fontFamily: DEFAULT_PROPOSAL_EMAIL_STYLE.fontFamily,
   buttonRadius: DEFAULT_PROPOSAL_EMAIL_STYLE.buttonRadius,
+  bodyColor: DEFAULT_PROPOSAL_EMAIL_STYLE.bodyColor,
+  headingColor: DEFAULT_PROPOSAL_EMAIL_STYLE.headingColor,
+  bodyFontSize: DEFAULT_PROPOSAL_EMAIL_STYLE.bodyFontSize,
 };
 
 const FONT_OPTIONS = [
@@ -64,6 +71,26 @@ const RADIUS_OPTIONS = [
   { label: "Pill", value: "24px" },
 ];
 
+const FONT_SIZE_OPTIONS = [
+  { label: "13px", value: "13px" },
+  { label: "14px", value: "14px" },
+  { label: "15px", value: "15px" },
+  { label: "16px", value: "16px" },
+];
+
+// ── Live template IDs (wired to actual send paths) ──
+const LIVE_TEMPLATE_IDS = new Set([
+  "proposal",
+  "change_order",
+  "welcome",
+  "invoice",
+  "reminder",
+  "billing_digest",
+  "billing_alert",
+  "partner_outreach",
+  "checklist_followup",
+  "demand_letter",
+]);
 // ── Template definitions ──
 
 interface TemplateDef {
@@ -285,6 +312,9 @@ function buildPreviewHtml(
   const accent = style.accentColor;
   const font = style.fontFamily;
   const btnRadius = style.buttonRadius;
+  const headingClr = style.headingColor;
+  const bodyClr = style.bodyColor;
+  const fontSize = style.bodyFontSize;
 
   const resolve = (text: string) =>
     text
@@ -360,6 +390,9 @@ function buildPreviewHtml(
         accentColor: style.accentColor,
         fontFamily: style.fontFamily,
         buttonRadius: style.buttonRadius,
+        bodyColor: style.bodyColor,
+        headingColor: style.headingColor,
+        bodyFontSize: style.bodyFontSize,
       },
     });
   }
@@ -388,7 +421,7 @@ function buildPreviewHtml(
     ? `<img src="${co.logoUrl}" alt="${co.name}" width="320" style="display:block;max-width:320px;max-height:64px;height:auto;border:0;outline:none;text-decoration:none;" />`
     : `<span style="font-size:18px;font-weight:700;color:${accent};font-family:${font};">${co.name}</span>`;
 
-  const templateBody = buildTemplateBody(template.id, { greeting, bodyText, ctaText, signoffText, accent, accentFg, btnRadius, co });
+  const templateBody = buildTemplateBody(template.id, { greeting, bodyText, ctaText, signoffText, accent, accentFg, btnRadius, co, headingClr, bodyClr, fontSize });
   const stripeColor = template.id === "demand_letter" ? "#ef4444"
     : template.id === "checklist_followup" ? "#f59e0b"
     : accent;
@@ -410,8 +443,8 @@ function buildPreviewHtml(
                     ${contactLine ? `<p style="margin:4px 0 0;color:${MUTED};font-size:11px;line-height:1.4;max-width:280px;word-break:break-word;font-family:${font};">${contactLine}</p>` : ""}
                   </td>
                   ${doc.number ? `<td style="vertical-align:top;text-align:right;white-space:nowrap;width:30%;font-family:${font};">
-                    <p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:${MUTED};font-weight:600;font-family:${font};">${doc.label}</p>
-                    <p style="margin:2px 0 0;font-size:20px;font-weight:800;color:${HEADING};letter-spacing:-0.3px;line-height:1;font-family:${font};">${doc.number}</p>
+                     <p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:${MUTED};font-weight:600;font-family:${font};">${doc.label}</p>
+                    <p style="margin:2px 0 0;font-size:20px;font-weight:800;color:${headingClr};letter-spacing:-0.3px;line-height:1;font-family:${font};">${doc.number}</p>
                   </td>` : `<td style="vertical-align:top;text-align:right;width:30%;font-family:${font};">
                     <p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:${MUTED};font-weight:600;font-family:${font};">${doc.label}</p>
                   </td>`}
@@ -463,17 +496,20 @@ function buildTemplateBody(
     accentFg: string;
     btnRadius: string;
     co: CoInfo;
+    headingClr: string;
+    bodyClr: string;
+    fontSize: string;
   },
 ): string {
-  const { greeting, bodyText, ctaText, signoffText, accent, accentFg, btnRadius, co } = ctx;
+  const { greeting, bodyText, ctaText, signoffText, accent, accentFg, btnRadius, co, headingClr, bodyClr, fontSize } = ctx;
 
-  const greetingHtml = `<p style="margin:0 0 16px;font-size:15px;color:${HEADING};line-height:1.6;">${greeting}</p>`;
-  const bodyHtml = `<p style="margin:0 0 24px;font-size:15px;color:${BODY_COLOR};line-height:1.6;">${bodyText}</p>`;
+  const greetingHtml = `<p style="margin:0 0 16px;font-size:${fontSize};color:${headingClr};line-height:1.6;">${greeting}</p>`;
+  const bodyHtml = `<p style="margin:0 0 24px;font-size:${fontSize};color:${bodyClr};line-height:1.6;">${bodyText}</p>`;
   const ctaHtml = ctaBtn(ctaText, accent, accentFg, btnRadius);
   const signoffHtml = signoffText
-    ? `<p style="margin:24px 0 0;font-size:15px;color:${BODY_COLOR};line-height:1.6;">${signoffText}</p>
-       <p style="margin:16px 0 0;font-size:15px;color:${HEADING};">Best regards,<br/><strong>${co.name}</strong></p>`
-    : `<p style="margin:16px 0 0;font-size:15px;color:${HEADING};">— ${co.name}</p>`;
+    ? `<p style="margin:24px 0 0;font-size:${fontSize};color:${bodyClr};line-height:1.6;">${signoffText}</p>
+       <p style="margin:16px 0 0;font-size:${fontSize};color:${headingClr};">Best regards,<br/><strong>${co.name}</strong></p>`
+    : `<p style="margin:16px 0 0;font-size:${fontSize};color:${headingClr};">— ${co.name}</p>`;
 
   const thStyle = `padding:10px 16px;text-align:left;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;`;
   const tdStyle = `padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:${HEADING};`;
@@ -887,6 +923,9 @@ export function EmailTemplateGallery() {
     accentColor: resolvedFromSettings.accentColor || DEFAULT_STYLE.accentColor,
     fontFamily: resolvedFromSettings.fontFamily || DEFAULT_STYLE.fontFamily,
     buttonRadius: resolvedFromSettings.buttonRadius || DEFAULT_STYLE.buttonRadius,
+    bodyColor: resolvedFromSettings.bodyColor || DEFAULT_STYLE.bodyColor,
+    headingColor: resolvedFromSettings.headingColor || DEFAULT_STYLE.headingColor,
+    bodyFontSize: resolvedFromSettings.bodyFontSize || DEFAULT_STYLE.bodyFontSize,
   });
 
   // Load saved overrides per template
@@ -903,6 +942,9 @@ export function EmailTemplateGallery() {
           accentColor: resolved.accentColor || DEFAULT_STYLE.accentColor,
           fontFamily: resolved.fontFamily || DEFAULT_STYLE.fontFamily,
           buttonRadius: resolved.buttonRadius || DEFAULT_STYLE.buttonRadius,
+          bodyColor: resolved.bodyColor || DEFAULT_STYLE.bodyColor,
+          headingColor: resolved.headingColor || DEFAULT_STYLE.headingColor,
+          bodyFontSize: resolved.bodyFontSize || DEFAULT_STYLE.bodyFontSize,
         });
       }
       if (s.email_template_overrides) {
@@ -983,6 +1025,9 @@ export function EmailTemplateGallery() {
             accent_color: style.accentColor,
             font_family: style.fontFamily,
             button_radius: style.buttonRadius,
+            body_color: style.bodyColor,
+            heading_color: style.headingColor,
+            body_font_size: style.bodyFontSize,
           },
           email_template_overrides: templateOverridesPayload as any,
         },
@@ -999,6 +1044,9 @@ export function EmailTemplateGallery() {
       accent_color: style.accentColor,
       font_family: style.fontFamily,
       button_radius: style.buttonRadius,
+      body_color: style.bodyColor,
+      heading_color: style.headingColor,
+      body_font_size: style.bodyFontSize,
     });
     if (savedStyleStr !== currentStyleStr) return true;
     if (JSON.stringify(savedOverrides || {}) !== JSON.stringify(
@@ -1052,19 +1100,31 @@ export function EmailTemplateGallery() {
 
       {/* Template selector */}
       <div className="flex gap-2 flex-wrap">
-        {TEMPLATES.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTemplateId(t.id)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-              activeTemplateId === t.id
-                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                : "bg-card text-muted-foreground border-border hover:border-primary/30 hover:text-foreground"
-            }`}
-          >
-            {t.name}
-          </button>
-        ))}
+        {TEMPLATES.map((t) => {
+          const isLive = LIVE_TEMPLATE_IDS.has(t.id);
+          return (
+            <button
+              key={t.id}
+              onClick={() => setActiveTemplateId(t.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 ${
+                activeTemplateId === t.id
+                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                  : "bg-card text-muted-foreground border-border hover:border-primary/30 hover:text-foreground"
+              }`}
+            >
+              {isLive ? (
+                <Circle className="h-2 w-2 fill-emerald-500 text-emerald-500 shrink-0" />
+              ) : (
+                <span className={`text-[9px] px-1 py-px rounded font-semibold shrink-0 ${
+                  activeTemplateId === t.id
+                    ? "bg-primary-foreground/20 text-primary-foreground"
+                    : "bg-muted text-muted-foreground"
+                }`}>SOON</span>
+              )}
+              {t.name}
+            </button>
+          );
+        })}
       </div>
 
       {/* Side-by-side layout */}
@@ -1227,6 +1287,61 @@ export function EmailTemplateGallery() {
                             }}
                           />
                           {r.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <Separator />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">Heading Text Color</Label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={style.headingColor}
+                        onChange={(e) => setStyle((s) => ({ ...s, headingColor: e.target.value }))}
+                        className="w-10 h-10 rounded-lg border border-border cursor-pointer"
+                      />
+                      <Input
+                        value={style.headingColor}
+                        onChange={(e) => setStyle((s) => ({ ...s, headingColor: e.target.value }))}
+                        className="text-sm font-mono flex-1"
+                        placeholder="#1e293b"
+                      />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Greeting, totals, and headings</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">Body Text Color</Label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={style.bodyColor}
+                        onChange={(e) => setStyle((s) => ({ ...s, bodyColor: e.target.value }))}
+                        className="w-10 h-10 rounded-lg border border-border cursor-pointer"
+                      />
+                      <Input
+                        value={style.bodyColor}
+                        onChange={(e) => setStyle((s) => ({ ...s, bodyColor: e.target.value }))}
+                        className="text-sm font-mono flex-1"
+                        placeholder="#334155"
+                      />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Main paragraph and sign-off text</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">Body Font Size</Label>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {FONT_SIZE_OPTIONS.map((fs) => (
+                        <button
+                          key={fs.value}
+                          onClick={() => setStyle((s) => ({ ...s, bodyFontSize: fs.value }))}
+                          className={`px-3 py-2 rounded-lg border text-xs transition-all ${
+                            style.bodyFontSize === fs.value
+                              ? "border-primary bg-primary/5 text-primary font-medium"
+                              : "border-border text-muted-foreground hover:border-primary/30"
+                          }`}
+                        >
+                          {fs.label}
                         </button>
                       ))}
                     </div>
