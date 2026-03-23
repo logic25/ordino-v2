@@ -160,7 +160,7 @@ export function buildProposalEmailHtml({
     .filter((item) => !item.isOptional)
     .map(
       (item) =>
-        `<tr><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:#1e293b;">${item.name}</td><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;text-align:right;color:#1e293b;">${item.total}</td></tr>`,
+        `<tr><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:${emailHeadingColor};">${item.name}</td><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;text-align:right;color:${emailHeadingColor};">${item.total}</td></tr>`,
     )
     .join("");
 
