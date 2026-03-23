@@ -111,6 +111,13 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     })),
   ];
 
+  // Initialize selectedProjectIds when projects load (select all by default)
+  useEffect(() => {
+    if (selectedProjectIds === null && allNotableProjects.length > 0 && !draftLoaded) {
+      setSelectedProjectIds(allNotableProjects.map((p: any) => p.id));
+    }
+  }, [allNotableProjects, selectedProjectIds, draftLoaded]);
+
   // Load draft only once on open
   useEffect(() => {
     if (draft && !draftLoaded && !dirty && open) {
@@ -119,12 +126,19 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
       setCoverLetter(draft.cover_letter || "");
       setSubmitEmail(draft.submit_email || "");
       setStep(draft.wizard_step || 0);
+      // Restore selected project ids from draft metadata
+      const draftAny = draft as any;
+      if (draftAny.selected_project_ids && Array.isArray(draftAny.selected_project_ids)) {
+        setSelectedProjectIds(draftAny.selected_project_ids);
+      } else if (allNotableProjects.length > 0) {
+        setSelectedProjectIds(allNotableProjects.map((p: any) => p.id));
+      }
       setDraftLoaded(true);
     }
-  }, [draft, draftLoaded, dirty, open]);
+  }, [draft, draftLoaded, dirty, open, allNotableProjects]);
 
   useEffect(() => {
-    if (!open) { setDraftLoaded(false); setDirty(false); }
+    if (!open) { setDraftLoaded(false); setDirty(false); setSelectedProjectIds(null); }
   }, [open]);
 
   const saveDraft = useCallback((overrideStep?: number) => {
