@@ -26,6 +26,7 @@ import { DobNowFilingPrepSheet } from "@/components/projects/DobNowFilingPrepShe
 import { SendToBillingDialog } from "@/components/invoices/SendToBillingDialog";
 import { ComposeEmailDialog } from "@/components/emails/ComposeEmailDialog";
 import { cn, formatCurrency } from "@/lib/utils";
+import { predictBillDates, applyBillDatePredictions } from "@/hooks/useBillDatePrediction";
 import { serviceStatusStyles } from "@/components/projects/projectMockData";
 import type { MockService, MockContact, MockTimeEntry } from "@/components/projects/projectMockData";
 import type { ProjectWithRelations } from "@/hooks/useProjects";
