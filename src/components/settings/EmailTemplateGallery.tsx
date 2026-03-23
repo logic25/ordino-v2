@@ -923,6 +923,7 @@ export function EmailTemplateGallery() {
   const resolvedFromSettings = resolveEmailStyle(savedStyle);
   const [style, setStyle] = useState<StyleConfig>({
     accentColor: resolvedFromSettings.accentColor || DEFAULT_STYLE.accentColor,
+    accentTextColor: resolvedFromSettings.accentTextColor || resolvedFromSettings.accentColor || DEFAULT_STYLE.accentTextColor,
     fontFamily: resolvedFromSettings.fontFamily || DEFAULT_STYLE.fontFamily,
     buttonRadius: resolvedFromSettings.buttonRadius || DEFAULT_STYLE.buttonRadius,
     bodyColor: resolvedFromSettings.bodyColor || DEFAULT_STYLE.bodyColor,
