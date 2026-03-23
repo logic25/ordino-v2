@@ -474,6 +474,29 @@ export function ServicesFull({ services: initialServices, project, contacts, all
     queryClient.invalidateQueries({ queryKey: ["project-services-full"] });
   };
 
+  const [predicting, setPredicting] = useState(false);
+  const handlePredictBillDates = async () => {
+    setPredicting(true);
+    try {
+      const predictions = await predictBillDates(
+        project.id,
+        project.company_id,
+        orderedServices.map(s => ({ id: s.id, name: s.name, status: s.status, estimatedBillDate: s.estimatedBillDate }))
+      );
+      if (predictions.length === 0) {
+        toast({ title: "No predictions needed", description: "All services already have bill dates or are billed/paid." });
+        setPredicting(false);
+        return;
+      }
+      await applyBillDatePredictions(predictions);
+      queryClient.invalidateQueries({ queryKey: ["project-services-full"] });
+      toast({ title: "Bill dates predicted", description: `Set estimated dates for ${predictions.length} service(s) based on historical data.` });
+    } catch (err: any) {
+      toast({ title: "Prediction failed", description: err.message, variant: "destructive" });
+    }
+    setPredicting(false);
+  };
+
   const activeServices = orderedServices.filter(s => s.status !== "billed");
   const billedServices = orderedServices.filter(s => s.status === "billed");
   const services = activeServices;
