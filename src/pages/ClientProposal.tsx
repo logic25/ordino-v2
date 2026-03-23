@@ -329,51 +329,6 @@ export default function ClientProposalPage() {
   const lightBg = "#f8f9fa";
 
   const propertyAddress = proposal.properties?.address || "";
-  const emailStyle = resolveEmailStyle(company?.settings?.email_style);
-  const proposalTemplate = resolveProposalEmailTemplate(
-    {
-      subject: company?.settings?.email_template_overrides?.proposal?.subject,
-      greeting: company?.settings?.email_template_overrides?.proposal?.greeting,
-      bodyText: company?.settings?.email_template_overrides?.proposal?.body_text,
-      ctaText: company?.settings?.email_template_overrides?.proposal?.cta_text,
-      signoff: company?.settings?.email_template_overrides?.proposal?.signoff,
-    },
-    {
-      COMPANY_NAME: company?.name || "",
-      CLIENT_NAME: billTo?.name || proposal.client_name || "Client",
-      PROJECT_TITLE: proposal.title || "Your Project",
-      PROPERTY_ADDRESS: propertyAddress || "your project",
-      PROPOSAL_NUMBER: proposal.proposal_number ? `#${proposal.proposal_number}` : "",
-      AMOUNT: fmt(totalAmount),
-    },
-  );
-  const preparedForName = billTo?.name || proposal.client_name || "";
-  const proposalHtml = buildProposalEmailHtml({
-    clientName: billTo?.name || proposal.client_name || "Client",
-    proposalTitle: proposal.title || "Your Project",
-    proposalNumber: proposal.proposal_number || "",
-    propertyAddress,
-    preparedFor: preparedForName || undefined,
-    totalAmount: fmt(totalAmount),
-    depositAmount: fmt(depositAmt),
-    clientLink: "#proposal-signature",
-    companyName: company?.name || "Your Company",
-    companyEmail: company?.email || "",
-    companyPhone: company?.phone || "",
-    logoUrl: company?.logo_url || undefined,
-    companyAddress: company?.address || "",
-    items: items.map((item: any) => ({
-      name: item.name,
-      total: fmt(Number(item.total_price || item.quantity * item.unit_price || 0)),
-      isOptional: !!item.is_optional,
-    })),
-    greetingText: proposalTemplate.greeting,
-    bodyText: proposalTemplate.bodyText,
-    ctaText: proposalTemplate.ctaText,
-    signoffText: proposalTemplate.signoff,
-    style: emailStyle,
-  });
-  const proposalDocumentHtml = proposalHtml.match(/<body[^>]*>([\s\S]*)<\/body>/i)?.[1] ?? proposalHtml;
 
   return (
     <div className="min-h-screen bg-[#f1f5f9]">
