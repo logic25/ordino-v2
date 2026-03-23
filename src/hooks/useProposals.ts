@@ -748,6 +748,7 @@ export function useSendProposal() {
       });
 
       const subject = resolvedTemplate.subject;
+      const safeLogoUrl = await getLogoDataUrl(companyLogoUrl);
       const htmlBody = buildProposalEmailHtml({
         clientName,
         proposalTitle: proposal.title || "Your Project",
@@ -760,7 +761,7 @@ export function useSendProposal() {
         companyName,
         companyEmail,
         companyPhone,
-        logoUrl: companyLogoUrl,
+        logoUrl: safeLogoUrl || companyLogoUrl,
         companyAddress,
         items: items.map((i: any) => ({
           name: i.name,

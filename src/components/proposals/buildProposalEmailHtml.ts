@@ -166,82 +166,94 @@ export function buildProposalEmailHtml({
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f8fafc;font-family:${resolvedStyle.fontFamily};">
-  <div style="max-width:600px;margin:0 auto;padding:32px 16px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f8fafc;margin:0;padding:0;font-family:${resolvedStyle.fontFamily};">
+    <tr>
+      <td align="center" style="padding:32px 16px;font-family:${resolvedStyle.fontFamily};">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;font-family:${resolvedStyle.fontFamily};">
+          <tr>
+            <td style="background:#ffffff;padding:28px 32px 0 32px;border:1px solid #e2e8f0;border-bottom:none;border-radius:12px 12px 0 0;overflow:hidden;font-family:${resolvedStyle.fontFamily};">
+              <table role="presentation" style="width:100%;table-layout:fixed;" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="vertical-align:top;width:70%;padding-right:20px;font-family:${resolvedStyle.fontFamily};">
+                    ${logoUrl ? `<img src="${logoUrl}" alt="${companyName}" width="320" style="display:block;max-width:320px;max-height:64px;height:auto;border:0;outline:none;text-decoration:none;" />` : `<span style="font-size:18px;font-weight:700;color:${documentAccent};font-family:${resolvedStyle.fontFamily};">${companyName}</span>`}
+                    ${companyAddress ? `<p style="margin:10px 0 0;color:#94a3b8;font-size:11px;line-height:1.4;max-width:280px;font-family:${resolvedStyle.fontFamily};">${companyAddress}</p>` : ""}
+                    ${contactLine ? `<p style="margin:4px 0 0;color:#94a3b8;font-size:11px;line-height:1.4;max-width:280px;word-break:break-word;font-family:${resolvedStyle.fontFamily};">${contactLine}</p>` : ""}
+                  </td>
+                  ${proposalNumber ? `<td style="vertical-align:top;text-align:right;white-space:nowrap;width:30%;font-family:${resolvedStyle.fontFamily};">
+                    <p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;font-weight:600;font-family:${resolvedStyle.fontFamily};">Proposal</p>
+                    <p style="margin:2px 0 0;font-size:20px;font-weight:800;color:#1e293b;letter-spacing:-0.3px;line-height:1;font-family:${resolvedStyle.fontFamily};">#${proposalNumber}</p>
+                  </td>` : ""}
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#ffffff;padding:0 48px;">
+              <div style="height:3px;line-height:3px;font-size:3px;background:${documentAccent};">&nbsp;</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#ffffff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;font-family:${resolvedStyle.fontFamily};">
+              ${preparedFor ? `
+              <table role="presentation" style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 18px;font-family:${resolvedStyle.fontFamily};">
+                    <p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#94a3b8;font-weight:600;font-family:${resolvedStyle.fontFamily};">Prepared For</p>
+                    <p style="margin:4px 0 0;font-size:14px;color:#1e293b;font-weight:600;font-family:${resolvedStyle.fontFamily};">${preparedFor}</p>
+                  </td>
+                  <td style="width:16px;">&nbsp;</td>
+                  <td style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 18px;font-family:${resolvedStyle.fontFamily};">
+                    <p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#94a3b8;font-weight:600;font-family:${resolvedStyle.fontFamily};">Project</p>
+                    <p style="margin:4px 0 0;font-size:14px;color:#1e293b;font-weight:600;font-family:${resolvedStyle.fontFamily};">${proposalTitle}</p>
+                    ${propertyAddress ? `<p style="margin:2px 0 0;font-size:12px;color:#64748b;font-family:${resolvedStyle.fontFamily};">${propertyAddress}</p>` : ""}
+                  </td>
+                </tr>
+              </table>
+              ` : ""}
 
-    <div style="background:#ffffff;padding:28px 32px;border-radius:12px 12px 0 0;border:1px solid #e2e8f0;border-bottom:none;overflow:hidden;">
-      <table style="width:100%;table-layout:fixed;" cellpadding="0" cellspacing="0">
-        <tr>
-          <td style="vertical-align:top;width:70%;padding-right:20px;">
-            ${logoUrl ? `<div style="max-width:320px;height:64px;overflow:hidden;"><img src="${logoUrl}" alt="${companyName}" style="display:block;max-width:100%;max-height:64px;width:auto;height:auto;object-fit:contain;object-position:left center;" /></div>` : `<span style="font-size:18px;font-weight:700;color:${documentAccent};">${companyName}</span>`}
-            ${companyAddress ? `<p style="margin:10px 0 0;color:#94a3b8;font-size:11px;line-height:1.4;max-width:280px;">${companyAddress}</p>` : ""}
-            ${contactLine ? `<p style="margin:4px 0 0;color:#94a3b8;font-size:11px;line-height:1.4;max-width:280px;word-break:break-word;">${contactLine}</p>` : ""}
-          </td>
-          ${proposalNumber ? `<td style="vertical-align:top;text-align:right;white-space:nowrap;width:30%;">
-            <p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;font-weight:600;">Proposal</p>
-            <p style="margin:2px 0 0;font-size:20px;font-weight:800;color:#1e293b;letter-spacing:-0.3px;line-height:1;">#${proposalNumber}</p>
-          </td>` : ""}
-        </tr>
-      </table>
-    </div>
+              <p style="margin:0 0 16px;font-size:15px;color:#1e293b;line-height:1.6;font-family:${resolvedStyle.fontFamily};">${resolvedGreeting}</p>
+              <p style="margin:0 0 24px;font-size:15px;color:#334155;line-height:1.6;font-family:${resolvedStyle.fontFamily};">
+                ${resolvedBodyText}
+              </p>
 
-    <div style="height:3px;background:${documentAccent};margin:0 48px;"></div>
+              <table role="presentation" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:24px;border-collapse:separate;" cellpadding="0" cellspacing="0" border="0">
+                <thead>
+                  <tr style="background:#f8fafc;">
+                    <th style="padding:10px 16px;text-align:left;font-size:10px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.8px;font-weight:600;font-family:${resolvedStyle.fontFamily};">Service</th>
+                    <th style="padding:10px 16px;text-align:right;font-size:10px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.8px;font-weight:600;font-family:${resolvedStyle.fontFamily};">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${serviceRows}
+                  ${optionalRows}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="2" style="border-top:1px solid #e2e8f0;padding:14px 16px;font-family:${resolvedStyle.fontFamily};">
+                      <table role="presentation" style="width:100%;" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td style="font-size:15px;font-weight:700;color:#1e293b;font-family:${resolvedStyle.fontFamily};">Total</td>
+                          <td style="font-size:18px;font-weight:800;color:#1e293b;text-align:right;font-family:${resolvedStyle.fontFamily};">${totalAmount}</td>
+                        </tr>
+                        <tr>
+                          <td style="font-size:13px;color:#94a3b8;padding-top:4px;font-family:${resolvedStyle.fontFamily};">Retainer Due</td>
+                          <td style="font-size:14px;font-weight:600;color:#94a3b8;text-align:right;padding-top:4px;font-family:${resolvedStyle.fontFamily};">${depositAmount}</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
 
-    <div style="background:#ffffff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;">
-      ${preparedFor ? `
-      <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0">
-        <tr>
-          <td style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 18px;">
-            <p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#94a3b8;font-weight:600;">Prepared For</p>
-            <p style="margin:4px 0 0;font-size:14px;color:#1e293b;font-weight:600;">${preparedFor}</p>
-          </td>
-          <td style="width:16px;"></td>
-          <td style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 18px;">
-            <p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#94a3b8;font-weight:600;">Project</p>
-            <p style="margin:4px 0 0;font-size:14px;color:#1e293b;font-weight:600;">${proposalTitle}</p>
-            ${propertyAddress ? `<p style="margin:2px 0 0;font-size:12px;color:#64748b;">${propertyAddress}</p>` : ""}
-          </td>
-        </tr>
-      </table>
-      ` : ""}
-
-      <p style="margin:0 0 16px;font-size:15px;color:#1e293b;line-height:1.6;">${resolvedGreeting}</p>
-      <p style="margin:0 0 24px;font-size:15px;color:#334155;line-height:1.6;">
-        ${resolvedBodyText}
-      </p>
-
-      <div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:24px;">
-        <table style="width:100%;border-collapse:collapse;">
-          <thead>
-            <tr style="background:#f8fafc;">
-              <th style="padding:10px 16px;text-align:left;font-size:10px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.8px;font-weight:600;">Service</th>
-              <th style="padding:10px 16px;text-align:right;font-size:10px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.8px;font-weight:600;">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${serviceRows}
-            ${optionalRows}
-          </tbody>
+              ${ctaSection}
+              ${signoffSection}
+            </td>
+          </tr>
+          ${contactLine ? `<tr><td style="text-align:center;padding:16px;font-size:11px;color:#94a3b8;font-family:${resolvedStyle.fontFamily};">${contactLine}</td></tr>` : ""}
         </table>
-        <div style="border-top:1px solid #e2e8f0;padding:14px 16px;">
-          <table style="width:100%;">
-            <tr>
-              <td style="font-size:15px;font-weight:700;color:#1e293b;">Total</td>
-              <td style="font-size:18px;font-weight:800;color:#1e293b;text-align:right;">${totalAmount}</td>
-            </tr>
-            <tr>
-              <td style="font-size:13px;color:#94a3b8;padding-top:4px;">Retainer Due</td>
-              <td style="font-size:14px;font-weight:600;color:#94a3b8;text-align:right;padding-top:4px;">${depositAmount}</td>
-            </tr>
-          </table>
-        </div>
-      </div>
-
-      ${ctaSection}
-      ${signoffSection}
-    </div>
-
-    ${contactLine ? `<div style="text-align:center;padding:16px;font-size:11px;color:#94a3b8;">${contactLine}</div>` : ""}
-  </div>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`;
 }
