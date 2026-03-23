@@ -16,7 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
   Pencil, FileText, User, Loader2, ExternalLink, ChevronRight, ChevronDown,
   Send, XCircle, CheckCheck, Plus, AlertTriangle, Trash2, DollarSign,
-  GripVertical, Building2, CheckCircle2, Mail,
+  GripVertical, Building2, CheckCircle2, Mail, Sparkles,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -26,11 +26,45 @@ import { DobNowFilingPrepSheet } from "@/components/projects/DobNowFilingPrepShe
 import { SendToBillingDialog } from "@/components/invoices/SendToBillingDialog";
 import { ComposeEmailDialog } from "@/components/emails/ComposeEmailDialog";
 import { cn, formatCurrency } from "@/lib/utils";
+import { predictBillDates, applyBillDatePredictions } from "@/hooks/useBillDatePrediction";
 import { serviceStatusStyles } from "@/components/projects/projectMockData";
 import type { MockService, MockContact, MockTimeEntry } from "@/components/projects/projectMockData";
 import type { ProjectWithRelations } from "@/hooks/useProjects";
 import type { ChangeOrder } from "@/hooks/useChangeOrders";
 import { format } from "date-fns";
+
+const WORK_TYPE_ABBREVS: Record<string, string> = {
+  "plumbing": "PL",
+  "sprinkler": "SP",
+  "general construction": "GC",
+  "mechanical": "MECH",
+  "electrical": "ELEC",
+  "structural": "STR",
+  "fire alarm": "FA",
+  "fire suppression": "FS",
+  "elevator": "ELEV",
+  "boiler": "BLR",
+  "standpipe": "STP",
+  "construction equipment": "CE",
+  "demolition": "DEM",
+  "sign": "SIGN",
+  "curb cut": "CC",
+  "sidewalk": "SW",
+  "scaffold": "SCAF",
+  "fence": "FNC",
+  "oil burner": "OB",
+  "fuel gas": "FG",
+  "fuel oil": "FO",
+};
+
+function abbreviateWorkType(wt: string): string {
+  const lower = wt.toLowerCase().trim();
+  if (WORK_TYPE_ABBREVS[lower]) return WORK_TYPE_ABBREVS[lower];
+  // Check if already abbreviated (2-4 chars all caps)
+  if (/^[A-Z]{2,5}$/.test(wt.trim())) return wt.trim();
+  // Fallback: first letters of each word
+  return wt.split(/\s+/).map(w => w[0]?.toUpperCase()).join("") || wt;
+}
 
 function AssignedToField({ service }: { service: MockService }) {
   const { data: profiles = [] } = useCompanyProfiles();
@@ -109,9 +143,10 @@ function ServiceExpandedDetail({ service, projectName, projectId }: { service: M
   };
 
   return (
-    <div className="px-8 py-5 space-y-5 bg-muted/10">
-      <AssignedToField service={service} />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div className="px-8 py-4 space-y-4 bg-muted/10">
+      {/* AssignedToField commented out per user request */}
+      {/* <AssignedToField service={service} /> */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <FileText className="h-3.5 w-3.5" /> Scope of Work
@@ -146,7 +181,7 @@ function ServiceExpandedDetail({ service, projectName, projectId }: { service: M
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4">
         <div>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <DollarSign className="h-3.5 w-3.5" /> Estimated Job Cost
@@ -439,6 +474,29 @@ export function ServicesFull({ services: initialServices, project, contacts, all
     queryClient.invalidateQueries({ queryKey: ["project-services-full"] });
   };
 
+  const [predicting, setPredicting] = useState(false);
+  const handlePredictBillDates = async () => {
+    setPredicting(true);
+    try {
+      const predictions = await predictBillDates(
+        project.id,
+        project.company_id,
+        orderedServices.map(s => ({ id: s.id, name: s.name, status: s.status, estimatedBillDate: s.estimatedBillDate }))
+      );
+      if (predictions.length === 0) {
+        toast({ title: "No predictions needed", description: "All services already have bill dates or are billed/paid." });
+        setPredicting(false);
+        return;
+      }
+      await applyBillDatePredictions(predictions);
+      queryClient.invalidateQueries({ queryKey: ["project-services-full"] });
+      toast({ title: "Bill dates predicted", description: `Set estimated dates for ${predictions.length} service(s) based on historical data.` });
+    } catch (err: any) {
+      toast({ title: "Prediction failed", description: err.message, variant: "destructive" });
+    }
+    setPredicting(false);
+  };
+
   const activeServices = orderedServices.filter(s => s.status !== "billed");
   const billedServices = orderedServices.filter(s => s.status === "billed");
   const services = activeServices;
@@ -479,7 +537,21 @@ export function ServicesFull({ services: initialServices, project, contacts, all
             <TableHead>Service</TableHead>
             <TableHead className="whitespace-nowrap">Status</TableHead>
             <TableHead>Work Types</TableHead>
-            <TableHead>Est. Bill Date</TableHead>
+            <TableHead>
+              <div className="flex items-center gap-1">
+                Est. Bill Date
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 text-muted-foreground hover:text-primary"
+                  title="AI predict bill dates from historical data"
+                  onClick={handlePredictBillDates}
+                  disabled={predicting}
+                >
+                  {predicting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                </Button>
+              </div>
+            </TableHead>
             <TableHead className="text-right">Price</TableHead>
             <TableHead className="text-right">Cost</TableHead>
             <TableHead className="text-right">Billed</TableHead>
@@ -580,7 +652,7 @@ export function ServicesFull({ services: initialServices, project, contacts, all
                         </TableCell>
                         <TableCell>
                           {(svc.subServices || []).length > 0 ? (
-                            <div className="flex gap-1 flex-wrap">{(svc.subServices || []).map((d) => <Badge key={d} variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">{d}</Badge>)}</div>
+                            <div className="flex gap-1 flex-wrap">{(svc.subServices || []).map((d) => <Badge key={d} variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">{abbreviateWorkType(d)}</Badge>)}</div>
                           ) : <span className="text-xs text-muted-foreground">—</span>}
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
