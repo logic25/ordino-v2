@@ -387,13 +387,15 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
    const inlineAutoRef = useRef<HTMLDivElement>(null);
 
    // Name fields that should show inline contact autocomplete
-   const NAME_FIELD_TO_SECTION: Record<string, string> = {
-     applicant_name: "applicant",
-     owner_name: "owner",
-     gc_name: "gc",
-     sia_name: "sia",
-     tpp_name: "tpp",
-   };
+    const NAME_FIELD_TO_SECTION: Record<string, string> = {
+      applicant_first_name: "applicant",
+      applicant_name: "applicant",
+      owner_first_name: "owner",
+      owner_name: "owner",
+      gc_name: "gc",
+      sia_name: "sia",
+      tpp_name: "tpp",
+    };
 
    // Close inline autocomplete on outside click
    useEffect(() => {
