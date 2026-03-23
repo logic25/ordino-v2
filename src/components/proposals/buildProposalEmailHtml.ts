@@ -111,7 +111,7 @@ export function buildProposalEmailHtml({
             ${optionalRows}
           </tbody>
         </table>
-        <div style="border-top:2px solid #e2e8f0;padding:14px 16px;">
+        <div style="border-top:1px solid #e2e8f0;padding:14px 16px;">
           <table style="width:100%;">
             <tr>
               <td style="font-size:15px;font-weight:700;color:#1e293b;">Total</td>
