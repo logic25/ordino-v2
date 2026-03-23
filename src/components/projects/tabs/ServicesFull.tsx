@@ -16,7 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
   Pencil, FileText, User, Loader2, ExternalLink, ChevronRight, ChevronDown,
   Send, XCircle, CheckCheck, Plus, AlertTriangle, Trash2, DollarSign,
-  GripVertical, Building2, CheckCircle2, Mail,
+  GripVertical, Building2, CheckCircle2, Mail, Sparkles,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
