@@ -964,7 +964,7 @@ export function COSummaryView({
                         <TableRow key={v.violationNum}>
                           <TableCell className="font-mono text-xs">{v.violationNum}</TableCell>
                           <TableCell className="text-xs">{v.type}</TableCell>
-                          <TableCell className="text-xs">{format(new Date(v.fileDate), "MM/dd/yyyy")}</TableCell>
+                          <TableCell className="text-xs">{safeFormat(v.fileDate, "MM/dd/yyyy")}</TableCell>
                           <TableCell><Badge variant="outline" className={STATUS_COLORS[v.status]}>{v.status}</Badge></TableCell>
                           <TableCell><Badge variant="outline" className={PRIORITY_COLORS[v.priority]}>{v.priority}</Badge></TableCell>
                           <TableCell className="text-sm">{v.penalty ? `$${v.penalty.toLocaleString()}` : "—"}</TableCell>
