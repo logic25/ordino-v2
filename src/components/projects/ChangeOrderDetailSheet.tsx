@@ -288,39 +288,36 @@ export function ChangeOrderDetailSheet({
       const fileName = `${co.co_number.replace("#", "")}_${co.title.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`;
       const companyName = companySettings?.name || "Our Company";
       const projectAddr = projectInfo?.address || "the project";
+      const settings = companySettings?.settings;
+      const emailStyle = resolveEmailStyle(settings?.email_style);
+      const depositPct = (co as any).deposit_percentage || 0;
+      const depositAmt = depositPct > 0 ? fmt(Math.abs(co.amount) * depositPct / 100) : undefined;
 
-      const signingSection = signingLink
-        ? `<div style="margin: 24px 0; padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center;">
-            <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #1c2127;">Review & Sign Online</p>
-            <p style="margin: 0 0 16px 0; font-size: 13px; color: #64748b;">Click below to review the full change order and sign electronically.</p>
-            <a href="${signingLink}" style="display: inline-block; padding: 12px 32px; background: hsl(38, 92%, 50%); color: #fff; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 14px;">Review & Sign Change Order</a>
-          </div>
-          <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0 0 16px 0;">Or you may print the attached PDF and sign manually.</p>`
-        : `<p>Please review the attached PDF at your earliest convenience. If you have any questions, feel free to reply to this email.</p>`;
+      const htmlBody = buildChangeOrderEmailHtml({
+        contactName,
+        coNumber: co.co_number,
+        coTitle: co.title,
+        amount: fmt(co.amount),
+        description: co.description || undefined,
+        reason: co.reason || undefined,
+        signingLink,
+        companyName,
+        companyEmail: settings?.company_email,
+        companyPhone: settings?.company_phone,
+        companyAddress: companySettings?.address || settings?.company_address,
+        logoUrl: companySettings?.logo_url || settings?.company_logo_url || "",
+        projectAddress: projectAddr,
+        depositPercentage: depositPct,
+        depositAmount: depositAmt,
+        style: emailStyle,
+      });
 
       // Send the email via gmail-send edge function
       const { data: sendResult, error: sendError } = await supabase.functions.invoke("gmail-send", {
         body: {
           to: contactEmail,
-          subject: `Change Order ${co.co_number} – ${co.title}`,
-          html_body: `<div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
-            <div style="background: #1c2127; color: #fff; padding: 20px 24px; border-radius: 8px 8px 0 0;">
-              <h1 style="margin: 0; font-size: 18px; font-weight: 800; letter-spacing: 0.5px;">CHANGE ORDER</h1>
-              <p style="margin: 4px 0 0; font-size: 13px; opacity: 0.8;">${co.co_number} · ${projectAddr}</p>
-            </div>
-            <div style="padding: 24px; background: #fff; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px;">
-              <p style="margin: 0 0 16px;">Hi ${contactName},</p>
-              <p style="margin: 0 0 16px;">${companyName} has issued <strong>Change Order ${co.co_number}</strong> for ${projectAddr}.</p>
-              <table style="margin: 0 0 16px; border-collapse: collapse; width: 100%;">
-                <tr><td style="padding: 6px 12px 6px 0; font-weight: 600; color: #64748b; font-size: 13px;">Title:</td><td style="padding: 6px 0; font-size: 13px;">${co.title}</td></tr>
-                <tr><td style="padding: 6px 12px 6px 0; font-weight: 600; color: #64748b; font-size: 13px;">Amount:</td><td style="padding: 6px 0; font-size: 13px; font-weight: 700;">${fmt(co.amount)}</td></tr>
-                ${co.description ? `<tr><td style="padding: 6px 12px 6px 0; font-weight: 600; color: #64748b; font-size: 13px;">Services:</td><td style="padding: 6px 0; font-size: 13px;">${co.description}</td></tr>` : ""}
-                ${co.reason ? `<tr><td style="padding: 6px 12px 6px 0; font-weight: 600; color: #64748b; font-size: 13px;">Reason:</td><td style="padding: 6px 0; font-size: 13px;">${co.reason}</td></tr>` : ""}
-              </table>
-              ${signingSection}
-              <p style="margin: 16px 0 0;">Thank you,<br/>${companyName}</p>
-            </div>
-          </div>`,
+          subject: `Change Order ${co.co_number} - ${co.title}`,
+          html_body: htmlBody,
           attachments: [
             {
               filename: fileName,
