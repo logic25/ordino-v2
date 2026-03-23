@@ -151,15 +151,12 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
   };
 
   const renderExpandedDetails = (app: COApplication, subsequents?: COApplication[]) => {
-    const allApps = subsequents ? [app, ...subsequents] : [app];
-    const rowKey = app.jobNum.replace(/\D/g, "") || app.jobNum;
-
     return (
       <TableRow className="bg-muted/20 hover:bg-muted/20">
         <TableCell colSpan={8} className="p-0">
           <div className="px-6 py-4 space-y-4">
-            {/* Detail grid: Dates, People, Cost */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Detail grid: Dates, People, Cost, Details */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="space-y-1">
                 <p className="text-sm font-medium flex items-center gap-1.5">
                   <Calendar className="h-3.5 w-3.5 text-muted-foreground" /> Dates
@@ -187,23 +184,33 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
                   <p>Est. Cost: <span className="text-foreground">—</span></p>
                 </div>
               </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium flex items-center gap-1.5">
+                  <Building2 className="h-3.5 w-3.5 text-muted-foreground" /> Details
+                </p>
+                <div className="text-sm text-muted-foreground space-y-0.5">
+                  <p>Work Type: <span className="text-foreground">{app.workType ? `${app.workType} — ${WORK_TYPE_LABELS[app.workType] || app.workType}` : "—"}</span></p>
+                  <p>Job Type: <span className="text-foreground">{app.jobType || "—"}</span></p>
+                  <p>Floor: <span className="text-foreground">{app.floor || "—"}</span></p>
+                  {app.docNum && <p>Doc #: <span className="text-foreground">{app.docNum}</span></p>}
+                </div>
+              </div>
             </div>
 
             {/* Description */}
             {app.desc && (
               <div className="space-y-1">
                 <p className="text-sm font-medium flex items-center gap-1.5">
-                  <Building2 className="h-3.5 w-3.5 text-muted-foreground" /> Description
+                  <FileText className="h-3.5 w-3.5 text-muted-foreground" /> Description
                 </p>
                 <p className="text-sm">{app.desc}</p>
               </div>
             )}
 
-            {/* Status code info */}
+            {/* Status info */}
             <p className="text-xs text-muted-foreground italic">
               Status: {app.status}
-              {app.workType && ` · Work Type: ${WORK_TYPE_LABELS[app.workType] || app.workType}`}
-              {app.jobType && ` · Job Type: ${app.jobType}`}
+              {app.source && ` · Source: ${getSourceLabel(app.source)}`}
             </p>
 
             {/* Related Filings (subsequents) */}
@@ -227,6 +234,9 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
                       <p className="text-xs text-muted-foreground">
                         Applicant: {sub.tenant || "—"}
                         {sub.fileDate && ` · Filed: ${formatDateSafe(sub.fileDate, "MM/dd/yy")}`}
+                        {sub.workType && ` · ${WORK_TYPE_LABELS[sub.workType] || sub.workType}`}
+                        {sub.jobType && ` · ${sub.jobType}`}
+                        {sub.floor && ` · Floor: ${sub.floor}`}
                       </p>
                     </div>
                   ))}
@@ -242,15 +252,7 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
                 className="text-xs gap-1.5 text-muted-foreground hover:text-foreground"
                 onClick={(e) => { e.stopPropagation(); openDrawer(app); }}
               >
-                <ClipboardList className="h-3.5 w-3.5" /> Notes
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs gap-1.5 text-muted-foreground hover:text-foreground"
-                onClick={(e) => { e.stopPropagation(); openDrawer(app); }}
-              >
-                <Users className="h-3.5 w-3.5" /> Tenant
+                <ClipboardList className="h-3.5 w-3.5" /> Notes & Actions
               </Button>
               <div className="ml-auto">
                 <Button
