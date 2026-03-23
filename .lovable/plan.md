@@ -1,43 +1,18 @@
 
 
-## Plan: Fix Work Types (Disciplines) Not Showing in Services Table
+## Plan: Simplify Contact Roles + Replace DOB Role Column
 
-### Problem
+### Status: Implemented ✅
 
-The services table shows "—" for work types because:
-1. The `disciplines` column on the `services` record is `null` — this project was converted before the disciplines-carry-over code was added
-2. The planned fallback (looking up disciplines from the original `proposal_items`) was never implemented
+### Changes Made
 
-Database confirms: service `ALT-2 D14 Approval - Regular` has `disciplines: null`, but the matching proposal item has `disciplines: [Plumbing, General Construction]`.
+1. **Removed "Signer" role** — `ContactRole` type now: `bill_to | cc | applicant`
+2. **Updated role options** — ProposalContactsSection shows Bill To, Applicant, CC
+3. **Updated migration logic** — `migrateProposalContactsToProject` migrates only `applicant` and `bill_to`, treats legacy `sign` as `bill_to`
+4. **Replaced "DOB Role" column** — ContactsFull.tsx now shows project role (Bill To, Applicant, Building Owner, CC, Contact) instead of `dobRoleLabels[c.dobRole]`
+5. **Updated role display** — `useProjectDetail.ts` maps roles correctly without "Signer"
+6. **Database migration** — Existing `sign` roles converted to `bill_to` in both `proposal_contacts` and `project_contacts`
+7. **PDF signature compat** — Preview modal and client proposal still check for legacy `sign` contacts as fallback
 
-### Fix
-
-**File: `src/hooks/useProjectDetail.ts`**
-
-In `useProjectServices`, after fetching services, also fetch the project's proposal and its items' disciplines. For any service where `disciplines` is null/empty, match by name to the proposal item and use its disciplines as a fallback. Also backfill the database so the lookup only happens once.
-
-Steps:
-1. Get the project's `proposal_id` from the `projects` table (already available via the project query elsewhere, but we need it here)
-2. Query `proposals` for `converted_project_id = projectId` to find the source proposal
-3. Query `proposal_items` for that proposal's disciplines
-4. For each service with null disciplines, match by name and apply the proposal item's disciplines
-5. Fire off a background `supabase.from("services").update({ disciplines })` to persist the backfill so future loads don't need the lookup
-
-This is a ~15-line addition to the existing `useProjectServices` function, requiring no schema changes.
-
-### Technical Details
-
-```text
-useProjectServices(projectId)
-  ├── fetch services (existing)
-  ├── fetch billing_requests (existing)
-  ├── fetch PIS responses (existing)
-  ├── NEW: fetch proposal where converted_project_id = projectId
-  ├── NEW: fetch proposal_items with disciplines for that proposal
-  └── map services:
-        if svc.disciplines is null → look up matching proposal_item by name
-        → use its disciplines, and fire background update to persist
-```
-
-No new files. Single file edit to `src/hooks/useProjectDetail.ts`.
-
+### Deferred
+- PIS owner auto-dedup into CRM contacts (synthetic owner row still works as-is)
