@@ -391,6 +391,7 @@ function buildPreviewHtml(
       signoffText: resolvedProposalTemplate.signoff,
       style: {
         accentColor: style.accentColor,
+        accentTextColor: style.accentTextColor,
         fontFamily: style.fontFamily,
         buttonRadius: style.buttonRadius,
         bodyColor: style.bodyColor,
