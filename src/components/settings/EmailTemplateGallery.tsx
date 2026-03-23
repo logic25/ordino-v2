@@ -17,6 +17,7 @@ import {
   resolveProposalEmailTemplate,
   resolveEmailStyle,
 } from "@/components/proposals/buildProposalEmailHtml";
+import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 
 // ── Types ──
