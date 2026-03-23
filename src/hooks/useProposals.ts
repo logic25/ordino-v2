@@ -677,54 +677,38 @@ export function useSendProposal() {
       const depositPct = Number((proposal as any).deposit_percentage || 0);
       const depositAmt = Number((proposal as any).deposit_required || 0) || (depositPct > 0 ? totalAmount * (depositPct / 100) : 0);
 
-      // 5. Build email
-      const serviceRows = items
-        .filter((i: any) => !i.is_optional)
-        .map((i: any) => `<tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;">${i.name}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;text-align:right;">${fmt(Number(i.total_price || i.quantity * i.unit_price || 0))}</td></tr>`)
-        .join("");
-      const optionalRows = items
-        .filter((i: any) => i.is_optional)
-        .map((i: any) => `<tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#64748b;font-style:italic;">${i.name} (optional)</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;text-align:right;color:#64748b;">${fmt(Number(i.total_price || i.quantity * i.unit_price || 0))}</td></tr>`)
-        .join("");
+      // 5. Build email using branded template
+      const { buildProposalEmailHtml } = await import("@/components/proposals/buildProposalEmailHtml");
 
-      const footerParts = [
-        companyEmail ? `<a href="mailto:${companyEmail}" style="color:#64748b;">${companyEmail}</a>` : null,
-        companyPhone ? `<span style="color:#64748b;">${companyPhone}</span>` : null,
-      ].filter(Boolean).join(" &nbsp;|&nbsp; ");
+      // Find bill_to contact for "Prepared For"
+      const { data: proposalContacts } = await supabase
+        .from("proposal_contacts")
+        .select("*")
+        .eq("proposal_id", id);
+      const billToContact = (proposalContacts || []).find((c: any) => c.role === "bill_to");
+      const preparedForName = billToContact?.name || proposal.client_name || "";
 
       const subject = `Proposal ${proposal.proposal_number} — ${proposal.title}`;
-      const htmlBody = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;">
-  <div style="max-width:600px;margin:0 auto;padding:32px 16px;">
-    <div style="background:#1e293b;padding:24px 32px;border-radius:12px 12px 0 0;">
-      ${companyLogoUrl ? `<img src="${companyLogoUrl}" alt="${companyName}" style="max-height:48px;" />` : `<h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;">${companyName}</h1>`}
-      ${companyAddress ? `<p style="margin:6px 0 0;color:#94a3b8;font-size:12px;">${companyAddress}</p>` : ""}
-      ${companyPhone || companyEmail ? `<p style="margin:2px 0 0;color:#94a3b8;font-size:12px;">${[companyPhone ? `Tel: ${companyPhone}` : "", companyEmail].filter(Boolean).join(" | ")}</p>` : ""}
-    </div>
-    <div style="background:#ffffff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;">
-      <p style="margin:0 0 16px;font-size:15px;color:#1e293b;">Dear ${clientName.split(" ")[0]},</p>
-      <p style="margin:0 0 24px;font-size:15px;color:#334155;">Thank you for the opportunity to work with you. We've prepared a proposal for <strong>${proposal.title}</strong> at <strong>${(proposal as any).properties?.address || ""}</strong>.</p>
-      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:24px;">
-        <table style="width:100%;border-collapse:collapse;">
-          <thead><tr style="border-bottom:2px solid #e2e8f0;"><th style="padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:#64748b;">Service</th><th style="padding:8px 12px;text-align:right;font-size:11px;text-transform:uppercase;color:#64748b;">Amount</th></tr></thead>
-          <tbody>${serviceRows}${optionalRows}</tbody>
-        </table>
-        <div style="border-top:2px solid #1e293b;margin-top:8px;padding-top:12px;">
-          <table style="width:100%;"><tr><td style="font-size:15px;font-weight:700;color:#1e293b;">Total</td><td style="font-size:18px;font-weight:800;color:#1e293b;text-align:right;">${fmt(totalAmount)}</td></tr>
-          <tr><td style="font-size:13px;color:#64748b;padding-top:4px;">Retainer Due</td><td style="font-size:14px;font-weight:600;color:#64748b;text-align:right;padding-top:4px;">${fmt(depositAmt)}</td></tr></table>
-        </div>
-      </div>
-      <div style="text-align:center;margin:32px 0;">
-        <a href="${clientLink}" style="display:inline-block;background:#d97706;color:#ffffff;text-decoration:none;padding:14px 40px;border-radius:8px;font-size:16px;font-weight:700;">Review &amp; Sign Proposal</a>
-      </div>
-      <p style="margin:0 0 8px;font-size:13px;color:#64748b;text-align:center;">The link above also includes a Project Information Sheet — please fill it out at your convenience so we can begin work on your behalf.</p>
-      <p style="margin:24px 0 0;font-size:15px;color:#334155;">Please don't hesitate to reach out if you have any questions.</p>
-      <p style="margin:16px 0 0;font-size:15px;color:#1e293b;">Best regards,<br/><strong>${companyName}</strong></p>
-    </div>
-    ${footerParts ? `<div style="text-align:center;padding:16px;font-size:12px;">${footerParts}</div>` : ""}
-  </div>
-</body></html>`;
+      const htmlBody = buildProposalEmailHtml({
+        clientName,
+        proposalTitle: proposal.title || "Your Project",
+        proposalNumber: proposal.proposal_number || "",
+        propertyAddress: (proposal as any).properties?.address || "",
+        preparedFor: preparedForName || undefined,
+        totalAmount: fmt(totalAmount),
+        depositAmount: fmt(depositAmt),
+        clientLink,
+        companyName,
+        companyEmail,
+        companyPhone,
+        logoUrl: companyLogoUrl,
+        companyAddress,
+        items: items.map((i: any) => ({
+          name: i.name,
+          total: fmt(Number(i.total_price || i.quantity * i.unit_price || 0)),
+          isOptional: !!i.is_optional,
+        })),
+      });
 
       // 6. Send via Gmail
       const ccString = ccEmails?.length ? ccEmails.join(",") : undefined;

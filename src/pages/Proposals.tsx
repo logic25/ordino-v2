@@ -335,10 +335,16 @@ export default function Proposals() {
 
   const handleConfirmSend = async (id: string) => {
     try {
-      await sendProposal.mutateAsync(id);
+      // SendProposalDialog already sent the email — just update sent_at timestamp
+      // supabase already imported at top of file
+      await supabase
+        .from("proposals")
+        .update({ sent_at: new Date().toISOString() })
+        .eq("id", id);
+      queryClient.invalidateQueries({ queryKey: ["proposals"] });
       toast({ title: "Proposal sent", description: "The proposal has been marked as sent. Follow-up scheduled." });
     } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to send proposal.", variant: "destructive" });
+      toast({ title: "Error", description: error.message || "Failed to update proposal.", variant: "destructive" });
     }
   };
 
