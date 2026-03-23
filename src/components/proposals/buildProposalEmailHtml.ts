@@ -64,13 +64,16 @@ export const DEFAULT_PROPOSAL_EMAIL_STYLE: Required<ProposalEmailStyleConfig> = 
  * so the rendered email is identical everywhere.
  */
 export function resolveEmailStyle(
-  savedStyle?: { accent_color?: string; font_family?: string; button_radius?: string } | null,
+  savedStyle?: { accent_color?: string; font_family?: string; button_radius?: string; body_color?: string; heading_color?: string; body_font_size?: string } | null,
 ): ProposalEmailStyleConfig {
   return {
     accentColor: savedStyle?.accent_color || DEFAULT_PROPOSAL_EMAIL_STYLE.accentColor,
     accentForeground: DEFAULT_PROPOSAL_EMAIL_STYLE.accentForeground,
     fontFamily: savedStyle?.font_family || DEFAULT_PROPOSAL_EMAIL_STYLE.fontFamily,
     buttonRadius: savedStyle?.button_radius || DEFAULT_PROPOSAL_EMAIL_STYLE.buttonRadius,
+    bodyColor: savedStyle?.body_color || DEFAULT_PROPOSAL_EMAIL_STYLE.bodyColor,
+    headingColor: savedStyle?.heading_color || DEFAULT_PROPOSAL_EMAIL_STYLE.headingColor,
+    bodyFontSize: savedStyle?.body_font_size || DEFAULT_PROPOSAL_EMAIL_STYLE.bodyFontSize,
   };
 }
 
