@@ -202,6 +202,7 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
+                <TableHead className="w-8"></TableHead>
                 <TableHead className="w-10">#</TableHead>
                 <TableHead>Job #</TableHead>
                 <TableHead>Source</TableHead>
@@ -217,33 +218,18 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginated.map((app) => {
-                const bisCount = openBisCount(app);
+              {paginatedGroups.map((entry, idx) => {
+                if (entry.type === "single") {
+                  return renderAppRow(entry.app, idx + 1 + page * pageSize, false, false);
+                }
+                const isExpanded = expandedJobNums.has(entry.baseJob);
                 return (
-                  <TableRow key={app.jobNum} className="cursor-pointer hover:bg-accent/5" onClick={() => openDrawer(app)}>
-                    <TableCell className="text-xs text-muted-foreground">{app.num}</TableCell>
-                    <TableCell className="font-mono text-sm font-medium">{app.jobNum}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={app.source === "DOB_NOW_BUILD" ? "bg-blue-500/10 text-blue-700 border-blue-500/20" : "bg-muted text-muted-foreground"}>
-                        {app.source === "DOB_NOW_BUILD" ? "DOB NOW" : "Legacy"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm max-w-[280px] truncate">{app.desc}</TableCell>
-                    <TableCell className="text-sm">{app.tenant || "—"}</TableCell>
-                    <TableCell className="text-sm">{app.floor}</TableCell>
-                    <TableCell className="text-xs">{app.jobType}</TableCell>
-                    <TableCell><Badge variant="outline" className={WORK_TYPE_COLORS[app.workType] || ""}>{app.workType}</Badge></TableCell>
-                    <TableCell><Badge variant="outline" className={STATUS_COLORS[app.status] || ""}>{app.status}</Badge></TableCell>
-                    <TableCell className="text-xs max-w-[200px] truncate text-muted-foreground">{app.action}</TableCell>
-                    <TableCell>
-                      {bisCount > 0 ? (
-                        <Badge variant="outline" className="bg-purple-500/10 text-purple-700 border-purple-500/20 gap-1">
-                          <AlertCircle className="h-3 w-3" />{bisCount}
-                        </Badge>
-                      ) : "—"}
-                    </TableCell>
-                    <TableCell><Badge variant="outline" className={PRIORITY_COLORS[app.priority]}>{app.priority}</Badge></TableCell>
-                  </TableRow>
+                  <Fragment key={`group-${entry.baseJob}`}>
+                    {renderAppRow(entry.initial, idx + 1 + page * pageSize, true, isExpanded, entry.baseJob, entry.subsequents.length)}
+                    {isExpanded && entry.subsequents.map((sub, si) => (
+                      renderAppRow(sub, null, false, false, undefined, undefined, true)
+                    ))}
+                  </Fragment>
                 );
               })}
             </TableBody>
