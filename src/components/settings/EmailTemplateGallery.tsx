@@ -898,10 +898,11 @@ export function EmailTemplateGallery() {
     if (company?.settings) {
       const s = company.settings;
       if (s.email_style) {
+        const resolved = resolveEmailStyle(s.email_style);
         setStyle({
-          accentColor: s.email_style.accent_color || DEFAULT_STYLE.accentColor,
-          fontFamily: s.email_style.font_family || DEFAULT_STYLE.fontFamily,
-          buttonRadius: s.email_style.button_radius || DEFAULT_STYLE.buttonRadius,
+          accentColor: resolved.accentColor || DEFAULT_STYLE.accentColor,
+          fontFamily: resolved.fontFamily || DEFAULT_STYLE.fontFamily,
+          buttonRadius: resolved.buttonRadius || DEFAULT_STYLE.buttonRadius,
         });
       }
       if (s.email_template_overrides) {
