@@ -283,7 +283,7 @@ export function ContactsFull({ contacts, pisStatus, projectId, clientId }: { con
           <TableRow className="bg-muted/30 hover:bg-muted/30">
             <TableHead className="w-[36px]" />
             <TableHead>Name</TableHead>
-            <TableHead>DOB Role</TableHead>
+            <TableHead>Role</TableHead>
             <TableHead>Company</TableHead>
             <TableHead>Phone</TableHead>
             <TableHead>Email</TableHead>
@@ -304,7 +304,7 @@ export function ContactsFull({ contacts, pisStatus, projectId, clientId }: { con
                   </TableCell>
                   <TableCell className="font-medium">{c.name}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className="text-xs">{dobRoleLabels[c.dobRole]}</Badge>
+                    <Badge variant="secondary" className="text-xs">{c.role || "Contact"}</Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{c.company}</TableCell>
                   <TableCell>

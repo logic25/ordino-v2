@@ -103,7 +103,7 @@ export interface ProposalQueryOptions {
 /**
  * Safely migrate proposal contacts to a project by finding or creating client_contacts.
  * Matching order: 1) exact name match, 2) email+name match, 3) create new.
- * Only migrates applicant, bill_to, sign roles — skips cc and others.
+ * Only migrates applicant and bill_to roles — skips cc and others.
  */
 export async function migrateProposalContactsToProject({
   proposalId,
@@ -122,10 +122,14 @@ export async function migrateProposalContactsToProject({
 
   if (!propContacts || propContacts.length === 0) return;
 
-  const migrateRoles = ["applicant", "bill_to", "sign"];
+  const migrateRoles = ["applicant", "bill_to"];
+
+  // Backward compat: treat legacy "sign" role as "bill_to"
 
   for (const pc of propContacts) {
     if (!pc.name) continue;
+    // Legacy "sign" role → treat as "bill_to"
+    if (pc.role === "sign") pc.role = "bill_to";
     if (pc.role && !migrateRoles.includes(pc.role)) continue;
 
     let contactId: string | null = null;

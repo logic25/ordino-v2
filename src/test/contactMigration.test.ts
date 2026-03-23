@@ -100,7 +100,7 @@ describe("Contact matching during proposal → project conversion", () => {
   });
 
   it("does not migrate cc contacts", () => {
-    const migrateRoles = ["applicant", "bill_to", "sign"];
+    const migrateRoles = ["applicant", "bill_to"];
     expect(migrateRoles).not.toContain("cc");
     expect(migrateRoles).not.toContain("owner");
   });

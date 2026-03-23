@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-export type ContactRole = "bill_to" | "sign" | "cc" | "applicant";
+export type ContactRole = "bill_to" | "cc" | "applicant";
 
 export interface ProposalContact {
   id: string;

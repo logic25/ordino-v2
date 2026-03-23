@@ -75,7 +75,7 @@ export function ProposalPreviewModal({ proposal, open, onOpenChange, onSend, onS
   };
 
   const billTo = contacts.find((c) => c.role === "bill_to");
-  const signer = contacts.find((c) => c.role === "sign");
+  const signer = contacts.find((c) => (c as any).role === "sign"); // legacy compat
 
   const totalAmount = Number(proposal.total_amount || proposal.subtotal || 0);
   const depositPct = Number(proposal.deposit_percentage || 0);

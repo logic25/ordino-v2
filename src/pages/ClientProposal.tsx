@@ -320,7 +320,7 @@ export default function ClientProposalPage() {
   const canClientSign = internalSigned && !alreadySigned;
 
   const billTo = (contacts as any[]).find((c: any) => c.role === "bill_to");
-  const signer = (contacts as any[]).find((c: any) => c.role === "sign");
+  const signer = (contacts as any[]).find((c: any) => c.role === "sign"); // legacy compat
 
   const amber = "hsl(65 69% 54%)";
   const amberSoft = "hsl(65 69% 54% / 0.12)";
