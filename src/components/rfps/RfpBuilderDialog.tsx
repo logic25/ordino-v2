@@ -354,6 +354,8 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
                 sectionOrder={sectionOrder}
                 sectionContentMap={sectionContentMap}
                 onGoToLibrary={goToLibrary}
+                selectedProjectIds={selectedProjectIds || allNotableProjects.map((p: any) => p.id)}
+                onToggleProject={toggleProjectSelection}
               />
             )}
             {step === 2 && (
