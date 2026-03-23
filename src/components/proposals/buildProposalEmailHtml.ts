@@ -3,6 +3,9 @@ export interface ProposalEmailStyleConfig {
   accentForeground?: string;
   fontFamily?: string;
   buttonRadius?: string;
+  bodyColor?: string;
+  headingColor?: string;
+  bodyFontSize?: string;
 }
 
 export interface ProposalEmailTemplateContent {
