@@ -67,24 +67,46 @@ interface DOBNowBuild {
   [key: string]: string | null | undefined;
 }
 
+interface DOBNowElectrical {
+  job_filing_number: string;
+  job_number: string;
+  filing_number: string;
+  filing_date: string;
+  filing_type: string;
+  filing_status: string;
+  job_status: string;
+  house_number: string;
+  street_name: string;
+  borough: string;
+  block: string;
+  lot: string;
+  bin: string;
+  applicant_first_name?: string;
+  applicant_last_name?: string;
+  job_description?: string;
+  work_on_floor?: string;
+  [key: string]: string | null | undefined;
+}
+
+// BIS job_status codes — verified against NYC Open Data
+// https://data.cityofnewyork.us/resource/ic3t-wcy2.json
 const STATUS_MAP: Record<string, string> = {
-  "A": "Approved",
-  "D": "Disapproved",
-  "E": "Permit Issued",
-  "F": "Signed Off",
-  "G": "In Process",
-  "H": "In Process",
-  "I": "In Process",
-  "J": "In Process",
-  "K": "In Process",
-  "L": "Plan Exam - Approved",
-  "M": "In Process",
-  "P": "Approved",
-  "Q": "Permit Issued",
+  "3": "Suspended",
+  "A": "Pre-Filing",
+  "B": "Application Processed",
+  "C": "Application Processed",
+  "D": "Application Processed",
+  "E": "Application Processed",
+  "F": "Plan Exam Assigned",
+  "H": "Plan Exam - In Process",
+  "J": "Plan Exam - Disapproved",
+  "K": "Plan Exam - Partial Approval",
+  "L": "PAA - Pending Fee Estimation",
+  "P": "Plan Exam - Approved",
+  "Q": "Permit Issued - Partial",
   "R": "Permit Issued",
-  "S": "Signed Off",
-  "U": "In Process",
-  "X": "Withdrawn",
+  "U": "Completed",
+  "X": "Signed Off",
 };
 
 const DOB_NOW_STATUS_MAP: Record<string, string> = {
@@ -99,6 +121,9 @@ const DOB_NOW_STATUS_MAP: Record<string, string> = {
   "WITHDRAWN": "Withdrawn",
   "OBJECTIONS": "Disapproved",
   "INCOMPLETE": "In Process",
+  "COMPLETE": "Signed Off",
+  "JOB IS COMPLETE": "Signed Off",
+  "JOB IN PROCESS": "In Process",
 };
 
 function inferWorkType(filing: DOBJobFiling): string {
@@ -121,9 +146,20 @@ function inferWorkTypeFromDOBNow(record: DOBNowBuild): string {
   return "OT";
 }
 
-function mapStatus(code: string | null | undefined): string {
+function mapStatus(code: string | null | undefined, descrp?: string | null): string {
   if (!code) return "In Process";
-  return STATUS_MAP[code.trim().toUpperCase()] || "In Process";
+  const mapped = STATUS_MAP[code.trim().toUpperCase()];
+  if (mapped) return mapped;
+  // Fallback to description if code not recognized
+  if (descrp) {
+    const d = descrp.trim().toUpperCase();
+    if (d.includes("SIGNED OFF")) return "Signed Off";
+    if (d.includes("PERMIT ISSUED")) return "Permit Issued";
+    if (d.includes("APPROVED")) return "Approved";
+    if (d.includes("DISAPPROVED")) return "Disapproved";
+    if (d.includes("WITHDRAWN")) return "Withdrawn";
+  }
+  return "In Process";
 }
 
 function mapDOBNowStatus(status: string | null | undefined): string {
@@ -131,8 +167,20 @@ function mapDOBNowStatus(status: string | null | undefined): string {
   return DOB_NOW_STATUS_MAP[status.trim().toUpperCase()] || "In Process";
 }
 
+function mapElectricalStatus(filingStatus: string | null | undefined, jobStatus: string | null | undefined): string {
+  if (filingStatus) {
+    const mapped = DOB_NOW_STATUS_MAP[filingStatus.trim().toUpperCase()];
+    if (mapped) return mapped;
+  }
+  if (jobStatus) {
+    const mapped = DOB_NOW_STATUS_MAP[jobStatus.trim().toUpperCase()];
+    if (mapped) return mapped;
+  }
+  return "In Process";
+}
+
 function inferPriority(status: string, workType: string): "High" | "Medium" | "Low" {
-  if (status === "Signed Off" || status === "Withdrawn") return "Low";
+  if (status === "Signed Off" || status === "Withdrawn" || status === "Completed") return "Low";
   if (status === "Permit Issued" && ["FA", "SP", "FP"].includes(workType)) return "High";
   if (status === "Permit Issued") return "Medium";
   if (status === "Approved") return "Medium";
@@ -140,20 +188,20 @@ function inferPriority(status: string, workType: string): "High" | "Medium" | "L
 }
 
 function inferAction(status: string, workType: string): string {
-  if (status === "Signed Off") return "Confirm sign-off recorded in BIS";
+  if (status === "Signed Off" || status === "Completed") return "Confirm sign-off recorded in BIS";
   if (status === "Withdrawn") return "Confirm withdrawal complete";
-  if (status === "Permit Issued") {
+  if (status === "Permit Issued" || status === "Permit Issued - Partial") {
     if (workType === "FA") return "FDNY LOA needed. Confirm if work is complete. Distribute LOC forms.";
     if (workType === "SP" || workType === "FP") return "PL sign off needed. Confirm if work is complete.";
+    if (workType === "EL") return "Confirm electrical work complete. Schedule inspection.";
     return "Confirm if work is complete. Distribute LOC forms. Request LOC.";
   }
-  if (status === "Approved") return "Confirm if work is complete. Send out completion forms.";
-  if (status === "Plan Exam - Approved") return "Await permit issuance.";
+  if (status === "Approved" || status === "Plan Exam - Approved") return "Confirm if work is complete. Send out completion forms.";
+  if (status === "PAA - Pending Fee Estimation") return "Await fee estimation for PAA.";
   return "Review status and next steps.";
 }
 
 function extractTenant(desc: string): string | null {
-  // Try to extract tenant name from description patterns like "Tenant: X" or "for X" or "- X Space"
   const patterns = [
     /(?:tenant|for)\s*(?:space\s*)?[-–:]?\s*([A-Z][A-Za-z\s'&.]+?)(?:\s+(?:in|at|space|store|\.|$))/i,
     /[-–]\s*([A-Z][A-Za-z\s'&.]+?)(?:\s+Space)/i,
@@ -176,25 +224,30 @@ function extractFloor(desc: string): string {
 export async function fetchDOBApplications(bin: string): Promise<COApplication[]> {
   const results: COApplication[] = [];
 
-  // Fetch from both endpoints in parallel
-  const [jobFilingsRes, dobNowRes] = await Promise.all([
+  // Fetch from all three datasets in parallel
+  const [jobFilingsRes, dobNowRes, electricalRes] = await Promise.all([
     fetch(`https://data.cityofnewyork.us/resource/ic3t-wcy2.json?bin__=${bin}&$limit=500`)
       .then(r => r.ok ? r.json() : [])
       .catch(() => [] as DOBJobFiling[]),
     fetch(`https://data.cityofnewyork.us/resource/w9ak-ipjd.json?bin=${bin}&$limit=500`)
       .then(r => r.ok ? r.json() : [])
       .catch(() => [] as DOBNowBuild[]),
+    fetch(`https://data.cityofnewyork.us/resource/dm9a-ab7w.json?bin=${bin}&$limit=500`)
+      .then(r => r.ok ? r.json() : [])
+      .catch(() => [] as DOBNowElectrical[]),
   ]);
 
-  // Map DOB Job Filings
+  // Map DOB Job Filings (BIS)
   for (const f of jobFilingsRes as DOBJobFiling[]) {
     const workType = inferWorkType(f);
-    const status = mapStatus(f.job_status);
+    const status = mapStatus(f.job_status, f.job_status_descrp);
+    // Use latest_action_date for sorting, fallback to pre_filing_date
+    const bestDate = f.latest_action_date || f.pre_filing_date || "";
     results.push({
       num: 0,
       jobNum: f.job__ || "",
       source: "DOB_JOB_FILINGS",
-      fileDate: f.pre_filing_date ? f.pre_filing_date.substring(0, 10) : "",
+      fileDate: bestDate ? bestDate.substring(0, 10) : "",
       desc: f.job_description || "",
       tenant: extractTenant(f.job_description || ""),
       floor: extractFloor(f.job_description || ""),
@@ -233,6 +286,30 @@ export async function fetchDOBApplications(bin: string): Promise<COApplication[]
     });
   }
 
+  // Map DOB NOW Electrical (dm9a-ab7w dataset)
+  for (const r of electricalRes as DOBNowElectrical[]) {
+    const status = mapElectricalStatus(r.filing_status, r.job_status);
+    const applicant = [r.applicant_first_name, r.applicant_last_name].filter(Boolean).join(" ") || null;
+    const desc = r.job_description || `Electrical - ${r.filing_type || ""}`.trim();
+    results.push({
+      num: 0,
+      jobNum: r.job_filing_number || r.job_number || "",
+      source: "DOB_NOW_ELECTRICAL",
+      fileDate: r.filing_date ? r.filing_date.substring(0, 10) : "",
+      desc,
+      tenant: extractTenant(desc),
+      floor: r.work_on_floor || extractFloor(desc),
+      docNum: r.filing_number || null,
+      jobType: "EL",
+      workType: "EL",
+      status,
+      action: inferAction(status, "EL"),
+      assignedTo: null,
+      priority: inferPriority(status, "EL"),
+      applicant: applicant || undefined,
+    });
+  }
+
   // Deduplicate: key on job# + doc# (to preserve subsequents/PAAs)
   // If same key exists in both sources, prefer DOB_JOB_FILINGS (more authoritative)
   const seen = new Map<string, number>();
@@ -243,9 +320,14 @@ export async function fetchDOBApplications(bin: string): Promise<COApplication[]
       deduped.push(r);
       continue;
     }
-    const key = r.source === "DOB_NOW_BUILD" && !r.docNum
-      ? `NOW-${r.jobNum}`
-      : `${jobDigits}-${r.docNum || "01"}`;
+    let key: string;
+    if (r.source === "DOB_NOW_BUILD" && !r.docNum) {
+      key = `NOW-${r.jobNum}`;
+    } else if (r.source === "DOB_NOW_ELECTRICAL") {
+      key = `EL-${r.jobNum}`;
+    } else {
+      key = `${jobDigits}-${r.docNum || "01"}`;
+    }
     const existing = seen.get(key);
     if (existing !== undefined) {
       // Keep the DOB_JOB_FILINGS version if there's a conflict
@@ -259,7 +341,7 @@ export async function fetchDOBApplications(bin: string): Promise<COApplication[]
     }
   }
 
-  // Sort by file date descending, re-number
+  // Sort by file date descending (most recent first), re-number
   deduped.sort((a, b) => (b.fileDate || "").localeCompare(a.fileDate || ""));
   deduped.forEach((r, i) => (r.num = i + 1));
 
