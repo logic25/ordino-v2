@@ -109,7 +109,7 @@ export default function PropertyDetail() {
       try {
         const [apps, viols, complaints] = await Promise.all([
           fetchDOBApplications(property.bin!),
-          fetchDOBViolations(property.bin!),
+          fetchDOBViolations(property.bin!, property.borough, property.block, property.lot),
           fetchDOBComplaints(property.bin!),
         ]);
         setCoApps(apps);
