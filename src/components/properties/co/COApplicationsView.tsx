@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import {
-  Search, LayoutGrid, LayoutList, ChevronLeft, ChevronRight,
+  Search, LayoutGrid, LayoutList, ChevronLeft, ChevronRight, ChevronDown,
   Flag, FileText, CheckCircle2, Clock, AlertCircle, ClipboardList,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -26,8 +26,8 @@ interface COApplicationsViewProps {
   initialWorkTypeFilter?: string | null;
 }
 
-const WORK_TYPES = ["All", "OT", "PL", "MH", "SP", "FA", "FP", "SG", "EQ"];
-const SOURCE_FILTERS = ["All", "Legacy DOB", "DOB NOW Build"];
+const WORK_TYPES = ["All", "OT", "PL", "MH", "SP", "FA", "FP", "SG", "EQ", "EL"];
+const SOURCE_FILTERS = ["All", "Legacy DOB", "DOB NOW Build", "DOB NOW Electrical"];
 const STATUS_FILTERS = ["All", "Permit Issued", "Approved", "In Process", "Signed Off", "Plan Exam - Approved"];
 const ACTION_FILTERS = ["All", "Needs LOC", "Needs FDNY LOA", "Needs Cost Affidavit", "Needs Plans", "Withdrawal Candidate"];
 
