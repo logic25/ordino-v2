@@ -57,7 +57,7 @@ export function buildProposalEmailHtml({
       <table style="width:100%;" cellpadding="0" cellspacing="0">
         <tr>
           <td style="vertical-align:top;">
-            ${logoUrl ? `<img src="${logoUrl}" alt="${companyName}" style="max-height:44px;display:block;" />` : `<span style="font-size:18px;font-weight:700;color:${documentAccent};">${companyName}</span>`}
+            ${logoUrl ? `<img src="${logoUrl}" alt="${companyName}" style="max-width:320px;max-height:64px;width:auto;height:auto;display:block;object-fit:contain;" />` : `<span style="font-size:18px;font-weight:700;color:${documentAccent};">${companyName}</span>`}
             ${companyAddress ? `<p style="margin:6px 0 0;color:#94a3b8;font-size:11px;line-height:1.4;">${companyAddress}</p>` : ""}
             ${contactLine ? `<p style="margin:2px 0 0;color:#94a3b8;font-size:11px;">${contactLine}</p>` : ""}
           </td>
