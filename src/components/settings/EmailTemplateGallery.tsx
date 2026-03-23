@@ -496,17 +496,20 @@ function buildTemplateBody(
     accentFg: string;
     btnRadius: string;
     co: CoInfo;
+    headingClr: string;
+    bodyClr: string;
+    fontSize: string;
   },
 ): string {
-  const { greeting, bodyText, ctaText, signoffText, accent, accentFg, btnRadius, co } = ctx;
+  const { greeting, bodyText, ctaText, signoffText, accent, accentFg, btnRadius, co, headingClr, bodyClr, fontSize } = ctx;
 
-  const greetingHtml = `<p style="margin:0 0 16px;font-size:15px;color:${HEADING};line-height:1.6;">${greeting}</p>`;
-  const bodyHtml = `<p style="margin:0 0 24px;font-size:15px;color:${BODY_COLOR};line-height:1.6;">${bodyText}</p>`;
+  const greetingHtml = `<p style="margin:0 0 16px;font-size:${fontSize};color:${headingClr};line-height:1.6;">${greeting}</p>`;
+  const bodyHtml = `<p style="margin:0 0 24px;font-size:${fontSize};color:${bodyClr};line-height:1.6;">${bodyText}</p>`;
   const ctaHtml = ctaBtn(ctaText, accent, accentFg, btnRadius);
   const signoffHtml = signoffText
-    ? `<p style="margin:24px 0 0;font-size:15px;color:${BODY_COLOR};line-height:1.6;">${signoffText}</p>
-       <p style="margin:16px 0 0;font-size:15px;color:${HEADING};">Best regards,<br/><strong>${co.name}</strong></p>`
-    : `<p style="margin:16px 0 0;font-size:15px;color:${HEADING};">— ${co.name}</p>`;
+    ? `<p style="margin:24px 0 0;font-size:${fontSize};color:${bodyClr};line-height:1.6;">${signoffText}</p>
+       <p style="margin:16px 0 0;font-size:${fontSize};color:${headingClr};">Best regards,<br/><strong>${co.name}</strong></p>`
+    : `<p style="margin:16px 0 0;font-size:${fontSize};color:${headingClr};">— ${co.name}</p>`;
 
   const thStyle = `padding:10px 16px;text-align:left;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;`;
   const tdStyle = `padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:${HEADING};`;
