@@ -469,6 +469,9 @@ export function ChangeOrderDetailSheet({
         clientName={projectInfo?.clients?.name}
         signerName={signerName || undefined}
         logoUrl={logoUrl}
+        originalContractTotal={contractSummary?.originalTotal}
+        previousCOsTotal={contractSummary?.priorCOsTotal}
+        previousCOsCount={contractSummary?.priorCOsCount}
       />
     ).toBlob();
     return blob;
