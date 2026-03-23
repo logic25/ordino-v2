@@ -34,6 +34,9 @@ interface StyleConfig {
   accentColor: string;
   fontFamily: string;
   buttonRadius: string;
+  bodyColor: string;
+  headingColor: string;
+  bodyFontSize: string;
 }
 
 interface TemplateOverride {
