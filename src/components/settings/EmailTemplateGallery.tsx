@@ -16,7 +16,6 @@ import {
   DEFAULT_PROPOSAL_EMAIL_STYLE,
   resolveProposalEmailTemplate,
 } from "@/components/proposals/buildProposalEmailHtml";
-import { getLogoDataUrl } from "@/utils/logoToDataUrl";
 import { toast } from "sonner";
 
 // ── Types ──
