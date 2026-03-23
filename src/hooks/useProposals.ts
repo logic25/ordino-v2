@@ -122,7 +122,9 @@ export async function migrateProposalContactsToProject({
 
   if (!propContacts || propContacts.length === 0) return;
 
-  const migrateRoles = ["applicant", "bill_to", "sign"];
+  const migrateRoles = ["applicant", "bill_to"];
+
+  // Backward compat: treat legacy "sign" role as "bill_to"
 
   for (const pc of propContacts) {
     if (!pc.name) continue;
