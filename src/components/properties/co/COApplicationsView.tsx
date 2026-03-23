@@ -376,7 +376,7 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
                     <TableCell><Badge variant="outline" className={sourceBadge.className}>{sourceBadge.label}</Badge></TableCell>
                     <TableCell><Badge variant="outline" className={STATUS_COLORS[app.status] || ""}>{app.status}</Badge></TableCell>
                     <TableCell className="text-sm">{formatDateSafe(app.fileDate, "MM/dd/yy")}</TableCell>
-                    <TableCell className="text-sm">{app.tenant || "—"}</TableCell>
+                    <TableCell className="text-sm max-w-[300px] truncate">{app.desc || "—"}</TableCell>
                   </TableRow>
                   {isExpanded && renderExpandedDetails(app, entry.subsequents)}
                 </Fragment>
