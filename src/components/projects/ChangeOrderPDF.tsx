@@ -280,8 +280,8 @@ export function ChangeOrderPDF({
             </Text>
           </View>
 
-          {/* Reason */}
-          {co.reason ? (
+          {/* Reason — only show if different from title (avoid duplication) */}
+          {co.reason && co.reason !== co.title ? (
             <View style={s.reasonBlock}>
               <View style={[s.sectionHeading, { marginTop: 24 }]}>
                 <View style={s.sectionBar} />

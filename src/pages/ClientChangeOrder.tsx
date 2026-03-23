@@ -525,16 +525,7 @@ export default function ClientChangeOrderPage() {
               By signing this Change Order, you acknowledge that all terms and conditions of the original proposal/contract remain in full effect. This Change Order modifies only the scope and fees described above.
             </div>
 
-            {/* Reason */}
-            {co.reason && (
-              <div className="mb-5">
-                <div className="flex items-center gap-3 mb-3 mt-6">
-                  <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
-                  <h4 className="text-sm font-bold" style={{ color: charcoal }}>Reason for Change</h4>
-                </div>
-                <p className="text-sm co-reason-box" style={{ color: "#475569", lineHeight: 1.55 }}>{co.reason}</p>
-              </div>
-            )}
+            {/* Reason section removed — reason text is shown under the heading above */}
 
             {/* Signature Section */}
             <div className="mt-8">
