@@ -424,7 +424,7 @@ function buildPreviewHtml(
     ? `<img src="${co.logoUrl}" alt="${co.name}" width="320" style="display:block;max-width:320px;max-height:64px;height:auto;border:0;outline:none;text-decoration:none;" />`
     : `<span style="font-size:18px;font-weight:700;color:${accent};font-family:${font};">${co.name}</span>`;
 
-  const templateBody = buildTemplateBody(template.id, { greeting, bodyText, ctaText, signoffText, accent, accentFg, btnRadius, co, headingClr, bodyClr, fontSize });
+  const templateBody = buildTemplateBody(template.id, { greeting, bodyText, ctaText, signoffText, accent, accentTextClr, accentFg, btnRadius, co, headingClr, bodyClr, fontSize });
   const stripeColor = template.id === "demand_letter" ? "#ef4444"
     : template.id === "checklist_followup" ? "#f59e0b"
     : accent;
