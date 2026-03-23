@@ -437,8 +437,11 @@ export default function ClientChangeOrderPage() {
             {/* Section heading with amber bar */}
             <div className="flex items-center gap-3 mb-4 mt-2">
               <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
-              <h3 className="text-base font-bold" style={{ color: charcoal }}>{co.title}</h3>
+              <h3 className="text-base font-bold" style={{ color: charcoal }}>Change scope of work</h3>
             </div>
+
+            {/* CO Title */}
+            <div className="text-sm font-bold mb-3" style={{ color: charcoal }}>{co.title}</div>
 
             {/* Line Items */}
             <div className="mb-5">
