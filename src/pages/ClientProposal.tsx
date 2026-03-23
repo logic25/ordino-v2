@@ -931,9 +931,9 @@ export default function ClientProposalPage() {
 
                   {alreadySigned ? (
                     <>
-                      <div style={{ borderBottom: `2px solid ${charcoal}`, height: 32, marginBottom: 4 }}>
+                      <div style={{ borderBottom: `2px solid ${charcoal}`, minHeight: 56, marginBottom: 4, display: "flex", alignItems: "flex-end" }}>
                         {proposal.client_signature_data && (
-                          <img src={proposal.client_signature_data} alt="Client Signature" style={{ height: 28, objectFit: "contain" }} />
+                          <img src={proposal.client_signature_data} alt="Client Signature" style={{ height: 48, objectFit: "contain" }} />
                         )}
                       </div>
                       <div style={{ fontSize: "8.5pt", color: slate, marginTop: 4 }}>
