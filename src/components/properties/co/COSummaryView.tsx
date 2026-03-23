@@ -271,8 +271,8 @@ export function COSummaryView({
           </div>
           <div className="rounded-lg border p-3 space-y-1">
             <p className="text-xs text-muted-foreground">Last Report</p>
-            <p className="text-sm font-medium">{format(new Date(previousSnapshot.ranAt), "MMM d, yyyy")}</p>
-            <p className="text-xs text-muted-foreground">{format(new Date(previousSnapshot.ranAt), "h:mm a")}</p>
+             <p className="text-sm font-medium">{safeFormat(previousSnapshot.ranAt, "MMM d, yyyy")}</p>
+             <p className="text-xs text-muted-foreground">{safeFormat(previousSnapshot.ranAt, "h:mm a")}</p>
           </div>
         </div>
       )}
