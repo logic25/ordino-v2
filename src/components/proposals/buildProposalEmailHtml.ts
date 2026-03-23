@@ -102,9 +102,11 @@ export function buildProposalEmailHtml({
   ctaText,
   signoffText,
 }: ProposalEmailParams): string {
-  const resolvedStyle = {
-    ...DEFAULT_PROPOSAL_EMAIL_STYLE,
-    ...(style ?? {}),
+  const resolvedStyle: Required<ProposalEmailStyleConfig> = {
+    accentColor: style?.accentColor ?? DEFAULT_PROPOSAL_EMAIL_STYLE.accentColor,
+    accentForeground: style?.accentForeground ?? DEFAULT_PROPOSAL_EMAIL_STYLE.accentForeground,
+    fontFamily: style?.fontFamily ?? DEFAULT_PROPOSAL_EMAIL_STYLE.fontFamily,
+    buttonRadius: style?.buttonRadius ?? DEFAULT_PROPOSAL_EMAIL_STYLE.buttonRadius,
   };
 
   const fallbackTemplate = resolveProposalEmailTemplate(undefined, {
