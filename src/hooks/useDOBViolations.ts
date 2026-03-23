@@ -16,6 +16,26 @@ interface DOBECBViolation {
   [key: string]: string | null | undefined;
 }
 
+interface HPDViolation {
+  violationid?: string;
+  boroid?: string;
+  block?: string;
+  lot?: string;
+  buildingid?: string;
+  registrationid?: string;
+  violationstatus?: string;
+  novdescription?: string;
+  novissueddate?: string;
+  inspectiondate?: string;
+  currentstatusdate?: string;
+  class?: string; // A, B, C
+  ordernumber?: string;
+  novid?: string;
+  apartment?: string;
+  story?: string;
+  [key: string]: string | null | undefined;
+}
+
 interface DOBComplaint {
   complaint_number?: string;
   status?: string;
@@ -49,6 +69,14 @@ function mapECBStatus(status: string | null | undefined): "Active" | "In Resolut
   return "Active";
 }
 
+function mapHPDStatus(status: string | null | undefined): "Active" | "In Resolution" | "Resolved" | "Dismissed" {
+  if (!status) return "Active";
+  const s = status.trim().toUpperCase();
+  if (s === "CLOSE" || s === "CLOSED") return "Resolved";
+  if (s === "CIV PENALTY" || s === "VIOLATION DISMISSED") return "Dismissed";
+  return "Active";
+}
+
 function mapPriority(penalty: number | null, status: string): "High" | "Medium" | "Low" {
   if (status === "Resolved" || status === "Dismissed") return "Low";
   if (penalty && penalty > 5000) return "High";
@@ -56,13 +84,20 @@ function mapPriority(penalty: number | null, status: string): "High" | "Medium" 
   return "Medium";
 }
 
-export async function fetchDOBViolations(bin: string): Promise<COViolation[]> {
-  // Fetch DOB ECB Violations
+function mapHPDPriority(hpdClass: string | null | undefined, status: string): "High" | "Medium" | "Low" {
+  if (status === "Resolved" || status === "Dismissed") return "Low";
+  if (hpdClass === "C") return "High"; // Immediately hazardous
+  if (hpdClass === "B") return "Medium"; // Hazardous
+  return "Low"; // Class A = non-hazardous
+}
+
+export async function fetchDOBViolations(bin: string, borough?: string | null, block?: string | null, lot?: string | null): Promise<COViolation[]> {
+  const results: COViolation[] = [];
+
+  // 1. Fetch DOB ECB Violations
   const ecbRes = await fetch(
     `https://data.cityofnewyork.us/resource/6bgk-3dad.json?$where=bin='${bin}'&$limit=500`
   ).then(r => r.ok ? r.json() : []).catch(() => [] as DOBECBViolation[]);
-
-  const results: COViolation[] = [];
 
   for (const v of ecbRes as DOBECBViolation[]) {
     const violationNum = v.ecb_violation_number || v.isn_dob_bis_extract || "";
@@ -77,7 +112,44 @@ export async function fetchDOBViolations(bin: string): Promise<COViolation[]> {
       assignedTo: null,
       priority: mapPriority(penalty, status),
       penalty: isNaN(penalty || 0) ? null : penalty,
+      agency: "DOB ECB",
     });
+  }
+
+  // 2. Fetch HPD Violations (uses BBL — borough + block + lot)
+  if (borough && block && lot) {
+    // Map borough name to BoroID
+    const boroMap: Record<string, string> = {
+      "manhattan": "1", "new york": "1",
+      "bronx": "2", "the bronx": "2",
+      "brooklyn": "3", "kings": "3",
+      "queens": "4",
+      "staten island": "5", "richmond": "5",
+    };
+    const boroId = boroMap[borough.toLowerCase().trim()] || borough;
+    const paddedBlock = block.padStart(5, "0");
+    const paddedLot = lot.padStart(4, "0");
+
+    const hpdRes = await fetch(
+      `https://data.cityofnewyork.us/resource/wvxf-dwi5.json?boroid=${boroId}&block=${paddedBlock}&lot=${paddedLot}&$limit=500&$order=novissueddate DESC`
+    ).then(r => r.ok ? r.json() : []).catch(() => [] as HPDViolation[]);
+
+    for (const v of hpdRes as HPDViolation[]) {
+      const violationNum = v.violationid || v.novid || "";
+      const status = mapHPDStatus(v.violationstatus);
+      const hpdClass = v.class || null;
+      results.push({
+        violationNum: String(violationNum),
+        type: hpdClass ? `HPD Class ${hpdClass}` : "HPD VIOLATION",
+        fileDate: v.novissueddate ? v.novissueddate.substring(0, 10) : "",
+        status,
+        resolutionPlan: v.novdescription || "",
+        assignedTo: null,
+        priority: mapHPDPriority(hpdClass, status),
+        penalty: null,
+        agency: "HPD",
+      });
+    }
   }
 
   results.sort((a, b) => (b.fileDate || "").localeCompare(a.fileDate || ""));

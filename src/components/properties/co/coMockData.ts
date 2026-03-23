@@ -44,6 +44,7 @@ export interface COViolation {
   priority: "High" | "Medium" | "Low";
   penalty: number | null;
   previousStatus?: string | null;
+  agency?: "DOB ECB" | "HPD" | string;
 }
 
 export interface COSignOff {
