@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { formatCurrency } from "@/lib/utils";
 import { getLogoDataUrl } from "@/utils/logoToDataUrl";
-import { buildProposalEmailHtml, resolveProposalEmailTemplate } from "@/components/proposals/buildProposalEmailHtml";
+import { buildProposalEmailHtml, resolveProposalEmailTemplate, resolveEmailStyle } from "@/components/proposals/buildProposalEmailHtml";
 import { DEFAULT_PIS_SECTIONS } from "@/hooks/useRfi";
 
 export type Proposal = Tables<"proposals">;
@@ -706,11 +706,7 @@ export function useSendProposal() {
           companyPhone = co.phone || settings.company_phone || "";
           companyLogoUrl = co.logo_url || settings.company_logo_url || "";
           companyAddress = co.address || settings.company_address || "";
-          emailStyle = {
-            accentColor: settings.email_style?.accent_color,
-            fontFamily: settings.email_style?.font_family,
-            buttonRadius: settings.email_style?.button_radius,
-          };
+          emailStyle = resolveEmailStyle(settings.email_style);
           proposalTemplateOverride = {
             subject: settings.email_template_overrides?.proposal?.subject,
             greeting: settings.email_template_overrides?.proposal?.greeting,

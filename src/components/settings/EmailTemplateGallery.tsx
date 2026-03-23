@@ -15,6 +15,7 @@ import {
   buildProposalEmailHtml,
   DEFAULT_PROPOSAL_EMAIL_STYLE,
   resolveProposalEmailTemplate,
+  resolveEmailStyle,
 } from "@/components/proposals/buildProposalEmailHtml";
 import { toast } from "sonner";
 
@@ -881,10 +882,11 @@ export function EmailTemplateGallery() {
 
   // Load saved style
   const savedStyle = company?.settings?.email_style;
+  const resolvedFromSettings = resolveEmailStyle(savedStyle);
   const [style, setStyle] = useState<StyleConfig>({
-    accentColor: savedStyle?.accent_color || DEFAULT_STYLE.accentColor,
-    fontFamily: savedStyle?.font_family || DEFAULT_STYLE.fontFamily,
-    buttonRadius: savedStyle?.button_radius || DEFAULT_STYLE.buttonRadius,
+    accentColor: resolvedFromSettings.accentColor || DEFAULT_STYLE.accentColor,
+    fontFamily: resolvedFromSettings.fontFamily || DEFAULT_STYLE.fontFamily,
+    buttonRadius: resolvedFromSettings.buttonRadius || DEFAULT_STYLE.buttonRadius,
   });
 
   // Load saved overrides per template
@@ -896,10 +898,11 @@ export function EmailTemplateGallery() {
     if (company?.settings) {
       const s = company.settings;
       if (s.email_style) {
+        const resolved = resolveEmailStyle(s.email_style);
         setStyle({
-          accentColor: s.email_style.accent_color || DEFAULT_STYLE.accentColor,
-          fontFamily: s.email_style.font_family || DEFAULT_STYLE.fontFamily,
-          buttonRadius: s.email_style.button_radius || DEFAULT_STYLE.buttonRadius,
+          accentColor: resolved.accentColor || DEFAULT_STYLE.accentColor,
+          fontFamily: resolved.fontFamily || DEFAULT_STYLE.fontFamily,
+          buttonRadius: resolved.buttonRadius || DEFAULT_STYLE.buttonRadius,
         });
       }
       if (s.email_template_overrides) {
