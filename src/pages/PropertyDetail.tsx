@@ -129,8 +129,8 @@ export default function PropertyDetail() {
                 application_type: a.workType || a.application_type || "Unknown",
                 filing_status: a.status || null,
                 applicant_name: a.applicant || null,
-                filed_date: a.filedDate || null,
-                description: a.description || null,
+                filed_date: a.fileDate || a.filedDate || null,
+                description: a.desc || a.description || null,
                 raw_data: a,
               }));
               await supabase.from("signal_applications").upsert(appRows as any, { onConflict: "property_id,job_number" });
@@ -211,8 +211,8 @@ export default function PropertyDetail() {
               application_type: a.workType || a.application_type || "Unknown",
               filing_status: a.status || null,
               applicant_name: a.applicant || null,
-              filed_date: a.filedDate || null,
-              description: a.description || null,
+              filed_date: a.fileDate || a.filedDate || null,
+              description: a.desc || a.description || null,
               raw_data: a,
             }));
             await supabase.from("signal_applications").upsert(appRows as any, { onConflict: "property_id,job_number" });
