@@ -126,6 +126,33 @@ export function ChangeOrderDetailSheet({
     },
   });
 
+  // Fetch contract summary data for PDF (original contract + prior COs)
+  const { data: contractSummary } = useQuery({
+    queryKey: ["co-contract-summary", co?.project_id, co?.id],
+    enabled: !!co?.project_id,
+    queryFn: async () => {
+      // Get original contract total from project services (non-CO services)
+      const { data: services } = await supabase
+        .from("project_services")
+        .select("service_amount")
+        .eq("project_id", co!.project_id)
+        .not("service_name", "ilike", "CO#%");
+      const originalTotal = (services || []).reduce((sum, s) => sum + Number(s.service_amount || 0), 0);
+
+      // Get all approved COs for this project (excluding current)
+      const { data: approvedCOs } = await supabase
+        .from("change_orders")
+        .select("id, amount")
+        .eq("project_id", co!.project_id)
+        .eq("status", "approved")
+        .neq("id", co!.id);
+      const priorCOsTotal = (approvedCOs || []).reduce((sum, c) => sum + Number(c.amount || 0), 0);
+      const priorCOsCount = (approvedCOs || []).length;
+
+      return { originalTotal, priorCOsTotal, priorCOsCount };
+    },
+  });
+
   // Resolve internal signer name (must be before conditional return)
   const { data: signerProfile } = useQuery({
     queryKey: ["profile", co?.internal_signed_by],
