@@ -52,6 +52,22 @@ export const DEFAULT_PROPOSAL_EMAIL_STYLE: Required<ProposalEmailStyleConfig> = 
   buttonRadius: "8px",
 };
 
+/**
+ * Single source of truth for resolving email styles from company settings.
+ * Every caller (gallery, send dialog, hooks, client page) MUST use this
+ * so the rendered email is identical everywhere.
+ */
+export function resolveEmailStyle(
+  savedStyle?: { accent_color?: string; font_family?: string; button_radius?: string } | null,
+): ProposalEmailStyleConfig {
+  return {
+    accentColor: savedStyle?.accent_color || DEFAULT_PROPOSAL_EMAIL_STYLE.accentColor,
+    accentForeground: DEFAULT_PROPOSAL_EMAIL_STYLE.accentForeground,
+    fontFamily: savedStyle?.font_family || DEFAULT_PROPOSAL_EMAIL_STYLE.fontFamily,
+    buttonRadius: savedStyle?.button_radius || DEFAULT_PROPOSAL_EMAIL_STYLE.buttonRadius,
+  };
+}
+
 function replaceTemplateVariables(template: string, variables: Record<string, string>): string {
   return Object.entries(variables).reduce(
     (result, [key, value]) => result.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), value),
