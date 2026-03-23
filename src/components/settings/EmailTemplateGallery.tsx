@@ -312,6 +312,9 @@ function buildPreviewHtml(
   const accent = style.accentColor;
   const font = style.fontFamily;
   const btnRadius = style.buttonRadius;
+  const headingClr = style.headingColor;
+  const bodyClr = style.bodyColor;
+  const fontSize = style.bodyFontSize;
 
   const resolve = (text: string) =>
     text
