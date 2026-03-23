@@ -882,10 +882,11 @@ export function EmailTemplateGallery() {
 
   // Load saved style
   const savedStyle = company?.settings?.email_style;
+  const resolvedFromSettings = resolveEmailStyle(savedStyle);
   const [style, setStyle] = useState<StyleConfig>({
-    accentColor: savedStyle?.accent_color || DEFAULT_STYLE.accentColor,
-    fontFamily: savedStyle?.font_family || DEFAULT_STYLE.fontFamily,
-    buttonRadius: savedStyle?.button_radius || DEFAULT_STYLE.buttonRadius,
+    accentColor: resolvedFromSettings.accentColor || DEFAULT_STYLE.accentColor,
+    fontFamily: resolvedFromSettings.fontFamily || DEFAULT_STYLE.fontFamily,
+    buttonRadius: resolvedFromSettings.buttonRadius || DEFAULT_STYLE.buttonRadius,
   });
 
   // Load saved overrides per template
