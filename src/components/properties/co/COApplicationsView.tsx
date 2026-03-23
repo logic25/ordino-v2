@@ -315,7 +315,7 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
               <TableHead>Source</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Filed</TableHead>
-              <TableHead>Applicant</TableHead>
+              <TableHead className="max-w-[300px]">Description</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
