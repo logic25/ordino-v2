@@ -14,6 +14,7 @@ import { useTelemetry } from "@/hooks/useTelemetry";
 import { useGmailConnection } from "@/hooks/useGmailConnection";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
+import { getLogoDataUrl } from "@/utils/logoToDataUrl";
 import { buildProposalEmailHtml, resolveProposalEmailTemplate } from "./buildProposalEmailHtml";
 
 interface SendProposalDialogProps {
@@ -169,6 +170,7 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
       const billToContact = contacts.find(c => c.role === "bill_to");
       const preparedForName = billToContact?.name || proposal.client_name || "";
 
+      const safeLogoUrl = await getLogoDataUrl(companyLogoUrl);
       const htmlBody = buildProposalEmailHtml({
         clientName,
         proposalTitle: proposal.title || "Your Project",
@@ -181,7 +183,7 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
         companyName: resolvedCompanyName,
         companyEmail,
         companyPhone,
-        logoUrl: companyLogoUrl,
+        logoUrl: safeLogoUrl || companyLogoUrl,
         companyAddress,
         items: items.map((i: any) => ({
           name: i.name,
