@@ -13,6 +13,7 @@ import { DepositReceiptPDF, type DepositReceiptData } from "@/components/invoice
 import {
   buildProposalEmailHtml,
   resolveProposalEmailTemplate,
+  resolveEmailStyle,
 } from "@/components/proposals/buildProposalEmailHtml";
 
 export default function ClientProposalPage() {
