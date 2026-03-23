@@ -32,6 +32,39 @@ import type { ProjectWithRelations } from "@/hooks/useProjects";
 import type { ChangeOrder } from "@/hooks/useChangeOrders";
 import { format } from "date-fns";
 
+const WORK_TYPE_ABBREVS: Record<string, string> = {
+  "plumbing": "PL",
+  "sprinkler": "SP",
+  "general construction": "GC",
+  "mechanical": "MECH",
+  "electrical": "ELEC",
+  "structural": "STR",
+  "fire alarm": "FA",
+  "fire suppression": "FS",
+  "elevator": "ELEV",
+  "boiler": "BLR",
+  "standpipe": "STP",
+  "construction equipment": "CE",
+  "demolition": "DEM",
+  "sign": "SIGN",
+  "curb cut": "CC",
+  "sidewalk": "SW",
+  "scaffold": "SCAF",
+  "fence": "FNC",
+  "oil burner": "OB",
+  "fuel gas": "FG",
+  "fuel oil": "FO",
+};
+
+function abbreviateWorkType(wt: string): string {
+  const lower = wt.toLowerCase().trim();
+  if (WORK_TYPE_ABBREVS[lower]) return WORK_TYPE_ABBREVS[lower];
+  // Check if already abbreviated (2-4 chars all caps)
+  if (/^[A-Z]{2,5}$/.test(wt.trim())) return wt.trim();
+  // Fallback: first letters of each word
+  return wt.split(/\s+/).map(w => w[0]?.toUpperCase()).join("") || wt;
+}
+
 function AssignedToField({ service }: { service: MockService }) {
   const { data: profiles = [] } = useCompanyProfiles();
   const queryClient = useQueryClient();
