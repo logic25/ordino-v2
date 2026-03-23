@@ -394,7 +394,12 @@ export default function RfiForm() {
     // Auto-fill applicant from proposal applicant contact (Bug 3 safety net)
     const applicantContact = rfiData?.applicantContact;
     if (applicantContact) {
-      setIfEmpty("applicant_and_owner_applicant_first_name", applicantContact.name);
+      // Split name into first/last if possible
+      const nameParts = (applicantContact.name || "").trim().split(/\s+/);
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ") || "";
+      setIfEmpty("applicant_and_owner_applicant_first_name", firstName);
+      setIfEmpty("applicant_and_owner_applicant_last_name", lastName);
       setIfEmpty("applicant_and_owner_applicant_name", applicantContact.name);
       setIfEmpty("applicant_and_owner_applicant_email", applicantContact.email);
       setIfEmpty("applicant_and_owner_applicant_phone", applicantContact.phone);
@@ -404,7 +409,11 @@ export default function RfiForm() {
     // Applicant (architect/engineer) from project
     if (projectData) {
       const architectName = projectData.architect_contact_name || "";
-      setIfEmpty("applicant_and_owner_applicant_first_name", architectName || null);
+      const nameParts = architectName.trim().split(/\s+/);
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ") || "";
+      setIfEmpty("applicant_and_owner_applicant_first_name", firstName || null);
+      setIfEmpty("applicant_and_owner_applicant_last_name", lastName || null);
       setIfEmpty("applicant_and_owner_applicant_name", architectName || null);
       setIfEmpty("applicant_and_owner_applicant_business_name", projectData.architect_company_name);
       setIfEmpty("applicant_and_owner_applicant_business_address", (projectData as any).architect_address);
