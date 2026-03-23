@@ -45,7 +45,7 @@ export const DEFAULT_PROPOSAL_EMAIL_TEMPLATE: Required<ProposalEmailTemplateCont
     "Questions about scope or pricing? Reply to this email and we'll get back to you the same day.",
 };
 
-const DEFAULT_PROPOSAL_EMAIL_STYLE: Required<ProposalEmailStyleConfig> = {
+export const DEFAULT_PROPOSAL_EMAIL_STYLE: Required<ProposalEmailStyleConfig> = {
   accentColor: "#d7df23",
   accentForeground: "#1f2937",
   fontFamily: "Arial, Helvetica, sans-serif",

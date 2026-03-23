@@ -30,6 +30,7 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
   const [linkCopied, setLinkCopied] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [previewLogoUrl, setPreviewLogoUrl] = useState("");
   const { data: contacts = [] } = useProposalContacts(proposal?.id);
   const { data: company } = useCompanySettings();
   const { track } = useTelemetry();
@@ -140,17 +141,79 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
   );
 
   const [subject, setSubject] = useState("");
-  const [emailPreview, setEmailPreview] = useState("");
+
+  useEffect(() => {
+    let isActive = true;
+
+    if (!open) return () => {
+      isActive = false;
+    };
+
+    getLogoDataUrl(companyLogoUrl).then((resolvedLogoUrl) => {
+      if (!isActive) return;
+      setPreviewLogoUrl(resolvedLogoUrl || companyLogoUrl || "");
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [open, companyLogoUrl]);
+
+  const previewHtml = useMemo(() => {
+    if (!proposal) return "";
+
+    const billToContact = contacts.find((c) => c.role === "bill_to");
+    const preparedForName = billToContact?.name || proposal.client_name || "";
+
+    return buildProposalEmailHtml({
+      clientName,
+      proposalTitle: proposal.title || "Your Project",
+      proposalNumber: proposal.proposal_number || "",
+      propertyAddress: proposal.properties?.address || "",
+      preparedFor: preparedForName || undefined,
+      totalAmount: fmt(totalAmount),
+      depositAmount: fmt(depositAmt),
+      clientLink: clientLink || "#",
+      companyName: resolvedCompanyName,
+      companyEmail,
+      companyPhone,
+      logoUrl: previewLogoUrl || companyLogoUrl,
+      companyAddress,
+      items: items.map((i: any) => ({
+        name: i.name,
+        total: fmt(Number(i.total_price || i.quantity * i.unit_price || 0)),
+        isOptional: !!i.is_optional,
+      })),
+      greetingText: proposalTemplate.greeting,
+      bodyText: proposalTemplate.bodyText,
+      ctaText: proposalTemplate.ctaText,
+      signoffText: proposalTemplate.signoff,
+      style: emailStyle,
+    });
+  }, [
+    clientLink,
+    clientName,
+    companyAddress,
+    companyEmail,
+    companyLogoUrl,
+    companyPhone,
+    contacts,
+    depositAmt,
+    emailStyle,
+    items,
+    previewLogoUrl,
+    proposal,
+    proposalTemplate,
+    resolvedCompanyName,
+    totalAmount,
+  ]);
 
   useEffect(() => {
     if (proposal && open) {
       setSubject(proposalTemplate.subject);
       setSent(false);
-      setEmailPreview(
-        `${proposalTemplate.greeting}\n\n${proposalTemplate.bodyText}\n\nTotal: ${fmt(totalAmount)}\nRetainer Due: ${fmt(depositAmt)}${clientLink ? `\n\n${proposalTemplate.ctaText}: ${clientLink}` : ""}\n\n${proposalTemplate.signoff}\n\nBest regards,\n${resolvedCompanyName}`,
-      );
     }
-  }, [proposal?.id, open, proposalTemplate, totalAmount, depositAmt, clientLink, resolvedCompanyName]);
+  }, [proposal?.id, open, proposalTemplate.subject]);
 
   if (!proposal) return null;
 
@@ -266,9 +329,18 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
 
           {/* Email preview */}
           <div>
-            <Label className="text-xs text-muted-foreground mb-1.5 block">Email Preview (client will receive branded HTML)</Label>
-            <div className="border rounded-lg p-4 bg-muted/30 text-sm whitespace-pre-wrap text-muted-foreground leading-relaxed">
-              {emailPreview}
+            <Label className="text-xs text-muted-foreground mb-1.5 block">Email Preview (exact HTML being sent)</Label>
+            <div className="overflow-hidden rounded-lg border bg-background">
+              {previewHtml ? (
+                <iframe
+                  srcDoc={previewHtml}
+                  title="Proposal email preview"
+                  className="w-full border-0 bg-background"
+                  style={{ height: 720 }}
+                />
+              ) : (
+                <div className="p-4 text-sm text-muted-foreground">Preview unavailable.</div>
+              )}
             </div>
           </div>
 

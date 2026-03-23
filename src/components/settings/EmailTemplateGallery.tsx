@@ -11,7 +11,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Mail, Save, RotateCcw, Palette, Type, Loader2 } from "lucide-react";
 import { useCompanySettings, useUpdateCompanySettings } from "@/hooks/useCompanySettings";
 import { formatCurrency } from "@/lib/utils";
-import { buildProposalEmailHtml, resolveProposalEmailTemplate } from "@/components/proposals/buildProposalEmailHtml";
+import {
+  buildProposalEmailHtml,
+  DEFAULT_PROPOSAL_EMAIL_STYLE,
+  resolveProposalEmailTemplate,
+} from "@/components/proposals/buildProposalEmailHtml";
 import { toast } from "sonner";
 
 // ── Types ──
@@ -41,9 +45,9 @@ interface TemplateOverride {
 // ── Defaults ──
 
 const DEFAULT_STYLE: StyleConfig = {
-  accentColor: "#c5d636",
-  fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif",
-  buttonRadius: "8px",
+  accentColor: DEFAULT_PROPOSAL_EMAIL_STYLE.accentColor,
+  fontFamily: DEFAULT_PROPOSAL_EMAIL_STYLE.fontFamily,
+  buttonRadius: DEFAULT_PROPOSAL_EMAIL_STYLE.buttonRadius,
 };
 
 const FONT_OPTIONS = [
