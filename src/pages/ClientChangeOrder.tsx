@@ -394,14 +394,13 @@ export default function ClientChangeOrderPage() {
             <div className="flex justify-between items-start">
               <div>
                 {company?.logo_url ? (
-                  <img src={company.logo_url} alt="Logo" className="h-12 mb-3" style={{ objectFit: "contain" }} />
-                ) : (
-                  <h1 className="text-lg font-bold tracking-tight" style={{ color: charcoal }}>{company?.name || "Company"}</h1>
-                )}
-                {company?.logo_url && <h1 className="text-lg font-bold tracking-tight" style={{ color: charcoal }}>{company?.name || "Company"}</h1>}
+                  <img src={company.logo_url} alt="Logo" className="h-12 mb-2" style={{ objectFit: "contain" }} />
+                ) : null}
+                <h1 className="text-lg font-bold tracking-tight" style={{ color: charcoal }}>{company?.name || "Company"}</h1>
                 {company?.address && <p className="text-xs" style={{ color: slate }}>{company.address}</p>}
-                {company?.phone && <p className="text-xs" style={{ color: slate }}>Tel: {company.phone}</p>}
+                {company?.phone && <p className="text-xs" style={{ color: slate }}>Tel: {company.phone}{company?.fax ? `    Fax: ${company.fax}` : ""}</p>}
                 {company?.email && <p className="text-xs" style={{ color: slate }}>{company.email}</p>}
+                {company?.website && <p className="text-xs" style={{ color: slate }}>{company.website}</p>}
               </div>
               <div className="text-right" style={{ minWidth: 148, whiteSpace: "nowrap", flexShrink: 0 }}>
                 <p className="text-[10px] font-semibold tracking-[2px] uppercase" style={{ color: slate }}>Change Order</p>
