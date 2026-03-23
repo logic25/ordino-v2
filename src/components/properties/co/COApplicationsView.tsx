@@ -320,9 +320,9 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
                               <AlertCircle className="h-2.5 w-2.5" />{bisCount} open
                             </Badge>
                           )}
-                          <Badge variant="outline" className={app.source === "DOB_NOW_BUILD" ? "bg-blue-500/10 text-blue-700 border-blue-500/20" : "bg-muted text-muted-foreground text-[10px]"}>
-                            {app.source === "DOB_NOW_BUILD" ? "DOB NOW" : "Legacy"}
-                          </Badge>
+                          {(() => { const sb = getSourceBadge(app.source); return (
+                            <Badge variant="outline" className={`${sb.className} text-[10px]`}>{sb.label}</Badge>
+                          ); })()}
                         </div>
                       </div>
                       <p className="text-sm text-muted-foreground line-clamp-2">{app.desc}</p>
