@@ -239,12 +239,17 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     return `<div style="font-family: Arial, sans-serif; line-height: 1.6;">${parts.join("\n")}</div>`;
   };
 
+  // Filtered notable projects based on selection
+  const filteredNotableProjects = selectedProjectIds
+    ? allNotableProjects.filter((p: any) => selectedProjectIds.includes(p.id))
+    : allNotableProjects;
+
   const contentCounts: Record<string, number> = {
     cover_letter: coverLetter ? 1 : 0,
     company_info: companyInfo.length,
     staff_bios: staffBios.length,
     org_chart: staffBios.filter((s) => (s.content as any)?.include_in_org_chart !== false).length,
-    notable_projects: allNotableProjects.length,
+    notable_projects: filteredNotableProjects.length,
     narratives: narratives.length + firmHistory.length,
     pricing: pricing.length,
     certifications: certs.length,
@@ -266,7 +271,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     sections: sectionOrder.filter((s) => selectedSections.includes(s)),
     companyInfo: companyInfo[0],
     staffBios,
-    notableProjects: allNotableProjects,
+    notableProjects: filteredNotableProjects,
     narratives: [...firmHistory, ...narratives],
     pricing: pricing[0],
     certs,
@@ -274,6 +279,16 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   };
 
   const draggableSections = sectionOrder.filter((s) => s !== "cover_letter");
+
+  const toggleProjectSelection = (projectId: string) => {
+    setDirty(true);
+    setSelectedProjectIds((prev) => {
+      const ids = prev || allNotableProjects.map((p: any) => p.id);
+      return ids.includes(projectId)
+        ? ids.filter((id) => id !== projectId)
+        : [...ids, projectId];
+    });
+  };
 
   const goNext = () => { const next = Math.min(step + 1, STEPS.length - 1); setDirty(true); saveDraft(next); setStep(next); };
   const goBack = () => { setDirty(true); setStep((s) => Math.max(s - 1, 0)); };
