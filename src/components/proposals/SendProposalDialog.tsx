@@ -330,14 +330,15 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
           {/* Email preview */}
           <div>
             <Label className="text-xs text-muted-foreground mb-1.5 block">Email Preview (exact HTML being sent)</Label>
-            <div className="overflow-x-auto rounded-lg border bg-muted/20">
+            <div className="rounded-lg border overflow-hidden">
               {previewHtml ? (
-                <div className="min-w-[640px] p-4">
+                <div className="bg-muted/20">
                   <iframe
                     srcDoc={previewHtml}
                     title="Proposal email preview"
-                    className="w-full border-0 bg-background rounded-md"
-                    style={{ height: 720 }}
+                    className="w-full border-0"
+                    style={{ height: 600 }}
+                    sandbox=""
                   />
                 </div>
               ) : (
