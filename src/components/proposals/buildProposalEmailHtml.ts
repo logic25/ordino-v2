@@ -265,8 +265,8 @@ export function buildProposalEmailHtml({
                     <td colspan="2" style="border-top:1px solid #e2e8f0;padding:14px 16px;font-family:${resolvedStyle.fontFamily};">
                       <table role="presentation" style="width:100%;" cellpadding="0" cellspacing="0" border="0">
                         <tr>
-                          <td style="font-size:15px;font-weight:700;color:#1e293b;font-family:${resolvedStyle.fontFamily};">Total</td>
-                          <td style="font-size:18px;font-weight:800;color:#1e293b;text-align:right;font-family:${resolvedStyle.fontFamily};">${totalAmount}</td>
+                         <td style="font-size:15px;font-weight:700;color:${emailHeadingColor};font-family:${resolvedStyle.fontFamily};">Total</td>
+                          <td style="font-size:18px;font-weight:800;color:${emailHeadingColor};text-align:right;font-family:${resolvedStyle.fontFamily};">${totalAmount}</td>
                         </tr>
                         <tr>
                           <td style="font-size:13px;color:#94a3b8;padding-top:4px;font-family:${resolvedStyle.fontFamily};">Retainer Due</td>
