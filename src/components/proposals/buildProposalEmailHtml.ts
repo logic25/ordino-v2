@@ -40,7 +40,7 @@ export interface ProposalEmailParams {
 }
 
 export const DEFAULT_PROPOSAL_EMAIL_TEMPLATE: Required<ProposalEmailTemplateContent> = {
-  subject: "Proposal {{PROPOSAL_NUMBER}} · {{PROJECT_TITLE}}",
+  subject: "Proposal {{PROPOSAL_NUMBER}} - {{PROJECT_TITLE}}",
   greeting: "Dear {{CLIENT_NAME}},",
   bodyText:
     "We've put together a detailed scope and fee proposal for your project at {{PROPERTY_ADDRESS}}. Everything is outlined below — review the services, pricing, and terms, then sign electronically when you're ready.",
