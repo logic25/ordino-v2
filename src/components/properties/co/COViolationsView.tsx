@@ -8,6 +8,12 @@ import {
 } from "@/components/ui/table";
 import { Search, Pencil, Check, X } from "lucide-react";
 import { format } from "date-fns";
+
+const formatDateSafe = (value: string | null | undefined, pattern: string, fallback = "—") => {
+  if (!value) return fallback;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? fallback : format(date, pattern);
+};
 import type { COViolation } from "./coMockData";
 import { STATUS_COLORS, PRIORITY_COLORS } from "./coMockData";
 
@@ -96,7 +102,7 @@ export function COViolationsView({ violations, onUpdateViolation }: COViolations
               <TableRow key={v.violationNum}>
                 <TableCell className="font-mono text-sm font-medium">{v.violationNum}</TableCell>
                 <TableCell className="text-sm">{v.type}</TableCell>
-                <TableCell className="text-sm">{format(new Date(v.fileDate), "MM/dd/yyyy")}</TableCell>
+                <TableCell className="text-sm">{formatDateSafe(v.fileDate, "MM/dd/yyyy")}</TableCell>
                 <TableCell><Badge variant="outline" className={STATUS_COLORS[v.status] || ""}>{v.status}</Badge></TableCell>
                 <TableCell className="text-sm">{v.penalty ? `$${v.penalty.toLocaleString()}` : "—"}</TableCell>
                 <TableCell><Badge variant="outline" className={PRIORITY_COLORS[v.priority]}>{v.priority}</Badge></TableCell>
