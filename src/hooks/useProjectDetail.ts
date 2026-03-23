@@ -315,6 +315,46 @@ export function useProjectContacts(projectId: string | undefined, clientId: stri
         }
       }
 
+      // 3. Add building owner from project/PIS/property data as an enriched contact
+      const { data: projOwnerData } = await supabase
+        .from("projects")
+        .select("building_owner_name, properties(owner_name)")
+        .eq("id", projectId!)
+        .single();
+
+      if (projOwnerData) {
+        const ownerName = (projOwnerData as any).building_owner_name;
+        const propertyOwner = (projOwnerData as any).properties?.owner_name;
+        const rawOwner = ownerName || propertyOwner;
+        if (rawOwner && rawOwner !== "UNAVAILABLE OWNER") {
+          // Parse "Company — Person" format
+          let ownerCompany = "";
+          let ownerPerson = rawOwner;
+          if (rawOwner.includes(" — ")) {
+            const parts = rawOwner.split(" — ");
+            ownerCompany = parts[0].trim();
+            ownerPerson = parts[1]?.trim() || rawOwner;
+          }
+          // Dedupe: don't add if someone with same name already present
+          const alreadyPresent = contacts.some(
+            (c) => c.name.trim().toLowerCase() === ownerPerson.trim().toLowerCase()
+          );
+          if (!alreadyPresent) {
+            contacts.push({
+              id: `owner-${projectId}`,
+              name: ownerPerson,
+              role: "Building Owner",
+              company: ownerCompany,
+              phone: "",
+              email: "",
+              dobRole: "owner",
+              source: "pis" as any,
+              dobRegistered: "unknown",
+            });
+          }
+        }
+      }
+
       return contacts;
     },
     enabled: !!projectId,
