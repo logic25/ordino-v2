@@ -336,7 +336,7 @@ export default function Proposals() {
   const handleConfirmSend = async (id: string) => {
     try {
       // SendProposalDialog already sent the email — just update sent_at timestamp
-      const { supabase } = await import("@/integrations/supabase/client");
+      // supabase already imported at top of file
       await supabase
         .from("proposals")
         .update({ sent_at: new Date().toISOString() })
