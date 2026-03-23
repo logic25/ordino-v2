@@ -875,7 +875,7 @@ export function COSummaryView({
                         <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
                           <span>Tenant: <span className="text-foreground">{app.tenant || "—"}</span></span>
                           <span>Floor: <span className="text-foreground">{app.floor}</span></span>
-                          <span>Filed: <span className="text-foreground">{format(new Date(app.fileDate), "MM/dd/yyyy")}</span></span>
+                          <span>Filed: <span className="text-foreground">{safeFormat(app.fileDate, "MM/dd/yyyy")}</span></span>
                         </div>
                         <div className="rounded-md bg-muted/30 p-2 text-xs">
                           <span className="font-medium">Action Required:</span> {app.action}
