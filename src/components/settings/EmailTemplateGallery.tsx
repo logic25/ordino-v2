@@ -512,7 +512,7 @@ function buildTemplateBody(
     : `<p style="margin:16px 0 0;font-size:${fontSize};color:${headingClr};">— ${co.name}</p>`;
 
   const thStyle = `padding:10px 16px;text-align:left;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;`;
-  const tdStyle = `padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:${HEADING};`;
+  const tdStyle = `padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:${headingClr};`;
   const tdMutedStyle = `padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;color:${MUTED};font-weight:600;`;
 
   switch (templateId) {
