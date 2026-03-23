@@ -545,43 +545,37 @@ export default function ClientChangeOrderPage() {
                 <h4 className="text-sm font-bold" style={{ color: charcoal }}>Agreed to and accepted by</h4>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-6">
                 {/* Internal Signature */}
-                <div className="co-sig-card rounded-md p-4" style={{ background: "#f8f9fa", border: "1px solid #e2e8f0" }}>
-                  <div className="text-sm font-bold mb-5" style={{ color: charcoal }}>
+                <div className="co-sig-card rounded-md p-5" style={{ background: "#ffffff", border: "1px solid #e2e8f0" }}>
+                  <div className="text-sm font-bold mb-4" style={{ color: charcoal }}>
                     {company?.name || "Company"}
                   </div>
-                  {co.internal_signature_data ? (
-                    <img src={co.internal_signature_data} alt="Internal signature" className="h-7 object-contain mb-1" />
-                  ) : (
-                    <div className="h-7 border-b-2 mb-1" style={{ borderColor: charcoal }} />
-                  )}
-                  {co.internal_signed_at && (
-                    <>
-                      <div className="text-xs mt-1" style={{ color: slate }}>
-                        By: {co.internal_signer_name || "—"}
-                      </div>
-                      <div className="text-xs" style={{ color: slate }}>Date: {fmtDate(co.internal_signed_at)}</div>
-                    </>
-                  )}
+                  <div style={{ borderBottom: `1.5px solid ${charcoal}`, paddingBottom: 6, marginBottom: 6, minHeight: 56, display: "flex", alignItems: "flex-end" }}>
+                    {co.internal_signature_data && (
+                      <img src={co.internal_signature_data} alt="Internal signature" style={{ width: "70%", maxHeight: 72, objectFit: "contain", objectPosition: "left bottom" }} />
+                    )}
+                  </div>
+                  <div className="text-xs mt-1" style={{ color: slate, lineHeight: 1.6 }}>
+                    <div><strong>By:</strong> {co.internal_signer_name || "—"}</div>
+                    {co.internal_signed_at && <div><strong>Date:</strong> {fmtDate(co.internal_signed_at)}</div>}
+                  </div>
                 </div>
 
                 {/* Client Signature */}
-                <div className="co-sig-card rounded-md p-4" style={{ background: "#f8f9fa", border: "1px solid #e2e8f0" }}>
-                  <div className="text-sm font-bold mb-5" style={{ color: charcoal }}>
+                <div className="co-sig-card rounded-md p-5" style={{ background: "#ffffff", border: "1px solid #e2e8f0" }}>
+                  <div className="text-sm font-bold mb-4" style={{ color: charcoal }}>
                     {clientInfo?.name || "Client"}
                   </div>
-                  {(co.client_signature_data || savedSignatureData) ? (
-                    <>
-                      <img src={co.client_signature_data || savedSignatureData!} alt="Client signature" className="h-7 object-contain mb-1" />
-                      <div className="text-xs mt-1" style={{ color: slate }}>
-                        By: {co.client_signer_name || clientName}
-                      </div>
-                      <div className="text-xs" style={{ color: slate }}>Date: {fmtDate(co.client_signed_at || new Date().toISOString())}</div>
-                    </>
-                  ) : (
-                    <div className="h-7 border-b-2 mb-1" style={{ borderColor: charcoal }} />
-                  )}
+                  <div style={{ borderBottom: `1.5px solid ${charcoal}`, paddingBottom: 6, marginBottom: 6, minHeight: 56, display: "flex", alignItems: "flex-end" }}>
+                    {(co.client_signature_data || savedSignatureData) && (
+                      <img src={co.client_signature_data || savedSignatureData!} alt="Client signature" style={{ width: "70%", maxHeight: 72, objectFit: "contain", objectPosition: "left bottom" }} />
+                    )}
+                  </div>
+                  <div className="text-xs mt-1" style={{ color: slate, lineHeight: 1.6 }}>
+                    <div><strong>By:</strong> {co.client_signer_name || clientName || "Client Representative"}</div>
+                    {(co.client_signed_at || signed) && <div><strong>Date:</strong> {fmtDate(co.client_signed_at || new Date().toISOString())}</div>}
+                  </div>
                 </div>
               </div>
             </div>
