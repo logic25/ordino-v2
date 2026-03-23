@@ -126,6 +126,34 @@ export function ChangeOrderDetailSheet({
     },
   });
 
+  // Fetch contract summary data for PDF (original contract + prior COs)
+  const { data: contractSummary } = useQuery({
+    queryKey: ["co-contract-summary", co?.project_id, co?.id],
+    enabled: !!co?.project_id,
+    queryFn: async () => {
+      // Get original contract total from services (non-CO services)
+      const { data: services } = await supabase
+        .from("services")
+        .select("total_amount, change_order_id")
+        .eq("project_id", co!.project_id);
+      const originalTotal = (services || [])
+        .filter(s => !s.change_order_id)
+        .reduce((sum, s) => sum + Number(s.total_amount || 0), 0);
+
+      // Get all approved COs for this project (excluding current)
+      const { data: approvedCOs } = await supabase
+        .from("change_orders")
+        .select("id, amount")
+        .eq("project_id", co!.project_id)
+        .eq("status", "approved")
+        .neq("id", co!.id);
+      const priorCOsTotal = (approvedCOs || []).reduce((sum, c) => sum + Number(c.amount || 0), 0);
+      const priorCOsCount = (approvedCOs || []).length;
+
+      return { originalTotal, priorCOsTotal, priorCOsCount };
+    },
+  });
+
   // Resolve internal signer name (must be before conditional return)
   const { data: signerProfile } = useQuery({
     queryKey: ["profile", co?.internal_signed_by],
@@ -441,6 +469,9 @@ export function ChangeOrderDetailSheet({
         clientName={projectInfo?.clients?.name}
         signerName={signerName || undefined}
         logoUrl={logoUrl}
+        originalContractTotal={contractSummary?.originalTotal}
+        previousCOsTotal={contractSummary?.priorCOsTotal}
+        previousCOsCount={contractSummary?.priorCOsCount}
       />
     ).toBlob();
     return blob;

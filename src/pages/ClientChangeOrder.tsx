@@ -54,6 +54,7 @@ export default function ClientChangeOrderPage() {
   const co = coBundle?.co as any;
   const company = coBundle?.company as any;
   const projectData = coBundle?.project as any;
+  const contractSummary = coBundle?.contractSummary as { originalTotal: number; priorCOsTotal: number; priorCOsCount: number } | null;
 
   const project = projectData || null;
   const clientInfo = projectData?.clients || null;
@@ -436,8 +437,11 @@ export default function ClientChangeOrderPage() {
             {/* Section heading with amber bar */}
             <div className="flex items-center gap-3 mb-4 mt-2">
               <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
-              <h3 className="text-base font-bold" style={{ color: charcoal }}>{co.title}</h3>
+              <h3 className="text-base font-bold" style={{ color: charcoal }}>Change scope of work</h3>
             </div>
+
+            {/* CO Title */}
+            <div className="text-sm font-bold mb-3" style={{ color: charcoal }}>{co.title}</div>
 
             {/* Line Items */}
             <div className="mb-5">
@@ -476,6 +480,47 @@ export default function ClientChangeOrderPage() {
               </div>
             )}
 
+            {/* Contract Balance Summary */}
+            {contractSummary && contractSummary.originalTotal > 0 && (() => {
+              const adjustedTotal = contractSummary.originalTotal + contractSummary.priorCOsTotal + co.amount;
+              return (
+                <div className="mt-6 mb-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
+                    <h4 className="text-sm font-bold" style={{ color: charcoal }}>Contract Summary</h4>
+                  </div>
+                  <div className="rounded-md overflow-hidden" style={{ border: "1px solid #e2e8f0" }}>
+                    <div className="flex justify-between px-5 py-2.5">
+                      <span className="text-sm" style={{ color: slate }}>Original Contract</span>
+                      <span className="text-sm font-bold" style={{ color: charcoal }}>{fmt(contractSummary.originalTotal)}</span>
+                    </div>
+                    <div style={{ borderBottom: "1px solid #e2e8f0" }} />
+                    {contractSummary.priorCOsCount > 0 && (
+                      <>
+                        <div className="flex justify-between px-5 py-2.5">
+                          <span className="text-sm" style={{ color: slate }}>Previous Change Orders ({contractSummary.priorCOsCount})</span>
+                          <span className="text-sm font-bold" style={{ color: charcoal }}>
+                            {contractSummary.priorCOsTotal >= 0 ? `+${fmt(contractSummary.priorCOsTotal)}` : `-${fmt(Math.abs(contractSummary.priorCOsTotal))}`}
+                          </span>
+                        </div>
+                        <div style={{ borderBottom: "1px solid #e2e8f0" }} />
+                      </>
+                    )}
+                    <div className="flex justify-between px-5 py-2.5">
+                      <span className="text-sm" style={{ color: slate }}>This Change Order ({co.co_number})</span>
+                      <span className="text-sm font-bold" style={{ color: isCredit ? "#dc2626" : "#16a34a" }}>
+                        {isCredit ? `-${fmt(Math.abs(co.amount))}` : `+${fmt(co.amount)}`}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center rounded-md px-5 py-3 mt-1" style={{ background: charcoal }}>
+                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "#ffffff" }}>Adjusted Contract Total</span>
+                    <span className="text-base font-extrabold" style={{ color: "#ffffff" }}>{fmt(adjustedTotal)}</span>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Terms Reference */}
             <div className="my-5 text-xs italic" style={{ color: slate, lineHeight: 1.5 }}>
               By signing this Change Order, you acknowledge that all terms and conditions of the original proposal/contract remain in full effect. This Change Order modifies only the scope and fees described above.
@@ -500,43 +545,37 @@ export default function ClientChangeOrderPage() {
                 <h4 className="text-sm font-bold" style={{ color: charcoal }}>Agreed to and accepted by</h4>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-6">
                 {/* Internal Signature */}
-                <div className="co-sig-card rounded-md p-4" style={{ background: "#f8f9fa", border: "1px solid #e2e8f0" }}>
-                  <div className="text-sm font-bold mb-5" style={{ color: charcoal }}>
+                <div className="co-sig-card rounded-md p-5" style={{ background: "#ffffff", border: "1px solid #e2e8f0" }}>
+                  <div className="text-sm font-bold mb-4" style={{ color: charcoal }}>
                     {company?.name || "Company"}
                   </div>
-                  {co.internal_signature_data ? (
-                    <img src={co.internal_signature_data} alt="Internal signature" className="h-7 object-contain mb-1" />
-                  ) : (
-                    <div className="h-7 border-b-2 mb-1" style={{ borderColor: charcoal }} />
-                  )}
-                  {co.internal_signed_at && (
-                    <>
-                      <div className="text-xs mt-1" style={{ color: slate }}>
-                        By: {co.internal_signer_name || "—"}
-                      </div>
-                      <div className="text-xs" style={{ color: slate }}>Date: {fmtDate(co.internal_signed_at)}</div>
-                    </>
-                  )}
+                  <div style={{ borderBottom: `1.5px solid ${charcoal}`, paddingBottom: 6, marginBottom: 6, minHeight: 56, display: "flex", alignItems: "flex-end" }}>
+                    {co.internal_signature_data && (
+                      <img src={co.internal_signature_data} alt="Internal signature" style={{ width: "70%", maxHeight: 72, objectFit: "contain", objectPosition: "left bottom" }} />
+                    )}
+                  </div>
+                  <div className="text-xs mt-1" style={{ color: slate, lineHeight: 1.6 }}>
+                    <div><strong>By:</strong> {co.internal_signer_name || "—"}</div>
+                    {co.internal_signed_at && <div><strong>Date:</strong> {fmtDate(co.internal_signed_at)}</div>}
+                  </div>
                 </div>
 
                 {/* Client Signature */}
-                <div className="co-sig-card rounded-md p-4" style={{ background: "#f8f9fa", border: "1px solid #e2e8f0" }}>
-                  <div className="text-sm font-bold mb-5" style={{ color: charcoal }}>
+                <div className="co-sig-card rounded-md p-5" style={{ background: "#ffffff", border: "1px solid #e2e8f0" }}>
+                  <div className="text-sm font-bold mb-4" style={{ color: charcoal }}>
                     {clientInfo?.name || "Client"}
                   </div>
-                  {(co.client_signature_data || savedSignatureData) ? (
-                    <>
-                      <img src={co.client_signature_data || savedSignatureData!} alt="Client signature" className="h-7 object-contain mb-1" />
-                      <div className="text-xs mt-1" style={{ color: slate }}>
-                        By: {co.client_signer_name || clientName}
-                      </div>
-                      <div className="text-xs" style={{ color: slate }}>Date: {fmtDate(co.client_signed_at || new Date().toISOString())}</div>
-                    </>
-                  ) : (
-                    <div className="h-7 border-b-2 mb-1" style={{ borderColor: charcoal }} />
-                  )}
+                  <div style={{ borderBottom: `1.5px solid ${charcoal}`, paddingBottom: 6, marginBottom: 6, minHeight: 56, display: "flex", alignItems: "flex-end" }}>
+                    {(co.client_signature_data || savedSignatureData) && (
+                      <img src={co.client_signature_data || savedSignatureData!} alt="Client signature" style={{ width: "70%", maxHeight: 72, objectFit: "contain", objectPosition: "left bottom" }} />
+                    )}
+                  </div>
+                  <div className="text-xs mt-1" style={{ color: slate, lineHeight: 1.6 }}>
+                    <div><strong>By:</strong> {co.client_signer_name || clientName || "Client Representative"}</div>
+                    {(co.client_signed_at || signed) && <div><strong>Date:</strong> {fmtDate(co.client_signed_at || new Date().toISOString())}</div>}
+                  </div>
                 </div>
               </div>
             </div>
