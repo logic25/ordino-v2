@@ -502,7 +502,9 @@ export default function RfiForm() {
   useEffect(() => {
     const tppKnown = responses["contractors_inspections_tpp_known"];
     if (tppKnown === "Yes — Same as Applicant") {
-      const fullName = responses["applicant_and_owner_applicant_first_name"] || "";
+      const firstName = responses["applicant_and_owner_applicant_first_name"] || "";
+      const lastName = responses["applicant_and_owner_applicant_last_name"] || "";
+      const fullName = [firstName, lastName].filter(Boolean).join(" ");
       const email = responses["applicant_and_owner_applicant_email"] || "";
       
       const newResponses = { ...responses };
@@ -520,6 +522,7 @@ export default function RfiForm() {
   }, [
     responses["contractors_inspections_tpp_known"],
     responses["applicant_and_owner_applicant_first_name"],
+    responses["applicant_and_owner_applicant_last_name"],
     responses["applicant_and_owner_applicant_email"],
   ]);
 
