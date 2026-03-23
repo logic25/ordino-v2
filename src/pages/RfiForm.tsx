@@ -530,7 +530,9 @@ export default function RfiForm() {
   useEffect(() => {
     const siaKnown = responses["contractors_inspections_sia_known"];
     if (siaKnown === "Yes — Same as Applicant") {
-      const fullName = responses["applicant_and_owner_applicant_first_name"] || "";
+      const firstName = responses["applicant_and_owner_applicant_first_name"] || "";
+      const lastName = responses["applicant_and_owner_applicant_last_name"] || "";
+      const fullName = [firstName, lastName].filter(Boolean).join(" ");
       const email = responses["applicant_and_owner_applicant_email"] || "";
       const phone = responses["applicant_and_owner_applicant_phone"] || "";
       const company = responses["applicant_and_owner_applicant_business_name"] || "";
@@ -555,6 +557,7 @@ export default function RfiForm() {
   }, [
     responses["contractors_inspections_sia_known"],
     responses["applicant_and_owner_applicant_first_name"],
+    responses["applicant_and_owner_applicant_last_name"],
     responses["applicant_and_owner_applicant_email"],
     responses["applicant_and_owner_applicant_phone"],
     responses["applicant_and_owner_applicant_business_name"],
