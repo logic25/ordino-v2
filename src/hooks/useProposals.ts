@@ -103,7 +103,7 @@ export interface ProposalQueryOptions {
 /**
  * Safely migrate proposal contacts to a project by finding or creating client_contacts.
  * Matching order: 1) exact name match, 2) email+name match, 3) create new.
- * Only migrates applicant, bill_to, sign roles — skips cc and others.
+ * Only migrates applicant and bill_to roles — skips cc and others.
  */
 export async function migrateProposalContactsToProject({
   proposalId,
