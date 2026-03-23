@@ -10,6 +10,8 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Mail, Save, RotateCcw, Palette, Type, Loader2 } from "lucide-react";
 import { useCompanySettings, useUpdateCompanySettings } from "@/hooks/useCompanySettings";
+import { formatCurrency } from "@/lib/utils";
+import { buildProposalEmailHtml, resolveProposalEmailTemplate } from "@/components/proposals/buildProposalEmailHtml";
 import { toast } from "sonner";
 
 // ── Types ──
@@ -279,7 +281,6 @@ function buildPreviewHtml(
   const font = style.fontFamily;
   const btnRadius = style.buttonRadius;
 
-  // Resolve variables for preview
   const resolve = (text: string) =>
     text
       .replace(/\{\{COMPANY_NAME\}\}/g, co.name)
@@ -307,7 +308,57 @@ function buildPreviewHtml(
   const ctaText = resolve(overrides.cta_text);
   const signoffText = resolve(overrides.signoff);
 
-  // Accent foreground: if accent is light, use dark text
+  if (template.id === "proposal") {
+    const proposalTotal = 6300;
+    const proposalDeposit = 1102.5;
+    const resolvedProposalTemplate = resolveProposalEmailTemplate(
+      {
+        subject: overrides.subject,
+        greeting: overrides.greeting,
+        bodyText: overrides.body_text,
+        ctaText: overrides.cta_text,
+        signoff: overrides.signoff,
+      },
+      {
+        COMPANY_NAME: co.name,
+        CLIENT_NAME: "John Smith",
+        PROJECT_TITLE: "Alt-1 Interior Renovation",
+        PROPERTY_ADDRESS: "456 Park Avenue, New York, NY",
+        PROPOSAL_NUMBER: "#031926-1",
+        AMOUNT: formatCurrency(proposalTotal, 2),
+      },
+    );
+
+    return buildProposalEmailHtml({
+      clientName: "John Smith",
+      proposalTitle: "Alt-1 Interior Renovation",
+      proposalNumber: "031926-1",
+      propertyAddress: "456 Park Avenue, New York, NY",
+      preparedFor: "John Smith",
+      totalAmount: formatCurrency(proposalTotal, 2),
+      depositAmount: formatCurrency(proposalDeposit, 2),
+      clientLink: "#",
+      companyName: co.name,
+      companyEmail: co.email,
+      companyPhone: co.phone,
+      logoUrl: co.logoUrl || undefined,
+      companyAddress: co.address,
+      items: [
+        { name: "DOB Filing & Expediting", total: formatCurrency(3500, 2), isOptional: false },
+        { name: "Architectural Plans", total: formatCurrency(2800, 2), isOptional: false },
+      ],
+      greetingText: resolvedProposalTemplate.greeting,
+      bodyText: resolvedProposalTemplate.bodyText,
+      ctaText: resolvedProposalTemplate.ctaText,
+      signoffText: resolvedProposalTemplate.signoff,
+      style: {
+        accentColor: style.accentColor,
+        fontFamily: style.fontFamily,
+        buttonRadius: style.buttonRadius,
+      },
+    });
+  }
+
   const accentFg = "#1a1a2e";
 
   const docLabels: Record<string, { label: string; number?: string }> = {
@@ -334,10 +385,7 @@ function buildPreviewHtml(
        </div>`
     : `<span style="font-size:18px;font-weight:700;color:${accent};">${co.name}</span>`;
 
-  // Template-specific body content
   const templateBody = buildTemplateBody(template.id, { greeting, bodyText, ctaText, signoffText, accent, accentFg, btnRadius, co });
-
-  // Determine accent stripe color per template
   const stripeColor = template.id === "demand_letter" ? "#ef4444"
     : template.id === "checklist_followup" ? "#f59e0b"
     : accent;

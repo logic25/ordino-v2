@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import { formatCurrency } from "@/lib/utils";
+import { buildProposalEmailHtml, resolveProposalEmailTemplate } from "@/components/proposals/buildProposalEmailHtml";
 import { DEFAULT_PIS_SECTIONS } from "@/hooks/useRfi";
 
 export type Proposal = Tables<"proposals">;
@@ -654,24 +656,72 @@ export function useSendProposal() {
       let companyPhone = "";
       let companyLogoUrl = "";
       let companyAddress = "";
+      let emailStyle:
+        | {
+            accentColor?: string;
+            fontFamily?: string;
+            buttonRadius?: string;
+          }
+        | undefined;
+      let proposalTemplateOverride:
+        | {
+            subject?: string;
+            greeting?: string;
+            bodyText?: string;
+            ctaText?: string;
+            signoff?: string;
+          }
+        | undefined;
+
       if (profile?.company_id) {
         const { data: co } = await supabase
           .from("companies")
           .select("name, email, phone, logo_url, address, settings")
           .eq("id", profile.company_id)
           .single();
+
+        const settings = ((co as any)?.settings || {}) as {
+          company_email?: string;
+          company_phone?: string;
+          company_logo_url?: string;
+          company_address?: string;
+          email_style?: {
+            accent_color?: string;
+            font_family?: string;
+            button_radius?: string;
+          };
+          email_template_overrides?: Record<string, {
+            subject?: string;
+            greeting?: string;
+            body_text?: string;
+            cta_text?: string;
+            signoff?: string;
+          }>;
+        };
+
         if (co) {
           companyName = co.name || companyName;
-          companyEmail = (co as any).settings?.company_email || co.email || "";
-          companyPhone = (co as any).settings?.company_phone || co.phone || "";
-          companyLogoUrl = co.logo_url || (co as any).settings?.company_logo_url || "";
-          companyAddress = co.address || (co as any).settings?.company_address || "";
+          companyEmail = co.email || settings.company_email || "";
+          companyPhone = co.phone || settings.company_phone || "";
+          companyLogoUrl = co.logo_url || settings.company_logo_url || "";
+          companyAddress = co.address || settings.company_address || "";
+          emailStyle = {
+            accentColor: settings.email_style?.accent_color,
+            fontFamily: settings.email_style?.font_family,
+            buttonRadius: settings.email_style?.button_radius,
+          };
+          proposalTemplateOverride = {
+            subject: settings.email_template_overrides?.proposal?.subject,
+            greeting: settings.email_template_overrides?.proposal?.greeting,
+            bodyText: settings.email_template_overrides?.proposal?.body_text,
+            ctaText: settings.email_template_overrides?.proposal?.cta_text,
+            signoff: settings.email_template_overrides?.proposal?.signoff,
+          };
         }
       }
 
       // 4. Calculate totals
       const items = (proposal as any).proposal_items || [];
-      const fmt = (v: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 }).format(v);
       const nonOptionalTotal = items
         .filter((i: any) => !i.is_optional)
         .reduce((sum: number, i: any) => sum + Number(i.total_price || i.quantity * i.unit_price || 0), 0);
@@ -680,25 +730,31 @@ export function useSendProposal() {
       const depositAmt = Number((proposal as any).deposit_required || 0) || (depositPct > 0 ? totalAmount * (depositPct / 100) : 0);
 
       // 5. Build email using branded template
-      const { buildProposalEmailHtml } = await import("@/components/proposals/buildProposalEmailHtml");
-
-      // Find bill_to contact for "Prepared For"
       const { data: proposalContacts } = await supabase
         .from("proposal_contacts")
         .select("*")
         .eq("proposal_id", id);
       const billToContact = (proposalContacts || []).find((c: any) => c.role === "bill_to");
       const preparedForName = billToContact?.name || proposal.client_name || "";
+      const propertyAddress = (proposal as any).properties?.address || "";
+      const resolvedTemplate = resolveProposalEmailTemplate(proposalTemplateOverride, {
+        COMPANY_NAME: companyName,
+        CLIENT_NAME: clientName,
+        PROJECT_TITLE: proposal.title || "Your Project",
+        PROPERTY_ADDRESS: propertyAddress || "your project",
+        PROPOSAL_NUMBER: proposal.proposal_number ? `#${proposal.proposal_number}` : "",
+        AMOUNT: formatCurrency(totalAmount, 2),
+      });
 
-      const subject = `Proposal ${proposal.proposal_number} — ${proposal.title}`;
+      const subject = resolvedTemplate.subject;
       const htmlBody = buildProposalEmailHtml({
         clientName,
         proposalTitle: proposal.title || "Your Project",
         proposalNumber: proposal.proposal_number || "",
-        propertyAddress: (proposal as any).properties?.address || "",
+        propertyAddress,
         preparedFor: preparedForName || undefined,
-        totalAmount: fmt(totalAmount),
-        depositAmount: fmt(depositAmt),
+        totalAmount: formatCurrency(totalAmount, 2),
+        depositAmount: formatCurrency(depositAmt, 2),
         clientLink,
         companyName,
         companyEmail,
@@ -707,9 +763,14 @@ export function useSendProposal() {
         companyAddress,
         items: items.map((i: any) => ({
           name: i.name,
-          total: fmt(Number(i.total_price || i.quantity * i.unit_price || 0)),
+          total: formatCurrency(Number(i.total_price || i.quantity * i.unit_price || 0), 2),
           isOptional: !!i.is_optional,
         })),
+        greetingText: resolvedTemplate.greeting,
+        bodyText: resolvedTemplate.bodyText,
+        ctaText: resolvedTemplate.ctaText,
+        signoffText: resolvedTemplate.signoff,
+        style: emailStyle,
       });
 
       // 6. Send via Gmail
