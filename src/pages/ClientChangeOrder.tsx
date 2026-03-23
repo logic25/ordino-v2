@@ -480,6 +480,47 @@ export default function ClientChangeOrderPage() {
               </div>
             )}
 
+            {/* Contract Balance Summary */}
+            {contractSummary && contractSummary.originalTotal > 0 && (() => {
+              const adjustedTotal = contractSummary.originalTotal + contractSummary.priorCOsTotal + co.amount;
+              return (
+                <div className="mt-6 mb-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div style={{ width: 4, height: 22, background: amber, borderRadius: 2 }} />
+                    <h4 className="text-sm font-bold" style={{ color: charcoal }}>Contract Summary</h4>
+                  </div>
+                  <div className="rounded-md overflow-hidden" style={{ border: "1px solid #e2e8f0" }}>
+                    <div className="flex justify-between px-5 py-2.5">
+                      <span className="text-sm" style={{ color: slate }}>Original Contract</span>
+                      <span className="text-sm font-bold" style={{ color: charcoal }}>{fmt(contractSummary.originalTotal)}</span>
+                    </div>
+                    <div style={{ borderBottom: "1px solid #e2e8f0" }} />
+                    {contractSummary.priorCOsCount > 0 && (
+                      <>
+                        <div className="flex justify-between px-5 py-2.5">
+                          <span className="text-sm" style={{ color: slate }}>Previous Change Orders ({contractSummary.priorCOsCount})</span>
+                          <span className="text-sm font-bold" style={{ color: charcoal }}>
+                            {contractSummary.priorCOsTotal >= 0 ? `+${fmt(contractSummary.priorCOsTotal)}` : `-${fmt(Math.abs(contractSummary.priorCOsTotal))}`}
+                          </span>
+                        </div>
+                        <div style={{ borderBottom: "1px solid #e2e8f0" }} />
+                      </>
+                    )}
+                    <div className="flex justify-between px-5 py-2.5">
+                      <span className="text-sm" style={{ color: slate }}>This Change Order ({co.co_number})</span>
+                      <span className="text-sm font-bold" style={{ color: isCredit ? "#dc2626" : "#16a34a" }}>
+                        {isCredit ? `-${fmt(Math.abs(co.amount))}` : `+${fmt(co.amount)}`}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center rounded-md px-5 py-3 mt-1" style={{ background: charcoal }}>
+                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "#ffffff" }}>Adjusted Contract Total</span>
+                    <span className="text-base font-extrabold" style={{ color: "#ffffff" }}>{fmt(adjustedTotal)}</span>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Terms Reference */}
             <div className="my-5 text-xs italic" style={{ color: slate, lineHeight: 1.5 }}>
               By signing this Change Order, you acknowledge that all terms and conditions of the original proposal/contract remain in full effect. This Change Order modifies only the scope and fees described above.
