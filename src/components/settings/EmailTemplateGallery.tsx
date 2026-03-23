@@ -32,6 +32,7 @@ interface CoInfo {
 
 interface StyleConfig {
   accentColor: string;
+  accentTextColor: string;
   fontFamily: string;
   buttonRadius: string;
   bodyColor: string;
