@@ -671,7 +671,7 @@ export function useSendProposal() {
 
       // 4. Calculate totals
       const items = (proposal as any).proposal_items || [];
-      const fmt = (v: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(v);
+      const fmt = (v: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 }).format(v);
       const nonOptionalTotal = items
         .filter((i: any) => !i.is_optional)
         .reduce((sum: number, i: any) => sum + Number(i.total_price || i.quantity * i.unit_price || 0), 0);
