@@ -6950,6 +6950,7 @@ export type Database = {
           id: string
           rfp_id: string
           section_order: string[]
+          selected_project_ids: string[] | null
           selected_sections: string[]
           submit_email: string | null
           updated_at: string
@@ -6963,6 +6964,7 @@ export type Database = {
           id?: string
           rfp_id: string
           section_order?: string[]
+          selected_project_ids?: string[] | null
           selected_sections?: string[]
           submit_email?: string | null
           updated_at?: string
@@ -6976,6 +6978,7 @@ export type Database = {
           id?: string
           rfp_id?: string
           section_order?: string[]
+          selected_project_ids?: string[] | null
           selected_sections?: string[]
           submit_email?: string | null
           updated_at?: string

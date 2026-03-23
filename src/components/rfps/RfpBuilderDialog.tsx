@@ -5,6 +5,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -68,6 +69,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   const [step, setStep] = useState(0);
   const [selectedSections, setSelectedSections] = useState<string[]>([...DEFAULT_SECTIONS]);
   const [sectionOrder, setSectionOrder] = useState<string[]>([...DEFAULT_SECTIONS]);
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[] | null>(null); // null = all selected
   const [previewOpen, setPreviewOpen] = useState(false);
   const [coverLetter, setCoverLetter] = useState("");
   const [generatingLetter, setGeneratingLetter] = useState(false);
@@ -109,6 +111,13 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     })),
   ];
 
+  // Initialize selectedProjectIds when projects load (select all by default)
+  useEffect(() => {
+    if (selectedProjectIds === null && allNotableProjects.length > 0 && !draftLoaded) {
+      setSelectedProjectIds(allNotableProjects.map((p: any) => p.id));
+    }
+  }, [allNotableProjects, selectedProjectIds, draftLoaded]);
+
   // Load draft only once on open
   useEffect(() => {
     if (draft && !draftLoaded && !dirty && open) {
@@ -117,12 +126,19 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
       setCoverLetter(draft.cover_letter || "");
       setSubmitEmail(draft.submit_email || "");
       setStep(draft.wizard_step || 0);
+      // Restore selected project ids from draft metadata
+      const draftAny = draft as any;
+      if (draftAny.selected_project_ids && Array.isArray(draftAny.selected_project_ids)) {
+        setSelectedProjectIds(draftAny.selected_project_ids);
+      } else if (allNotableProjects.length > 0) {
+        setSelectedProjectIds(allNotableProjects.map((p: any) => p.id));
+      }
       setDraftLoaded(true);
     }
-  }, [draft, draftLoaded, dirty, open]);
+  }, [draft, draftLoaded, dirty, open, allNotableProjects]);
 
   useEffect(() => {
-    if (!open) { setDraftLoaded(false); setDirty(false); }
+    if (!open) { setDraftLoaded(false); setDirty(false); setSelectedProjectIds(null); }
   }, [open]);
 
   const saveDraft = useCallback((overrideStep?: number) => {
@@ -134,8 +150,9 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
       cover_letter: coverLetter || null,
       submit_email: submitEmail || null,
       wizard_step: overrideStep ?? step,
-    });
-  }, [rfp?.id, selectedSections, sectionOrder, coverLetter, submitEmail, step]);
+      selected_project_ids: selectedProjectIds,
+    } as any);
+  }, [rfp?.id, selectedSections, sectionOrder, coverLetter, submitEmail, step, selectedProjectIds]);
 
   // DnD
   const sensors = useSensors(
@@ -222,12 +239,17 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     return `<div style="font-family: Arial, sans-serif; line-height: 1.6;">${parts.join("\n")}</div>`;
   };
 
+  // Filtered notable projects based on selection
+  const filteredNotableProjects = selectedProjectIds
+    ? allNotableProjects.filter((p: any) => selectedProjectIds.includes(p.id))
+    : allNotableProjects;
+
   const contentCounts: Record<string, number> = {
     cover_letter: coverLetter ? 1 : 0,
     company_info: companyInfo.length,
     staff_bios: staffBios.length,
     org_chart: staffBios.filter((s) => (s.content as any)?.include_in_org_chart !== false).length,
-    notable_projects: allNotableProjects.length,
+    notable_projects: filteredNotableProjects.length,
     narratives: narratives.length + firmHistory.length,
     pricing: pricing.length,
     certifications: certs.length,
@@ -249,7 +271,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     sections: sectionOrder.filter((s) => selectedSections.includes(s)),
     companyInfo: companyInfo[0],
     staffBios,
-    notableProjects: allNotableProjects,
+    notableProjects: filteredNotableProjects,
     narratives: [...firmHistory, ...narratives],
     pricing: pricing[0],
     certs,
@@ -257,6 +279,16 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   };
 
   const draggableSections = sectionOrder.filter((s) => s !== "cover_letter");
+
+  const toggleProjectSelection = (projectId: string) => {
+    setDirty(true);
+    setSelectedProjectIds((prev) => {
+      const ids = prev || allNotableProjects.map((p: any) => p.id);
+      return ids.includes(projectId)
+        ? ids.filter((id) => id !== projectId)
+        : [...ids, projectId];
+    });
+  };
 
   const goNext = () => { const next = Math.min(step + 1, STEPS.length - 1); setDirty(true); saveDraft(next); setStep(next); };
   const goBack = () => { setDirty(true); setStep((s) => Math.max(s - 1, 0)); };
@@ -322,6 +354,8 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
                 sectionOrder={sectionOrder}
                 sectionContentMap={sectionContentMap}
                 onGoToLibrary={goToLibrary}
+                selectedProjectIds={selectedProjectIds || allNotableProjects.map((p: any) => p.id)}
+                onToggleProject={toggleProjectSelection}
               />
             )}
             {step === 2 && (
@@ -432,11 +466,15 @@ function StepEditContent({
   sectionOrder,
   sectionContentMap,
   onGoToLibrary,
+  selectedProjectIds,
+  onToggleProject,
 }: {
   selectedSections: string[];
   sectionOrder: string[];
   sectionContentMap: Record<string, { items: any[]; type: string }>;
   onGoToLibrary: (tab?: string | null) => void;
+  selectedProjectIds: string[];
+  onToggleProject: (id: string) => void;
 }) {
   const activeSections = sectionOrder
     .filter((s) => selectedSections.includes(s) && s !== "cover_letter");
@@ -459,6 +497,8 @@ function StepEditContent({
           const Icon = def.icon;
           const content = sectionContentMap[sectionId];
           const items = content?.items || [];
+          const isNotableProjects = sectionId === "notable_projects";
+          const selectedCount = isNotableProjects ? selectedProjectIds.length : items.length;
 
           return (
             <Collapsible key={sectionId}>
@@ -467,8 +507,8 @@ function StepEditContent({
                   <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
                     <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     <span className="text-sm font-medium flex-1">{def.label}</span>
-                    <Badge variant={items.length > 0 ? "secondary" : "outline"} className="text-xs">
-                      {items.length} {items.length === 1 ? "item" : "items"}
+                    <Badge variant={selectedCount > 0 ? "secondary" : "outline"} className="text-xs">
+                      {isNotableProjects ? `${selectedCount}/${items.length} selected` : `${items.length} ${items.length === 1 ? "item" : "items"}`}
                     </Badge>
                     <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180" />
                   </button>
@@ -480,10 +520,21 @@ function StepEditContent({
                         No content yet. Use the button below to add items.
                       </p>
                     ) : (
-                      <ScrollArea className="max-h-[200px]">
+                      <ScrollArea className="max-h-[300px]">
                         <div className="space-y-2 pr-2">
                           {items.map((item: any, idx: number) => (
-                            <SectionContentPreview key={item.id || idx} item={item} type={sectionId} />
+                            <div key={item.id || idx} className="flex items-start gap-2">
+                              {isNotableProjects && (
+                                <Checkbox
+                                  checked={selectedProjectIds.includes(item.id)}
+                                  onCheckedChange={() => onToggleProject(item.id)}
+                                  className="mt-2.5 flex-shrink-0"
+                                />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <SectionContentPreview item={item} type={sectionId} />
+                              </div>
+                            </div>
                           ))}
                         </div>
                       </ScrollArea>
