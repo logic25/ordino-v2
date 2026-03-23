@@ -1,34 +1,42 @@
 
 
-## Plan: PIS Owner Supersedes PLUTO Owner
+## Plan: Email Template Gallery — Visual Status Badges + Extended Style Controls
 
-### Problem
-When a property is created, PLUTO fills `properties.owner_name` with the legal/tax lot owner (often an LLC). When the client later submits a PIS with the actual owner they work with, the trigger only overwrites if the property owner is null/empty/"UNAVAILABLE OWNER" — so the stale PLUTO LLC name persists.
+### What's changing
 
-### Changes
+**1. "Live" vs "Coming Soon" badges on each template chip**
 
-**1. Database migration — Update `sync_pis_to_project` trigger**
-- Change the property owner sync to **always** overwrite `properties.owner_name` when PIS provides an owner, not just when it's null/empty/UNAVAILABLE
-- Also handle the combined company + person name format ("Company — Person") per the earlier decision
-- Read both `applicant_and_owner_owner_company` AND `applicant_and_owner_owner_name` from responses, combine them
+Each template button in the gallery will show a small visual indicator:
+- **Green dot** — template is wired to a real send path (10 templates)
+- **"Coming Soon" badge** — template is preview-only, not yet sending (4 templates: Project Closeout, Payment Received, Project Status Update, Referral / Thank You)
 
-Current condition:
-```sql
-WHERE owner_name IS NULL OR owner_name = '' OR owner_name = 'UNAVAILABLE OWNER'
-```
-New condition: remove the WHERE filter — always update when PIS has owner data.
+This makes it immediately obvious which templates are actively used and which are design-only.
 
-**2. `src/hooks/useProjectDetail.ts` — Fix `pisOwnerName` extraction**
-- Read both `applicant_and_owner_owner_company` and `applicant_and_owner_owner_name` from PIS responses
-- Combine as "Company — Person" when both exist, or whichever is available
-- This fixes the header still showing "UNAVAILABLE OWNER"
+**2. Extended Style Controls in the editor**
 
-**3. `src/pages/ProjectDetail.tsx` — Update display priority**
-- Ensure the fallback chain is: PIS owner → client record → property record (filtered)
-- The PIS-sourced name always wins when available
+The Style tab currently supports: accent color, font family, and button corners. We'll add:
 
-### What this means
-- PLUTO data is still fetched and stored — useful for BBL verification and reference
-- But once the client submits a PIS, their owner info takes priority everywhere
-- No data is lost — PLUTO owner could be shown separately as "Legal owner on record" if needed later
+- **Body Text Color** — color picker + hex input for the main paragraph text (currently hardcoded to `#334155`)
+- **Heading Text Color** — color picker + hex input for headings/greeting (currently hardcoded to `#1e293b`)
+- **Body Font Size** — slider or preset options (13px / 14px / 15px / 16px) for the main body text size
+
+These new tokens will be saved alongside the existing `email_style` settings and flow through `resolveEmailStyle()` to every send path, keeping the single-source-of-truth guarantee.
+
+### Technical details
+
+**File: `src/components/settings/EmailTemplateGallery.tsx`**
+- Add a `LIVE_TEMPLATE_IDS` set containing the 10 wired template IDs
+- Update the template selector buttons to show a green dot or "Coming Soon" label based on membership
+- Add 3 new controls to the Style tab: body text color picker, heading text color picker, and font size selector
+- Wire new style fields into `StyleConfig` and the preview builder
+
+**File: `src/components/proposals/buildProposalEmailHtml.ts`**
+- Extend `ProposalEmailStyleConfig` with `bodyColor`, `headingColor`, `bodyFontSize`
+- Update `resolveEmailStyle()` to include the new fields with sensible defaults (`#334155`, `#1e293b`, `15px`)
+- Update `buildProposalEmailHtml()` to use these tokens instead of hardcoded values
+
+**File: `src/hooks/useCompanySettings.ts`**
+- Extend the `email_style` type to include `body_color`, `heading_color`, `body_font_size`
+
+**All 4 send paths** (SendProposalDialog, useProposals, ClientProposal, Gallery) already call `resolveEmailStyle()` — they'll automatically pick up the new tokens without any changes needed.
 
