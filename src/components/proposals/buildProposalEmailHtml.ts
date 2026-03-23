@@ -53,6 +53,9 @@ export const DEFAULT_PROPOSAL_EMAIL_STYLE: Required<ProposalEmailStyleConfig> = 
   accentForeground: "#1f2937",
   fontFamily: "Arial, Helvetica, sans-serif",
   buttonRadius: "8px",
+  bodyColor: "#334155",
+  headingColor: "#1e293b",
+  bodyFontSize: "15px",
 };
 
 /**
