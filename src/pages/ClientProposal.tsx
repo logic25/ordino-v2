@@ -333,11 +333,7 @@ export default function ClientProposalPage() {
   const lightBg = "#f8f9fa";
 
   const propertyAddress = proposal.properties?.address || "";
-  const emailStyle = {
-    accentColor: company?.settings?.email_style?.accent_color,
-    fontFamily: company?.settings?.email_style?.font_family,
-    buttonRadius: company?.settings?.email_style?.button_radius,
-  };
+  const emailStyle = resolveEmailStyle(company?.settings?.email_style);
   const proposalTemplate = resolveProposalEmailTemplate(
     {
       subject: company?.settings?.email_template_overrides?.proposal?.subject,

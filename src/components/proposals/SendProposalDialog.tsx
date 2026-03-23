@@ -44,11 +44,7 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
   const companyLogoUrl = (company as any)?.logo_url || companySettings.company_logo_url || "";
   const companyAddress = (company as any)?.address || companySettings.company_address || "";
   const emailStyle = useMemo(
-    () => ({
-      accentColor: company?.settings?.email_style?.accent_color || (company as any)?.theme?.primary_color,
-      fontFamily: company?.settings?.email_style?.font_family,
-      buttonRadius: company?.settings?.email_style?.button_radius,
-    }),
+    () => resolveEmailStyle(company?.settings?.email_style),
     [company],
   );
 
