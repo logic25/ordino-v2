@@ -38,7 +38,9 @@ function useTeamMembers() {
   return useQuery({
     queryKey: ["team-members-for-notif"],
     queryFn: async () => {
-      const { data: profile } = await supabase.from("profiles").select("company_id").single();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+      const { data: profile } = await supabase.from("profiles").select("company_id").eq("user_id", user.id).single();
       if (!profile?.company_id) return [];
       const { data, error } = await supabase
         .from("profiles")
