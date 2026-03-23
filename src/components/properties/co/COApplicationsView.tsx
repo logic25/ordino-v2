@@ -75,8 +75,67 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
     });
   }, [applications, workTypeFilter, sourceFilter, statusFilter, actionFilter, search]);
 
-  const paginated = filtered.slice(page * pageSize, (page + 1) * pageSize);
-  const totalPages = Math.ceil(filtered.length / pageSize);
+  // Group applications by job number to nest subsequents/PAAs
+  const { groupedApps, expandedJobs, toggleExpand } = useMemo(() => {
+    // Group by base job number (digits only) for BIS filings
+    const jobGroups = new Map<string, COApplication[]>();
+    const standalone: COApplication[] = [];
+
+    for (const app of filtered) {
+      // Only group BIS filings that have docNum patterns (01, 02, etc.)
+      if (app.source === "DOB_JOB_FILINGS") {
+        const baseJob = app.jobNum.replace(/\D/g, "");
+        if (baseJob) {
+          if (!jobGroups.has(baseJob)) jobGroups.set(baseJob, []);
+          jobGroups.get(baseJob)!.push(app);
+          continue;
+        }
+      }
+      standalone.push(app);
+    }
+
+    // Build ordered list: groups with >1 entry get nested, singles stay flat
+    type GroupedApp = { type: "single"; app: COApplication } | { type: "group"; baseJob: string; initial: COApplication; subsequents: COApplication[] };
+    const result: GroupedApp[] = [];
+
+    // First, process groups - sort each group by docNum ascending (01 first)
+    for (const [baseJob, apps] of jobGroups) {
+      apps.sort((a, b) => (a.docNum || "01").localeCompare(b.docNum || "01"));
+      if (apps.length === 1) {
+        result.push({ type: "single", app: apps[0] });
+      } else {
+        result.push({ type: "group", baseJob, initial: apps[0], subsequents: apps.slice(1) });
+      }
+    }
+
+    // Add standalone apps
+    for (const app of standalone) {
+      result.push({ type: "single", app });
+    }
+
+    // Sort all entries by the primary app's fileDate descending
+    result.sort((a, b) => {
+      const dateA = a.type === "single" ? a.app.fileDate : a.initial.fileDate;
+      const dateB = b.type === "single" ? b.app.fileDate : b.initial.fileDate;
+      return (dateB || "").localeCompare(dateA || "");
+    });
+
+    return { groupedApps: result, expandedJobs: null as any, toggleExpand: null as any };
+  }, [filtered]);
+
+  const [expandedJobNums, setExpandedJobNums] = useState<Set<string>>(new Set());
+  const toggleJobExpand = (baseJob: string) => {
+    setExpandedJobNums(prev => {
+      const next = new Set(prev);
+      if (next.has(baseJob)) next.delete(baseJob);
+      else next.add(baseJob);
+      return next;
+    });
+  };
+
+  // Paginate on grouped entries
+  const paginatedGroups = groupedApps.slice(page * pageSize, (page + 1) * pageSize);
+  const totalPages = Math.ceil(groupedApps.length / pageSize);
 
   const openDrawer = (app: COApplication) => {
     setSelectedApp(app);
