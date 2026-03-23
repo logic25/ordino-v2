@@ -390,6 +390,9 @@ function buildPreviewHtml(
         accentColor: style.accentColor,
         fontFamily: style.fontFamily,
         buttonRadius: style.buttonRadius,
+        bodyColor: style.bodyColor,
+        headingColor: style.headingColor,
+        bodyFontSize: style.bodyFontSize,
       },
     });
   }
