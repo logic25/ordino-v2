@@ -182,13 +182,21 @@ export function ReadinessChecklist({
           completedAt: item.completed_at ? new Date(item.completed_at).toLocaleDateString("en-US") : "recently",
         }));
 
+      // Get the user's session token for authenticated edge function calls
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+      if (!accessToken) {
+        toast({ title: "Not authenticated", description: "Please sign in to use this feature.", variant: "destructive" });
+        return;
+      }
+
       const resp = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/draft-checklist-followup`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
             items: itemsPayload,
