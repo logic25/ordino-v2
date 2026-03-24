@@ -290,6 +290,45 @@ const TEMPLATES: TemplateDef[] = [
       signoff: "It was a pleasure working with you. We hope to work together again soon.",
     },
   },
+  {
+    id: "co_signed",
+    name: "CO Signed Confirmation",
+    description: "Sent to client after they sign a change order",
+    category: "client",
+    defaults: {
+      subject: "Your Signed Change Order — {{CO_NUMBER}}",
+      greeting: "Hi {{CLIENT_NAME}},",
+      body_text: "Thank you for signing. Here is a summary for your records:",
+      cta_text: "",
+      signoff: "If you need a printable copy, please revisit the original link.",
+    },
+  },
+  {
+    id: "bug_report",
+    name: "Bug Report Alert",
+    description: "Internal notification when a bug is reported or status changes",
+    category: "internal",
+    defaults: {
+      subject: "🐛 New Bug: {{BUG_TITLE}}",
+      greeting: "Hi {{USER_NAME}},",
+      body_text: "A new bug has been reported:",
+      cta_text: "View in Help Center",
+      signoff: "",
+    },
+  },
+  {
+    id: "pis_reminder",
+    name: "PIS Reminder",
+    description: "Reminder to complete the Project Information Sheet",
+    category: "client",
+    defaults: {
+      subject: "Reminder: Project Information Sheet — {{PROJECT_TITLE}}",
+      greeting: "Hi {{CLIENT_NAME}},",
+      body_text: "This is a friendly reminder to complete the Project Information Sheet for {{PROJECT_TITLE}}{{PROPERTY_ADDRESS_LINE}}.",
+      cta_text: "Complete PIS →",
+      signoff: "If you've already submitted this, please disregard this message.",
+    },
+  },
 ];
 
 const categoryLabels: Record<string, string> = { client: "Client-Facing", internal: "Internal", partner: "Partner" };
