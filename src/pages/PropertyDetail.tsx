@@ -105,62 +105,90 @@ export default function PropertyDetail() {
     if (!isSubscriptionActive) return;
     if (coImported || coImporting) return;
     autoFetchedRef.current = true;
-    // Trigger the import
     (async () => {
       setCoImporting(true);
       try {
-        const [apps, viols, complaints] = await Promise.all([
-          fetchDOBApplications(property.bin!),
-          fetchDOBViolations(property.bin!, property.borough, property.block, property.lot),
-          fetchDOBComplaints(property.bin!),
-        ]);
-        setCoApps(apps);
-        setCoViolations(viols);
-        setCoComplaints(complaints);
-        setCoImported(true);
-        setLastSynced(format(new Date(), "MM/dd/yyyy h:mm a"));
+        // Try CitiSignal first
+        const csResult = await syncFromCitiSignal(id!, property.bin);
+        if (csResult) {
+          // CitiSignal returned data — map to COApplication shape for the UI
+          const apps = csResult.applications.map((a: any) => ({
+            jobNum: a.application_number || a.job_number || "",
+            workType: a.application_type || a.work_type || "Unknown",
+            status: a.status || a.filing_status || "",
+            applicant: a.applicant_name || a.applicant || "",
+            fileDate: a.filing_date || a.filed_date || "",
+            desc: a.description || "",
+            source: a.source || "citisignal",
+            docNum: a.doc_number || a.document_number || "",
+            latestActionDate: a.latest_action_date || a.filing_date || "",
+            ...a,
+          }));
+          const viols = csResult.violations.map((v: any) => ({
+            violationNum: v.violation_number || "",
+            agency: v.agency || "DOB",
+            status: v.status || "open",
+            description: v.description || "",
+            issuedDate: v.issued_date || v.issue_date || "",
+            penaltyAmount: v.penalty_amount || 0,
+            ...v,
+          }));
+          setCoApps(apps);
+          setCoViolations(viols);
+          setCoImported(true);
+          setLastSynced(format(new Date(), "MM/dd/yyyy h:mm a") + " (CitiSignal)");
+        } else {
+          // Fallback to direct Socrata fetch
+          const [apps, viols, complaints] = await Promise.all([
+            fetchDOBApplications(property.bin!),
+            fetchDOBViolations(property.bin!, property.borough, property.block, property.lot),
+            fetchDOBComplaints(property.bin!),
+          ]);
+          setCoApps(apps);
+          setCoViolations(viols);
+          setCoComplaints(complaints);
+          setCoImported(true);
+          setLastSynced(format(new Date(), "MM/dd/yyyy h:mm a"));
 
-        // Persist DOB data to signal tables
-        if (profile?.company_id && id) {
-          try {
-            if (apps.length > 0) {
-              const appRows = apps.map((a: any) => ({
-                property_id: id,
-                company_id: profile.company_id,
-                job_number: a.jobNum || a.job_number || "",
-                application_type: a.workType || a.application_type || "Unknown",
-                filing_status: a.status || null,
-                applicant_name: a.applicant || null,
-                filed_date: a.fileDate || a.filedDate || null,
-                description: a.desc || a.description || null,
-                raw_data: a,
-              }));
-              await supabase.from("signal_applications").upsert(appRows as any, { onConflict: "property_id,job_number" });
+          // Persist to signal tables
+          if (profile?.company_id && id) {
+            try {
+              if (apps.length > 0) {
+                const appRows = apps.map((a: any) => ({
+                  property_id: id,
+                  company_id: profile.company_id,
+                  job_number: a.jobNum || a.job_number || "",
+                  application_type: a.workType || a.application_type || "Unknown",
+                  filing_status: a.status || null,
+                  applicant_name: a.applicant || null,
+                  filed_date: a.fileDate || a.filedDate || null,
+                  description: a.desc || a.description || null,
+                  raw_data: a,
+                }));
+                await supabase.from("signal_applications").upsert(appRows as any, { onConflict: "property_id,job_number" });
+              }
+              if (viols.length > 0) {
+                const violRows = viols.map((v: any) => ({
+                  property_id: id,
+                  company_id: profile.company_id,
+                  violation_number: v.violationNum || v.violation_number || "",
+                  agency: v.agency || "DOB",
+                  status: v.status || "open",
+                  description: v.description || null,
+                  penalty_amount: v.penaltyAmount || v.penalty_amount || 0,
+                  issued_date: v.issuedDate || null,
+                  raw_data: v,
+                }));
+                await supabase.from("signal_violations").upsert(violRows as any, { onConflict: "property_id,violation_number" });
+              }
+            } catch (persistErr) {
+              console.error("Error persisting DOB data:", persistErr);
             }
-            if (viols.length > 0) {
-              const violRows = viols.map((v: any) => ({
-                property_id: id,
-                company_id: profile.company_id,
-                violation_number: v.violationNum || v.violation_number || "",
-                agency: v.agency || "DOB",
-                status: v.status || "open",
-                description: v.description || null,
-                penalty_amount: v.penaltyAmount || v.penalty_amount || 0,
-                issued_date: v.issuedDate || null,
-                raw_data: v,
-              }));
-              await supabase.from("signal_violations").upsert(violRows as any, { onConflict: "property_id,violation_number" });
-            }
-          } catch (persistErr) {
-            console.error("Error persisting DOB data:", persistErr);
           }
         }
 
-        if (apps.length === 0) {
-          toast({
-            title: "No DOB applications found",
-            description: `No filings found for BIN ${property.bin}. This property may not have any DOB filings.`,
-          });
+        if ((csResult?.applications?.length ?? 0) === 0 && !csResult) {
+          // Only show "no data" if Socrata also returned nothing
         }
       } catch {
         // Silent fail on auto-fetch; user can manually retry
