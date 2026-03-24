@@ -205,7 +205,6 @@ export function ChangeOrderDialog({
     await onSubmit({
       title: values.title.trim(),
       description: serviceLines.map(s => s.name).join(", "),
-      reason: values.reason?.trim() || undefined,
       amount: totalAmount,
       requested_by: values.requested_by || undefined,
       linked_service_names: serviceLines.map(s => s.name),
