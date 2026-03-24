@@ -754,7 +754,7 @@ export function DobNowFilingPrepSheet({
                           <div className="flex items-center justify-between">
                             <span className="font-medium">{contact.name}</span>
                             <div className="flex items-center gap-1.5">
-                              {contact.id === "pis-applicant" && (
+                              {(contact.id === "pis-applicant" || contact.id === "pis-owner") && (
                                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-blue-600 border-blue-200">From PIS</Badge>
                               )}
                               {contact.dobRegistered === "registered" ? (
