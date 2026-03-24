@@ -198,7 +198,7 @@ export default function PropertyDetail() {
     })();
   }, [property?.bin, isSubscriptionActive, coImported, coImporting, toast, profile?.company_id, id]);
 
-  // Import DOB data (real NYC Open Data)
+  // Import DOB data — tries CitiSignal first, falls back to Socrata
   const handleImportDOBData = useCallback(async () => {
     if (!isSubscriptionActive && !isSubscriptionInactive) {
       setEnrollOpen(true);
@@ -219,6 +219,45 @@ export default function PropertyDetail() {
     }
     setCoImporting(true);
     try {
+      // Try CitiSignal API first (only for active subscriptions)
+      if (isSubscriptionActive) {
+        const csResult = await syncFromCitiSignal(id!, property.bin);
+        if (csResult) {
+          const apps = csResult.applications.map((a: any) => ({
+            jobNum: a.application_number || a.job_number || "",
+            workType: a.application_type || a.work_type || "Unknown",
+            status: a.status || a.filing_status || "",
+            applicant: a.applicant_name || a.applicant || "",
+            fileDate: a.filing_date || a.filed_date || "",
+            desc: a.description || "",
+            source: a.source || "citisignal",
+            docNum: a.doc_number || a.document_number || "",
+            latestActionDate: a.latest_action_date || a.filing_date || "",
+            ...a,
+          }));
+          const viols = csResult.violations.map((v: any) => ({
+            violationNum: v.violation_number || "",
+            agency: v.agency || "DOB",
+            status: v.status || "open",
+            description: v.description || "",
+            issuedDate: v.issued_date || v.issue_date || "",
+            penaltyAmount: v.penalty_amount || 0,
+            ...v,
+          }));
+          setCoApps(apps);
+          setCoViolations(viols);
+          setCoImported(true);
+          setLastSynced(format(new Date(), "MM/dd/yyyy h:mm a") + " (CitiSignal)");
+          toast({
+            title: "Data synced from CitiSignal",
+            description: `${apps.length} applications, ${viols.length} violations`,
+          });
+          return;
+        }
+        // CitiSignal unavailable — fall through to Socrata
+      }
+
+      // Fallback: direct Socrata fetch
       const [apps, viols, complaints] = await Promise.all([
         fetchDOBApplications(property.bin),
         fetchDOBViolations(property.bin, property.borough, property.block, property.lot),
@@ -286,7 +325,7 @@ export default function PropertyDetail() {
     } finally {
       setCoImporting(false);
     }
-  }, [property, toast, isSubscriptionActive, isSubscriptionInactive]);
+  }, [property, toast, isSubscriptionActive, isSubscriptionInactive, id, profile?.company_id]);
 
   const handleUpdateApp = useCallback((jobNum: string, updates: Partial<COApplication>) => {
     setCoApps(prev => prev.map(a => a.jobNum === jobNum ? { ...a, ...updates } : a));
