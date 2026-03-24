@@ -33,7 +33,7 @@ import { useEnrollProperty, useDeleteSignalSubscription, type SignalSubscription
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { safeFormatDate } from "@/lib/dateUtils";
 import { useEnrollFormState } from "./signal-enroll/useEnrollFormState";
 import { CompSection } from "./signal-enroll/CompSection";
 import { PaidSection } from "./signal-enroll/PaidSection";
