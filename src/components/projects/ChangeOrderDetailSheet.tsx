@@ -321,6 +321,7 @@ export function ChangeOrderDetailSheet({
       const depositPct = (co as any).deposit_percentage || 0;
       const depositAmt = depositPct > 0 ? fmt(Math.abs(co.amount) * depositPct / 100) : undefined;
 
+      const templateOverrides = settings?.email_template_overrides?.change_order;
       const htmlBody = buildChangeOrderEmailHtml({
         contactName,
         coNumber: co.co_number,
@@ -329,14 +330,15 @@ export function ChangeOrderDetailSheet({
         description: co.description || undefined,
         signingLink,
         companyName,
-        companyEmail: settings?.company_email,
-        companyPhone: settings?.company_phone,
+        companyEmail: settings?.company_email || companySettings?.email,
+        companyPhone: settings?.company_phone || companySettings?.phone,
         companyAddress: companySettings?.address || settings?.company_address,
         logoUrl: companySettings?.logo_url || settings?.company_logo_url || "",
         projectAddress: projectAddr,
         depositPercentage: depositPct,
         depositAmount: depositAmt,
         style: emailStyle,
+        template: templateOverrides,
       });
 
       // Send the email via gmail-send edge function
