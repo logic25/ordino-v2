@@ -72,6 +72,32 @@ export function useCreateProperty() {
         throw new Error("No company found for user");
       }
 
+      // Check for existing property with same BIN to prevent duplicates
+      if (property.bin) {
+        const { data: existing } = await supabase
+          .from("properties")
+          .select("id")
+          .eq("company_id", profile.company_id)
+          .eq("bin", property.bin)
+          .maybeSingle();
+
+        if (existing) {
+          // Return the existing property instead of creating a duplicate
+          const { data: updated, error: updateErr } = await supabase
+            .from("properties")
+            .update({
+              owner_name: property.owner_name || undefined,
+              owner_contact: property.owner_contact || undefined,
+              notes: property.notes || undefined,
+            })
+            .eq("id", existing.id)
+            .select()
+            .single();
+          if (updateErr) throw updateErr;
+          return updated;
+        }
+      }
+
       const { data, error } = await supabase
         .from("properties")
         .insert({ 
