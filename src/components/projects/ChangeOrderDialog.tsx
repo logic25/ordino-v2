@@ -91,13 +91,19 @@ export function ChangeOrderDialog({
         if (Array.isArray(storedItems) && storedItems.length > 0) {
           setServiceLines(storedItems.map((item: any, i: number) => {
             const catalogMatch = catalog.find(c => c.name === item.name);
+            const dFee = catalogMatch?.discipline_fee || 0;
+            const wt = item.work_types || [];
+            const base = item.amount - (dFee * wt.length);
             return {
               id: `existing-${i}`,
               name: item.name,
+              baseAmount: base > 0 ? base : item.amount || 0,
               amount: item.amount || 0,
               description: item.description || "",
-              work_types: item.work_types || [],
+              work_types: wt,
               showWorkTypes: catalogMatch?.show_work_types !== false,
+              disciplineFee: dFee,
+              hasDisciplinePricing: catalogMatch?.has_discipline_pricing || false,
             };
           }));
         } else {
@@ -106,11 +112,11 @@ export function ChangeOrderDialog({
             const perService = existingCO.amount / names.length;
             setServiceLines(names.map((n, i) => {
               const catalogMatch = catalog.find(c => c.name === n);
-              return { id: `existing-${i}`, name: n, amount: perService, description: "", work_types: [], showWorkTypes: catalogMatch?.show_work_types !== false };
+              return { id: `existing-${i}`, name: n, baseAmount: perService, amount: perService, description: "", work_types: [], showWorkTypes: catalogMatch?.show_work_types !== false, disciplineFee: catalogMatch?.discipline_fee || 0, hasDisciplinePricing: catalogMatch?.has_discipline_pricing || false };
             }));
           } else {
             setServiceLines(existingCO.amount !== 0
-              ? [{ id: "existing-0", name: existingCO.description || "Service", amount: existingCO.amount, showWorkTypes: false }]
+              ? [{ id: "existing-0", name: existingCO.description || "Service", baseAmount: existingCO.amount, amount: existingCO.amount, showWorkTypes: false, disciplineFee: 0, hasDisciplinePricing: false }]
               : []);
           }
         }
