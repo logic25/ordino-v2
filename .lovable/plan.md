@@ -1,26 +1,51 @@
 
+Goal: make page 2 print safely and self-contained so it does not start at the very top edge and clearly identifies what document/project it belongs to when pages are separated.
 
-## Plan: Match CO PDF Header to Proposal Header Exactly
+What I found:
+- The PDF version (`src/components/projects/ChangeOrderPDF.tsx`) currently renders everything in a single `<Page>` and has no page numbering or continuation header, so when content overflows onto a second page there is no repeated identifier at the top.
+- The client/HTML printable version (`src/pages/ClientChangeOrder.tsx`) uses `@page { margin: 0.4in; size: letter; }`, but there is no repeated header on later printed pages either.
+- There is already a proven react-pdf pattern for page numbering in `src/components/projects/LitigationPDF.tsx` using `render={({ pageNumber, totalPages }) => ...}`.
 
-### Problem
-The CO PDF header doesn't show company details (address, phone, email, website) because it only reads from `settings.company_address` etc., which may be empty. The proposal falls back to the company table's direct columns (`company.address`, `company.phone`, etc.) — the CO doesn't.
+Implementation plan
 
-### Fix — `src/components/projects/ChangeOrderDetailSheet.tsx`
+1. Add a fixed per-page header band to the CO PDF
+- Update `src/components/projects/ChangeOrderPDF.tsx`
+- Add a small fixed header that appears on every page, above body content, with:
+  - `Change Order {co.co_number}`
+  - project identifier: project number first, else project address/client
+  - optional title line if space allows
+  - `Page X of Y`
+- Increase the page’s top padding so page 2+ has a proper top margin and never starts near the edge.
 
-Update the `generatePdfBlob` function to use the same fallback pattern as the proposal:
+2. Keep the existing visual first-page header, but reserve space for overflow pages
+- Preserve the branded first-page company/logo header exactly as-is.
+- Add top spacing logic so normal content still starts correctly on page 1 while overflow pages inherit the repeated fixed header.
+- This avoids changing the approved first-page design while fixing page-break behavior.
 
-```typescript
-companyAddress={settings?.company_address || companySettings?.address || ""}
-companyPhone={settings?.company_phone || companySettings?.phone || ""}
-companyEmail={settings?.company_email || companySettings?.email || ""}
-companyWebsite={settings?.company_website || companySettings?.website || ""}
-```
+3. Make the signature/terms section paginate more intelligently
+- Review `wrap={false}` usage on the signature section in `src/components/projects/ChangeOrderPDF.tsx`.
+- Keep the signature block together, but ensure the lead-in legal/intro text doesn’t get orphaned awkwardly at the top or bottom of a page.
+- If needed, group the terms reference + signature intro together so page breaks occur in cleaner places.
 
-Currently it only passes `settings?.company_address` with no fallback — that's why the header is blank beneath the logo.
+4. Add a compact continuation context, not just page numbers
+- The repeated header should explicitly reference the document so a printed second page is meaningful on its own:
+  - CO number
+  - project number/address
+  - page number
+- This directly addresses your “if someone printed it there would be nothing” concern.
 
-### No changes needed to `ChangeOrderPDF.tsx`
-The PDF component rendering logic is already correct (logo-only when logo exists, address/phone/email/website below it). The data just isn't reaching it.
+5. Align the browser print view with the same behavior
+- Update `src/pages/ClientChangeOrder.tsx` print layout so printed HTML also has stronger page context:
+  - slightly increase print top margin from the current `0.4in` if needed
+  - add a print-only repeated document identifier near the top of the printable content
+- The goal is consistent output whether someone prints from the client signing page or downloads the PDF.
 
-### Files
-- `src/components/projects/ChangeOrderDetailSheet.tsx` — add fallbacks on 4 props
+Files to update
+- `src/components/projects/ChangeOrderPDF.tsx`
+- `src/pages/ClientChangeOrder.tsx`
 
+Technical notes
+- Best pattern for the PDF is a `fixed` header/footer plus `Text render={({ pageNumber, totalPages }) => ... }`.
+- The current CO PDF only has a fixed footer; I’ll mirror the same technique at the top.
+- The cleanest fix is structural, not cosmetic: reserve top space globally on the PDF page instead of just adding margin to one section.
+- I would not rely only on footer page numbers; the missing context problem is specifically at the top of separated printed pages.
