@@ -272,7 +272,7 @@ async function checkFilingReadiness(sb: any, params: any) {
       ).length;
     }
 
-    const pct = Math.round((filled / TOTAL_FIELDS) * 100);
+    const pct = Math.min(Math.round((filled / TOTAL_FIELDS) * 100), 100);
     if (params.min_readiness && pct < params.min_readiness) continue;
 
     results.push({
