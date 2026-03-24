@@ -1,40 +1,67 @@
 
+Goal: fix the remaining CitiSignal preflight failure by making the edge function return the exact CORS response your browser expects, then redeploy and verify it.
 
-## Plan: Fix Bug Tracker Email Branding + Comment Thread Visibility
+What I found
+- The current `citisignal-sync` code does handle `OPTIONS`, but not in the exact shape you requested.
+- Right now it returns:
+  - no explicit `status: 200`
+  - no `Access-Control-Allow-Methods`
+  - a longer `Access-Control-Allow-Headers` list than the exact 4-header list you specified
+- That mismatch is enough to cause preflight failures in stricter browser cases.
+- `supabase/config.toml` already includes `[functions.citisignal-sync] verify_jwt = false`, so the issue is not JWT config.
+- There are no recent runtime logs for `citisignal-sync`, which is consistent with preflight failing before the browser can complete the real POST flow.
 
-### Problems
-1. **Bug emails don't use branded templates** — All 5 bug email types (new report, comment, resolved, reopened/in-progress, ready for review) use hardcoded HTML with different colored headers (purple, green, orange, blue) instead of the branded email shell from the gallery.
-2. **Comment email lacks thread context** — When you comment to update the reporter, they get an email with just the single comment. The recent comments thread is only included in status-change emails (resolved, reopened, ready for review, in progress). If you just comment without changing status, the reporter has no thread context.
-3. **No admin response visible in email** — The comment notification email doesn't include prior comments, so the reporter can't see the conversation history without logging in.
+Implementation plan
+1. Update the edge function CORS block
+- In `supabase/functions/citisignal-sync/index.ts`, replace the current preflight handling with the exact response:
+```ts
+if (req.method === "OPTIONS") {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+    },
+  });
+}
+```
+- Also define the shared CORS headers to match this exact set, so every success/error response uses the same contract.
 
-### Solution
+2. Keep all normal responses CORS-safe
+- Ensure every `401`, `400`, `502`, `500`, and success response includes:
+  - `Access-Control-Allow-Origin: *`
+  - `Access-Control-Allow-Headers: authorization, x-client-info, apikey, content-type`
+  - `Access-Control-Allow-Methods: POST, OPTIONS`
+- Keep `Content-Type: application/json` on JSON responses.
 
-#### 1. Wire `send-bug-alert` edge function to use branded template shell
-- Rebuild the edge function to fetch company settings (logo, address, phone, email, accent color, style config, and `email_template_overrides`) from the database
-- Use the same branded HTML shell pattern as proposals/invoices/COs — logo header, company info, accent stripe, branded CTA button
-- Apply the `bug_report` template from the gallery for new reports, and appropriate template text for comment/status emails
-- Since this is an edge function, replicate the `buildBrandedEmailHtml` rendering logic inline (edge functions can't import from `src/`)
+3. Force redeploy only this function
+- Redeploy `citisignal-sync` so the hosted version cannot remain stale.
+- This is important because the repo code and the deployed version may currently be out of sync.
 
-#### 2. Include recent comment thread in comment notification emails
-- When `action === "comment"`, fetch the last 5 comments on that bug (same as status-change emails already do) and render them in the email body
-- This way the reporter (or admin) sees the conversation context without logging in
-- The commenter's new comment will be at the bottom of the thread, clearly showing what was said
+4. Verify preflight explicitly
+- Test the deployed function with an `OPTIONS` request and confirm:
+  - status is exactly `200`
+  - response body is empty/null
+  - headers match exactly:
+    - `Access-Control-Allow-Origin: *`
+    - `Access-Control-Allow-Headers: authorization, x-client-info, apikey, content-type`
+    - `Access-Control-Allow-Methods: POST, OPTIONS`
 
-#### 3. Add gallery templates for all bug email variants
-- The gallery already has `bug_report` — add entries for:
-  - `bug_comment` — "New Comment on Bug"
-  - `bug_resolved` — "Bug Resolved"  
-  - `bug_status_change` — "Bug Status Update" (covers in_progress, reopened, ready_for_review)
-- Add these to `TEMPLATE_DEFAULTS` in `buildBrandedEmailHtml.ts` and to the gallery template list in `EmailTemplateGallery.tsx`
+5. Verify the real browser flow
+- Re-test the property page refresh flow for the current property.
+- Confirm the browser no longer shows “Failed to fetch” for `citisignal-sync`.
+- Confirm the POST reaches the function and then either:
+  - succeeds with CitiSignal data, or
+  - cleanly falls back to Socrata if CitiSignal itself returns an upstream error.
 
-### Files to update
-- **`supabase/functions/send-bug-alert/index.ts`** — Rebuild all HTML to use branded shell, add comment thread to comment emails, fetch company/style settings from DB
-- **`src/lib/buildBrandedEmailHtml.ts`** — Add `bug_comment`, `bug_resolved`, `bug_status_change` default templates
-- **`src/components/settings/EmailTemplateGallery.tsx`** — Add the 3 new template entries to the gallery list
-- **`src/components/helpdesk/BugReports.tsx`** — Pass `recent_comments` data in the comment action invoke (fetch last 5 comments before sending)
+Technical details
+- File to update: `supabase/functions/citisignal-sync/index.ts`
+- No database changes are needed for this bug.
+- `supabase/config.toml` likely does not need further changes.
+- The likely root cause is not “missing OPTIONS logic” but “preflight response shape does not exactly match the browser’s requested contract.”
 
-### Technical notes
-- The edge function will query `company_settings` for logo, address, style config, and template overrides — same pattern used by `send-billing-notification`
-- The branded shell will be built inline in the edge function since it can't import from `src/`
-- Comment thread rendering will cap at 5 most recent comments for email length sanity
-
+Expected result
+- The browser preflight succeeds.
+- `citisignal-sync` becomes reachable from the app.
+- Property refresh can use CitiSignal first, then fallback normally if the upstream API fails.
