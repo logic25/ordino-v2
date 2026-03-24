@@ -137,6 +137,7 @@ export default function PropertyDetail() {
             return "Active";
           };
           const viols = csResult.violations.map((v: any) => ({
+            ...v,
             violationNum: v.violation_number || "",
             type: v.violation_class ? `${v.agency || "DOB"} ${v.violation_class}` : (v.agency === "HPD" ? `HPD Class ${v.severity || ""}`.trim() : (v.agency || "DOB") + " VIOLATION"),
             fileDate: v.issued_date || v.issue_date || "",
@@ -146,7 +147,6 @@ export default function PropertyDetail() {
             priority: (v.severity === "critical" || (v.agency === "HPD" && v.violation_class === "C")) ? "High" as const : v.severity === "high" ? "High" as const : "Medium" as const,
             penalty: v.penalty_amount || null,
             agency: v.agency || "DOB ECB",
-            ...v,
           }));
           setCoApps(apps);
           setCoViolations(viols);
