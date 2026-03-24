@@ -460,6 +460,9 @@ function buildPreviewHtml(
     status_update: { label: "Status Update" },
     demand_letter: { label: "Formal Demand", number: "INV-00042" },
     referral_thankyou: { label: "Thank You" },
+    co_signed: { label: "CO Signed", number: "CO#1" },
+    bug_report: { label: "Bug Report" },
+    pis_reminder: { label: "PIS Reminder" },
   };
 
   const doc = docLabels[template.id] || { label: template.name };
