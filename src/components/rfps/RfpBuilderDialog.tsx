@@ -290,6 +290,16 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     });
   };
 
+  const selectAllProjects = () => {
+    setDirty(true);
+    setSelectedProjectIds(allNotableProjects.map((p: any) => p.id));
+  };
+
+  const clearProjectSelection = () => {
+    setDirty(true);
+    setSelectedProjectIds([]);
+  };
+
   const goNext = () => { const next = Math.min(step + 1, STEPS.length - 1); setDirty(true); saveDraft(next); setStep(next); };
   const goBack = () => { setDirty(true); setStep((s) => Math.max(s - 1, 0)); };
 
@@ -356,6 +366,8 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
                 onGoToLibrary={goToLibrary}
                 selectedProjectIds={selectedProjectIds || allNotableProjects.map((p: any) => p.id)}
                 onToggleProject={toggleProjectSelection}
+                onSelectAllProjects={selectAllProjects}
+                onClearProjects={clearProjectSelection}
               />
             )}
             {step === 2 && (
