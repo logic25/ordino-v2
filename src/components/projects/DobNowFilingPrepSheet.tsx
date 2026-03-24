@@ -284,7 +284,7 @@ export function DobNowFilingPrepSheet({
   const unitValue = proj.unit_number || pisUnit || null;
   const unitFromPIS = !proj.unit_number && !!pisUnit;
   const estCostValue = service.estimatedCosts && (service.estimatedCosts || []).length > 0
-    ? (service.estimatedCosts || []).map(ec => `${ec.discipline}: $${ec.amount.toLocaleString()}`).join("; ")
+    ? (service.estimatedCosts || []).map(ec => `${ec.discipline}: $${(ec.amount ?? 0).toLocaleString()}`).join("; ")
     : pisEstimatedJobCost
       ? `$${Number(pisEstimatedJobCost).toLocaleString()}`
       : (proj.estimated_value ? `$${Number(proj.estimated_value).toLocaleString()}` : null);
