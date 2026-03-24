@@ -68,6 +68,7 @@ function stripFormatting(text: string): string {
 const PUBLIC_PREFIX_MAP: Record<string, string> = {
   building_scope: "building_and_scope",
   applicant: "applicant_and_owner",
+  owner: "applicant_and_owner",
   gc: "contractors_inspections",
 };
 
@@ -271,10 +272,18 @@ export function DobNowFilingPrepSheet({
   const pisFloor = getPISValue(pisResponses, "building_scope", "floors");
   const pisUnit = getPISValue(pisResponses, "building_scope", "apt_numbers");
   const pisEstimatedJobCost = getPISValue(pisResponses, "building_scope", "estimated_job_cost");
-  const pisApplicantName = getPISValue(pisResponses, "applicant", "applicant_name");
+  const pisApplicantName = getPISValue(pisResponses, "applicant", "applicant_name")
+    || [getPISValue(pisResponses, "applicant", "applicant_first_name"), getPISValue(pisResponses, "applicant", "applicant_last_name")].filter(Boolean).join(" ") || null;
   const pisApplicantEmail = getPISValue(pisResponses, "applicant", "applicant_email");
   const pisApplicantPhone = getPISValue(pisResponses, "applicant", "applicant_phone");
   const pisApplicantCompany = getPISValue(pisResponses, "applicant", "applicant_business_name");
+
+  // Owner PIS data
+  const pisOwnerName = getPISValue(pisResponses, "owner", "owner_name")
+    || [getPISValue(pisResponses, "owner", "owner_first_name"), getPISValue(pisResponses, "owner", "owner_last_name")].filter(Boolean).join(" ") || null;
+  const pisOwnerEmail = getPISValue(pisResponses, "owner", "owner_email");
+  const pisOwnerPhone = getPISValue(pisResponses, "owner", "owner_phone");
+  const pisOwnerCompany = getPISValue(pisResponses, "owner", "owner_company");
 
   const jobDescription = pisJobDescription || service.jobDescription || null;
   const workTypes = pisWorkTypes && pisWorkTypes.length > 0 ? pisWorkTypes : (service.subServices || []);
@@ -283,12 +292,29 @@ export function DobNowFilingPrepSheet({
   const floorFromPIS = !proj.floor_number && !!pisFloor;
   const unitValue = proj.unit_number || pisUnit || null;
   const unitFromPIS = !proj.unit_number && !!pisUnit;
-  const estCostValue = service.estimatedCosts && (service.estimatedCosts || []).length > 0
-    ? (service.estimatedCosts || []).map(ec => `${ec.discipline}: $${(ec.amount ?? 0).toLocaleString()}`).join("; ")
-    : pisEstimatedJobCost
-      ? `$${Number(pisEstimatedJobCost).toLocaleString()}`
-      : (proj.estimated_value ? `$${Number(proj.estimated_value).toLocaleString()}` : null);
-  const estCostFromPIS = !(service.estimatedCosts && (service.estimatedCosts || []).length > 0) && !!pisEstimatedJobCost;
+
+  // Per-discipline cost breakdown from PIS
+  const perDisciplineCosts: { discipline: string; amount: number }[] = [];
+  if (pisResponses) {
+    for (const [key, v] of Object.entries(pisResponses)) {
+      if (key.includes("_work_types_cost_") && v) {
+        const num = Number(v);
+        if (!isNaN(num) && num > 0) {
+          const discipline = key.split("_work_types_cost_").pop()?.replace(/_/g, " ") || "";
+          perDisciplineCosts.push({ discipline: discipline.charAt(0).toUpperCase() + discipline.slice(1), amount: num });
+        }
+      }
+    }
+  }
+
+  const estCostValue = perDisciplineCosts.length > 0
+    ? perDisciplineCosts.map(ec => `${ec.discipline}: $${ec.amount.toLocaleString()}`).join("; ")
+    : service.estimatedCosts && service.estimatedCosts.length > 0
+      ? service.estimatedCosts.map(ec => `${ec.discipline}: $${(ec.amount ?? 0).toLocaleString()}`).join("; ")
+      : pisEstimatedJobCost
+        ? `$${Number(pisEstimatedJobCost).toLocaleString()}`
+        : (proj.estimated_value ? `$${Number(proj.estimated_value).toLocaleString()}` : null);
+  const estCostFromPIS = !!(perDisciplineCosts.length > 0 || (!(service.estimatedCosts && service.estimatedCosts.length > 0) && !!pisEstimatedJobCost));
 
   const propertyFields: DobField[] = [
     { label: "House Number", value: property?.address?.match(/^(\d+[\w-]*)/)?.[1], category: "property", dobFieldName: "House Number" },
@@ -305,7 +331,12 @@ export function DobNowFilingPrepSheet({
     { label: "Floor", value: floorValue, category: "filing", dobFieldName: "Floor", fromPIS: floorFromPIS },
     { label: "Unit / Apt", value: unitValue, category: "filing", dobFieldName: "Apt/Suite", fromPIS: unitFromPIS },
     { label: "Floor Area (sq ft)", value: pisSquareFootage, category: "filing", dobFieldName: "Floor Area (sq ft)", fromPIS: !!pisSquareFootage, optional: true },
-    { label: "Estimated Job Cost", value: estCostValue, category: "filing", dobFieldName: "Estimated Job Cost", fromPIS: estCostFromPIS },
+    ...(perDisciplineCosts.length > 0
+      ? perDisciplineCosts.map(ec => ({
+          label: `Estimated Job Cost`, value: `${ec.discipline}: $${ec.amount.toLocaleString()}`, category: "filing" as const, dobFieldName: "Estimated Job Cost", fromPIS: true,
+        }))
+      : [{ label: "Estimated Job Cost", value: estCostValue, category: "filing" as const, dobFieldName: "Estimated Job Cost", fromPIS: estCostFromPIS }]
+    ),
     { label: "Job Description", value: jobDescription, category: "filing", dobFieldName: "Description of Work", editable: true, fromPIS: !!pisJobDescription },
   ];
 
@@ -346,6 +377,18 @@ export function DobNowFilingPrepSheet({
       phone: pisApplicantPhone || "",
       company: pisApplicantCompany || "",
       dobRole: "applicant",
+      dobRegistered: "unknown",
+    } as MockContact];
+  }
+
+  if (!contactsByRole["owner"]?.length && pisOwnerName) {
+    contactsByRole["owner"] = [{
+      id: "pis-owner",
+      name: pisOwnerName,
+      email: pisOwnerEmail || "",
+      phone: pisOwnerPhone || "",
+      company: pisOwnerCompany || "",
+      dobRole: "owner",
       dobRegistered: "unknown",
     } as MockContact];
   }
@@ -711,7 +754,7 @@ export function DobNowFilingPrepSheet({
                           <div className="flex items-center justify-between">
                             <span className="font-medium">{contact.name}</span>
                             <div className="flex items-center gap-1.5">
-                              {contact.id === "pis-applicant" && (
+                              {(contact.id === "pis-applicant" || contact.id === "pis-owner") && (
                                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-blue-600 border-blue-200">From PIS</Badge>
                               )}
                               {contact.dobRegistered === "registered" ? (
