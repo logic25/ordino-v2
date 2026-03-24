@@ -1091,6 +1091,28 @@ export function EmailTemplateGallery() {
     }
   };
 
+  // Normalize an override to its full 5-field form using template defaults
+  const normalizeOverride = useCallback((templateId: string, ov: Partial<TemplateOverride> | undefined): TemplateOverride => {
+    const tmpl = TEMPLATES.find((t) => t.id === templateId);
+    const defaults = tmpl?.defaults || { subject: "", greeting: "", body_text: "", cta_text: "", signoff: "" };
+    if (!ov) return { ...defaults };
+    return {
+      subject: ov.subject ?? defaults.subject,
+      greeting: ov.greeting ?? defaults.greeting,
+      body_text: ov.body_text ?? defaults.body_text,
+      cta_text: ov.cta_text ?? defaults.cta_text,
+      signoff: ov.signoff ?? defaults.signoff,
+    };
+  }, []);
+
+  // Check if a specific template has unsaved changes
+  const isTemplateDirty = useCallback((templateId: string) => {
+    const savedOv = savedOverrides || {};
+    const savedNorm = normalizeOverride(templateId, (savedOv as any)[templateId]);
+    const currentNorm = normalizeOverride(templateId, overrides[templateId]);
+    return JSON.stringify(savedNorm) !== JSON.stringify(currentNorm);
+  }, [overrides, savedOverrides, normalizeOverride]);
+
   const isDirty = useMemo(() => {
     // Compare only the specific style keys we manage
     const ss = savedStyle || {} as any;
@@ -1104,15 +1126,14 @@ export function EmailTemplateGallery() {
       (ss.body_font_size || DEFAULT_STYLE.bodyFontSize) !== style.bodyFontSize;
     if (styleChanged) return true;
 
-    // Compare overrides — normalize both sides
-    const savedOv = savedOverrides || {};
-    const currentOv = Object.fromEntries(Object.entries(overrides).map(([k, v]) => [k, v]));
-    const allKeys = new Set([...Object.keys(savedOv), ...Object.keys(currentOv)]);
-    for (const key of allKeys) {
-      if (JSON.stringify((savedOv as any)[key] || {}) !== JSON.stringify(currentOv[key] || {})) return true;
+    // Compare overrides — normalize both sides using template defaults
+    for (const t of TEMPLATES) {
+      if (isTemplateDirty(t.id)) return true;
     }
     return false;
-  }, [style, overrides, savedStyle, savedOverrides]);
+  }, [style, overrides, savedStyle, savedOverrides, isTemplateDirty]);
+
+  const activeTemplateDirty = isTemplateDirty(activeTemplateId);
 
   // Available template variables for help text
   const variableHints: Record<string, string> = {
