@@ -891,12 +891,10 @@ export function BugReports() {
                   <p className="mt-1 text-sm font-medium">{getAssigneeName(selectedBug.user_id)}</p>
                 </div>
 
-                {/* Resolution notes visible to reporter during ready_for_review OR after resolved */}
-                {selectedBug.admin_notes && !isAdmin && (selectedBug.status === "ready_for_review" || selectedBug.status === "resolved") && (
+                {/* Internal notes visible to admins only */}
+                {selectedBug.admin_notes && !isAdmin && (
                   <div className="border-t pt-4">
-                    <Label className="text-xs text-muted-foreground">
-                      {selectedBug.status === "ready_for_review" ? "What was changed" : "Resolution Notes"}
-                    </Label>
+                    <Label className="text-xs text-muted-foreground">Internal Notes</Label>
                     <p className="mt-1 text-sm whitespace-pre-line bg-muted/50 rounded-md p-3">{selectedBug.admin_notes}</p>
                   </div>
                 )}
