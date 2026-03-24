@@ -36,6 +36,18 @@ export async function predictBillDates(
 
   const projectStart = new Date(project.created_at);
 
+  // Check project readiness — if checklist has outstanding items, add a buffer
+  const { data: checklistItems } = await supabase
+    .from("project_checklist_items")
+    .select("id, status")
+    .eq("project_id", projectId);
+
+  const hasChecklist = checklistItems && checklistItems.length > 0;
+  const outstandingItems = hasChecklist
+    ? checklistItems.filter((i: any) => i.status !== "done").length
+    : 0;
+  const checklistComplete = hasChecklist && outstandingItems === 0;
+
   // Fetch historical billing data: services that have been billed with their project creation dates
   const { data: historicalServices } = await supabase
     .from("services")
