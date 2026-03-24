@@ -272,10 +272,18 @@ export function DobNowFilingPrepSheet({
   const pisFloor = getPISValue(pisResponses, "building_scope", "floors");
   const pisUnit = getPISValue(pisResponses, "building_scope", "apt_numbers");
   const pisEstimatedJobCost = getPISValue(pisResponses, "building_scope", "estimated_job_cost");
-  const pisApplicantName = getPISValue(pisResponses, "applicant", "applicant_name");
+  const pisApplicantName = getPISValue(pisResponses, "applicant", "applicant_name")
+    || [getPISValue(pisResponses, "applicant", "applicant_first_name"), getPISValue(pisResponses, "applicant", "applicant_last_name")].filter(Boolean).join(" ") || null;
   const pisApplicantEmail = getPISValue(pisResponses, "applicant", "applicant_email");
   const pisApplicantPhone = getPISValue(pisResponses, "applicant", "applicant_phone");
   const pisApplicantCompany = getPISValue(pisResponses, "applicant", "applicant_business_name");
+
+  // Owner PIS data
+  const pisOwnerName = getPISValue(pisResponses, "owner", "owner_name")
+    || [getPISValue(pisResponses, "owner", "owner_first_name"), getPISValue(pisResponses, "owner", "owner_last_name")].filter(Boolean).join(" ") || null;
+  const pisOwnerEmail = getPISValue(pisResponses, "owner", "owner_email");
+  const pisOwnerPhone = getPISValue(pisResponses, "owner", "owner_phone");
+  const pisOwnerCompany = getPISValue(pisResponses, "owner", "owner_company");
 
   const jobDescription = pisJobDescription || service.jobDescription || null;
   const workTypes = pisWorkTypes && pisWorkTypes.length > 0 ? pisWorkTypes : (service.subServices || []);
@@ -284,12 +292,29 @@ export function DobNowFilingPrepSheet({
   const floorFromPIS = !proj.floor_number && !!pisFloor;
   const unitValue = proj.unit_number || pisUnit || null;
   const unitFromPIS = !proj.unit_number && !!pisUnit;
-  const estCostValue = service.estimatedCosts && (service.estimatedCosts || []).length > 0
-    ? (service.estimatedCosts || []).map(ec => `${ec.discipline}: $${(ec.amount ?? 0).toLocaleString()}`).join("; ")
-    : pisEstimatedJobCost
-      ? `$${Number(pisEstimatedJobCost).toLocaleString()}`
-      : (proj.estimated_value ? `$${Number(proj.estimated_value).toLocaleString()}` : null);
-  const estCostFromPIS = !(service.estimatedCosts && (service.estimatedCosts || []).length > 0) && !!pisEstimatedJobCost;
+
+  // Per-discipline cost breakdown from PIS
+  const perDisciplineCosts: { discipline: string; amount: number }[] = [];
+  if (pisResponses) {
+    for (const [key, v] of Object.entries(pisResponses)) {
+      if (key.includes("_work_types_cost_") && v) {
+        const num = Number(v);
+        if (!isNaN(num) && num > 0) {
+          const discipline = key.split("_work_types_cost_").pop()?.replace(/_/g, " ") || "";
+          perDisciplineCosts.push({ discipline: discipline.charAt(0).toUpperCase() + discipline.slice(1), amount: num });
+        }
+      }
+    }
+  }
+
+  const estCostValue = perDisciplineCosts.length > 0
+    ? perDisciplineCosts.map(ec => `${ec.discipline}: $${ec.amount.toLocaleString()}`).join("; ")
+    : service.estimatedCosts && service.estimatedCosts.length > 0
+      ? service.estimatedCosts.map(ec => `${ec.discipline}: $${(ec.amount ?? 0).toLocaleString()}`).join("; ")
+      : pisEstimatedJobCost
+        ? `$${Number(pisEstimatedJobCost).toLocaleString()}`
+        : (proj.estimated_value ? `$${Number(proj.estimated_value).toLocaleString()}` : null);
+  const estCostFromPIS = !!(perDisciplineCosts.length > 0 || (!(service.estimatedCosts && service.estimatedCosts.length > 0) && !!pisEstimatedJobCost));
 
   const propertyFields: DobField[] = [
     { label: "House Number", value: property?.address?.match(/^(\d+[\w-]*)/)?.[1], category: "property", dobFieldName: "House Number" },
