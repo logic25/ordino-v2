@@ -748,7 +748,7 @@ export function useSendProposal() {
       });
 
       const subject = resolvedTemplate.subject;
-      const safeLogoUrl = await getLogoDataUrl(companyLogoUrl);
+      // Use the raw public URL for emails — base64 data URIs are stripped by Gmail/Outlook
       const htmlBody = buildProposalEmailHtml({
         clientName,
         proposalTitle: proposal.title || "Your Project",
@@ -761,7 +761,7 @@ export function useSendProposal() {
         companyName,
         companyEmail,
         companyPhone,
-        logoUrl: safeLogoUrl || companyLogoUrl,
+        logoUrl: companyLogoUrl,
         companyAddress,
         items: items.map((i: any) => ({
           name: i.name,
