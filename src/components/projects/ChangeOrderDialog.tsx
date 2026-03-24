@@ -120,7 +120,7 @@ export function ChangeOrderDialog({
         }
         setDepositPct((existingCO as any).deposit_percentage || 0);
       } else {
-        form.reset({ title: "", reason: "", requested_by: "", notes: "" });
+        form.reset({ title: "", requested_by: "", notes: "" });
         setServiceLines([]);
         setDepositPct(0);
       }
