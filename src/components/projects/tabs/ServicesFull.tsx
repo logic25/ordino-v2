@@ -252,7 +252,7 @@ function ServiceExpandedDetail({ service, projectName, projectId }: { service: M
             </div>
           ) : (
             <Button variant="outline" size="sm" className="gap-1.5 text-xs h-7" onClick={() => setShowAddReq(true)}>
-              <Plus className="h-3 w-3" /> Add Requirement
+              <Plus className="h-3 w-3" /> Add Condition
             </Button>
           )}
         </div>
