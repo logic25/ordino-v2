@@ -47,12 +47,12 @@ function usePMBillingGoals() {
       // Get project services
       const { data: projectServices } = await supabase
         .from("services")
-        .select("id, project_id, service_name, fee, status");
+        .select("id, project_id, name, fixed_price, status");
 
       // Get checklist items for readiness
       const { data: checklistItems } = await supabase
-        .from("project_checklist_items")
-        .select("id, project_id, is_complete");
+        .from("project_checklist_items" as any)
+        .select("id, project_id, status");
 
       // Get invoices this month
       const now = new Date();
@@ -86,11 +86,11 @@ function usePMBillingGoals() {
         let totalServiceValue = 0;
 
         pmServices.forEach((s: any) => {
-          const name = (s.service_name || "").toLowerCase();
-          const weight = weightMap[name] || 1;
+          const svcName = (s.name || "").toLowerCase();
+          const weight = weightMap[svcName] || 1;
           weightedWorkload += weight;
-          serviceCounts[s.service_name || "Other"] = (serviceCounts[s.service_name || "Other"] || 0) + 1;
-          totalServiceValue += s.fee || 0;
+          serviceCounts[s.name || "Other"] = (serviceCounts[s.name || "Other"] || 0) + 1;
+          totalServiceValue += s.fixed_price || 0;
         });
 
         const serviceMix = Object.entries(serviceCounts)
@@ -100,7 +100,7 @@ function usePMBillingGoals() {
         // Checklist readiness
         const pmChecklist = (checklistItems || []).filter((c: any) => pmProjectIds.has(c.project_id));
         const totalItems = pmChecklist.length;
-        const completedItems = pmChecklist.filter((c: any) => c.is_complete).length;
+        const completedItems = pmChecklist.filter((c: any) => c.status === "done").length;
         const readiness = totalItems > 0 ? completedItems / totalItems : 0;
 
         // Billed this month
