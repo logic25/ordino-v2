@@ -768,7 +768,7 @@ export default function PropertyDetail() {
                               <TableCell className="font-mono text-sm">{app.job_number || "—"}</TableCell>
                               <TableCell className="text-sm max-w-xs truncate">{app.description || "—"}</TableCell>
                               <TableCell className="text-sm">
-                                {app.filed_date ? format(new Date(app.filed_date), "MM/dd/yyyy") : "—"}
+                                {safeFormatDate(app.filed_date, "MM/dd/yyyy")}
                               </TableCell>
                               <TableCell className="text-sm">
                                 {app.profiles

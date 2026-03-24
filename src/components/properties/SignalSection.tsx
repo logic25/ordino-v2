@@ -7,7 +7,7 @@ import { SignalEnrollDialog } from "./SignalEnrollDialog";
 import { useSignalViolations, summarizeViolations } from "@/hooks/useSignalViolations";
 import { useSignalApplications } from "@/hooks/useSignalApplications";
 import type { SignalSubscription } from "@/hooks/useSignalSubscriptions";
-import { differenceInDays, parseISO, isPast } from "date-fns";
+import { differenceInDays, parseISO, isPast, isValid } from "date-fns";
 
 interface SignalSectionProps {
   propertyId: string;
@@ -17,6 +17,9 @@ interface SignalSectionProps {
 
 function ExpirationCountdown({ expiresAt }: { expiresAt: string }) {
   const expDate = parseISO(expiresAt);
+  if (!isValid(expDate)) {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
   if (isPast(expDate)) {
     return <Badge variant="destructive" className="text-xs">Expired</Badge>;
   }

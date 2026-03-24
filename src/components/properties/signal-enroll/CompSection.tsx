@@ -67,7 +67,7 @@ export function CompSection({
 
       {computedExpiresAt && status === "active" && (
         <div className="text-sm text-muted-foreground bg-muted/50 rounded-md p-2">
-          Comp expires: <span className="font-medium">{format(new Date(computedExpiresAt), "MMM d, yyyy")}</span> (1 year — forces review)
+          Comp expires: <span className="font-medium">{safeFormatDate(computedExpiresAt, "MMM d, yyyy")}</span> (1 year — forces review)
         </div>
       )}
     </>

@@ -19,13 +19,7 @@ import {
   CalendarClock, ClipboardList, Loader2, Pencil, Plus,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { format, isValid } from "date-fns";
-
-const safeFormat = (dateStr: string | null | undefined, fmt: string, fallback = "—") => {
-  if (!dateStr) return fallback;
-  const d = new Date(dateStr);
-  return isValid(d) ? format(d, fmt) : fallback;
-};
+import { safeFormatDate } from "@/lib/dateUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { pdf } from "@react-pdf/renderer";
 import type { COApplication, COViolation, COSignOff, ReportSnapshot } from "./coMockData";

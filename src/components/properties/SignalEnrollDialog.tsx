@@ -133,7 +133,7 @@ export function SignalEnrollDialog({
 
           {form.status === "trial" && computedExpiresAt && (
             <div className="text-sm text-muted-foreground bg-muted/50 rounded-md p-2">
-              Trial expires: <span className="font-medium">{format(new Date(computedExpiresAt), "MMM d, yyyy")}</span> (14 days)
+              Trial expires: <span className="font-medium">{safeFormatDate(computedExpiresAt, "MMM d, yyyy")}</span> (14 days)
             </div>
           )}
 
