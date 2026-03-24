@@ -16,7 +16,7 @@ import {
   Copy, CheckCircle2, AlertTriangle, MapPin, Building2,
   User, Phone, Mail, ExternalLink, ClipboardList, Save,
   Plus, Trash2, Settings, Download, Type, ChevronDown, ChevronRight,
-  ArrowLeft, Loader2, Bot, Circle, XCircle, Eye,
+  ArrowLeft, Loader2, Bot, Circle, XCircle, Eye, LogIn, Monitor,
 } from "lucide-react";
 import type { MockService, MockContact } from "./projectMockData";
 import { engineerDisciplineLabels } from "./projectMockData";
@@ -95,7 +95,7 @@ function getPISArrayValue(responses: Record<string, any> | null, sectionPrefix: 
 }
 
 // ---- Submit flow steps ----
-type SubmitStep = "idle" | "confirm" | "submitting" | "success" | "agent";
+type SubmitStep = "idle" | "confirm" | "submitting" | "success" | "agent" | "session";
 
 interface FilingRunProgress {
   step: string;
@@ -178,7 +178,14 @@ export function DobNowFilingPrepSheet({
   const [launchingAgent, setLaunchingAgent] = useState(false);
   const [confirmingFiled, setConfirmingFiled] = useState(false);
 
-  const shouldBlockClose = launchingAgent;
+  // Two-step Browserbase session state
+  const [creatingSession, setCreatingSession] = useState(false);
+  const [browserbaseSessionId, setBrowserbaseSessionId] = useState<string | null>(null);
+  const [browserbaseLiveUrl, setBrowserbaseLiveUrl] = useState<string | null>(null);
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [showSessionModal, setShowSessionModal] = useState(false);
+
+  const shouldBlockClose = launchingAgent || creatingSession;
 
   const handleSheetOpenChange = useCallback(
     (nextOpen: boolean) => {
@@ -445,7 +452,58 @@ export function DobNowFilingPrepSheet({
     };
   };
 
-  // Launch filing agent directly (no session step needed)
+  // Step 1: Create Browserbase session
+  const handleStartSession = async () => {
+    if (!checklistComplete) {
+      setChecklistWarning(true);
+      toast({ title: "Checklist incomplete", description: "Complete all required checklist items before starting a session.", variant: "destructive" });
+      return;
+    }
+    setCreatingSession(true);
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({ title: "Not authenticated", variant: "destructive" });
+        return;
+      }
+
+      const res = await fetch(
+        `${supabaseUrl}/functions/v1/filing-agent-proxy?action=create-session`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({}),
+        }
+      );
+
+      const data = await res.json();
+      console.log("[FilingAgent] create-session response:", res.status, data);
+
+      if (!res.ok || !data.session_id) {
+        toast({ title: "Session error", description: data?.error || "Failed to create browser session.", variant: "destructive" });
+        return;
+      }
+
+      setBrowserbaseSessionId(data.session_id);
+      setBrowserbaseLiveUrl(data.live_url || null);
+      setLoggedIn(false);
+      setSubmitStep("session");
+      setShowSessionModal(true);
+      toast({ title: "Session created", description: "Log into DOB NOW in the browser window, then click 'I'm Logged In'." });
+    } catch (err) {
+      console.error("[FilingAgent] Session creation error:", err);
+      toast({ title: "Error", description: "Failed to create browser session.", variant: "destructive" });
+    } finally {
+      setCreatingSession(false);
+    }
+  };
+
+  // Step 2: Launch filing agent with existing session_id
   const handleLaunchAgent = async () => {
     if (!currentUser || !checklistComplete) {
       if (!checklistComplete) {
@@ -455,6 +513,7 @@ export function DobNowFilingPrepSheet({
       return;
     }
     setLaunchingAgent(true);
+    setShowSessionModal(false);
     try {
       const payload = buildPayload();
       const { data: run, error } = await (supabase.from("filing_runs") as any).insert({
@@ -484,6 +543,7 @@ export function DobNowFilingPrepSheet({
       console.log("[FilingAgent] Sending request to filing-agent-proxy...", {
         project_id: project.id,
         service_id: service.id,
+        session_id: browserbaseSessionId,
       });
 
       const proxyRes = await fetch(
@@ -499,6 +559,7 @@ export function DobNowFilingPrepSheet({
             project_id: project.id,
             service_id: service.id,
             filing_run_id: run.id,
+            session_id: browserbaseSessionId || undefined,
           }),
         }
       );
@@ -553,6 +614,10 @@ export function DobNowFilingPrepSheet({
     setAgentProgress([]);
     setAgentError(null);
     setAgentQueuedAt(null);
+    setBrowserbaseSessionId(null);
+    setBrowserbaseLiveUrl(null);
+    setLoggedIn(false);
+    setShowSessionModal(false);
     setSubmitStep("idle");
   };
 
@@ -908,19 +973,93 @@ export function DobNowFilingPrepSheet({
                 <Button
                   className="w-full gap-2"
                   variant="outline"
-                  onClick={handleLaunchAgent}
-                  disabled={launchingAgent || !checklistComplete}
+                  onClick={handleStartSession}
+                  disabled={creatingSession || !checklistComplete}
                 >
-                  {launchingAgent ? (
+                  {creatingSession ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Bot className="h-4 w-4" />
+                    <LogIn className="h-4 w-4" />
                   )}
-                  Launch Filing Agent
+                  Start DOB NOW Session
                 </Button>
                 <p className="text-xs text-muted-foreground text-center">
-                  The agent will log in, fill the DOB NOW form, and take screenshots for your review.
+                  Opens a browser session for you to log into DOB NOW, then the agent fills the forms.
                 </p>
+              </div>
+            )}
+
+            {/* Step 1: Session — live browser + login */}
+            {submitStep === "session" && browserbaseLiveUrl && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-3 rounded-lg border bg-primary/5 border-primary/20 text-sm">
+                  <Monitor className="h-4 w-4 text-primary shrink-0" />
+                  <div className="flex-1">
+                    <p className="font-medium text-foreground">Live Browser Session</p>
+                    <p className="text-xs text-muted-foreground">Log into DOB NOW in the window below, then click "I'm Logged In".</p>
+                  </div>
+                </div>
+
+                {/* Embedded live browser */}
+                <div className="rounded-lg border overflow-hidden bg-background">
+                  <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/30">
+                    <Monitor className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs font-medium text-muted-foreground flex-1">DOB NOW Login</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-[10px] gap-1"
+                      onClick={() => window.open(browserbaseLiveUrl, "_blank")}
+                    >
+                      <ExternalLink className="h-3 w-3" /> Open in New Tab
+                    </Button>
+                  </div>
+                  <iframe
+                    src={browserbaseLiveUrl}
+                    className="w-full h-[400px] border-0"
+                    allow="autoplay; encrypted-media; fullscreen"
+                    title="DOB NOW Login Session"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    className="flex-1 gap-2"
+                    onClick={() => {
+                      setLoggedIn(true);
+                      setShowSessionModal(false);
+                    }}
+                  >
+                    <CheckCircle2 className="h-4 w-4" /> I'm Logged In
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={resetAgentState}>
+                    Cancel
+                  </Button>
+                </div>
+
+                {loggedIn && (
+                  <div className="space-y-2 pt-2">
+                    <div className="flex items-center gap-2 p-2 rounded-md bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800 text-sm text-emerald-700 dark:text-emerald-300">
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      <span className="font-medium">Logged in — ready to launch agent</span>
+                    </div>
+                    <Button
+                      className="w-full gap-2"
+                      onClick={handleLaunchAgent}
+                      disabled={launchingAgent}
+                    >
+                      {launchingAgent ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Bot className="h-4 w-4" />
+                      )}
+                      Launch Filing Agent
+                    </Button>
+                    <p className="text-xs text-muted-foreground text-center">
+                      The agent will connect to your logged-in session and fill the DOB NOW forms.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
