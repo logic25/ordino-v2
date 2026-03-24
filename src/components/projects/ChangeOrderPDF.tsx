@@ -319,7 +319,7 @@ export function ChangeOrderPDF({
                   ) : null}
                 </View>
                 <View style={s.sigMetaRow}>
-                  <Text><Text style={s.sigMetaLabel}>By:</Text> {co.client_signer_name || (co as any).recipient_name || "Client Representative"}</Text>
+                  <Text><Text style={s.sigMetaLabel}>By:</Text> {co.client_signer_name || recipientName || "Client Representative"}</Text>
                   {co.client_signed_at ? <Text><Text style={s.sigMetaLabel}>Date:</Text> {fmtDate(co.client_signed_at)}</Text> : null}
                 </View>
               </View>
