@@ -76,22 +76,40 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     const lookupBin = bin || property?.bin;
-    const citisignalPropertyId = property?.citisignal_property_id;
+    let citisignalPropertyId = property?.citisignal_property_id;
 
-    // Build CitiSignal API URL — lookup by citisignal_property_id or by BIN
-    let apiPath: string;
-    if (citisignalPropertyId) {
-      apiPath = `properties/${citisignalPropertyId}/full-sync`;
-    } else if (lookupBin) {
-      apiPath = `properties/by-bin/${lookupBin}/full-sync`;
-    } else {
-      return new Response(JSON.stringify({ error: "No BIN or CitiSignal property ID available", fallback: true }), {
+    // If we don't have a CitiSignal property ID, look it up by BIN first
+    if (!citisignalPropertyId && lookupBin) {
+      const lookupUrl = `${citisignalApiUrl}/functions/v1/api-gateway?path=${encodeURIComponent(`properties?bin=${lookupBin}`)}`;
+      console.log(`Looking up CitiSignal property by BIN: ${lookupUrl}`);
+      const lookupResp = await fetch(lookupUrl, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${citisignalApiKey}`,
+          "Content-Type": "application/json",
+        },
+      });
+      if (lookupResp.ok) {
+        const lookupData = await lookupResp.json();
+        // Response could be an array or object with an id
+        const found = Array.isArray(lookupData) ? lookupData[0] : lookupData;
+        if (found?.id) {
+          citisignalPropertyId = found.id;
+          // Save for future lookups
+          await supabase.from("properties").update({ citisignal_property_id: found.id }).eq("id", property_id);
+        }
+      }
+    }
+
+    if (!citisignalPropertyId) {
+      return new Response(JSON.stringify({ error: "Could not resolve CitiSignal property ID", fallback: true }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Call CitiSignal API
+    // Call CitiSignal full-sync API
+    const apiPath = `properties/${citisignalPropertyId}/full-sync`;
     const citisignalUrl = `${citisignalApiUrl}/functions/v1/api-gateway?path=${encodeURIComponent(apiPath)}`;
     console.log(`Calling CitiSignal: ${citisignalUrl}`);
 
