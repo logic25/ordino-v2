@@ -22,6 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
+import { useProjectChecklist, useAddChecklistItem, useUpdateChecklistItem, useDeleteChecklistItem } from "@/hooks/useProjectChecklist";
 import { DobNowFilingPrepSheet } from "@/components/projects/DobNowFilingPrepSheet";
 import { SendToBillingDialog } from "@/components/invoices/SendToBillingDialog";
 import { ComposeEmailDialog } from "@/components/emails/ComposeEmailDialog";
@@ -108,12 +109,18 @@ function ServiceExpandedDetail({ service, projectName, projectId }: { service: M
   const [newTaskAssignee, setNewTaskAssignee] = useState("");
   const [newTaskDue, setNewTaskDue] = useState("");
   const [localTasks, setLocalTasks] = useState(service.tasks || []);
-  const [localReqs, setLocalReqs] = useState(service.requirements || []);
   const [localCosts, setLocalCosts] = useState<{ discipline: string; amount: number; editing?: string }[]>(
     (service.estimatedCosts || []).map(ec => ({ ...ec }))
   );
   const [composeEmailOpen, setComposeEmailOpen] = useState(false);
   const { toast } = useToast();
+
+  // DB-backed pre-filing conditions
+  const { data: allChecklistItems = [] } = useProjectChecklist(projectId);
+  const serviceReqs = allChecklistItems.filter(item => item.source_service_id === service.id);
+  const addChecklistItem = useAddChecklistItem();
+  const updateChecklistItem = useUpdateChecklistItem();
+  const deleteChecklistItem = useDeleteChecklistItem();
 
   const COMMON_TASKS = [
     "Go to DOB for plan exam",
@@ -135,10 +142,16 @@ function ServiceExpandedDetail({ service, projectName, projectId }: { service: M
   };
 
   const addReq = () => {
-    if (!newReqLabel.trim()) return;
-    const req = { id: `r-new-${Date.now()}`, label: newReqLabel, met: false, fromWhom: newReqFrom || undefined };
-    setLocalReqs(prev => [...prev, req]);
-    toast({ title: "Requirement added", description: newReqLabel });
+    if (!newReqLabel.trim() || !projectId) return;
+    addChecklistItem.mutate({
+      project_id: projectId,
+      label: newReqLabel,
+      category: "missing_document",
+      from_whom: newReqFrom || undefined,
+      source_service_id: service.id,
+      source_catalog_name: service.name,
+    });
+    toast({ title: "Condition added", description: newReqLabel });
     setNewReqLabel(""); setNewReqFrom(""); setShowAddReq(false);
   };
 
@@ -222,21 +235,20 @@ function ServiceExpandedDetail({ service, projectName, projectId }: { service: M
 
         <div>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <AlertTriangle className="h-3.5 w-3.5" /> Pre-Filing Conditions ({localReqs.filter(r => !r.met).length} pending)
+            <AlertTriangle className="h-3.5 w-3.5" /> Pre-Filing Conditions ({serviceReqs.filter(r => r.status === "open").length} pending)
           </h4>
-          {localReqs.length > 0 && (
+          {serviceReqs.length > 0 && (
             <div className="space-y-1 mb-2">
-              {localReqs.map((req) => (
-                <div key={req.id} className={`flex items-center gap-2 text-sm py-1.5 px-3 rounded-md border ${req.met ? "bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-200/50 dark:border-emerald-800/30" : "bg-amber-50/50 dark:bg-amber-900/10 border-amber-200/50 dark:border-amber-800/30"}`}>
-                  <Checkbox checked={req.met} className="h-3.5 w-3.5" onCheckedChange={() => {
-                    setLocalReqs(prev => prev.map(r => r.id === req.id ? { ...r, met: !r.met } : r));
+              {serviceReqs.map((req) => (
+                <div key={req.id} className={`flex items-center gap-2 text-sm py-1.5 px-3 rounded-md border ${req.status === "done" ? "bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-200/50 dark:border-emerald-800/30" : "bg-amber-50/50 dark:bg-amber-900/10 border-amber-200/50 dark:border-amber-800/30"}`}>
+                  <Checkbox checked={req.status === "done"} className="h-3.5 w-3.5" onCheckedChange={() => {
+                    updateChecklistItem.mutate({ id: req.id, projectId: projectId!, status: req.status === "done" ? "open" : "done" });
                   }} />
-                  <span className={`flex-1 ${req.met ? "text-muted-foreground line-through" : ""}`}>{req.label}</span>
+                  <span className={`flex-1 ${req.status === "done" ? "text-muted-foreground line-through" : ""}`}>{req.label}</span>
                   <div className="flex flex-col items-end gap-0.5 shrink-0 ml-auto">
-                    {req.fromWhom && <span className="text-[10px] text-muted-foreground">from {req.fromWhom}</span>}
-                    {req.detail && <span className="text-[10px] text-muted-foreground italic">— {req.detail}</span>}
+                    {req.from_whom && <span className="text-[10px] text-muted-foreground">from {req.from_whom}</span>}
                   </div>
-                  <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => setLocalReqs(prev => prev.filter(r => r.id !== req.id))}>
+                  <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => deleteChecklistItem.mutate({ id: req.id, projectId: projectId! })}>
                     <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>

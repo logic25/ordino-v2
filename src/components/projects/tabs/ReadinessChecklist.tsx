@@ -18,11 +18,11 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useProjectChecklist, useAddChecklistItem, useUpdateChecklistItem, useDeleteChecklistItem, type ChecklistItem } from "@/hooks/useProjectChecklist";
+import { useProjectChecklist, useUpdateChecklistItem, useDeleteChecklistItem, type ChecklistItem } from "@/hooks/useProjectChecklist";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { wrapEmailForSending } from "@/components/rfps/buildPartnerEmailTemplate";
 import { useChecklistFollowupDrafts, useApproveDraft, useDismissDraft } from "@/hooks/useChecklistFollowupDrafts";
-import { useGenerateProjectChecklist } from "@/hooks/useGenerateChecklist";
+// generateChecklist removed — items are now added per-service
 import { EditPISDialog } from "@/components/projects/EditPISDialog";
 import { checklistCategoryLabels } from "@/components/projects/projectMockData";
 import type { MockPISStatus } from "@/components/projects/projectMockData";
@@ -39,11 +39,7 @@ export function ReadinessChecklist({
 }) {
   const [isOpen, setIsOpen] = useState(true);
   const [showReceived, setShowReceived] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
   const [showEditPIS, setShowEditPIS] = useState(false);
-  const [newLabel, setNewLabel] = useState("");
-  const [newFrom, setNewFrom] = useState("");
-  const [newCategory, setNewCategory] = useState("missing_document");
   const [aiDraft, setAiDraft] = useState<{ draft: string; prompt: { system: string; user: string }; model: string } | null>(null);
   const [showAiDraft, setShowAiDraft] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
@@ -53,14 +49,14 @@ export function ReadinessChecklist({
   const [sendingReminder, setSendingReminder] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const addItem = useAddChecklistItem();
+  
   const updateItem = useUpdateChecklistItem();
   const deleteItem = useDeleteChecklistItem();
   const { data: companyData } = useCompanySettings();
   const { data: pendingDrafts = [] } = useChecklistFollowupDrafts(projectId);
   const approveDraft = useApproveDraft();
   const dismissDraft = useDismissDraft();
-  const generateChecklist = useGenerateProjectChecklist();
+  
 
   // Fetch RFI record for reminder sending
   const { data: rfiRecord } = useQuery({
@@ -163,17 +159,6 @@ export function ReadinessChecklist({
     toast({ title: "Removed", description: "Item removed from checklist." });
   };
 
-  const handleAddItem = () => {
-    if (!newLabel.trim()) return;
-    addItem.mutate({
-      project_id: projectId,
-      label: newLabel,
-      category: newCategory,
-      from_whom: newFrom || undefined,
-    });
-    toast({ title: "Item added", description: newLabel });
-    setNewLabel(""); setNewFrom(""); setShowAddForm(false);
-  };
 
   const handleAiFollowUp = async () => {
     if (outstanding.length === 0) {
@@ -422,47 +407,6 @@ export function ReadinessChecklist({
               </div>
             )}
 
-            {/* PIS Submitted Data */}
-            {pisStatus.sentDate && (
-              <Collapsible>
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-1.5 text-xs h-7 px-2">
-                    <ChevronRight className="h-3 w-3" />
-                    📋 PIS Responses — {pisStatus.completedFields}/{pisStatus.totalFields} fields
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="mt-2">
-                  {pisStatus.answeredFields && pisStatus.answeredFields.length > 0 ? (
-                    <div className="rounded-lg border bg-muted/10 overflow-hidden">
-                      {(() => {
-                        const bySection: Record<string, Array<{ label: string; value: string }>> = {};
-                        for (const f of pisStatus.answeredFields!) {
-                          if (!bySection[f.section]) bySection[f.section] = [];
-                          bySection[f.section].push({ label: f.label, value: f.value });
-                        }
-                        return Object.entries(bySection).map(([section, fields]) => (
-                          <div key={section} className="border-b last:border-b-0">
-                            <div className="px-3 py-1.5 bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                              {section}
-                            </div>
-                            <div className="divide-y">
-                              {fields.map((f, i) => (
-                                <div key={i} className="flex items-start gap-3 px-3 py-2 text-sm">
-                                  <span className="text-muted-foreground min-w-[140px] shrink-0">{f.label}</span>
-                                  <span className="font-medium break-words">{f.value}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ));
-                      })()}
-                    </div>
-                  ) : (
-                    <div className="text-xs text-muted-foreground p-3 text-center">No responses submitted yet.</div>
-                  )}
-                </CollapsibleContent>
-              </Collapsible>
-            )}
 
             {grouped.map(({ key, label, icon, items: groupItems }) => (
               <div key={key}>
@@ -475,7 +419,14 @@ export function ReadinessChecklist({
                     return (
                       <div key={item.id} className="flex items-center gap-3 text-sm py-2 px-3 rounded-md bg-background border group/item">
                         <Checkbox className="h-4 w-4" onCheckedChange={() => handleMarkDone(item.id)} />
-                        <span className="flex-1 min-w-0">{item.label}</span>
+                        <span className="flex-1 min-w-0">
+                          {item.label}
+                          {item.source_catalog_name && (
+                            <Badge variant="outline" className="ml-1.5 text-[9px] py-0 px-1.5 font-normal text-muted-foreground">
+                              {item.source_catalog_name}
+                            </Badge>
+                          )}
+                        </span>
                         {item.from_whom && <span className="text-xs text-muted-foreground shrink-0">from {item.from_whom}</span>}
                         <Badge variant={daysWaiting > 7 ? "destructive" : "secondary"} className="text-[10px] shrink-0">
                           {daysWaiting}d
@@ -539,66 +490,21 @@ export function ReadinessChecklist({
               </Collapsible>
             )}
 
-            {showAddForm ? (
-              <div className="p-3 rounded-lg border bg-muted/20 space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <Input placeholder="What's needed?" className="h-8 text-sm" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} autoFocus />
-                  <Input placeholder="From whom?" className="h-8 text-sm" value={newFrom} onChange={(e) => setNewFrom(e.target.value)} />
-                  <Select value={newCategory} onValueChange={setNewCategory}>
-                    <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(checklistCategoryLabels).map(([key, { label }]) => (
-                        <SelectItem key={key} value={key}>{label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" className="h-7 text-xs" onClick={handleAddItem} disabled={addItem.isPending}>Add</Button>
-                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setNewLabel(""); setNewFrom(""); setShowAddForm(false); }}>Cancel</Button>
-                </div>
-              </div>
-            ) : (
+            {outstanding.length > 0 && (
                <div className="flex items-center gap-2 pt-1 flex-wrap">
-                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowAddForm(true)}>
-                  <Plus className="h-3.5 w-3.5" /> Add Item
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 border-primary/30 text-primary hover:bg-primary/5"
+                  onClick={handleAiFollowUp}
+                  disabled={aiLoading}
+                >
+                  {aiLoading ? (
+                    <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Drafting...</>
+                  ) : (
+                    <><Sparkles className="h-3.5 w-3.5" /> AI Follow-Up Draft</>
+                  )}
                 </Button>
-                {items.length === 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5 border-primary/30 text-primary hover:bg-primary/5"
-                    onClick={() => {
-                      generateChecklist.mutate({
-                        project_id: projectId,
-                        filing_type: (window as any).__currentFilingType,
-                        project_description: projectName,
-                      });
-                    }}
-                    disabled={generateChecklist.isPending}
-                  >
-                    {generateChecklist.isPending ? (
-                      <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Generating...</>
-                    ) : (
-                      <><Sparkles className="h-3.5 w-3.5" /> Generate AI Checklist</>
-                    )}
-                  </Button>
-                )}
-                {outstanding.length > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5 border-primary/30 text-primary hover:bg-primary/5"
-                    onClick={handleAiFollowUp}
-                    disabled={aiLoading}
-                  >
-                    {aiLoading ? (
-                      <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Drafting...</>
-                    ) : (
-                      <><Sparkles className="h-3.5 w-3.5" /> AI Follow-Up Draft</>
-                    )}
-                  </Button>
-                )}
               </div>
             )}
           </CardContent>
