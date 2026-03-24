@@ -42,14 +42,16 @@ const formatDateSafe = (value: string | null | undefined, pattern: string, fallb
 };
 
 const getSourceBadge = (source: string) => {
-  if (source === "DOB_NOW_BUILD") return { className: "bg-blue-500/10 text-blue-700 border-blue-500/20", label: "BIS" };
-  if (source === "DOB_NOW_ELECTRICAL") return { className: "bg-amber-500/10 text-amber-700 border-amber-500/20", label: "Electrical" };
+  if (source === "DOB_NOW_BUILD" || source === "DOB_NOW") return { className: "bg-blue-500/10 text-blue-700 border-blue-500/20", label: "DOB NOW" };
+  if (source === "DOB_NOW_ELECTRICAL" || source === "Electrical") return { className: "bg-amber-500/10 text-amber-700 border-amber-500/20", label: "Electrical" };
+  if (source === "BIS_SCRAPE") return { className: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20", label: "BIS" };
   return { className: "bg-muted text-muted-foreground", label: "BIS" };
 };
 
 const getSourceLabel = (source: string) => {
-  if (source === "DOB_NOW_BUILD") return "DOB NOW Build";
-  if (source === "DOB_NOW_ELECTRICAL") return "DOB NOW Electrical";
+  if (source === "DOB_NOW_BUILD" || source === "DOB_NOW") return "DOB NOW Build";
+  if (source === "DOB_NOW_ELECTRICAL" || source === "Electrical") return "DOB NOW Electrical";
+  if (source === "BIS_SCRAPE") return "DOB BIS (Scraped)";
   return "DOB BIS";
 };
 
@@ -102,8 +104,21 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
     const jobGroups = new Map<string, COApplication[]>();
     const standalone: COApplication[] = [];
 
+    // Sources that should be grouped by base job number (BIS-related filings)
+    const GROUPABLE_SOURCES = new Set([
+      "DOB_JOB_FILINGS", "BIS_SCRAPE", "BIS", "citisignal", "socrata",
+      // Also group when source is null/undefined (legacy BIS data)
+    ]);
+    const isGroupable = (source: string | undefined | null) =>
+      !source || GROUPABLE_SOURCES.has(source) || source === "DOB_NOW_BUILD";
+
     for (const app of filtered) {
-      if (app.source === "DOB_JOB_FILINGS") {
+      // Don't group electrical filings — they have different job number patterns
+      if (app.source === "DOB_NOW_ELECTRICAL") {
+        standalone.push(app);
+        continue;
+      }
+      if (isGroupable(app.source)) {
         const baseJob = app.jobNum.replace(/\D/g, "");
         if (baseJob) {
           if (!jobGroups.has(baseJob)) jobGroups.set(baseJob, []);

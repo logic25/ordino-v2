@@ -114,23 +114,38 @@ export default function PropertyDetail() {
           // CitiSignal returned data — map to COApplication shape for the UI
           const apps = csResult.applications.map((a: any) => ({
             jobNum: a.application_number || a.job_number || "",
-            workType: a.application_type || a.work_type || "Unknown",
+            workType: a.work_type || a.application_type || "Unknown",
             status: a.status || a.filing_status || "",
-            applicant: a.applicant_name || a.applicant || "",
+            tenant: a.applicant_name || a.owner_name || a.applicant || null,
             fileDate: a.filing_date || a.filed_date || "",
             desc: a.description || "",
-            source: a.source || "citisignal",
+            source: a.source || a.bis_scrape_source || "DOB_JOB_FILINGS",
             docNum: a.doc_number || a.document_number || "",
+            jobType: a.job_type || a.application_type || "",
+            floor: a.floor || "",
             latestActionDate: a.latest_action_date || a.filing_date || "",
+            action: "",
+            priority: "Medium" as const,
+            num: 0,
             ...a,
           }));
+          const mapViolStatus = (s: string | null | undefined): "Active" | "In Resolution" | "Resolved" | "Dismissed" => {
+            if (!s) return "Active";
+            const u = s.toLowerCase();
+            if (u === "closed" || u === "resolved") return "Resolved";
+            if (u === "dismissed") return "Dismissed";
+            return "Active";
+          };
           const viols = csResult.violations.map((v: any) => ({
             violationNum: v.violation_number || "",
-            agency: v.agency || "DOB",
-            status: v.status || "open",
-            description: v.description || "",
-            issuedDate: v.issued_date || v.issue_date || "",
-            penaltyAmount: v.penalty_amount || 0,
+            type: v.violation_class ? `${v.agency || "DOB"} ${v.violation_class}` : (v.agency === "HPD" ? `HPD Class ${v.severity || ""}`.trim() : (v.agency || "DOB") + " VIOLATION"),
+            fileDate: v.issued_date || v.issue_date || "",
+            status: mapViolStatus(v.status),
+            resolutionPlan: v.description_raw || v.description || "",
+            assignedTo: null,
+            priority: (v.severity === "critical" || (v.agency === "HPD" && v.violation_class === "C")) ? "High" as const : v.severity === "high" ? "High" as const : "Medium" as const,
+            penalty: v.penalty_amount || null,
+            agency: v.agency || "DOB ECB",
             ...v,
           }));
           setCoApps(apps);
