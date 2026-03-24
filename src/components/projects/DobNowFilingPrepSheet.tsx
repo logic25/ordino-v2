@@ -1016,7 +1016,7 @@ export function DobNowFilingPrepSheet({
                   </div>
                   <iframe
                     src={browserbaseLiveUrl}
-                    className="w-full h-[400px] border-0"
+                    className="w-full h-[60vh] min-h-[500px] border-0"
                     allow="autoplay; encrypted-media; fullscreen"
                     title="DOB NOW Login Session"
                   />
