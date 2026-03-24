@@ -140,22 +140,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    const citisignalData = await citisignalResponse.json();
+    const citisignalPayload = await citisignalResponse.json();
+    const fullSyncData = citisignalPayload?.data ?? {};
+    const propertyData = fullSyncData?.property ?? {};
 
     // ── Upsert applications ──
-    const applications = citisignalData.applications || [];
+    const applications = fullSyncData?.applications || [];
     if (applications.length > 0) {
-      const appRows = applications.map((a: any) => ({
-        property_id,
-        company_id: profile.company_id,
-        job_number: a.application_number || a.job_number || "",
-        application_type: a.application_type || a.work_type || "Unknown",
-        filing_status: a.status || a.filing_status || null,
-        applicant_name: a.applicant_name || a.applicant || null,
-        filed_date: a.filing_date || a.filed_date || null,
-        description: a.description || null,
-        raw_data: { ...a, source: a.source || "citisignal" },
-      }));
+      const appRows = applications
+        .filter((a: any) => a?.application_number || a?.job_number)
+        .map((a: any) => ({
+          property_id,
+          company_id: profile.company_id,
+          job_number: a.application_number || a.job_number || "",
+          application_type: a.application_type || a.work_type || a.job_type || "Unknown",
+          filing_status: a.status || a.filing_status || null,
+          applicant_name: a.applicant_name || a.applicant || null,
+          filed_date: a.filing_date || a.filed_date || null,
+          description: a.description || null,
+          raw_data: { ...a, source: a.source || "citisignal" },
+        }));
 
       const { error: appErr } = await supabase
         .from("signal_applications")
@@ -165,20 +169,22 @@ Deno.serve(async (req) => {
     }
 
     // ── Upsert violations ──
-    const violations = citisignalData.violations || [];
+    const violations = fullSyncData?.violations || [];
     if (violations.length > 0) {
-      const violRows = violations.map((v: any) => ({
-        property_id,
-        company_id: profile.company_id,
-        violation_number: v.violation_number || v.isn_bis_vio || "",
-        agency: v.agency || "DOB",
-        violation_type: v.violation_type || null,
-        status: v.status || "open",
-        description: v.description || null,
-        penalty_amount: v.penalty_amount || v.penalty_balance_due || 0,
-        issued_date: v.issued_date || v.issue_date || null,
-        raw_data: { ...v, source: "citisignal" },
-      }));
+      const violRows = violations
+        .filter((v: any) => v?.violation_number || v?.isn_bis_vio)
+        .map((v: any) => ({
+          property_id,
+          company_id: profile.company_id,
+          violation_number: v.violation_number || v.isn_bis_vio || "",
+          agency: v.agency || "DOB",
+          violation_type: v.violation_type || v.violation_class || null,
+          status: v.status || "open",
+          description: v.description || v.description_raw || null,
+          penalty_amount: v.penalty_amount || v.penalty_balance_due || 0,
+          issued_date: v.issued_date || v.issue_date || null,
+          raw_data: { ...v, source: v.source || "citisignal" },
+        }));
 
       const { error: violErr } = await supabase
         .from("signal_violations")
@@ -190,21 +196,20 @@ Deno.serve(async (req) => {
     // ── Update property record with CitiSignal enrichment ──
     const propertyUpdates: Record<string, any> = {};
 
-    if (citisignalData.vacate_order !== undefined) {
-      propertyUpdates.vacate_order = !!citisignalData.vacate_order;
+    if (propertyData.vacate_order !== undefined) {
+      propertyUpdates.vacate_order = !!propertyData.vacate_order;
     }
-    if (citisignalData.vacate_type) {
-      propertyUpdates.vacate_type = citisignalData.vacate_type;
+    if (propertyData.vacate_type) {
+      propertyUpdates.vacate_type = propertyData.vacate_type;
     }
-    if (citisignalData.co_status) {
-      propertyUpdates.co_status = citisignalData.co_status;
+    if (propertyData.co_status) {
+      propertyUpdates.co_status = propertyData.co_status;
     }
-    if (citisignalData.bis_profile) {
-      propertyUpdates.bis_profile_data = citisignalData.bis_profile;
+    if (propertyData.bis_profile_data) {
+      propertyUpdates.bis_profile_data = propertyData.bis_profile_data;
     }
-    // Store the CitiSignal property ID if we got it from the response
-    if (citisignalData.property_id && !citisignalPropertyId) {
-      propertyUpdates.citisignal_property_id = citisignalData.property_id;
+    if (propertyData.id && propertyData.id !== citisignalPropertyId) {
+      propertyUpdates.citisignal_property_id = propertyData.id;
     }
 
     if (Object.keys(propertyUpdates).length > 0) {
@@ -222,14 +227,13 @@ Deno.serve(async (req) => {
       applications_count: applications.length,
       violations_count: violations.length,
       property_updates: Object.keys(propertyUpdates),
-      // Pass the data back so the UI can display it immediately
       applications,
       violations,
       property_enrichment: {
-        vacate_order: citisignalData.vacate_order || false,
-        vacate_type: citisignalData.vacate_type || null,
-        co_status: citisignalData.co_status || null,
-        compliance_score: citisignalData.compliance_score || null,
+        vacate_order: propertyData.vacate_order || false,
+        vacate_type: propertyData.vacate_type || null,
+        co_status: propertyData.co_status || null,
+        compliance_score: fullSyncData?.compliance_score?.score ?? fullSyncData?.compliance_score ?? null,
       },
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
