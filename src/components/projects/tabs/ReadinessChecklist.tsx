@@ -49,7 +49,7 @@ export function ReadinessChecklist({
   const [sendingReminder, setSendingReminder] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const addItem = useAddChecklistItem();
+  
   const updateItem = useUpdateChecklistItem();
   const deleteItem = useDeleteChecklistItem();
   const { data: companyData } = useCompanySettings();
