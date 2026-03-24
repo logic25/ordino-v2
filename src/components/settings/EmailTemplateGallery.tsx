@@ -92,6 +92,9 @@ const LIVE_TEMPLATE_IDS = new Set([
   "partner_outreach",
   "checklist_followup",
   "demand_letter",
+  "bug_report",
+  "co_signed",
+  "pis_reminder",
 ]);
 // ── Template definitions ──
 
