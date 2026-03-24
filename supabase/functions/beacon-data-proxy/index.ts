@@ -343,3 +343,70 @@ async function queryInvoices(sb: any, params: any) {
 
   return ok({ invoices: data, outstanding_total: outstanding, paid_total: paid });
 }
+
+// ── General-purpose query ────────────────────────────────
+
+const BLOCKED_TABLES = new Set([
+  "auth", "api_keys", "secrets", "user_roles",
+]);
+
+const BLOCKED_PATTERNS = ["password", "key", "secret", "token"];
+
+function isTableBlocked(table: string): boolean {
+  const t = table.toLowerCase().trim();
+  if (BLOCKED_TABLES.has(t)) return true;
+  if (t.startsWith("auth.")) return true;
+  for (const p of BLOCKED_PATTERNS) {
+    if (t.includes(p)) return true;
+  }
+  return false;
+}
+
+async function queryOrdino(sb: any, params: any) {
+  const { table, select, filters, order, limit } = params || {};
+
+  if (!table || typeof table !== "string") {
+    return fail("Missing or invalid 'table' param");
+  }
+
+  if (isTableBlocked(table)) {
+    return fail(`Access to table '${table}' is not allowed`, 403);
+  }
+
+  const safeSelect = select || "*";
+  const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 200);
+
+  let q = sb.from(table).select(safeSelect).limit(safeLimit);
+
+  if (Array.isArray(filters)) {
+    for (const f of filters) {
+      if (!f.column) continue;
+      const op = f.operator || "eq";
+      switch (op) {
+        case "eq":    q = q.eq(f.column, f.value); break;
+        case "neq":   q = q.neq(f.column, f.value); break;
+        case "gt":    q = q.gt(f.column, f.value); break;
+        case "gte":   q = q.gte(f.column, f.value); break;
+        case "lt":    q = q.lt(f.column, f.value); break;
+        case "lte":   q = q.lte(f.column, f.value); break;
+        case "like":  q = q.like(f.column, f.value); break;
+        case "ilike": q = q.ilike(f.column, f.value); break;
+        case "is":    q = q.is(f.column, f.value); break;
+        case "in":    q = q.in(f.column, f.value); break;
+        default:      q = q.eq(f.column, f.value);
+      }
+    }
+  }
+
+  if (order && order.column) {
+    q = q.order(order.column, { ascending: order.ascending !== false });
+  }
+
+  const { data, error } = await q;
+  if (error) {
+    console.error("query_ordino error:", error.message, error.details, error.hint);
+    return fail(error.message, 500);
+  }
+
+  return ok({ rows: data, count: data?.length ?? 0 });
+}
