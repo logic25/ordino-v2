@@ -178,7 +178,7 @@ export function DobNowFilingPrepSheet({
   const [launchingAgent, setLaunchingAgent] = useState(false);
   const [confirmingFiled, setConfirmingFiled] = useState(false);
 
-  const shouldBlockClose = launchingAgent || submitStep === "agent" || (agentStatus && !["completed", "failed"].includes(agentStatus));
+  const shouldBlockClose = launchingAgent;
 
   const handleSheetOpenChange = useCallback(
     (nextOpen: boolean) => {
