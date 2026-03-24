@@ -39,6 +39,7 @@ import {
 } from "@/components/properties/co/coMockData";
 import { fetchDOBApplications } from "@/hooks/useDOBApplications";
 import { fetchDOBViolations, fetchDOBComplaints, type DOBComplaintRecord } from "@/hooks/useDOBViolations";
+import { syncFromCitiSignal } from "@/hooks/useCitiSignalSync";
 import { type RequiredItem } from "@/components/properties/co/requiredItemsData";
 import { MessageSquareWarning } from "lucide-react";
 
