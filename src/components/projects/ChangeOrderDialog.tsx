@@ -196,7 +196,8 @@ export function ChangeOrderDialog({
       const next = current.includes(discipline)
         ? current.filter(d => d !== discipline)
         : [...current, discipline];
-      return { ...l, work_types: next };
+      const fee = l.disciplineFee || 0;
+      return { ...l, work_types: next, amount: l.baseAmount + (fee * next.length) };
     }));
   };
 
