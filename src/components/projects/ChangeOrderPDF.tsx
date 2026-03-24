@@ -34,7 +34,13 @@ const borderColor = "#e2e8f0";
 const muted = "#94a3b8";
 
 const s = StyleSheet.create({
-  page: { paddingBottom: 60, fontSize: 9.5, fontFamily: "Helvetica", color: charcoal },
+  page: { paddingTop: 28, paddingBottom: 60, fontSize: 9.5, fontFamily: "Helvetica", color: charcoal },
+
+  /* Fixed continuation header (every page) */
+  fixedHeader: { position: "absolute", top: 0, left: 0, right: 0, paddingHorizontal: 48, paddingTop: 10, paddingBottom: 6, flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderBottomWidth: 0.5, borderBottomColor: borderColor, backgroundColor: "#ffffff" },
+  fixedHeaderLeft: { fontSize: 8, color: muted },
+  fixedHeaderRight: { fontSize: 8, color: muted },
+  fixedHeaderBold: { fontFamily: "Helvetica-Bold", color: slate },
 
   /* White header */
   headerWrap: { paddingHorizontal: 48, paddingTop: 32, paddingBottom: 0, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
