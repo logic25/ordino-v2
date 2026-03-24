@@ -381,7 +381,7 @@ export function SignatureDialog({
                   />
                 </div>
                 {savedSignatureData && !hasDrawn && (
-                  <p className="text-xs text-emerald-600">✓ Using your saved signature</p>
+                  <p className="text-xs text-primary">✓ Using your saved signature</p>
                 )}
                 {!savedSignatureData && (
                   <p className="text-xs text-muted-foreground">
