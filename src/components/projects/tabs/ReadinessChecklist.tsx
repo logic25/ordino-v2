@@ -159,17 +159,6 @@ export function ReadinessChecklist({
     toast({ title: "Removed", description: "Item removed from checklist." });
   };
 
-  const handleAddItem = () => {
-    if (!newLabel.trim()) return;
-    addItem.mutate({
-      project_id: projectId,
-      label: newLabel,
-      category: newCategory,
-      from_whom: newFrom || undefined,
-    });
-    toast({ title: "Item added", description: newLabel });
-    setNewLabel(""); setNewFrom(""); setShowAddForm(false);
-  };
 
   const handleAiFollowUp = async () => {
     if (outstanding.length === 0) {
