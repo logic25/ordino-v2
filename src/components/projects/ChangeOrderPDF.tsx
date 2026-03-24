@@ -284,16 +284,6 @@ export function ChangeOrderPDF({
             </Text>
           </View>
 
-          {/* Reason — only show if different from title (avoid duplication) */}
-          {co.reason && co.reason !== co.title ? (
-            <View style={s.reasonBlock}>
-              <View style={[s.sectionHeading, { marginTop: 24 }]}>
-                <View style={s.sectionBar} />
-                <Text style={[s.sectionTitle, { fontSize: 12 }]}>Reason for Change</Text>
-              </View>
-              <Text style={s.reasonText}>{co.reason}</Text>
-            </View>
-          ) : null}
 
           {/* ═══ Signature Section — Matching Proposal Style ═══ */}
           <View style={s.sigSection} wrap={false}>

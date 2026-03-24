@@ -729,12 +729,6 @@ export function ChangeOrderDetailSheet({
                   </div>
                 ) : null;
               })()}
-              {co.reason && (
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Reason</p>
-                  <p className="text-sm whitespace-pre-line">{co.reason}</p>
-                </div>
-              )}
 
               {/* Deposit Info */}
               {(co as any).deposit_percentage > 0 && (
