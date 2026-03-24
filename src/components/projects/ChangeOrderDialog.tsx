@@ -74,7 +74,7 @@ export function ChangeOrderDialog({
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { title: "", reason: "", requested_by: "", notes: "" },
+    defaultValues: { title: "", requested_by: "", notes: "" },
   });
 
   useEffect(() => {
