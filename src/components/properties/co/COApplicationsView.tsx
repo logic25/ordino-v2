@@ -370,7 +370,10 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
                           {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                         </Button>
                       </TableCell>
-                      <TableCell className="font-mono text-sm font-medium">{app.jobNum}</TableCell>
+                      <TableCell className="font-mono text-sm font-medium">
+                        {app.jobNum}
+                        {app.docNum && app.docNum !== "01" && <span className="text-muted-foreground ml-1 text-xs">Doc #{app.docNum}</span>}
+                      </TableCell>
                       <TableCell><Badge variant="outline">{app.jobType || "—"}</Badge></TableCell>
                       <TableCell><Badge className="bg-orange-500/10 text-orange-700 border-orange-500/20" variant="outline">DOB</Badge></TableCell>
                       <TableCell><Badge variant="outline" className={sourceBadge.className}>{sourceBadge.label}</Badge></TableCell>
@@ -401,6 +404,7 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
                     </TableCell>
                     <TableCell className="font-mono text-sm font-medium">
                       {app.jobNum}
+                      {app.docNum && <span className="text-muted-foreground ml-1 text-xs">Doc #{app.docNum}</span>}
                       {!isExpanded && (
                         <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">+{entry.subsequents.length}</Badge>
                       )}

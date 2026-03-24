@@ -37,6 +37,7 @@ import { useCoSignOffs } from "@/hooks/useCoSignOffs";
 import {
   type COApplication, type COViolation,
 } from "@/components/properties/co/coMockData";
+import { decodeStatus, cleanDescription, deriveDocNumber, getDisplayApplicant, normalizeSource } from "@/components/properties/co/citisignalNormalize";
 import { fetchDOBApplications } from "@/hooks/useDOBApplications";
 import { fetchDOBViolations, fetchDOBComplaints, type DOBComplaintRecord } from "@/hooks/useDOBViolations";
 import { syncFromCitiSignal } from "@/hooks/useCitiSignalSync";
@@ -111,24 +112,29 @@ export default function PropertyDetail() {
         // Try CitiSignal first
         const csResult = await syncFromCitiSignal(id!, property.bin);
         if (csResult) {
-          // CitiSignal returned data — map to COApplication shape for the UI
-          const apps = csResult.applications.map((a: any) => ({
-            ...a,
-            jobNum: a.application_number || a.job_number || "",
-            workType: a.work_type || a.application_type || "Unknown",
-            status: a.status || a.filing_status || "",
-            tenant: a.applicant_name || a.owner_name || a.applicant || null,
-            fileDate: a.filing_date || a.filed_date || "",
-            desc: a.description || "",
-            source: a.source || a.bis_scrape_source || "DOB_JOB_FILINGS",
-            docNum: a.doc_number || a.document_number || "",
-            jobType: a.job_type || a.application_type || "",
-            floor: a.floor || "",
-            latestActionDate: a.latest_action_date || a.filing_date || "",
-            action: "",
-            priority: "Medium" as const,
-            num: 0,
-          }));
+          // CitiSignal returned data — map to COApplication shape with normalization
+          const rawSrc = (a: any) => a.source || a.bis_scrape_source || "DOB_JOB_FILINGS";
+          const apps = csResult.applications.map((a: any) => {
+            const src = normalizeSource(rawSrc(a));
+            const jobNum = a.application_number || a.job_number || "";
+            return {
+              ...a,
+              jobNum,
+              workType: a.work_type || a.application_type || "Unknown",
+              status: decodeStatus(a.status || a.filing_status, src, a.description),
+              tenant: getDisplayApplicant(a),
+              fileDate: a.filing_date || a.filed_date || "",
+              desc: cleanDescription(a.description),
+              source: src,
+              docNum: deriveDocNumber(jobNum, a.doc_number || a.document_number),
+              jobType: a.job_type || a.application_type || "",
+              floor: a.floor || "",
+              latestActionDate: a.latest_action_date || a.filing_date || "",
+              action: "",
+              priority: "Medium" as const,
+              num: 0,
+            };
+          });
           const mapViolStatus = (s: string | null | undefined): "Active" | "In Resolution" | "Resolved" | "Dismissed" => {
             if (!s) return "Active";
             const u = s.toLowerCase();
@@ -238,26 +244,45 @@ export default function PropertyDetail() {
       if (isSubscriptionActive) {
         const csResult = await syncFromCitiSignal(id!, property.bin);
         if (csResult) {
-          const apps = csResult.applications.map((a: any) => ({
-            jobNum: a.application_number || a.job_number || "",
-            workType: a.application_type || a.work_type || "Unknown",
-            status: a.status || a.filing_status || "",
-            applicant: a.applicant_name || a.applicant || "",
-            fileDate: a.filing_date || a.filed_date || "",
-            desc: a.description || "",
-            source: a.source || "citisignal",
-            docNum: a.doc_number || a.document_number || "",
-            latestActionDate: a.latest_action_date || a.filing_date || "",
-            ...a,
-          }));
+          const apps = csResult.applications.map((a: any) => {
+            const src = normalizeSource(a.source || "citisignal");
+            const jobNum = a.application_number || a.job_number || "";
+            return {
+              ...a,
+              jobNum,
+              workType: a.application_type || a.work_type || "Unknown",
+              status: decodeStatus(a.status || a.filing_status, src, a.description),
+              tenant: getDisplayApplicant(a),
+              fileDate: a.filing_date || a.filed_date || "",
+              desc: cleanDescription(a.description),
+              source: src,
+              docNum: deriveDocNumber(jobNum, a.doc_number || a.document_number),
+              jobType: a.job_type || a.application_type || "",
+              floor: a.floor || "",
+              latestActionDate: a.latest_action_date || a.filing_date || "",
+              action: "",
+              priority: "Medium" as const,
+              num: 0,
+            };
+          });
+          const mapViolStatus = (s: string | null | undefined): "Active" | "In Resolution" | "Resolved" | "Dismissed" => {
+            if (!s) return "Active";
+            const u = s.toLowerCase();
+            if (u === "closed" || u === "resolved") return "Resolved";
+            if (u === "dismissed") return "Dismissed";
+            return "Active";
+          };
           const viols = csResult.violations.map((v: any) => ({
-            violationNum: v.violation_number || "",
-            agency: v.agency || "DOB",
-            status: v.status || "open",
-            description: v.description || "",
-            issuedDate: v.issued_date || v.issue_date || "",
-            penaltyAmount: v.penalty_amount || 0,
             ...v,
+            violationNum: v.violation_number || "",
+            type: v.violation_class ? `${v.agency || "DOB"} ${v.violation_class}` : (v.agency === "HPD" ? `HPD Class ${v.severity || ""}`.trim() : (v.agency || "DOB") + " VIOLATION"),
+            fileDate: v.issued_date || v.issue_date || "",
+            status: mapViolStatus(v.status),
+            resolutionPlan: v.description_raw || v.description || "",
+            assignedTo: null,
+            priority: (v.severity === "critical" || (v.agency === "HPD" && v.violation_class === "C")) ? "High" as const : v.severity === "high" ? "High" as const : "Medium" as const,
+            penalty: v.penalty_amount || null,
+            agency: v.agency || "DOB ECB",
           }));
           setCoApps(apps);
           setCoViolations(viols);
