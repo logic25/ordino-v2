@@ -707,6 +707,7 @@ export function EditPISDialog({ open, onOpenChange, pisStatus, projectId }: Edit
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["rfi-responses", projectId] });
       queryClient.invalidateQueries({ queryKey: ["project-pis-status", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["filing-pis-data", projectId] });
       setIsDirty(false);
       toast({ title: "PIS Saved", description: `${filledCount}/${totalFieldCount} fields completed.` });
       onOpenChange(false);
