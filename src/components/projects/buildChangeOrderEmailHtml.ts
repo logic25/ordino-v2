@@ -32,7 +32,9 @@ export function resolveChangeOrderEmailTemplate(
 
   const replace = (text: string) =>
     Object.entries(variables).reduce(
-      (t, [k, v]) => t.replaceAll(`{{${k}}}`, v),
+      (t, [k, v]) => t.split(`{{${k}}}`).join(v),
+      text,
+    );
       text,
     );
 
