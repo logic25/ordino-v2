@@ -706,7 +706,7 @@ export function DobNowFilingPrepSheet({
   return (
     <Sheet open={open} onOpenChange={handleSheetOpenChange} modal={false}>
       <SheetContent
-        className="sm:max-w-[560px] overflow-y-auto"
+        className={`overflow-y-auto ${submitStep === "session" ? "sm:max-w-[900px]" : "sm:max-w-[560px]"}`}
         onInteractOutside={(event) => {
           if (shouldBlockClose) event.preventDefault();
         }}
