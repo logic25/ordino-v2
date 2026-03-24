@@ -536,7 +536,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ error: "Invalid action. Use: start-filing, status, queue, batch" }), {
+    return new Response(JSON.stringify({ error: "Invalid action. Use: create-session, start-filing, status, queue, batch" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
