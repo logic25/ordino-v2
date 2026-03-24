@@ -20,7 +20,7 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProjectChecklist, useUpdateChecklistItem, useDeleteChecklistItem, type ChecklistItem } from "@/hooks/useProjectChecklist";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
-import { wrapEmailForSending } from "@/components/rfps/buildPartnerEmailTemplate";
+
 import { useChecklistFollowupDrafts, useApproveDraft, useDismissDraft } from "@/hooks/useChecklistFollowupDrafts";
 // generateChecklist removed — items are now added per-service
 import { EditPISDialog } from "@/components/projects/EditPISDialog";
