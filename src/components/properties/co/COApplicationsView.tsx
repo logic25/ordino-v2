@@ -404,6 +404,7 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
                     </TableCell>
                     <TableCell className="font-mono text-sm font-medium">
                       {app.jobNum}
+                      {app.docNum && <span className="text-muted-foreground ml-1 text-xs">Doc #{app.docNum}</span>}
                       {!isExpanded && (
                         <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">+{entry.subsequents.length}</Badge>
                       )}
