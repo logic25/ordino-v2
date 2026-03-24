@@ -388,6 +388,7 @@ export function DobNowFilingPrepSheet({
     } as MockContact];
   }
 
+  if (!contactsByRole["filing_rep"]?.length && companyData) {
     const pmName = (project as any).assigned_pm?.display_name
       || (project as any).assigned_pm?.first_name
         ? `${(project as any).assigned_pm?.first_name} ${(project as any).assigned_pm?.last_name || ""}`.trim()
