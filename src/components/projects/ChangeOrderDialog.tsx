@@ -9,13 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Loader2, GitBranch, Search, X, Plus } from "lucide-react";
 import type { ChangeOrder, ChangeOrderFormInput } from "@/hooks/useChangeOrders";
 import { useTelemetry } from "@/hooks/useTelemetry";
-import { useCompanySettings, type ServiceCatalogItem } from "@/hooks/useCompanySettings";
+import { useCompanySettings, WORK_TYPE_DISCIPLINES, type ServiceCatalogItem } from "@/hooks/useCompanySettings";
 import { formatCurrency } from "@/lib/utils";
 
 interface COServiceLine {
@@ -23,10 +25,13 @@ interface COServiceLine {
   name: string;
   amount: number;
   description?: string;
+  work_types?: string[];
+  showWorkTypes?: boolean;
 }
 
 const schema = z.object({
-  description: z.string().min(1, "Description is required"),
+  title: z.string().min(1, "Title is required"),
+  reason: z.string().optional(),
   requested_by: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -52,6 +57,14 @@ export function ChangeOrderDialog({
   const { track } = useTelemetry();
   const { data: companySettings } = useCompanySettings();
   const catalog: ServiceCatalogItem[] = companySettings?.settings?.service_catalog || [];
+  const customWorkTypes: string[] = companySettings?.settings?.custom_work_types || [];
+  const allDisciplines = useMemo(() => {
+    const base = [...WORK_TYPE_DISCIPLINES] as string[];
+    for (const cw of customWorkTypes) {
+      if (!base.includes(cw)) base.push(cw);
+    }
+    return base;
+  }, [customWorkTypes]);
 
   const [serviceLines, setServiceLines] = useState<COServiceLine[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -59,40 +72,48 @@ export function ChangeOrderDialog({
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { description: "", requested_by: "", notes: "" },
+    defaultValues: { title: "", reason: "", requested_by: "", notes: "" },
   });
 
   useEffect(() => {
     if (open) {
       if (existingCO) {
         form.reset({
-          description: existingCO.reason || existingCO.title,
+          title: existingCO.title,
+          reason: existingCO.reason ?? "",
           requested_by: existingCO.requested_by ?? "",
           notes: existingCO.notes ?? "",
         });
-        // Restore service lines from line_items (preferred) or fall back to linked_service_names
         const storedItems = (existingCO as any).line_items;
         if (Array.isArray(storedItems) && storedItems.length > 0) {
-          setServiceLines(storedItems.map((item: any, i: number) => ({
-            id: `existing-${i}`,
-            name: item.name,
-            amount: item.amount || 0,
-            description: item.description || "",
-          })));
+          setServiceLines(storedItems.map((item: any, i: number) => {
+            const catalogMatch = catalog.find(c => c.name === item.name);
+            return {
+              id: `existing-${i}`,
+              name: item.name,
+              amount: item.amount || 0,
+              description: item.description || "",
+              work_types: item.work_types || [],
+              showWorkTypes: catalogMatch?.show_work_types !== false,
+            };
+          }));
         } else {
           const names = existingCO.linked_service_names || [];
           if (names.length > 0) {
             const perService = existingCO.amount / names.length;
-            setServiceLines(names.map((n, i) => ({ id: `existing-${i}`, name: n, amount: perService, description: "" })));
+            setServiceLines(names.map((n, i) => {
+              const catalogMatch = catalog.find(c => c.name === n);
+              return { id: `existing-${i}`, name: n, amount: perService, description: "", work_types: [], showWorkTypes: catalogMatch?.show_work_types !== false };
+            }));
           } else {
             setServiceLines(existingCO.amount !== 0
-              ? [{ id: "existing-0", name: existingCO.description || "Service", amount: existingCO.amount }]
+              ? [{ id: "existing-0", name: existingCO.description || "Service", amount: existingCO.amount, showWorkTypes: false }]
               : []);
           }
         }
         setDepositPct((existingCO as any).deposit_percentage || 0);
       } else {
-        form.reset({ description: "", requested_by: "", notes: "" });
+        form.reset({ title: "", reason: "", requested_by: "", notes: "" });
         setServiceLines([]);
         setDepositPct(0);
       }
@@ -103,7 +124,6 @@ export function ChangeOrderDialog({
   const requestedBy = form.watch("requested_by");
   const [searchFocused, setSearchFocused] = useState(true);
   const rawTotal = serviceLines.reduce((s, l) => s + Math.abs(l.amount), 0);
-  // Auto-negate when "Internal" — it's the company's mistake / credit
   const totalAmount = requestedBy === "Internal" ? -rawTotal : rawTotal;
 
   const filteredCatalog = useMemo(() => {
@@ -118,6 +138,8 @@ export function ChangeOrderDialog({
       name: svc.name,
       amount: svc.default_price || 0,
       description: svc.description,
+      work_types: [],
+      showWorkTypes: svc.show_work_types !== false,
     }]);
     setSearchTerm("");
   };
@@ -127,6 +149,8 @@ export function ChangeOrderDialog({
       id: `custom-${Date.now()}`,
       name: searchTerm.trim() || "Custom Service",
       amount: 0,
+      work_types: [],
+      showWorkTypes: false,
     }]);
     setSearchTerm("");
   };
@@ -144,20 +168,33 @@ export function ChangeOrderDialog({
     setServiceLines(prev => prev.map(l => l.id === id ? { ...l, description: val } : l));
   };
 
+  const toggleWorkType = (lineId: string, discipline: string) => {
+    setServiceLines(prev => prev.map(l => {
+      if (l.id !== lineId) return l;
+      const current = l.work_types || [];
+      const next = current.includes(discipline)
+        ? current.filter(d => d !== discipline)
+        : [...current, discipline];
+      return { ...l, work_types: next };
+    }));
+  };
+
   const handleSubmit = async (values: FormValues, asDraft: boolean) => {
     track("projects", "co_create_completed", { as_draft: asDraft, is_edit: !!existingCO });
 
-    const descText = values.description.trim();
-    const title = descText.length > 80 ? descText.slice(0, 77) + "..." : descText;
-
     await onSubmit({
-      title,
+      title: values.title.trim(),
       description: serviceLines.map(s => s.name).join(", "),
-      reason: descText,
+      reason: values.reason?.trim() || undefined,
       amount: totalAmount,
       requested_by: values.requested_by || undefined,
       linked_service_names: serviceLines.map(s => s.name),
-      line_items: serviceLines.map(s => ({ name: s.name, amount: s.amount, description: s.description })),
+      line_items: serviceLines.map(s => ({
+        name: s.name,
+        amount: s.amount,
+        description: s.description,
+        work_types: s.work_types?.length ? s.work_types : undefined,
+      })),
       notes: values.notes || undefined,
       deposit_percentage: depositPct,
     }, asDraft);
@@ -179,18 +216,29 @@ export function ChangeOrderDialog({
         </DialogHeader>
 
         <form className="space-y-4">
-          {/* Description */}
+          {/* Title */}
           <div className="space-y-1.5">
-            <Label htmlFor="co-description">Description *</Label>
+            <Label htmlFor="co-title">Title *</Label>
+            <Input
+              id="co-title"
+              placeholder="e.g. Additional Filing Services"
+              className="text-sm"
+              {...form.register("title")}
+            />
+            {form.formState.errors.title && (
+              <p className="text-xs text-destructive">{form.formState.errors.title.message}</p>
+            )}
+          </div>
+
+          {/* Reason for Change */}
+          <div className="space-y-1.5">
+            <Label htmlFor="co-reason">Reason for Change</Label>
             <Textarea
-              id="co-description"
+              id="co-reason"
               placeholder="e.g. PAA to address Schedule B — additional engineering review required"
               className="min-h-[60px] text-sm"
-              {...form.register("description")}
+              {...form.register("reason")}
             />
-            {form.formState.errors.description && (
-              <p className="text-xs text-destructive">{form.formState.errors.description.message}</p>
-            )}
           </div>
 
           {/* Services Section */}
@@ -233,6 +281,31 @@ export function ChangeOrderDialog({
                       value={line.description || ""}
                       onChange={(e) => updateServiceDescription(line.id, e.target.value)}
                     />
+                    {/* Work Type Picker */}
+                    {line.showWorkTypes && (
+                      <div className="pt-1">
+                        <Label className="text-xs text-muted-foreground mb-1.5 block">Work Types</Label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {allDisciplines.map((d) => {
+                            const selected = (line.work_types || []).includes(d);
+                            return (
+                              <button
+                                key={d}
+                                type="button"
+                                onClick={() => toggleWorkType(line.id, d)}
+                                className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors cursor-pointer ${
+                                  selected
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-muted/30 text-muted-foreground border-border hover:bg-muted/50"
+                                }`}
+                              >
+                                {d}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -296,7 +369,6 @@ export function ChangeOrderDialog({
               <p className="text-xs text-muted-foreground">Add at least one service to define the CO scope and amount.</p>
             )}
           </div>
-
 
           {/* Requested By */}
           <div className="space-y-1.5">

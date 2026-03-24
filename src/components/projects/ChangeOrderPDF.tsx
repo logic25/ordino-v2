@@ -210,6 +210,9 @@ export function ChangeOrderPDF({
                   {isCredit ? `-${fmtCurrency(item.amount)}` : fmtCurrency(item.amount)}
                 </Text>
               </View>
+              {item.work_types && item.work_types.length > 0 ? (
+                <Text style={[s.lineItemDesc, { marginTop: 1 }]}>{item.work_types.join(", ")}</Text>
+              ) : null}
               {item.description ? <Text style={s.lineItemDesc}>{item.description}</Text> : null}
             </View>
           ))}

@@ -6,6 +6,7 @@ export interface COLineItem {
   name: string;
   amount: number;
   description?: string;
+  work_types?: string[];
 }
 
 export interface ChangeOrder {
