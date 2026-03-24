@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { pdf } from "@react-pdf/renderer";
-import { buildChangeOrderEmailHtml, resolveEmailStyle } from "./buildChangeOrderEmailHtml";
+import { buildChangeOrderEmailHtml, resolveEmailStyle, resolveChangeOrderEmailTemplate } from "./buildChangeOrderEmailHtml";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from "@/components/ui/sheet";
