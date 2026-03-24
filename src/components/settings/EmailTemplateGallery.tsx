@@ -1023,6 +1023,59 @@ function buildTemplateBody(
         </div>
         ${ctaHtml}${signoffHtml}`;
 
+    case "bug_comment":
+      return `
+        ${greetingHtml}${bodyHtml}
+        <div style="background:${CARD_BG};border-left:4px solid ${accent};padding:14px 18px;margin-bottom:16px;border-radius:4px;">
+          <strong style="color:${headingClr};font-size:15px;">Login page crashes on mobile Safari</strong>
+        </div>
+        <div style="margin-bottom:24px;">
+          <p style="margin:0 0 8px;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;">💬 Recent Thread</p>
+          <div style="background:#f9fafb;padding:12px 14px;border-radius:6px;margin-bottom:6px;border:1px solid ${BORDER};">
+            <div style="font-size:12px;color:#6b7280;margin-bottom:4px;"><strong>Sarah Johnson</strong> · Mar 23, 10:30 AM</div>
+            <div style="color:#374151;font-size:14px;line-height:1.5;">I can reproduce this on iOS 17.4. Clearing the browser cache doesn't help.</div>
+          </div>
+          <div style="background:#f9fafb;padding:12px 14px;border-radius:6px;border:1px solid ${BORDER};">
+            <div style="font-size:12px;color:#6b7280;margin-bottom:4px;"><strong>Mike R.</strong> · Mar 23, 11:15 AM</div>
+            <div style="color:#374151;font-size:14px;line-height:1.5;">Looking into this now. Seems related to the auth token refresh logic.</div>
+          </div>
+        </div>
+        ${ctaHtml}${signoffHtml}`;
+
+    case "bug_resolved":
+      return `
+        ${greetingHtml}${bodyHtml}
+        <div style="background:#f0fdf4;border-left:4px solid #16a34a;padding:14px 18px;margin-bottom:24px;border-radius:4px;">
+          <strong style="color:#15803d;font-size:15px;">Login page crashes on mobile Safari</strong>
+          <div style="margin-top:8px;color:#4b5563;font-size:13px;line-height:1.6;">
+            <div><strong>Priority:</strong> <span style="color:#dc2626;">High</span></div>
+            <div><strong>Reported by:</strong> Sarah Johnson</div>
+          </div>
+        </div>
+        <div style="margin-bottom:24px;">
+          <p style="margin:0 0 8px;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;">📝 Resolution Notes</p>
+          <div style="background:#f9fafb;padding:14px;border-radius:6px;border:1px solid ${BORDER};color:#4b5563;font-size:14px;line-height:1.5;">Fixed the auth token refresh race condition on Safari. Deployed in v2.4.1.</div>
+        </div>
+        ${ctaHtml}${signoffHtml}`;
+
+    case "bug_status_change":
+      return `
+        ${greetingHtml}${bodyHtml}
+        <div style="background:#eff6ff;border-left:4px solid #2563eb;padding:14px 18px;margin-bottom:24px;border-radius:4px;">
+          <strong style="color:#1d4ed8;font-size:15px;">Login page crashes on mobile Safari</strong>
+          <div style="margin-top:8px;color:#4b5563;font-size:13px;line-height:1.6;">
+            <div><strong>Status:</strong> <span style="color:#2563eb;font-weight:600;">In Progress</span></div>
+          </div>
+        </div>
+        <div style="margin-bottom:24px;">
+          <p style="margin:0 0 8px;font-size:10px;text-transform:uppercase;color:${MUTED};letter-spacing:0.8px;font-weight:600;">💬 Recent Thread</p>
+          <div style="background:#f9fafb;padding:12px 14px;border-radius:6px;border:1px solid ${BORDER};">
+            <div style="font-size:12px;color:#6b7280;margin-bottom:4px;"><strong>Mike R.</strong> · Mar 23, 11:15 AM</div>
+            <div style="color:#374151;font-size:14px;line-height:1.5;">Investigating the Safari auth issue now.</div>
+          </div>
+        </div>
+        ${ctaHtml}${signoffHtml}`;
+
     case "pis_reminder":
       return `
         <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
