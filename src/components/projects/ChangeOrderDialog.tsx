@@ -288,7 +288,7 @@ export function ChangeOrderDialog({
                         <Input
                           className="text-right text-sm h-8"
                           placeholder="$0"
-                          value={line.amount !== 0 ? line.amount.toLocaleString("en-US") : ""}
+                          value={line.baseAmount !== 0 ? line.baseAmount.toLocaleString("en-US") : ""}
                           onChange={(e) => updateServiceAmount(line.id, e.target.value)}
                         />
                       </div>
