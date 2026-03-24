@@ -248,8 +248,8 @@ export function SignatureDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col overflow-hidden p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-4 shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <PenLine className="h-5 w-5" />
             Sign & Send Proposal
@@ -260,149 +260,151 @@ export function SignatureDialog({
         </DialogHeader>
 
         {proposal && (
-          <div className="space-y-4">
-            {/* Proposal Summary */}
-            <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Proposal</span>
-                <span className="font-mono text-sm">{proposal.proposal_number}</span>
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-4">
+            <div className="space-y-4">
+              {/* Proposal Summary */}
+              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Proposal</span>
+                  <span className="font-mono text-sm">{proposal.proposal_number}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Property</span>
+                  <span className="text-sm">{proposal.properties?.address}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Client</span>
+                  <span className="text-sm">{proposal.client_name || "-"}</span>
+                </div>
+                <div className="flex justify-between border-t pt-2">
+                  <span className="font-medium">Total</span>
+                  <span className="font-bold">{fmt(Number(proposal.total_amount))}</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Property</span>
-                <span className="text-sm">{proposal.properties?.address}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Client</span>
-                <span className="text-sm">{proposal.client_name || "-"}</span>
-              </div>
-              <div className="flex justify-between border-t pt-2">
-                <span className="font-medium">Total</span>
-                <span className="font-bold">{fmt(Number(proposal.total_amount))}</span>
-              </div>
-            </div>
 
-            {/* Send To Recipient */}
-            <div className="space-y-2">
-              <Label>Send To *</Label>
-              {recipientOptions.length > 1 ? (
-                <Select value={selectedRecipientId} onValueChange={setSelectedRecipientId}>
+              {/* Send To Recipient */}
+              <div className="space-y-2">
+                <Label>Send To *</Label>
+                {recipientOptions.length > 1 ? (
+                  <Select value={selectedRecipientId} onValueChange={setSelectedRecipientId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select recipient..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {recipientOptions.map((opt) => (
+                        <SelectItem key={opt.id} value={opt.id}>
+                          {opt.label} &lt;{opt.email}&gt;
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : recipientOptions.length === 1 ? (
+                  <div className="text-sm font-medium px-3 py-2 border rounded-md bg-muted/30">
+                    {recipientOptions[0].label} &lt;{recipientOptions[0].email}&gt;
+                  </div>
+                ) : (
+                  <p className="text-xs text-destructive">⚠ No contacts with email found on this proposal.</p>
+                )}
+              </div>
+
+              {/* CC Recipients */}
+              <div className="space-y-2">
+                <Label>CC (optional)</Label>
+                {recipientOptions.filter(r => r.id !== selectedRecipientId).length > 0 && (
+                  <div className="space-y-1.5">
+                    {recipientOptions
+                      .filter(r => r.id !== selectedRecipientId)
+                      .map((opt) => (
+                        <label key={opt.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                          <Checkbox
+                            checked={selectedCcIds.includes(opt.id)}
+                            onCheckedChange={(checked) => {
+                              setSelectedCcIds(prev =>
+                                checked
+                                  ? [...prev, opt.id]
+                                  : prev.filter(id => id !== opt.id)
+                              );
+                            }}
+                          />
+                          <span className="text-muted-foreground">{opt.label}</span>
+                          <span className="text-xs text-muted-foreground">&lt;{opt.email}&gt;</span>
+                        </label>
+                      ))}
+                  </div>
+                )}
+                <Input
+                  placeholder="Additional emails (comma-separated)"
+                  value={manualCcEmails}
+                  onChange={(e) => setManualCcEmails(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="pm">Assign Project Manager *</Label>
+                <Select value={assignedPmId} onValueChange={setAssignedPmId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select recipient..." />
+                    <SelectValue placeholder="Select PM to assign..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {recipientOptions.map((opt) => (
-                      <SelectItem key={opt.id} value={opt.id}>
-                        {opt.label} &lt;{opt.email}&gt;
+                    {profiles.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.first_name} {p.last_name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              ) : recipientOptions.length === 1 ? (
-                <div className="text-sm font-medium px-3 py-2 border rounded-md bg-muted/30">
-                  {recipientOptions[0].label} &lt;{recipientOptions[0].email}&gt;
-                </div>
-              ) : (
-                <p className="text-xs text-destructive">⚠ No contacts with email found on this proposal.</p>
-              )}
-            </div>
-
-            {/* CC Recipients */}
-            <div className="space-y-2">
-              <Label>CC (optional)</Label>
-              {recipientOptions.filter(r => r.id !== selectedRecipientId).length > 0 && (
-                <div className="space-y-1.5">
-                  {recipientOptions
-                    .filter(r => r.id !== selectedRecipientId)
-                    .map((opt) => (
-                      <label key={opt.id} className="flex items-center gap-2 text-sm cursor-pointer">
-                        <Checkbox
-                          checked={selectedCcIds.includes(opt.id)}
-                          onCheckedChange={(checked) => {
-                            setSelectedCcIds(prev =>
-                              checked
-                                ? [...prev, opt.id]
-                                : prev.filter(id => id !== opt.id)
-                            );
-                          }}
-                        />
-                        <span className="text-muted-foreground">{opt.label}</span>
-                        <span className="text-xs text-muted-foreground">&lt;{opt.email}&gt;</span>
-                      </label>
-                    ))}
-                </div>
-              )}
-              <Input
-                placeholder="Additional emails (comma-separated)"
-                value={manualCcEmails}
-                onChange={(e) => setManualCcEmails(e.target.value)}
-                className="text-sm"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="pm">Assign Project Manager *</Label>
-              <Select value={assignedPmId} onValueChange={setAssignedPmId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select PM to assign..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {profiles.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.first_name} {p.last_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Signature Pad */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Your Signature *</Label>
-                <Button type="button" variant="ghost" size="sm" onClick={clearSignature}>
-                  <RotateCcw className="h-4 w-4 mr-1" />
-                  Clear
-                </Button>
               </div>
-              <div className="border rounded-lg overflow-hidden bg-white">
-                <canvas
-                  ref={canvasRef}
-                  width={400}
-                  height={150}
-                  className="w-full cursor-crosshair touch-none"
-                  onMouseDown={startDrawing}
-                  onMouseMove={draw}
-                  onMouseUp={stopDrawing}
-                  onMouseLeave={stopDrawing}
-                  onTouchStart={startDrawing}
-                  onTouchMove={draw}
-                  onTouchEnd={stopDrawing}
-                />
-              </div>
-              {savedSignatureData && !hasDrawn && (
-                <p className="text-xs text-emerald-600">✓ Using your saved signature</p>
-              )}
-              {!savedSignatureData && (
-                <p className="text-xs text-muted-foreground">
-                  Draw your signature above using your mouse or touch screen
-                </p>
-              )}
 
-              <div className="flex items-center space-x-2 pt-1">
-                <Checkbox
-                  id="save-sig"
-                  checked={saveSignature}
-                  onCheckedChange={(v) => setSaveSignature(!!v)}
-                />
-                <label htmlFor="save-sig" className="text-xs text-muted-foreground cursor-pointer">
-                  Save signature for future proposals
-                </label>
+              {/* Signature Pad */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Your Signature *</Label>
+                  <Button type="button" variant="ghost" size="sm" onClick={clearSignature}>
+                    <RotateCcw className="h-4 w-4 mr-1" />
+                    Clear
+                  </Button>
+                </div>
+                <div className="border rounded-lg overflow-hidden bg-white">
+                  <canvas
+                    ref={canvasRef}
+                    width={400}
+                    height={150}
+                    className="w-full cursor-crosshair touch-none"
+                    onMouseDown={startDrawing}
+                    onMouseMove={draw}
+                    onMouseUp={stopDrawing}
+                    onMouseLeave={stopDrawing}
+                    onTouchStart={startDrawing}
+                    onTouchMove={draw}
+                    onTouchEnd={stopDrawing}
+                  />
+                </div>
+                {savedSignatureData && !hasDrawn && (
+                  <p className="text-xs text-primary">✓ Using your saved signature</p>
+                )}
+                {!savedSignatureData && (
+                  <p className="text-xs text-muted-foreground">
+                    Draw your signature above using your mouse or touch screen
+                  </p>
+                )}
+
+                <div className="flex items-center space-x-2 pt-1">
+                  <Checkbox
+                    id="save-sig"
+                    checked={saveSignature}
+                    onCheckedChange={(v) => setSaveSignature(!!v)}
+                  />
+                  <label htmlFor="save-sig" className="text-xs text-muted-foreground cursor-pointer">
+                    Save signature for future proposals
+                  </label>
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0 border-t px-6 py-4">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
