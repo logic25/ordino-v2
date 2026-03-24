@@ -15,6 +15,7 @@ interface ChangeOrderPDFProps {
   projectNumber?: string;
   clientName?: string;
   signerName?: string;
+  recipientName?: string;
   logoUrl?: string;
   /** Original contract total from project services */
   originalContractTotal?: number;
@@ -129,6 +130,7 @@ export function ChangeOrderPDF({
   originalContractTotal,
   previousCOsTotal,
   previousCOsCount,
+  recipientName,
 }: ChangeOrderPDFProps) {
   const lineItems: COLineItem[] = Array.isArray(co.line_items) && co.line_items.length > 0
     ? co.line_items
@@ -317,7 +319,7 @@ export function ChangeOrderPDF({
                   ) : null}
                 </View>
                 <View style={s.sigMetaRow}>
-                  <Text><Text style={s.sigMetaLabel}>By:</Text> {co.client_signer_name || "Client Representative"}</Text>
+                  <Text><Text style={s.sigMetaLabel}>By:</Text> {co.client_signer_name || recipientName || "Client Representative"}</Text>
                   {co.client_signed_at ? <Text><Text style={s.sigMetaLabel}>Date:</Text> {fmtDate(co.client_signed_at)}</Text> : null}
                 </View>
               </View>
