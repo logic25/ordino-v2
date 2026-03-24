@@ -380,7 +380,9 @@ function buildPreviewHtml(
       .replace(/\{\{PM_PHONE\}\}/g, "(555) 555-5678")
       .replace(/\{\{PROJECT_NUMBER\}\}/g, "2026-0012")
       .replace(/\{\{DUE_DATE\}\}/g, "April 18, 2026")
-      .replace(/\{\{BALANCE\}\}/g, "$0.00");
+      .replace(/\{\{BALANCE\}\}/g, "$0.00")
+      .replace(/\{\{BUG_TITLE\}\}/g, "Login page crashes on mobile Safari")
+      .replace(/\{\{PROPERTY_ADDRESS_LINE\}\}/g, " at 456 Park Avenue, New York, NY");
 
   const contactLine = [co.phone, co.email].filter(Boolean).join(" · ");
   const greeting = resolve(overrides.greeting);
