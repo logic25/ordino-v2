@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { FilingAgentSupervisionPanel } from "./FilingAgentSupervisionPanel";
 import { format } from "date-fns";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -706,7 +707,7 @@ export function DobNowFilingPrepSheet({
   return (
     <Sheet open={open} onOpenChange={handleSheetOpenChange} modal={false}>
       <SheetContent
-        className={`overflow-y-auto ${submitStep === "session" ? "sm:max-w-[900px]" : "sm:max-w-[560px]"}`}
+        className="sm:max-w-[560px] overflow-y-auto"
         onInteractOutside={(event) => {
           if (shouldBlockClose) event.preventDefault();
         }}
@@ -995,47 +996,52 @@ export function DobNowFilingPrepSheet({
                 <div className="flex items-center gap-3 p-3 rounded-lg border bg-primary/5 border-primary/20 text-sm">
                   <Monitor className="h-4 w-4 text-primary shrink-0" />
                   <div className="flex-1">
-                    <p className="font-medium text-foreground">Live Browser Session</p>
-                    <p className="text-xs text-muted-foreground">Log into DOB NOW in the window below, then click "I'm Logged In".</p>
+                    <p className="font-medium text-foreground">Live Browser Session Active</p>
+                    <p className="text-xs text-muted-foreground">Complete your DOB NOW login in the modal window.</p>
                   </div>
                 </div>
 
-                {/* Embedded live browser */}
-                <div className="rounded-lg border overflow-hidden bg-background">
-                  <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/30">
-                    <Monitor className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs font-medium text-muted-foreground flex-1">DOB NOW Login</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 text-[10px] gap-1"
-                      onClick={() => window.open(browserbaseLiveUrl, "_blank")}
-                    >
-                      <ExternalLink className="h-3 w-3" /> Open in New Tab
-                    </Button>
-                  </div>
-                  <iframe
-                    src={browserbaseLiveUrl}
-                    className="w-full h-[60vh] min-h-[500px] border-0"
-                    allow="autoplay; encrypted-media; fullscreen"
-                    title="DOB NOW Login Session"
-                  />
-                </div>
+                <Button className="w-full gap-2" variant="outline" onClick={() => setShowSessionModal(true)}>
+                  <Monitor className="h-4 w-4" /> Reopen Login Window
+                </Button>
 
-                <div className="flex items-center gap-2">
-                  <Button
-                    className="flex-1 gap-2"
-                    onClick={() => {
-                      setLoggedIn(true);
-                      setShowSessionModal(false);
-                    }}
-                  >
-                    <CheckCircle2 className="h-4 w-4" /> I'm Logged In
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={resetAgentState}>
-                    Cancel
-                  </Button>
-                </div>
+                <Dialog open={showSessionModal} onOpenChange={setShowSessionModal}>
+                  <DialogContent className="max-w-[90vw] w-[1200px] h-[85vh] flex flex-col p-0 gap-0">
+                    <DialogHeader className="px-4 py-3 border-b shrink-0">
+                      <DialogTitle className="flex items-center gap-2 text-sm">
+                        <Monitor className="h-4 w-4" /> DOB NOW Login
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="ml-auto h-7 text-xs gap-1"
+                          onClick={() => window.open(browserbaseLiveUrl, "_blank")}
+                        >
+                          <ExternalLink className="h-3 w-3" /> Open in New Tab
+                        </Button>
+                      </DialogTitle>
+                    </DialogHeader>
+                    <iframe
+                      src={browserbaseLiveUrl}
+                      className="flex-1 w-full border-0"
+                      allow="autoplay; encrypted-media; fullscreen"
+                      title="DOB NOW Login Session"
+                    />
+                    <div className="flex items-center gap-2 px-4 py-3 border-t shrink-0">
+                      <Button
+                        className="flex-1 gap-2"
+                        onClick={() => {
+                          setLoggedIn(true);
+                          setShowSessionModal(false);
+                        }}
+                      >
+                        <CheckCircle2 className="h-4 w-4" /> I'm Logged In
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => { resetAgentState(); setShowSessionModal(false); }}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
 
                 {loggedIn && (
                   <div className="space-y-2 pt-2">
