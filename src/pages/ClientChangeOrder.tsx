@@ -225,16 +225,25 @@ export default function ClientChangeOrderPage() {
     <div className="min-h-screen bg-[#f1f5f9] print:bg-white">
       <style>{`
         @media print {
-          @page { margin: 0.4in; size: letter; }
+          @page { margin: 0.5in 0.4in; size: letter; }
+          @page :first { margin-top: 0.4in; }
           body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           .co-accent-bar { background: ${amber} !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           .co-total-box { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           .co-reason-box { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           .co-info-card { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           .co-sig-card { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .co-print-header { display: block !important; position: running(coHeader); font-size: 9px; color: ${slate}; border-bottom: 0.5px solid ${borderColor}; padding-bottom: 4px; }
+          @page { @top-center { content: element(coHeader); } }
         }
       `}</style>
       <div className="max-w-[720px] mx-auto py-6 px-4 print:max-w-none print:p-0">
+        {/* Print-only continuation header for page 2+ */}
+        <div className="co-print-header hidden" style={{ display: "none" }}>
+          <span style={{ fontWeight: 700 }}>Change Order {co.co_number}</span>
+          {projectNumber ? ` · Project ${projectNumber}` : projectAddress ? ` · ${projectAddress}` : ""}
+          {clientInfo?.name ? ` · ${clientInfo.name}` : ""}
+        </div>
         {/* Already signed confirmation */}
           {alreadySigned && (
             <div className="space-y-4 mb-6 print:hidden">
