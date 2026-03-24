@@ -107,10 +107,17 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
     // Sources that should be grouped by base job number (BIS-related filings)
     const GROUPABLE_SOURCES = new Set([
       "DOB_JOB_FILINGS", "BIS_SCRAPE", "BIS", "citisignal", "socrata",
-      // Also group when source is null/undefined (legacy BIS data)
     ]);
     const isGroupable = (source: string | undefined | null) =>
       !source || GROUPABLE_SOURCES.has(source) || source === "DOB_NOW_BUILD";
+    const getBaseJobNumber = (jobNum: string | null | undefined) => {
+      if (!jobNum) return "";
+      const normalized = String(jobNum).trim();
+      if (normalized.includes("-")) {
+        return normalized.split("-")[0].replace(/\D/g, "");
+      }
+      return normalized.replace(/\D/g, "");
+    };
 
     for (const app of filtered) {
       // Don't group electrical filings — they have different job number patterns
@@ -119,7 +126,7 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
         continue;
       }
       if (isGroupable(app.source)) {
-        const baseJob = app.jobNum.replace(/\D/g, "");
+        const baseJob = getBaseJobNumber(app.jobNum);
         if (baseJob) {
           if (!jobGroups.has(baseJob)) jobGroups.set(baseJob, []);
           jobGroups.get(baseJob)!.push(app);
