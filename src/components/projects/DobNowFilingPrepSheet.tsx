@@ -376,7 +376,18 @@ export function DobNowFilingPrepSheet({
     } as MockContact];
   }
 
-  if (!contactsByRole["filing_rep"]?.length && companyData) {
+  if (!contactsByRole["owner"]?.length && pisOwnerName) {
+    contactsByRole["owner"] = [{
+      id: "pis-owner",
+      name: pisOwnerName,
+      email: pisOwnerEmail || "",
+      phone: pisOwnerPhone || "",
+      company: pisOwnerCompany || "",
+      dobRole: "owner",
+      dobRegistered: "unknown",
+    } as MockContact];
+  }
+
     const pmName = (project as any).assigned_pm?.display_name
       || (project as any).assigned_pm?.first_name
         ? `${(project as any).assigned_pm?.first_name} ${(project as any).assigned_pm?.last_name || ""}`.trim()
