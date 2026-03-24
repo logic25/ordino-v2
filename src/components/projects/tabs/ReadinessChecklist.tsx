@@ -39,11 +39,7 @@ export function ReadinessChecklist({
 }) {
   const [isOpen, setIsOpen] = useState(true);
   const [showReceived, setShowReceived] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
   const [showEditPIS, setShowEditPIS] = useState(false);
-  const [newLabel, setNewLabel] = useState("");
-  const [newFrom, setNewFrom] = useState("");
-  const [newCategory, setNewCategory] = useState("missing_document");
   const [aiDraft, setAiDraft] = useState<{ draft: string; prompt: { system: string; user: string }; model: string } | null>(null);
   const [showAiDraft, setShowAiDraft] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
