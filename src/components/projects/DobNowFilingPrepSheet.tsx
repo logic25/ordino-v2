@@ -973,19 +973,93 @@ export function DobNowFilingPrepSheet({
                 <Button
                   className="w-full gap-2"
                   variant="outline"
-                  onClick={handleLaunchAgent}
-                  disabled={launchingAgent || !checklistComplete}
+                  onClick={handleStartSession}
+                  disabled={creatingSession || !checklistComplete}
                 >
-                  {launchingAgent ? (
+                  {creatingSession ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Bot className="h-4 w-4" />
+                    <LogIn className="h-4 w-4" />
                   )}
-                  Launch Filing Agent
+                  Start DOB NOW Session
                 </Button>
                 <p className="text-xs text-muted-foreground text-center">
-                  The agent will log in, fill the DOB NOW form, and take screenshots for your review.
+                  Opens a browser session for you to log into DOB NOW, then the agent fills the forms.
                 </p>
+              </div>
+            )}
+
+            {/* Step 1: Session — live browser + login */}
+            {submitStep === "session" && browserbaseLiveUrl && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-3 rounded-lg border bg-primary/5 border-primary/20 text-sm">
+                  <Monitor className="h-4 w-4 text-primary shrink-0" />
+                  <div className="flex-1">
+                    <p className="font-medium text-foreground">Live Browser Session</p>
+                    <p className="text-xs text-muted-foreground">Log into DOB NOW in the window below, then click "I'm Logged In".</p>
+                  </div>
+                </div>
+
+                {/* Embedded live browser */}
+                <div className="rounded-lg border overflow-hidden bg-background">
+                  <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/30">
+                    <Monitor className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs font-medium text-muted-foreground flex-1">DOB NOW Login</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-[10px] gap-1"
+                      onClick={() => window.open(browserbaseLiveUrl, "_blank")}
+                    >
+                      <ExternalLink className="h-3 w-3" /> Open in New Tab
+                    </Button>
+                  </div>
+                  <iframe
+                    src={browserbaseLiveUrl}
+                    className="w-full h-[400px] border-0"
+                    allow="autoplay; encrypted-media; fullscreen"
+                    title="DOB NOW Login Session"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    className="flex-1 gap-2"
+                    onClick={() => {
+                      setLoggedIn(true);
+                      setShowSessionModal(false);
+                    }}
+                  >
+                    <CheckCircle2 className="h-4 w-4" /> I'm Logged In
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={resetAgentState}>
+                    Cancel
+                  </Button>
+                </div>
+
+                {loggedIn && (
+                  <div className="space-y-2 pt-2">
+                    <div className="flex items-center gap-2 p-2 rounded-md bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800 text-sm text-emerald-700 dark:text-emerald-300">
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      <span className="font-medium">Logged in — ready to launch agent</span>
+                    </div>
+                    <Button
+                      className="w-full gap-2"
+                      onClick={handleLaunchAgent}
+                      disabled={launchingAgent}
+                    >
+                      {launchingAgent ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Bot className="h-4 w-4" />
+                      )}
+                      Launch Filing Agent
+                    </Button>
+                    <p className="text-xs text-muted-foreground text-center">
+                      The agent will connect to your logged-in session and fill the DOB NOW forms.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
