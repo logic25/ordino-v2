@@ -116,6 +116,9 @@ export function SignatureDialog({
 
     if (proposal?.assigned_pm_id) {
       setAssignedPmId(proposal.assigned_pm_id);
+    } else if (profile?.id) {
+      // Auto-default to current user as PM when no PM is pre-assigned
+      setAssignedPmId(profile.id);
     }
   }, [open, proposal, profile]);
 
