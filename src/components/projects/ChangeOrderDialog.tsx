@@ -161,9 +161,12 @@ export function ChangeOrderDialog({
     setServiceLines(prev => [...prev, {
       id: `custom-${Date.now()}`,
       name: searchTerm.trim() || "Custom Service",
+      baseAmount: 0,
       amount: 0,
       work_types: [],
       showWorkTypes: false,
+      disciplineFee: 0,
+      hasDisciplinePricing: false,
     }]);
     setSearchTerm("");
   };
