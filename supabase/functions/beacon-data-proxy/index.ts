@@ -325,7 +325,10 @@ async function queryInvoices(sb: any, params: any) {
   if (params.status) q = q.eq("status", params.status);
 
   const { data, error } = await q;
-  if (error) return fail(error.message, 500);
+  if (error) {
+    console.error("query_invoices error:", error.message, error.details, error.hint);
+    return fail(error.message, 500);
+  }
 
   const outstanding = (data || [])
     .filter((i: any) => !["paid", "void"].includes(i.status))
