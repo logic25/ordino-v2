@@ -47,12 +47,12 @@ function usePMBillingGoals() {
       // Get project services
       const { data: projectServices } = await supabase
         .from("services")
-        .select("id, project_id, service_name, fee, status");
+        .select("id, project_id, name, fixed_price, status");
 
       // Get checklist items for readiness
       const { data: checklistItems } = await supabase
-        .from("project_checklist_items")
-        .select("id, project_id, is_complete");
+        .from("project_checklist_items" as any)
+        .select("id, project_id, status");
 
       // Get invoices this month
       const now = new Date();
