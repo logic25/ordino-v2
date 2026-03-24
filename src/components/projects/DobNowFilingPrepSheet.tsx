@@ -331,7 +331,12 @@ export function DobNowFilingPrepSheet({
     { label: "Floor", value: floorValue, category: "filing", dobFieldName: "Floor", fromPIS: floorFromPIS },
     { label: "Unit / Apt", value: unitValue, category: "filing", dobFieldName: "Apt/Suite", fromPIS: unitFromPIS },
     { label: "Floor Area (sq ft)", value: pisSquareFootage, category: "filing", dobFieldName: "Floor Area (sq ft)", fromPIS: !!pisSquareFootage, optional: true },
-    { label: "Estimated Job Cost", value: estCostValue, category: "filing", dobFieldName: "Estimated Job Cost", fromPIS: estCostFromPIS },
+    ...(perDisciplineCosts.length > 0
+      ? perDisciplineCosts.map(ec => ({
+          label: `Estimated Job Cost`, value: `${ec.discipline}: $${ec.amount.toLocaleString()}`, category: "filing" as const, dobFieldName: "Estimated Job Cost", fromPIS: true,
+        }))
+      : [{ label: "Estimated Job Cost", value: estCostValue, category: "filing" as const, dobFieldName: "Estimated Job Cost", fromPIS: estCostFromPIS }]
+    ),
     { label: "Job Description", value: jobDescription, category: "filing", dobFieldName: "Description of Work", editable: true, fromPIS: !!pisJobDescription },
   ];
 
