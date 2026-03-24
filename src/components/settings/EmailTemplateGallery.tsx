@@ -506,6 +506,9 @@ function buildPreviewHtml(
     referral_thankyou: { label: "Thank You" },
     co_signed: { label: "CO Signed", number: "CO#1" },
     bug_report: { label: "Bug Report" },
+    bug_comment: { label: "Bug Comment" },
+    bug_resolved: { label: "Bug Resolved" },
+    bug_status_change: { label: "Status Update" },
     pis_reminder: { label: "PIS Reminder" },
   };
 
