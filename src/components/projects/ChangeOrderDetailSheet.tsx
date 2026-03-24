@@ -327,7 +327,6 @@ export function ChangeOrderDetailSheet({
         coTitle: co.title,
         amount: fmt(co.amount),
         description: co.description || undefined,
-        reason: co.reason || undefined,
         signingLink,
         companyName,
         companyEmail: settings?.company_email,
