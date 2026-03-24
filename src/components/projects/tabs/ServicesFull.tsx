@@ -207,7 +207,7 @@ function ServiceExpandedDetail({ service, projectName, projectId }: { service: M
                   <Input
                     type="text"
                     className="h-7 w-[110px] text-right text-sm font-semibold tabular-nums"
-                    value={ec.editing ?? `$${ec.amount.toLocaleString()}`}
+                    value={ec.editing ?? `$${(ec.amount ?? 0).toLocaleString()}`}
                     onChange={(e) => {
                       const raw = e.target.value;
                       setLocalCosts(prev => prev.map((c, j) => j === i ? { ...c, editing: raw } : c));
