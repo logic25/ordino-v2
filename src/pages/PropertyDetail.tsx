@@ -113,6 +113,7 @@ export default function PropertyDetail() {
         if (csResult) {
           // CitiSignal returned data — map to COApplication shape for the UI
           const apps = csResult.applications.map((a: any) => ({
+            ...a,
             jobNum: a.application_number || a.job_number || "",
             workType: a.work_type || a.application_type || "Unknown",
             status: a.status || a.filing_status || "",
@@ -127,7 +128,6 @@ export default function PropertyDetail() {
             action: "",
             priority: "Medium" as const,
             num: 0,
-            ...a,
           }));
           const mapViolStatus = (s: string | null | undefined): "Active" | "In Resolution" | "Resolved" | "Dismissed" => {
             if (!s) return "Active";
@@ -137,6 +137,7 @@ export default function PropertyDetail() {
             return "Active";
           };
           const viols = csResult.violations.map((v: any) => ({
+            ...v,
             violationNum: v.violation_number || "",
             type: v.violation_class ? `${v.agency || "DOB"} ${v.violation_class}` : (v.agency === "HPD" ? `HPD Class ${v.severity || ""}`.trim() : (v.agency || "DOB") + " VIOLATION"),
             fileDate: v.issued_date || v.issue_date || "",
@@ -146,7 +147,6 @@ export default function PropertyDetail() {
             priority: (v.severity === "critical" || (v.agency === "HPD" && v.violation_class === "C")) ? "High" as const : v.severity === "high" ? "High" as const : "Medium" as const,
             penalty: v.penalty_amount || null,
             agency: v.agency || "DOB ECB",
-            ...v,
           }));
           setCoApps(apps);
           setCoViolations(viols);
