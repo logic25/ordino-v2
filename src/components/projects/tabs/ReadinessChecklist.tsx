@@ -505,42 +505,21 @@ export function ReadinessChecklist({
               </Collapsible>
             )}
 
-            {showAddForm ? (
-              <div className="p-3 rounded-lg border bg-muted/20 space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <Input placeholder="What's needed?" className="h-8 text-sm" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} autoFocus />
-                  <Input placeholder="From whom?" className="h-8 text-sm" value={newFrom} onChange={(e) => setNewFrom(e.target.value)} />
-                  <Select value={newCategory} onValueChange={setNewCategory}>
-                    <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(checklistCategoryLabels).map(([key, { label }]) => (
-                        <SelectItem key={key} value={key}>{label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" className="h-7 text-xs" onClick={handleAddItem} disabled={addItem.isPending}>Add</Button>
-                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setNewLabel(""); setNewFrom(""); setShowAddForm(false); }}>Cancel</Button>
-                </div>
-              </div>
-            ) : (
+            {outstanding.length > 0 && (
                <div className="flex items-center gap-2 pt-1 flex-wrap">
-                {outstanding.length > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5 border-primary/30 text-primary hover:bg-primary/5"
-                    onClick={handleAiFollowUp}
-                    disabled={aiLoading}
-                  >
-                    {aiLoading ? (
-                      <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Drafting...</>
-                    ) : (
-                      <><Sparkles className="h-3.5 w-3.5" /> AI Follow-Up Draft</>
-                    )}
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 border-primary/30 text-primary hover:bg-primary/5"
+                  onClick={handleAiFollowUp}
+                  disabled={aiLoading}
+                >
+                  {aiLoading ? (
+                    <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Drafting...</>
+                  ) : (
+                    <><Sparkles className="h-3.5 w-3.5" /> AI Follow-Up Draft</>
+                  )}
+                </Button>
               </div>
             )}
           </CardContent>
