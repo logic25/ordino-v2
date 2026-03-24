@@ -23,10 +23,13 @@ import { formatCurrency } from "@/lib/utils";
 interface COServiceLine {
   id: string;
   name: string;
+  baseAmount: number;
   amount: number;
   description?: string;
   work_types?: string[];
   showWorkTypes?: boolean;
+  disciplineFee?: number;
+  hasDisciplinePricing?: boolean;
 }
 
 const schema = z.object({
