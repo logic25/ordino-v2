@@ -112,24 +112,29 @@ export default function PropertyDetail() {
         // Try CitiSignal first
         const csResult = await syncFromCitiSignal(id!, property.bin);
         if (csResult) {
-          // CitiSignal returned data — map to COApplication shape for the UI
-          const apps = csResult.applications.map((a: any) => ({
-            ...a,
-            jobNum: a.application_number || a.job_number || "",
-            workType: a.work_type || a.application_type || "Unknown",
-            status: a.status || a.filing_status || "",
-            tenant: a.applicant_name || a.owner_name || a.applicant || null,
-            fileDate: a.filing_date || a.filed_date || "",
-            desc: a.description || "",
-            source: a.source || a.bis_scrape_source || "DOB_JOB_FILINGS",
-            docNum: a.doc_number || a.document_number || "",
-            jobType: a.job_type || a.application_type || "",
-            floor: a.floor || "",
-            latestActionDate: a.latest_action_date || a.filing_date || "",
-            action: "",
-            priority: "Medium" as const,
-            num: 0,
-          }));
+          // CitiSignal returned data — map to COApplication shape with normalization
+          const rawSrc = (a: any) => a.source || a.bis_scrape_source || "DOB_JOB_FILINGS";
+          const apps = csResult.applications.map((a: any) => {
+            const src = normalizeSource(rawSrc(a));
+            const jobNum = a.application_number || a.job_number || "";
+            return {
+              ...a,
+              jobNum,
+              workType: a.work_type || a.application_type || "Unknown",
+              status: decodeStatus(a.status || a.filing_status, src, a.description),
+              tenant: getDisplayApplicant(a),
+              fileDate: a.filing_date || a.filed_date || "",
+              desc: cleanDescription(a.description),
+              source: src,
+              docNum: deriveDocNumber(jobNum, a.doc_number || a.document_number),
+              jobType: a.job_type || a.application_type || "",
+              floor: a.floor || "",
+              latestActionDate: a.latest_action_date || a.filing_date || "",
+              action: "",
+              priority: "Medium" as const,
+              num: 0,
+            };
+          });
           const mapViolStatus = (s: string | null | undefined): "Active" | "In Resolution" | "Resolved" | "Dismissed" => {
             if (!s) return "Active";
             const u = s.toLowerCase();
