@@ -458,10 +458,10 @@ export function ChangeOrderDetailSheet({
       <ChangeOrderPDF
         co={coForPdf}
         companyName={companySettings?.name}
-        companyAddress={settings?.company_address}
-        companyPhone={settings?.company_phone}
-        companyEmail={settings?.company_email}
-        companyWebsite={settings?.company_website}
+        companyAddress={settings?.company_address || companySettings?.address || ""}
+        companyPhone={settings?.company_phone || companySettings?.phone || ""}
+        companyEmail={settings?.company_email || companySettings?.email || ""}
+        companyWebsite={settings?.company_website || companySettings?.website || ""}
         companyFax={settings?.company_fax}
         projectAddress={projectInfo?.address}
         projectNumber={projectInfo?.project_number}
