@@ -148,8 +148,8 @@ export function AppLayout({ children }: AppLayoutProps) {
 
     let financials: BeaconProjectContext["financials"];
     if (operationalData?.invoices?.length) {
-      const totalInvoiced = operationalData.invoices.reduce((s: number, inv: any) => s + (Number(inv.total_amount) || 0), 0);
-      const totalPaid = operationalData.invoices.reduce((s: number, inv: any) => s + (Number(inv.paid_amount) || 0), 0);
+      const totalInvoiced = operationalData.invoices.reduce((s: number, inv: any) => s + (Number(inv.total_due) || 0), 0);
+      const totalPaid = operationalData.invoices.reduce((s: number, inv: any) => s + (Number(inv.payment_amount) || 0), 0);
       financials = {
         totalInvoiced,
         totalPaid,
