@@ -110,3 +110,6 @@ verify_jwt = false
 
 [functions.citisignal-sync]
 verify_jwt = false
+
+[functions.beacon-data-proxy]
+verify_jwt = false
