@@ -467,6 +467,7 @@ export function ChangeOrderDetailSheet({
         projectNumber={projectInfo?.project_number}
         clientName={projectInfo?.clients?.name}
         signerName={signerName || undefined}
+        recipientName={sentToContact?.name || undefined}
         logoUrl={logoUrl}
         originalContractTotal={contractSummary?.originalTotal}
         previousCOsTotal={contractSummary?.priorCOsTotal}
