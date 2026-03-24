@@ -19,13 +19,8 @@ import {
   CalendarClock, ClipboardList, Loader2, Pencil, Plus,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { format, isValid } from "date-fns";
-
-const safeFormat = (dateStr: string | null | undefined, fmt: string, fallback = "—") => {
-  if (!dateStr) return fallback;
-  const d = new Date(dateStr);
-  return isValid(d) ? format(d, fmt) : fallback;
-};
+import { format } from "date-fns";
+import { safeFormatDate } from "@/lib/dateUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { pdf } from "@react-pdf/renderer";
 import type { COApplication, COViolation, COSignOff, ReportSnapshot } from "./coMockData";
@@ -271,8 +266,8 @@ export function COSummaryView({
           </div>
           <div className="rounded-lg border p-3 space-y-1">
             <p className="text-xs text-muted-foreground">Last Report</p>
-             <p className="text-sm font-medium">{safeFormat(previousSnapshot.ranAt, "MMM d, yyyy")}</p>
-             <p className="text-xs text-muted-foreground">{safeFormat(previousSnapshot.ranAt, "h:mm a")}</p>
+             <p className="text-sm font-medium">{safeFormatDate(previousSnapshot.ranAt, "MMM d, yyyy")}</p>
+             <p className="text-xs text-muted-foreground">{safeFormatDate(previousSnapshot.ranAt, "h:mm a")}</p>
           </div>
         </div>
       )}
@@ -325,7 +320,7 @@ export function COSummaryView({
         <div className="rounded-lg border border-green-500/30 bg-green-500/5 p-4 space-y-2">
           <h4 className="text-sm font-semibold flex items-center gap-2">
             <ArrowUpRight className="h-4 w-4 text-green-600" />
-             Changes Since Last Report ({safeFormat(lastReportDate, "MMM d, yyyy h:mm a")})
+             Changes Since Last Report ({safeFormatDate(lastReportDate, "MMM d, yyyy h:mm a")})
           </h4>
           <div className="flex flex-wrap gap-2">
             {changedApps.map(a => (
@@ -689,7 +684,7 @@ export function COSummaryView({
               <div className="rounded-lg border p-4 border-green-500/30 bg-green-500/5 space-y-2">
                 <h4 className="font-semibold flex items-center gap-2">
                   <ArrowUpRight className="h-4 w-4 text-green-600" />
-                  Changes Since Last Report ({safeFormat(lastReportDate, "MMM d, yyyy h:mm a")})
+                  Changes Since Last Report ({safeFormatDate(lastReportDate, "MMM d, yyyy h:mm a")})
                 </h4>
                 {changedApps.length > 0 && (
                   <div>
@@ -875,7 +870,7 @@ export function COSummaryView({
                         <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
                           <span>Tenant: <span className="text-foreground">{app.tenant || "—"}</span></span>
                           <span>Floor: <span className="text-foreground">{app.floor}</span></span>
-                          <span>Filed: <span className="text-foreground">{safeFormat(app.fileDate, "MM/dd/yyyy")}</span></span>
+                          <span>Filed: <span className="text-foreground">{safeFormatDate(app.fileDate, "MM/dd/yyyy")}</span></span>
                         </div>
                         <div className="rounded-md bg-muted/30 p-2 text-xs">
                           <span className="font-medium">Action Required:</span> {app.action}
@@ -890,8 +885,8 @@ export function COSummaryView({
                                 <p className="font-medium">{item.description}</p>
                                 <div className="flex flex-wrap gap-x-3 text-muted-foreground">
                                   <span>From: <span className="text-foreground font-medium">{item.receivedFrom || "—"}</span></span>
-                                   <span>Requested: <span className="text-foreground">{safeFormat(item.dateRequested, "MM/dd/yyyy")}</span></span>
-                                   <span>Received: <span className={item.receivedDate ? "text-green-600 font-medium" : "text-red-600 font-medium"}>{item.receivedDate ? safeFormat(item.receivedDate, "MM/dd/yyyy") : "Outstanding"}</span></span>
+                                   <span>Requested: <span className="text-foreground">{safeFormatDate(item.dateRequested, "MM/dd/yyyy")}</span></span>
+                                   <span>Received: <span className={item.receivedDate ? "text-green-600 font-medium" : "text-red-600 font-medium"}>{item.receivedDate ? safeFormatDate(item.receivedDate, "MM/dd/yyyy") : "Outstanding"}</span></span>
                                   {item.signOffRequired && (
                                     <span>Sign-Off: <span className="text-foreground font-medium">{item.signOffRequired}</span></span>
                                   )}
@@ -917,7 +912,7 @@ export function COSummaryView({
                                   <p className="font-medium">{ri.name}</p>
                                   <div className="flex flex-wrap gap-x-3 text-muted-foreground">
                                     <span>From: <span className="text-foreground">{ri.receivedFrom || "—"}</span></span>
-                                    <span>Requested: <span className="text-foreground">{safeFormat(ri.dateRequested, "MM/dd/yyyy")}</span></span>
+                                    <span>Requested: <span className="text-foreground">{safeFormatDate(ri.dateRequested, "MM/dd/yyyy")}</span></span>
                                     <span>Received: <span className="text-red-600 font-medium">Outstanding</span></span>
                                   </div>
                                   {ri.notes && <p className="text-muted-foreground italic">{ri.notes}</p>}
@@ -928,7 +923,7 @@ export function COSummaryView({
                                   <p className="font-medium line-through opacity-70">{ri.name}</p>
                                   <div className="flex flex-wrap gap-x-3 text-muted-foreground">
                                     <span>From: <span className="text-foreground">{ri.receivedFrom || "—"}</span></span>
-                                    <span>Received: <span className="text-green-600 font-medium">{safeFormat(ri.dateReceived, "MM/dd/yyyy")}</span></span>
+                                    <span>Received: <span className="text-green-600 font-medium">{safeFormatDate(ri.dateReceived, "MM/dd/yyyy")}</span></span>
                                   </div>
                                 </div>
                               ))}
@@ -964,7 +959,7 @@ export function COSummaryView({
                         <TableRow key={v.violationNum}>
                           <TableCell className="font-mono text-xs">{v.violationNum}</TableCell>
                           <TableCell className="text-xs">{v.type}</TableCell>
-                          <TableCell className="text-xs">{safeFormat(v.fileDate, "MM/dd/yyyy")}</TableCell>
+                          <TableCell className="text-xs">{safeFormatDate(v.fileDate, "MM/dd/yyyy")}</TableCell>
                           <TableCell><Badge variant="outline" className={STATUS_COLORS[v.status]}>{v.status}</Badge></TableCell>
                           <TableCell><Badge variant="outline" className={PRIORITY_COLORS[v.priority]}>{v.priority}</Badge></TableCell>
                           <TableCell className="text-sm">{v.penalty ? `$${v.penalty.toLocaleString()}` : "—"}</TableCell>

@@ -33,7 +33,7 @@ import { useEnrollProperty, useDeleteSignalSubscription, type SignalSubscription
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { safeFormatDate } from "@/lib/dateUtils";
 import { useEnrollFormState } from "./signal-enroll/useEnrollFormState";
 import { CompSection } from "./signal-enroll/CompSection";
 import { PaidSection } from "./signal-enroll/PaidSection";
@@ -133,7 +133,7 @@ export function SignalEnrollDialog({
 
           {form.status === "trial" && computedExpiresAt && (
             <div className="text-sm text-muted-foreground bg-muted/50 rounded-md p-2">
-              Trial expires: <span className="font-medium">{format(new Date(computedExpiresAt), "MMM d, yyyy")}</span> (14 days)
+              Trial expires: <span className="font-medium">{safeFormatDate(computedExpiresAt, "MMM d, yyyy")}</span> (14 days)
             </div>
           )}
 
