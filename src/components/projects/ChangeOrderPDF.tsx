@@ -158,7 +158,7 @@ export function ChangeOrderPDF({
             {logoUrl ? (
               <Image style={s.logo} src={logoUrl} />
             ) : null}
-            <Text style={s.companyName}>{companyName || "Your Company"}</Text>
+            {!logoUrl && <Text style={s.companyName}>{companyName || "Your Company"}</Text>}
             {companyAddress ? <Text style={s.headerDetail}>{companyAddress}</Text> : null}
             <Text style={s.headerDetail}>
               {companyPhone ? `Tel: ${companyPhone}` : ""}
