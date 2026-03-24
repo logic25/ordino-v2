@@ -205,7 +205,10 @@ async function queryPmWorkload(sb: any, params: any) {
   if (params.pm_name) q = q.ilike("display_name", `%${params.pm_name}%`);
 
   const { data: profiles, error } = await q;
-  if (error) return fail(error.message, 500);
+  if (error) {
+    console.error("query_pm_workload error:", error.message, error.details, error.hint);
+    return fail(error.message, 500);
+  }
 
   const results = [];
   for (const p of profiles || []) {
@@ -213,7 +216,7 @@ async function queryPmWorkload(sb: any, params: any) {
       .from("projects")
       .select("id", { count: "exact", head: true })
       .eq("assigned_pm_id", p.id)
-      .in("status", ["active", "in_progress", "filing", "pre_filing"]);
+      .eq("status", "open");
     results.push({
       id: p.id,
       name: p.display_name,
