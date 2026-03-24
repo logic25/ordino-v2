@@ -93,6 +93,9 @@ export function BugReports() {
   const [commentFiles, setCommentFiles] = useState<File[]>([]);
   const commentFileRef = useRef<HTMLInputElement>(null);
   const commentsEndRef = useRef<HTMLDivElement>(null);
+  const [statusComment, setStatusComment] = useState("");
+  const [statusCommentFiles, setStatusCommentFiles] = useState<File[]>([]);
+  const statusCommentFileRef = useRef<HTMLInputElement>(null);
 
   // Activity log query
   const { data: activityLogs = [] } = useQuery({
@@ -356,16 +359,29 @@ export function BugReports() {
     setEditAssignee(bug.assigned_to || "");
     setNewComment("");
     setCommentFiles([]);
+    setStatusComment("");
+    setStatusCommentFiles([]);
   };
 
   const saveDetail = async () => {
     if (!selectedBug || !profile) return;
+
+    const isReadyForReview = editStatus === "ready_for_review" && selectedBug.status !== "ready_for_review";
+    const isNewlyResolved = editStatus === "resolved" && selectedBug.status !== "resolved";
+    const needsComment = isReadyForReview || isNewlyResolved;
+
+    // If transitioning to ready_for_review or resolved, require a status comment
+    if (needsComment && !statusComment.trim()) {
+      toast({ title: "Comment required", description: `Please describe what was done before marking as ${isReadyForReview ? "Ready for Review" : "Resolved"}.`, variant: "destructive" });
+      return;
+    }
+
     const updates: Record<string, any> = {
       status: editStatus,
       admin_notes: editNotes || null,
       assigned_to: editAssignee === "__unassigned__" ? null : (editAssignee || null),
     };
-    if (editStatus === "resolved" && selectedBug.status !== "resolved") {
+    if (isNewlyResolved) {
       updates.resolved_at = new Date().toISOString();
     }
     if (editStatus !== "resolved") {
@@ -397,13 +413,43 @@ export function BugReports() {
       });
     }
 
-    const isNewlyResolved = editStatus === "resolved" && selectedBug.status !== "resolved";
+    // If a status comment is needed, post it as a comment first
+    if (needsComment && statusComment.trim()) {
+      // Upload status comment attachments if any
+      let attachmentData: Array<{ url: string; name: string; type: string }> | null = null;
+      if (statusCommentFiles.length > 0) {
+        attachmentData = [];
+        for (const file of statusCommentFiles) {
+          const path = `${profile.company_id}/${selectedBug.id}/comments/${Date.now()}-${file.name}`;
+          const { error: uploadErr } = await supabase.storage.from("bug-attachments").upload(path, file);
+          if (!uploadErr) {
+            const { data: urlData } = supabase.storage.from("bug-attachments").getPublicUrl(path);
+            attachmentData.push({ url: urlData.publicUrl, name: file.name, type: file.type });
+          }
+        }
+      }
+
+      await supabase.from("bug_comments").insert({
+        bug_id: selectedBug.id,
+        company_id: selectedBug.company_id,
+        user_id: profile.id,
+        message: statusComment.trim(),
+        attachments: attachmentData,
+      } as any);
+
+      // Also log as comment activity
+      supabase.from("bug_activity_logs").insert({
+        bug_id: bugId, company_id: companyId, user_id: profile.id,
+        action_type: "comment", note: statusComment.trim().substring(0, 200),
+      }).then(() => queryClient.invalidateQueries({ queryKey: ["bug-activity", bugId] }));
+    }
+
     const isReopened = editStatus === "open" && selectedBug.status === "resolved";
     const isMovedToInProgress = editStatus === "in_progress" && selectedBug.status === "open";
-    const isReadyForReview = editStatus === "ready_for_review" && selectedBug.status !== "ready_for_review";
+
     updateBug.mutate({ id: selectedBug.id, updates }, {
       onSuccess: async () => {
-        // Fetch recent comments to include in status-change emails
+        // Fetch recent comments (including the one we just posted) for email context
         let recentComments: Array<{ message: string; commenter_name: string; created_at: string; attachments?: any }> = [];
         if (isNewlyResolved || isReadyForReview || isMovedToInProgress || isReopened) {
           const { data: cmts } = await supabase
@@ -422,6 +468,7 @@ export function BugReports() {
           }
         }
 
+        // Send ONE combined email for the status change (includes thread context)
         if (isNewlyResolved) {
           supabase.functions.invoke("send-bug-alert", {
             body: {
@@ -976,7 +1023,7 @@ export function BugReports() {
                     <h4 className="font-semibold text-sm">Management</h4>
                     <div className="space-y-2">
                       <Label>Status</Label>
-                      <Select value={editStatus} onValueChange={setEditStatus}>
+                      <Select value={editStatus} onValueChange={(v) => { setEditStatus(v); setStatusComment(""); setStatusCommentFiles([]); }}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="open">Open</SelectItem>
@@ -986,6 +1033,67 @@ export function BugReports() {
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {/* Required comment when transitioning to ready_for_review or resolved */}
+                    {((editStatus === "ready_for_review" && selectedBug.status !== "ready_for_review") ||
+                      (editStatus === "resolved" && selectedBug.status !== "resolved")) && (
+                      <div className="space-y-2 rounded-lg border border-accent/30 bg-accent/5 p-3">
+                        <Label className="text-sm font-medium">
+                          {editStatus === "ready_for_review" ? "What was done?" : "Resolution summary"} <span className="text-destructive">*</span>
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          {editStatus === "ready_for_review"
+                            ? "Describe the fix so the reporter knows what to test. This posts as a comment and is included in the notification email."
+                            : "Summarize the resolution. This posts as a comment and notifies the reporter."}
+                        </p>
+                        <Textarea
+                          value={statusComment}
+                          onChange={(e) => setStatusComment(e.target.value)}
+                          placeholder={editStatus === "ready_for_review" ? "e.g. Fixed the scroll overflow on the review step by adding min-h-0 to the flex container..." : "e.g. Root cause was X, fixed by Y..."}
+                          rows={3}
+                          className="resize-none"
+                        />
+                        {/* Status comment file previews */}
+                        {statusCommentFiles.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {statusCommentFiles.map((f, i) => (
+                              <div key={i} className="relative group">
+                                {f.type.startsWith("image/") ? (
+                                  <img src={URL.createObjectURL(f)} alt={f.name} className="h-14 w-14 object-cover rounded border" />
+                                ) : (
+                                  <div className="h-14 w-14 rounded border flex items-center justify-center bg-muted">
+                                    <FileIcon className="h-5 w-5 text-muted-foreground" />
+                                  </div>
+                                )}
+                                <button
+                                  className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => setStatusCommentFiles((prev) => prev.filter((_, j) => j !== i))}
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex justify-end">
+                          <input
+                            ref={statusCommentFileRef}
+                            type="file"
+                            accept="image/*,.pdf,.doc,.docx"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => {
+                              if (e.target.files) setStatusCommentFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
+                              e.target.value = "";
+                            }}
+                          />
+                          <Button size="sm" variant="outline" onClick={() => statusCommentFileRef.current?.click()} title="Attach file">
+                            <Paperclip className="h-4 w-4 mr-1" /> Attach
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="space-y-2">
                       <Label>Assign To</Label>
                       <Select value={editAssignee} onValueChange={setEditAssignee}>
@@ -1001,13 +1109,16 @@ export function BugReports() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Resolution Notes</Label>
-                      <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Resolution summary or internal notes..." rows={3} />
+                      <Label>Resolution Notes <span className="text-xs text-muted-foreground font-normal">(internal)</span></Label>
+                      <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Internal notes — not shown in emails..." rows={3} />
                     </div>
 
                     <div className="flex gap-2">
                       <Button size="sm" onClick={saveDetail} disabled={updateBug.isPending}>
-                        {updateBug.isPending ? "Saving..." : "Save Changes"}
+                        {updateBug.isPending ? "Saving..." :
+                          editStatus === "ready_for_review" && selectedBug.status !== "ready_for_review" ? "Mark Ready for Review" :
+                          editStatus === "resolved" && selectedBug.status !== "resolved" ? "Mark Resolved" :
+                          "Save Changes"}
                       </Button>
                       <Button size="sm" variant="destructive" onClick={() => {
                         if (confirm("Delete this bug report?")) deleteBug.mutate(selectedBug.id);
