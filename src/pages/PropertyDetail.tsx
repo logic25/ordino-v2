@@ -114,14 +114,19 @@ export default function PropertyDetail() {
           // CitiSignal returned data — map to COApplication shape for the UI
           const apps = csResult.applications.map((a: any) => ({
             jobNum: a.application_number || a.job_number || "",
-            workType: a.application_type || a.work_type || "Unknown",
+            workType: a.work_type || a.application_type || "Unknown",
             status: a.status || a.filing_status || "",
-            applicant: a.applicant_name || a.applicant || "",
+            tenant: a.applicant_name || a.owner_name || a.applicant || null,
             fileDate: a.filing_date || a.filed_date || "",
             desc: a.description || "",
-            source: a.source || "citisignal",
+            source: a.source || a.bis_scrape_source || "DOB_JOB_FILINGS",
             docNum: a.doc_number || a.document_number || "",
+            jobType: a.job_type || a.application_type || "",
+            floor: a.floor || "",
             latestActionDate: a.latest_action_date || a.filing_date || "",
+            action: "",
+            priority: "Medium" as const,
+            num: 0,
             ...a,
           }));
           const mapViolStatus = (s: string | null | undefined): "Active" | "In Resolution" | "Resolved" | "Dismissed" => {
