@@ -1,51 +1,40 @@
 
-Goal: make page 2 print safely and self-contained so it does not start at the very top edge and clearly identifies what document/project it belongs to when pages are separated.
 
-What I found:
-- The PDF version (`src/components/projects/ChangeOrderPDF.tsx`) currently renders everything in a single `<Page>` and has no page numbering or continuation header, so when content overflows onto a second page there is no repeated identifier at the top.
-- The client/HTML printable version (`src/pages/ClientChangeOrder.tsx`) uses `@page { margin: 0.4in; size: letter; }`, but there is no repeated header on later printed pages either.
-- There is already a proven react-pdf pattern for page numbering in `src/components/projects/LitigationPDF.tsx` using `render={({ pageNumber, totalPages }) => ...}`.
+## Plan: Fix Bug Tracker Email Branding + Comment Thread Visibility
 
-Implementation plan
+### Problems
+1. **Bug emails don't use branded templates** — All 5 bug email types (new report, comment, resolved, reopened/in-progress, ready for review) use hardcoded HTML with different colored headers (purple, green, orange, blue) instead of the branded email shell from the gallery.
+2. **Comment email lacks thread context** — When you comment to update the reporter, they get an email with just the single comment. The recent comments thread is only included in status-change emails (resolved, reopened, ready for review, in progress). If you just comment without changing status, the reporter has no thread context.
+3. **No admin response visible in email** — The comment notification email doesn't include prior comments, so the reporter can't see the conversation history without logging in.
 
-1. Add a fixed per-page header band to the CO PDF
-- Update `src/components/projects/ChangeOrderPDF.tsx`
-- Add a small fixed header that appears on every page, above body content, with:
-  - `Change Order {co.co_number}`
-  - project identifier: project number first, else project address/client
-  - optional title line if space allows
-  - `Page X of Y`
-- Increase the page’s top padding so page 2+ has a proper top margin and never starts near the edge.
+### Solution
 
-2. Keep the existing visual first-page header, but reserve space for overflow pages
-- Preserve the branded first-page company/logo header exactly as-is.
-- Add top spacing logic so normal content still starts correctly on page 1 while overflow pages inherit the repeated fixed header.
-- This avoids changing the approved first-page design while fixing page-break behavior.
+#### 1. Wire `send-bug-alert` edge function to use branded template shell
+- Rebuild the edge function to fetch company settings (logo, address, phone, email, accent color, style config, and `email_template_overrides`) from the database
+- Use the same branded HTML shell pattern as proposals/invoices/COs — logo header, company info, accent stripe, branded CTA button
+- Apply the `bug_report` template from the gallery for new reports, and appropriate template text for comment/status emails
+- Since this is an edge function, replicate the `buildBrandedEmailHtml` rendering logic inline (edge functions can't import from `src/`)
 
-3. Make the signature/terms section paginate more intelligently
-- Review `wrap={false}` usage on the signature section in `src/components/projects/ChangeOrderPDF.tsx`.
-- Keep the signature block together, but ensure the lead-in legal/intro text doesn’t get orphaned awkwardly at the top or bottom of a page.
-- If needed, group the terms reference + signature intro together so page breaks occur in cleaner places.
+#### 2. Include recent comment thread in comment notification emails
+- When `action === "comment"`, fetch the last 5 comments on that bug (same as status-change emails already do) and render them in the email body
+- This way the reporter (or admin) sees the conversation context without logging in
+- The commenter's new comment will be at the bottom of the thread, clearly showing what was said
 
-4. Add a compact continuation context, not just page numbers
-- The repeated header should explicitly reference the document so a printed second page is meaningful on its own:
-  - CO number
-  - project number/address
-  - page number
-- This directly addresses your “if someone printed it there would be nothing” concern.
+#### 3. Add gallery templates for all bug email variants
+- The gallery already has `bug_report` — add entries for:
+  - `bug_comment` — "New Comment on Bug"
+  - `bug_resolved` — "Bug Resolved"  
+  - `bug_status_change` — "Bug Status Update" (covers in_progress, reopened, ready_for_review)
+- Add these to `TEMPLATE_DEFAULTS` in `buildBrandedEmailHtml.ts` and to the gallery template list in `EmailTemplateGallery.tsx`
 
-5. Align the browser print view with the same behavior
-- Update `src/pages/ClientChangeOrder.tsx` print layout so printed HTML also has stronger page context:
-  - slightly increase print top margin from the current `0.4in` if needed
-  - add a print-only repeated document identifier near the top of the printable content
-- The goal is consistent output whether someone prints from the client signing page or downloads the PDF.
+### Files to update
+- **`supabase/functions/send-bug-alert/index.ts`** — Rebuild all HTML to use branded shell, add comment thread to comment emails, fetch company/style settings from DB
+- **`src/lib/buildBrandedEmailHtml.ts`** — Add `bug_comment`, `bug_resolved`, `bug_status_change` default templates
+- **`src/components/settings/EmailTemplateGallery.tsx`** — Add the 3 new template entries to the gallery list
+- **`src/components/helpdesk/BugReports.tsx`** — Pass `recent_comments` data in the comment action invoke (fetch last 5 comments before sending)
 
-Files to update
-- `src/components/projects/ChangeOrderPDF.tsx`
-- `src/pages/ClientChangeOrder.tsx`
+### Technical notes
+- The edge function will query `company_settings` for logo, address, style config, and template overrides — same pattern used by `send-billing-notification`
+- The branded shell will be built inline in the edge function since it can't import from `src/`
+- Comment thread rendering will cap at 5 most recent comments for email length sanity
 
-Technical notes
-- Best pattern for the PDF is a `fixed` header/footer plus `Text render={({ pageNumber, totalPages }) => ... }`.
-- The current CO PDF only has a fixed footer; I’ll mirror the same technique at the top.
-- The cleanest fix is structural, not cosmetic: reserve top space globally on the PDF page instead of just adding margin to one section.
-- I would not rely only on footer page numbers; the missing context problem is specifically at the top of separated printed pages.
