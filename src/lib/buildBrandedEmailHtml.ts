@@ -131,6 +131,27 @@ const TEMPLATE_DEFAULTS: Record<string, Required<TemplateOverride>> = {
     cta_text: "View in Help Center",
     signoff: "",
   },
+  bug_comment: {
+    subject: "💬 Comment on Bug: {{BUG_TITLE}}",
+    greeting: "Hi {{USER_NAME}},",
+    body_text: "{{COMMENTER_NAME}} commented on a bug report:",
+    cta_text: "View Bug",
+    signoff: "",
+  },
+  bug_resolved: {
+    subject: "✅ Bug Resolved: {{BUG_TITLE}}",
+    greeting: "Hi {{USER_NAME}},",
+    body_text: "The following bug has been resolved:",
+    cta_text: "View in Help Center",
+    signoff: "",
+  },
+  bug_status_change: {
+    subject: "{{STATUS_ICON}} {{STATUS_LABEL}}: {{BUG_TITLE}}",
+    greeting: "Hi {{USER_NAME}},",
+    body_text: "The following bug has been {{STATUS_ACTION}}:",
+    cta_text: "View in Help Center",
+    signoff: "",
+  },
   pis_reminder: {
     subject: "Reminder: Project Information Sheet — {{PROJECT_TITLE}}",
     greeting: "Hi {{CLIENT_NAME}},",

@@ -152,6 +152,20 @@ export function BugReports() {
       } as any);
       if (error) throw error;
 
+      // Fetch recent comments for thread context in email
+      const { data: recentCmts } = await supabase
+        .from("bug_comments")
+        .select("message, created_at, user_id, attachments")
+        .eq("bug_id", selectedBug.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      const recentComments = (recentCmts || []).map((c: any) => ({
+        message: c.message,
+        created_at: c.created_at,
+        commenter_name: profiles.find((p) => p.id === c.user_id)?.display_name || "Someone",
+        attachments: c.attachments,
+      })).reverse();
+
       // Send email notification (best-effort)
       supabase.functions.invoke("send-bug-alert", {
         body: {
@@ -165,6 +179,7 @@ export function BugReports() {
           comment_message: message,
           reporter_user_id: selectedBug.user_id,
           comment_attachments: attachmentData,
+          recent_comments: recentComments,
         },
       }).catch(() => {});
     },
