@@ -129,12 +129,13 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
       result.push({ type: "single", app });
     }
 
-    // Sort chronologically — most recent first
-    result.sort((a, b) => {
-      const dateA = a.type === "single" ? a.app.fileDate : a.initial.fileDate;
-      const dateB = b.type === "single" ? b.app.fileDate : b.initial.fileDate;
-      return (dateB || "").localeCompare(dateA || "");
-    });
+    // Sort chronologically — most recent first (use latest date in group)
+    const latestDate = (g: GroupedApp): string => {
+      if (g.type === "single") return g.app.fileDate || "";
+      const all = [g.initial, ...g.subsequents];
+      return all.reduce((max, a) => (a.fileDate || "") > max ? (a.fileDate || "") : max, "");
+    };
+    result.sort((a, b) => latestDate(b).localeCompare(latestDate(a)));
 
     return result;
   }, [filtered]);
