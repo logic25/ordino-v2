@@ -82,7 +82,6 @@ export function ChangeOrderDialog({
       if (existingCO) {
         form.reset({
           title: existingCO.title,
-          reason: existingCO.reason ?? "",
           requested_by: existingCO.requested_by ?? "",
           notes: existingCO.notes ?? "",
         });
