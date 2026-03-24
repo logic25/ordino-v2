@@ -434,7 +434,14 @@ export function ReadinessChecklist({
                     return (
                       <div key={item.id} className="flex items-center gap-3 text-sm py-2 px-3 rounded-md bg-background border group/item">
                         <Checkbox className="h-4 w-4" onCheckedChange={() => handleMarkDone(item.id)} />
-                        <span className="flex-1 min-w-0">{item.label}</span>
+                        <span className="flex-1 min-w-0">
+                          {item.label}
+                          {item.source_catalog_name && (
+                            <Badge variant="outline" className="ml-1.5 text-[9px] py-0 px-1.5 font-normal text-muted-foreground">
+                              {item.source_catalog_name}
+                            </Badge>
+                          )}
+                        </span>
                         {item.from_whom && <span className="text-xs text-muted-foreground shrink-0">from {item.from_whom}</span>}
                         <Badge variant={daysWaiting > 7 ? "destructive" : "secondary"} className="text-[10px] shrink-0">
                           {daysWaiting}d
