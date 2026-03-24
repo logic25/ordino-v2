@@ -75,7 +75,7 @@ async function queryProjects(sb: any, params: any) {
   let q = sb
     .from("projects")
     .select(
-      "id, name, project_number, status, filing_type, created_at, properties(address, borough, bin), profiles!projects_assigned_pm_fkey(display_name)"
+      "id, name, project_number, status, filing_type, created_at, properties(address, borough, bin), profiles!projects_assigned_pm_id_fkey(display_name)"
     )
     .order("created_at", { ascending: false })
     .limit(200);
@@ -85,7 +85,10 @@ async function queryProjects(sb: any, params: any) {
   if (params.search) q = q.ilike("name", `%${params.search}%`);
 
   const { data, error } = await q;
-  if (error) return fail(error.message, 500);
+  if (error) {
+    console.error("query_projects error:", error.message, error.details, error.hint);
+    return fail(error.message, 500);
+  }
   return ok(data);
 }
 
