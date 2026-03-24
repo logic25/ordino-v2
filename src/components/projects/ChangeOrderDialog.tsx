@@ -34,7 +34,6 @@ interface COServiceLine {
 
 const schema = z.object({
   title: z.string().min(1, "Title is required"),
-  reason: z.string().optional(),
   requested_by: z.string().optional(),
   notes: z.string().optional(),
 });
