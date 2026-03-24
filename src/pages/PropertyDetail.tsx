@@ -26,7 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { safeFormatDate } from "@/lib/dateUtils";
 import { COApplicationsView } from "@/components/properties/co/COApplicationsView";
 import { COViolationsView } from "@/components/properties/co/COViolationsView";
 import { COComplaintsView } from "@/components/properties/co/COComplaintsView";
