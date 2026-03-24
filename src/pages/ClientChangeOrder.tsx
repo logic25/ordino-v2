@@ -238,6 +238,12 @@ export default function ClientChangeOrderPage() {
         }
       `}</style>
       <div className="max-w-[720px] mx-auto py-6 px-4 print:max-w-none print:p-0">
+        {/* Print-only continuation header for page 2+ */}
+        <div className="co-print-header hidden" style={{ display: "none" }}>
+          <span style={{ fontWeight: 700 }}>Change Order {co.co_number}</span>
+          {projectNumber ? ` · Project ${projectNumber}` : projectAddress ? ` · ${projectAddress}` : ""}
+          {clientInfo?.name ? ` · ${clientInfo.name}` : ""}
+        </div>
         {/* Already signed confirmation */}
           {alreadySigned && (
             <div className="space-y-4 mb-6 print:hidden">
