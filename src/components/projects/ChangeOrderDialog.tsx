@@ -177,7 +177,12 @@ export function ChangeOrderDialog({
 
   const updateServiceAmount = (id: string, val: string) => {
     const num = parseFloat(val.replace(/[^0-9.-]/g, "")) || 0;
-    setServiceLines(prev => prev.map(l => l.id === id ? { ...l, amount: num } : l));
+    setServiceLines(prev => prev.map(l => {
+      if (l.id !== id) return l;
+      const wtCount = (l.work_types || []).length;
+      const fee = l.disciplineFee || 0;
+      return { ...l, baseAmount: num, amount: num + (fee * wtCount) };
+    }));
   };
 
   const updateServiceDescription = (id: string, val: string) => {
