@@ -124,14 +124,21 @@ export default function PropertyDetail() {
             latestActionDate: a.latest_action_date || a.filing_date || "",
             ...a,
           }));
+          const mapViolStatus = (s: string | null | undefined): "Active" | "In Resolution" | "Resolved" | "Dismissed" => {
+            if (!s) return "Active";
+            const u = s.toLowerCase();
+            if (u === "closed" || u === "resolved") return "Resolved";
+            if (u === "dismissed") return "Dismissed";
+            return "Active";
+          };
           const viols = csResult.violations.map((v: any) => ({
             violationNum: v.violation_number || "",
             type: v.violation_class ? `${v.agency || "DOB"} ${v.violation_class}` : (v.agency === "HPD" ? `HPD Class ${v.severity || ""}`.trim() : (v.agency || "DOB") + " VIOLATION"),
             fileDate: v.issued_date || v.issue_date || "",
-            status: mapCitiSignalViolationStatus(v.status),
+            status: mapViolStatus(v.status),
             resolutionPlan: v.description_raw || v.description || "",
             assignedTo: null,
-            priority: v.severity === "critical" || v.agency === "HPD" && v.violation_class === "C" ? "High" as const : v.severity === "high" ? "High" as const : "Medium" as const,
+            priority: (v.severity === "critical" || (v.agency === "HPD" && v.violation_class === "C")) ? "High" as const : v.severity === "high" ? "High" as const : "Medium" as const,
             penalty: v.penalty_amount || null,
             agency: v.agency || "DOB ECB",
             ...v,
