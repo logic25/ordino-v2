@@ -483,7 +483,10 @@ export function ChangeOrderDetailSheet({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${co.co_number.replace("#", "")}_${co.title.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`;
+      const projectLabel = projectInfo?.project_number || projectInfo?.address?.split(",")[0] || "";
+      const safeProject = projectLabel.replace(/[^a-zA-Z0-9]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+      const safeTitle = co.title.replace(/[^a-zA-Z0-9]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+      a.download = `${safeProject ? safeProject + "_" : ""}${co.co_number.replace("#", "")}_${safeTitle}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e: any) {
