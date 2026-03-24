@@ -35,8 +35,6 @@ export function resolveChangeOrderEmailTemplate(
       (t, [k, v]) => t.split(`{{${k}}}`).join(v),
       text,
     );
-      text,
-    );
 
   return {
     subject: replace(raw.subject),
