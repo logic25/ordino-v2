@@ -944,6 +944,50 @@ function buildTemplateBody(
         </div>
         ${signoffHtml}`;
 
+    case "co_signed":
+      return `
+        <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
+          ${infoCard("Change Order", "CO#1", "Plumbing Scope Addition", headingClr)}
+          <td style="width:16px;"></td>
+          ${infoCard("Amount", "$2,400.00", undefined, headingClr)}
+        </tr></table>
+        ${greetingHtml}${bodyHtml}
+        <div style="border:1px solid ${BORDER};border-radius:8px;overflow:hidden;margin-bottom:24px;">
+          <table style="width:100%;border-collapse:collapse;">
+            <tbody>
+              <tr><td style="${tdMutedStyle}">Project</td><td style="${tdStyle}text-align:right;">Alt-1 Interior Renovation</td></tr>
+              <tr><td style="${tdMutedStyle}">Signed By</td><td style="${tdStyle}text-align:right;">John Smith</td></tr>
+              <tr><td style="${tdMutedStyle}border-bottom:none;">Signed On</td><td style="${tdStyle}border-bottom:none;text-align:right;">March 23, 2026</td></tr>
+            </tbody>
+          </table>
+        </div>
+        ${signoffHtml}`;
+
+    case "bug_report":
+      return `
+        ${greetingHtml}${bodyHtml}
+        <div style="background:#fef2f2;border-left:4px solid #ef4444;padding:14px 18px;margin-bottom:24px;border-radius:4px;">
+          <strong style="color:#b91c1c;font-size:15px;">Login page crashes on mobile Safari</strong>
+          <div style="margin-top:8px;color:#4b5563;font-size:13px;line-height:1.6;">
+            <div><strong>Priority:</strong> <span style="color:#dc2626;">High</span></div>
+            <div><strong>Reported by:</strong> Sarah Johnson</div>
+            <div style="margin-top:8px;">The login page throws a blank white screen when accessed on Safari iOS 17. Console shows a TypeError in the auth handler.</div>
+          </div>
+        </div>
+        ${ctaHtml}${signoffHtml}`;
+
+    case "pis_reminder":
+      return `
+        <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
+          ${infoCard("Project", "Alt-1 Interior Renovation", "456 Park Avenue, New York, NY", headingClr)}
+        </tr></table>
+        ${greetingHtml}${bodyHtml}
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:20px;margin-bottom:24px;text-align:center;">
+          <p style="margin:0 0 8px;font-size:12px;text-transform:uppercase;color:#1e40af;font-weight:600;letter-spacing:0.8px;">Project Information Sheet</p>
+          <p style="margin:0;font-size:14px;color:#1e3a5f;line-height:1.5;">The form is partially complete. Please click below to finish filling it out.</p>
+        </div>
+        ${ctaHtml}${signoffHtml}`;
+
     default:
       return `${greetingHtml}${bodyHtml}${ctaHtml}${signoffHtml}`;
   }
