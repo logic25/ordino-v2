@@ -249,16 +249,6 @@ export function ChangeOrderDialog({
             )}
           </div>
 
-          {/* Reason for Change */}
-          <div className="space-y-1.5">
-            <Label htmlFor="co-reason">Reason for Change</Label>
-            <Textarea
-              id="co-reason"
-              placeholder="e.g. PAA to address Schedule B — additional engineering review required"
-              className="min-h-[60px] text-sm"
-              {...form.register("reason")}
-            />
-          </div>
 
           {/* Services Section */}
           <div className="space-y-2">

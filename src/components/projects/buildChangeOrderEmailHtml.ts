@@ -53,8 +53,7 @@ export function buildChangeOrderEmailHtml({
   const detailRows = [
     `<tr><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#94a3b8;font-weight:600;width:120px;font-family:${s.fontFamily};">Title</td><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:${s.headingColor};font-family:${s.fontFamily};">${coTitle}</td></tr>`,
     `<tr><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#94a3b8;font-weight:600;font-family:${s.fontFamily};">Amount</td><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;font-weight:700;color:${s.headingColor};font-family:${s.fontFamily};">${amount}</td></tr>`,
-    description ? `<tr><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#94a3b8;font-weight:600;font-family:${s.fontFamily};">Services</td><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:${s.headingColor};font-family:${s.fontFamily};">${description}</td></tr>` : "",
-    reason ? `<tr><td style="padding:10px 16px;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#94a3b8;font-weight:600;font-family:${s.fontFamily};">Reason</td><td style="padding:10px 16px;font-size:14px;color:${s.headingColor};font-family:${s.fontFamily};">${reason}</td></tr>` : "",
+    description ? `<tr><td style="padding:10px 16px;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#94a3b8;font-weight:600;font-family:${s.fontFamily};">Services</td><td style="padding:10px 16px;font-size:14px;color:${s.headingColor};font-family:${s.fontFamily};">${description}</td></tr>` : "",
   ].filter(Boolean).join("");
 
   const depositRow = depositPercentage && depositPercentage > 0 && depositAmount
