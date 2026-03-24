@@ -359,6 +359,8 @@ export function BugReports() {
     setEditAssignee(bug.assigned_to || "");
     setNewComment("");
     setCommentFiles([]);
+    setStatusComment("");
+    setStatusCommentFiles([]);
   };
 
   const saveDetail = async () => {
