@@ -108,12 +108,18 @@ function ServiceExpandedDetail({ service, projectName, projectId }: { service: M
   const [newTaskAssignee, setNewTaskAssignee] = useState("");
   const [newTaskDue, setNewTaskDue] = useState("");
   const [localTasks, setLocalTasks] = useState(service.tasks || []);
-  const [localReqs, setLocalReqs] = useState(service.requirements || []);
   const [localCosts, setLocalCosts] = useState<{ discipline: string; amount: number; editing?: string }[]>(
     (service.estimatedCosts || []).map(ec => ({ ...ec }))
   );
   const [composeEmailOpen, setComposeEmailOpen] = useState(false);
   const { toast } = useToast();
+
+  // DB-backed pre-filing conditions
+  const { data: allChecklistItems = [] } = useProjectChecklist(projectId);
+  const serviceReqs = allChecklistItems.filter(item => item.source_service_id === service.id);
+  const addChecklistItem = useAddChecklistItem();
+  const updateChecklistItem = useUpdateChecklistItem();
+  const deleteChecklistItem = useDeleteChecklistItem();
 
   const COMMON_TASKS = [
     "Go to DOB for plan exam",
