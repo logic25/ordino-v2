@@ -452,7 +452,58 @@ export function DobNowFilingPrepSheet({
     };
   };
 
-  // Launch filing agent directly (no session step needed)
+  // Step 1: Create Browserbase session
+  const handleStartSession = async () => {
+    if (!checklistComplete) {
+      setChecklistWarning(true);
+      toast({ title: "Checklist incomplete", description: "Complete all required checklist items before starting a session.", variant: "destructive" });
+      return;
+    }
+    setCreatingSession(true);
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({ title: "Not authenticated", variant: "destructive" });
+        return;
+      }
+
+      const res = await fetch(
+        `${supabaseUrl}/functions/v1/filing-agent-proxy?action=create-session`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({}),
+        }
+      );
+
+      const data = await res.json();
+      console.log("[FilingAgent] create-session response:", res.status, data);
+
+      if (!res.ok || !data.session_id) {
+        toast({ title: "Session error", description: data?.error || "Failed to create browser session.", variant: "destructive" });
+        return;
+      }
+
+      setBrowserbaseSessionId(data.session_id);
+      setBrowserbaseLiveUrl(data.live_url || null);
+      setLoggedIn(false);
+      setSubmitStep("session");
+      setShowSessionModal(true);
+      toast({ title: "Session created", description: "Log into DOB NOW in the browser window, then click 'I'm Logged In'." });
+    } catch (err) {
+      console.error("[FilingAgent] Session creation error:", err);
+      toast({ title: "Error", description: "Failed to create browser session.", variant: "destructive" });
+    } finally {
+      setCreatingSession(false);
+    }
+  };
+
+  // Step 2: Launch filing agent with existing session_id
   const handleLaunchAgent = async () => {
     if (!currentUser || !checklistComplete) {
       if (!checklistComplete) {
@@ -462,6 +513,7 @@ export function DobNowFilingPrepSheet({
       return;
     }
     setLaunchingAgent(true);
+    setShowSessionModal(false);
     try {
       const payload = buildPayload();
       const { data: run, error } = await (supabase.from("filing_runs") as any).insert({
@@ -491,6 +543,7 @@ export function DobNowFilingPrepSheet({
       console.log("[FilingAgent] Sending request to filing-agent-proxy...", {
         project_id: project.id,
         service_id: service.id,
+        session_id: browserbaseSessionId,
       });
 
       const proxyRes = await fetch(
@@ -506,6 +559,7 @@ export function DobNowFilingPrepSheet({
             project_id: project.id,
             service_id: service.id,
             filing_run_id: run.id,
+            session_id: browserbaseSessionId || undefined,
           }),
         }
       );
@@ -560,6 +614,10 @@ export function DobNowFilingPrepSheet({
     setAgentProgress([]);
     setAgentError(null);
     setAgentQueuedAt(null);
+    setBrowserbaseSessionId(null);
+    setBrowserbaseLiveUrl(null);
+    setLoggedIn(false);
+    setShowSessionModal(false);
     setSubmitStep("idle");
   };
 
