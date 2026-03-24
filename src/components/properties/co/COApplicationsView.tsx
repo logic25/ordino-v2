@@ -49,8 +49,9 @@ const getSourceBadge = (source: string) => {
 };
 
 const getSourceLabel = (source: string) => {
-  if (source === "DOB_NOW_BUILD") return "DOB NOW Build";
-  if (source === "DOB_NOW_ELECTRICAL") return "DOB NOW Electrical";
+  if (source === "DOB_NOW_BUILD" || source === "DOB_NOW") return "DOB NOW Build";
+  if (source === "DOB_NOW_ELECTRICAL" || source === "Electrical") return "DOB NOW Electrical";
+  if (source === "BIS_SCRAPE") return "DOB BIS (Scraped)";
   return "DOB BIS";
 };
 
