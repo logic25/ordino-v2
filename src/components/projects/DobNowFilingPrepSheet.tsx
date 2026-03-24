@@ -706,7 +706,7 @@ export function DobNowFilingPrepSheet({
   return (
     <Sheet open={open} onOpenChange={handleSheetOpenChange} modal={false}>
       <SheetContent
-        className="sm:max-w-[560px] overflow-y-auto"
+        className={`overflow-y-auto ${submitStep === "session" ? "sm:max-w-[900px]" : "sm:max-w-[560px]"}`}
         onInteractOutside={(event) => {
           if (shouldBlockClose) event.preventDefault();
         }}
@@ -1016,7 +1016,7 @@ export function DobNowFilingPrepSheet({
                   </div>
                   <iframe
                     src={browserbaseLiveUrl}
-                    className="w-full h-[400px] border-0"
+                    className="w-full h-[60vh] min-h-[500px] border-0"
                     allow="autoplay; encrypted-media; fullscreen"
                     title="DOB NOW Login Session"
                   />
