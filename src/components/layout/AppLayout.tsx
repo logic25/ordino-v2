@@ -34,7 +34,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           properties (address, borough, block, lot),
           services:services (name, status, total_amount, billed_amount),
           dob_applications:dob_applications (job_number, filing_type, status),
-          clients:clients (name)
+          clients:clients!projects_client_id_fkey (name)
         `)
         .eq("id", projectId!)
         .maybeSingle();
