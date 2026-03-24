@@ -68,6 +68,7 @@ function stripFormatting(text: string): string {
 const PUBLIC_PREFIX_MAP: Record<string, string> = {
   building_scope: "building_and_scope",
   applicant: "applicant_and_owner",
+  owner: "applicant_and_owner",
   gc: "contractors_inspections",
 };
 
