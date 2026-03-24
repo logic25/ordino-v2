@@ -113,6 +113,7 @@ export default function PropertyDetail() {
         if (csResult) {
           // CitiSignal returned data — map to COApplication shape for the UI
           const apps = csResult.applications.map((a: any) => ({
+            ...a,
             jobNum: a.application_number || a.job_number || "",
             workType: a.work_type || a.application_type || "Unknown",
             status: a.status || a.filing_status || "",
@@ -127,7 +128,6 @@ export default function PropertyDetail() {
             action: "",
             priority: "Medium" as const,
             num: 0,
-            ...a,
           }));
           const mapViolStatus = (s: string | null | undefined): "Active" | "In Resolution" | "Resolved" | "Dismissed" => {
             if (!s) return "Active";
