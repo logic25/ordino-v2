@@ -8,7 +8,6 @@ export interface ChangeOrderEmailParams {
   coTitle: string;
   amount: string;
   description?: string;
-  reason?: string;
   signingLink?: string | null;
   companyName: string;
   companyEmail?: string;
