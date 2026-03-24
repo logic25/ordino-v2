@@ -345,7 +345,10 @@ export function ChangeOrderDetailSheet({
       const { data: sendResult, error: sendError } = await supabase.functions.invoke("gmail-send", {
         body: {
           to: contactEmail,
-          subject: `Change Order ${co.co_number} - ${co.title}`,
+          subject: resolveChangeOrderEmailTemplate(templateOverrides, {
+            CLIENT_NAME: contactName, COMPANY_NAME: companyName, CO_NUMBER: co.co_number,
+            PROJECT_TITLE: co.title, PROPERTY_ADDRESS: projectAddr, AMOUNT: fmt(co.amount),
+          }).subject,
           html_body: htmlBody,
           attachments: [
             {
