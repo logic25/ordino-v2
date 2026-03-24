@@ -178,7 +178,14 @@ export function DobNowFilingPrepSheet({
   const [launchingAgent, setLaunchingAgent] = useState(false);
   const [confirmingFiled, setConfirmingFiled] = useState(false);
 
-  const shouldBlockClose = launchingAgent;
+  // Two-step Browserbase session state
+  const [creatingSession, setCreatingSession] = useState(false);
+  const [browserbaseSessionId, setBrowserbaseSessionId] = useState<string | null>(null);
+  const [browserbaseLiveUrl, setBrowserbaseLiveUrl] = useState<string | null>(null);
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [showSessionModal, setShowSessionModal] = useState(false);
+
+  const shouldBlockClose = launchingAgent || creatingSession;
 
   const handleSheetOpenChange = useCallback(
     (nextOpen: boolean) => {
