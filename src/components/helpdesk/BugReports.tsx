@@ -365,12 +365,23 @@ export function BugReports() {
 
   const saveDetail = async () => {
     if (!selectedBug || !profile) return;
+
+    const isReadyForReview = editStatus === "ready_for_review" && selectedBug.status !== "ready_for_review";
+    const isNewlyResolved = editStatus === "resolved" && selectedBug.status !== "resolved";
+    const needsComment = isReadyForReview || isNewlyResolved;
+
+    // If transitioning to ready_for_review or resolved, require a status comment
+    if (needsComment && !statusComment.trim()) {
+      toast({ title: "Comment required", description: `Please describe what was done before marking as ${isReadyForReview ? "Ready for Review" : "Resolved"}.`, variant: "destructive" });
+      return;
+    }
+
     const updates: Record<string, any> = {
       status: editStatus,
       admin_notes: editNotes || null,
       assigned_to: editAssignee === "__unassigned__" ? null : (editAssignee || null),
     };
-    if (editStatus === "resolved" && selectedBug.status !== "resolved") {
+    if (isNewlyResolved) {
       updates.resolved_at = new Date().toISOString();
     }
     if (editStatus !== "resolved") {
@@ -402,13 +413,43 @@ export function BugReports() {
       });
     }
 
-    const isNewlyResolved = editStatus === "resolved" && selectedBug.status !== "resolved";
+    // If a status comment is needed, post it as a comment first
+    if (needsComment && statusComment.trim()) {
+      // Upload status comment attachments if any
+      let attachmentData: Array<{ url: string; name: string; type: string }> | null = null;
+      if (statusCommentFiles.length > 0) {
+        attachmentData = [];
+        for (const file of statusCommentFiles) {
+          const path = `${profile.company_id}/${selectedBug.id}/comments/${Date.now()}-${file.name}`;
+          const { error: uploadErr } = await supabase.storage.from("bug-attachments").upload(path, file);
+          if (!uploadErr) {
+            const { data: urlData } = supabase.storage.from("bug-attachments").getPublicUrl(path);
+            attachmentData.push({ url: urlData.publicUrl, name: file.name, type: file.type });
+          }
+        }
+      }
+
+      await supabase.from("bug_comments").insert({
+        bug_id: selectedBug.id,
+        company_id: selectedBug.company_id,
+        user_id: profile.id,
+        message: statusComment.trim(),
+        attachments: attachmentData,
+      } as any);
+
+      // Also log as comment activity
+      supabase.from("bug_activity_logs").insert({
+        bug_id: bugId, company_id: companyId, user_id: profile.id,
+        action_type: "comment", note: statusComment.trim().substring(0, 200),
+      }).then(() => queryClient.invalidateQueries({ queryKey: ["bug-activity", bugId] }));
+    }
+
     const isReopened = editStatus === "open" && selectedBug.status === "resolved";
     const isMovedToInProgress = editStatus === "in_progress" && selectedBug.status === "open";
-    const isReadyForReview = editStatus === "ready_for_review" && selectedBug.status !== "ready_for_review";
+
     updateBug.mutate({ id: selectedBug.id, updates }, {
       onSuccess: async () => {
-        // Fetch recent comments to include in status-change emails
+        // Fetch recent comments (including the one we just posted) for email context
         let recentComments: Array<{ message: string; commenter_name: string; created_at: string; attachments?: any }> = [];
         if (isNewlyResolved || isReadyForReview || isMovedToInProgress || isReopened) {
           const { data: cmts } = await supabase
@@ -427,6 +468,7 @@ export function BugReports() {
           }
         }
 
+        // Send ONE combined email for the status change (includes thread context)
         if (isNewlyResolved) {
           supabase.functions.invoke("send-bug-alert", {
             body: {
