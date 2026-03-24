@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { pdf } from "@react-pdf/renderer";
-import { buildChangeOrderEmailHtml, resolveEmailStyle } from "./buildChangeOrderEmailHtml";
+import { buildChangeOrderEmailHtml, resolveEmailStyle, resolveChangeOrderEmailTemplate } from "./buildChangeOrderEmailHtml";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from "@/components/ui/sheet";
@@ -321,6 +321,7 @@ export function ChangeOrderDetailSheet({
       const depositPct = (co as any).deposit_percentage || 0;
       const depositAmt = depositPct > 0 ? fmt(Math.abs(co.amount) * depositPct / 100) : undefined;
 
+      const templateOverrides = settings?.email_template_overrides?.change_order;
       const htmlBody = buildChangeOrderEmailHtml({
         contactName,
         coNumber: co.co_number,
@@ -329,21 +330,25 @@ export function ChangeOrderDetailSheet({
         description: co.description || undefined,
         signingLink,
         companyName,
-        companyEmail: settings?.company_email,
-        companyPhone: settings?.company_phone,
+        companyEmail: settings?.company_email || companySettings?.email,
+        companyPhone: settings?.company_phone || companySettings?.phone,
         companyAddress: companySettings?.address || settings?.company_address,
         logoUrl: companySettings?.logo_url || settings?.company_logo_url || "",
         projectAddress: projectAddr,
         depositPercentage: depositPct,
         depositAmount: depositAmt,
         style: emailStyle,
+        template: templateOverrides,
       });
 
       // Send the email via gmail-send edge function
       const { data: sendResult, error: sendError } = await supabase.functions.invoke("gmail-send", {
         body: {
           to: contactEmail,
-          subject: `Change Order ${co.co_number} - ${co.title}`,
+          subject: resolveChangeOrderEmailTemplate(templateOverrides, {
+            CLIENT_NAME: contactName, COMPANY_NAME: companyName, CO_NUMBER: co.co_number,
+            PROJECT_TITLE: co.title, PROPERTY_ADDRESS: projectAddr, AMOUNT: fmt(co.amount),
+          }).subject,
           html_body: htmlBody,
           attachments: [
             {

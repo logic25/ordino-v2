@@ -2,6 +2,49 @@ import { resolveEmailStyle, type ProposalEmailStyleConfig, DEFAULT_PROPOSAL_EMAI
 
 export { resolveEmailStyle };
 
+export interface ChangeOrderEmailTemplateContent {
+  subject?: string;
+  greeting?: string;
+  body_text?: string;
+  cta_text?: string;
+  signoff?: string;
+}
+
+const CO_DEFAULTS: Required<ChangeOrderEmailTemplateContent> = {
+  subject: "Change Order {{CO_NUMBER}} — {{PROJECT_TITLE}}",
+  greeting: "Hi {{CLIENT_NAME}},",
+  body_text: "There's been a scope change on your project at {{PROPERTY_ADDRESS}}. We've documented the additional work and updated pricing below. Please review and sign to keep things moving.",
+  cta_text: "Review & Sign",
+  signoff: "If you have questions about this change, just reply to this email or call us directly.",
+};
+
+export function resolveChangeOrderEmailTemplate(
+  overrides: ChangeOrderEmailTemplateContent | undefined,
+  variables: Record<string, string>,
+): Required<ChangeOrderEmailTemplateContent> {
+  const raw: Required<ChangeOrderEmailTemplateContent> = {
+    subject: overrides?.subject || CO_DEFAULTS.subject,
+    greeting: overrides?.greeting || CO_DEFAULTS.greeting,
+    body_text: overrides?.body_text || CO_DEFAULTS.body_text,
+    cta_text: overrides?.cta_text || CO_DEFAULTS.cta_text,
+    signoff: overrides?.signoff || CO_DEFAULTS.signoff,
+  };
+
+  const replace = (text: string) =>
+    Object.entries(variables).reduce(
+      (t, [k, v]) => t.split(`{{${k}}}`).join(v),
+      text,
+    );
+
+  return {
+    subject: replace(raw.subject),
+    greeting: replace(raw.greeting),
+    body_text: replace(raw.body_text),
+    cta_text: replace(raw.cta_text),
+    signoff: replace(raw.signoff),
+  };
+}
+
 export interface ChangeOrderEmailParams {
   contactName: string;
   coNumber: string;
@@ -18,6 +61,7 @@ export interface ChangeOrderEmailParams {
   depositPercentage?: number;
   depositAmount?: string;
   style?: ProposalEmailStyleConfig;
+  template?: ChangeOrderEmailTemplateContent;
 }
 
 export function buildChangeOrderEmailHtml({
@@ -36,6 +80,7 @@ export function buildChangeOrderEmailHtml({
   depositPercentage,
   depositAmount,
   style,
+  template,
 }: ChangeOrderEmailParams): string {
   const s: Required<ProposalEmailStyleConfig> = {
     accentColor: style?.accentColor ?? DEFAULT_PROPOSAL_EMAIL_STYLE.accentColor,
@@ -47,6 +92,15 @@ export function buildChangeOrderEmailHtml({
     headingColor: style?.headingColor ?? DEFAULT_PROPOSAL_EMAIL_STYLE.headingColor,
     bodyFontSize: style?.bodyFontSize ?? DEFAULT_PROPOSAL_EMAIL_STYLE.bodyFontSize,
   };
+
+  const resolved = resolveChangeOrderEmailTemplate(template, {
+    CLIENT_NAME: contactName,
+    COMPANY_NAME: companyName,
+    CO_NUMBER: coNumber,
+    PROJECT_TITLE: coTitle,
+    PROPERTY_ADDRESS: projectAddress || "your project",
+    AMOUNT: amount,
+  });
 
   const contactLine = [companyPhone, companyEmail].filter(Boolean).join(" · ");
 
@@ -73,18 +127,17 @@ export function buildChangeOrderEmailHtml({
           <tr>
             <td align="center" bgcolor="${s.accentColor}" style="background:${s.accentColor};border-radius:${s.buttonRadius};">
               <a href="${signingLink}" style="display:inline-block;background:${s.accentColor};color:${s.accentForeground};text-decoration:none;padding:14px 44px;border-radius:${s.buttonRadius};font-size:16px;line-height:16px;font-weight:700;letter-spacing:0.2px;font-family:${s.fontFamily};">
-                Review &amp; Sign Change Order
+                ${resolved.cta_text}
               </a>
             </td>
           </tr>
         </table>
-      </div>
-      <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;text-align:center;line-height:1.5;font-family:${s.fontFamily};">
-        Or you may print the attached PDF and sign manually.
-      </p>`
-    : `<p style="margin:24px 0 0;font-size:${s.bodyFontSize};color:${s.bodyColor};line-height:1.6;font-family:${s.fontFamily};">
-        Please review the attached PDF at your earliest convenience. If you have any questions, feel free to reply to this email.
-      </p>`;
+      </div>`
+    : "";
+
+  const signoffHtml = resolved.signoff
+    ? `<p style="margin:16px 0 0;font-size:${s.bodyFontSize};color:${s.bodyColor};line-height:1.6;font-family:${s.fontFamily};">${resolved.signoff}</p>`
+    : "";
 
   return `<!DOCTYPE html>
 <html>
@@ -134,9 +187,9 @@ export function buildChangeOrderEmailHtml({
                 </tr>
               </table>
 
-              <p style="margin:0 0 16px;font-size:${s.bodyFontSize};color:${s.headingColor};line-height:1.6;font-family:${s.fontFamily};">Hi ${contactName},</p>
+              <p style="margin:0 0 16px;font-size:${s.bodyFontSize};color:${s.headingColor};line-height:1.6;font-family:${s.fontFamily};">${resolved.greeting}</p>
               <p style="margin:0 0 24px;font-size:${s.bodyFontSize};color:${s.bodyColor};line-height:1.6;font-family:${s.fontFamily};">
-                ${companyName} has issued <strong>Change Order ${coNumber}</strong> for ${projectAddress || "your project"}. Please review the details below.
+                ${resolved.body_text}
               </p>
 
               <table role="presentation" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:24px;border-collapse:separate;" cellpadding="0" cellspacing="0" border="0">
@@ -147,6 +200,7 @@ export function buildChangeOrderEmailHtml({
               </table>
 
               ${ctaSection}
+              ${signoffHtml}
 
               <p style="margin:24px 0 0;font-size:${s.bodyFontSize};color:${s.headingColor};font-family:${s.fontFamily};">Thank you,<br/><strong>${companyName}</strong></p>
             </td>
