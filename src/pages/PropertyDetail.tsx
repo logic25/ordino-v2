@@ -126,11 +126,14 @@ export default function PropertyDetail() {
           }));
           const viols = csResult.violations.map((v: any) => ({
             violationNum: v.violation_number || "",
-            agency: v.agency || "DOB",
-            status: v.status || "open",
-            description: v.description || "",
-            issuedDate: v.issued_date || v.issue_date || "",
-            penaltyAmount: v.penalty_amount || 0,
+            type: v.violation_class ? `${v.agency || "DOB"} ${v.violation_class}` : (v.agency === "HPD" ? `HPD Class ${v.severity || ""}`.trim() : (v.agency || "DOB") + " VIOLATION"),
+            fileDate: v.issued_date || v.issue_date || "",
+            status: mapCitiSignalViolationStatus(v.status),
+            resolutionPlan: v.description_raw || v.description || "",
+            assignedTo: null,
+            priority: v.severity === "critical" || v.agency === "HPD" && v.violation_class === "C" ? "High" as const : v.severity === "high" ? "High" as const : "Medium" as const,
+            penalty: v.penalty_amount || null,
+            agency: v.agency || "DOB ECB",
             ...v,
           }));
           setCoApps(apps);
