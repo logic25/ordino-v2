@@ -75,7 +75,7 @@ async function queryProjects(sb: any, params: any) {
   let q = sb
     .from("projects")
     .select(
-      "id, name, project_number, status, filing_type, created_at, properties(address, borough, bin), profiles!projects_assigned_pm_fkey(display_name)"
+      "id, name, project_number, status, filing_type, created_at, properties(address, borough, bin), profiles!projects_assigned_pm_id_fkey(display_name)"
     )
     .order("created_at", { ascending: false })
     .limit(200);
