@@ -235,12 +235,15 @@ async function checkFilingReadiness(sb: any, params: any) {
   let q = sb
     .from("projects")
     .select("id, name, project_number")
-    .in("status", ["active", "in_progress", "filing", "pre_filing"]);
+    .eq("status", "open");
 
   if (params.project_id) q = q.eq("id", params.project_id);
 
   const { data: projects, error } = await q.limit(200);
-  if (error) return fail(error.message, 500);
+  if (error) {
+    console.error("check_filing_readiness error:", error.message, error.details, error.hint);
+    return fail(error.message, 500);
+  }
 
   const results = [];
   for (const p of projects || []) {
