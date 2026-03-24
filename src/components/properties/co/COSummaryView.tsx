@@ -130,10 +130,11 @@ export function COSummaryView({
   const tcoPending = tcoSignOffs.filter(s => s.status !== "Signed Off");
 
   // Action summary
-  const needsLOC = applications.filter(a => a.action.toLowerCase().includes("loc")).length;
-  const needsFDNY = applications.filter(a => a.action.toLowerCase().includes("fdny")).length;
-  const needsCostAffidavit = applications.filter(a => a.action.toLowerCase().includes("cost affidavit")).length;
-  const withdrawalCandidates = applications.filter(a => a.action.toLowerCase().includes("withdraw")).length;
+  const getActionText = (app: COApplication) => (app.action || "").toLowerCase();
+  const needsLOC = applications.filter(a => getActionText(a).includes("loc")).length;
+  const needsFDNY = applications.filter(a => getActionText(a).includes("fdny")).length;
+  const needsCostAffidavit = applications.filter(a => getActionText(a).includes("cost affidavit")).length;
+  const withdrawalCandidates = applications.filter(a => getActionText(a).includes("withdraw")).length;
 
   // Status changes since last report
   const changedApps = useMemo(() =>
