@@ -26,7 +26,6 @@ export function buildChangeOrderEmailHtml({
   coTitle,
   amount,
   description,
-  reason,
   signingLink,
   companyName,
   companyEmail,
