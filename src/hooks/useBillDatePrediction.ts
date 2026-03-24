@@ -36,6 +36,18 @@ export async function predictBillDates(
 
   const projectStart = new Date(project.created_at);
 
+  // Check project readiness — if checklist has outstanding items, add a buffer
+  const { data: checklistItems } = await supabase
+    .from("project_checklist_items")
+    .select("id, status")
+    .eq("project_id", projectId);
+
+  const hasChecklist = checklistItems && checklistItems.length > 0;
+  const outstandingItems = hasChecklist
+    ? checklistItems.filter((i: any) => i.status !== "done").length
+    : 0;
+  const checklistComplete = hasChecklist && outstandingItems === 0;
+
   // Fetch historical billing data: services that have been billed with their project creation dates
   const { data: historicalServices } = await supabase
     .from("services")
@@ -98,7 +110,25 @@ export async function predictBillDates(
       confidence = 45;
     }
 
-    const predictedDate = addDays(projectStart, avgDays);
+    let predictedDate = addDays(projectStart, avgDays);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Never predict a date in the past
+    if (predictedDate < today) {
+      // If checklist isn't complete, estimate at least 14 days out
+      // If complete, estimate 7 days out (filing + processing)
+      const minDaysOut = checklistComplete ? 7 : 14;
+      predictedDate = addDays(today, minDaysOut);
+    } else if (!checklistComplete && hasChecklist) {
+      // Even if historical avg gives a future date, ensure it accounts for
+      // outstanding checklist items — add 3 days per outstanding item (capped at 30)
+      const readinessBuffer = Math.min(outstandingItems * 3, 30);
+      const readinessAdjusted = addDays(today, readinessBuffer);
+      if (readinessAdjusted > predictedDate) {
+        predictedDate = readinessAdjusted;
+      }
+    }
 
     predictions.push({
       serviceId: svc.id,

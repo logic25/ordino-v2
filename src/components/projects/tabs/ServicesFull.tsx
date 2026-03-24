@@ -222,7 +222,7 @@ function ServiceExpandedDetail({ service, projectName, projectId }: { service: M
 
         <div>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <AlertTriangle className="h-3.5 w-3.5" /> Requirements ({localReqs.filter(r => !r.met).length} pending)
+            <AlertTriangle className="h-3.5 w-3.5" /> Pre-Filing Conditions ({localReqs.filter(r => !r.met).length} pending)
           </h4>
           {localReqs.length > 0 && (
             <div className="space-y-1 mb-2">
@@ -252,7 +252,7 @@ function ServiceExpandedDetail({ service, projectName, projectId }: { service: M
             </div>
           ) : (
             <Button variant="outline" size="sm" className="gap-1.5 text-xs h-7" onClick={() => setShowAddReq(true)}>
-              <Plus className="h-3 w-3" /> Add Requirement
+              <Plus className="h-3 w-3" /> Add Condition
             </Button>
           )}
         </div>
