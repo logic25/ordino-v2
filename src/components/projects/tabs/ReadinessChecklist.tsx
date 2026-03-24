@@ -22,7 +22,7 @@ import { useProjectChecklist, useAddChecklistItem, useUpdateChecklistItem, useDe
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { wrapEmailForSending } from "@/components/rfps/buildPartnerEmailTemplate";
 import { useChecklistFollowupDrafts, useApproveDraft, useDismissDraft } from "@/hooks/useChecklistFollowupDrafts";
-import { useGenerateProjectChecklist } from "@/hooks/useGenerateChecklist";
+// generateChecklist removed — items are now added per-service
 import { EditPISDialog } from "@/components/projects/EditPISDialog";
 import { checklistCategoryLabels } from "@/components/projects/projectMockData";
 import type { MockPISStatus } from "@/components/projects/projectMockData";
