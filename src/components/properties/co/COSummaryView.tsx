@@ -19,6 +19,7 @@ import {
   CalendarClock, ClipboardList, Loader2, Pencil, Plus,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
 import { safeFormatDate } from "@/lib/dateUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { pdf } from "@react-pdf/renderer";
