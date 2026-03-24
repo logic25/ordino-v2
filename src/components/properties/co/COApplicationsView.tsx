@@ -42,8 +42,9 @@ const formatDateSafe = (value: string | null | undefined, pattern: string, fallb
 };
 
 const getSourceBadge = (source: string) => {
-  if (source === "DOB_NOW_BUILD") return { className: "bg-blue-500/10 text-blue-700 border-blue-500/20", label: "BIS" };
-  if (source === "DOB_NOW_ELECTRICAL") return { className: "bg-amber-500/10 text-amber-700 border-amber-500/20", label: "Electrical" };
+  if (source === "DOB_NOW_BUILD" || source === "DOB_NOW") return { className: "bg-blue-500/10 text-blue-700 border-blue-500/20", label: "DOB NOW" };
+  if (source === "DOB_NOW_ELECTRICAL" || source === "Electrical") return { className: "bg-amber-500/10 text-amber-700 border-amber-500/20", label: "Electrical" };
+  if (source === "BIS_SCRAPE") return { className: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20", label: "BIS" };
   return { className: "bg-muted text-muted-foreground", label: "BIS" };
 };
 

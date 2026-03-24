@@ -3,7 +3,7 @@
 export interface COApplication {
   num: number;
   jobNum: string;
-  source: "DOB_JOB_FILINGS" | "DOB_NOW_BUILD" | "DOB_NOW_ELECTRICAL";
+  source: string;
   fileDate: string;
   desc: string;
   tenant: string | null;
