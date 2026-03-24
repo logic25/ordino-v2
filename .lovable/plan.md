@@ -16,3 +16,16 @@
 
 ### Deferred
 - PIS owner auto-dedup into CRM contacts (synthetic owner row still works as-is)
+
+---
+
+## Plan: Unify Service Conditions into Project Readiness
+
+### Status: Implemented ✅
+
+### Changes Made
+
+1. **Removed from Readiness panel** — "PIS Responses" collapsible, "Add Item" button, "Generate AI Checklist" button all removed
+2. **Service conditions → DB** — `ServicesFull.tsx` pre-filing conditions now use `useProjectChecklist` hooks instead of localStorage, writing to `project_checklist_items` with `source_service_id` and `source_catalog_name`
+3. **Service badge in Readiness** — Items with `source_catalog_name` show a small badge identifying which service they belong to
+4. **Kept**: PIS status bar + Edit PIS button, checklist items display, AI Follow-Up Draft button, Received section
