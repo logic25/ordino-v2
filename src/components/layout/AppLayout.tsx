@@ -64,7 +64,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           .limit(1),
         supabase
           .from("invoices")
-          .select("total_amount, paid_amount, status")
+          .select("total_due, payment_amount, status")
           .eq("project_id", projectId!),
         supabase
           .from("proposals")
