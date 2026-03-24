@@ -1290,6 +1290,18 @@ export function EmailTemplateGallery() {
                     <Button variant="ghost" size="sm" onClick={resetTemplate} className="text-xs text-muted-foreground">
                       <RotateCcw className="h-3 w-3 mr-1" /> Reset to Default
                     </Button>
+                    {activeTemplateDirty && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSave}
+                        disabled={updateSettings.isPending}
+                        className="text-xs"
+                      >
+                        {updateSettings.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}
+                        Save Template
+                      </Button>
+                    )}
                   </div>
                   <div className="rounded-lg border border-border bg-muted/30 p-3">
                     <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Available Variables</p>
