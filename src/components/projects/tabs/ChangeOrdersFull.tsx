@@ -133,10 +133,10 @@ export function ChangeOrdersFull({ changeOrders, projectId, companyId, serviceNa
                     ) : co.status !== "draft" ? (
                       <div className="flex flex-col gap-0.5 text-xs">
                         <span className={internalSigned ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
-                          {internalSigned ? `✓ Internal ${co.internal_signed_at ? format(new Date(co.internal_signed_at), "MM/dd/yy") : ""}` : "⏳ Internal"}
+                          {internalSigned ? `✓ Internal ${co.internal_signed_at ? safeFormatDate(co.internal_signed_at, "MM/dd/yy") : ""}` : "⏳ Internal"}
                         </span>
                         <span className={clientSigned ? "text-emerald-600 dark:text-emerald-400" : co.sent_at ? "text-blue-600 dark:text-blue-400" : "text-amber-600 dark:text-amber-400"}>
-                          {clientSigned ? `✓ Client ${co.client_signed_at ? format(new Date(co.client_signed_at), "MM/dd/yy") : ""}` : co.sent_at ? `📧 Sent ${format(new Date(co.sent_at), "MM/dd/yy")}` : "⏳ Client"}
+                          {clientSigned ? `✓ Client ${co.client_signed_at ? safeFormatDate(co.client_signed_at, "MM/dd/yy") : ""}` : co.sent_at ? `📧 Sent ${safeFormatDate(co.sent_at, "MM/dd/yy")}` : "⏳ Client"}
                         </span>
                       </div>
                     ) : (
