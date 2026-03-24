@@ -334,6 +334,15 @@ export function ChangeOrderPDF({
           </View>
         </View>
 
+        {/* ═══ Fixed per-page header (continuation context) ═══ */}
+        <View style={s.fixedHeader} fixed>
+          <Text style={s.fixedHeaderLeft}>
+            <Text style={s.fixedHeaderBold}>Change Order {co.co_number}</Text>
+            {projectNumber ? `  ·  Project ${projectNumber}` : projectAddress ? `  ·  ${projectAddress}` : ""}
+          </Text>
+          <Text style={s.fixedHeaderRight} render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
+        </View>
+
         {/* ═══ Footer ═══ */}
         <View style={s.footer} fixed>
           <Text style={s.footerText}>
