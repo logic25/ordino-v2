@@ -559,7 +559,7 @@ function buildTemplateBody(
             <thead><tr style="background:${CARD_BG};"><th style="${thStyle}">Detail</th><th style="${thStyle}text-align:right;"></th></tr></thead>
             <tbody>
               <tr><td style="${tdMutedStyle}">Title</td><td style="${tdStyle}">Additional Asbestos Abatement</td></tr>
-              <tr><td style="${tdMutedStyle}border-bottom:none;">Reason</td><td style="${tdStyle}border-bottom:none;">Expanded scope after testing</td></tr>
+              <tr><td style="${tdMutedStyle}border-bottom:none;">Services</td><td style="${tdStyle}border-bottom:none;">Asbestos Abatement, Air Monitoring</td></tr>
             </tbody>
           </table>
           <div style="border-top:1px solid ${BORDER};padding:14px 16px;">
