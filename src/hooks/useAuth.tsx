@@ -32,6 +32,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (clockedInRef.current) return;
     clockedInRef.current = true;
     try {
+      const today = new Date().toISOString().split("T")[0];
+      // Check if already clocked in today before inserting
+      const { data: existing } = await (supabase as any)
+        .from("attendance_logs")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("log_date", today)
+        .maybeSingle();
+
+      if (existing) return; // Already clocked in today
+
       let ipAddress: string | null = null;
       try {
         const res = await fetch("https://api.ipify.org?format=json");
@@ -47,7 +58,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           clock_in_location: "Auto",
           ip_address: ipAddress,
         });
-      // Ignore 23505 (unique violation) — already clocked in today
     } catch { /* non-critical */ }
   }, []);
 

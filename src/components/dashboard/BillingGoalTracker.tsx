@@ -100,7 +100,7 @@ function usePMBillingGoals() {
         // Checklist readiness
         const pmChecklist = (checklistItems || []).filter((c: any) => pmProjectIds.has(c.project_id));
         const totalItems = pmChecklist.length;
-        const completedItems = pmChecklist.filter((c: any) => c.is_complete).length;
+        const completedItems = pmChecklist.filter((c: any) => c.status === "done").length;
         const readiness = totalItems > 0 ? completedItems / totalItems : 0;
 
         // Billed this month
