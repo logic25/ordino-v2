@@ -300,7 +300,10 @@ async function queryProposals(sb: any, params: any) {
     q = q.or(`client_name.ilike.%${params.search}%,title.ilike.%${params.search}%`);
 
   const { data, error } = await q;
-  if (error) return fail(error.message, 500);
+  if (error) {
+    console.error("query_proposals error:", error.message, error.details, error.hint);
+    return fail(error.message, 500);
+  }
 
   const totalPipeline = (data || []).reduce(
     (s: number, p: any) => s + (p.total_amount || 0),
