@@ -123,8 +123,10 @@ export function SignatureDialog({
   }, [open, proposal, profile]);
 
   // Initialize canvas and optionally draw saved signature
+  // Depend on !!proposal so this re-runs when canvas actually mounts
+  const canvasReady = !!proposal;
   useEffect(() => {
-    if (!open || !canvasRef.current) return;
+    if (!open || !canvasReady || !canvasRef.current) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
@@ -140,15 +142,21 @@ export function SignatureDialog({
     if (savedSignatureData && !hasDrawn) {
       const img = new Image();
       img.onload = () => {
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        setHasSignature(true);
+        // Guard: only update if canvas is still the same (dialog still open)
+        if (canvasRef.current) {
+          const curCtx = canvasRef.current.getContext("2d");
+          if (curCtx) {
+            curCtx.drawImage(img, 0, 0, canvasRef.current.width, canvasRef.current.height);
+          }
+          setHasSignature(true);
+        }
       };
       img.src = savedSignatureData;
       return;
     }
 
     setHasSignature(false);
-  }, [open, savedSignatureData, hasDrawn]);
+  }, [open, canvasReady, savedSignatureData, hasDrawn]);
 
   const getCoordinates = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = canvasRef.current;
