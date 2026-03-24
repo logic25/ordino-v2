@@ -229,7 +229,6 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
       const billToContact = contacts.find(c => c.role === "bill_to");
       const preparedForName = billToContact?.name || proposal.client_name || "";
 
-      const safeLogoUrl = await getLogoDataUrl(companyLogoUrl);
       const htmlBody = buildProposalEmailHtml({
         clientName,
         proposalTitle: proposal.title || "Your Project",
@@ -242,7 +241,7 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
         companyName: resolvedCompanyName,
         companyEmail,
         companyPhone,
-        logoUrl: safeLogoUrl || companyLogoUrl,
+        logoUrl: companyLogoUrl,
         companyAddress,
         items: items.map((i: any) => ({
           name: i.name,

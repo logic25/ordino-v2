@@ -2,7 +2,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { formatCurrency } from "@/lib/utils";
-import { getLogoDataUrl } from "@/utils/logoToDataUrl";
 import { buildProposalEmailHtml, resolveProposalEmailTemplate, resolveEmailStyle } from "@/components/proposals/buildProposalEmailHtml";
 import { DEFAULT_PIS_SECTIONS } from "@/hooks/useRfi";
 
@@ -748,7 +747,7 @@ export function useSendProposal() {
       });
 
       const subject = resolvedTemplate.subject;
-      const safeLogoUrl = await getLogoDataUrl(companyLogoUrl);
+      // Use the raw public URL for emails — base64 data URIs are stripped by Gmail/Outlook
       const htmlBody = buildProposalEmailHtml({
         clientName,
         proposalTitle: proposal.title || "Your Project",
@@ -761,7 +760,7 @@ export function useSendProposal() {
         companyName,
         companyEmail,
         companyPhone,
-        logoUrl: safeLogoUrl || companyLogoUrl,
+        logoUrl: companyLogoUrl,
         companyAddress,
         items: items.map((i: any) => ({
           name: i.name,
