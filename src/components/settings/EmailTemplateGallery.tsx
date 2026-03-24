@@ -1194,6 +1194,10 @@ export function EmailTemplateGallery() {
     "{{DAYS_OVERDUE}}": "Days past due",
     "{{DUE_DATE}}": "Invoice due date",
     "{{BALANCE}}": "Remaining account balance",
+    "{{BUG_TITLE}}": "Bug report title",
+    "{{USER_NAME}}": "Internal user name",
+    "{{RFP_TITLE}}": "RFP title",
+    "{{PM_NAME}}": "Project manager name",
   };
 
   return (
