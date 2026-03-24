@@ -480,6 +480,8 @@ function StepEditContent({
   onGoToLibrary,
   selectedProjectIds,
   onToggleProject,
+  onSelectAllProjects,
+  onClearProjects,
 }: {
   selectedSections: string[];
   sectionOrder: string[];
@@ -487,6 +489,8 @@ function StepEditContent({
   onGoToLibrary: (tab?: string | null) => void;
   selectedProjectIds: string[];
   onToggleProject: (id: string) => void;
+  onSelectAllProjects: () => void;
+  onClearProjects: () => void;
 }) {
   const activeSections = sectionOrder
     .filter((s) => selectedSections.includes(s) && s !== "cover_letter");
@@ -532,24 +536,53 @@ function StepEditContent({
                         No content yet. Use the button below to add items.
                       </p>
                     ) : (
-                      <ScrollArea className="max-h-[300px]">
-                        <div className="space-y-2 pr-2">
-                          {items.map((item: any, idx: number) => (
-                            <div key={item.id || idx} className="flex items-start gap-2">
-                              {isNotableProjects && (
-                                <Checkbox
-                                  checked={selectedProjectIds.includes(item.id)}
-                                  onCheckedChange={() => onToggleProject(item.id)}
-                                  className="mt-2.5 flex-shrink-0"
-                                />
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <SectionContentPreview item={item} type={sectionId} />
-                              </div>
+                      <>
+                        {isNotableProjects && (
+                          <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2">
+                            <p className="text-xs text-muted-foreground">
+                              Choose exactly which project sheets and notable projects to include in this response.
+                            </p>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={onSelectAllProjects}>
+                                Select All
+                              </Button>
+                              <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={onClearProjects}>
+                                Clear
+                              </Button>
                             </div>
-                          ))}
-                        </div>
-                      </ScrollArea>
+                          </div>
+                        )}
+                        <ScrollArea className="h-[320px] rounded-md">
+                          <div className="space-y-2 pr-3">
+                            {items.map((item: any, idx: number) => {
+                              const checked = selectedProjectIds.includes(item.id);
+                              return (
+                                <button
+                                  key={item.id || idx}
+                                  type="button"
+                                  className="w-full rounded-lg text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                  onClick={() => isNotableProjects && onToggleProject(item.id)}
+                                >
+                                  <div className="flex items-start gap-2">
+                                    {isNotableProjects && (
+                                      <Checkbox
+                                        checked={checked}
+                                        onCheckedChange={() => onToggleProject(item.id)}
+                                        className="mt-2.5 flex-shrink-0"
+                                      />
+                                    )}
+                                    <div className={isNotableProjects ? "flex-1 min-w-0" : "w-full"}>
+                                      <div className={isNotableProjects && checked ? "rounded-lg ring-1 ring-accent/40" : undefined}>
+                                        <SectionContentPreview item={item} type={sectionId} />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </ScrollArea>
+                      </>
                     )}
                     {def.libraryTab && (
                       <div className="flex gap-2">
