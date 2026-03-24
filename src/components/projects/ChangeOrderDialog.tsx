@@ -142,13 +142,17 @@ export function ChangeOrderDialog({
   }, [catalog, searchTerm]);
 
   const addServiceFromCatalog = (svc: ServiceCatalogItem) => {
+    const base = svc.default_price || 0;
     setServiceLines(prev => [...prev, {
       id: svc.id,
       name: svc.name,
-      amount: svc.default_price || 0,
+      baseAmount: base,
+      amount: base,
       description: svc.description,
       work_types: [],
       showWorkTypes: svc.show_work_types !== false,
+      disciplineFee: svc.discipline_fee || 0,
+      hasDisciplinePricing: svc.has_discipline_pricing || false,
     }]);
     setSearchTerm("");
   };
