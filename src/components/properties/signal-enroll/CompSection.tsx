@@ -7,7 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { format } from "date-fns";
+import { safeFormatDate } from "@/lib/dateUtils";
 
 interface Project {
   id: string;
