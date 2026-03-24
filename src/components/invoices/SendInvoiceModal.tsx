@@ -61,27 +61,50 @@ export function SendInvoiceModal({ invoice, open, onOpenChange, onSent }: SendIn
       }
       const pdfBase64 = btoa(binary);
 
-      // Step 2: Send email via Gmail
+      // Step 2: Send email via Gmail — using branded gallery template
       setStep("sending");
-      const companyName = "Green Light Expediting";
+      const companyName = companyData?.name || "Green Light Expediting";
       const amount = `$${Number(invoice.total_due).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
-      const subject = companyData?.settings?.invoice_email_subject_template
-        ? companyData.settings.invoice_email_subject_template
-            .replace(/\{\{invoice_number\}\}/g, invoice.invoice_number)
-            .replace(/\{\{amount\}\}/g, amount)
-        : `Invoice ${invoice.invoice_number} — ${amount} from ${companyName}`;
+      const dueDateStr = invoice.due_date ? new Date(invoice.due_date).toLocaleDateString("en-US") : "";
+      const clientName = invoice.billed_to_contact?.name || invoice.clients?.name || "Client";
+      const settings = companyData?.settings;
+      const templateOverrides = settings?.email_template_overrides?.invoice;
 
-      const bodyTemplate = companyData?.settings?.invoice_email_body_template || 
-        `Dear ${invoice.clients?.name || "Client"},\n\nPlease find attached invoice ${invoice.invoice_number} for ${amount}.\n\nPayment terms: ${invoice.payment_terms || "Net 30"}\n${invoice.due_date ? `Due date: ${new Date(invoice.due_date).toLocaleDateString("en-US")}\n` : ""}\nThank you for your business.\n\nBest regards,\n${companyName}`;
+      const { buildBrandedEmailHtml } = await import("@/lib/buildBrandedEmailHtml");
 
-      const { wrapBillingEmailHtml, sendBillingEmail } = await import("@/hooks/useBillingEmail");
-      const htmlBody = wrapBillingEmailHtml({
+      const innerBodyHtml = `
+        <div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:24px;">
+          <table style="width:100%;border-collapse:collapse;">
+            <thead><tr style="background:#f8fafc;"><th style="padding:10px 16px;text-align:left;font-size:10px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.8px;font-weight:600;">Detail</th><th style="padding:10px 16px;text-align:right;font-size:10px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.8px;font-weight:600;"></th></tr></thead>
+            <tbody>
+              <tr><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#94a3b8;font-weight:600;">Payment Terms</td><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:#1e293b;text-align:right;">${invoice.payment_terms || "Net 30"}</td></tr>
+              ${dueDateStr ? `<tr><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#94a3b8;font-weight:600;">Due Date</td><td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;color:#1e293b;text-align:right;">${dueDateStr}</td></tr>` : ""}
+            </tbody>
+          </table>
+          <div style="border-top:1px solid #e2e8f0;padding:14px 16px;">
+            <table style="width:100%;"><tr><td style="font-size:15px;font-weight:700;color:#1e293b;">Amount Due</td><td style="font-size:18px;font-weight:800;color:#1e293b;text-align:right;">${amount}</td></tr></table>
+          </div>
+        </div>`;
+
+      const { subject, html: htmlBody } = buildBrandedEmailHtml({
+        templateId: "invoice",
+        templateOverrides,
+        styleConfig: settings?.email_style,
         companyName,
-        body: bodyTemplate,
-        footer: [
-          companyData?.settings?.company_email ? `Email: ${companyData.settings.company_email}` : null,
-          companyData?.settings?.company_phone ? `Phone: ${companyData.settings.company_phone}` : null,
-        ].filter(Boolean).join(" | "),
+        companyEmail: settings?.company_email || companyData?.email || "",
+        companyPhone: settings?.company_phone || companyData?.phone || "",
+        companyAddress: settings?.company_address || companyData?.address || "",
+        logoUrl: companyData?.logo_url || settings?.company_logo_url || "",
+        docLabel: "Invoice",
+        docNumber: invoice.invoice_number,
+        variables: {
+          CLIENT_NAME: clientName,
+          INVOICE_NUMBER: invoice.invoice_number,
+          AMOUNT: amount,
+          PROJECT_TITLE: (invoice as any).projects?.name || "",
+          DUE_DATE: dueDateStr,
+        },
+        innerBodyHtml,
       });
 
       const { data: sendResult, error: sendError } = await supabase.functions.invoke("gmail-send", {

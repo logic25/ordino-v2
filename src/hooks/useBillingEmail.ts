@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { buildBrandedEmailHtml, type TemplateOverride } from "@/lib/buildBrandedEmailHtml";
 
 interface SendBillingEmailParams {
   to: string;
@@ -21,7 +22,7 @@ export async function sendBillingEmail({ to, cc, subject, htmlBody }: SendBillin
   return data;
 }
 
-/** Build a styled HTML wrapper for billing emails */
+/** @deprecated — kept for backward compat; prefer buildBrandedEmailHtml */
 export function wrapBillingEmailHtml({
   companyName,
   body,
@@ -43,7 +44,7 @@ export function wrapBillingEmailHtml({
 </html>`.trim();
 }
 
-/** Build reminder email subject & HTML */
+/** Build branded reminder email using gallery template */
 export function buildReminderEmail({
   invoiceNumber,
   totalDue,
@@ -53,6 +54,10 @@ export function buildReminderEmail({
   customMessage,
   companyEmail,
   companyPhone,
+  companyAddress,
+  logoUrl,
+  styleConfig,
+  templateOverrides,
 }: {
   invoiceNumber: string;
   totalDue: number;
@@ -62,34 +67,54 @@ export function buildReminderEmail({
   customMessage?: string;
   companyEmail?: string;
   companyPhone?: string;
+  companyAddress?: string;
+  logoUrl?: string;
+  styleConfig?: any;
+  templateOverrides?: TemplateOverride;
 }) {
   const amount = `$${totalDue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
-  const subject = `Payment Reminder — Invoice ${invoiceNumber} (${amount})`;
 
-  const defaultBody = `Dear ${clientName},
+  const innerBodyHtml = `
+    <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
+      <td style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 18px;">
+        <table style="width:100%;"><tr>
+          <td style="text-align:center;">
+            <p style="margin:0;font-size:10px;text-transform:uppercase;color:#94a3b8;font-weight:600;letter-spacing:0.8px;">Amount Due</p>
+            <p style="margin:4px 0 0;font-size:24px;font-weight:800;color:#1e293b;">${amount}</p>
+          </td>
+          <td style="text-align:center;">
+            <p style="margin:0;font-size:10px;text-transform:uppercase;color:#94a3b8;font-weight:600;letter-spacing:0.8px;">Days Overdue</p>
+            <p style="margin:4px 0 0;font-size:24px;font-weight:800;color:#dc2626;">${daysOverdue}</p>
+          </td>
+        </tr></table>
+      </td>
+    </tr></table>
+    ${customMessage ? `<p style="margin:0 0 24px;font-size:14px;color:#334155;line-height:1.6;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;">${customMessage}</p>` : ""}`;
 
-This is a friendly reminder that payment of ${amount} for invoice ${invoiceNumber} is now ${daysOverdue} days past due.
+  const { subject, html: htmlBody } = buildBrandedEmailHtml({
+    templateId: "reminder",
+    templateOverrides,
+    styleConfig,
+    companyName,
+    companyEmail,
+    companyPhone,
+    companyAddress,
+    logoUrl,
+    docLabel: "Payment Reminder",
+    docNumber: invoiceNumber,
+    variables: {
+      CLIENT_NAME: clientName,
+      INVOICE_NUMBER: invoiceNumber,
+      AMOUNT: amount,
+      DAYS_OVERDUE: String(daysOverdue),
+    },
+    innerBodyHtml,
+  });
 
-We would appreciate your prompt attention to this matter. If payment has already been sent, please disregard this notice.
-
-${customMessage ? `\n${customMessage}\n` : ""}
-Thank you for your business.
-
-Best regards,
-${companyName}`;
-
-  const footer = [
-    companyEmail ? `Email: ${companyEmail}` : null,
-    companyPhone ? `Phone: ${companyPhone}` : null,
-  ].filter(Boolean).join(" | ");
-
-  return {
-    subject,
-    htmlBody: wrapBillingEmailHtml({ companyName, body: defaultBody, footer }),
-  };
+  return { subject, htmlBody };
 }
 
-/** Build demand letter email subject & HTML */
+/** Build branded demand letter email using gallery template */
 export function buildDemandLetterEmail({
   invoiceNumber,
   totalDue,
@@ -99,6 +124,10 @@ export function buildDemandLetterEmail({
   letterText,
   companyEmail,
   companyPhone,
+  companyAddress,
+  logoUrl,
+  styleConfig,
+  templateOverrides,
 }: {
   invoiceNumber: string;
   totalDue: number;
@@ -108,17 +137,38 @@ export function buildDemandLetterEmail({
   letterText: string;
   companyEmail?: string;
   companyPhone?: string;
+  companyAddress?: string;
+  logoUrl?: string;
+  styleConfig?: any;
+  templateOverrides?: TemplateOverride;
 }) {
   const amount = `$${totalDue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
-  const subject = `FORMAL DEMAND FOR PAYMENT — Invoice ${invoiceNumber} (${amount})`;
 
-  const footer = [
-    companyEmail ? `Email: ${companyEmail}` : null,
-    companyPhone ? `Phone: ${companyPhone}` : null,
-  ].filter(Boolean).join(" | ");
-
-  return {
-    subject,
-    htmlBody: wrapBillingEmailHtml({ companyName, body: letterText, footer }),
+  // For demand letters, the letterText IS the body — override the body_text
+  const merged: TemplateOverride = {
+    ...templateOverrides,
+    body_text: letterText,
   };
+
+  const { subject, html: htmlBody } = buildBrandedEmailHtml({
+    templateId: "demand_letter",
+    templateOverrides: merged,
+    styleConfig,
+    companyName,
+    companyEmail,
+    companyPhone,
+    companyAddress,
+    logoUrl,
+    docLabel: "Formal Demand",
+    docNumber: invoiceNumber,
+    stripeColor: "#ef4444",
+    variables: {
+      CLIENT_NAME: clientName,
+      INVOICE_NUMBER: invoiceNumber,
+      AMOUNT: amount,
+      DAYS_OVERDUE: String(daysOverdue),
+    },
+  });
+
+  return { subject, htmlBody };
 }
