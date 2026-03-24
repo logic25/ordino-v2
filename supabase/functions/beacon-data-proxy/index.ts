@@ -186,7 +186,10 @@ async function queryPropertyViolations(sb: any, params: any) {
   if (params.status) q = q.eq("status", params.status);
 
   const { data, error } = await q;
-  if (error) return fail(error.message, 500);
+  if (error) {
+    console.error("query_property_violations error:", error.message, error.details, error.hint);
+    return fail(error.message, 500);
+  }
 
   const totalPenalty = (data || []).reduce(
     (s: number, v: any) => s + (v.penalty_amount || 0),
