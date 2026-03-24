@@ -86,11 +86,11 @@ function usePMBillingGoals() {
         let totalServiceValue = 0;
 
         pmServices.forEach((s: any) => {
-          const name = (s.service_name || "").toLowerCase();
-          const weight = weightMap[name] || 1;
+          const svcName = (s.name || "").toLowerCase();
+          const weight = weightMap[svcName] || 1;
           weightedWorkload += weight;
-          serviceCounts[s.service_name || "Other"] = (serviceCounts[s.service_name || "Other"] || 0) + 1;
-          totalServiceValue += s.fee || 0;
+          serviceCounts[s.name || "Other"] = (serviceCounts[s.name || "Other"] || 0) + 1;
+          totalServiceValue += s.fixed_price || 0;
         });
 
         const serviceMix = Object.entries(serviceCounts)
