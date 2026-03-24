@@ -235,21 +235,20 @@ function ServiceExpandedDetail({ service, projectName, projectId }: { service: M
 
         <div>
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <AlertTriangle className="h-3.5 w-3.5" /> Pre-Filing Conditions ({localReqs.filter(r => !r.met).length} pending)
+            <AlertTriangle className="h-3.5 w-3.5" /> Pre-Filing Conditions ({serviceReqs.filter(r => r.status === "open").length} pending)
           </h4>
-          {localReqs.length > 0 && (
+          {serviceReqs.length > 0 && (
             <div className="space-y-1 mb-2">
-              {localReqs.map((req) => (
-                <div key={req.id} className={`flex items-center gap-2 text-sm py-1.5 px-3 rounded-md border ${req.met ? "bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-200/50 dark:border-emerald-800/30" : "bg-amber-50/50 dark:bg-amber-900/10 border-amber-200/50 dark:border-amber-800/30"}`}>
-                  <Checkbox checked={req.met} className="h-3.5 w-3.5" onCheckedChange={() => {
-                    setLocalReqs(prev => prev.map(r => r.id === req.id ? { ...r, met: !r.met } : r));
+              {serviceReqs.map((req) => (
+                <div key={req.id} className={`flex items-center gap-2 text-sm py-1.5 px-3 rounded-md border ${req.status === "done" ? "bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-200/50 dark:border-emerald-800/30" : "bg-amber-50/50 dark:bg-amber-900/10 border-amber-200/50 dark:border-amber-800/30"}`}>
+                  <Checkbox checked={req.status === "done"} className="h-3.5 w-3.5" onCheckedChange={() => {
+                    updateChecklistItem.mutate({ id: req.id, projectId: projectId!, status: req.status === "done" ? "open" : "done" });
                   }} />
-                  <span className={`flex-1 ${req.met ? "text-muted-foreground line-through" : ""}`}>{req.label}</span>
+                  <span className={`flex-1 ${req.status === "done" ? "text-muted-foreground line-through" : ""}`}>{req.label}</span>
                   <div className="flex flex-col items-end gap-0.5 shrink-0 ml-auto">
-                    {req.fromWhom && <span className="text-[10px] text-muted-foreground">from {req.fromWhom}</span>}
-                    {req.detail && <span className="text-[10px] text-muted-foreground italic">— {req.detail}</span>}
+                    {req.from_whom && <span className="text-[10px] text-muted-foreground">from {req.from_whom}</span>}
                   </div>
-                  <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => setLocalReqs(prev => prev.filter(r => r.id !== req.id))}>
+                  <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => deleteChecklistItem.mutate({ id: req.id, projectId: projectId! })}>
                     <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>
