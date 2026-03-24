@@ -306,7 +306,14 @@ export function ChangeOrderDialog({
                     {/* Work Type Picker */}
                     {line.showWorkTypes && (
                       <div className="pt-1">
-                        <Label className="text-xs text-muted-foreground mb-1.5 block">Work Types</Label>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs text-muted-foreground mb-1.5 block">Work Types</Label>
+                          {(line.work_types || []).length > 0 && (
+                            <span className="text-xs text-muted-foreground">
+                              {(line.work_types || []).length} selected{(line.disciplineFee || 0) > 0 ? ` · ${formatCurrency(line.disciplineFee!)}/work type` : ""}
+                            </span>
+                          )}
+                        </div>
                         <div className="flex flex-wrap gap-1.5">
                           {allDisciplines.map((d) => {
                             const selected = (line.work_types || []).includes(d);
@@ -326,6 +333,11 @@ export function ChangeOrderDialog({
                             );
                           })}
                         </div>
+                        {(line.work_types || []).length > 0 && (line.disciplineFee || 0) > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1.5">
+                            Base {formatCurrency(line.baseAmount)} + {(line.work_types || []).length} × {formatCurrency(line.disciplineFee!)} = {formatCurrency(line.amount)}
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
