@@ -22,6 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyProfiles } from "@/hooks/useProfiles";
+import { useProjectChecklist, useAddChecklistItem, useUpdateChecklistItem, useDeleteChecklistItem } from "@/hooks/useProjectChecklist";
 import { DobNowFilingPrepSheet } from "@/components/projects/DobNowFilingPrepSheet";
 import { SendToBillingDialog } from "@/components/invoices/SendToBillingDialog";
 import { ComposeEmailDialog } from "@/components/emails/ComposeEmailDialog";
