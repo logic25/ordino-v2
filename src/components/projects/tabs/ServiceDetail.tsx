@@ -25,7 +25,7 @@ export function ServiceDetail({ service }: { service: MockService }) {
         <div className="flex items-center gap-4 text-sm flex-wrap">
           <span className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Est. Cost:</span>
           {service.estimatedCosts.map((ec, i) => (
-            <span key={i} className="text-sm">{ec.discipline}: <span className="font-semibold" data-clarity-mask="true">${ec.amount.toLocaleString()}</span></span>
+            <span key={i} className="text-sm">{ec.discipline}: <span className="font-semibold" data-clarity-mask="true">${(ec.amount ?? 0).toLocaleString()}</span></span>
           ))}
         </div>
       )}

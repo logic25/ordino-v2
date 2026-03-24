@@ -225,7 +225,7 @@ function ServiceExpandedDetail({ service, projectName, projectId }: { service: M
               ))}
               <div className="flex items-center justify-between text-sm py-1 px-3 font-semibold border-t mt-1 pt-2">
                 <span>Total</span>
-                <span className="tabular-nums">${localCosts.reduce((s, ec) => s + ec.amount, 0).toLocaleString()}</span>
+                <span className="tabular-nums">${localCosts.reduce((s, ec) => s + (ec.amount ?? 0), 0).toLocaleString()}</span>
               </div>
             </div>
           ) : (
