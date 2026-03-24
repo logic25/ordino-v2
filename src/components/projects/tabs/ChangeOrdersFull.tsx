@@ -144,7 +144,7 @@ export function ChangeOrdersFull({ changeOrders, projectId, companyId, serviceNa
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{co.requested_by || "—"}</TableCell>
-                  <TableCell className="text-muted-foreground">{format(new Date(co.created_at), "MM/dd/yyyy")}</TableCell>
+                  <TableCell className="text-muted-foreground">{safeFormatDate(co.created_at, "MM/dd/yyyy")}</TableCell>
                   <TableCell className="text-right tabular-nums font-semibold">{formatCurrency(Number(co.amount))}</TableCell>
                 </TableRow>
               );
