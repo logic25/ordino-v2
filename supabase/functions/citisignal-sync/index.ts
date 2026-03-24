@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
 
     // If we don't have a CitiSignal property ID, look it up by BIN first
     if (!citisignalPropertyId && lookupBin) {
-      const lookupUrl = `${citisignalApiUrl}/functions/v1/api-gateway?path=${encodeURIComponent(`properties?bin=${lookupBin}`)}`;
+      const lookupUrl = `${citisignalApiUrl}/functions/v1/api-gateway?path=properties&bin=${encodeURIComponent(lookupBin)}`;
       console.log(`Looking up CitiSignal property by BIN: ${lookupUrl}`);
       const lookupResp = await fetch(lookupUrl, {
         method: "GET",
