@@ -77,7 +77,7 @@ export function ProposalDialog({
 
         {/* Scrollable body */}
         <div className="flex flex-col flex-1 min-h-0">
-          <div className={cn("flex-1", step === 2 ? "min-h-0 flex flex-col" : "overflow-y-auto")}>
+          <div className={cn("flex-1 min-h-0", step === 2 ? "flex flex-col" : "overflow-y-auto")}>
 
             {step === 0 && (
               <PropertyContactsStep form={form} contacts={contacts} onContactsChange={setContacts} />
