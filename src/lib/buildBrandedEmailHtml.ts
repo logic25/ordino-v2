@@ -180,7 +180,7 @@ export function resolveTemplate(
  * Build branded email HTML using the same shell as the Email Template Gallery.
  */
 export function buildBrandedEmailHtml(config: BrandedEmailConfig): { subject: string; html: string } {
-  const resolved = resolveEmailStyle(config.styleConfig);
+  const resolved = resolveEmailStyle(config.styleConfig as any);
   const accent = resolved.accentColor || DEFAULT_STYLE.accentColor;
   const font = resolved.fontFamily || DEFAULT_STYLE.fontFamily;
   const btnRadius = resolved.buttonRadius || DEFAULT_STYLE.buttonRadius;
