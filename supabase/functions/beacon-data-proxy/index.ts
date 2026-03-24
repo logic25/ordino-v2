@@ -85,7 +85,10 @@ async function queryProjects(sb: any, params: any) {
   if (params.search) q = q.ilike("name", `%${params.search}%`);
 
   const { data, error } = await q;
-  if (error) return fail(error.message, 500);
+  if (error) {
+    console.error("query_projects error:", error.message, error.details, error.hint);
+    return fail(error.message, 500);
+  }
   return ok(data);
 }
 
