@@ -93,6 +93,9 @@ const LIVE_TEMPLATE_IDS = new Set([
   "checklist_followup",
   "demand_letter",
   "bug_report",
+  "bug_comment",
+  "bug_resolved",
+  "bug_status_change",
   "co_signed",
   "pis_reminder",
 ]);
