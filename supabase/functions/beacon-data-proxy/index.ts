@@ -95,7 +95,6 @@ async function queryProjects(sb: any, params: any) {
 async function queryProjectDetail(sb: any, params: any) {
   let projectId = params.project_id;
 
-  // Resolve by address
   if (!projectId && params.address) {
     const { data: prop } = await sb
       .from("properties")
@@ -124,10 +123,12 @@ async function queryProjectDetail(sb: any, params: any) {
     )
     .eq("id", projectId)
     .maybeSingle();
-  if (error) return fail(error.message, 500);
+  if (error) {
+    console.error("query_project_detail error:", error.message, error.details, error.hint);
+    return fail(error.message, 500);
+  }
   if (!project) return fail("Project not found", 404);
 
-  // PIS completion
   const { data: rfi } = await sb
     .from("rfi_requests")
     .select("responses, status")
