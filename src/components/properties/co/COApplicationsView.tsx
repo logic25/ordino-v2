@@ -106,17 +106,26 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
 
     // Sources that should be grouped by base job number (BIS-related filings)
     const GROUPABLE_SOURCES = new Set([
-      "DOB_JOB_FILINGS", "BIS_SCRAPE", "BIS", "citisignal", "socrata",
+      "DOB_JOB_FILINGS",
+      "DOB BIS",
+      "BIS_SCRAPE",
+      "BIS",
+      "citisignal",
+      "socrata",
     ]);
     const isGroupable = (source: string | undefined | null) =>
       !source || GROUPABLE_SOURCES.has(source) || source === "DOB_NOW_BUILD";
     const getBaseJobNumber = (jobNum: string | null | undefined) => {
       if (!jobNum) return "";
-      const normalized = String(jobNum).trim();
-      if (normalized.includes("-")) {
-        return normalized.split("-")[0].replace(/\D/g, "");
-      }
-      return normalized.replace(/\D/g, "");
+      return String(jobNum).trim().split("-")[0].replace(/\D/g, "");
+    };
+    const getGroupOrder = (app: COApplication) => {
+      const normalizedJob = String(app.jobNum || "").trim();
+      const explicitDoc = String(app.docNum || "").match(/\d+/)?.[0];
+      if (explicitDoc) return parseInt(explicitDoc, 10);
+      const suffixMatch = normalizedJob.match(/-(\d{1,3})$/);
+      if (suffixMatch) return parseInt(suffixMatch[1], 10);
+      return 1;
     };
 
     for (const app of filtered) {
@@ -139,7 +148,7 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
     const result: GroupedApp[] = [];
 
     for (const [baseJob, apps] of jobGroups) {
-      apps.sort((a, b) => (a.docNum || "01").localeCompare(b.docNum || "01"));
+      apps.sort((a, b) => getGroupOrder(a) - getGroupOrder(b) || (a.fileDate || "").localeCompare(b.fileDate || ""));
       if (apps.length === 1) {
         result.push({ type: "single", app: apps[0] });
       } else {
