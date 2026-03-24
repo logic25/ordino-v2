@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useDeleteChangeOrder } from "@/hooks/useChangeOrders";
 import { formatCurrency } from "@/lib/utils";
 import { coStatusStyles } from "@/components/projects/projectMockData";
-import { format } from "date-fns";
+import { safeFormatDate } from "@/lib/dateUtils";
 import type { ChangeOrder } from "@/hooks/useChangeOrders";
 
 export function ChangeOrdersFull({ changeOrders, projectId, companyId, serviceNames, onOpenCreate, onSelectCO }: {
