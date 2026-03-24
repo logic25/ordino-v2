@@ -95,7 +95,6 @@ async function queryProjects(sb: any, params: any) {
 async function queryProjectDetail(sb: any, params: any) {
   let projectId = params.project_id;
 
-  // Resolve by address
   if (!projectId && params.address) {
     const { data: prop } = await sb
       .from("properties")
@@ -124,10 +123,12 @@ async function queryProjectDetail(sb: any, params: any) {
     )
     .eq("id", projectId)
     .maybeSingle();
-  if (error) return fail(error.message, 500);
+  if (error) {
+    console.error("query_project_detail error:", error.message, error.details, error.hint);
+    return fail(error.message, 500);
+  }
   if (!project) return fail("Project not found", 404);
 
-  // PIS completion
   const { data: rfi } = await sb
     .from("rfi_requests")
     .select("responses, status")
@@ -186,7 +187,10 @@ async function queryPropertyViolations(sb: any, params: any) {
   if (params.status) q = q.eq("status", params.status);
 
   const { data, error } = await q;
-  if (error) return fail(error.message, 500);
+  if (error) {
+    console.error("query_property_violations error:", error.message, error.details, error.hint);
+    return fail(error.message, 500);
+  }
 
   const totalPenalty = (data || []).reduce(
     (s: number, v: any) => s + (v.penalty_amount || 0),
@@ -205,7 +209,10 @@ async function queryPmWorkload(sb: any, params: any) {
   if (params.pm_name) q = q.ilike("display_name", `%${params.pm_name}%`);
 
   const { data: profiles, error } = await q;
-  if (error) return fail(error.message, 500);
+  if (error) {
+    console.error("query_pm_workload error:", error.message, error.details, error.hint);
+    return fail(error.message, 500);
+  }
 
   const results = [];
   for (const p of profiles || []) {
@@ -213,7 +220,7 @@ async function queryPmWorkload(sb: any, params: any) {
       .from("projects")
       .select("id", { count: "exact", head: true })
       .eq("assigned_pm_id", p.id)
-      .in("status", ["active", "in_progress", "filing", "pre_filing"]);
+      .eq("status", "open");
     results.push({
       id: p.id,
       name: p.display_name,
@@ -232,12 +239,15 @@ async function checkFilingReadiness(sb: any, params: any) {
   let q = sb
     .from("projects")
     .select("id, name, project_number")
-    .in("status", ["active", "in_progress", "filing", "pre_filing"]);
+    .eq("status", "open");
 
   if (params.project_id) q = q.eq("id", params.project_id);
 
   const { data: projects, error } = await q.limit(200);
-  if (error) return fail(error.message, 500);
+  if (error) {
+    console.error("check_filing_readiness error:", error.message, error.details, error.hint);
+    return fail(error.message, 500);
+  }
 
   const results = [];
   for (const p of projects || []) {
@@ -291,7 +301,10 @@ async function queryProposals(sb: any, params: any) {
     q = q.or(`client_name.ilike.%${params.search}%,title.ilike.%${params.search}%`);
 
   const { data, error } = await q;
-  if (error) return fail(error.message, 500);
+  if (error) {
+    console.error("query_proposals error:", error.message, error.details, error.hint);
+    return fail(error.message, 500);
+  }
 
   const totalPipeline = (data || []).reduce(
     (s: number, p: any) => s + (p.total_amount || 0),
@@ -313,7 +326,10 @@ async function queryInvoices(sb: any, params: any) {
   if (params.status) q = q.eq("status", params.status);
 
   const { data, error } = await q;
-  if (error) return fail(error.message, 500);
+  if (error) {
+    console.error("query_invoices error:", error.message, error.details, error.hint);
+    return fail(error.message, 500);
+  }
 
   const outstanding = (data || [])
     .filter((i: any) => !["paid", "void"].includes(i.status))
