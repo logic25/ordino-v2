@@ -15,6 +15,7 @@ interface ChangeOrderPDFProps {
   projectNumber?: string;
   clientName?: string;
   signerName?: string;
+  recipientName?: string;
   logoUrl?: string;
   /** Original contract total from project services */
   originalContractTotal?: number;
