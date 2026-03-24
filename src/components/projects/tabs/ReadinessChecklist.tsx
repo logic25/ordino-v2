@@ -20,7 +20,7 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProjectChecklist, useUpdateChecklistItem, useDeleteChecklistItem, type ChecklistItem } from "@/hooks/useProjectChecklist";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
-import { wrapEmailForSending } from "@/components/rfps/buildPartnerEmailTemplate";
+
 import { useChecklistFollowupDrafts, useApproveDraft, useDismissDraft } from "@/hooks/useChecklistFollowupDrafts";
 // generateChecklist removed — items are now added per-service
 import { EditPISDialog } from "@/components/projects/EditPISDialog";
@@ -81,16 +81,27 @@ export function ReadinessChecklist({
     try {
       const pisUrl = `${window.location.origin}/rfi?token=${rfiRecord.access_token}&reminder=true`;
       const recipientName = rfiRecord.recipient_name || "there";
-      const subject = `Reminder: Project Information Sheet — ${projectName || "Your Project"}`;
-      const innerBody = `
-        <p>Hi ${recipientName},</p>
-        <p>This is a friendly reminder to complete the <strong>Project Information Sheet</strong> for <strong>${projectName || "your project"}</strong>${propertyAddress ? ` at ${propertyAddress}` : ""}.</p>
-        <p>The form is partially complete. Please click the link below to finish filling it out:</p>
-        <p><a href="${pisUrl}" style="display:inline-block;padding:10px 20px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">Complete PIS →</a></p>
-        <p>If you've already submitted this, please disregard this message.</p>
-        <p>Thank you,<br/>${companyData?.name || "Our Team"}</p>
-      `;
-      const htmlBody = wrapEmailForSending(innerBody, companyData?.settings?.company_logo_url);
+
+      // Use branded email template
+      const { buildBrandedEmailHtml } = await import("@/lib/buildBrandedEmailHtml");
+      const settings = companyData?.settings;
+      const { subject, html: htmlBody } = buildBrandedEmailHtml({
+        templateId: "pis_reminder",
+        templateOverrides: settings?.email_template_overrides?.pis_reminder,
+        styleConfig: settings?.email_style,
+        companyName: companyData?.name || "Our Team",
+        companyEmail: companyData?.email || settings?.company_email,
+        companyPhone: companyData?.phone || settings?.company_phone,
+        companyAddress: companyData?.address || settings?.company_address,
+        logoUrl: companyData?.logo_url || settings?.company_logo_url,
+        docLabel: "PIS Reminder",
+        ctaLink: pisUrl,
+        variables: {
+          CLIENT_NAME: recipientName,
+          PROJECT_TITLE: projectName || "Your Project",
+          PROPERTY_ADDRESS_LINE: propertyAddress ? ` at ${propertyAddress}` : "",
+        },
+      });
 
       const { error: sendErr } = await supabase.functions.invoke("gmail-send", {
         body: { to: reminderEmail, subject, html_body: htmlBody },

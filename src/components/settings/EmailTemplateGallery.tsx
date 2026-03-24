@@ -92,6 +92,9 @@ const LIVE_TEMPLATE_IDS = new Set([
   "partner_outreach",
   "checklist_followup",
   "demand_letter",
+  "bug_report",
+  "co_signed",
+  "pis_reminder",
 ]);
 // ── Template definitions ──
 
@@ -287,6 +290,45 @@ const TEMPLATES: TemplateDef[] = [
       signoff: "It was a pleasure working with you. We hope to work together again soon.",
     },
   },
+  {
+    id: "co_signed",
+    name: "CO Signed Confirmation",
+    description: "Sent to client after they sign a change order",
+    category: "client",
+    defaults: {
+      subject: "Your Signed Change Order — {{CO_NUMBER}}",
+      greeting: "Hi {{CLIENT_NAME}},",
+      body_text: "Thank you for signing. Here is a summary for your records:",
+      cta_text: "",
+      signoff: "If you need a printable copy, please revisit the original link.",
+    },
+  },
+  {
+    id: "bug_report",
+    name: "Bug Report Alert",
+    description: "Internal notification when a bug is reported or status changes",
+    category: "internal",
+    defaults: {
+      subject: "🐛 New Bug: {{BUG_TITLE}}",
+      greeting: "Hi {{USER_NAME}},",
+      body_text: "A new bug has been reported:",
+      cta_text: "View in Help Center",
+      signoff: "",
+    },
+  },
+  {
+    id: "pis_reminder",
+    name: "PIS Reminder",
+    description: "Reminder to complete the Project Information Sheet",
+    category: "client",
+    defaults: {
+      subject: "Reminder: Project Information Sheet — {{PROJECT_TITLE}}",
+      greeting: "Hi {{CLIENT_NAME}},",
+      body_text: "This is a friendly reminder to complete the Project Information Sheet for {{PROJECT_TITLE}}{{PROPERTY_ADDRESS_LINE}}.",
+      cta_text: "Complete PIS →",
+      signoff: "If you've already submitted this, please disregard this message.",
+    },
+  },
 ];
 
 const categoryLabels: Record<string, string> = { client: "Client-Facing", internal: "Internal", partner: "Partner" };
@@ -338,7 +380,9 @@ function buildPreviewHtml(
       .replace(/\{\{PM_PHONE\}\}/g, "(555) 555-5678")
       .replace(/\{\{PROJECT_NUMBER\}\}/g, "2026-0012")
       .replace(/\{\{DUE_DATE\}\}/g, "April 18, 2026")
-      .replace(/\{\{BALANCE\}\}/g, "$0.00");
+      .replace(/\{\{BALANCE\}\}/g, "$0.00")
+      .replace(/\{\{BUG_TITLE\}\}/g, "Login page crashes on mobile Safari")
+      .replace(/\{\{PROPERTY_ADDRESS_LINE\}\}/g, " at 456 Park Avenue, New York, NY");
 
   const contactLine = [co.phone, co.email].filter(Boolean).join(" · ");
   const greeting = resolve(overrides.greeting);
@@ -418,6 +462,9 @@ function buildPreviewHtml(
     status_update: { label: "Status Update" },
     demand_letter: { label: "Formal Demand", number: "INV-00042" },
     referral_thankyou: { label: "Thank You" },
+    co_signed: { label: "CO Signed", number: "CO#1" },
+    bug_report: { label: "Bug Report" },
+    pis_reminder: { label: "PIS Reminder" },
   };
 
   const doc = docLabels[template.id] || { label: template.name };
@@ -899,6 +946,50 @@ function buildTemplateBody(
         </div>
         ${signoffHtml}`;
 
+    case "co_signed":
+      return `
+        <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
+          ${infoCard("Change Order", "CO#1", "Plumbing Scope Addition", headingClr)}
+          <td style="width:16px;"></td>
+          ${infoCard("Amount", "$2,400.00", undefined, headingClr)}
+        </tr></table>
+        ${greetingHtml}${bodyHtml}
+        <div style="border:1px solid ${BORDER};border-radius:8px;overflow:hidden;margin-bottom:24px;">
+          <table style="width:100%;border-collapse:collapse;">
+            <tbody>
+              <tr><td style="${tdMutedStyle}">Project</td><td style="${tdStyle}text-align:right;">Alt-1 Interior Renovation</td></tr>
+              <tr><td style="${tdMutedStyle}">Signed By</td><td style="${tdStyle}text-align:right;">John Smith</td></tr>
+              <tr><td style="${tdMutedStyle}border-bottom:none;">Signed On</td><td style="${tdStyle}border-bottom:none;text-align:right;">March 23, 2026</td></tr>
+            </tbody>
+          </table>
+        </div>
+        ${signoffHtml}`;
+
+    case "bug_report":
+      return `
+        ${greetingHtml}${bodyHtml}
+        <div style="background:#fef2f2;border-left:4px solid #ef4444;padding:14px 18px;margin-bottom:24px;border-radius:4px;">
+          <strong style="color:#b91c1c;font-size:15px;">Login page crashes on mobile Safari</strong>
+          <div style="margin-top:8px;color:#4b5563;font-size:13px;line-height:1.6;">
+            <div><strong>Priority:</strong> <span style="color:#dc2626;">High</span></div>
+            <div><strong>Reported by:</strong> Sarah Johnson</div>
+            <div style="margin-top:8px;">The login page throws a blank white screen when accessed on Safari iOS 17. Console shows a TypeError in the auth handler.</div>
+          </div>
+        </div>
+        ${ctaHtml}${signoffHtml}`;
+
+    case "pis_reminder":
+      return `
+        <table style="width:100%;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tr>
+          ${infoCard("Project", "Alt-1 Interior Renovation", "456 Park Avenue, New York, NY", headingClr)}
+        </tr></table>
+        ${greetingHtml}${bodyHtml}
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:20px;margin-bottom:24px;text-align:center;">
+          <p style="margin:0 0 8px;font-size:12px;text-transform:uppercase;color:#1e40af;font-weight:600;letter-spacing:0.8px;">Project Information Sheet</p>
+          <p style="margin:0;font-size:14px;color:#1e3a5f;line-height:1.5;">The form is partially complete. Please click below to finish filling it out.</p>
+        </div>
+        ${ctaHtml}${signoffHtml}`;
+
     default:
       return `${greetingHtml}${bodyHtml}${ctaHtml}${signoffHtml}`;
   }
@@ -1046,6 +1137,28 @@ export function EmailTemplateGallery() {
     }
   };
 
+  // Normalize an override to its full 5-field form using template defaults
+  const normalizeOverride = useCallback((templateId: string, ov: Partial<TemplateOverride> | undefined): TemplateOverride => {
+    const tmpl = TEMPLATES.find((t) => t.id === templateId);
+    const defaults = tmpl?.defaults || { subject: "", greeting: "", body_text: "", cta_text: "", signoff: "" };
+    if (!ov) return { ...defaults };
+    return {
+      subject: ov.subject ?? defaults.subject,
+      greeting: ov.greeting ?? defaults.greeting,
+      body_text: ov.body_text ?? defaults.body_text,
+      cta_text: ov.cta_text ?? defaults.cta_text,
+      signoff: ov.signoff ?? defaults.signoff,
+    };
+  }, []);
+
+  // Check if a specific template has unsaved changes
+  const isTemplateDirty = useCallback((templateId: string) => {
+    const savedOv = savedOverrides || {};
+    const savedNorm = normalizeOverride(templateId, (savedOv as any)[templateId]);
+    const currentNorm = normalizeOverride(templateId, overrides[templateId]);
+    return JSON.stringify(savedNorm) !== JSON.stringify(currentNorm);
+  }, [overrides, savedOverrides, normalizeOverride]);
+
   const isDirty = useMemo(() => {
     // Compare only the specific style keys we manage
     const ss = savedStyle || {} as any;
@@ -1059,15 +1172,14 @@ export function EmailTemplateGallery() {
       (ss.body_font_size || DEFAULT_STYLE.bodyFontSize) !== style.bodyFontSize;
     if (styleChanged) return true;
 
-    // Compare overrides — normalize both sides
-    const savedOv = savedOverrides || {};
-    const currentOv = Object.fromEntries(Object.entries(overrides).map(([k, v]) => [k, v]));
-    const allKeys = new Set([...Object.keys(savedOv), ...Object.keys(currentOv)]);
-    for (const key of allKeys) {
-      if (JSON.stringify((savedOv as any)[key] || {}) !== JSON.stringify(currentOv[key] || {})) return true;
+    // Compare overrides — normalize both sides using template defaults
+    for (const t of TEMPLATES) {
+      if (isTemplateDirty(t.id)) return true;
     }
     return false;
-  }, [style, overrides, savedStyle, savedOverrides]);
+  }, [style, overrides, savedStyle, savedOverrides, isTemplateDirty]);
+
+  const activeTemplateDirty = isTemplateDirty(activeTemplateId);
 
   // Available template variables for help text
   const variableHints: Record<string, string> = {
@@ -1082,6 +1194,10 @@ export function EmailTemplateGallery() {
     "{{DAYS_OVERDUE}}": "Days past due",
     "{{DUE_DATE}}": "Invoice due date",
     "{{BALANCE}}": "Remaining account balance",
+    "{{BUG_TITLE}}": "Bug report title",
+    "{{USER_NAME}}": "Internal user name",
+    "{{RFP_TITLE}}": "RFP title",
+    "{{PM_NAME}}": "Project manager name",
   };
 
   return (
@@ -1224,6 +1340,18 @@ export function EmailTemplateGallery() {
                     <Button variant="ghost" size="sm" onClick={resetTemplate} className="text-xs text-muted-foreground">
                       <RotateCcw className="h-3 w-3 mr-1" /> Reset to Default
                     </Button>
+                    {activeTemplateDirty && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSave}
+                        disabled={updateSettings.isPending}
+                        className="text-xs"
+                      >
+                        {updateSettings.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}
+                        Save Template
+                      </Button>
+                    )}
                   </div>
                   <div className="rounded-lg border border-border bg-muted/30 p-3">
                     <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Available Variables</p>
