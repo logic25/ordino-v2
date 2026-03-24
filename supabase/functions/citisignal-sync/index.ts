@@ -80,8 +80,10 @@ Deno.serve(async (req) => {
 
     // If we don't have a CitiSignal property ID, look it up by BIN first
     if (!citisignalPropertyId && lookupBin) {
-      const lookupUrl = `${citisignalApiUrl}/functions/v1/api-gateway?path=properties&bin=${encodeURIComponent(lookupBin)}`;
-      console.log(`Looking up CitiSignal property by BIN: ${lookupUrl}`);
+      // CitiSignal's "properties" endpoint returns all properties for the API key user.
+      // We fetch them and find the one matching our BIN.
+      const lookupUrl = `${citisignalApiUrl}/functions/v1/api-gateway?path=properties&per_page=100`;
+      console.log(`Looking up CitiSignal property by BIN ${lookupBin}`);
       const lookupResp = await fetch(lookupUrl, {
         method: "GET",
         headers: {
@@ -91,13 +93,21 @@ Deno.serve(async (req) => {
       });
       if (lookupResp.ok) {
         const lookupData = await lookupResp.json();
-        // Response could be an array or object with an id
-        const found = Array.isArray(lookupData) ? lookupData[0] : lookupData;
-        if (found?.id) {
-          citisignalPropertyId = found.id;
-          // Save for future lookups
-          await supabase.from("properties").update({ citisignal_property_id: found.id }).eq("id", property_id);
+        const properties = lookupData?.data || lookupData || [];
+        const matched = (Array.isArray(properties) ? properties : []).find(
+          (p: any) => String(p.bin) === String(lookupBin)
+        );
+        if (matched?.id) {
+          citisignalPropertyId = matched.id;
+          console.log(`Resolved CitiSignal property: ${matched.id} for BIN ${lookupBin}`);
+          // Cache for future lookups
+          await supabase.from("properties").update({ citisignal_property_id: matched.id }).eq("id", property_id);
+        } else {
+          console.log(`No CitiSignal property found for BIN ${lookupBin}. Got ${(Array.isArray(properties) ? properties : []).length} properties.`);
         }
+      } else {
+        const errText = await lookupResp.text();
+        console.error(`CitiSignal property lookup failed: ${lookupResp.status} — ${errText}`);
       }
     }
 
