@@ -34,7 +34,6 @@ interface COServiceLine {
 
 const schema = z.object({
   title: z.string().min(1, "Title is required"),
-  reason: z.string().optional(),
   requested_by: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -75,7 +74,7 @@ export function ChangeOrderDialog({
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { title: "", reason: "", requested_by: "", notes: "" },
+    defaultValues: { title: "", requested_by: "", notes: "" },
   });
 
   useEffect(() => {
@@ -83,7 +82,6 @@ export function ChangeOrderDialog({
       if (existingCO) {
         form.reset({
           title: existingCO.title,
-          reason: existingCO.reason ?? "",
           requested_by: existingCO.requested_by ?? "",
           notes: existingCO.notes ?? "",
         });
@@ -122,7 +120,7 @@ export function ChangeOrderDialog({
         }
         setDepositPct((existingCO as any).deposit_percentage || 0);
       } else {
-        form.reset({ title: "", reason: "", requested_by: "", notes: "" });
+        form.reset({ title: "", requested_by: "", notes: "" });
         setServiceLines([]);
         setDepositPct(0);
       }
@@ -207,7 +205,6 @@ export function ChangeOrderDialog({
     await onSubmit({
       title: values.title.trim(),
       description: serviceLines.map(s => s.name).join(", "),
-      reason: values.reason?.trim() || undefined,
       amount: totalAmount,
       requested_by: values.requested_by || undefined,
       linked_service_names: serviceLines.map(s => s.name),
@@ -252,16 +249,6 @@ export function ChangeOrderDialog({
             )}
           </div>
 
-          {/* Reason for Change */}
-          <div className="space-y-1.5">
-            <Label htmlFor="co-reason">Reason for Change</Label>
-            <Textarea
-              id="co-reason"
-              placeholder="e.g. PAA to address Schedule B — additional engineering review required"
-              className="min-h-[60px] text-sm"
-              {...form.register("reason")}
-            />
-          </div>
 
           {/* Services Section */}
           <div className="space-y-2">
