@@ -107,3 +107,6 @@ verify_jwt = false
 
 [functions.code-research]
 verify_jwt = false
+
+[functions.citisignal-sync]
+verify_jwt = false

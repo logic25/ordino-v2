@@ -5735,8 +5735,11 @@ export type Database = {
           aka_addresses: string[] | null
           bbl_verified: boolean | null
           bin: string | null
+          bis_profile_data: Json | null
           block: string | null
           borough: string | null
+          citisignal_property_id: string | null
+          co_status: string | null
           company_id: string
           created_at: string | null
           id: string
@@ -5746,6 +5749,8 @@ export type Database = {
           owner_contact: string | null
           owner_name: string | null
           updated_at: string | null
+          vacate_order: boolean | null
+          vacate_type: string | null
           zip_code: string | null
         }
         Insert: {
@@ -5753,8 +5758,11 @@ export type Database = {
           aka_addresses?: string[] | null
           bbl_verified?: boolean | null
           bin?: string | null
+          bis_profile_data?: Json | null
           block?: string | null
           borough?: string | null
+          citisignal_property_id?: string | null
+          co_status?: string | null
           company_id: string
           created_at?: string | null
           id?: string
@@ -5764,6 +5772,8 @@ export type Database = {
           owner_contact?: string | null
           owner_name?: string | null
           updated_at?: string | null
+          vacate_order?: boolean | null
+          vacate_type?: string | null
           zip_code?: string | null
         }
         Update: {
@@ -5771,8 +5781,11 @@ export type Database = {
           aka_addresses?: string[] | null
           bbl_verified?: boolean | null
           bin?: string | null
+          bis_profile_data?: Json | null
           block?: string | null
           borough?: string | null
+          citisignal_property_id?: string | null
+          co_status?: string | null
           company_id?: string
           created_at?: string | null
           id?: string
@@ -5782,6 +5795,8 @@ export type Database = {
           owner_contact?: string | null
           owner_name?: string | null
           updated_at?: string | null
+          vacate_order?: boolean | null
+          vacate_type?: string | null
           zip_code?: string | null
         }
         Relationships: [
