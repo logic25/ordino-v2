@@ -60,6 +60,8 @@ Deno.serve(async (req) => {
         return await queryProposals(supabase, params);
       case "query_invoices":
         return await queryInvoices(supabase, params);
+      case "query_ordino":
+        return await queryOrdino(supabase, params);
       default:
         return fail(`Unknown action: ${action}`);
     }
