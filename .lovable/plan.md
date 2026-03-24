@@ -1,31 +1,46 @@
 
 
-## Plan: Simplify Contact Roles + Replace DOB Role Column
+## Plan: Fix Sentry "Invalid time value" Errors
 
-### Status: Implemented ✅
+### Problem
+`RangeError: Invalid time value` crashes on property pages when `format(new Date(dateStr))` receives malformed date strings.
 
-### Changes Made
+### Changes
 
-1. **Removed "Signer" role** — `ContactRole` type now: `bill_to | cc | applicant`
-2. **Updated role options** — ProposalContactsSection shows Bill To, Applicant, CC
-3. **Updated migration logic** — `migrateProposalContactsToProject` migrates only `applicant` and `bill_to`, treats legacy `sign` as `bill_to`
-4. **Replaced "DOB Role" column** — ContactsFull.tsx now shows project role (Bill To, Applicant, Building Owner, CC, Contact) instead of `dobRoleLabels[c.dobRole]`
-5. **Updated role display** — `useProjectDetail.ts` maps roles correctly without "Signer"
-6. **Database migration** — Existing `sign` roles converted to `bill_to` in both `proposal_contacts` and `project_contacts`
-7. **PDF signature compat** — Preview modal and client proposal still check for legacy `sign` contacts as fallback
+#### 1. Create shared safe date utility
+**New file: `src/lib/dateUtils.ts`**
+```typescript
+import { format, isValid } from "date-fns";
 
-### Deferred
-- PIS owner auto-dedup into CRM contacts (synthetic owner row still works as-is)
+export function safeFormatDate(
+  dateStr: string | null | undefined,
+  fmt: string,
+  fallback = "—"
+): string {
+  if (!dateStr) return fallback;
+  const d = new Date(dateStr);
+  return isValid(d) ? format(d, fmt) : fallback;
+}
+```
 
----
+#### 2. Apply safe formatting to crash sites
 
-## Plan: Unify Service Conditions into Project Readiness
+- **`src/pages/PropertyDetail.tsx`** — line 771: replace `format(new Date(app.filed_date), ...)` with `safeFormatDate(app.filed_date, ...)`
+- **`src/components/properties/SignalSection.tsx`** — line 19-25: add `isValid` guard on `parseISO(expiresAt)` before using the date
+- **`src/components/properties/signal-enroll/CompSection.tsx`** — line 70: replace `format(new Date(computedExpiresAt), ...)` with `safeFormatDate`
+- **`src/components/properties/SignalEnrollDialog.tsx`** — line 136: replace `format(new Date(computedExpiresAt), ...)` with `safeFormatDate`
 
-### Status: Implemented ✅
+#### 3. Consolidate COSummaryView
+**`src/components/properties/co/COSummaryView.tsx`** — replace the local `safeFormat` helper (lines 24-27) with an import of the shared `safeFormatDate` utility. All existing `safeFormat` calls get renamed.
 
-### Changes Made
+### Other Sentry errors
+The `proposalDocumentHtml`, `paginated`, `ReadinessChecklist`, and `generateChecklist` reference errors are from stale cached JS bundles — no code fix needed. Resolve them manually in Sentry after this deploy.
 
-1. **Removed from Readiness panel** — "PIS Responses" collapsible, "Add Item" button, "Generate AI Checklist" button all removed
-2. **Service conditions → DB** — `ServicesFull.tsx` pre-filing conditions now use `useProjectChecklist` hooks instead of localStorage, writing to `project_checklist_items` with `source_service_id` and `source_catalog_name`
-3. **Service badge in Readiness** — Items with `source_catalog_name` show a small badge identifying which service they belong to
-4. **Kept**: PIS status bar + Edit PIS button, checklist items display, AI Follow-Up Draft button, Received section
+### Files
+- `src/lib/dateUtils.ts` (new)
+- `src/pages/PropertyDetail.tsx`
+- `src/components/properties/SignalSection.tsx`
+- `src/components/properties/signal-enroll/CompSection.tsx`
+- `src/components/properties/SignalEnrollDialog.tsx`
+- `src/components/properties/co/COSummaryView.tsx`
+
