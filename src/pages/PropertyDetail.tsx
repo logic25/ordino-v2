@@ -37,6 +37,7 @@ import { useCoSignOffs } from "@/hooks/useCoSignOffs";
 import {
   type COApplication, type COViolation,
 } from "@/components/properties/co/coMockData";
+import { decodeStatus, cleanDescription, deriveDocNumber, getDisplayApplicant, normalizeSource } from "@/components/properties/co/citisignalNormalize";
 import { fetchDOBApplications } from "@/hooks/useDOBApplications";
 import { fetchDOBViolations, fetchDOBComplaints, type DOBComplaintRecord } from "@/hooks/useDOBViolations";
 import { syncFromCitiSignal } from "@/hooks/useCitiSignalSync";
