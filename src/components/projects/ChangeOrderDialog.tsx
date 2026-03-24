@@ -23,10 +23,13 @@ import { formatCurrency } from "@/lib/utils";
 interface COServiceLine {
   id: string;
   name: string;
+  baseAmount: number;
   amount: number;
   description?: string;
   work_types?: string[];
   showWorkTypes?: boolean;
+  disciplineFee?: number;
+  hasDisciplinePricing?: boolean;
 }
 
 const schema = z.object({
@@ -88,13 +91,19 @@ export function ChangeOrderDialog({
         if (Array.isArray(storedItems) && storedItems.length > 0) {
           setServiceLines(storedItems.map((item: any, i: number) => {
             const catalogMatch = catalog.find(c => c.name === item.name);
+            const dFee = catalogMatch?.discipline_fee || 0;
+            const wt = item.work_types || [];
+            const base = item.amount - (dFee * wt.length);
             return {
               id: `existing-${i}`,
               name: item.name,
+              baseAmount: base > 0 ? base : item.amount || 0,
               amount: item.amount || 0,
               description: item.description || "",
-              work_types: item.work_types || [],
+              work_types: wt,
               showWorkTypes: catalogMatch?.show_work_types !== false,
+              disciplineFee: dFee,
+              hasDisciplinePricing: catalogMatch?.has_discipline_pricing || false,
             };
           }));
         } else {
@@ -103,11 +112,11 @@ export function ChangeOrderDialog({
             const perService = existingCO.amount / names.length;
             setServiceLines(names.map((n, i) => {
               const catalogMatch = catalog.find(c => c.name === n);
-              return { id: `existing-${i}`, name: n, amount: perService, description: "", work_types: [], showWorkTypes: catalogMatch?.show_work_types !== false };
+              return { id: `existing-${i}`, name: n, baseAmount: perService, amount: perService, description: "", work_types: [], showWorkTypes: catalogMatch?.show_work_types !== false, disciplineFee: catalogMatch?.discipline_fee || 0, hasDisciplinePricing: catalogMatch?.has_discipline_pricing || false };
             }));
           } else {
             setServiceLines(existingCO.amount !== 0
-              ? [{ id: "existing-0", name: existingCO.description || "Service", amount: existingCO.amount, showWorkTypes: false }]
+              ? [{ id: "existing-0", name: existingCO.description || "Service", baseAmount: existingCO.amount, amount: existingCO.amount, showWorkTypes: false, disciplineFee: 0, hasDisciplinePricing: false }]
               : []);
           }
         }
@@ -133,13 +142,17 @@ export function ChangeOrderDialog({
   }, [catalog, searchTerm]);
 
   const addServiceFromCatalog = (svc: ServiceCatalogItem) => {
+    const base = svc.default_price || 0;
     setServiceLines(prev => [...prev, {
       id: svc.id,
       name: svc.name,
-      amount: svc.default_price || 0,
+      baseAmount: base,
+      amount: base,
       description: svc.description,
       work_types: [],
       showWorkTypes: svc.show_work_types !== false,
+      disciplineFee: svc.discipline_fee || 0,
+      hasDisciplinePricing: svc.has_discipline_pricing || false,
     }]);
     setSearchTerm("");
   };
@@ -148,9 +161,12 @@ export function ChangeOrderDialog({
     setServiceLines(prev => [...prev, {
       id: `custom-${Date.now()}`,
       name: searchTerm.trim() || "Custom Service",
+      baseAmount: 0,
       amount: 0,
       work_types: [],
       showWorkTypes: false,
+      disciplineFee: 0,
+      hasDisciplinePricing: false,
     }]);
     setSearchTerm("");
   };
@@ -161,7 +177,12 @@ export function ChangeOrderDialog({
 
   const updateServiceAmount = (id: string, val: string) => {
     const num = parseFloat(val.replace(/[^0-9.-]/g, "")) || 0;
-    setServiceLines(prev => prev.map(l => l.id === id ? { ...l, amount: num } : l));
+    setServiceLines(prev => prev.map(l => {
+      if (l.id !== id) return l;
+      const wtCount = (l.work_types || []).length;
+      const fee = l.disciplineFee || 0;
+      return { ...l, baseAmount: num, amount: num + (fee * wtCount) };
+    }));
   };
 
   const updateServiceDescription = (id: string, val: string) => {
@@ -175,7 +196,8 @@ export function ChangeOrderDialog({
       const next = current.includes(discipline)
         ? current.filter(d => d !== discipline)
         : [...current, discipline];
-      return { ...l, work_types: next };
+      const fee = l.disciplineFee || 0;
+      return { ...l, work_types: next, amount: l.baseAmount + (fee * next.length) };
     }));
   };
 
@@ -266,7 +288,7 @@ export function ChangeOrderDialog({
                         <Input
                           className="text-right text-sm h-8"
                           placeholder="$0"
-                          value={line.amount !== 0 ? line.amount.toLocaleString("en-US") : ""}
+                          value={line.baseAmount !== 0 ? line.baseAmount.toLocaleString("en-US") : ""}
                           onChange={(e) => updateServiceAmount(line.id, e.target.value)}
                         />
                       </div>
@@ -284,7 +306,14 @@ export function ChangeOrderDialog({
                     {/* Work Type Picker */}
                     {line.showWorkTypes && (
                       <div className="pt-1">
-                        <Label className="text-xs text-muted-foreground mb-1.5 block">Work Types</Label>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs text-muted-foreground mb-1.5 block">Work Types</Label>
+                          {(line.work_types || []).length > 0 && (
+                            <span className="text-xs text-muted-foreground">
+                              {(line.work_types || []).length} selected{(line.disciplineFee || 0) > 0 ? ` · ${formatCurrency(line.disciplineFee!)}/work type` : ""}
+                            </span>
+                          )}
+                        </div>
                         <div className="flex flex-wrap gap-1.5">
                           {allDisciplines.map((d) => {
                             const selected = (line.work_types || []).includes(d);
@@ -304,6 +333,11 @@ export function ChangeOrderDialog({
                             );
                           })}
                         </div>
+                        {(line.work_types || []).length > 0 && (line.disciplineFee || 0) > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1.5">
+                            Base {formatCurrency(line.baseAmount)} + {(line.work_types || []).length} × {formatCurrency(line.disciplineFee!)} = {formatCurrency(line.amount)}
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
