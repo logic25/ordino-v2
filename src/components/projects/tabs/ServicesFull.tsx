@@ -142,10 +142,16 @@ function ServiceExpandedDetail({ service, projectName, projectId }: { service: M
   };
 
   const addReq = () => {
-    if (!newReqLabel.trim()) return;
-    const req = { id: `r-new-${Date.now()}`, label: newReqLabel, met: false, fromWhom: newReqFrom || undefined };
-    setLocalReqs(prev => [...prev, req]);
-    toast({ title: "Requirement added", description: newReqLabel });
+    if (!newReqLabel.trim() || !projectId) return;
+    addChecklistItem.mutate({
+      project_id: projectId,
+      label: newReqLabel,
+      category: "missing_document",
+      from_whom: newReqFrom || undefined,
+      source_service_id: service.id,
+      source_catalog_name: service.name,
+    });
+    toast({ title: "Condition added", description: newReqLabel });
     setNewReqLabel(""); setNewReqFrom(""); setShowAddReq(false);
   };
 
