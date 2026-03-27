@@ -568,6 +568,7 @@ function StepEditContent({
                                       <Checkbox
                                         checked={checked}
                                         onCheckedChange={() => onToggleProject(item.id)}
+                                        onClick={(e) => e.stopPropagation()}
                                         className="mt-2.5 flex-shrink-0"
                                       />
                                     )}
