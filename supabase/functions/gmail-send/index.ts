@@ -225,9 +225,11 @@ Deno.serve(async (req) => {
     const { to, cc, bcc, subject, html_body, reply_to_email_id, attachments, project_id, tag_category } = reqBody;
 
     if (!to || !subject || !html_body) {
+      console.error("Missing required fields", { to: !!to, subject: !!subject, html_body: !!html_body });
       return new Response(
         JSON.stringify({ error: "Missing required fields: to, subject, html_body" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
       );
     }
 
@@ -239,6 +241,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (!connection) {
+      console.error("Gmail not connected for profile:", profileId);
       return new Response(JSON.stringify({ error: "Gmail not connected" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -255,7 +258,8 @@ Deno.serve(async (req) => {
         gmailClientSecret
       );
       if (!refreshed) {
-        return new Response(JSON.stringify({ error: "Token refresh failed" }), {
+        console.error("Token refresh failed for connection:", connection.id, "profile:", profileId);
+        return new Response(JSON.stringify({ error: "Token refresh failed — please reconnect Gmail" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -349,6 +353,7 @@ Deno.serve(async (req) => {
     }
 
     if (sendData.error) {
+      console.error("Gmail API send error:", JSON.stringify(sendData.error), "to:", to);
       return new Response(
         JSON.stringify({ error: sendData.error.message || "Send failed" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
