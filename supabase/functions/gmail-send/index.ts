@@ -145,6 +145,7 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log("gmail-send invoked", { method: req.method, url: req.url });
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const gmailClientId = Deno.env.get("GMAIL_CLIENT_ID");
