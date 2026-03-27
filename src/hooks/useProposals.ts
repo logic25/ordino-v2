@@ -631,15 +631,15 @@ export function useSendProposal() {
 
       // 2. Determine recipient — use override if provided, else fall back to bill_to contact
       let clientEmail = recipientEmailOverride;
-      let clientName = recipientNameOverride || "Client";
+      // Always fetch Bill To contact for greeting name ("Dear ___"), regardless of who the email is sent to
+      const { data: contacts } = await supabase
+        .from("proposal_contacts")
+        .select("*")
+        .eq("proposal_id", id);
+      const billTo = (contacts || []).find((c: any) => c.role === "bill_to");
+      const clientName = billTo?.name || proposal.client_name || "Client";
       if (!clientEmail) {
-        const { data: contacts } = await supabase
-          .from("proposal_contacts")
-          .select("*")
-          .eq("proposal_id", id);
-        const billTo = (contacts || []).find((c: any) => c.role === "bill_to");
         clientEmail = billTo?.email || proposal.client_email;
-        clientName = billTo?.name || proposal.client_name || "Client";
       }
 
       if (!clientEmail) throw new Error("No client email address found on this proposal.");
