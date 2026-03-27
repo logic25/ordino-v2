@@ -94,7 +94,9 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
 
   const selectedRecipient = recipientOptions.find(r => r.id === selectedRecipientId) || recipientOptions[0];
   const clientEmail = selectedRecipient?.email || "";
-  const clientName = selectedRecipient?.name || "Client";
+  // Always use Bill To contact name for the greeting ("Dear ___"), regardless of who the email is sent to
+  const billToContact = contacts.find(c => c.role === "bill_to");
+  const clientName = billToContact?.name || proposal?.client_name || "Client";
   const token = (proposal as any)?.public_token;
   const clientLink = token ? `${window.location.origin}/proposal/${token}` : null;
 
