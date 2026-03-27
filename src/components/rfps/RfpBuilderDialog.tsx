@@ -557,11 +557,13 @@ function StepEditContent({
                             {items.map((item: any, idx: number) => {
                               const checked = selectedProjectIds.includes(item.id);
                               return (
-                                <button
+                                <div
                                   key={item.id || idx}
-                                  type="button"
-                                  className="w-full rounded-lg text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                  role="button"
+                                  tabIndex={0}
+                                  className="w-full rounded-lg text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
                                   onClick={() => isNotableProjects && onToggleProject(item.id)}
+                                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); isNotableProjects && onToggleProject(item.id); } }}
                                 >
                                   <div className="flex items-start gap-2">
                                     {isNotableProjects && (
@@ -578,7 +580,7 @@ function StepEditContent({
                                       </div>
                                     </div>
                                   </div>
-                                </button>
+                                </div>
                               );
                             })}
                           </div>
