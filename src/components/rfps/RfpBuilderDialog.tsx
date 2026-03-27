@@ -562,7 +562,13 @@ function StepEditContent({
                                   role="button"
                                   tabIndex={0}
                                   className="w-full rounded-lg text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
-                                  onClick={() => isNotableProjects && onToggleProject(item.id)}
+                                  onClick={(e) => {
+                                    if (!isNotableProjects) return;
+                                    // Prevent double-toggle: if the click originated from the Checkbox (a <button>), skip — onCheckedChange already handled it
+                                    const target = e.target as HTMLElement;
+                                    if (target.closest('[role="checkbox"]') || target.closest('button[type="button"]')) return;
+                                    onToggleProject(item.id);
+                                  }}
                                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); isNotableProjects && onToggleProject(item.id); } }}
                                 >
                                   <div className="flex items-start gap-2">
@@ -570,7 +576,6 @@ function StepEditContent({
                                       <Checkbox
                                         checked={checked}
                                         onCheckedChange={() => onToggleProject(item.id)}
-                                        onClick={(e) => e.stopPropagation()}
                                         className="mt-2.5 flex-shrink-0"
                                       />
                                     )}
