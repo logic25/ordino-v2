@@ -231,7 +231,6 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: "Missing required fields: to, subject, html_body" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
-      );
     }
 
     // Get connection
