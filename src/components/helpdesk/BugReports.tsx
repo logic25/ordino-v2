@@ -86,9 +86,7 @@ export function BugReports() {
 
   // Detail sheet
   const [selectedBug, setSelectedBug] = useState<any>(null);
-  const [editNotes, setEditNotes] = useState("");
   const [editStatus, setEditStatus] = useState("");
-  const [editAssignee, setEditAssignee] = useState("");
   const [newComment, setNewComment] = useState("");
   const [commentFiles, setCommentFiles] = useState<File[]>([]);
   const commentFileRef = useRef<HTMLInputElement>(null);
@@ -354,9 +352,7 @@ export function BugReports() {
 
   const openDetail = (bug: any) => {
     setSelectedBug(bug);
-    setEditNotes(bug.admin_notes || "");
     setEditStatus(bug.status || "open");
-    setEditAssignee(bug.assigned_to || "");
     setNewComment("");
     setCommentFiles([]);
     setStatusComment("");
@@ -378,8 +374,6 @@ export function BugReports() {
 
     const updates: Record<string, any> = {
       status: editStatus,
-      admin_notes: editNotes || null,
-      assigned_to: editAssignee === "__unassigned__" ? null : (editAssignee || null),
     };
     if (isNewlyResolved) {
       updates.resolved_at = new Date().toISOString();
@@ -395,15 +389,6 @@ export function BugReports() {
 
     if (editStatus !== selectedBug.status) {
       activities.push({ bug_id: bugId, company_id: companyId, user_id: profile.id, action_type: "status_change", field_changed: "status", old_value: selectedBug.status, new_value: editStatus });
-    }
-    const newAssignee = editAssignee === "__unassigned__" ? null : (editAssignee || null);
-    if (newAssignee !== (selectedBug.assigned_to || null)) {
-      const oldName = getAssigneeName(selectedBug.assigned_to) || "Unassigned";
-      const newName = getAssigneeName(newAssignee) || "Unassigned";
-      activities.push({ bug_id: bugId, company_id: companyId, user_id: profile.id, action_type: "assignment_change", field_changed: "assigned_to", old_value: oldName, new_value: newName });
-    }
-    if ((editNotes || "") !== (selectedBug.admin_notes || "")) {
-      activities.push({ bug_id: bugId, company_id: companyId, user_id: profile.id, action_type: "notes_updated", note: editNotes || undefined });
     }
 
     // Insert activity logs (best-effort)
@@ -477,7 +462,6 @@ export function BugReports() {
               bug_title: selectedBug.title,
               company_id: selectedBug.company_id,
               reporter_user_id: selectedBug.user_id,
-              admin_notes: editNotes || undefined,
               recent_comments: recentComments,
             },
           }).catch(() => {});
@@ -515,7 +499,6 @@ export function BugReports() {
               bug_id: selectedBug.id,
               bug_title: selectedBug.title,
               bug_description: selectedBug.description,
-              admin_notes: editNotes || selectedBug.admin_notes || "",
               company_id: selectedBug.company_id,
               reporter_user_id: selectedBug.user_id,
               recent_comments: recentComments,
@@ -538,7 +521,6 @@ export function BugReports() {
     ];
     if (selectedBug.loom_url) parts.push("", `Loom: ${selectedBug.loom_url}`);
     if (attachments.length > 0) parts.push("", `Screenshots:\n${attachments.map(a => `- ${a.url}`).join("\n")}`);
-    if (editNotes) parts.push("", `Admin Notes: ${editNotes}`);
     parts.push("", "Please analyze this bug and suggest a fix.");
 
     navigator.clipboard.writeText(parts.join("\n"));
@@ -1092,24 +1074,6 @@ export function BugReports() {
                       </div>
                     )}
 
-                    <div className="space-y-2">
-                      <Label>Assign To</Label>
-                      <Select value={editAssignee} onValueChange={setEditAssignee}>
-                        <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__unassigned__">Unassigned</SelectItem>
-                          {profiles.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.display_name || `${p.first_name} ${p.last_name}`}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Resolution Notes <span className="text-xs text-muted-foreground font-normal">(internal)</span></Label>
-                      <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Internal notes — not shown in emails..." rows={3} />
-                    </div>
 
                     <div className="flex gap-2">
                       <Button size="sm" onClick={saveDetail} disabled={updateBug.isPending}>
