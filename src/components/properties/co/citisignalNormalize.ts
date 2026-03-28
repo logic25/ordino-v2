@@ -172,7 +172,7 @@ export function getDisplayApplicant(app: Record<string, any>): string | null {
  */
 export function normalizeSource(source: string | null | undefined): string {
   if (!source) return "DOB_JOB_FILINGS";
-  const s = source.toUpperCase();
+  const s = String(source).toUpperCase();
   if (s === "BIS_SCRAPE" || s === "BIS" || s === "DOB BIS") return "BIS_SCRAPE";
   if (s === "DOB_NOW_BUILD" || s === "DOB_NOW" || s === "DOB NOW BUILD") return "DOB_NOW_BUILD";
   if (s === "DOB_NOW_ELECTRICAL" || s === "ELECTRICAL") return "DOB_NOW_ELECTRICAL";
