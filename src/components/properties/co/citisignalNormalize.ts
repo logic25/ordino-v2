@@ -56,7 +56,8 @@ function normalizeBisScrapedStatus(status: string, description?: string | null):
  * Normalize completion-like labels to canonical form
  */
 function normalizeCompletionLabel(label: string): string {
-  const lower = label.toLowerCase();
+  if (!label) return label || "";
+  const lower = String(label).toLowerCase();
   if (lower === "loc issued" || lower === "letter of completion") return "Signed Off";
   if (lower === "sign-off" || lower === "signed-off" || lower === "signed off") return "Signed Off";
   if (lower === "complete") return "Completed";
@@ -68,7 +69,8 @@ function normalizeCompletionLabel(label: string): string {
  * Normalize DOB NOW / Socrata status labels
  */
 function normalizeStatusLabel(status: string): string {
-  const lower = status.toLowerCase().trim();
+  if (!status) return "In Process";
+  const lower = String(status).toLowerCase().trim();
   if (
     lower === "permitted" ||
     lower === "permit issued" ||
@@ -92,15 +94,16 @@ export function decodeStatus(
   description?: string | null
 ): string {
   const src = source || "";
-  if (!status && src === "BIS_SCRAPE") return normalizeBisScrapedStatus("", description);
-  if (!status) return "In Process";
+  const safeStatus = status != null ? String(status) : null;
+  if (!safeStatus && src === "BIS_SCRAPE") return normalizeBisScrapedStatus("", description);
+  if (!safeStatus) return "In Process";
   let decoded: string;
   if (src === "BIS_SCRAPE") {
-    decoded = normalizeBisScrapedStatus(status, description);
-  } else if ((src === "DOB BIS" || src === "DOB_JOB_FILINGS" || src === "socrata") && status.length <= 2) {
-    decoded = BIS_STATUS_CODES[status.toUpperCase()] || status;
+    decoded = normalizeBisScrapedStatus(safeStatus, description);
+  } else if ((src === "DOB BIS" || src === "DOB_JOB_FILINGS" || src === "socrata") && safeStatus.length <= 2) {
+    decoded = BIS_STATUS_CODES[safeStatus.toUpperCase()] || safeStatus;
   } else {
-    decoded = normalizeStatusLabel(status);
+    decoded = normalizeStatusLabel(safeStatus);
   }
   return normalizeCompletionLabel(decoded);
 }
