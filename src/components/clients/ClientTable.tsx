@@ -25,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Edit, Trash2, Loader2, Eye, ChevronRight, ChevronDown, User, Pencil } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, Loader2, Eye, ChevronRight, ChevronDown, User, Pencil, UserPlus } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
