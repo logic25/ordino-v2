@@ -242,6 +242,10 @@ export function ClientTable({
                           <Eye className="h-4 w-4 mr-2" />
                           View / Edit
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setAddContactClientId(client.id)}>
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Add Contact
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive"
