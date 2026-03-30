@@ -25,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Edit, Trash2, Loader2, Eye, ChevronRight, ChevronDown, User, Pencil } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, Loader2, Eye, ChevronRight, ChevronDown, User, Pencil, UserPlus } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -34,6 +34,7 @@ import type { Client } from "@/hooks/useClients";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { EditContactDialog } from "./EditContactDialog";
+import { AddContactDialog } from "./AddContactDialog";
 
 function formatPhone(value: string | null | undefined): string {
   if (!value) return "";
@@ -140,6 +141,7 @@ export function ClientTable({
 }: ClientTableProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [addContactClientId, setAddContactClientId] = useState<string | null>(null);
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
@@ -240,6 +242,10 @@ export function ClientTable({
                           <Eye className="h-4 w-4 mr-2" />
                           View / Edit
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setAddContactClientId(client.id)}>
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Add Contact
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive"
@@ -287,6 +293,14 @@ export function ClientTable({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {addContactClientId && (
+        <AddContactDialog
+          open={!!addContactClientId}
+          onOpenChange={(open) => { if (!open) setAddContactClientId(null); }}
+          clientId={addContactClientId}
+        />
+      )}
     </>
   );
 }
