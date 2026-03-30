@@ -293,6 +293,14 @@ export function ClientTable({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {addContactClientId && (
+        <AddContactDialog
+          open={!!addContactClientId}
+          onOpenChange={(open) => { if (!open) setAddContactClientId(null); }}
+          clientId={addContactClientId}
+        />
+      )}
     </>
   );
 }
