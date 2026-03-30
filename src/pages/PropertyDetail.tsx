@@ -154,6 +154,9 @@ export default function PropertyDetail() {
             penalty: v.penalty_amount || null,
             agency: v.agency || "DOB ECB",
           }));
+          // Sort by most recent date first
+          apps.sort((a: any, b: any) => (b.latestActionDate || b.fileDate || "").localeCompare(a.latestActionDate || a.fileDate || ""));
+          apps.forEach((a: any, i: number) => (a.num = i + 1));
           setCoApps(apps);
           setCoViolations(viols);
           setCoImported(true);

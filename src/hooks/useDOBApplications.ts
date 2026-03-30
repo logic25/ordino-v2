@@ -226,13 +226,13 @@ export async function fetchDOBApplications(bin: string): Promise<COApplication[]
 
   // Fetch from all three datasets in parallel
   const [jobFilingsRes, dobNowRes, electricalRes] = await Promise.all([
-    fetch(`https://data.cityofnewyork.us/resource/ic3t-wcy2.json?bin__=${bin}&$limit=500`)
+    fetch(`https://data.cityofnewyork.us/resource/ic3t-wcy2.json?bin__=${bin}&$limit=5000&$order=latest_action_date DESC`)
       .then(r => r.ok ? r.json() : [])
       .catch(() => [] as DOBJobFiling[]),
-    fetch(`https://data.cityofnewyork.us/resource/w9ak-ipjd.json?bin=${bin}&$limit=500`)
+    fetch(`https://data.cityofnewyork.us/resource/w9ak-ipjd.json?bin=${bin}&$limit=5000&$order=filing_date DESC`)
       .then(r => r.ok ? r.json() : [])
       .catch(() => [] as DOBNowBuild[]),
-    fetch(`https://data.cityofnewyork.us/resource/dm9a-ab7w.json?bin=${bin}&$limit=500`)
+    fetch(`https://data.cityofnewyork.us/resource/dm9a-ab7w.json?bin=${bin}&$limit=5000&$order=filing_date DESC`)
       .then(r => r.ok ? r.json() : [])
       .catch(() => [] as DOBNowElectrical[]),
   ]);
