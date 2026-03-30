@@ -33,10 +33,6 @@ export function useProjectsByPM() {
         .map(([id, data]) => ({ id, ...data }))
         .sort((a, b) => b.projects - a.projects);
 
-      // If less than 2 real PMs, supplement with mock data
-      if (result.length < 2) {
-        return MOCK_PMS.map((m) => ({ id: m.id, name: m.name, projects: m.projects }));
-      }
       return result;
     },
   });
