@@ -146,8 +146,13 @@ export function AccountingView({ isVisible }: { isVisible?: (id: string) => bool
                 >
                   <div className="space-y-0.5">
                   <p className="font-medium text-sm" data-clarity-mask="true">
-                      {br.projects?.name || br.projects?.project_number || "Unknown project"}
+                      {br.projects?.project_number ? `${br.projects.project_number} — ` : ""}{br.projects?.name || "Unknown project"}
                     </p>
+                    {br.projects?.properties?.address && (
+                      <p className="text-xs text-muted-foreground" data-clarity-mask="true">
+                        {br.projects.properties.address}
+                      </p>
+                    )}
                     <p className="text-xs text-muted-foreground" data-clarity-mask="true">
                       Submitted by {br.created_by_profile?.first_name} {br.created_by_profile?.last_name}
                     </p>

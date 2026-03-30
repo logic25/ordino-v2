@@ -47,7 +47,7 @@ export function useBillingRequests(status?: string) {
         .from("billing_requests")
         .select(`
           *,
-          projects (id, name, project_number),
+          projects (id, name, project_number, properties (address)),
           created_by_profile:profiles!billing_requests_created_by_fkey (id, first_name, last_name),
           invoices!billing_requests_invoice_id_fkey (id, sent_at, paid_at)
         `)
