@@ -106,17 +106,7 @@ export function useTeamUtilization() {
         .filter((u) => u.totalHours > 0 || u.projects > 0)
         .sort((a, b) => b.totalHours - a.totalHours);
 
-      // Supplement with mock data if sparse
-      if (result.length < 2) {
-        result = MOCK_PMS.map((m) => ({
-          id: m.id,
-          name: m.name,
-          billableHours: m.billableHours,
-          totalHours: m.totalHours,
-          projects: m.projects,
-          rate: Math.round((m.billableHours / m.totalHours) * 100),
-        }));
-      }
+      // Show real data — no mock fallback
 
       return result;
     },
