@@ -111,6 +111,11 @@ export function BillingInboxView() {
                     <div className="text-xs text-muted-foreground truncate max-w-[200px]">
                       {req.projects?.name || "—"}
                     </div>
+                    {req.projects?.properties?.address && (
+                      <div className="text-xs text-muted-foreground truncate max-w-[200px]">
+                        {req.projects.properties.address}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="text-sm truncate max-w-[200px]">{serviceNames}</div>
