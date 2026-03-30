@@ -141,6 +141,7 @@ export function ClientTable({
 }: ClientTableProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [addContactClientId, setAddContactClientId] = useState<string | null>(null);
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
