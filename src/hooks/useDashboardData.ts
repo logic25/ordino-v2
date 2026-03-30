@@ -2,13 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-// Mock PM data for demonstration
-const MOCK_PMS = [
-  { id: "mock-pm-1", name: "Sarah Chen", role: "pm", projects: 3, billableHours: 5.5, totalHours: 7.3 },
-  { id: "mock-pm-2", name: "Marcus Rivera", role: "pm", projects: 2, billableHours: 3.5, totalHours: 4.0 },
-  { id: "mock-pm-3", name: "Diana Kowalski", role: "pm", projects: 4, billableHours: 2.5, totalHours: 4.0 },
-  { id: "mock-pm-4", name: "James Okonkwo", role: "pm", projects: 2, billableHours: 3.3, totalHours: 4.5 },
-];
 
 export function useProjectsByPM() {
   return useQuery({
@@ -40,10 +33,6 @@ export function useProjectsByPM() {
         .map(([id, data]) => ({ id, ...data }))
         .sort((a, b) => b.projects - a.projects);
 
-      // If less than 2 real PMs, supplement with mock data
-      if (result.length < 2) {
-        return MOCK_PMS.map((m) => ({ id: m.id, name: m.name, projects: m.projects }));
-      }
       return result;
     },
   });
@@ -106,17 +95,7 @@ export function useTeamUtilization() {
         .filter((u) => u.totalHours > 0 || u.projects > 0)
         .sort((a, b) => b.totalHours - a.totalHours);
 
-      // Supplement with mock data if sparse
-      if (result.length < 2) {
-        result = MOCK_PMS.map((m) => ({
-          id: m.id,
-          name: m.name,
-          billableHours: m.billableHours,
-          totalHours: m.totalHours,
-          projects: m.projects,
-          rate: Math.round((m.billableHours / m.totalHours) * 100),
-        }));
-      }
+      // Show real data — no mock fallback
 
       return result;
     },
