@@ -2,13 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-// Mock PM data for demonstration
-const MOCK_PMS = [
-  { id: "mock-pm-1", name: "Sarah Chen", role: "pm", projects: 3, billableHours: 5.5, totalHours: 7.3 },
-  { id: "mock-pm-2", name: "Marcus Rivera", role: "pm", projects: 2, billableHours: 3.5, totalHours: 4.0 },
-  { id: "mock-pm-3", name: "Diana Kowalski", role: "pm", projects: 4, billableHours: 2.5, totalHours: 4.0 },
-  { id: "mock-pm-4", name: "James Okonkwo", role: "pm", projects: 2, billableHours: 3.3, totalHours: 4.5 },
-];
 
 export function useProjectsByPM() {
   return useQuery({
