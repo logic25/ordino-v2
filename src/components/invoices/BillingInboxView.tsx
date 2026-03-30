@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, XCircle, Loader2, Receipt } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, Receipt, ChevronDown, ChevronRight } from "lucide-react";
 import {
   useBillingRequests,
   useCreateInvoiceFromRequest,
@@ -17,6 +17,7 @@ export function BillingInboxView() {
   const createInvoice = useCreateInvoiceFromRequest();
   const rejectRequest = useRejectBillingRequest();
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const handleCreateInvoice = async (req: BillingRequestWithRelations) => {
     setProcessingId(req.id);
@@ -73,6 +74,7 @@ export function BillingInboxView() {
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-8"></TableHead>
             <TableHead>Date</TableHead>
             <TableHead>Project</TableHead>
             <TableHead>Services</TableHead>
@@ -84,11 +86,11 @@ export function BillingInboxView() {
         <TableBody>
           {isLoading ? (
             <TableRow>
-              <TableCell colSpan={6} className="text-center text-muted-foreground py-8">Loading...</TableCell>
+              <TableCell colSpan={7} className="text-center text-muted-foreground py-8">Loading...</TableCell>
             </TableRow>
           ) : requests.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="text-center text-muted-foreground py-12">
+              <TableCell colSpan={7} className="text-center text-muted-foreground py-12">
                 <div className="flex flex-col items-center gap-2">
                   <CheckCircle2 className="h-8 w-8 text-muted-foreground/50" />
                   <p>All caught up — no pending billing requests</p>
@@ -100,64 +102,121 @@ export function BillingInboxView() {
               const services = (req.services as any[]) || [];
               const serviceNames = services.map((s) => s.name || s.description || "Service").join(", ");
               const isProcessing = processingId === req.id;
+              const isExpanded = expandedId === req.id;
 
               return (
-                <TableRow key={req.id}>
-                  <TableCell className="text-sm tabular-nums">
-                    {format(new Date(req.created_at), "MM/dd/yyyy")}
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm font-medium">{req.projects?.project_number || "—"}</div>
-                    <div className="text-xs text-muted-foreground truncate max-w-[200px]">
-                      {req.projects?.name || "—"}
-                    </div>
-                    {req.projects?.properties?.address && (
+                <>
+                  <TableRow
+                    key={req.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => setExpandedId(isExpanded ? null : req.id)}
+                  >
+                    <TableCell className="w-8 pr-0">
+                      {isExpanded ? (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm tabular-nums">
+                      {format(new Date(req.created_at), "MM/dd/yyyy")}
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm font-medium">{req.projects?.project_number || "—"}</div>
                       <div className="text-xs text-muted-foreground truncate max-w-[200px]">
-                        {req.projects.properties.address}
+                        {req.projects?.name || "—"}
                       </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm truncate max-w-[200px]">{serviceNames}</div>
-                    <div className="text-xs text-muted-foreground">{services.length} item{services.length !== 1 ? "s" : ""}</div>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums font-semibold text-sm">
-                    ${req.total_amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {req.created_by_profile
-                      ? `${req.created_by_profile.first_name || ""} ${req.created_by_profile.last_name || ""}`.trim()
-                      : "—"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <Button
-                        size="sm"
-                        variant="default"
-                        disabled={isProcessing}
-                        onClick={() => handleCreateInvoice(req)}
-                      >
-                        {isProcessing ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <>
-                            <Receipt className="h-3.5 w-3.5 mr-1" />
-                            Create Invoice
-                          </>
-                        )}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive"
-                        disabled={isProcessing}
-                        onClick={() => handleReject(req.id)}
-                      >
-                        <XCircle className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                      {req.projects?.properties?.address && (
+                        <div className="text-xs text-muted-foreground truncate max-w-[200px]">
+                          {req.projects.properties.address}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm truncate max-w-[200px]">{serviceNames}</div>
+                      <div className="text-xs text-muted-foreground">{services.length} item{services.length !== 1 ? "s" : ""}</div>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums font-semibold text-sm">
+                      ${req.total_amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {req.created_by_profile
+                        ? `${req.created_by_profile.first_name || ""} ${req.created_by_profile.last_name || ""}`.trim()
+                        : "—"}
+                    </TableCell>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="default"
+                          disabled={isProcessing}
+                          onClick={() => handleCreateInvoice(req)}
+                        >
+                          {isProcessing ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <>
+                              <Receipt className="h-3.5 w-3.5 mr-1" />
+                              Create Invoice
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive"
+                          disabled={isProcessing}
+                          onClick={() => handleReject(req.id)}
+                        >
+                          <XCircle className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  {isExpanded && (
+                    <TableRow key={`${req.id}-detail`} className="bg-muted/30 hover:bg-muted/30">
+                      <TableCell colSpan={7} className="p-0">
+                        <div className="px-6 py-4 space-y-3">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Line Items</p>
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="text-xs text-muted-foreground border-b border-border/50">
+                                <th className="text-left py-1.5 font-medium">Service</th>
+                                <th className="text-left py-1.5 font-medium">Description</th>
+                                <th className="text-right py-1.5 font-medium">Qty</th>
+                                <th className="text-right py-1.5 font-medium">Rate</th>
+                                <th className="text-right py-1.5 font-medium">Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {services.map((s: any, i: number) => (
+                                <tr key={i} className="border-b border-border/30 last:border-0">
+                                  <td className="py-2 font-medium">{s.name || "—"}</td>
+                                  <td className="py-2 text-muted-foreground">{s.description || "—"}</td>
+                                  <td className="py-2 text-right tabular-nums">{s.quantity ?? 1}</td>
+                                  <td className="py-2 text-right tabular-nums">
+                                    ${Number(s.rate || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                                  </td>
+                                  <td className="py-2 text-right tabular-nums font-medium">
+                                    ${Number(s.amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot>
+                              <tr className="border-t border-border">
+                                <td colSpan={4} className="py-2 text-right font-semibold text-xs uppercase text-muted-foreground">Total</td>
+                                <td className="py-2 text-right tabular-nums font-bold">
+                                  ${req.total_amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                                </td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </>
               );
             })
           )}
