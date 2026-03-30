@@ -34,6 +34,7 @@ import type { Client } from "@/hooks/useClients";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { EditContactDialog } from "./EditContactDialog";
+import { AddContactDialog } from "./AddContactDialog";
 
 function formatPhone(value: string | null | undefined): string {
   if (!value) return "";
