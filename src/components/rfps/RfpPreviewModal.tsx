@@ -61,65 +61,77 @@ export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalPro
       const A4_HEIGHT_MM = 297;
       const MARGIN_MM = 12;
       const CONTENT_WIDTH_MM = A4_WIDTH_MM - MARGIN_MM * 2;
+      const USABLE_HEIGHT_MM = A4_HEIGHT_MM - MARGIN_MM * 2;
       const SECTION_GAP_MM = 4;
+      const SCALE = 1.5;
 
-      // Find all top-level section divs inside the content container
+      // Find all section divs (including nested ones like individual narratives)
       const sectionEls = Array.from(
         contentRef.current.querySelectorAll("[data-pdf-section]")
       ) as HTMLElement[];
 
-      // Fallback: if no sections marked, capture the whole thing as one section
       const elements = sectionEls.length > 0 ? sectionEls : [contentRef.current];
 
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       let currentY = MARGIN_MM;
-      let isFirstSection = true;
+      let isFirstPage = true;
 
       for (const el of elements) {
         const canvas = await html2canvas(el, {
-          scale: 1.5, // Lower scale = much smaller file size while still readable
+          scale: SCALE,
           useCORS: true,
           backgroundColor: "#ffffff",
         });
 
-        const scaledW = canvas.width / 1.5;
-        const scaledH = canvas.height / 1.5;
-        const scaleFactor = CONTENT_WIDTH_MM / scaledW;
-        const heightMM = scaledH * scaleFactor;
+        const scaleFactor = CONTENT_WIDTH_MM / (canvas.width / SCALE);
+        const totalHeightMM = (canvas.height / SCALE) * scaleFactor;
 
-        const remainingSpace = A4_HEIGHT_MM - MARGIN_MM - currentY;
-
-        // If section won't fit, start a new page
-        if (heightMM > remainingSpace && !isFirstSection) {
-          pdf.addPage();
+        // If section fits on current page, add it directly
+        if (totalHeightMM <= (A4_HEIGHT_MM - MARGIN_MM - currentY)) {
+          const imgData = canvas.toDataURL("image/jpeg", 0.75);
+          pdf.addImage(imgData, "JPEG", MARGIN_MM, currentY, CONTENT_WIDTH_MM, totalHeightMM);
+          currentY += totalHeightMM + SECTION_GAP_MM;
+        } else if (totalHeightMM <= USABLE_HEIGHT_MM) {
+          // Section fits on a fresh page but not the current one
+          if (!isFirstPage || currentY > MARGIN_MM) {
+            pdf.addPage();
+          }
           currentY = MARGIN_MM;
-        }
+          const imgData = canvas.toDataURL("image/jpeg", 0.75);
+          pdf.addImage(imgData, "JPEG", MARGIN_MM, currentY, CONTENT_WIDTH_MM, totalHeightMM);
+          currentY += totalHeightMM + SECTION_GAP_MM;
+        } else {
+          // Section is taller than a page — crop canvas into page-sized slices
+          const pxPerMM = canvas.width / CONTENT_WIDTH_MM;
+          const sliceHeightPx = USABLE_HEIGHT_MM * pxPerMM;
+          let srcY = 0;
 
-        // Use JPEG at 75% quality instead of PNG to drastically reduce file size
-        const imgData = canvas.toDataURL("image/jpeg", 0.75);
-
-        // If a single section is taller than a full page, we need to split it
-        if (heightMM > A4_HEIGHT_MM - MARGIN_MM * 2) {
-          const usableHeight = A4_HEIGHT_MM - MARGIN_MM * 2;
-          let yOffset = 0;
-          while (yOffset < heightMM) {
-            if (yOffset > 0) {
+          while (srcY < canvas.height) {
+            if (currentY > MARGIN_MM || !isFirstPage) {
               pdf.addPage();
             }
-            pdf.addImage(
-              imgData, "JPEG",
-              MARGIN_MM, MARGIN_MM - yOffset,
-              CONTENT_WIDTH_MM, heightMM
-            );
-            yOffset += usableHeight;
+            currentY = MARGIN_MM;
+
+            const remainingPx = canvas.height - srcY;
+            const thisSlicePx = Math.min(sliceHeightPx, remainingPx);
+            const thisSliceMM = (thisSlicePx / pxPerMM);
+
+            // Create a cropped canvas for this slice
+            const sliceCanvas = document.createElement("canvas");
+            sliceCanvas.width = canvas.width;
+            sliceCanvas.height = thisSlicePx;
+            const ctx = sliceCanvas.getContext("2d")!;
+            ctx.drawImage(canvas, 0, srcY, canvas.width, thisSlicePx, 0, 0, canvas.width, thisSlicePx);
+
+            const sliceData = sliceCanvas.toDataURL("image/jpeg", 0.75);
+            pdf.addImage(sliceData, "JPEG", MARGIN_MM, currentY, CONTENT_WIDTH_MM, thisSliceMM);
+
+            currentY = MARGIN_MM + thisSliceMM + SECTION_GAP_MM;
+            srcY += thisSlicePx;
           }
-          currentY = MARGIN_MM + (heightMM % usableHeight || usableHeight);
-        } else {
-          pdf.addImage(imgData, "JPEG", MARGIN_MM, currentY, CONTENT_WIDTH_MM, heightMM);
-          currentY += heightMM + SECTION_GAP_MM;
         }
 
-        isFirstSection = false;
+        isFirstPage = false;
       }
 
       pdf.save(`RFP-Response-${rfp?.rfp_number || rfp?.title || "draft"}.pdf`);
@@ -264,7 +276,7 @@ function StaffBiosSection({ data }: { data: any[] }) {
           const c = item.content as StaffBioContent;
           const initials = c.name?.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2) || "?";
           return (
-            <div key={item.id} className="border rounded-xl p-4 hover:shadow-md transition-shadow border-l-4 border-l-accent/50">
+            <div key={item.id} data-pdf-section={`staff-${item.id}`} className="border rounded-xl p-4 hover:shadow-md transition-shadow border-l-4 border-l-accent/50">
               <div className="flex justify-between items-start">
                 <div className="flex items-start gap-3">
                   <div className="w-9 h-9 rounded-full bg-accent/15 flex items-center justify-center text-xs font-bold text-accent ring-2 ring-accent/20 flex-shrink-0">
@@ -439,7 +451,7 @@ function NotableProjectsSection({ data }: { data: any[] }) {
           const completionDate = proj.completion_date;
 
           return (
-            <div key={proj.id} className="border rounded-xl p-4 border-l-4 border-l-warning/50 hover:shadow-md transition-shadow">
+            <div key={proj.id} data-pdf-section={`project-${proj.id}`} className="border rounded-xl p-4 border-l-4 border-l-warning/50 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -545,7 +557,7 @@ function NarrativesSection({ data }: { data: any[] }) {
         {data.map((item) => {
           const text = (item.content as any)?.text || "";
           return (
-            <div key={item.id} className="border-l-4 border-l-success/40 pl-4">
+            <div key={item.id} data-pdf-section={`narrative-${item.id}`} className="border-l-4 border-l-success/40 pl-4">
               <p className="font-semibold text-sm mb-1">{item.title}</p>
               <p className="text-sm whitespace-pre-wrap leading-relaxed text-muted-foreground">{text}</p>
             </div>
