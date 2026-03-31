@@ -361,7 +361,8 @@ export function BugReports() {
   };
 
   const saveDetail = async () => {
-    if (!selectedBug || !profile) return;
+    if (!selectedBug || !profile || savingRef.current) return;
+    savingRef.current = true;
 
     const isReadyForReview = editStatus === "ready_for_review" && selectedBug.status !== "ready_for_review";
     const isNewlyResolved = editStatus === "resolved" && selectedBug.status !== "resolved";
