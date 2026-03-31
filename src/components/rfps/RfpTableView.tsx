@@ -108,7 +108,7 @@ function ExpandedRow({ rfp, onEdit, onBuild, onDelete }: { rfp: RfpWithProfiles;
 
   return (
     <TableRow className="bg-muted/30 hover:bg-muted/40">
-      <TableCell colSpan={9} className="py-4 px-6">
+      <TableCell colSpan={10} className="py-4 px-6">
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="space-y-1.5">
