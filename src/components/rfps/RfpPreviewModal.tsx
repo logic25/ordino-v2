@@ -163,7 +163,7 @@ export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalPro
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div ref={contentRef} className="space-y-6 px-6 py-5 bg-white">
             {sections.map((sectionId) => (
-              <div key={sectionId}>
+              <div key={sectionId} data-pdf-section={sectionId}>
                 {sectionId === "cover_letter" && coverLetter && <CoverLetterSection text={coverLetter} />}
                 {sectionId === "company_info" && <CompanyInfoSection data={companyInfo} />}
                 {sectionId === "staff_bios" && <StaffBiosSection data={staffBios} />}
