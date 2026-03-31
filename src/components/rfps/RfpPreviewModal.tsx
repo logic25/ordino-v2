@@ -50,8 +50,43 @@ interface RfpPreviewModalProps {
 
 export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalProps) {
   const { rfp, sections, companyInfo, staffBios, notableProjects, narratives, pricing, certs, coverLetter } = data;
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [exporting, setExporting] = useState(false);
 
-  const handlePrint = () => window.print();
+  const handleExportPdf = async () => {
+    if (!contentRef.current) return;
+    setExporting(true);
+    try {
+      const canvas = await html2canvas(contentRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        windowWidth: contentRef.current.scrollWidth,
+        windowHeight: contentRef.current.scrollHeight,
+      });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = 10;
+      const contentWidth = pageWidth - margin * 2;
+      const contentHeight = (canvas.height * contentWidth) / canvas.width;
+      let yOffset = 0;
+      const usableHeight = pageHeight - margin * 2;
+
+      while (yOffset < contentHeight) {
+        if (yOffset > 0) pdf.addPage();
+        pdf.addImage(imgData, "PNG", margin, margin - yOffset, contentWidth, contentHeight);
+        yOffset += usableHeight;
+      }
+
+      pdf.save(`RFP-Response-${rfp?.rfp_number || rfp?.title || "draft"}.pdf`);
+    } catch (e) {
+      console.error("PDF export failed", e);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -84,7 +119,7 @@ export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalPro
 
         {/* Content */}
         <div className="flex-1 min-h-0 overflow-y-auto">
-          <div className="space-y-6 px-6 py-5">
+          <div ref={contentRef} className="space-y-6 px-6 py-5 bg-white">
             {sections.map((sectionId) => (
               <div key={sectionId}>
                 {sectionId === "cover_letter" && coverLetter && <CoverLetterSection text={coverLetter} />}
@@ -107,9 +142,9 @@ export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalPro
             Close
           </Button>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handlePrint}>
-              <Printer className="h-4 w-4 mr-1" />
-              Print / PDF
+            <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={exporting}>
+              {exporting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Printer className="h-4 w-4 mr-1" />}
+              {exporting ? "Generating..." : "Export PDF"}
             </Button>
             <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90">
               <Send className="h-4 w-4 mr-1" />
