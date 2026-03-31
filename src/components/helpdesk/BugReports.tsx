@@ -508,6 +508,10 @@ export function BugReports() {
           }).catch(() => {});
         }
         setSelectedBug(null);
+        savingRef.current = false;
+      },
+      onError: () => {
+        savingRef.current = false;
       },
     });
   };
