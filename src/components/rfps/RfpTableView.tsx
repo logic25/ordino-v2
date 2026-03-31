@@ -19,7 +19,7 @@ import { RfpBuilderDialog } from "./RfpBuilderDialog";
 import { format, differenceInDays, isPast } from "date-fns";
 import type { RfpFilter } from "./RfpSummaryCards";
 
-type SortKey = "due_date" | "status" | "agency" | "title";
+type SortKey = "due_date" | "status" | "agency" | "title" | "created_at";
 type SortDir = "asc" | "desc";
 
 const statusOrder: Record<string, number> = { prospect: 0, drafting: 1, submitted: 2, won: 3, lost: 4 };
@@ -108,7 +108,7 @@ function ExpandedRow({ rfp, onEdit, onBuild, onDelete }: { rfp: RfpWithProfiles;
 
   return (
     <TableRow className="bg-muted/30 hover:bg-muted/40">
-      <TableCell colSpan={9} className="py-4 px-6">
+      <TableCell colSpan={10} className="py-4 px-6">
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="space-y-1.5">
@@ -222,6 +222,7 @@ export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps)
     list.sort((a, b) => {
       let cmp = 0;
       if (sortKey === "due_date") cmp = (a.due_date || "9999").localeCompare(b.due_date || "9999");
+      else if (sortKey === "created_at") cmp = (a.created_at || "").localeCompare(b.created_at || "");
       else if (sortKey === "status") cmp = (statusOrder[a.status] ?? 5) - (statusOrder[b.status] ?? 5);
       else if (sortKey === "agency") cmp = (a.agency || "").localeCompare(b.agency || "");
       else cmp = a.title.localeCompare(b.title);
@@ -270,6 +271,7 @@ export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps)
               <TableHead><SortHeader label="Agency" field="agency" /></TableHead>
               <TableHead><SortHeader label="Status" field="status" /></TableHead>
               <TableHead><SortHeader label="Due Date" field="due_date" /></TableHead>
+              <TableHead><SortHeader label="Date Entered" field="created_at" /></TableHead>
               <TableHead>Entered By</TableHead>
               <TableHead>Value</TableHead>
               <TableHead className="w-10"></TableHead>
@@ -301,6 +303,9 @@ export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps)
                     <TableCell className="text-sm">{rfp.agency || "—"}</TableCell>
                     <TableCell><RfpStatusBadge status={rfp.status} /></TableCell>
                     <TableCell><DueDateCell dueDate={rfp.due_date} /></TableCell>
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                      {rfp.created_at ? format(new Date(rfp.created_at), "MMM d, yyyy") : "—"}
+                    </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       <div>{createdByName || "—"}</div>
                       {submittedByName && rfp.submitted_at && (
