@@ -276,7 +276,7 @@ function StaffBiosSection({ data }: { data: any[] }) {
           const c = item.content as StaffBioContent;
           const initials = c.name?.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2) || "?";
           return (
-            <div key={item.id} className="border rounded-xl p-4 hover:shadow-md transition-shadow border-l-4 border-l-accent/50">
+            <div key={item.id} data-pdf-section={`staff-${item.id}`} className="border rounded-xl p-4 hover:shadow-md transition-shadow border-l-4 border-l-accent/50">
               <div className="flex justify-between items-start">
                 <div className="flex items-start gap-3">
                   <div className="w-9 h-9 rounded-full bg-accent/15 flex items-center justify-center text-xs font-bold text-accent ring-2 ring-accent/20 flex-shrink-0">
