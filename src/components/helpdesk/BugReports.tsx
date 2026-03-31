@@ -94,6 +94,7 @@ export function BugReports() {
   const [statusComment, setStatusComment] = useState("");
   const [statusCommentFiles, setStatusCommentFiles] = useState<File[]>([]);
   const statusCommentFileRef = useRef<HTMLInputElement>(null);
+  const savingRef = useRef(false);
 
   // Activity log query
   const { data: activityLogs = [] } = useQuery({
@@ -357,10 +358,12 @@ export function BugReports() {
     setCommentFiles([]);
     setStatusComment("");
     setStatusCommentFiles([]);
+    savingRef.current = false;
   };
 
   const saveDetail = async () => {
-    if (!selectedBug || !profile) return;
+    if (!selectedBug || !profile || savingRef.current) return;
+    savingRef.current = true;
 
     const isReadyForReview = editStatus === "ready_for_review" && selectedBug.status !== "ready_for_review";
     const isNewlyResolved = editStatus === "resolved" && selectedBug.status !== "resolved";
@@ -506,6 +509,10 @@ export function BugReports() {
           }).catch(() => {});
         }
         setSelectedBug(null);
+        savingRef.current = false;
+      },
+      onError: () => {
+        savingRef.current = false;
       },
     });
   };
