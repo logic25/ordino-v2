@@ -546,9 +546,10 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
                         const subj = isForward
                           ? (replyToEmail.subject?.startsWith("Fwd:") ? replyToEmail.subject : `Fwd: ${replyToEmail.subject || "(no subject)"}`)
                           : (replyToEmail.subject?.startsWith("Re:") ? replyToEmail.subject : `Re: ${replyToEmail.subject || "(no subject)"}`);
+                        const origContent = replyToEmail.body_html || replyToEmail.body_text || "";
                         const fwdBody = isForward
-                          ? `<div>${replyBody.replace(/\n/g, "<br/>")}</div><br/><hr/><p><strong>---------- Forwarded message ----------</strong><br/>From: ${replyToEmail.from_name || replyToEmail.from_email}<br/>Subject: ${replyToEmail.subject || ""}<br/></p>${replyToEmail.body_html || replyToEmail.body_text || ""}`
-                          : `<div>${replyBody.replace(/\n/g, "<br/>")}</div>`;
+                          ? `<div>${replyBody.replace(/\n/g, "<br/>")}</div><br/><hr/><p><strong>---------- Forwarded message ----------</strong><br/>From: ${replyToEmail.from_name || replyToEmail.from_email}<br/>Subject: ${replyToEmail.subject || ""}<br/></p>${origContent}`
+                          : `<div>${replyBody.replace(/\n/g, "<br/>")}</div><br/><div style="padding-left:8px;border-left:2px solid #ccc;color:#555;margin-top:8px"><p style="margin:0 0 4px"><strong>On ${replyToEmail.date ? new Date(replyToEmail.date).toLocaleDateString() : ""}, ${replyToEmail.from_name || replyToEmail.from_email} wrote:</strong></p>${origContent}</div>`;
                         await scheduleEmail.mutateAsync({
                           emailDraft: {
                             to: toAddr,
