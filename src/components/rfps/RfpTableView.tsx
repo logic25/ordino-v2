@@ -303,6 +303,9 @@ export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps)
                     <TableCell className="text-sm">{rfp.agency || "—"}</TableCell>
                     <TableCell><RfpStatusBadge status={rfp.status} /></TableCell>
                     <TableCell><DueDateCell dueDate={rfp.due_date} /></TableCell>
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                      {rfp.created_at ? format(new Date(rfp.created_at), "MMM d, yyyy") : "—"}
+                    </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       <div>{createdByName || "—"}</div>
                       {submittedByName && rfp.submitted_at && (
