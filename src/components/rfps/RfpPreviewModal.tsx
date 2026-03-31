@@ -451,7 +451,7 @@ function NotableProjectsSection({ data }: { data: any[] }) {
           const completionDate = proj.completion_date;
 
           return (
-            <div key={proj.id} className="border rounded-xl p-4 border-l-4 border-l-warning/50 hover:shadow-md transition-shadow">
+            <div key={proj.id} data-pdf-section={`project-${proj.id}`} className="border rounded-xl p-4 border-l-4 border-l-warning/50 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
