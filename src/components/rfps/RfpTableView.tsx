@@ -271,6 +271,7 @@ export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps)
               <TableHead><SortHeader label="Agency" field="agency" /></TableHead>
               <TableHead><SortHeader label="Status" field="status" /></TableHead>
               <TableHead><SortHeader label="Due Date" field="due_date" /></TableHead>
+              <TableHead><SortHeader label="Date Entered" field="created_at" /></TableHead>
               <TableHead>Entered By</TableHead>
               <TableHead>Value</TableHead>
               <TableHead className="w-10"></TableHead>
