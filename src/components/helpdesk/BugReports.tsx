@@ -94,6 +94,7 @@ export function BugReports() {
   const [statusComment, setStatusComment] = useState("");
   const [statusCommentFiles, setStatusCommentFiles] = useState<File[]>([]);
   const statusCommentFileRef = useRef<HTMLInputElement>(null);
+  const savingRef = useRef(false);
 
   // Activity log query
   const { data: activityLogs = [] } = useQuery({
