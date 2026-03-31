@@ -1,3 +1,4 @@
+import { useState, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,9 +13,12 @@ import { format } from "date-fns";
 import {
   Mail, Building2, Users, GitBranch, Star, FileText,
   DollarSign, Award, MapPin, Calendar, CheckCircle,
-  Printer, Send, X,
+  Printer, Send, X, Loader2, Image as ImageIcon,
 } from "lucide-react";
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
 import type { Rfp } from "@/hooks/useRfps";
+import { getProjectPhotoUrl } from "@/hooks/useProjectSheets";
 
 interface StaffBioContent {
   name: string;

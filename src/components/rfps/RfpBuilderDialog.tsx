@@ -108,6 +108,12 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
       _isSheet: true,
       _title: s.title,
       client_name: s.client_name,
+      photos: s.photos || [],
+      reference_contact_name: s.reference_contact_name,
+      reference_contact_title: s.reference_contact_title,
+      reference_contact_email: s.reference_contact_email,
+      reference_contact_phone: s.reference_contact_phone,
+      completion_date: s.completion_date,
     })),
   ];
 
