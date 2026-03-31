@@ -222,6 +222,7 @@ export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps)
     list.sort((a, b) => {
       let cmp = 0;
       if (sortKey === "due_date") cmp = (a.due_date || "9999").localeCompare(b.due_date || "9999");
+      else if (sortKey === "created_at") cmp = (a.created_at || "").localeCompare(b.created_at || "");
       else if (sortKey === "status") cmp = (statusOrder[a.status] ?? 5) - (statusOrder[b.status] ?? 5);
       else if (sortKey === "agency") cmp = (a.agency || "").localeCompare(b.agency || "");
       else cmp = a.title.localeCompare(b.title);
