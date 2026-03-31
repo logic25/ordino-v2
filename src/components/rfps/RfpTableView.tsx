@@ -19,7 +19,7 @@ import { RfpBuilderDialog } from "./RfpBuilderDialog";
 import { format, differenceInDays, isPast } from "date-fns";
 import type { RfpFilter } from "./RfpSummaryCards";
 
-type SortKey = "due_date" | "status" | "agency" | "title";
+type SortKey = "due_date" | "status" | "agency" | "title" | "created_at";
 type SortDir = "asc" | "desc";
 
 const statusOrder: Record<string, number> = { prospect: 0, drafting: 1, submitted: 2, won: 3, lost: 4 };
