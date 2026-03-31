@@ -545,7 +545,7 @@ function NarrativesSection({ data }: { data: any[] }) {
         {data.map((item) => {
           const text = (item.content as any)?.text || "";
           return (
-            <div key={item.id} className="border-l-4 border-l-success/40 pl-4">
+            <div key={item.id} data-pdf-section={`narrative-${item.id}`} className="border-l-4 border-l-success/40 pl-4">
               <p className="font-semibold text-sm mb-1">{item.title}</p>
               <p className="text-sm whitespace-pre-wrap leading-relaxed text-muted-foreground">{text}</p>
             </div>
