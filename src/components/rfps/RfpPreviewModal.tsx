@@ -61,65 +61,77 @@ export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalPro
       const A4_HEIGHT_MM = 297;
       const MARGIN_MM = 12;
       const CONTENT_WIDTH_MM = A4_WIDTH_MM - MARGIN_MM * 2;
+      const USABLE_HEIGHT_MM = A4_HEIGHT_MM - MARGIN_MM * 2;
       const SECTION_GAP_MM = 4;
+      const SCALE = 1.5;
 
-      // Find all top-level section divs inside the content container
+      // Find all section divs (including nested ones like individual narratives)
       const sectionEls = Array.from(
         contentRef.current.querySelectorAll("[data-pdf-section]")
       ) as HTMLElement[];
 
-      // Fallback: if no sections marked, capture the whole thing as one section
       const elements = sectionEls.length > 0 ? sectionEls : [contentRef.current];
 
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       let currentY = MARGIN_MM;
-      let isFirstSection = true;
+      let isFirstPage = true;
 
       for (const el of elements) {
         const canvas = await html2canvas(el, {
-          scale: 1.5, // Lower scale = much smaller file size while still readable
+          scale: SCALE,
           useCORS: true,
           backgroundColor: "#ffffff",
         });
 
-        const scaledW = canvas.width / 1.5;
-        const scaledH = canvas.height / 1.5;
-        const scaleFactor = CONTENT_WIDTH_MM / scaledW;
-        const heightMM = scaledH * scaleFactor;
+        const scaleFactor = CONTENT_WIDTH_MM / (canvas.width / SCALE);
+        const totalHeightMM = (canvas.height / SCALE) * scaleFactor;
 
-        const remainingSpace = A4_HEIGHT_MM - MARGIN_MM - currentY;
-
-        // If section won't fit, start a new page
-        if (heightMM > remainingSpace && !isFirstSection) {
-          pdf.addPage();
+        // If section fits on current page, add it directly
+        if (totalHeightMM <= (A4_HEIGHT_MM - MARGIN_MM - currentY)) {
+          const imgData = canvas.toDataURL("image/jpeg", 0.75);
+          pdf.addImage(imgData, "JPEG", MARGIN_MM, currentY, CONTENT_WIDTH_MM, totalHeightMM);
+          currentY += totalHeightMM + SECTION_GAP_MM;
+        } else if (totalHeightMM <= USABLE_HEIGHT_MM) {
+          // Section fits on a fresh page but not the current one
+          if (!isFirstPage || currentY > MARGIN_MM) {
+            pdf.addPage();
+          }
           currentY = MARGIN_MM;
-        }
+          const imgData = canvas.toDataURL("image/jpeg", 0.75);
+          pdf.addImage(imgData, "JPEG", MARGIN_MM, currentY, CONTENT_WIDTH_MM, totalHeightMM);
+          currentY += totalHeightMM + SECTION_GAP_MM;
+        } else {
+          // Section is taller than a page — crop canvas into page-sized slices
+          const pxPerMM = canvas.width / CONTENT_WIDTH_MM;
+          const sliceHeightPx = USABLE_HEIGHT_MM * pxPerMM;
+          let srcY = 0;
 
-        // Use JPEG at 75% quality instead of PNG to drastically reduce file size
-        const imgData = canvas.toDataURL("image/jpeg", 0.75);
-
-        // If a single section is taller than a full page, we need to split it
-        if (heightMM > A4_HEIGHT_MM - MARGIN_MM * 2) {
-          const usableHeight = A4_HEIGHT_MM - MARGIN_MM * 2;
-          let yOffset = 0;
-          while (yOffset < heightMM) {
-            if (yOffset > 0) {
+          while (srcY < canvas.height) {
+            if (currentY > MARGIN_MM || !isFirstPage) {
               pdf.addPage();
             }
-            pdf.addImage(
-              imgData, "JPEG",
-              MARGIN_MM, MARGIN_MM - yOffset,
-              CONTENT_WIDTH_MM, heightMM
-            );
-            yOffset += usableHeight;
+            currentY = MARGIN_MM;
+
+            const remainingPx = canvas.height - srcY;
+            const thisSlicePx = Math.min(sliceHeightPx, remainingPx);
+            const thisSliceMM = (thisSlicePx / pxPerMM);
+
+            // Create a cropped canvas for this slice
+            const sliceCanvas = document.createElement("canvas");
+            sliceCanvas.width = canvas.width;
+            sliceCanvas.height = thisSlicePx;
+            const ctx = sliceCanvas.getContext("2d")!;
+            ctx.drawImage(canvas, 0, srcY, canvas.width, thisSlicePx, 0, 0, canvas.width, thisSlicePx);
+
+            const sliceData = sliceCanvas.toDataURL("image/jpeg", 0.75);
+            pdf.addImage(sliceData, "JPEG", MARGIN_MM, currentY, CONTENT_WIDTH_MM, thisSliceMM);
+
+            currentY = MARGIN_MM + thisSliceMM + SECTION_GAP_MM;
+            srcY += thisSlicePx;
           }
-          currentY = MARGIN_MM + (heightMM % usableHeight || usableHeight);
-        } else {
-          pdf.addImage(imgData, "JPEG", MARGIN_MM, currentY, CONTENT_WIDTH_MM, heightMM);
-          currentY += heightMM + SECTION_GAP_MM;
         }
 
-        isFirstSection = false;
+        isFirstPage = false;
       }
 
       pdf.save(`RFP-Response-${rfp?.rfp_number || rfp?.title || "draft"}.pdf`);
