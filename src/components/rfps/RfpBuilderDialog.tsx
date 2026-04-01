@@ -34,6 +34,7 @@ import { useRfpDraft, useUpsertRfpDraft, useDeleteRfpDraft } from "@/hooks/useRf
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { RfpPreviewModal } from "./RfpPreviewModal";
+import { buildRfpEmailHtml } from "./buildRfpEmailBody";
 import { SortableSectionItem } from "./builder/SortableSectionItem";
 import { useNavigate } from "react-router-dom";
 import { useTelemetry } from "@/hooks/useTelemetry";
@@ -238,11 +239,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   };
 
   const buildEmailBody = () => {
-    const parts: string[] = [];
-    if (coverLetter) parts.push(coverLetter.replace(/\n/g, "<br>"));
-    parts.push(`<br><br><hr><strong>RFP Response: ${rfp?.title}</strong><br>`);
-    parts.push("Please find our complete RFP response package attached.");
-    return `<div style="font-family: Arial, sans-serif; line-height: 1.6;">${parts.join("\n")}</div>`;
+    return buildRfpEmailHtml(assembledContent);
   };
 
   // Filtered notable projects based on selection
