@@ -192,15 +192,21 @@ Deno.serve(async (req) => {
       // Store parsed body for later use
       (req as any)._parsedBody = { to, cc, bcc, subject, html_body, reply_to_email_id, attachments };
     } else {
-      const supabaseUser = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+      const supabaseUser = createClient(supabaseUrl, anonKey, {
         global: { headers: { Authorization: authHeader } },
       });
 
       const {
         data: { user },
+        error: userError,
       } = await supabaseUser.auth.getUser();
+      if (userError) {
+        console.error("getUser error:", userError.message, userError.status);
+      }
       if (!user) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        console.error("getUser returned null user. Auth header present:", !!authHeader, "Token prefix:", authHeader?.substring(0, 20));
+        return new Response(JSON.stringify({ error: "Unauthorized", detail: userError?.message || "getUser returned null" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
