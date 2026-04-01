@@ -22,7 +22,7 @@ export function useRfps() {
           created_by_profile:profiles!rfps_created_by_fkey(first_name, last_name, display_name),
           submitted_by_profile:profiles!rfps_submitted_by_fkey(first_name, last_name, display_name)
         `)
-        .order("due_date", { ascending: true });
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return data as RfpWithProfiles[];
     },
