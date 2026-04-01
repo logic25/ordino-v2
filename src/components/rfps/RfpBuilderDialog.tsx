@@ -34,6 +34,7 @@ import { useRfpDraft, useUpsertRfpDraft, useDeleteRfpDraft } from "@/hooks/useRf
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { RfpPreviewModal } from "./RfpPreviewModal";
+import { buildRfpEmailHtml } from "./buildRfpEmailBody";
 import { SortableSectionItem } from "./builder/SortableSectionItem";
 import { useNavigate } from "react-router-dom";
 import { useTelemetry } from "@/hooks/useTelemetry";
