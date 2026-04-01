@@ -239,11 +239,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   };
 
   const buildEmailBody = () => {
-    const parts: string[] = [];
-    if (coverLetter) parts.push(coverLetter.replace(/\n/g, "<br>"));
-    parts.push(`<br><br><hr><strong>RFP Response: ${rfp?.title}</strong><br>`);
-    parts.push("Please find our complete RFP response package attached.");
-    return `<div style="font-family: Arial, sans-serif; line-height: 1.6;">${parts.join("\n")}</div>`;
+    return buildRfpEmailHtml(assembledContent);
   };
 
   // Filtered notable projects based on selection
