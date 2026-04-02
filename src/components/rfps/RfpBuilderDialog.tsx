@@ -214,11 +214,37 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     if (!submitEmail || !rfp) return;
     setSubmitting(true);
     try {
+      // Collect certification file attachments
+      const attachments: { filename: string; content: string; mime_type: string }[] = [];
+      const certsWithFiles = certs.filter((c) => c.file_url);
+      for (const cert of certsWithFiles) {
+        try {
+          const res = await fetch(cert.file_url!);
+          if (!res.ok) continue;
+          const blob = await res.blob();
+          const arrayBuf = await blob.arrayBuffer();
+          const bytes = new Uint8Array(arrayBuf);
+          let binary = "";
+          for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+          const base64 = btoa(binary);
+          const ext = cert.file_url!.split(".").pop()?.split("?")[0] || "pdf";
+          const filename = `${cert.title.replace(/[^a-zA-Z0-9_\- ]/g, "")}.${ext}`;
+          attachments.push({
+            filename,
+            content: base64,
+            mime_type: blob.type || "application/pdf",
+          });
+        } catch {
+          console.warn("Failed to fetch cert attachment:", cert.title);
+        }
+      }
+
       const { error } = await supabase.functions.invoke("gmail-send", {
         body: {
           to: submitEmail,
           subject: `RFP Response: ${rfp.title}${rfp.rfp_number ? ` (#${rfp.rfp_number})` : ""}`,
           html_body: buildEmailBody(),
+          attachments: attachments.length > 0 ? attachments : undefined,
         },
       });
       if (error) throw error;
