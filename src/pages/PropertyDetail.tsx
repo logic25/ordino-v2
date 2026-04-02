@@ -98,14 +98,63 @@ export default function PropertyDetail() {
   const isSubscriptionActive = subscription?.status === "active" || subscription?.status === "trial";
   const isSubscriptionInactive = subscription?.status === "prospect" || subscription?.status === "expired";
 
-  // Auto-fetch DOB data when CitiSignal is active and property has BIN
-  const autoFetchedRef = useRef(false);
+  // Pre-populate from persisted signal data so we don't show "Import" again
+  const prePopulatedRef = useRef(false);
   useEffect(() => {
-    if (autoFetchedRef.current) return;
-    if (!property?.bin) return;
-    if (!isSubscriptionActive) return;
+    if (prePopulatedRef.current) return;
     if (coImported || coImporting) return;
-    autoFetchedRef.current = true;
+    if (!signalApps || signalApps.length === 0) return;
+    prePopulatedRef.current = true;
+
+    // Map persisted signal_applications to COApplication shape
+    const apps: COApplication[] = signalApps.map((a: any, i: number) => {
+      const src = normalizeSource(a.raw_data?.source || "DOB_JOB_FILINGS");
+      const jobNum = a.job_number || "";
+      return {
+        ...a.raw_data,
+        jobNum,
+        workType: a.application_type || "Unknown",
+        status: decodeStatus(a.filing_status, src, a.description),
+        tenant: getDisplayApplicant(a.raw_data || a),
+        fileDate: a.filed_date || "",
+        desc: cleanDescription(a.description),
+        source: src,
+        docNum: deriveDocNumber(jobNum, a.raw_data?.doc_number || a.raw_data?.document_number),
+        jobType: a.raw_data?.job_type || a.application_type || "",
+        floor: a.raw_data?.floor || "",
+        latestActionDate: a.raw_data?.latest_action_date || a.filed_date || "",
+        action: "",
+        priority: "Medium" as const,
+        num: i + 1,
+      };
+    });
+    apps.sort((a: any, b: any) => (b.latestActionDate || b.fileDate || "").localeCompare(a.latestActionDate || a.fileDate || ""));
+    apps.forEach((a: any, i: number) => (a.num = i + 1));
+
+    // Map persisted signal_violations
+    const viols: COViolation[] = violations.map((v: any) => ({
+      ...v.raw_data,
+      violationNum: v.violation_number || "",
+      type: v.raw_data?.violation_class ? `${v.agency || "DOB"} ${v.raw_data.violation_class}` : `${v.agency || "DOB"} VIOLATION`,
+      fileDate: v.issued_date || "",
+      status: (() => {
+        const u = (v.status || "").toLowerCase();
+        if (u === "closed" || u === "resolved") return "Resolved" as const;
+        if (u === "dismissed") return "Dismissed" as const;
+        return "Active" as const;
+      })(),
+      resolutionPlan: v.description || "",
+      assignedTo: null,
+      priority: "Medium" as const,
+      penalty: v.penalty_amount || null,
+      agency: v.agency || "DOB ECB",
+    }));
+
+    setCoApps(apps);
+    setCoViolations(viols);
+    setCoImported(true);
+    setLastSynced("Cached (refresh for latest)");
+  }, [signalApps, violations, coImported, coImporting]);
     (async () => {
       setCoImporting(true);
       try {
