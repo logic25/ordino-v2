@@ -98,21 +98,77 @@ export default function PropertyDetail() {
   const isSubscriptionActive = subscription?.status === "active" || subscription?.status === "trial";
   const isSubscriptionInactive = subscription?.status === "prospect" || subscription?.status === "expired";
 
-  // Auto-fetch DOB data when CitiSignal is active and property has BIN
+  // Pre-populate from persisted signal data so we don't show "Import" again
+  const prePopulatedRef = useRef(false);
+  useEffect(() => {
+    if (prePopulatedRef.current) return;
+    if (coImported || coImporting) return;
+    if (!signalApps || signalApps.length === 0) return;
+    prePopulatedRef.current = true;
+
+    // Map persisted signal_applications to COApplication shape
+    const apps: COApplication[] = signalApps.map((a: any, i: number) => {
+      const src = normalizeSource(a.raw_data?.source || "DOB_JOB_FILINGS");
+      const jobNum = a.job_number || "";
+      return {
+        ...a.raw_data,
+        jobNum,
+        workType: a.application_type || "Unknown",
+        status: decodeStatus(a.filing_status, src, a.description),
+        tenant: getDisplayApplicant(a.raw_data || a),
+        fileDate: a.filed_date || "",
+        desc: cleanDescription(a.description),
+        source: src,
+        docNum: deriveDocNumber(jobNum, a.raw_data?.doc_number || a.raw_data?.document_number),
+        jobType: a.raw_data?.job_type || a.application_type || "",
+        floor: a.raw_data?.floor || "",
+        latestActionDate: a.raw_data?.latest_action_date || a.filed_date || "",
+        action: "",
+        priority: "Medium" as const,
+        num: i + 1,
+      };
+    });
+    apps.sort((a: any, b: any) => (b.latestActionDate || b.fileDate || "").localeCompare(a.latestActionDate || a.fileDate || ""));
+    apps.forEach((a: any, i: number) => (a.num = i + 1));
+
+    // Map persisted signal_violations
+    const viols: COViolation[] = violations.map((v: any) => ({
+      ...v.raw_data,
+      violationNum: v.violation_number || "",
+      type: v.raw_data?.violation_class ? `${v.agency || "DOB"} ${v.raw_data.violation_class}` : `${v.agency || "DOB"} VIOLATION`,
+      fileDate: v.issued_date || "",
+      status: (() => {
+        const u = (v.status || "").toLowerCase();
+        if (u === "closed" || u === "resolved") return "Resolved" as const;
+        if (u === "dismissed") return "Dismissed" as const;
+        return "Active" as const;
+      })(),
+      resolutionPlan: v.description || "",
+      assignedTo: null,
+      priority: "Medium" as const,
+      penalty: v.penalty_amount || null,
+      agency: v.agency || "DOB ECB",
+    }));
+
+    setCoApps(apps);
+    setCoViolations(viols);
+    setCoImported(true);
+    setLastSynced("Cached (refresh for latest)");
+  }, [signalApps, violations, coImported, coImporting]);
+
+  // Auto-refresh from CitiSignal when subscription is active (background, non-blocking)
   const autoFetchedRef = useRef(false);
   useEffect(() => {
     if (autoFetchedRef.current) return;
     if (!property?.bin) return;
     if (!isSubscriptionActive) return;
-    if (coImported || coImporting) return;
+    // Only auto-refresh if we already have cached data loaded
+    if (!coImported || coImporting) return;
     autoFetchedRef.current = true;
     (async () => {
-      setCoImporting(true);
       try {
-        // Try CitiSignal first
         const csResult = await syncFromCitiSignal(id!, property.bin);
-        if (csResult) {
-          // CitiSignal returned data — map to COApplication shape with normalization
+        if (csResult && csResult.applications.length > 0) {
           const rawSrc = (a: any) => a.source || a.bis_scrape_source || "DOB_JOB_FILINGS";
           const apps = csResult.applications.map((a: any) => {
             const src = normalizeSource(rawSrc(a));
@@ -154,73 +210,17 @@ export default function PropertyDetail() {
             penalty: v.penalty_amount || null,
             agency: v.agency || "DOB ECB",
           }));
-          // Sort by most recent date first
           apps.sort((a: any, b: any) => (b.latestActionDate || b.fileDate || "").localeCompare(a.latestActionDate || a.fileDate || ""));
           apps.forEach((a: any, i: number) => (a.num = i + 1));
           setCoApps(apps);
           setCoViolations(viols);
-          setCoImported(true);
           setLastSynced(format(new Date(), "MM/dd/yyyy h:mm a") + " (CitiSignal)");
-        } else {
-          // Fallback to direct Socrata fetch
-          const [apps, viols, complaints] = await Promise.all([
-            fetchDOBApplications(property.bin!),
-            fetchDOBViolations(property.bin!, property.borough, property.block, property.lot),
-            fetchDOBComplaints(property.bin!),
-          ]);
-          setCoApps(apps);
-          setCoViolations(viols);
-          setCoComplaints(complaints);
-          setCoImported(true);
-          setLastSynced(format(new Date(), "MM/dd/yyyy h:mm a"));
-
-          // Persist to signal tables
-          if (profile?.company_id && id) {
-            try {
-              if (apps.length > 0) {
-                const appRows = apps.map((a: any) => ({
-                  property_id: id,
-                  company_id: profile.company_id,
-                  job_number: a.jobNum || a.job_number || "",
-                  application_type: a.workType || a.application_type || "Unknown",
-                  filing_status: a.status || null,
-                  applicant_name: a.applicant || null,
-                  filed_date: a.fileDate || a.filedDate || null,
-                  description: a.desc || a.description || null,
-                  raw_data: a,
-                }));
-                await supabase.from("signal_applications").upsert(appRows as any, { onConflict: "property_id,job_number" });
-              }
-              if (viols.length > 0) {
-                const violRows = viols.map((v: any) => ({
-                  property_id: id,
-                  company_id: profile.company_id,
-                  violation_number: v.violationNum || v.violation_number || "",
-                  agency: v.agency || "DOB",
-                  status: v.status || "open",
-                  description: v.description || null,
-                  penalty_amount: v.penaltyAmount || v.penalty_amount || 0,
-                  issued_date: v.issuedDate || null,
-                  raw_data: v,
-                }));
-                await supabase.from("signal_violations").upsert(violRows as any, { onConflict: "property_id,violation_number" });
-              }
-            } catch (persistErr) {
-              console.error("Error persisting DOB data:", persistErr);
-            }
-          }
-        }
-
-        if ((csResult?.applications?.length ?? 0) === 0 && !csResult) {
-          // Only show "no data" if Socrata also returned nothing
         }
       } catch {
-        // Silent fail on auto-fetch; user can manually retry
-      } finally {
-        setCoImporting(false);
+        // Silent fail on background refresh
       }
     })();
-  }, [property?.bin, isSubscriptionActive, coImported, coImporting, toast, profile?.company_id, id]);
+  }, [property?.bin, isSubscriptionActive, coImported, coImporting, id]);
 
   // Import DOB data — tries CitiSignal first, falls back to Socrata
   const handleImportDOBData = useCallback(async () => {
