@@ -155,13 +155,20 @@ export default function PropertyDetail() {
     setCoImported(true);
     setLastSynced("Cached (refresh for latest)");
   }, [signalApps, violations, coImported, coImporting]);
+
+  // Auto-refresh from CitiSignal when subscription is active (background, non-blocking)
+  const autoFetchedRef = useRef(false);
+  useEffect(() => {
+    if (autoFetchedRef.current) return;
+    if (!property?.bin) return;
+    if (!isSubscriptionActive) return;
+    // Only auto-refresh if we already have cached data loaded
+    if (!coImported || coImporting) return;
+    autoFetchedRef.current = true;
     (async () => {
-      setCoImporting(true);
       try {
-        // Try CitiSignal first
         const csResult = await syncFromCitiSignal(id!, property.bin);
-        if (csResult) {
-          // CitiSignal returned data — map to COApplication shape with normalization
+        if (csResult && csResult.applications.length > 0) {
           const rawSrc = (a: any) => a.source || a.bis_scrape_source || "DOB_JOB_FILINGS";
           const apps = csResult.applications.map((a: any) => {
             const src = normalizeSource(rawSrc(a));
@@ -203,73 +210,17 @@ export default function PropertyDetail() {
             penalty: v.penalty_amount || null,
             agency: v.agency || "DOB ECB",
           }));
-          // Sort by most recent date first
           apps.sort((a: any, b: any) => (b.latestActionDate || b.fileDate || "").localeCompare(a.latestActionDate || a.fileDate || ""));
           apps.forEach((a: any, i: number) => (a.num = i + 1));
           setCoApps(apps);
           setCoViolations(viols);
-          setCoImported(true);
           setLastSynced(format(new Date(), "MM/dd/yyyy h:mm a") + " (CitiSignal)");
-        } else {
-          // Fallback to direct Socrata fetch
-          const [apps, viols, complaints] = await Promise.all([
-            fetchDOBApplications(property.bin!),
-            fetchDOBViolations(property.bin!, property.borough, property.block, property.lot),
-            fetchDOBComplaints(property.bin!),
-          ]);
-          setCoApps(apps);
-          setCoViolations(viols);
-          setCoComplaints(complaints);
-          setCoImported(true);
-          setLastSynced(format(new Date(), "MM/dd/yyyy h:mm a"));
-
-          // Persist to signal tables
-          if (profile?.company_id && id) {
-            try {
-              if (apps.length > 0) {
-                const appRows = apps.map((a: any) => ({
-                  property_id: id,
-                  company_id: profile.company_id,
-                  job_number: a.jobNum || a.job_number || "",
-                  application_type: a.workType || a.application_type || "Unknown",
-                  filing_status: a.status || null,
-                  applicant_name: a.applicant || null,
-                  filed_date: a.fileDate || a.filedDate || null,
-                  description: a.desc || a.description || null,
-                  raw_data: a,
-                }));
-                await supabase.from("signal_applications").upsert(appRows as any, { onConflict: "property_id,job_number" });
-              }
-              if (viols.length > 0) {
-                const violRows = viols.map((v: any) => ({
-                  property_id: id,
-                  company_id: profile.company_id,
-                  violation_number: v.violationNum || v.violation_number || "",
-                  agency: v.agency || "DOB",
-                  status: v.status || "open",
-                  description: v.description || null,
-                  penalty_amount: v.penaltyAmount || v.penalty_amount || 0,
-                  issued_date: v.issuedDate || null,
-                  raw_data: v,
-                }));
-                await supabase.from("signal_violations").upsert(violRows as any, { onConflict: "property_id,violation_number" });
-              }
-            } catch (persistErr) {
-              console.error("Error persisting DOB data:", persistErr);
-            }
-          }
-        }
-
-        if ((csResult?.applications?.length ?? 0) === 0 && !csResult) {
-          // Only show "no data" if Socrata also returned nothing
         }
       } catch {
-        // Silent fail on auto-fetch; user can manually retry
-      } finally {
-        setCoImporting(false);
+        // Silent fail on background refresh
       }
     })();
-  }, [property?.bin, isSubscriptionActive, coImported, coImporting, toast, profile?.company_id, id]);
+  }, [property?.bin, isSubscriptionActive, coImported, coImporting, id]);
 
   // Import DOB data — tries CitiSignal first, falls back to Socrata
   const handleImportDOBData = useCallback(async () => {
