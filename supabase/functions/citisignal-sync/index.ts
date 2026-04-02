@@ -78,36 +78,49 @@ Deno.serve(async (req) => {
     const lookupBin = bin || property?.bin;
     let citisignalPropertyId = property?.citisignal_property_id;
 
-    // If we don't have a CitiSignal property ID, look it up by BIN first
+    // If we don't have a CitiSignal property ID, look it up by BIN across all pages
     if (!citisignalPropertyId && lookupBin) {
-      // CitiSignal's "properties" endpoint returns all properties for the API key user.
-      // We fetch them and find the one matching our BIN.
-      const lookupUrl = `${citisignalApiUrl}/functions/v1/api-gateway?path=properties&per_page=100`;
       console.log(`Looking up CitiSignal property by BIN ${lookupBin}`);
-      const lookupResp = await fetch(lookupUrl, {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${citisignalApiKey}`,
-          "Content-Type": "application/json",
-        },
-      });
-      if (lookupResp.ok) {
+      let page = 1;
+      const perPage = 100;
+      let found = false;
+
+      while (!found) {
+        const lookupUrl = `${citisignalApiUrl}/functions/v1/api-gateway?path=properties&per_page=${perPage}&page=${page}`;
+        const lookupResp = await fetch(lookupUrl, {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${citisignalApiKey}`,
+            "Content-Type": "application/json",
+          },
+        });
+        if (!lookupResp.ok) {
+          const errText = await lookupResp.text();
+          console.error(`CitiSignal property lookup failed on page ${page}: ${lookupResp.status} — ${errText}`);
+          break;
+        }
         const lookupData = await lookupResp.json();
         const properties = lookupData?.data || lookupData || [];
-        const matched = (Array.isArray(properties) ? properties : []).find(
-          (p: any) => String(p.bin) === String(lookupBin)
-        );
+        const list = Array.isArray(properties) ? properties : [];
+
+        const matched = list.find((p: any) => String(p.bin) === String(lookupBin));
         if (matched?.id) {
           citisignalPropertyId = matched.id;
-          console.log(`Resolved CitiSignal property: ${matched.id} for BIN ${lookupBin}`);
-          // Cache for future lookups
+          console.log(`Resolved CitiSignal property: ${matched.id} for BIN ${lookupBin} (page ${page})`);
           await supabase.from("properties").update({ citisignal_property_id: matched.id }).eq("id", property_id);
+          found = true;
+        } else if (list.length < perPage) {
+          // Last page — no more results
+          console.log(`No CitiSignal property found for BIN ${lookupBin} after ${page} page(s).`);
+          break;
         } else {
-          console.log(`No CitiSignal property found for BIN ${lookupBin}. Got ${(Array.isArray(properties) ? properties : []).length} properties.`);
+          page++;
+          // Safety cap at 20 pages (2000 properties)
+          if (page > 20) {
+            console.log(`BIN ${lookupBin} not found after 20 pages — aborting lookup.`);
+            break;
+          }
         }
-      } else {
-        const errText = await lookupResp.text();
-        console.error(`CitiSignal property lookup failed: ${lookupResp.status} — ${errText}`);
       }
     }
 
