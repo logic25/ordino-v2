@@ -188,8 +188,8 @@ const activeStatuses = ["prospect", "drafting", "submitted"];
 
 export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps) {
   const [search, setSearch] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey>("due_date");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [sortKey, setSortKey] = useState<SortKey>("created_at");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [editingRfp, setEditingRfp] = useState<RfpWithProfiles | null>(null);
   const [buildingRfp, setBuildingRfp] = useState<RfpWithProfiles | null>(null);
