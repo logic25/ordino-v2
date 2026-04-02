@@ -144,10 +144,9 @@ async function verifyBBLWithPLUTO(
     const plutoAddress = data[0].address || "";
     const owner_name = data[0].ownername || undefined;
 
-    if (plutoAddress && !streetNamesMatch(inputAddress, plutoAddress)) {
-      return { verified: false, plutoAddress };
-    }
-
+    // If PLUTO returns a valid lot record, trust it — named buildings
+    // (e.g. "5 Times Square") often map to a different tax-lot address
+    // (e.g. "592 7 AVENUE"). The BBL+BIN lookup is authoritative.
     return { verified: true, owner_name, plutoAddress };
   } catch {
     return { verified: false };
