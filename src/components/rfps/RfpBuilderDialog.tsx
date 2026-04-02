@@ -214,20 +214,34 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     if (!submitEmail || !rfp) return;
     setSubmitting(true);
     try {
-      // Collect certification file attachments
+      // Collect certification file attachments from content.document_path or file_url
       const attachments: { filename: string; content: string; mime_type: string }[] = [];
-      const certsWithFiles = certs.filter((c) => c.file_url);
-      for (const cert of certsWithFiles) {
+      for (const cert of certs) {
+        const content = cert.content as Record<string, any> | null;
+        const docPath = content?.document_path as string | undefined;
+        const docName = content?.document_name as string | undefined;
+        const fileUrl = cert.file_url;
+
+        if (!docPath && !fileUrl) continue;
+
         try {
-          const res = await fetch(cert.file_url!);
-          if (!res.ok) continue;
-          const blob = await res.blob();
+          let blob: Blob;
+          if (docPath) {
+            // Download from rfp-documents storage bucket
+            const { data, error: dlErr } = await supabase.storage.from("rfp-documents").download(docPath);
+            if (dlErr || !data) { console.warn("Failed to download cert from storage:", docPath, dlErr); continue; }
+            blob = data;
+          } else {
+            const res = await fetch(fileUrl!);
+            if (!res.ok) continue;
+            blob = await res.blob();
+          }
           const arrayBuf = await blob.arrayBuffer();
           const bytes = new Uint8Array(arrayBuf);
           let binary = "";
           for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
           const base64 = btoa(binary);
-          const ext = cert.file_url!.split(".").pop()?.split("?")[0] || "pdf";
+          const ext = (docName || docPath || fileUrl || "file.pdf").split(".").pop()?.split("?")[0] || "pdf";
           const filename = `${cert.title.replace(/[^a-zA-Z0-9_\- ]/g, "")}.${ext}`;
           attachments.push({
             filename,
