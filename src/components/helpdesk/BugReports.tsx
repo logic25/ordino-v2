@@ -612,13 +612,14 @@ export function BugReports() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-6 gap-3">
         {[
           { label: "Open", count: openCount, color: "text-destructive", filter: "open" },
           { label: "In Progress", count: inProgressCount, color: "text-amber-500", filter: "in_progress" },
           { label: "Ready for Review", count: readyForReviewCount, color: "text-purple-500", filter: "ready_for_review" },
           { label: "Resolved", count: resolvedCount, color: "text-green-500", filter: "resolved" },
           { label: "Critical", count: criticalCount, color: "text-destructive", filter: "critical" },
+          { label: "Polish", count: polishOpenCount, color: "text-blue-500", filter: "polish", icon: <Paintbrush className="h-3.5 w-3.5 mx-auto mb-0.5 text-blue-500" /> },
         ].map((s) => (
           <Card
             key={s.label}
@@ -627,6 +628,8 @@ export function BugReports() {
               if (s.filter === "critical") {
                 setPriorityFilter("critical");
                 setStatusFilter("all");
+              } else if (s.filter === "polish") {
+                // No special filter needed - just visual info
               } else {
                 setStatusFilter(s.filter);
                 setPriorityFilter("all");
@@ -634,6 +637,7 @@ export function BugReports() {
             }}
           >
             <CardContent className="py-3 px-4 text-center">
+              {'icon' in s && s.icon}
               <p className={cn("text-2xl font-bold", s.color)}>{s.count}</p>
               <p className="text-xs text-muted-foreground">{s.label}</p>
             </CardContent>
