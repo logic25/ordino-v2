@@ -86,7 +86,8 @@ Deno.serve(async (req) => {
       let found = false;
 
       while (!found) {
-        const lookupUrl = `${citisignalApiUrl}/functions/v1/api-gateway?path=properties&per_page=${perPage}&page=${page}`;
+        // Try org-scoped lookup first, fallback to default
+        const lookupUrl = `${citisignalApiUrl}/functions/v1/api-gateway?path=properties&per_page=${perPage}&page=${page}&scope=organization`;
         const lookupResp = await fetch(lookupUrl, {
           method: "GET",
           headers: {
@@ -102,6 +103,7 @@ Deno.serve(async (req) => {
         const lookupData = await lookupResp.json();
         const properties = lookupData?.data || lookupData || [];
         const list = Array.isArray(properties) ? properties : [];
+        console.log(`CitiSignal page ${page}: ${list.length} properties returned. BINs: ${list.slice(0, 10).map((p: any) => p.bin).join(', ')}`);
 
         const matched = list.find((p: any) => String(p.bin) === String(lookupBin));
         if (matched?.id) {
