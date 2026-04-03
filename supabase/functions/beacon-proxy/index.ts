@@ -85,21 +85,121 @@ Deno.serve(async (req) => {
       const lastMessage = body.message || body.messages?.[body.messages?.length - 1]?.content || "";
       const isBugQuestion = /\b(bug|broken|error|crash|fail|not working|issue|fix|wrong|stuck|breaking|doesn't work|can't|cannot|won't)\b/i.test(lastMessage);
 
-      // Inject page context directly into the message so the LLM always sees it
-      if (currentPage) {
-        const msgField = body.message || "";
-        let prefix = `[User is on the "${currentPage}" page in Ordino]`;
-        if (recentErrors.length > 0) {
-          prefix += `\n[Recent errors: ${recentErrors.join("; ")}]`;
-        }
-        body.message = `${prefix}\n${msgField}`;
+      // ── Data Query Pre-Fetch ──
+      // Detect data questions and pre-fetch answers from beacon-data-proxy
+      const isDataQuestion = /\b(how many|count|total|list|show me|what are|which|revenue|outstanding|overdue|active projects|open projects|unpaid|invoices?|proposals?|clients?|projects?|properties|workload|pipeline|forecast)\b/i.test(lastMessage)
+        && !isBugQuestion;
 
-        // Keep system_context as belt-and-suspenders fallback
-        body.system_context = (body.system_context || "") +
-          `\n\n**User Context:** Currently on the "${currentPage}" page.`;
-      } else if (recentErrors.length > 0) {
-        body.system_context = (body.system_context || "") +
-          `\n\n**Recent Browser Errors:**\n${recentErrors.map((e: string) => `• ${e}`).join("\n")}`;
+      if (isDataQuestion) {
+        try {
+          const dataProxyUrl = Deno.env.get("SUPABASE_URL") + "/functions/v1/beacon-data-proxy";
+          const dataQueries: { action: string; params: any; label: string }[] = [];
+
+          // Detect which data to fetch based on keywords
+          const msgLower = lastMessage.toLowerCase();
+
+          if (/project/i.test(msgLower)) {
+            const statusMatch = msgLower.match(/\b(active|open|closed|on.?hold|completed|paused)\b/);
+            const status = statusMatch ? statusMatch[1] : "open";
+            dataQueries.push({
+              action: "query_projects",
+              params: { status },
+              label: `${status} projects`,
+            });
+          }
+          if (/proposal/i.test(msgLower)) {
+            const statusMatch = msgLower.match(/\b(draft|sent|executed|lost|expired)\b/);
+            dataQueries.push({
+              action: "query_proposals",
+              params: statusMatch ? { status: statusMatch[1] } : {},
+              label: "proposals",
+            });
+          }
+          if (/invoice|outstanding|overdue|unpaid|revenue|collected/i.test(msgLower)) {
+            const statusMatch = msgLower.match(/\b(draft|sent|paid|overdue|void)\b/);
+            dataQueries.push({
+              action: "query_invoices",
+              params: statusMatch ? { status: statusMatch[1] } : {},
+              label: "invoices",
+            });
+          }
+          if (/workload|pm|project manager/i.test(msgLower)) {
+            dataQueries.push({
+              action: "query_pm_workload",
+              params: {},
+              label: "PM workload",
+            });
+          }
+          if (/filing|readiness/i.test(msgLower)) {
+            dataQueries.push({
+              action: "check_filing_readiness",
+              params: {},
+              label: "filing readiness",
+            });
+          }
+
+          // If no specific match, try a general projects query
+          if (dataQueries.length === 0 && /how many|count|total/i.test(msgLower)) {
+            dataQueries.push({
+              action: "query_projects",
+              params: { status: "open" },
+              label: "active projects",
+            });
+          }
+
+          // Execute data queries in parallel
+          const dataResults = await Promise.allSettled(
+            dataQueries.map(async (dq) => {
+              const res = await fetch(dataProxyUrl, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-beacon-key": BEACON_API_KEY,
+                },
+                body: JSON.stringify({ action: dq.action, params: dq.params }),
+              });
+              if (!res.ok) return { label: dq.label, error: true };
+              const json = await res.json();
+              return { label: dq.label, data: json.data };
+            })
+          );
+
+          const dataContext: string[] = [];
+          for (const r of dataResults) {
+            if (r.status === "fulfilled" && r.value && !r.value.error) {
+              const { label, data } = r.value;
+              if (Array.isArray(data)) {
+                dataContext.push(`**Live ${label} data:** ${data.length} records found.`);
+                // Include summary for count questions
+                dataContext.push(`Count: ${data.length}`);
+                // Include first few records as sample
+                if (data.length > 0) {
+                  const sample = data.slice(0, 5).map((d: any) =>
+                    d.name || d.project_number || d.invoice_number || d.proposal_number || d.display_name || JSON.stringify(d).slice(0, 100)
+                  ).join(", ");
+                  dataContext.push(`Sample: ${sample}${data.length > 5 ? ` ... and ${data.length - 5} more` : ""}`);
+                }
+              } else if (data && typeof data === "object") {
+                // For structured results like invoices/proposals with totals
+                if (data.proposals) {
+                  dataContext.push(`**Live ${label} data:** ${data.proposals.length} proposals. Total pipeline: $${(data.total_pipeline_value || 0).toLocaleString()}`);
+                } else if (data.invoices) {
+                  dataContext.push(`**Live ${label} data:** ${data.invoices.length} invoices. Outstanding: $${(data.outstanding_total || 0).toLocaleString()}. Paid: $${(data.paid_total || 0).toLocaleString()}`);
+                } else {
+                  dataContext.push(`**Live ${label} data:** ${JSON.stringify(data).slice(0, 500)}`);
+                }
+              }
+            }
+          }
+
+          if (dataContext.length > 0) {
+            body.system_context = (body.system_context || "") +
+              `\n\n**LIVE DATABASE RESULTS (use these to answer the user's question accurately):**\n${dataContext.join("\n")}`;
+            console.log("Injected data context for query:", dataQueries.map(d => d.label).join(", "));
+          }
+        } catch (e) {
+          console.error("Data query pre-fetch failed (non-blocking):", e);
+        }
       }
 
       if (isBugQuestion) {
