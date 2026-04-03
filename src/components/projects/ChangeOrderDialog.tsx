@@ -438,6 +438,18 @@ export function ChangeOrderDialog({
             </div>
           </div>
 
+          {/* Non-billable flag */}
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="co-non-billable"
+              checked={isNonBillable}
+              onCheckedChange={(v) => setIsNonBillable(v === true)}
+            />
+            <Label htmlFor="co-non-billable" className="text-sm font-normal cursor-pointer">
+              Non-billable (internal mistake)
+            </Label>
+          </div>
+
           {/* Notes */}
           <div className="space-y-1.5">
             <Label htmlFor="co-notes">Internal Notes</Label>
