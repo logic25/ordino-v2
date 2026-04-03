@@ -546,15 +546,16 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
                         const subj = isForward
                           ? (replyToEmail.subject?.startsWith("Fwd:") ? replyToEmail.subject : `Fwd: ${replyToEmail.subject || "(no subject)"}`)
                           : (replyToEmail.subject?.startsWith("Re:") ? replyToEmail.subject : `Re: ${replyToEmail.subject || "(no subject)"}`);
-                        const fwdBody = buildReplyOrForwardBody(replyBody, isForward);
+                        const messageBody = buildComposerMessageBody(replyBody);
                         await scheduleEmail.mutateAsync({
                           emailDraft: {
                             to: toAddr,
                             cc: ccField.trim() || undefined,
                             bcc: bccField.trim() || undefined,
                             subject: subj,
-                            html_body: fwdBody,
+                            html_body: messageBody,
                             reply_to_email_id: isForward ? undefined : replyToEmail.id,
+                            forward_from_email_id: isForward ? replyToEmail.id : undefined,
                           },
                           scheduledSendTime: date,
                         });
