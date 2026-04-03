@@ -326,11 +326,12 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
 
   const contentCounts: Record<string, number> = {
     cover_letter: coverLetter ? 1 : 0,
+    firm_overview: firmHistory.length,
     company_info: companyInfo.length,
     staff_bios: staffBios.length,
     org_chart: staffBios.filter((s) => (s.content as any)?.include_in_org_chart !== false).length,
     notable_projects: filteredNotableProjects.length,
-    narratives: narratives.length + firmHistory.length,
+    narratives: narratives.length,
     pricing: pricing.length,
     certifications: certs.length,
   };
