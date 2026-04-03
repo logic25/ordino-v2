@@ -1155,6 +1155,7 @@ export function BugReports() {
                     )}
 
 
+                    <div className="flex gap-2">
                       <Button size="sm" onClick={saveDetail} disabled={updateBug.isPending}>
                         {updateBug.isPending ? "Saving..." :
                           editStatus === "ready_for_review" && selectedBug.status !== "ready_for_review" ? "Mark Ready for Review" :
