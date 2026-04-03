@@ -261,119 +261,137 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
   const userId = user?.email || user?.id || "anonymous";
   const userName = profile?.display_name || profile?.first_name || user?.user_metadata?.full_name || "User";
 
-  const handleSend = async (text?: string) => {
-    const q = text || input.trim();
-    if (!q || loading) return;
-    setInput("");
-    setMessages((prev) => [...prev, { role: "user", text: q }]);
+  const processQueue = useCallback(async () => {
+    if (processingRef.current || queueRef.current.length === 0) return;
+    processingRef.current = true;
     setLoading(true);
 
-    try {
-      // Save user message to widget_messages
-      const userEmail = user?.email;
-      if (userEmail) {
-        await supabase.from("widget_messages" as any).insert({
-          user_email: userEmail,
-          role: "user",
-          content: q,
-          metadata: {},
+    while (queueRef.current.length > 0) {
+      const q = queueRef.current.shift()!;
+
+      // Add user message
+      setMessages((prev) => [...prev, { role: "user", text: q }]);
+
+      try {
+        // Save user message to widget_messages
+        const userEmail = user?.email;
+        if (userEmail) {
+          await supabase.from("widget_messages" as any).insert({
+            user_email: userEmail,
+            role: "user",
+            content: q,
+            metadata: {},
+          });
+        }
+
+        // Prepend project context as system context when active
+        let enrichedQuery = q;
+        if (activeContext?.projectAddress) {
+          const ctxParts = [`Project: ${activeContext.projectAddress}`];
+          if (activeContext.projectNumber) ctxParts.push(`Project #: ${activeContext.projectNumber}`);
+          if (activeContext.projectName) ctxParts.push(`Name: ${activeContext.projectName}`);
+          if (activeContext.clientName) ctxParts.push(`Client: ${activeContext.clientName}`);
+          if (activeContext.filingType) ctxParts.push(`Filing Type: ${activeContext.filingType}`);
+          if (activeContext.borough) ctxParts.push(`Borough: ${activeContext.borough}`);
+          if (activeContext.block && activeContext.lot) ctxParts.push(`Block/Lot: ${activeContext.block}/${activeContext.lot}`);
+          if (activeContext.scopeOfWork) ctxParts.push(`Scope: ${activeContext.scopeOfWork}`);
+          if (activeContext.contractValue != null) ctxParts.push(`Contract Value: $${activeContext.contractValue.toLocaleString()}`);
+          if (activeContext.billedAmount != null) ctxParts.push(`Billed: $${activeContext.billedAmount.toLocaleString()}`);
+          if (activeContext.serviceDetails?.length) ctxParts.push(`Services: ${activeContext.serviceDetails.join("; ")}`);
+          if (activeContext.dobApplications?.length) ctxParts.push(`DOB Applications: ${activeContext.dobApplications.join("; ")}`);
+
+          if (activeContext.lastActivity) {
+            ctxParts.push(`Last Activity: ${activeContext.lastActivity.userName} — ${activeContext.lastActivity.action} (${activeContext.lastActivity.timestamp})`);
+          }
+          if (activeContext.daysSinceLastActivity != null) {
+            ctxParts.push(`Days Since Last Activity: ${activeContext.daysSinceLastActivity}`);
+          }
+          if (activeContext.openActionItems) {
+            ctxParts.push(`Open Action Items (${activeContext.openActionItems.count}): ${activeContext.openActionItems.items.map(ai => `${ai.title} [${ai.assignee}, ${ai.priority}]`).join("; ")}`);
+          }
+          if (activeContext.financials) {
+            const f = activeContext.financials;
+            ctxParts.push(`Financials: Invoiced $${f.totalInvoiced.toLocaleString()}, Paid $${f.totalPaid.toLocaleString()}, Outstanding $${f.outstanding.toLocaleString()}, Proposal: ${f.proposalStatus}`);
+          }
+          if (activeContext.servicesStatus) {
+            const ss = activeContext.servicesStatus;
+            if (ss.notStarted.length) ctxParts.push(`Not Started: ${ss.notStarted.join(", ")}`);
+            if (ss.inProgress.length) ctxParts.push(`In Progress: ${ss.inProgress.join(", ")}`);
+            if (ss.completed.length) ctxParts.push(`Completed: ${ss.completed.join(", ")}`);
+          }
+
+          const sysInstruction = `[INSTRUCTIONS: Respond conversationally like a knowledgeable colleague. Lead with what needs attention — stale projects, overdue items, open action items. Mention team activity naturally (e.g., "Maria last updated this 12 days ago"). Only include property/zoning/filing details if specifically asked. Keep it to 3-4 short paragraphs max. End with one practical next step, not a list of questions. No big headings or report formatting.]`;
+          enrichedQuery = `${sysInstruction}\n[Context: ${ctxParts.join(" | ")}]\n\n${q}`;
+        }
+
+        // Inject page & error context for bug detection
+        const contextWithPage: BeaconProjectContext = {
+          ...activeContext,
+          currentPage,
+          recentErrors: recentErrorsRef.current.length > 0 ? recentErrorsRef.current : undefined,
+        };
+
+        // Use current messages state for conversation history
+        const currentMessages = await new Promise<ChatMessage[]>(resolve => {
+          setMessages(prev => { resolve(prev); return prev; });
         });
-      }
+        const conversationHistory = currentMessages.slice(-5).map(m => ({
+          role: m.role === "user" ? "user" : "assistant",
+          content: m.text,
+        }));
 
-      // Prepend project context as system context when active
-      let enrichedQuery = q;
-      if (activeContext?.projectAddress) {
-        const ctxParts = [`Project: ${activeContext.projectAddress}`];
-        if (activeContext.projectNumber) ctxParts.push(`Project #: ${activeContext.projectNumber}`);
-        if (activeContext.projectName) ctxParts.push(`Name: ${activeContext.projectName}`);
-        if (activeContext.clientName) ctxParts.push(`Client: ${activeContext.clientName}`);
-        if (activeContext.filingType) ctxParts.push(`Filing Type: ${activeContext.filingType}`);
-        if (activeContext.borough) ctxParts.push(`Borough: ${activeContext.borough}`);
-        if (activeContext.block && activeContext.lot) ctxParts.push(`Block/Lot: ${activeContext.block}/${activeContext.lot}`);
-        if (activeContext.scopeOfWork) ctxParts.push(`Scope: ${activeContext.scopeOfWork}`);
-        if (activeContext.contractValue != null) ctxParts.push(`Contract Value: $${activeContext.contractValue.toLocaleString()}`);
-        if (activeContext.billedAmount != null) ctxParts.push(`Billed: $${activeContext.billedAmount.toLocaleString()}`);
-        if (activeContext.serviceDetails?.length) ctxParts.push(`Services: ${activeContext.serviceDetails.join("; ")}`);
-        if (activeContext.dobApplications?.length) ctxParts.push(`DOB Applications: ${activeContext.dobApplications.join("; ")}`);
-
-        // Operational context
-        if (activeContext.lastActivity) {
-          ctxParts.push(`Last Activity: ${activeContext.lastActivity.userName} — ${activeContext.lastActivity.action} (${activeContext.lastActivity.timestamp})`);
-        }
-        if (activeContext.daysSinceLastActivity != null) {
-          ctxParts.push(`Days Since Last Activity: ${activeContext.daysSinceLastActivity}`);
-        }
-        if (activeContext.openActionItems) {
-          ctxParts.push(`Open Action Items (${activeContext.openActionItems.count}): ${activeContext.openActionItems.items.map(ai => `${ai.title} [${ai.assignee}, ${ai.priority}]`).join("; ")}`);
-        }
-        if (activeContext.financials) {
-          const f = activeContext.financials;
-          ctxParts.push(`Financials: Invoiced $${f.totalInvoiced.toLocaleString()}, Paid $${f.totalPaid.toLocaleString()}, Outstanding $${f.outstanding.toLocaleString()}, Proposal: ${f.proposalStatus}`);
-        }
-        if (activeContext.servicesStatus) {
-          const ss = activeContext.servicesStatus;
-          if (ss.notStarted.length) ctxParts.push(`Not Started: ${ss.notStarted.join(", ")}`);
-          if (ss.inProgress.length) ctxParts.push(`In Progress: ${ss.inProgress.join(", ")}`);
-          if (ss.completed.length) ctxParts.push(`Completed: ${ss.completed.join(", ")}`);
-        }
-
-        const sysInstruction = `[INSTRUCTIONS: Respond conversationally like a knowledgeable colleague. Lead with what needs attention — stale projects, overdue items, open action items. Mention team activity naturally (e.g., "Maria last updated this 12 days ago"). Only include property/zoning/filing details if specifically asked. Keep it to 3-4 short paragraphs max. End with one practical next step, not a list of questions. No big headings or report formatting.]`;
-        enrichedQuery = `${sysInstruction}\n[Context: ${ctxParts.join(" | ")}]\n\n${q}`;
-      }
-
-      // Inject page & error context for bug detection
-      const contextWithPage: BeaconProjectContext = {
-        ...activeContext,
-        currentPage,
-        recentErrors: recentErrorsRef.current.length > 0 ? recentErrorsRef.current : undefined,
-      };
-
-      const conversationHistory = messages.slice(-5).map(m => ({
-        role: m.role === "user" ? "user" : "assistant",
-        content: m.text,
-      }));
-
-      const res = await askBeacon(enrichedQuery, userId, userName, contextWithPage, conversationHistory);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "beacon",
-          text: res.response,
-          confidence: res.confidence,
-          sources: res.sources || [],
-          responseTime: res.response_time_ms,
-          flowType: res.flow_type,
-          isBugReport: res.is_bug_report,
-        },
-      ]);
-
-      // Save bot response to widget_messages
-      if (userEmail && res.response) {
-        await supabase.from("widget_messages" as any).insert({
-          user_email: userEmail,
-          role: "assistant",
-          content: res.response,
-          metadata: {
+        const res = await askBeacon(enrichedQuery, userId, userName, contextWithPage, conversationHistory);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "beacon",
+            text: res.response,
             confidence: res.confidence,
-            sources: res.sources,
-            flow_type: res.flow_type,
+            sources: res.sources || [],
+            responseTime: res.response_time_ms,
+            flowType: res.flow_type,
+            isBugReport: res.is_bug_report,
           },
-        });
+        ]);
+
+        // Save bot response to widget_messages
+        const emailForSave = user?.email;
+        if (emailForSave && res.response) {
+          await supabase.from("widget_messages" as any).insert({
+            user_email: emailForSave,
+            role: "assistant",
+            content: res.response,
+            metadata: {
+              confidence: res.confidence,
+              sources: res.sources,
+              flow_type: res.flow_type,
+            },
+          });
+        }
+      } catch {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "beacon",
+            text: "Beacon is temporarily unavailable. Please try again.",
+            confidence: 0,
+            sources: [],
+          },
+        ]);
       }
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "beacon",
-          text: "Beacon is temporarily unavailable. Please try again.",
-          confidence: 0,
-          sources: [],
-        },
-      ]);
-    } finally {
-      setLoading(false);
     }
-  };
+
+    processingRef.current = false;
+    setLoading(false);
+  }, [activeContext, currentPage, userId, userName, user?.email]);
+
+  const handleSend = useCallback((text?: string) => {
+    const q = text || input.trim();
+    if (!q) return;
+    setInput("");
+    queueRef.current.push(q);
+    processQueue();
+  }, [input, processQueue]);
 
   const handleNewChat = async () => {
     setMessages([]);
