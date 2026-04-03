@@ -235,6 +235,28 @@ function CoverLetterSection({ text }: { text: string }) {
   );
 }
 
+/* ─── Firm Overview ─── */
+function FirmOverviewSection({ data }: { data: any[] }) {
+  if (!data.length) return <p className="text-muted-foreground text-sm italic">No firm overview available.</p>;
+  return (
+    <div>
+      <SectionHeading icon={FileText} color="text-accent">About Our Firm</SectionHeading>
+      <div className="space-y-4">
+        {data.map((item) => {
+          const text = (item.content as any)?.text || "";
+          return (
+            <div key={item.id}>
+              {item.title && <p className="font-semibold text-sm text-foreground mb-1">{item.title}</p>}
+              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{text}</p>
+            </div>
+          );
+        })}
+      </div>
+      <Separator className="mt-6" />
+    </div>
+  );
+}
+
 /* ─── Company Info ─── */
 function CompanyInfoSection({ data }: { data: any }) {
   const content = data?.content as Record<string, any> | undefined;
