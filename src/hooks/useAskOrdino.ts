@@ -92,12 +92,17 @@ export function useAskOrdino() {
 
       const assistantMsg: Message = { role: "assistant", content: data.answer };
       setMessages((prev) => [...prev, assistantMsg]);
-    } catch {
-      const errorMsg: Message = {
-        role: "assistant",
-        content: "Sorry, I had trouble processing that. Try again?",
-      };
-      setMessages((prev) => [...prev, errorMsg]);
+    } catch (err: any) {
+      let content = "Something went wrong. Please try again in a moment.";
+      const msg = err?.message || "";
+      if (msg.includes("503") || msg.includes("unavailable")) {
+        content = "The backend is temporarily unavailable. Try again in a minute.";
+      } else if (msg.includes("429") || msg.includes("rate")) {
+        content = "Too many requests — please wait a moment.";
+      } else if (msg.includes("column") || msg.includes("does not exist")) {
+        content = "I tried to look that up but used the wrong field name. Let me try again differently.";
+      }
+      setMessages((prev) => [...prev, { role: "assistant", content }]);
     } finally {
       setIsLoading(false);
     }
