@@ -254,9 +254,11 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
         }
       }
 
+      const ccList = submitCcEmails.split(",").map(e => e.trim()).filter(Boolean).join(",");
       const { error } = await supabase.functions.invoke("gmail-send", {
         body: {
           to: submitEmail,
+          cc: ccList || undefined,
           subject: `RFP Response: ${rfp.title}${rfp.rfp_number ? ` (#${rfp.rfp_number})` : ""}`,
           html_body: buildEmailBody(),
           attachments: attachments.length > 0 ? attachments : undefined,
