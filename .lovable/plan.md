@@ -1,43 +1,58 @@
 
 
-# Enhance Triage with Architectural Context + Fix 5 Times Square Bug
+# Beacon Phase 2: Context-Aware Bug Detection + Conversational Bug Reporting
 
-## What was done
+## Summary
 
-**Bug patterns seeded** — 7 known patterns are now in the `bug_patterns` table. The triage function already queries and matches these against new bugs automatically.
+Add page/error awareness to Beacon and a conditional "Log as Bug" button that only appears when Beacon's response is actually about a bug — determined by the AI itself via a structured flag in the response, not by naive keyword matching on the user side.
 
-## What still needs to happen
+## How "Log as Bug" stays contextual (not noisy)
 
-### 1. Add PAGE_CONTEXT to triage prompt
+The beacon-proxy already detects bug-like questions via regex (`isBugQuestion`). We extend this: when the proxy enriches the prompt with bug patterns, it also instructs the AI to include a structured `is_bug_report: true` flag in its JSON response. The widget only renders "Log as Bug" when that flag is present. This means:
 
-In `supabase/functions/triage-bug-report/index.ts`, add a `PAGE_CONTEXT` map with architectural notes per page. When triage runs, inject the matching context into the AI prompt so it understands *how* each page works internally.
+- Normal Q&A → no button
+- "What's the zoning for this lot?" → no button  
+- "Property lookup is broken" + Beacon matches a pattern → button appears
+- Console errors detected + user confirms something broke → button appears
 
-Example for Properties:
-> "Uses NYC GeoSearch API → PLUTO cross-verification in useNYCPropertyLookup.ts. Common failure: strict street name validation rejects named buildings (e.g. '5 Times Square' maps to '592 7 Avenue' in PLUTO). The verifyBBLWithPLUTO function confirms BBL but streetNamesMatch can reject valid results."
+## Changes
 
-Similar notes for Proposals (signature canvas timing, email HTML vs preview), Email (Gmail OAuth, thread sync), RFPs (partner response flow, M/WBE attachments), Projects (PIS sync, phase auto-advance), etc.
+### 1. `src/services/beaconApi.ts`
+- Add `current_page?: string` and `recent_errors?: string[]` to `BeaconProjectContext`
+- Add `is_bug_report?: boolean` to `BeaconChatResponse`
 
-### 2. Fix the 5 Times Square property lookup
+### 2. `src/components/beacon/BeaconChatWidget.tsx`
+- Import `useLocation`, map pathname to page name
+- Add `window.onerror` / `unhandledrejection` listener to capture last 3 errors in a ref
+- Pass `current_page` and `recent_errors` in `askBeacon()` context
+- Add `is_bug_report` flag to `ChatMessage` interface
+- Only show "Log as Bug" button on beacon messages where `is_bug_report === true`
+- "Log as Bug" calls beacon-proxy `?action=create-bug` with conversation summary, page, user info
 
-In `src/hooks/useNYCPropertyLookup.ts`, the GeoSearch strategy currently does:
-1. GeoSearch returns a BBL + address label
-2. Checks house number match
-3. Checks street name match via `streetNamesMatch()`
-4. Cross-verifies BBL with PLUTO
+### 3. `supabase/functions/beacon-proxy/index.ts`
+- When `isBugQuestion` is true, inject `current_page` and `recent_errors` from `body.project_context` into the system context
+- Add instruction to the AI: "If this is a genuine bug/error report, include `is_bug_report: true` in your response metadata"
+- Parse the AI response to extract the flag and pass it through
+- New action `create-bug`: proxies to beacon-data-proxy's `create_bug_from_conversation`
 
-The fix: **move the `streetNamesMatch` check after PLUTO verification, and skip it if PLUTO confirms the BBL.** When PLUTO says "yes, this BBL exists and here's the owner," the lookup is authoritative regardless of whether the display name matches the tax-lot street address.
+### 4. `supabase/functions/beacon-data-proxy/index.ts`
+- New action: `create_bug_from_conversation`
+- Inserts into `feature_requests` with `category = 'bug_report'`
+- Triggers `triage-bug-report` function for auto-diagnosis
+- Returns bug ID
 
-Specifically in lines ~186-210: restructure to call `verifyBBLWithPLUTO` first, then only run `streetNamesMatch` as a fallback filter when PLUTO verification fails.
+### 5. `supabase/functions/sentry-webhook/index.ts` (new)
+- Receives Sentry issue alerts
+- Matches against `bug_patterns`
+- Inserts proactive message into `widget_messages` for the affected user
 
-### 3. Auto-learn on bug resolution
+## Files
 
-In `src/components/helpdesk/BugReports.tsx`, when status changes to "resolved," automatically invoke the triage function with `action: "learn_pattern"` to populate patterns from every fix. This makes the system smarter over time without manual intervention.
-
-## Files to Change
-
-| File | Change |
+| File | Action |
 |------|--------|
-| `supabase/functions/triage-bug-report/index.ts` | Add `PAGE_CONTEXT` map, inject into prompt |
-| `src/hooks/useNYCPropertyLookup.ts` | Skip `streetNamesMatch` when PLUTO BBL is verified |
-| `src/components/helpdesk/BugReports.tsx` | Call `learn_pattern` on status → "resolved" |
+| `src/services/beaconApi.ts` | Add context fields + `is_bug_report` flag |
+| `src/components/beacon/BeaconChatWidget.tsx` | Page tracking, error capture, conditional "Log as Bug" |
+| `supabase/functions/beacon-proxy/index.ts` | Context injection, `create-bug` action, flag extraction |
+| `supabase/functions/beacon-data-proxy/index.ts` | `create_bug_from_conversation` action |
+| `supabase/functions/sentry-webhook/index.ts` | New — proactive error detection |
 
