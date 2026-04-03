@@ -197,11 +197,49 @@ function useUserBillingStats(userId: string, period: Period, monthlyGoal: number
       const totalMinutes = (allEntries || []).reduce((s, e) => s + (e.duration_minutes || 0), 0);
       const billableMinutes = (allEntries || []).filter((e) => e.billable).reduce((s, e) => s + (e.duration_minutes || 0), 0);
 
-      // 5. Efficiency: weighted composite
-      // Billing 53%, Timelog 40%, Non-billable CO 7% (Accuracy is N/A so weights redistribute)
-      const efficiency = Math.round(billingPct * 0.53 + timelogCompletion * 0.40 + 100 * 0.07);
+      // 5. Non-Billable COs: sum of |amount| where is_non_billable = true on user's projects
+      let nonBillableCOTotal = 0;
+      if (projectIds.length > 0) {
+        const { data: nbCOs } = await supabase
+          .from("change_orders" as any)
+          .select("amount")
+          .in("project_id", projectIds)
+          .eq("is_non_billable", true)
+          .gte("created_at", format(range.start, "yyyy-MM-dd"))
+          .lte("created_at", format(range.end, "yyyy-MM-dd'T'23:59:59"));
+        nonBillableCOTotal = (nbCOs || []).reduce((s: number, co: any) => s + Math.abs(Number(co.amount) || 0), 0);
+      }
 
-      // 6. Potential Bonus (configurable tier-based on Billing %)
+      // 6. Accuracy: % of services completed on or before due_date
+      let accuracyPct: number | null = null;
+      if (projectIds.length > 0) {
+        const { data: svcData } = await supabase
+          .from("services")
+          .select("due_date, completed_date")
+          .in("project_id", projectIds)
+          .eq("assigned_to", userId)
+          .not("due_date", "is", null)
+          .not("completed_date", "is", null);
+        if (svcData && svcData.length > 0) {
+          const onTime = svcData.filter((s: any) => s.completed_date <= s.due_date).length;
+          accuracyPct = Math.round((onTime / svcData.length) * 100);
+        }
+      }
+
+      // 7. Non-Billable CO factor: 100 if $0, scale down as amount grows relative to billing
+      const coFactor = effectiveGoal > 0
+        ? Math.max(0, Math.round(100 - (nonBillableCOTotal / effectiveGoal) * 100))
+        : 100;
+
+      // 8. Efficiency: weighted composite
+      // Billing 40%, Timelog 30%, Accuracy 23%, Non-billable CO 7%
+      const accuracyForCalc = accuracyPct !== null ? accuracyPct : 0;
+      const hasAccuracy = accuracyPct !== null;
+      const efficiency = hasAccuracy
+        ? Math.round(billingPct * 0.40 + timelogCompletion * 0.30 + accuracyForCalc * 0.23 + coFactor * 0.07)
+        : Math.round(billingPct * 0.53 + timelogCompletion * 0.40 + coFactor * 0.07);
+
+      // 9. Potential Bonus (configurable tier-based on Billing %)
       const tiers = bonusTiers && bonusTiers.length > 0 ? bonusTiers : DEFAULT_BONUS_TIERS;
       let potentialBonus = 0;
       for (const tier of tiers) {
@@ -216,6 +254,8 @@ function useUserBillingStats(userId: string, period: Period, monthlyGoal: number
         billableHours: Math.round(billableMinutes / 60 * 10) / 10,
         billingPct,
         timelogCompletion,
+        nonBillableCOTotal,
+        accuracyPct,
         efficiency,
         potentialBonus,
         monthlyGoal: effectiveGoal,
