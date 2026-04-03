@@ -1357,7 +1357,15 @@ export function TeamSettings() {
                             <AvatarFallback className="text-xs">{getInitials(profile)}</AvatarFallback>
                           </Avatar>
                           <div>
-                            <span className="font-medium">{getDisplayName(profile)}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{getDisplayName(profile)}</span>
+                              {(profile as any).ooo_from && (profile as any).ooo_to && 
+                                new Date((profile as any).ooo_to + "T23:59:59") >= new Date() && (
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-amber-500/10 text-amber-700 border-amber-300">
+                                  OOO
+                                </Badge>
+                              )}
+                            </div>
                             {(profile as any).job_title && (
                               <p className="text-xs text-muted-foreground">{(profile as any).job_title}</p>
                             )}
