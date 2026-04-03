@@ -173,6 +173,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
           role: "assistant",
           content: "Sorry, I couldn't process that request. Please try again.",
           metadata: { isError: true },
+          company_id: profile?.company_id || null,
         });
         queryClient.invalidateQueries({ queryKey: ["widget-messages"] });
       } catch (insertErr) {
