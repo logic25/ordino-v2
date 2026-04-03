@@ -672,6 +672,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
           job_title: editForm.job_title.trim() || null,
           about: editForm.about.trim() || null,
           monthly_goal: editForm.monthly_goal ? parseFloat(editForm.monthly_goal) : null,
+          accuracy_goal: editForm.accuracy_goal ? parseFloat(editForm.accuracy_goal) : null,
           is_active: editForm.is_active,
         } as any)
         .eq("id", user.id);
