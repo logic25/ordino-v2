@@ -28,7 +28,7 @@ export function useProperty(id: string | undefined) {
       if (!id) return null;
       const { data, error } = await supabase
         .from("properties")
-        .select("*")
+        .select("*, creator:profiles!properties_created_by_fkey(display_name, first_name, last_name)")
         .eq("id", id)
         .maybeSingle();
       
