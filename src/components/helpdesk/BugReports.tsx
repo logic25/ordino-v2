@@ -308,6 +308,11 @@ export function BugReports() {
             reporter_name: profile.display_name || `${profile.first_name} ${profile.last_name}`,
           },
         }).catch(() => {});
+
+        // Trigger AI auto-triage (best-effort)
+        supabase.functions.invoke("triage-bug-report", {
+          body: { bug_id: inserted.id },
+        }).catch(() => {});
       }
     },
     onSuccess: () => {
