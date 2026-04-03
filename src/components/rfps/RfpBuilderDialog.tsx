@@ -339,10 +339,11 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   // Content data map for editing
   const sectionContentMap: Record<string, { items: any[]; type: string }> = {
     company_info: { items: companyInfo, type: "company_info" },
+    firm_overview: { items: firmHistory, type: "firm_history" },
     staff_bios: { items: staffBios, type: "staff_bio" },
     org_chart: { items: staffBios, type: "staff_bio" },
     notable_projects: { items: allNotableProjects, type: "notable_project" },
-    narratives: { items: [...firmHistory, ...narratives], type: "narrative" },
+    narratives: { items: [...narratives], type: "narrative" },
     pricing: { items: pricing, type: "pricing" },
     certifications: { items: certs, type: "certification" },
   };
