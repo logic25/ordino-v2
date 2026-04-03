@@ -365,7 +365,7 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
       const q = queueRef.current.shift()!;
 
       // Add user message
-      setMessages((prev) => [...prev, { role: "user", text: q }]);
+      setMessages((prev) => [...prev, { role: "user", text: q, timestamp: new Date().toISOString() }]);
 
       try {
         // Save user message to widget_messages with session_id
