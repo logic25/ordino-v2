@@ -451,19 +451,20 @@ async function queryOrdino(sb: any, params: any) {
     for (const f of filters) {
       if (!f.column) continue;
       const col = resolveAlias(table, f.column);
+      const val = resolveValue(table, col, f.value);
       const op = f.operator || "eq";
       switch (op) {
-        case "eq":    q = q.eq(col, f.value); break;
-        case "neq":   q = q.neq(col, f.value); break;
-        case "gt":    q = q.gt(col, f.value); break;
-        case "gte":   q = q.gte(col, f.value); break;
-        case "lt":    q = q.lt(col, f.value); break;
-        case "lte":   q = q.lte(col, f.value); break;
-        case "like":  q = q.like(col, f.value); break;
-        case "ilike": q = q.ilike(col, f.value); break;
-        case "is":    q = q.is(col, f.value); break;
-        case "in":    q = q.in(col, f.value); break;
-        default:      q = q.eq(col, f.value);
+        case "eq":    q = q.eq(col, val); break;
+        case "neq":   q = q.neq(col, val); break;
+        case "gt":    q = q.gt(col, val); break;
+        case "gte":   q = q.gte(col, val); break;
+        case "lt":    q = q.lt(col, val); break;
+        case "lte":   q = q.lte(col, val); break;
+        case "like":  q = q.like(col, val); break;
+        case "ilike": q = q.ilike(col, val); break;
+        case "is":    q = q.is(col, val); break;
+        case "in":    q = q.in(col, Array.isArray(val) ? val.map((v: any) => resolveValue(table, col, v)) : val); break;
+        default:      q = q.eq(col, val);
       }
     }
   }
