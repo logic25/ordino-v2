@@ -24,6 +24,7 @@ const quickQuestions = [
 
 const PAGE_NAME_MAP: Record<string, string> = {
   "/": "Dashboard",
+  "/dashboard": "Dashboard",
   "/projects": "Projects",
   "/properties": "Properties",
   "/proposals": "Proposals",
@@ -33,10 +34,13 @@ const PAGE_NAME_MAP: Record<string, string> = {
   "/documents": "Documents",
   "/clients": "Clients",
   "/rfps": "RFPs",
+  "/rfp-library": "RFP Library",
+  "/rfp-discovery": "RFP Discovery",
   "/reports": "Reports",
   "/settings": "Settings",
   "/help": "Help Center",
   "/time": "Time Tracking",
+  "/chat": "Chat",
 };
 
 function getPageName(pathname: string): string {
