@@ -326,7 +326,12 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
         recentErrors: recentErrorsRef.current.length > 0 ? recentErrorsRef.current : undefined,
       };
 
-      const res = await askBeacon(enrichedQuery, userId, userName, contextWithPage);
+      const conversationHistory = messages.slice(-5).map(m => ({
+        role: m.role === "user" ? "user" : "assistant",
+        content: m.text,
+      }));
+
+      const res = await askBeacon(enrichedQuery, userId, userName, contextWithPage, conversationHistory);
       setMessages((prev) => [
         ...prev,
         {
