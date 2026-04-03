@@ -95,6 +95,7 @@ export function useCreateChangeOrder() {
           line_items: input.line_items ?? [],
           notes: input.notes ?? null,
           deposit_percentage: input.deposit_percentage ?? 0,
+          is_non_billable: input.is_non_billable ?? false,
           status: input.status ?? "draft",
           created_by: profile?.id ?? null,
         })
