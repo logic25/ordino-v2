@@ -6,6 +6,18 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Architectural context per page — injected into AI prompt for precise triage
+const PAGE_CONTEXT: Record<string, string> = {
+  Properties: `Uses NYC GeoSearch API → PLUTO cross-verification in useNYCPropertyLookup.ts. Common failure: strict street name validation rejects named buildings (e.g. '5 Times Square' maps to '592 7 Avenue' in PLUTO). The verifyBBLWithPLUTO function confirms BBL but streetNamesMatch can reject valid results. Also uses useBuildingLookup.ts for Google Places integration. AKA addresses fetched from NYC PAD dataset by BIN.`,
+  Proposals: `Proposal creation in ProposalDialog.tsx, sending via SendProposalDialog.tsx. Common failures: (1) signature canvas init runs before proposal data loads — fix: add proposal to effect dependency array in SignatureDialog.tsx. (2) Logo broken in emails — Gmail strips base64 data URLs from img tags; fix: use HTTPS public storage URL for emails, keep base64 for preview iframe only. (3) Send dialog not scrollable — fix: use flex layout with min-h-0 and overflow-y-auto on dialog body.`,
+  Email: `Gmail OAuth integration via gmail-sync and gmail-send edge functions. Thread model with gmail_thread_id. Common failures: OAuth token refresh, thread association for replies, attachment size limits.`,
+  RFPs: `RFP board with partner outreach. Partners respond via public link (rfp-partner-response edge function). Common failures: M/WBE attachment uploads, partner response not linking back to RFP, file size limits on rfp-documents bucket.`,
+  Projects: `PIS (Project Information Sheet) syncs to project via sync_pis_to_project trigger. Phase auto-advance via auto_advance_project_phase trigger. Common failures: PIS data not syncing when submitted, phase not advancing when all apps approved, filing readiness calculation.`,
+  "Invoices / Billing": `Invoice generation with INV- numbering. Payment plans, ACH authorizations, automation rules for collections. Common failures: invoice number collisions, payment plan calculations, automation rule cooldown logic.`,
+  Dashboard: `Dashboard with configurable layout (useDashboardLayout). Widgets fetch from multiple tables. Common failures: slow queries on large datasets, widget data not refreshing.`,
+  "Help Center": `Bug reports stored in feature_requests table with category='bug_report'. Auto-triage via triage-bug-report edge function. Bug comments, activity logs, fix tracking.`,
+};
+
 // Page-to-file mapping for the Ordino codebase
 const PAGE_FILE_MAP: Record<string, string[]> = {
   "Dashboard": [
@@ -212,6 +224,7 @@ Deno.serve(async (req) => {
     });
 
     // Build AI prompt
+    const pageContext = PAGE_CONTEXT[pageName] || "";
     const prompt = `You are an expert software engineer triaging a bug report for "Ordino", a React/TypeScript CRM built with Supabase, Vite, Tailwind, and shadcn/ui.
 
 Bug Report:
@@ -224,9 +237,10 @@ Bug Report:
 
 Likely source files for this page: ${suggestedFiles.join(", ")}
 
-${matchingPatterns.length > 0 ? `Known patterns that may match:\n${matchingPatterns.map((p: any) => `- "${p.pattern_name}": ${p.root_cause} (seen ${p.occurrences} times)`).join("\n")}` : ""}
+${pageContext ? `**Architecture context for ${pageName}:**\n${pageContext}\n` : ""}
+${matchingPatterns.length > 0 ? `Known patterns that may match:\n${matchingPatterns.map((p: any) => `- "${p.pattern_name}": ${p.root_cause} (seen ${p.occurrences} times, fix: ${p.fix_pattern || "N/A"})`).join("\n")}` : ""}
 
-Analyze this bug and provide a triage assessment.`;
+Analyze this bug and provide a triage assessment. Use the architecture context and known patterns to identify the SPECIFIC root cause — not generic guesses.`;
 
     // Call AI with tool-calling for structured output
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {

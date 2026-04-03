@@ -217,10 +217,6 @@ export function useNYCPropertyLookup() {
             if (inputHouseNum && returnedHouseNum && inputHouseNum !== returnedHouseNum) {
               // House number mismatch — skip
             } else {
-              const geoLabel = props?.name || props?.label || "";
-              if (geoLabel && !streetNamesMatch(address, geoLabel)) {
-                // Street mismatch — skip
-              } else {
                 const pad = props?.addendum?.pad;
                 const bbl = pad?.bbl || "";
                 const boroCode = bbl.substring(0, 1);
@@ -232,9 +228,13 @@ export function useNYCPropertyLookup() {
                 const borough = BOROUGH_CODES[boroCode] || props?.borough || undefined;
                 const zip_code = props?.postalcode || undefined;
 
+                // Cross-verify with PLUTO first — BBL confirmation is authoritative
                 const verification = await verifyBBLWithPLUTO(boroCode, paddedBlock, paddedLot, address);
 
                 if (verification.verified) {
+                  // PLUTO confirmed this BBL exists — trust it even if
+                  // the display name differs from the tax-lot street address
+                  // (e.g. "5 Times Square" → "592 7 AVENUE")
                   const aka_addresses = await fetchAkaAddresses(bin);
                   return {
                     bin,
@@ -247,7 +247,24 @@ export function useNYCPropertyLookup() {
                     aka_addresses: aka_addresses.length > 0 ? aka_addresses : undefined,
                   };
                 }
-              }
+
+                // PLUTO didn't verify — fall back to street name matching
+                const geoLabel = props?.name || props?.label || "";
+                if (geoLabel && !streetNamesMatch(address, geoLabel)) {
+                  // Street mismatch and no PLUTO confirmation — skip
+                } else {
+                  // Street matches but PLUTO didn't confirm — still return GeoSearch data
+                  const aka_addresses = await fetchAkaAddresses(bin);
+                  return {
+                    bin,
+                    block: block || undefined,
+                    lot: lot || undefined,
+                    borough,
+                    zip_code,
+                    address: props?.name || address,
+                    aka_addresses: aka_addresses.length > 0 ? aka_addresses : undefined,
+                  };
+                }
             }
           }
         }
