@@ -312,9 +312,11 @@ export function BugReports() {
           },
         }).catch(() => {});
 
-        // Trigger AI auto-triage (best-effort)
+        // Trigger AI auto-triage and refresh data when complete
         supabase.functions.invoke("triage-bug-report", {
           body: { bug_id: inserted.id },
+        }).then(() => {
+          queryClient.invalidateQueries({ queryKey: ["bug-reports"] });
         }).catch(() => {});
       }
     },
