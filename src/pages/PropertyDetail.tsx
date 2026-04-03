@@ -618,9 +618,9 @@ export default function PropertyDetail() {
               </TabsTrigger>
               <TabsTrigger value="co_applications" className="gap-1.5 data-[state=active]:bg-background">
                 <FolderKanban className="h-3.5 w-3.5" /> Applications
-                {coImported && openCoApps > 0 && (
+                {coImported && coApps.length > 0 && (
                   <Badge variant="outline" className="ml-1 bg-orange-500/10 text-orange-600 border-orange-500/20 text-xs h-5 px-1.5">
-                    {openCoApps}
+                    {coApps.length}
                   </Badge>
                 )}
               </TabsTrigger>
