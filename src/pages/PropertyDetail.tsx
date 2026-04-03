@@ -214,6 +214,21 @@ export default function PropertyDetail() {
           apps.forEach((a: any, i: number) => (a.num = i + 1));
           setCoApps(apps);
           setCoViolations(viols);
+
+          // Fallback: if CitiSignal returned no violations or complaints, fetch from Socrata
+          if (viols.length === 0 && property?.bin) {
+            try {
+              const socrataViols = await fetchDOBViolations(property.bin, property.borough, property.block, property.lot);
+              if (socrataViols.length > 0) setCoViolations(socrataViols);
+            } catch { /* silent */ }
+          }
+          if (property?.bin) {
+            try {
+              const socrataComplaints = await fetchDOBComplaints(property.bin);
+              if (socrataComplaints.length > 0) setCoComplaints(socrataComplaints);
+            } catch { /* silent */ }
+          }
+
           setLastSynced(format(new Date(), "MM/dd/yyyy h:mm a") + " (CitiSignal)");
         }
       } catch {
@@ -293,10 +308,33 @@ export default function PropertyDetail() {
           setCoApps(apps);
           setCoViolations(viols);
           setCoImported(true);
+
+          // Fallback: if CitiSignal returned no violations or complaints, fetch from Socrata
+          let finalViols = viols;
+          let finalComplaints: DOBComplaintRecord[] = [];
+          if (viols.length === 0 && property?.bin) {
+            try {
+              const socrataViols = await fetchDOBViolations(property.bin, property.borough, property.block, property.lot);
+              if (socrataViols.length > 0) {
+                setCoViolations(socrataViols);
+                finalViols = socrataViols;
+              }
+            } catch { /* silent */ }
+          }
+          if (property?.bin) {
+            try {
+              const socrataComplaints = await fetchDOBComplaints(property.bin);
+              if (socrataComplaints.length > 0) {
+                setCoComplaints(socrataComplaints);
+                finalComplaints = socrataComplaints;
+              }
+            } catch { /* silent */ }
+          }
+
           setLastSynced(format(new Date(), "MM/dd/yyyy h:mm a") + " (CitiSignal)");
           toast({
             title: "Data synced from CitiSignal",
-            description: `${apps.length} applications, ${viols.length} violations`,
+            description: `${apps.length} applications, ${finalViols.length} violations, ${finalComplaints.length} complaints`,
           });
           return;
         }
@@ -618,9 +656,9 @@ export default function PropertyDetail() {
               </TabsTrigger>
               <TabsTrigger value="co_applications" className="gap-1.5 data-[state=active]:bg-background">
                 <FolderKanban className="h-3.5 w-3.5" /> Applications
-                {coImported && openCoApps > 0 && (
+                {coImported && coApps.length > 0 && (
                   <Badge variant="outline" className="ml-1 bg-orange-500/10 text-orange-600 border-orange-500/20 text-xs h-5 px-1.5">
-                    {openCoApps}
+                    {coApps.length}
                   </Badge>
                 )}
               </TabsTrigger>
