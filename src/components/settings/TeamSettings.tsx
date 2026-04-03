@@ -675,6 +675,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
         } as any)
         .eq("id", user.id);
       if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["user-billing-stats-v2"] });
       toast({ title: "Profile updated" });
       setEditing(false);
       onUpdate();
