@@ -1,0 +1,1 @@
+ALTER TABLE widget_messages ADD COLUMN session_id uuid DEFAULT gen_random_uuid();
