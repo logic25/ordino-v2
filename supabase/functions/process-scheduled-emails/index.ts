@@ -278,6 +278,7 @@ Deno.serve(async (req) => {
 
         // Insert sent email into emails table
         const toEmails = draft.to.split(",").map((e: string) => e.trim()).filter(Boolean);
+        const plainTextBody = draft.html_body.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
         const { data: insertedEmail } = await supabaseAdmin
           .from("emails")
           .upsert({
@@ -290,7 +291,9 @@ Deno.serve(async (req) => {
             from_name: connection.email_address,
             to_emails: toEmails,
             date: new Date().toISOString(),
-            snippet: draft.html_body.replace(/<[^>]*>/g, "").substring(0, 200),
+            body_text: plainTextBody || null,
+            body_html: draft.html_body,
+            snippet: plainTextBody.substring(0, 200),
             has_attachments: (draft.attachments && draft.attachments.length > 0) || false,
             labels: ["SENT"],
             is_read: true,

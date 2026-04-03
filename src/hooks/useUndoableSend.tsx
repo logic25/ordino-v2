@@ -11,6 +11,7 @@ interface SendPayload {
   subject: string;
   html_body: string;
   reply_to_email_id?: string;
+  forward_from_email_id?: string;
   attachments?: { filename: string; content: string; mime_type: string }[];
   project_id?: string;
   tag_category?: string;

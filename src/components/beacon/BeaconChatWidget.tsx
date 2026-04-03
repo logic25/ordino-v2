@@ -265,7 +265,7 @@ function BeaconChatHistory({
               ) : (
                 <button
                   onClick={(e) => { e.stopPropagation(); setConfirmId(s.session_id); }}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 p-1 hover:bg-destructive/10 rounded"
+                  className="opacity-70 hover:opacity-100 transition-opacity shrink-0 p-1 hover:bg-destructive/10 rounded"
                   title="Delete chat"
                 >
                   <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />

@@ -271,20 +271,8 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
   };
 
   const replyToEmail = email;
-  const fallbackQuotedEmail = [...displayEmails]
-    .reverse()
-    .find((threadEmail) => threadEmail.id !== replyToEmail.id && (threadEmail.body_html || threadEmail.body_text));
-  const originalQuotedContent =
-    replyToEmail.body_html ||
-    replyToEmail.body_text ||
-    fallbackQuotedEmail?.body_html ||
-    fallbackQuotedEmail?.body_text ||
-    "";
-  const quotedDateLabel = replyToEmail.date ? new Date(replyToEmail.date).toLocaleDateString() : "";
-  const buildReplyOrForwardBody = (message: string, isForward: boolean) =>
-    isForward
-      ? `<div>${message.replace(/\n/g, "<br/>")}</div><br/><hr/><p><strong>---------- Forwarded message ----------</strong><br/>From: ${replyToEmail.from_name || replyToEmail.from_email}<br/>Subject: ${replyToEmail.subject || ""}<br/></p>${originalQuotedContent}`
-      : `<div>${message.replace(/\n/g, "<br/>")}</div><br/><div style="padding-left:8px;border-left:2px solid #ccc;color:#555;margin-top:8px"><p style="margin:0 0 4px"><strong>On ${quotedDateLabel}, ${replyToEmail.from_name || replyToEmail.from_email} wrote:</strong></p>${originalQuotedContent}</div>`;
+  const buildComposerMessageBody = (message: string) =>
+    `<div>${message.replace(/\n/g, "<br/>")}</div>`;
 
   const handleReply = () => {
     if (!replyBody.trim()) return;
@@ -294,7 +282,7 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
       ? (replyToEmail.subject?.startsWith("Fwd:") ? replyToEmail.subject : `Fwd: ${replyToEmail.subject || "(no subject)"}`)
       : (replyToEmail.subject?.startsWith("Re:") ? replyToEmail.subject : `Re: ${replyToEmail.subject || "(no subject)"}`);
 
-    const forwardBody = buildReplyOrForwardBody(replyBody, isForward);
+    const messageBody = buildComposerMessageBody(replyBody);
 
     undoableSend(
       {
@@ -302,8 +290,9 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
         cc: ccField.trim() || undefined,
         bcc: bccField.trim() || undefined,
         subject,
-        html_body: forwardBody,
+        html_body: messageBody,
         reply_to_email_id: isForward ? undefined : replyToEmail.id,
+        forward_from_email_id: isForward ? replyToEmail.id : undefined,
       },
       () => {
         setReplyBody("");
@@ -557,15 +546,16 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
                         const subj = isForward
                           ? (replyToEmail.subject?.startsWith("Fwd:") ? replyToEmail.subject : `Fwd: ${replyToEmail.subject || "(no subject)"}`)
                           : (replyToEmail.subject?.startsWith("Re:") ? replyToEmail.subject : `Re: ${replyToEmail.subject || "(no subject)"}`);
-                        const fwdBody = buildReplyOrForwardBody(replyBody, isForward);
+                        const messageBody = buildComposerMessageBody(replyBody);
                         await scheduleEmail.mutateAsync({
                           emailDraft: {
                             to: toAddr,
                             cc: ccField.trim() || undefined,
                             bcc: bccField.trim() || undefined,
                             subject: subj,
-                            html_body: fwdBody,
+                            html_body: messageBody,
                             reply_to_email_id: isForward ? undefined : replyToEmail.id,
+                            forward_from_email_id: isForward ? replyToEmail.id : undefined,
                           },
                           scheduledSendTime: date,
                         });
