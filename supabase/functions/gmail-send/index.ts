@@ -28,8 +28,147 @@ async function refreshAccessToken(
 
 interface Attachment {
   filename: string;
-  content: string; // base64
+  content: string;
   mime_type: string;
+}
+
+function decodeBase64Url(str: string): string {
+  const base64 = str.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+  try {
+    return decodeURIComponent(
+      atob(padded)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+  } catch {
+    return atob(padded);
+  }
+}
+
+function extractEmailBodies(payload: any): { body_text: string; body_html: string } {
+  let body_text = "";
+  let body_html = "";
+
+  function walk(part: any) {
+    if (!part) return;
+
+    if (part.mimeType === "text/plain" && part.body?.data && !body_text) {
+      body_text = decodeBase64Url(part.body.data);
+    } else if (part.mimeType === "text/html" && part.body?.data && !body_html) {
+      body_html = decodeBase64Url(part.body.data);
+    }
+
+    if (Array.isArray(part.parts)) {
+      for (const child of part.parts) walk(child);
+    }
+  }
+
+  walk(payload);
+  return { body_text, body_html };
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildForwardHtml({
+  userMessage,
+  fromName,
+  fromEmail,
+  subject,
+  sentAt,
+  originalHtml,
+  originalText,
+}: {
+  userMessage: string;
+  fromName?: string | null;
+  fromEmail?: string | null;
+  subject?: string | null;
+  sentAt?: string | null;
+  originalHtml?: string | null;
+  originalText?: string | null;
+}) {
+  const headerBits = [
+    fromName || fromEmail ? `From: ${escapeHtml(fromName || fromEmail || "")}` : "",
+    sentAt ? `Date: ${escapeHtml(new Date(sentAt).toLocaleString())}` : "",
+    subject ? `Subject: ${escapeHtml(subject)}` : "",
+  ].filter(Boolean);
+
+  const recoveredOriginal = originalHtml?.trim()
+    ? originalHtml
+    : originalText?.trim()
+      ? `<pre style="white-space:pre-wrap;font:inherit;margin:0">${escapeHtml(originalText)}</pre>`
+      : "<p><em>Original message content could not be recovered.</em></p>";
+
+  return [
+    userMessage,
+    "<br><hr>",
+    '<div style="margin-top:12px">',
+    '<p><strong>---------- Forwarded message ----------</strong></p>',
+    headerBits.map((line) => `<div>${line}</div>`).join(""),
+    recoveredOriginal,
+    "</div>",
+  ].join("");
+}
+
+async function fetchOriginalMessageContent({
+  supabaseAdmin,
+  accessToken,
+  emailId,
+}: {
+  supabaseAdmin: ReturnType<typeof createClient>;
+  accessToken: string;
+  emailId: string;
+}) {
+  const { data: originalEmail } = await supabaseAdmin
+    .from("emails")
+    .select("gmail_message_id, thread_id, body_html, body_text, subject, from_name, from_email, date")
+    .eq("id", emailId)
+    .single();
+
+  if (!originalEmail) return null;
+
+  let bodyHtml = originalEmail.body_html || "";
+  let bodyText = originalEmail.body_text || "";
+
+  if ((!bodyHtml || !bodyText) && originalEmail.gmail_message_id) {
+    const msgRes = await fetch(
+      `https://www.googleapis.com/gmail/v1/users/me/messages/${originalEmail.gmail_message_id}?format=full`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+
+    if (msgRes.ok) {
+      const msgData = await msgRes.json();
+      const extracted = extractEmailBodies(msgData.payload);
+      bodyHtml = bodyHtml || extracted.body_html;
+      bodyText = bodyText || extracted.body_text;
+      console.log("gmail-send recovered original body", {
+        email_id: emailId,
+        had_stored_html: !!originalEmail.body_html,
+        had_stored_text: !!originalEmail.body_text,
+        recovered_html: !!extracted.body_html,
+        recovered_text: !!extracted.body_text,
+      });
+    } else {
+      console.warn("gmail-send failed to fetch original Gmail message", {
+        email_id: emailId,
+        status: msgRes.status,
+      });
+    }
+  }
+
+  return {
+    ...originalEmail,
+    body_html: bodyHtml,
+    body_text: bodyText,
+  };
 }
 
 function createMimeMessage({
@@ -57,7 +196,6 @@ function createMimeMessage({
   const boundary = "boundary_" + Date.now();
   const altBoundary = "alt_boundary_" + Date.now();
 
-  // RFC 2047 encode subject for non-ASCII characters
   const encodedSubject = /[^\x20-\x7E]/.test(subject)
     ? `=?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`
     : subject;
@@ -76,16 +214,12 @@ function createMimeMessage({
 
   const plainBody = body.replace(/<[^>]*>/g, "");
 
-  // Helper: wrap base64 at 76 chars per line (RFC 2045)
   function wrapBase64(b64: string): string {
     const lines: string[] = [];
-    for (let i = 0; i < b64.length; i += 76) {
-      lines.push(b64.substring(i, i + 76));
-    }
+    for (let i = 0; i < b64.length; i += 76) lines.push(b64.substring(i, i + 76));
     return lines.join("\r\n");
   }
 
-  // Helper: URL-safe base64 encode for Gmail API
   function toWebSafeBase64(str: string): string {
     return btoa(unescape(encodeURIComponent(str)))
       .replace(/\+/g, "-")
@@ -94,7 +228,6 @@ function createMimeMessage({
   }
 
   if (!hasAttachments) {
-    // Simple multipart/alternative
     headers.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
     const message = [
       ...headers,
@@ -113,10 +246,8 @@ function createMimeMessage({
     return toWebSafeBase64(message);
   }
 
-  // multipart/mixed with nested multipart/alternative for body
   headers.push(`Content-Type: multipart/mixed; boundary="${boundary}"`);
 
-  // Build text portion of the message (headers + body parts)
   const textParts = [
     ...headers,
     "",
@@ -134,10 +265,8 @@ function createMimeMessage({
     `--${altBoundary}--`,
   ].join("\r\n");
 
-  // Build attachment parts with proper base64 line wrapping
   const attachmentParts: string[] = [];
   for (const att of attachments!) {
-    // RFC 2047 encode filename for non-ASCII characters
     const safeFilename = /[^\x20-\x7E]/.test(att.filename)
       ? `=?UTF-8?B?${btoa(unescape(encodeURIComponent(att.filename)))}?=`
       : att.filename;
@@ -152,16 +281,10 @@ function createMimeMessage({
   }
 
   const fullMessage = textParts + attachmentParts.join("\r\n") + `\r\n--${boundary}--`;
-
-  // For messages with binary attachments, encode using Uint8Array to avoid
-  // charset issues with the encodeURIComponent/unescape approach
   const encoder = new TextEncoder();
   const messageBytes = encoder.encode(fullMessage);
-  // Convert Uint8Array to binary string for btoa
   let binaryStr = "";
-  for (let i = 0; i < messageBytes.length; i++) {
-    binaryStr += String.fromCharCode(messageBytes[i]);
-  }
+  for (let i = 0; i < messageBytes.length; i++) binaryStr += String.fromCharCode(messageBytes[i]);
   return btoa(binaryStr)
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
@@ -196,17 +319,14 @@ Deno.serve(async (req) => {
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Check if this is a service-role call (from other edge functions)
     const token = authHeader.replace("Bearer ", "");
     const isServiceRole = token === supabaseServiceKey;
 
     let profileId: string;
 
     if (isServiceRole) {
-      // Service-role call: read body first to get user_id
       const reqBody = await req.json();
-      const { to, cc, bcc, subject, html_body, reply_to_email_id, attachments, user_id: bodyUserId } = reqBody;
+      const { to, cc, bcc, subject, html_body, reply_to_email_id, forward_from_email_id, attachments, user_id: bodyUserId } = reqBody;
 
       if (!bodyUserId) {
         return new Response(JSON.stringify({ error: "user_id required for service-role calls" }), {
@@ -215,11 +335,8 @@ Deno.serve(async (req) => {
         });
       }
 
-      // bodyUserId is the profiles.id (not auth user id)
       profileId = bodyUserId;
-
-      // Store parsed body for later use
-      (req as any)._parsedBody = { to, cc, bcc, subject, html_body, reply_to_email_id, attachments };
+      (req as any)._parsedBody = { to, cc, bcc, subject, html_body, reply_to_email_id, forward_from_email_id, attachments };
     } else {
       const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
       const supabaseUser = createClient(supabaseUrl, anonKey, {
@@ -230,11 +347,9 @@ Deno.serve(async (req) => {
         data: { user },
         error: userError,
       } = await supabaseUser.auth.getUser();
-      if (userError) {
-        console.error("getUser error:", userError.message, userError.status);
-      }
+
       if (!user) {
-        console.error("getUser returned null user. Auth header present:", !!authHeader, "Token prefix:", authHeader?.substring(0, 20));
+        console.error("getUser returned null user. Auth header present:", !!authHeader, "Token prefix:", authHeader?.substring(0, 20), userError?.message);
         return new Response(JSON.stringify({ error: "Unauthorized", detail: userError?.message || "getUser returned null" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -258,7 +373,7 @@ Deno.serve(async (req) => {
     }
 
     const reqBody = isServiceRole ? (req as any)._parsedBody : await req.json();
-    const { to, cc, bcc, subject, html_body, reply_to_email_id, attachments, project_id, tag_category } = reqBody;
+    const { to, cc, bcc, subject, html_body, reply_to_email_id, forward_from_email_id, attachments, project_id, tag_category } = reqBody;
 
     if (!to || !subject || !html_body) {
       console.error("Missing required fields", { to: !!to, subject: !!subject, html_body: !!html_body });
@@ -268,7 +383,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get connection
     const { data: connection } = await supabaseAdmin
       .from("gmail_connections")
       .select("*")
@@ -283,7 +397,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Refresh token if needed
     let accessToken = connection.access_token;
     const tokenExpiry = new Date(connection.token_expires_at || 0);
     if (tokenExpiry <= new Date()) {
@@ -304,17 +417,15 @@ Deno.serve(async (req) => {
         .from("gmail_connections")
         .update({
           access_token: refreshed.access_token,
-          token_expires_at: new Date(
-            Date.now() + refreshed.expires_in * 1000
-          ).toISOString(),
+          token_expires_at: new Date(Date.now() + refreshed.expires_in * 1000).toISOString(),
         })
         .eq("id", connection.id);
     }
 
-    // Build reply context if replying
     let in_reply_to: string | undefined;
     let references: string | undefined;
     let threadId: string | undefined;
+    let finalHtmlBody = html_body;
 
     if (reply_to_email_id) {
       const { data: originalEmail } = await supabaseAdmin
@@ -325,7 +436,6 @@ Deno.serve(async (req) => {
 
       if (originalEmail) {
         threadId = originalEmail.thread_id || undefined;
-
         const msgRes = await fetch(
           `https://www.googleapis.com/gmail/v1/users/me/messages/${originalEmail.gmail_message_id}?format=metadata&metadataHeaders=Message-ID`,
           { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -341,7 +451,26 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Log attachment info for debugging
+    if (forward_from_email_id) {
+      const originalForwardEmail = await fetchOriginalMessageContent({
+        supabaseAdmin,
+        accessToken,
+        emailId: forward_from_email_id,
+      });
+
+      if (originalForwardEmail) {
+        finalHtmlBody = buildForwardHtml({
+          userMessage: html_body,
+          fromName: originalForwardEmail.from_name,
+          fromEmail: originalForwardEmail.from_email,
+          subject: originalForwardEmail.subject,
+          sentAt: originalForwardEmail.date,
+          originalHtml: originalForwardEmail.body_html,
+          originalText: originalForwardEmail.body_text,
+        });
+      }
+    }
+
     if (attachments && attachments.length > 0) {
       console.log(`gmail-send: ${attachments.length} attachment(s) included:`,
         attachments.map((a: any) => ({ filename: a.filename, mime_type: a.mime_type, size_bytes: Math.round((a.content?.length || 0) * 3 / 4) }))
@@ -350,14 +479,20 @@ Deno.serve(async (req) => {
       console.log("gmail-send: no attachments");
     }
 
-    // Create and send the email
+    console.log("gmail-send html_body preview", {
+      reply_to_email_id: reply_to_email_id || null,
+      forward_from_email_id: forward_from_email_id || null,
+      html_length: finalHtmlBody.length,
+      html_preview: finalHtmlBody.slice(0, 1500),
+    });
+
     const raw = createMimeMessage({
       to,
       cc: cc || undefined,
       bcc: bcc || undefined,
       from: connection.email_address,
       subject,
-      body: html_body,
+      body: finalHtmlBody,
       in_reply_to,
       references,
       attachments: attachments || undefined,
@@ -368,7 +503,6 @@ Deno.serve(async (req) => {
       sendBody.threadId = threadId;
     }
 
-    // Send with one retry on transient failures
     let sendData: any = null;
     for (let attempt = 0; attempt < 2; attempt++) {
       const sendRes = await fetch(
@@ -386,7 +520,6 @@ Deno.serve(async (req) => {
       sendData = await sendRes.json();
       if (!sendData.error) break;
 
-      // Retry only on 5xx or rate-limit errors
       const code = sendData.error.code || sendRes.status;
       if (attempt === 0 && (code >= 500 || code === 429)) {
         console.warn(`Gmail send attempt ${attempt + 1} failed (${code}), retrying...`);
@@ -404,9 +537,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Insert sent email into emails table so it's immediately available
     const toEmails = to.split(",").map((e: string) => e.trim()).filter(Boolean);
-    const plainTextBody = html_body.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    const plainTextBody = finalHtmlBody.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
     const { data: insertedEmail } = await supabaseAdmin
       .from("emails")
       .upsert({
@@ -420,7 +552,7 @@ Deno.serve(async (req) => {
         to_emails: toEmails,
         date: new Date().toISOString(),
         body_text: plainTextBody || null,
-        body_html: html_body,
+        body_html: finalHtmlBody,
         snippet: plainTextBody.substring(0, 200),
         has_attachments: (attachments && attachments.length > 0) || false,
         labels: ["SENT"],
@@ -429,7 +561,6 @@ Deno.serve(async (req) => {
       .select("id")
       .single();
 
-    // Auto-tag to project if project_id provided
     if (project_id && insertedEmail?.id) {
       await supabaseAdmin
         .from("email_project_tags")
