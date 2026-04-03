@@ -1,46 +1,76 @@
 
 
-# RFP Response Email Redesign: Add Logo + Brand-Aligned Design
+# Ordino Gap Analysis — Go-Live Readiness
 
-## Problem
-1. The RFP response email has no company logo — there's no way to include it
-2. The email design (green header bar, plain layout) doesn't match the Greenlight Expediting brand from the refresh site (black/charcoal with chartreuse/yellow-green accents, clean Apple-esque typography)
+## Summary
 
-## What the Greenlight Refresh brand looks like
-- **Colors**: Black/charcoal primary, chartreuse-green accent (`hsl(65, 85%, 42%)` ≈ `#b5cc18`), white backgrounds
-- **Typography**: Inter font, tight tracking, clean and modern
-- **Style**: Minimal, professional, no heavy borders — subtle separators, lots of whitespace
+After auditing all 115 tables, 60+ edge functions, every page, and RLS policies, here are the gaps organized by severity.
 
-## Changes
+---
 
-### 1. Pass company logo into RFP email builder
-**File: `src/components/rfps/RfpBuilderDialog.tsx`**
-- Already fetches company data — extract `logo_url` from company settings (same pattern as proposals/invoices)
-- Pass `logoUrl` into `buildRfpEmailHtml()`
+## 🔴 Critical (Must fix before go-live)
 
-### 2. Redesign `buildRfpEmailBody.ts` to match brand
-**File: `src/components/rfps/buildRfpEmailBody.ts`**
-- Add `logoUrl` to `AssembledContent` interface
-- Replace the green header with a clean white header containing the company logo + a thin chartreuse accent line (matching the branded email shell pattern)
-- Update color palette:
-  - Header: white background with logo, thin `#b5cc18` accent border
-  - Section headings: charcoal text, subtle bottom border (not uppercase blocky)
-  - Cards/tables: lighter borders, more whitespace
-  - Remove the heavy colored left-borders on sections
-  - Use Inter font stack
-- Keep all existing section renderers but restyle them for the cleaner aesthetic
-- Footer with company name/address/phone in muted text
+### 1. Security — Sensitive Data Exposure
+- **ACH bank info**: Any company member can read all ACH authorizations (routing numbers, account numbers). Should be admin-only.
+- **QBO OAuth tokens**: All company members can SELECT `qbo_connections` (contains access/refresh tokens). Should be admin-only or token columns excluded.
+- **Gmail tokens**: Properly scoped to own user — ✅ OK.
+- **Employee reviews/salary data**: All company members can view all employee reviews. Should be restricted to admin + the reviewed employee.
 
-### 3. Add "Company Logo" upload to Content Library (optional but recommended)
-**File: `src/components/rfps/ContentLibraryTabs.tsx`** (or Company Info tab)
-- The company logo is already uploadable in Settings → Company. No new upload needed — just pull from `companies.logo_url`
-- Add a note in the Company Info tab showing which logo will be used, with a link to Settings if they want to change it
+### 2. Security — Beacon (Widget Messages) Has No Company Isolation
+- `widget_messages` RLS uses `user_email` matching, not `company_id`. If two companies exist, there's no tenant boundary — just email matching. Not exploitable today (single tenant) but a ticking bomb.
 
-## Files Changed
+### 3. Security — Billing Rule Documents Missing Company Check on INSERT
+- `billing_rule_documents` INSERT policy has no `WITH CHECK` constraint — any authenticated user can insert docs into any company's billing rules.
 
-| File | Change |
-|------|--------|
-| `src/components/rfps/buildRfpEmailBody.ts` | Add `logoUrl` to interface, redesign all HTML to match Greenlight brand |
-| `src/components/rfps/RfpBuilderDialog.tsx` | Pass `logoUrl` from company data into email builder |
-| `src/components/rfps/RfpPreviewModal.tsx` | Pass `logoUrl` for preview parity |
+### 4. No OOO / Handoff Feature (Approved Plan, Not Built)
+- The profiles table has no `ooo_from`, `ooo_to`, `ooo_covering_pm_id` columns yet. The approved plan hasn't been implemented.
+
+---
+
+## 🟡 Important (Should fix for go-live)
+
+### 5. Open Bugs (3 in "ready for review")
+- **RFP resume attachments** not sending with response emails
+- **RFP logo/branding** — redesign implemented but needs verification
+- **Email forwarding** — original text still missing, awaiting log capture from Chris's next test
+
+### 6. No Error Boundary / Crash Recovery
+- The "Something went wrong" page users keep seeing suggests missing error boundaries or unhandled promise rejections on key pages.
+
+### 7. No Audit Trail for Sensitive Actions
+- No logging when someone views ACH data, exports invoices, or changes user roles. For a financial tool, this matters.
+
+### 8. Missing Data Validation
+- Several tables with 1 RLS policy (SELECT only, no INSERT/UPDATE/DELETE policies): `billing_notification_preferences`, `billing_schedules`, `beacon_corrections`, etc. These might allow uncontrolled writes.
+
+---
+
+## 🟢 Nice-to-Have (Post-launch)
+
+### 9. Feature Backlog (from `feature_requests`)
+- Plan versioning
+- IBM number tracking
+- Permit tracking
+- OOO/Handoff (approved, not built)
+
+### 10. Missing Polish
+- No onboarding flow for new team members (walkthrough exists but unclear if wired up)
+- No mobile-responsive testing evidence
+- No rate limiting on public endpoints (RFI form, proposal signing)
+
+---
+
+## Recommended Go-Live Sequence
+
+| Priority | Task | Effort |
+|----------|------|--------|
+| 1 | Lock down ACH, QBO tokens, employee reviews RLS | 1-2 hrs |
+| 2 | Add company_id isolation to widget_messages | 30 min |
+| 3 | Fix billing_rule_documents INSERT policy | 10 min |
+| 4 | Verify RFP resume + logo fixes | 30 min |
+| 5 | Confirm email forwarding fix with logs | Waiting on Chris |
+| 6 | Build OOO/Handoff feature | 2-3 hrs |
+| 7 | Add error boundaries to key pages | 1 hr |
+
+**Bottom line**: The security gaps (items 1-3) are the real blockers. Everything else is manageable. Want me to start hardening the RLS policies?
 
