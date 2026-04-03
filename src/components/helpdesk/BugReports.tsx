@@ -243,12 +243,18 @@ export function BugReports() {
     enabled: !!profile?.company_id,
   });
 
-  // Stats
-  const openCount = reports.filter((r: any) => r.status === "open").length;
-  const inProgressCount = reports.filter((r: any) => r.status === "in_progress").length;
-  const readyForReviewCount = reports.filter((r: any) => r.status === "ready_for_review").length;
-  const resolvedCount = reports.filter((r: any) => r.status === "resolved").length;
-  const criticalCount = reports.filter((r: any) => r.priority === "critical" && r.status !== "resolved").length;
+  // Split by category
+  const bugReports = reports.filter((r: any) => r.category === "bug_report");
+  const polishItems = reports.filter((r: any) => r.category === "polish");
+  
+  // Stats (bugs only - polish tracked separately)
+  const openCount = bugReports.filter((r: any) => r.status === "open").length;
+  const inProgressCount = bugReports.filter((r: any) => r.status === "in_progress").length;
+  const readyForReviewCount = bugReports.filter((r: any) => r.status === "ready_for_review").length;
+  const resolvedCount = bugReports.filter((r: any) => r.status === "resolved").length;
+  const criticalCount = bugReports.filter((r: any) => r.priority === "critical" && r.status !== "resolved").length;
+  const polishOpenCount = polishItems.filter((r: any) => r.status !== "resolved").length;
+  const polishResolvedCount = polishItems.filter((r: any) => r.status === "resolved").length;
 
   // Filter + sort
   const filtered = reports
