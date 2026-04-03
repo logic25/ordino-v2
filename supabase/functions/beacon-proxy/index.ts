@@ -184,7 +184,7 @@ Deno.serve(async (req) => {
                 .trim();
               const pageName = currentPage || "Unknown";
 
-              const { error: insertErr } = await sb
+              const { data: inserted, error: insertErr } = await sb
                 .from("feature_requests")
                 .insert({
                   company_id: profile.company_id,
@@ -195,11 +195,23 @@ Deno.serve(async (req) => {
                   priority: "medium",
                   status: "open",
                   attachments: [],
-                } as any);
+                } as any)
+                .select("id")
+                .single();
 
-              if (!insertErr) {
+              if (!insertErr && inserted) {
                 responseJson.bug_auto_logged = true;
-                console.log("Auto-logged bug for page:", pageName);
+                console.log("Auto-logged bug for page:", pageName, "id:", inserted.id);
+
+                // Fire-and-forget triage
+                fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/triage-bug-report`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+                  },
+                  body: JSON.stringify({ bug_id: inserted.id }),
+                }).catch(e => console.error("Triage trigger failed:", e));
               } else {
                 console.error("Auto-log bug insert failed:", insertErr);
               }
