@@ -14,6 +14,34 @@ import { Button } from "@/components/ui/button";
 import { lazy, Suspense } from "react";
 import { Loader2 } from "lucide-react";
 
+function lazyWithRetry<T extends React.ComponentType<any>>(
+  importer: () => Promise<{ default: T }>,
+  cacheKey: string,
+) {
+  return lazy(async () => {
+    const retryKey = `lazy-retry:${cacheKey}`;
+
+    try {
+      const module = await importer();
+      sessionStorage.removeItem(retryKey);
+      return module;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const isChunkLoadError = /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i.test(message);
+      const hasRetried = sessionStorage.getItem(retryKey) === "1";
+
+      if (isChunkLoadError && !hasRetried) {
+        sessionStorage.setItem(retryKey, "1");
+        window.location.reload();
+        return new Promise<never>(() => {});
+      }
+
+      sessionStorage.removeItem(retryKey);
+      throw error;
+    }
+  });
+}
+
 // Eager-loaded pages (auth / shell)
 import Auth from "./pages/Auth";
 import Setup from "./pages/Setup";
@@ -21,31 +49,31 @@ import AuthCallback from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
 
 // Lazy-loaded pages
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Projects = lazy(() => import("./pages/Projects"));
-const ProjectDetail = lazy(() => import("./pages/ProjectDetail"));
-const Properties = lazy(() => import("./pages/Properties"));
-const PropertyDetail = lazy(() => import("./pages/PropertyDetail"));
-const Time = lazy(() => import("./pages/Time"));
-const Proposals = lazy(() => import("./pages/Proposals"));
-const Invoices = lazy(() => import("./pages/Invoices"));
-const Clients = lazy(() => import("./pages/Clients"));
-const Settings = lazy(() => import("./pages/Settings"));
-const RfiForm = lazy(() => import("./pages/RfiForm"));
-const ClientDetail = lazy(() => import("./pages/ClientDetail"));
-const Emails = lazy(() => import("./pages/Emails"));
-const Calendar = lazy(() => import("./pages/Calendar"));
-const Documents = lazy(() => import("./pages/Documents"));
-const Rfps = lazy(() => import("./pages/Rfps"));
-const RfpLibrary = lazy(() => import("./pages/RfpLibrary"));
-const RfpDiscovery = lazy(() => import("./pages/RfpDiscovery"));
-const ClientProposal = lazy(() => import("./pages/ClientProposal"));
-const ClientChangeOrder = lazy(() => import("./pages/ClientChangeOrder"));
-const Reports = lazy(() => import("./pages/Reports"));
-const HelpDesk = lazy(() => import("./pages/HelpDesk"));
-const Chat = lazy(() => import("./pages/Chat"));
-const Privacy = lazy(() => import("./pages/Privacy"));
-const Terms = lazy(() => import("./pages/Terms"));
+const Dashboard = lazyWithRetry(() => import("./pages/Dashboard"), "dashboard");
+const Projects = lazyWithRetry(() => import("./pages/Projects"), "projects");
+const ProjectDetail = lazyWithRetry(() => import("./pages/ProjectDetail"), "project-detail");
+const Properties = lazyWithRetry(() => import("./pages/Properties"), "properties");
+const PropertyDetail = lazyWithRetry(() => import("./pages/PropertyDetail"), "property-detail");
+const Time = lazyWithRetry(() => import("./pages/Time"), "time");
+const Proposals = lazyWithRetry(() => import("./pages/Proposals"), "proposals");
+const Invoices = lazyWithRetry(() => import("./pages/Invoices"), "invoices");
+const Clients = lazyWithRetry(() => import("./pages/Clients"), "clients");
+const Settings = lazyWithRetry(() => import("./pages/Settings"), "settings");
+const RfiForm = lazyWithRetry(() => import("./pages/RfiForm"), "rfi-form");
+const ClientDetail = lazyWithRetry(() => import("./pages/ClientDetail"), "client-detail");
+const Emails = lazyWithRetry(() => import("./pages/Emails"), "emails");
+const Calendar = lazyWithRetry(() => import("./pages/Calendar"), "calendar");
+const Documents = lazyWithRetry(() => import("./pages/Documents"), "documents");
+const Rfps = lazyWithRetry(() => import("./pages/Rfps"), "rfps");
+const RfpLibrary = lazyWithRetry(() => import("./pages/RfpLibrary"), "rfp-library");
+const RfpDiscovery = lazyWithRetry(() => import("./pages/RfpDiscovery"), "rfp-discovery");
+const ClientProposal = lazyWithRetry(() => import("./pages/ClientProposal"), "client-proposal");
+const ClientChangeOrder = lazyWithRetry(() => import("./pages/ClientChangeOrder"), "client-change-order");
+const Reports = lazyWithRetry(() => import("./pages/Reports"), "reports");
+const HelpDesk = lazyWithRetry(() => import("./pages/HelpDesk"), "help-desk");
+const Chat = lazyWithRetry(() => import("./pages/Chat"), "chat");
+const Privacy = lazyWithRetry(() => import("./pages/Privacy"), "privacy");
+const Terms = lazyWithRetry(() => import("./pages/Terms"), "terms");
 
 function PageSpinner() {
   return (
