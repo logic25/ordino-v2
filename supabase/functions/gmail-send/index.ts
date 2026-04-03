@@ -47,25 +47,75 @@ function decodeBase64Url(str: string): string {
   }
 }
 
-function extractEmailBodies(payload: any): { body_text: string; body_html: string } {
+async function fetchGmailMessagePartData({
+  accessToken,
+  gmailMessageId,
+  attachmentId,
+}: {
+  accessToken: string;
+  gmailMessageId: string;
+  attachmentId: string;
+}): Promise<string> {
+  const res = await fetch(
+    `https://www.googleapis.com/gmail/v1/users/me/messages/${gmailMessageId}/attachments/${attachmentId}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+
+  if (!res.ok) {
+    console.warn("gmail-send failed to fetch Gmail message part attachment", {
+      gmail_message_id: gmailMessageId,
+      attachment_id: attachmentId,
+      status: res.status,
+    });
+    return "";
+  }
+
+  const data = await res.json();
+  return data?.data ? decodeBase64Url(data.data) : "";
+}
+
+async function extractEmailBodies(
+  payload: any,
+  {
+    accessToken,
+    gmailMessageId,
+  }: {
+    accessToken: string;
+    gmailMessageId: string;
+  }
+): Promise<{ body_text: string; body_html: string }> {
   let body_text = "";
   let body_html = "";
 
-  function walk(part: any) {
+  async function readPartBody(part: any): Promise<string> {
+    if (part?.body?.data) return decodeBase64Url(part.body.data);
+    if (part?.body?.attachmentId && gmailMessageId) {
+      return fetchGmailMessagePartData({
+        accessToken,
+        gmailMessageId,
+        attachmentId: part.body.attachmentId,
+      });
+    }
+    return "";
+  }
+
+  async function walk(part: any) {
     if (!part) return;
 
-    if (part.mimeType === "text/plain" && part.body?.data && !body_text) {
-      body_text = decodeBase64Url(part.body.data);
-    } else if (part.mimeType === "text/html" && part.body?.data && !body_html) {
-      body_html = decodeBase64Url(part.body.data);
+    if (part.mimeType === "text/plain" && !body_text) {
+      body_text = await readPartBody(part);
+    } else if (part.mimeType === "text/html" && !body_html) {
+      body_html = await readPartBody(part);
     }
 
     if (Array.isArray(part.parts)) {
-      for (const child of part.parts) walk(child);
+      for (const child of part.parts) {
+        await walk(child);
+      }
     }
   }
 
-  walk(payload);
+  await walk(payload);
   return { body_text, body_html };
 }
 
@@ -129,11 +179,21 @@ async function fetchOriginalMessageContent({
 }) {
   const { data: originalEmail } = await supabaseAdmin
     .from("emails")
-    .select("gmail_message_id, thread_id, body_html, body_text, subject, from_name, from_email, date")
+    .select("id, gmail_message_id, thread_id, body_html, body_text, subject, from_name, from_email, date")
     .eq("id", emailId)
     .single();
 
   if (!originalEmail) return null;
+
+  console.log("gmail-send forward source email", {
+    email_id: emailId,
+    gmail_message_id: originalEmail.gmail_message_id,
+    has_stored_html: !!originalEmail.body_html,
+    has_stored_text: !!originalEmail.body_text,
+    stored_html_length: originalEmail.body_html?.length || 0,
+    stored_text_length: originalEmail.body_text?.length || 0,
+    subject: originalEmail.subject,
+  });
 
   let bodyHtml = originalEmail.body_html || "";
   let bodyText = originalEmail.body_text || "";
@@ -146,19 +206,37 @@ async function fetchOriginalMessageContent({
 
     if (msgRes.ok) {
       const msgData = await msgRes.json();
-      const extracted = extractEmailBodies(msgData.payload);
+      const extracted = await extractEmailBodies(msgData.payload, {
+        accessToken,
+        gmailMessageId: originalEmail.gmail_message_id,
+      });
       bodyHtml = bodyHtml || extracted.body_html;
       bodyText = bodyText || extracted.body_text;
+
       console.log("gmail-send recovered original body", {
         email_id: emailId,
         had_stored_html: !!originalEmail.body_html,
         had_stored_text: !!originalEmail.body_text,
         recovered_html: !!extracted.body_html,
         recovered_text: !!extracted.body_text,
+        recovered_html_length: extracted.body_html?.length || 0,
+        recovered_text_length: extracted.body_text?.length || 0,
       });
+
+      if ((bodyHtml && !originalEmail.body_html) || (bodyText && !originalEmail.body_text)) {
+        await supabaseAdmin
+          .from("emails")
+          .update({
+            body_html: bodyHtml || null,
+            body_text: bodyText || null,
+            snippet: (bodyText || bodyHtml.replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim().slice(0, 200) || null,
+          })
+          .eq("id", emailId);
+      }
     } else {
       console.warn("gmail-send failed to fetch original Gmail message", {
         email_id: emailId,
+        gmail_message_id: originalEmail.gmail_message_id,
         status: msgRes.status,
       });
     }
@@ -485,6 +563,7 @@ Deno.serve(async (req) => {
       html_length: finalHtmlBody.length,
       html_preview: finalHtmlBody.slice(0, 1500),
     });
+    console.log("gmail-send full html_body", finalHtmlBody);
 
     const raw = createMimeMessage({
       to,
