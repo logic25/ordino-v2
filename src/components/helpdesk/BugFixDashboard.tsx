@@ -144,6 +144,22 @@ export function BugFixDashboard() {
         </Card>
       </div>
 
+      {/* Polish Summary */}
+      {allPolish.length > 0 && (
+        <Card className="border-blue-200 bg-blue-50/30 dark:bg-blue-950/10">
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Paintbrush className="h-4 w-4 text-blue-500" />
+              <span className="font-semibold text-sm">Polish Items</span>
+              <Badge variant="outline" className="ml-auto text-blue-600 border-blue-300">
+                {allPolish.filter((p: any) => p.status !== "resolved").length} open · {allPolish.filter((p: any) => p.status === "resolved").length} done
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">UI improvements tracked separately from bugs — padding, formatting, labels, colors, etc.</p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Chart */}
       <Card>
         <CardHeader className="pb-2">
