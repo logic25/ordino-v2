@@ -240,7 +240,7 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
   const [contextCleared, setContextCleared] = useState(false);
 
   // Session management
-  const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
+  const [sessionId, setSessionId] = useState<string>(() => crypto.randomUUID());
   const [showHistory, setShowHistory] = useState(false);
   const [historySessions, setHistorySessions] = useState<SessionPreview[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
