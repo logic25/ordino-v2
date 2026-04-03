@@ -32,6 +32,7 @@ export default function HelpDesk() {
             {isAdmin && <TabsTrigger value="whats-new">What's New</TabsTrigger>}
             <TabsTrigger value="requests">Feature Requests</TabsTrigger>
             <TabsTrigger value="bugs">Bug Reports</TabsTrigger>
+            {isAdmin && <TabsTrigger value="bug-metrics">Bug Metrics</TabsTrigger>}
             {isAdmin && <TabsTrigger value="roadmap">Product Roadmap</TabsTrigger>}
             {isAdmin && <TabsTrigger value="ai-usage">AI Usage</TabsTrigger>}
           </TabsList>
