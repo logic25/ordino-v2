@@ -75,6 +75,45 @@ Deno.serve(async (req) => {
     if (action === "chat") {
       beaconUrl = `${BEACON_API_URL}/api/chat`;
       const body = await req.json();
+
+      // ── Bug Triage Sub-Agent routing ──
+      // Detect code/bug questions and enrich with institutional pattern knowledge
+      const lastMessage = body.message || body.messages?.[body.messages?.length - 1]?.content || "";
+      const isBugQuestion = /\b(bug|broken|error|crash|fail|not working|issue|fix|wrong|stuck|breaking)\b/i.test(lastMessage);
+
+      if (isBugQuestion) {
+        try {
+          const dataProxyUrl = Deno.env.get("SUPABASE_URL") + "/functions/v1/beacon-data-proxy";
+          const patternRes = await fetch(dataProxyUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-beacon-key": BEACON_API_KEY,
+            },
+            body: JSON.stringify({
+              action: "query_bug_patterns",
+              params: { search: lastMessage, limit: 5 },
+            }),
+          });
+
+          if (patternRes.ok) {
+            const patternData = await patternRes.json();
+            const patterns = patternData?.data?.patterns || [];
+            if (patterns.length > 0) {
+              const patternContext = patterns.map((p: any) =>
+                `• "${p.pattern_name}" (seen ${p.occurrences}x): Root cause: ${p.root_cause || "unknown"}. Fix: ${p.fix_pattern || "N/A"}. Files: ${(p.affected_files || []).join(", ")}`
+              ).join("\n");
+
+              // Inject pattern knowledge as system context
+              body.system_context = (body.system_context || "") +
+                `\n\n**Known Bug Patterns (institutional knowledge):**\n${patternContext}\n\nUse these patterns to inform your answer. If a pattern matches the user's question, cite it specifically ("I've seen this pattern X times before...").`;
+            }
+          }
+        } catch (e) {
+          console.error("Bug pattern lookup failed (non-blocking):", e);
+        }
+      }
+
       beaconReqInit = {
         method: "POST",
         headers: {
