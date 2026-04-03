@@ -66,6 +66,7 @@ Deno.serve(async (req) => {
         return await queryBugPatterns(supabase, params);
       default:
         return fail(`Unknown action: ${action}`);
+    }
   } catch (err) {
     console.error("beacon-data-proxy error:", err);
     return fail("Internal server error", 500);
