@@ -130,6 +130,14 @@ Deno.serve(async (req) => {
               label: "PM workload",
             });
           }
+          if (/recommend|suggest|know a |know any |good |who.*(plumb|architect|engineer|gc|contractor|expedit|surveyor|sia|consultant|vendor|partner)/i.test(msgLower)) {
+            const typeMatch = msgLower.match(/\b(plumb(?:er|ing)?|architect|engineer(?:ing)?|gc|general\s*contractor|contractor|expedit(?:er|or|ing)?|surveyor|sia|consultant|electrician|hvac|structural)\b/);
+            dataQueries.push({
+              action: "vendor_lookup",
+              params: { type: typeMatch ? typeMatch[1] : undefined },
+              label: "vendor recommendations",
+            });
+          }
           if (/filing|readiness/i.test(msgLower)) {
             dataQueries.push({
               action: "check_filing_readiness",
