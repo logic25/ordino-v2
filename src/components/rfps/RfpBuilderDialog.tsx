@@ -38,6 +38,7 @@ import { buildRfpEmailHtml } from "./buildRfpEmailBody";
 import { SortableSectionItem } from "./builder/SortableSectionItem";
 import { useNavigate } from "react-router-dom";
 import { useTelemetry } from "@/hooks/useTelemetry";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
 
 interface RfpBuilderDialogProps {
   rfp: Rfp | null;
