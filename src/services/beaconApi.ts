@@ -55,6 +55,9 @@ export interface BeaconProjectContext {
     inProgress: string[];
     completed: string[];
   };
+  // Page & error context for bug detection
+  currentPage?: string;
+  recentErrors?: string[];
 }
 
 export async function askBeacon(
