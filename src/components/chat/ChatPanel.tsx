@@ -158,6 +158,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
             sources: data.sources,
             flow_type: data.flow_type,
           },
+          company_id: profile?.company_id || null,
         });
       }
 
