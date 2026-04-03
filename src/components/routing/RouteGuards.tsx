@@ -1,4 +1,5 @@
 import { Navigate, useSearchParams } from "react-router-dom";
+import { RouteErrorBoundary } from "./RouteErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
 
 // Loading spinner component
