@@ -1124,8 +1124,37 @@ export function BugReports() {
                       </div>
                     )}
 
+                    {/* Fix tracking fields when resolving */}
+                    {editStatus === "resolved" && selectedBug.status !== "resolved" && (
+                      <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                        <div className="flex items-center gap-2">
+                          <FileIcon className="h-4 w-4 text-primary" />
+                          <Label className="text-sm font-medium">Fix Details (optional)</Label>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Fixed By</Label>
+                          <Select value={fixedBy} onValueChange={setFixedBy}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="lovable">Lovable</SelectItem>
+                              <SelectItem value="claude_code">Claude Code</SelectItem>
+                              <SelectItem value="manual">Manual</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Files Changed (comma-separated)</Label>
+                          <Input
+                            value={filesChanged}
+                            onChange={(e) => setFilesChanged(e.target.value)}
+                            placeholder="e.g. src/hooks/useEmails.ts, src/pages/Email.tsx"
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      </div>
+                    )}
 
-                    <div className="flex gap-2">
+
                       <Button size="sm" onClick={saveDetail} disabled={updateBug.isPending}>
                         {updateBug.isPending ? "Saving..." :
                           editStatus === "ready_for_review" && selectedBug.status !== "ready_for_review" ? "Mark Ready for Review" :
