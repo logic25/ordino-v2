@@ -120,10 +120,12 @@ export function ChangeOrderDialog({
           }
         }
         setDepositPct((existingCO as any).deposit_percentage || 0);
+        setIsNonBillable((existingCO as any).is_non_billable || false);
       } else {
         form.reset({ title: "", requested_by: "", notes: "" });
         setServiceLines([]);
         setDepositPct(0);
+        setIsNonBillable(false);
       }
       setSearchTerm("");
     }
