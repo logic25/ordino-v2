@@ -37,6 +37,7 @@ interface PreviewData {
   staffBios: any[];
   notableProjects: any[];
   narratives: any[];
+  firmHistory: any[];
   pricing: any;
   certs: any[];
   coverLetter?: string;
@@ -49,7 +50,7 @@ interface RfpPreviewModalProps {
 }
 
 export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalProps) {
-  const { rfp, sections, companyInfo, staffBios, notableProjects, narratives, pricing, certs, coverLetter } = data;
+  const { rfp, sections, companyInfo, staffBios, notableProjects, narratives, firmHistory, pricing, certs, coverLetter } = data;
   const contentRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
 
@@ -177,6 +178,7 @@ export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalPro
             {sections.map((sectionId) => (
               <div key={sectionId} data-pdf-section={sectionId}>
                 {sectionId === "cover_letter" && coverLetter && <CoverLetterSection text={coverLetter} />}
+                {sectionId === "firm_overview" && <FirmOverviewSection data={firmHistory} />}
                 {sectionId === "company_info" && <CompanyInfoSection data={companyInfo} />}
                 {sectionId === "staff_bios" && <StaffBiosSection data={staffBios} />}
                 {sectionId === "org_chart" && <OrgChartSection data={staffBios} />}
@@ -228,6 +230,28 @@ function CoverLetterSection({ text }: { text: string }) {
     <div className="border-l-4 border-l-accent pl-5 py-2">
       <SectionHeading icon={Mail} color="text-accent">Cover Letter</SectionHeading>
       <div className="text-sm whitespace-pre-wrap leading-relaxed text-foreground">{text}</div>
+      <Separator className="mt-6" />
+    </div>
+  );
+}
+
+/* ─── Firm Overview ─── */
+function FirmOverviewSection({ data }: { data: any[] }) {
+  if (!data.length) return <p className="text-muted-foreground text-sm italic">No firm overview available.</p>;
+  return (
+    <div>
+      <SectionHeading icon={FileText} color="text-accent">About Our Firm</SectionHeading>
+      <div className="space-y-4">
+        {data.map((item) => {
+          const text = (item.content as any)?.text || "";
+          return (
+            <div key={item.id}>
+              {item.title && <p className="font-semibold text-sm text-foreground mb-1">{item.title}</p>}
+              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{text}</p>
+            </div>
+          );
+        })}
+      </div>
       <Separator className="mt-6" />
     </div>
   );

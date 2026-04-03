@@ -9,6 +9,7 @@ interface AssembledContent {
   staffBios: any[];
   notableProjects: any[];
   narratives: any[];
+  firmHistory: any[];
   pricing: any;
   certs: any[];
   coverLetter?: string;
@@ -20,34 +21,55 @@ interface AssembledContent {
   companyWebsite?: string;
 }
 
-const COLORS = {
-  accent: "#b5cc18",       // chartreuse brand accent
-  accentDark: "#8fa313",   // darker accent for links
+/* ── Brand palette ── */
+const C = {
+  accent: "#b5cc18",
   charcoal: "#1a1a1a",
-  text: "#2d2d2d",
-  textSecondary: "#6b6b6b",
-  border: "#e8e8e8",
-  borderLight: "#f0f0f0",
-  bg: "#fafafa",
+  text: "#333333",
+  secondary: "#888888",
+  rule: "#e0e0e0",
+  ruleLight: "#f0f0f0",
+  bg: "#f8f8f8",
   white: "#ffffff",
-  green: "#16a34a",
-  blue: "#2563eb",
-  amber: "#d97706",
 };
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+const F = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
-function sectionHeading(title: string): string {
-  return `<tr><td style="padding:28px 0 12px">
-    <div style="font-family:${FONT};font-size:13px;font-weight:600;letter-spacing:0.3px;color:${COLORS.charcoal};padding-bottom:8px;border-bottom:1px solid ${COLORS.border}">${title}</div>
+/* ── Helpers ── */
+function heading(title: string): string {
+  return `<tr><td style="padding:36px 0 14px">
+    <div style="font-family:${F};font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:${C.secondary}">${title}</div>
+    <div style="margin-top:8px;height:1px;background:${C.rule}"></div>
   </td></tr>`;
 }
 
+function pill(label: string): string {
+  return `<span style="display:inline-block;font-family:${F};font-size:10px;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;color:${C.charcoal};background:${C.bg};border:1px solid ${C.rule};border-radius:100px;padding:3px 10px;margin-right:6px">${label}</span>`;
+}
+
+/* ── Section renderers ── */
+
 function coverLetterHtml(text: string): string {
   return `
-    ${sectionHeading("Cover Letter")}
-    <tr><td style="padding:8px 0 24px">
-      <div style="font-family:${FONT};font-size:14px;line-height:1.75;color:${COLORS.text};white-space:pre-wrap">${text.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>")}</div>
+    ${heading("Cover Letter")}
+    <tr><td style="padding:4px 0 28px">
+      <div style="font-family:${F};font-size:14px;line-height:1.8;color:${C.text};white-space:pre-wrap">${text.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>")}</div>
+    </td></tr>`;
+}
+
+function firmOverviewHtml(firmHistory: any[]): string {
+  if (!firmHistory.length) return "";
+  // Combine all firm_history entries into one flowing overview
+  const blocks = firmHistory.map((item) => {
+    const text = (item.content as any)?.text || "";
+    const title = item.title || "";
+    return `${title ? `<div style="font-family:${F};font-size:15px;font-weight:600;color:${C.charcoal};margin-bottom:6px">${title}</div>` : ""}
+      <div style="font-family:${F};font-size:14px;line-height:1.8;color:${C.text};margin-bottom:16px;white-space:pre-wrap">${text.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>")}</div>`;
+  });
+  return `
+    ${heading("About Our Firm")}
+    <tr><td style="padding:4px 0 12px">
+      ${blocks.join("")}
     </td></tr>`;
 }
 
@@ -61,27 +83,28 @@ function companyInfoHtml(data: any): string {
     { label: "Email", value: content.email },
     { label: "Tax ID", value: content.tax_id },
     { label: "Founded", value: content.founded_year },
-    { label: "Staff Count", value: content.staff_count },
+    { label: "Employees", value: content.staff_count },
     { label: "Website", value: content.website },
   ].filter((f) => f.value);
   if (!fields.length) return "";
 
   const rows = fields.map(
-    (f) => `<td style="padding:10px 16px;vertical-align:top;width:50%">
-      <div style="font-family:${FONT};font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:${COLORS.textSecondary};font-weight:500">${f.label}</div>
-      <div style="font-family:${FONT};font-size:14px;color:${COLORS.text};margin-top:4px;font-weight:500">${String(f.value)}</div>
+    (f) => `<td style="padding:12px 20px;vertical-align:top;width:50%">
+      <div style="font-family:${F};font-size:10px;letter-spacing:1px;text-transform:uppercase;color:${C.secondary};font-weight:600">${f.label}</div>
+      <div style="font-family:${F};font-size:14px;color:${C.charcoal};margin-top:4px;font-weight:500">${String(f.value)}</div>
     </td>`
   );
 
   const tableRows: string[] = [];
   for (let i = 0; i < rows.length; i += 2) {
-    tableRows.push(`<tr>${rows[i]}${rows[i + 1] || "<td></td>"}</tr>`);
+    const border = i > 0 ? `border-top:1px solid ${C.ruleLight};` : "";
+    tableRows.push(`<tr style="${border}">${rows[i]}${rows[i + 1] || "<td></td>"}</tr>`);
   }
 
   return `
-    ${sectionHeading("Company Information")}
-    <tr><td style="padding:4px 0 24px">
-      <table cellpadding="0" cellspacing="0" width="100%" style="border:1px solid ${COLORS.borderLight};border-radius:8px;border-collapse:separate;background:${COLORS.bg}">
+    ${heading("Company Details")}
+    <tr><td style="padding:4px 0 28px">
+      <table cellpadding="0" cellspacing="0" width="100%" style="border:1px solid ${C.rule};border-radius:12px;border-collapse:separate;overflow:hidden">
         ${tableRows.join("")}
       </table>
     </td></tr>`;
@@ -93,16 +116,16 @@ function staffBiosHtml(bios: any[]): string {
     const c = item.content as any;
     const meta: string[] = [];
     if (c.title) meta.push(c.title);
-    if (c.years_experience) meta.push(`${c.years_experience} yrs experience`);
+    if (c.years_experience) meta.push(`${c.years_experience} years`);
     if (c.hourly_rate) meta.push(`$${Number(c.hourly_rate).toLocaleString()}/hr`);
-    return `<tr><td style="padding:14px 16px;border:1px solid ${COLORS.borderLight};border-radius:8px;background:${COLORS.white}">
-      <div style="font-family:${FONT};font-size:15px;font-weight:600;color:${COLORS.charcoal}">${c.name || "—"}</div>
-      <div style="font-family:${FONT};font-size:12px;color:${COLORS.textSecondary};margin-top:3px">${meta.join(" · ")}</div>
-      ${c.bio ? `<div style="font-family:${FONT};font-size:13px;color:${COLORS.text};margin-top:8px;line-height:1.65">${c.bio}</div>` : ""}
+    return `<tr><td style="padding:16px 20px;border:1px solid ${C.rule};border-radius:12px">
+      <div style="font-family:${F};font-size:15px;font-weight:600;color:${C.charcoal};letter-spacing:-0.2px">${c.name || "—"}</div>
+      <div style="font-family:${F};font-size:12px;color:${C.secondary};margin-top:4px">${meta.join(" · ")}</div>
+      ${c.bio ? `<div style="font-family:${F};font-size:13px;color:${C.text};margin-top:10px;line-height:1.7">${c.bio}</div>` : ""}
     </td></tr>
-    <tr><td style="height:8px"></td></tr>`;
+    <tr><td style="height:10px"></td></tr>`;
   });
-  return `${sectionHeading("Key Personnel")}${items.join("")}`;
+  return `${heading("Key Personnel")}${items.join("")}`;
 }
 
 function notableProjectsHtml(projects: any[]): string {
@@ -124,62 +147,64 @@ function notableProjectsHtml(projects: any[]): string {
 
     const photoHtml = photos.filter((p: string) => !p.endsWith(".pdf")).slice(0, 4).map((p: string) => {
       const url = getProjectPhotoUrl(p);
-      return `<td style="width:25%;padding:4px"><img src="${url}" alt="Project photo" style="width:100%;border-radius:6px;display:block" /></td>`;
+      return `<td style="width:25%;padding:4px"><img src="${url}" alt="Project photo" style="width:100%;border-radius:8px;display:block" /></td>`;
     });
 
     const refHtml = proj.reference_contact_name
-      ? `<div style="margin-top:10px;padding:10px 14px;background:${COLORS.bg};border:1px solid ${COLORS.borderLight};border-radius:6px;font-family:${FONT};font-size:12px;color:${COLORS.text}">
-          <strong>Reference:</strong> ${proj.reference_contact_name}${proj.reference_contact_title ? `, ${proj.reference_contact_title}` : ""}${proj.reference_contact_phone ? ` — ${proj.reference_contact_phone}` : ""}${proj.reference_contact_email ? ` — ${proj.reference_contact_email}` : ""}
+      ? `<div style="margin-top:12px;padding:10px 14px;background:${C.bg};border:1px solid ${C.ruleLight};border-radius:8px;font-family:${F};font-size:12px;color:${C.text}">
+          <strong style="color:${C.charcoal}">Reference:</strong> ${proj.reference_contact_name}${proj.reference_contact_title ? `, ${proj.reference_contact_title}` : ""}${proj.reference_contact_phone ? ` — ${proj.reference_contact_phone}` : ""}${proj.reference_contact_email ? ` — ${proj.reference_contact_email}` : ""}
         </div>`
       : "";
 
-    return `<tr><td style="padding:14px 16px;border:1px solid ${COLORS.borderLight};border-radius:8px;background:${COLORS.white}">
-      <div style="font-family:${FONT};font-size:15px;font-weight:600;color:${COLORS.charcoal}">${title}${isSheet ? ' <span style="font-size:10px;color:' + COLORS.accent + ';font-weight:500">[Custom]</span>' : ""}</div>
-      ${metaParts.length ? `<div style="font-family:${FONT};font-size:12px;color:${COLORS.textSecondary};margin-top:4px">${metaParts.join(" · ")}</div>` : ""}
-      ${proj.description ? `<div style="font-family:${FONT};font-size:13px;color:${COLORS.text};margin-top:8px;line-height:1.65">${proj.description}</div>` : ""}
-      ${photoHtml.length ? `<table cellpadding="0" cellspacing="0" width="100%" style="margin-top:10px"><tr>${photoHtml.join("")}</tr></table>` : ""}
+    return `<tr><td style="padding:18px 20px;border:1px solid ${C.rule};border-radius:12px">
+      <div style="font-family:${F};font-size:15px;font-weight:600;color:${C.charcoal};letter-spacing:-0.2px">${title}${isSheet ? ' <span style="font-size:10px;color:' + C.accent + ';font-weight:500">[Custom]</span>' : ""}</div>
+      ${metaParts.length ? `<div style="font-family:${F};font-size:12px;color:${C.secondary};margin-top:4px">${metaParts.join(" · ")}</div>` : ""}
+      ${proj.description ? `<div style="font-family:${F};font-size:13px;color:${C.text};margin-top:10px;line-height:1.7">${proj.description}</div>` : ""}
+      ${photoHtml.length ? `<table cellpadding="0" cellspacing="0" width="100%" style="margin-top:12px"><tr>${photoHtml.join("")}</tr></table>` : ""}
       ${refHtml}
     </td></tr>
-    <tr><td style="height:8px"></td></tr>`;
+    <tr><td style="height:10px"></td></tr>`;
   });
-  return `${sectionHeading("Notable Projects & References")}${items.join("")}`;
+  return `${heading("Notable Projects & References")}${items.join("")}`;
 }
 
 function narrativesHtml(narratives: any[]): string {
   if (!narratives.length) return "";
   const items = narratives.map((item) => {
     const text = (item.content as any)?.text || "";
-    return `<tr><td style="padding:12px 0 20px">
-      <div style="font-family:${FONT};font-size:14px;font-weight:600;color:${COLORS.charcoal};margin-bottom:6px">${item.title}</div>
-      <div style="font-family:${FONT};font-size:13px;color:${COLORS.text};line-height:1.75;white-space:pre-wrap">${text.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>")}</div>
+    return `<tr><td style="padding:8px 0 20px">
+      <div style="font-family:${F};font-size:15px;font-weight:600;color:${C.charcoal};margin-bottom:6px;letter-spacing:-0.2px">${item.title}</div>
+      <div style="font-family:${F};font-size:13px;color:${C.text};line-height:1.8;white-space:pre-wrap">${text.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>")}</div>
     </td></tr>`;
   });
-  return `${sectionHeading("Narratives & Approach")}${items.join("")}`;
+  return `${heading("Narratives & Approach")}${items.join("")}`;
 }
 
 function pricingHtml(data: any): string {
   const content = data?.content as any;
   if (!content?.labor_classifications?.length) return "";
-  const headerRow = `<tr style="background:${COLORS.bg}">
-    <th style="text-align:left;padding:10px 14px;font-family:${FONT};font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:${COLORS.textSecondary};font-weight:600">Classification</th>
-    <th style="text-align:right;padding:10px 14px;font-family:${FONT};font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:${COLORS.textSecondary};font-weight:600">Regular</th>
-    <th style="text-align:right;padding:10px 14px;font-family:${FONT};font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:${COLORS.textSecondary};font-weight:600">Overtime</th>
-    <th style="text-align:right;padding:10px 14px;font-family:${FONT};font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:${COLORS.textSecondary};font-weight:600">Double Time</th>
+  const thStyle = `text-align:left;padding:12px 16px;font-family:${F};font-size:10px;letter-spacing:1px;text-transform:uppercase;color:${C.secondary};font-weight:600;border-bottom:1px solid ${C.rule}`;
+  const headerRow = `<tr>
+    <th style="${thStyle}">Classification</th>
+    <th style="${thStyle};text-align:right">Regular</th>
+    <th style="${thStyle};text-align:right">Overtime</th>
+    <th style="${thStyle};text-align:right">Double Time</th>
   </tr>`;
-  const rows = content.labor_classifications.map((lc: any) =>
-    `<tr style="border-top:1px solid ${COLORS.borderLight}">
-      <td style="padding:8px 14px;font-family:${FONT};font-size:13px;font-weight:500;color:${COLORS.charcoal}">${lc.title}</td>
-      <td style="text-align:right;padding:8px 14px;font-family:${FONT};font-size:13px;color:${COLORS.text}">$${Number(lc.regular).toLocaleString()}</td>
-      <td style="text-align:right;padding:8px 14px;font-family:${FONT};font-size:13px;color:${COLORS.text}">$${Number(lc.overtime).toLocaleString()}</td>
-      <td style="text-align:right;padding:8px 14px;font-family:${FONT};font-size:13px;color:${COLORS.text}">$${Number(lc.doubletime).toLocaleString()}</td>
-    </tr>`
-  ).join("");
+  const rows = content.labor_classifications.map((lc: any, i: number) => {
+    const bg = i % 2 === 0 ? C.white : C.bg;
+    return `<tr style="background:${bg}">
+      <td style="padding:10px 16px;font-family:${F};font-size:13px;font-weight:500;color:${C.charcoal}">${lc.title}</td>
+      <td style="text-align:right;padding:10px 16px;font-family:${F};font-size:13px;color:${C.text}">$${Number(lc.regular).toLocaleString()}</td>
+      <td style="text-align:right;padding:10px 16px;font-family:${F};font-size:13px;color:${C.text}">$${Number(lc.overtime).toLocaleString()}</td>
+      <td style="text-align:right;padding:10px 16px;font-family:${F};font-size:13px;color:${C.text}">$${Number(lc.doubletime).toLocaleString()}</td>
+    </tr>`;
+  }).join("");
   const escalation = content.annual_escalation
-    ? `<tr><td colspan="4" style="padding:10px 14px;font-family:${FONT};font-size:12px;color:${COLORS.textSecondary}">Annual escalation: <strong>${(content.annual_escalation * 100).toFixed(0)}%</strong></td></tr>`
+    ? `<tr><td colspan="4" style="padding:10px 16px;font-family:${F};font-size:12px;color:${C.secondary};border-top:1px solid ${C.rule}">Annual Escalation: <strong style="color:${C.charcoal}">${(content.annual_escalation * 100).toFixed(0)}%</strong></td></tr>`
     : "";
-  return `${sectionHeading("Pricing / Rate Schedule")}
-    <tr><td style="padding:4px 0 24px">
-      <table cellpadding="0" cellspacing="0" width="100%" style="border:1px solid ${COLORS.borderLight};border-radius:8px;border-collapse:separate;background:${COLORS.white}">
+  return `${heading("Pricing / Rate Schedule")}
+    <tr><td style="padding:4px 0 28px">
+      <table cellpadding="0" cellspacing="0" width="100%" style="border:1px solid ${C.rule};border-radius:12px;border-collapse:separate;overflow:hidden">
         ${headerRow}${rows}${escalation}
       </table>
     </td></tr>`;
@@ -189,26 +214,24 @@ function certsHtml(certs: any[]): string {
   if (!certs.length) return "";
   const items = certs.map((item) => {
     const c = item.content as any;
-    const expiry = c.expiration_date ? ` — Exp: ${format(new Date(c.expiration_date), "MMM yyyy")}` : "";
-    return `<tr><td style="padding:14px 16px;border:1px solid ${COLORS.borderLight};border-radius:8px;background:${COLORS.white}">
-      <div style="font-family:${FONT};font-size:15px;font-weight:600;color:${COLORS.charcoal}">${item.title}</div>
-      <div style="font-family:${FONT};font-size:12px;color:${COLORS.textSecondary};margin-top:3px">${c.cert_type} #${c.cert_number} — ${c.issuing_agency}${expiry}</div>
+    const expiry = c.expiration_date ? ` · Exp: ${format(new Date(c.expiration_date), "MMM yyyy")}` : "";
+    return `<tr><td style="padding:14px 20px;border:1px solid ${C.rule};border-radius:12px">
+      <div style="font-family:${F};font-size:15px;font-weight:600;color:${C.charcoal};letter-spacing:-0.2px">${item.title}</div>
+      <div style="font-family:${F};font-size:12px;color:${C.secondary};margin-top:4px">${c.cert_type} #${c.cert_number} · ${c.issuing_agency}${expiry}</div>
     </td></tr>
-    <tr><td style="height:8px"></td></tr>`;
+    <tr><td style="height:10px"></td></tr>`;
   });
-  return `${sectionHeading("Certifications & Licenses")}${items.join("")}`;
+  return `${heading("Certifications & Licenses")}${items.join("")}`;
 }
 
-export function buildRfpEmailHtml(data: AssembledContent): string {
-  const { rfp, sections, companyInfo, staffBios, notableProjects, narratives, pricing, certs, coverLetter, logoUrl, companyName, companyAddress, companyPhone, companyEmail, companyWebsite } = data;
+/* ── Main builder ── */
 
-  const headerParts: string[] = [];
-  if (rfp?.rfp_number) headerParts.push(`RFP #${rfp.rfp_number}`);
-  if (rfp?.agency) headerParts.push(rfp.agency);
-  if (rfp?.due_date) headerParts.push(`Due: ${format(new Date(rfp.due_date), "MMM d, yyyy")}`);
+export function buildRfpEmailHtml(data: AssembledContent): string {
+  const { rfp, sections, companyInfo, staffBios, notableProjects, narratives, firmHistory, pricing, certs, coverLetter, logoUrl, companyName, companyAddress, companyPhone, companyEmail, companyWebsite } = data;
 
   const sectionRenderers: Record<string, () => string> = {
     cover_letter: () => (coverLetter ? coverLetterHtml(coverLetter) : ""),
+    firm_overview: () => firmOverviewHtml(firmHistory),
     company_info: () => companyInfoHtml(companyInfo),
     staff_bios: () => staffBiosHtml(staffBios),
     org_chart: () => "",
@@ -220,41 +243,53 @@ export function buildRfpEmailHtml(data: AssembledContent): string {
 
   const bodyContent = sections.map((s) => sectionRenderers[s]?.() || "").filter(Boolean).join("");
 
-  // Logo header
+  // Header: logo or company name
   const logoBlock = logoUrl
-    ? `<img src="${logoUrl}" alt="${companyName || 'Company'}" style="max-width:240px;max-height:60px;display:block" />`
-    : (companyName ? `<div style="font-family:${FONT};font-size:22px;font-weight:700;color:${COLORS.charcoal};letter-spacing:-0.5px">${companyName}</div>` : "");
+    ? `<img src="${logoUrl}" alt="${companyName || 'Company'}" style="max-width:200px;max-height:48px;display:block" />`
+    : (companyName ? `<div style="font-family:${F};font-size:20px;font-weight:700;color:${C.charcoal};letter-spacing:-0.5px">${companyName}</div>` : "");
 
-  // Footer info
-  const footerParts: string[] = [];
-  if (companyName) footerParts.push(companyName);
-  if (companyAddress) footerParts.push(companyAddress);
-  if (companyPhone) footerParts.push(companyPhone);
-  if (companyEmail) footerParts.push(companyEmail);
-  if (companyWebsite) footerParts.push(`<a href="${companyWebsite}" style="color:${COLORS.accentDark};text-decoration:none">${companyWebsite}</a>`);
+  // RFP meta pills
+  const pills: string[] = [];
+  if (rfp?.rfp_number) pills.push(pill(`RFP #${rfp.rfp_number}`));
+  if (rfp?.agency) pills.push(pill(rfp.agency));
+  if (rfp?.due_date) pills.push(pill(`Due ${format(new Date(rfp.due_date), "MMM d, yyyy")}`));
 
-  return `<div style="font-family:${FONT};max-width:680px;margin:0 auto;background:${COLORS.white};color:${COLORS.text}">
-    <!-- Header -->
-    <div style="padding:28px 32px 20px;border-bottom:3px solid ${COLORS.accent}">
+  // Footer
+  const footerItems: string[] = [];
+  if (companyName) footerItems.push(companyName);
+  if (companyAddress) footerItems.push(companyAddress);
+  if (companyPhone) footerItems.push(companyPhone);
+  if (companyEmail) footerItems.push(companyEmail);
+  if (companyWebsite) footerItems.push(`<a href="${companyWebsite}" style="color:${C.charcoal};text-decoration:none">${companyWebsite.replace(/^https?:\/\//, "")}</a>`);
+
+  return `<div style="font-family:${F};max-width:640px;margin:0 auto;background:${C.white};color:${C.text}">
+
+    <!-- Logo bar -->
+    <div style="padding:32px 40px 24px">
       ${logoBlock}
     </div>
 
-    <!-- Title bar -->
-    <div style="padding:24px 32px 20px">
-      <h1 style="margin:0;font-family:${FONT};font-size:20px;font-weight:700;color:${COLORS.charcoal};letter-spacing:-0.3px">RFP Response: ${rfp?.title || "Untitled"}</h1>
-      ${headerParts.length ? `<div style="margin-top:8px;font-family:${FONT};font-size:13px;color:${COLORS.textSecondary}">${headerParts.join(" &nbsp;·&nbsp; ")}</div>` : ""}
+    <!-- Accent line -->
+    <div style="height:3px;background:${C.accent}"></div>
+
+    <!-- Title block -->
+    <div style="padding:32px 40px 8px">
+      <h1 style="margin:0;font-family:${F};font-size:22px;font-weight:700;color:${C.charcoal};letter-spacing:-0.5px;line-height:1.3">${rfp?.title || "RFP Response"}</h1>
+      ${pills.length ? `<div style="margin-top:14px">${pills.join("")}</div>` : ""}
     </div>
 
-    <!-- Body -->
-    <div style="padding:0 32px 32px">
+    <!-- Content -->
+    <div style="padding:0 40px 40px">
       <table cellpadding="0" cellspacing="0" width="100%">
         ${bodyContent}
       </table>
     </div>
 
     <!-- Footer -->
-    ${footerParts.length ? `<div style="padding:20px 32px;border-top:1px solid ${COLORS.border}">
-      <div style="font-family:${FONT};font-size:11px;color:${COLORS.textSecondary};line-height:1.6">${footerParts.join(" &nbsp;·&nbsp; ")}</div>
+    ${footerItems.length ? `
+    <div style="border-top:1px solid ${C.rule};padding:24px 40px">
+      <div style="font-family:${F};font-size:11px;color:${C.secondary};line-height:1.8">${footerItems.join(" &nbsp;·&nbsp; ")}</div>
     </div>` : ""}
+
   </div>`;
 }

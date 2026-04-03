@@ -48,8 +48,9 @@ interface RfpBuilderDialogProps {
 
 const SECTION_DEFS = [
   { id: "cover_letter", label: "Cover Letter", icon: Mail, libraryTab: null },
-  { id: "company_info", label: "Company Information", icon: Building2, libraryTab: "company" },
-  { id: "staff_bios", label: "Staff Bios & Qualifications", icon: Users, libraryTab: "staff" },
+  { id: "firm_overview", label: "About Our Firm", icon: FileText, libraryTab: "narratives" },
+  { id: "company_info", label: "Company Details", icon: Building2, libraryTab: "company" },
+  { id: "staff_bios", label: "Key Personnel", icon: Users, libraryTab: "staff" },
   { id: "org_chart", label: "Organization Chart", icon: GitBranch, libraryTab: "staff" },
   { id: "notable_projects", label: "Notable Projects", icon: Star, libraryTab: "projects" },
   { id: "narratives", label: "Narratives & Approach", icon: FileText, libraryTab: "narratives" },
@@ -325,11 +326,12 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
 
   const contentCounts: Record<string, number> = {
     cover_letter: coverLetter ? 1 : 0,
+    firm_overview: firmHistory.length,
     company_info: companyInfo.length,
     staff_bios: staffBios.length,
     org_chart: staffBios.filter((s) => (s.content as any)?.include_in_org_chart !== false).length,
     notable_projects: filteredNotableProjects.length,
-    narratives: narratives.length + firmHistory.length,
+    narratives: narratives.length,
     pricing: pricing.length,
     certifications: certs.length,
   };
@@ -337,10 +339,11 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   // Content data map for editing
   const sectionContentMap: Record<string, { items: any[]; type: string }> = {
     company_info: { items: companyInfo, type: "company_info" },
+    firm_overview: { items: firmHistory, type: "firm_history" },
     staff_bios: { items: staffBios, type: "staff_bio" },
     org_chart: { items: staffBios, type: "staff_bio" },
     notable_projects: { items: allNotableProjects, type: "notable_project" },
-    narratives: { items: [...firmHistory, ...narratives], type: "narrative" },
+    narratives: { items: [...narratives], type: "narrative" },
     pricing: { items: pricing, type: "pricing" },
     certifications: { items: certs, type: "certification" },
   };
@@ -353,11 +356,12 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     companyInfo: companyInfo[0],
     staffBios,
     notableProjects: filteredNotableProjects,
-    narratives: [...firmHistory, ...narratives],
+    narratives: [...narratives],
+    firmHistory: [...firmHistory],
     pricing: pricing[0],
     certs,
     coverLetter,
-    logoUrl: companyData?.logo_url || companyData?.settings?.company_logo_url || undefined,
+    logoUrl: companyData?.settings?.company_logo_url || companyData?.logo_url || undefined,
     companyName: companyData?.name || undefined,
     companyAddress: companyData?.address || companyData?.settings?.company_address || undefined,
     companyPhone: companyData?.phone || companyData?.settings?.company_phone || undefined,
