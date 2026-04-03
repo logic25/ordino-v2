@@ -41,6 +41,7 @@ export default function HelpDesk() {
           {isAdmin && <TabsContent value="whats-new"><WhatsNew /></TabsContent>}
           <TabsContent value="requests"><FeatureRequests /></TabsContent>
           <TabsContent value="bugs"><BugReports /></TabsContent>
+          {isAdmin && <TabsContent value="bug-metrics"><BugFixDashboard /></TabsContent>}
           {isAdmin && (
             <TabsContent value="roadmap"><ProductRoadmap /></TabsContent>
           )}
