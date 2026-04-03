@@ -255,6 +255,38 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
       }
 
       const ccList = submitCcEmails.split(",").map(e => e.trim()).filter(Boolean).join(",");
+
+      // Collect staff resume attachments
+      if (selectedSections.includes("staff_bios")) {
+        for (const staff of staffBios) {
+          const content = staff.content as Record<string, any> | null;
+          const resumeUrl = content?.resume_url as string | undefined;
+          const resumeFilename = content?.resume_filename as string | undefined;
+          const staffName = content?.name || staff.title || "Staff";
+
+          if (!resumeUrl) continue;
+
+          try {
+            const { data, error: dlErr } = await supabase.storage.from("rfp-documents").download(resumeUrl);
+            if (dlErr || !data) { console.warn("Failed to download resume:", resumeUrl, dlErr); continue; }
+            const arrayBuf = await data.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuf);
+            let binary = "";
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+            const base64 = btoa(binary);
+            const ext = (resumeFilename || "resume.pdf").split(".").pop()?.split("?")[0] || "pdf";
+            const filename = `Resume - ${staffName.replace(/[^a-zA-Z0-9_\- ]/g, "")}.${ext}`;
+            attachments.push({
+              filename,
+              content: base64,
+              mime_type: data.type || "application/pdf",
+            });
+          } catch {
+            console.warn("Failed to fetch resume for:", staffName);
+          }
+        }
+      }
+
       const { error } = await supabase.functions.invoke("gmail-send", {
         body: {
           to: submitEmail,
