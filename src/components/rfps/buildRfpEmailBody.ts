@@ -245,7 +245,7 @@ export function buildRfpEmailHtml(data: AssembledContent): string {
 
   // Header: logo or company name
   const logoBlock = logoUrl
-    ? `<img src="${logoUrl}" alt="${companyName || 'Company'}" style="max-width:200px;max-height:48px;display:block" />`
+    ? `<img src="${logoUrl}" alt="${companyName || 'Company'}" style="max-width:320px;max-height:72px;display:block" />`
     : (companyName ? `<div style="font-family:${F};font-size:20px;font-weight:700;color:${C.charcoal};letter-spacing:-0.5px">${companyName}</div>` : "");
 
   // RFP meta pills
