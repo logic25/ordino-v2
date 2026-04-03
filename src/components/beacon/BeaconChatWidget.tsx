@@ -57,6 +57,7 @@ interface ChatMessage {
   isHistory?: boolean;
   isBugReport?: boolean;
   bugLogged?: boolean;
+  timestamp?: string;
 }
 
 interface SessionPreview {
@@ -321,6 +322,7 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
                 sources: row.metadata?.sources || [],
                 flowType: row.metadata?.flow_type,
                 isHistory: true,
+                timestamp: row.created_at,
               }));
               setMessages(history);
               setHistoryCount(history.length);
@@ -364,7 +366,7 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
       const q = queueRef.current.shift()!;
 
       // Add user message
-      setMessages((prev) => [...prev, { role: "user", text: q }]);
+      setMessages((prev) => [...prev, { role: "user", text: q, timestamp: new Date().toISOString() }]);
 
       try {
         // Save user message to widget_messages with session_id
@@ -451,6 +453,7 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
             flowType: res.flow_type,
             isBugReport: res.is_bug_report,
             bugLogged: res.bug_auto_logged === true,
+            timestamp: new Date().toISOString(),
           },
         ]);
 
@@ -477,6 +480,7 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
             text: "Beacon is temporarily unavailable. Please try again.",
             confidence: 0,
             sources: [],
+            timestamp: new Date().toISOString(),
           },
         ]);
       }
@@ -578,6 +582,7 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
           sources: row.metadata?.sources || [],
           flowType: row.metadata?.flow_type,
           isHistory: true,
+          timestamp: row.created_at,
         }));
         setMessages(history);
         setHistoryCount(history.length);
@@ -784,6 +789,14 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
                         </div>
                       ) : (
                         <p className="text-sm">{msg.text}</p>
+                      )}
+                      {msg.timestamp && (
+                        <span className={cn(
+                          "block text-[10px] mt-1 text-muted-foreground",
+                          msg.role === "user" ? "text-right text-primary-foreground/60" : ""
+                        )}>
+                          {new Date(msg.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                        </span>
                       )}
                     </div>
                   </div>
