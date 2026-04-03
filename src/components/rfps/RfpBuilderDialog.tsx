@@ -344,6 +344,9 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     certifications: { items: certs, type: "certification" },
   };
 
+  // Fetch company logo + info for email branding
+  const { data: companySettings } = (await import("@/hooks/useCompanySettings")).useCompanySettings ? undefined! : { data: null };
+
   const assembledContent = {
     rfp,
     sections: sectionOrder.filter((s) => selectedSections.includes(s)),
