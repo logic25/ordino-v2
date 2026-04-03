@@ -557,13 +557,15 @@ Deno.serve(async (req) => {
       console.log("gmail-send: no attachments");
     }
 
-    console.log("gmail-send html_body preview", {
+    console.log("gmail-send forward trace", {
       reply_to_email_id: reply_to_email_id || null,
       forward_from_email_id: forward_from_email_id || null,
       html_length: finalHtmlBody.length,
       html_preview: finalHtmlBody.slice(0, 1500),
     });
-    console.log("gmail-send full html_body", finalHtmlBody);
+    console.log("gmail-send html_body full START");
+    console.log(finalHtmlBody);
+    console.log("gmail-send html_body full END");
 
     const raw = createMimeMessage({
       to,
