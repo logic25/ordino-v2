@@ -189,7 +189,20 @@ Deno.serve(async (req) => {
                 }
               } else if (data && typeof data === "object") {
                 // For structured results like invoices/proposals with totals
-                if (data.proposals) {
+                if (data.vendors) {
+                  const vendorLines = (data.vendors || []).map((v: any) => {
+                    let line = `• **${v.name}**`;
+                    if (v.type) line += ` (${v.type})`;
+                    if (v.avg_rating) line += ` — ⭐ ${v.avg_rating}/5 (${v.review_count} reviews)`;
+                    else line += ` — no reviews yet`;
+                    if (v.contact) line += ` | Contact: ${v.contact.name}${v.contact.email ? ` <${v.contact.email}>` : ""}${v.contact.phone ? ` ${v.contact.phone}` : ""}`;
+                    if (v.recent_reviews?.length > 0) {
+                      line += `\n  Latest review: "${v.recent_reviews[0].text}" — ${v.recent_reviews[0].reviewer}`;
+                    }
+                    return line;
+                  }).join("\n");
+                  dataContext.push(`**Partner recommendations from our database (${data.count} found):**\nPresent these as YOUR recommendations from the company's vetted partner list. Include contact info.\n${vendorLines}`);
+                } else if (data.proposals) {
                   dataContext.push(`**Live ${label} data:** ${data.proposals.length} proposals. Total pipeline: $${(data.total_pipeline_value || 0).toLocaleString()}`);
                 } else if (data.invoices) {
                   dataContext.push(`**Live ${label} data:** ${data.invoices.length} invoices. Outstanding: $${(data.outstanding_total || 0).toLocaleString()}. Paid: $${(data.paid_total || 0).toLocaleString()}`);
