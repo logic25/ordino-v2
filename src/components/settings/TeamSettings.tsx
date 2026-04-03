@@ -1223,7 +1223,7 @@ export function TeamSettings() {
       <UserDetailView
         user={selectedUser}
         onBack={() => setSelectedUser(null)}
-        onUpdate={() => { refetch(); setSelectedUser(null); }}
+        onUpdate={async () => { await refetch(); setSelectedUser(null); }}
         isCurrentUser={selectedUser.id === currentProfileId}
         isViewerAdmin={isAdmin}
       />
