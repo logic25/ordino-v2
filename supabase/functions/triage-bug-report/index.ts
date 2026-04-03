@@ -224,6 +224,7 @@ Deno.serve(async (req) => {
     });
 
     // Build AI prompt
+    const pageContext = PAGE_CONTEXT[pageName] || "";
     const prompt = `You are an expert software engineer triaging a bug report for "Ordino", a React/TypeScript CRM built with Supabase, Vite, Tailwind, and shadcn/ui.
 
 Bug Report:
@@ -236,9 +237,10 @@ Bug Report:
 
 Likely source files for this page: ${suggestedFiles.join(", ")}
 
-${matchingPatterns.length > 0 ? `Known patterns that may match:\n${matchingPatterns.map((p: any) => `- "${p.pattern_name}": ${p.root_cause} (seen ${p.occurrences} times)`).join("\n")}` : ""}
+${pageContext ? `**Architecture context for ${pageName}:**\n${pageContext}\n` : ""}
+${matchingPatterns.length > 0 ? `Known patterns that may match:\n${matchingPatterns.map((p: any) => `- "${p.pattern_name}": ${p.root_cause} (seen ${p.occurrences} times, fix: ${p.fix_pattern || "N/A"})`).join("\n")}` : ""}
 
-Analyze this bug and provide a triage assessment.`;
+Analyze this bug and provide a triage assessment. Use the architecture context and known patterns to identify the SPECIFIC root cause — not generic guesses.`;
 
     // Call AI with tool-calling for structured output
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
