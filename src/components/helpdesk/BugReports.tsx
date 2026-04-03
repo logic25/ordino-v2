@@ -82,6 +82,7 @@ export function BugReports() {
   const [priority, setPriority] = useState("medium");
   const [loomUrl, setLoomUrl] = useState("");
   const [transcript, setTranscript] = useState("");
+  const [reportCategory, setReportCategory] = useState<"bug_report" | "polish">("bug_report");
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   // Detail sheet
