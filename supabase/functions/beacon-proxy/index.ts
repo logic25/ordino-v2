@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
 
   try {
     const url = new URL(req.url);
-    const action = url.searchParams.get("action"); // chat, ingest, knowledge-list, file-content, health
+    const action = url.searchParams.get("action");
 
     // Health check doesn't require authentication
     if (action === "health") {
@@ -76,12 +76,30 @@ Deno.serve(async (req) => {
       beaconUrl = `${BEACON_API_URL}/api/chat`;
       const body = await req.json();
 
+      // ── Page & error context injection ──
+      const projectCtx = body.project_context || {};
+      const currentPage = projectCtx.currentPage || projectCtx.current_page || "";
+      const recentErrors = projectCtx.recentErrors || projectCtx.recent_errors || [];
+
       // ── Bug Triage Sub-Agent routing ──
-      // Detect code/bug questions and enrich with institutional pattern knowledge
       const lastMessage = body.message || body.messages?.[body.messages?.length - 1]?.content || "";
-      const isBugQuestion = /\b(bug|broken|error|crash|fail|not working|issue|fix|wrong|stuck|breaking)\b/i.test(lastMessage);
+      const isBugQuestion = /\b(bug|broken|error|crash|fail|not working|issue|fix|wrong|stuck|breaking|doesn't work|can't|cannot|won't)\b/i.test(lastMessage);
+
+      if (currentPage) {
+        body.system_context = (body.system_context || "") +
+          `\n\n**User Context:** Currently on the "${currentPage}" page.`;
+      }
+
+      if (recentErrors.length > 0) {
+        body.system_context = (body.system_context || "") +
+          `\n\n**Recent Browser Errors:**\n${recentErrors.map((e: string) => `• ${e}`).join("\n")}`;
+      }
 
       if (isBugQuestion) {
+        // Add bug detection instruction
+        body.system_context = (body.system_context || "") +
+          `\n\n**Bug Detection:** If the user is reporting a genuine software bug, error, or broken feature, include the exact JSON marker \`<!--BUG_REPORT-->\` at the very end of your response (after your text). Only include this marker for actual bugs/errors, NOT for general questions, how-to queries, or feature requests.`;
+
         try {
           const dataProxyUrl = Deno.env.get("SUPABASE_URL") + "/functions/v1/beacon-data-proxy";
           const patternRes = await fetch(dataProxyUrl, {
@@ -104,7 +122,6 @@ Deno.serve(async (req) => {
                 `• "${p.pattern_name}" (seen ${p.occurrences}x): Root cause: ${p.root_cause || "unknown"}. Fix: ${p.fix_pattern || "N/A"}. Files: ${(p.affected_files || []).join(", ")}`
               ).join("\n");
 
-              // Inject pattern knowledge as system context
               body.system_context = (body.system_context || "") +
                 `\n\n**Known Bug Patterns (institutional knowledge):**\n${patternContext}\n\nUse these patterns to inform your answer. If a pattern matches the user's question, cite it specifically ("I've seen this pattern X times before...").`;
             }
@@ -122,6 +139,82 @@ Deno.serve(async (req) => {
         },
         body: JSON.stringify(body),
       };
+
+      // Send to Beacon, then parse response for bug flag
+      const beaconRes = await fetch(beaconUrl, beaconReqInit);
+      const responseText = await beaconRes.text();
+
+      try {
+        const responseJson = JSON.parse(responseText);
+        // Check for bug marker in the response text
+        const hasBugMarker = (responseJson.response || "").includes("<!--BUG_REPORT-->");
+        if (hasBugMarker) {
+          responseJson.response = responseJson.response.replace("<!--BUG_REPORT-->", "").trimEnd();
+          responseJson.is_bug_report = true;
+        } else {
+          responseJson.is_bug_report = false;
+        }
+
+        return new Response(JSON.stringify(responseJson), {
+          status: beaconRes.status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch {
+        // If not JSON, return as-is
+        return new Response(responseText, {
+          status: beaconRes.status,
+          headers: { ...corsHeaders, "Content-Type": beaconRes.headers.get("Content-Type") || "application/json" },
+        });
+      }
+
+    } else if (action === "create-bug") {
+      // ── Conversational bug creation ──
+      const body = await req.json();
+      const dataProxyUrl = Deno.env.get("SUPABASE_URL") + "/functions/v1/beacon-data-proxy";
+
+      // Get user's profile for company_id
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, company_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!profile) {
+        return new Response(JSON.stringify({ error: "Profile not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const bugRes = await fetch(dataProxyUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-beacon-key": BEACON_API_KEY,
+        },
+        body: JSON.stringify({
+          action: "create_bug_from_conversation",
+          params: {
+            title: body.title,
+            description: body.description,
+            page: body.page,
+            ai_diagnosis: body.ai_diagnosis,
+            reporter_id: profile.id,
+            company_id: profile.company_id,
+          },
+        }),
+      });
+
+      const bugData = await bugRes.text();
+      return new Response(bugData, {
+        status: bugRes.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+
     } else if (action === "ingest") {
       beaconUrl = `${BEACON_API_URL}/api/ingest`;
       const formData = await req.formData();
@@ -156,7 +249,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const beaconRes = await fetch(beaconUrl, beaconReqInit);
+    const beaconRes = await fetch(beaconUrl!, beaconReqInit!);
     const responseBody = await beaconRes.text();
 
     return new Response(responseBody, {
