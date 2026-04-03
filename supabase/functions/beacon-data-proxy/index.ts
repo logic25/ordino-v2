@@ -66,6 +66,8 @@ Deno.serve(async (req) => {
         return await queryBugPatterns(supabase, params);
       case "create_bug_from_conversation":
         return await createBugFromConversation(supabase, params);
+      case "list_schema":
+        return await listSchema(supabase);
       default:
         return fail(`Unknown action: ${action}`);
     }
@@ -508,4 +510,39 @@ async function createBugFromConversation(sb: any, params: any) {
   }
 
   return ok({ bug_id: bug.id, title: bug.title, status: bug.status });
+}
+
+// ── List Schema ──────────────────────────────────────────
+
+async function listSchema(_sb: any) {
+  const dbUrl = Deno.env.get("SUPABASE_DB_URL");
+  if (!dbUrl) return fail("Database URL not configured");
+
+  const { default: postgres } = await import("https://deno.land/x/postgresjs@v3.4.5/mod.js");
+  const sql = postgres(dbUrl, { max: 1 });
+
+  try {
+    const rows = await sql`
+      SELECT c.table_name, array_agg(c.column_name ORDER BY c.ordinal_position) as columns
+      FROM information_schema.columns c
+      WHERE c.table_schema = 'public'
+        AND c.table_name IN (
+          SELECT DISTINCT table_name
+          FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND column_name IN ('company_id', 'user_id')
+        )
+      GROUP BY c.table_name
+      ORDER BY c.table_name
+    `;
+
+    const tables: Record<string, string[]> = {};
+    for (const row of rows) {
+      tables[row.table_name] = row.columns;
+    }
+
+    return ok({ tables });
+  } finally {
+    await sql.end();
+  }
 }
