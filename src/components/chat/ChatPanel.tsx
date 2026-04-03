@@ -131,6 +131,7 @@ export function ChatPanel({ spaceId: fixedSpaceId, threadKey, compact, className
         role: "user",
         content: text,
         metadata: {},
+        company_id: profile?.company_id || null,
       });
 
       // Call Beacon via edge function proxy
