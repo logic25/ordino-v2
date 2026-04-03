@@ -64,6 +64,8 @@ Deno.serve(async (req) => {
         return await queryOrdino(supabase, params);
       case "query_bug_patterns":
         return await queryBugPatterns(supabase, params);
+      case "create_bug_from_conversation":
+        return await createBugFromConversation(supabase, params);
       default:
         return fail(`Unknown action: ${action}`);
     }
@@ -456,4 +458,54 @@ async function queryBugPatterns(sb: any, params: any) {
     count: results.length,
     total_occurrences: results.reduce((s: number, p: any) => s + (p.occurrences || 0), 0),
   });
+}
+
+// ── Conversational bug creation ──────────────────────────
+
+async function createBugFromConversation(sb: any, params: any) {
+  const { title, description, page, ai_diagnosis, reporter_id, company_id } = params || {};
+
+  if (!title || !company_id || !reporter_id) {
+    return fail("Missing required fields: title, company_id, reporter_id");
+  }
+
+  // Insert into feature_requests as a bug_report
+  const { data: bug, error } = await sb
+    .from("feature_requests")
+    .insert({
+      title,
+      description: description || "",
+      category: "bug_report",
+      status: "new",
+      priority: "medium",
+      page: page || null,
+      user_id: reporter_id,
+      company_id,
+      ai_diagnosis: ai_diagnosis || null,
+      source: "beacon_conversation",
+    })
+    .select("id, title, status")
+    .single();
+
+  if (error) {
+    console.error("create_bug_from_conversation error:", error.message);
+    return fail(error.message, 500);
+  }
+
+  // Auto-trigger triage (non-blocking)
+  try {
+    const triageUrl = Deno.env.get("SUPABASE_URL") + "/functions/v1/triage-bug-report";
+    fetch(triageUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+      },
+      body: JSON.stringify({ bug_id: bug.id }),
+    }).catch(e => console.error("Auto-triage trigger failed:", e));
+  } catch (e) {
+    console.error("Auto-triage trigger failed:", e);
+  }
+
+  return ok({ bug_id: bug.id, title: bug.title, status: bug.status });
 }

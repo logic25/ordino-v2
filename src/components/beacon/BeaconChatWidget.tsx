@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import { useLocation } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Brain, FileText, Zap, X, ChevronDown, ChevronUp, ExternalLink, MessageSquarePlus } from "lucide-react";
+import { Send, Brain, FileText, Zap, X, ChevronDown, ChevronUp, ExternalLink, MessageSquarePlus, Bug } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { useIsAdmin } from "@/hooks/useUserRoles";
@@ -13,6 +14,7 @@ import { lazy, Suspense } from "react";
 const BeaconDocumentModal = lazy(() => import("../documents/BeaconDocumentModal").then(m => ({ default: m.BeaconDocumentModal })));
 import { supabase } from "@/integrations/supabase/client";
 import { useRef, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 
 const quickQuestions = [
   "Alt-1 vs Alt-2?",
@@ -20,6 +22,31 @@ const quickQuestions = [
   "Look up address",
   "Energy code?",
 ];
+
+const PAGE_NAME_MAP: Record<string, string> = {
+  "/": "Dashboard",
+  "/projects": "Projects",
+  "/properties": "Properties",
+  "/proposals": "Proposals",
+  "/invoices": "Invoices",
+  "/emails": "Email",
+  "/calendar": "Calendar",
+  "/documents": "Documents",
+  "/clients": "Clients",
+  "/rfps": "RFPs",
+  "/reports": "Reports",
+  "/settings": "Settings",
+  "/help": "Help Center",
+  "/time": "Time Tracking",
+};
+
+function getPageName(pathname: string): string {
+  if (PAGE_NAME_MAP[pathname]) return PAGE_NAME_MAP[pathname];
+  for (const [prefix, name] of Object.entries(PAGE_NAME_MAP)) {
+    if (prefix !== "/" && pathname.startsWith(prefix)) return name;
+  }
+  return "Unknown";
+}
 
 interface ChatMessage {
   role: "user" | "beacon";
@@ -29,6 +56,8 @@ interface ChatMessage {
   responseTime?: number;
   flowType?: string;
   isHistory?: boolean;
+  isBugReport?: boolean;
+  bugLogged?: boolean;
 }
 
 function ConfidenceBadge({ confidence }: { confidence: number }) {
@@ -147,6 +176,28 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
   const [showDebug, setShowDebug] = useState(false);
   const [beaconOnline, setBeaconOnline] = useState(true);
   const [viewingFile, setViewingFile] = useState<string | null>(null);
+
+  const location = useLocation();
+  const currentPage = getPageName(location.pathname);
+
+  // Capture last 3 console errors for bug context
+  const recentErrorsRef = useRef<string[]>([]);
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      const msg = `${event.message} at ${event.filename}:${event.lineno}`;
+      recentErrorsRef.current = [...recentErrorsRef.current.slice(-2), msg];
+    };
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      const msg = `Unhandled rejection: ${event.reason?.message || event.reason}`;
+      recentErrorsRef.current = [...recentErrorsRef.current.slice(-2), msg];
+    };
+    window.addEventListener("error", handleError);
+    window.addEventListener("unhandledrejection", handleRejection);
+    return () => {
+      window.removeEventListener("error", handleError);
+      window.removeEventListener("unhandledrejection", handleRejection);
+    };
+  }, []);
 
   useEffect(() => {
     const check = () => checkBeaconHealth().then(setBeaconOnline);
@@ -267,7 +318,15 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
         const sysInstruction = `[INSTRUCTIONS: Respond conversationally like a knowledgeable colleague. Lead with what needs attention — stale projects, overdue items, open action items. Mention team activity naturally (e.g., "Maria last updated this 12 days ago"). Only include property/zoning/filing details if specifically asked. Keep it to 3-4 short paragraphs max. End with one practical next step, not a list of questions. No big headings or report formatting.]`;
         enrichedQuery = `${sysInstruction}\n[Context: ${ctxParts.join(" | ")}]\n\n${q}`;
       }
-      const res = await askBeacon(enrichedQuery, userId, userName, activeContext);
+
+      // Inject page & error context for bug detection
+      const contextWithPage: BeaconProjectContext = {
+        ...activeContext,
+        currentPage,
+        recentErrors: recentErrorsRef.current.length > 0 ? recentErrorsRef.current : undefined,
+      };
+
+      const res = await askBeacon(enrichedQuery, userId, userName, contextWithPage);
       setMessages((prev) => [
         ...prev,
         {
@@ -277,6 +336,7 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
           sources: res.sources || [],
           responseTime: res.response_time_ms,
           flowType: res.flow_type,
+          isBugReport: res.is_bug_report,
         },
       ]);
 
@@ -324,6 +384,45 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
       } catch (err) {
         console.error("Failed to clear Beacon history:", err);
       }
+    }
+  };
+
+  const handleLogBug = async (msgIndex: number) => {
+    const msg = messages[msgIndex];
+    if (!msg || msg.role !== "beacon") return;
+
+    // Gather conversation context: last few user messages leading to this
+    const conversationSlice = messages.slice(Math.max(0, msgIndex - 5), msgIndex + 1);
+    const summary = conversationSlice.map(m => `${m.role === "user" ? "User" : "Beacon"}: ${m.text.slice(0, 300)}`).join("\n");
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/beacon-proxy?action=create-bug`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            title: `[${currentPage}] Bug reported via Beacon`,
+            description: summary,
+            page: currentPage,
+            ai_diagnosis: msg.text.slice(0, 1000),
+          }),
+        }
+      );
+
+      if (res.ok) {
+        setMessages(prev => prev.map((m, i) => i === msgIndex ? { ...m, bugLogged: true } : m));
+        toast.success("Bug logged from conversation");
+      } else {
+        toast.error("Failed to log bug");
+      }
+    } catch {
+      toast.error("Failed to log bug");
     }
   };
 
@@ -466,6 +565,20 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
                         )}
                       </div>
                       {msg.sources && <SourcesList sources={msg.sources} onViewDocument={setViewingFile} />}
+                      {msg.isBugReport && !msg.bugLogged && (
+                        <button
+                          onClick={() => handleLogBug(i)}
+                          className="flex items-center gap-1 mt-1 text-[10px] text-destructive hover:text-destructive/80 transition-colors"
+                        >
+                          <Bug className="h-3 w-3" />
+                          Log as Bug
+                        </button>
+                      )}
+                      {msg.bugLogged && (
+                        <span className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground">
+                          <Bug className="h-3 w-3" /> Bug logged ✓
+                        </span>
+                      )}
                     </div>
                   ) : (
                     <p className="text-sm">{msg.text}</p>

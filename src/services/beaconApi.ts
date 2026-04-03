@@ -13,6 +13,7 @@ export interface BeaconChatResponse {
   flow_type: string;
   cached: boolean;
   response_time_ms: number;
+  is_bug_report?: boolean;
 }
 
 export interface BeaconProjectContext {
@@ -54,6 +55,9 @@ export interface BeaconProjectContext {
     inProgress: string[];
     completed: string[];
   };
+  // Page & error context for bug detection
+  currentPage?: string;
+  recentErrors?: string[];
 }
 
 export async function askBeacon(
