@@ -450,6 +450,7 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
             responseTime: res.response_time_ms,
             flowType: res.flow_type,
             isBugReport: res.is_bug_report,
+            bugLogged: res.bug_auto_logged === true,
           },
         ]);
 
