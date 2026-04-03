@@ -971,6 +971,81 @@ export function BugReports() {
                     )}
                   </div>
                 )}
+
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Priority</Label>
+                    <div className="mt-1">
+                      <Badge variant={priorityVariant(selectedBug.priority)}>{selectedBug.priority}</Badge>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Reported</Label>
+                    <p className="mt-1 text-sm">{format(new Date(selectedBug.created_at), "MMM d, yyyy")}</p>
+                  </div>
+                </div>
+
+                {/* Reporter */}
+                <div>
+                  <Label className="text-xs text-muted-foreground">Reported By</Label>
+                  <p className="mt-1 text-sm font-medium">{getAssigneeName(selectedBug.user_id)}</p>
+                </div>
+
+                {/* Internal notes visible to admins only */}
+                {selectedBug.admin_notes && !isAdmin && (
+                  <div className="border-t pt-4">
+                    <Label className="text-xs text-muted-foreground">Internal Notes</Label>
+                    <p className="mt-1 text-sm whitespace-pre-line bg-muted/50 rounded-md p-3">{selectedBug.admin_notes}</p>
+                  </div>
+                )}
+
+                {/* Comments Thread */}
+                <div className="border-t pt-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                    <h4 className="font-semibold text-sm">Comments</h4>
+                    {comments.length > 0 && <Badge variant="secondary" className="text-xs">{comments.length}</Badge>}
+                  </div>
+                  {comments.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-2">No comments yet. Start a conversation about this bug.</p>
+                  ) : (
+                    <div className="space-y-3 max-h-64 overflow-y-auto mb-3">
+                      {comments.map((c: any) => {
+                        const commenterName = profiles.find((p) => p.id === c.user_id)?.display_name || "Unknown";
+                        const isCurrentUser = c.user_id === profile?.id;
+                        const commentAttachments: Array<{ url: string; name: string; type: string }> = (() => {
+                          if (!c.attachments) return [];
+                          try { return Array.isArray(c.attachments) ? c.attachments : JSON.parse(c.attachments); } catch { return []; }
+                        })();
+                        return (
+                          <div key={c.id} className={cn("rounded-lg p-3 text-sm", isCurrentUser ? "bg-primary/10 ml-4" : "bg-muted/50 mr-4")}>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-medium text-xs">{commenterName}</span>
+                              <span className="text-xs text-muted-foreground">{format(new Date(c.created_at), "MMM d, h:mm a")}</span>
+                            </div>
+                            <p className="text-foreground whitespace-pre-line">{c.message}</p>
+                            {commentAttachments.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {commentAttachments.map((att, i) =>
+                                  att.type?.startsWith("image/") ? (
+                                    <a key={i} href={att.url} target="_blank" rel="noopener noreferrer">
+                                      <img src={att.url} alt={att.name} className="h-20 w-auto rounded border hover:ring-2 ring-primary transition-all" />
+                                    </a>
+                                  ) : (
+                                    <a key={i} href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-primary underline">
+                                      <FileIcon className="h-3 w-3" />{att.name}
+                                    </a>
+                                  )
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      <div ref={commentsEndRef} />
+                    </div>
+                  )}
                   {/* Comment file previews */}
                   {commentFiles.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-2">
