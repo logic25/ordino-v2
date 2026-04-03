@@ -29,6 +29,7 @@ export function useWidgetMessages(enabled: boolean) {
         .from("widget_messages" as any)
         .select("role, content, metadata, created_at")
         .eq("user_email", email!)
+        .is("deleted_at", null)
         .order("created_at", { ascending: true })
         .limit(100);
       if (error) throw error;
