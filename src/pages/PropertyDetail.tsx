@@ -308,10 +308,33 @@ export default function PropertyDetail() {
           setCoApps(apps);
           setCoViolations(viols);
           setCoImported(true);
+
+          // Fallback: if CitiSignal returned no violations or complaints, fetch from Socrata
+          let finalViols = viols;
+          let finalComplaints: DOBComplaintRecord[] = [];
+          if (viols.length === 0 && property?.bin) {
+            try {
+              const socrataViols = await fetchDOBViolations(property.bin, property.borough, property.block, property.lot);
+              if (socrataViols.length > 0) {
+                setCoViolations(socrataViols);
+                finalViols = socrataViols;
+              }
+            } catch { /* silent */ }
+          }
+          if (property?.bin) {
+            try {
+              const socrataComplaints = await fetchDOBComplaints(property.bin);
+              if (socrataComplaints.length > 0) {
+                setCoComplaints(socrataComplaints);
+                finalComplaints = socrataComplaints;
+              }
+            } catch { /* silent */ }
+          }
+
           setLastSynced(format(new Date(), "MM/dd/yyyy h:mm a") + " (CitiSignal)");
           toast({
             title: "Data synced from CitiSignal",
-            description: `${apps.length} applications, ${viols.length} violations`,
+            description: `${apps.length} applications, ${finalViols.length} violations, ${finalComplaints.length} complaints`,
           });
           return;
         }
