@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -606,6 +607,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
   isCurrentUser: boolean; isViewerAdmin: boolean;
 }) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [period, setPeriod] = useState<Period>("this_month");
   const [chartYear, setChartYear] = useState(getYear(new Date()));
   const [editing, setEditing] = useState(false);
@@ -673,6 +675,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
         } as any)
         .eq("id", user.id);
       if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["user-billing-stats-v2"] });
       toast({ title: "Profile updated" });
       setEditing(false);
       onUpdate();
@@ -1220,7 +1223,7 @@ export function TeamSettings() {
       <UserDetailView
         user={selectedUser}
         onBack={() => setSelectedUser(null)}
-        onUpdate={() => { refetch(); setSelectedUser(null); }}
+        onUpdate={async () => { await refetch(); setSelectedUser(null); }}
         isCurrentUser={selectedUser.id === currentProfileId}
         isViewerAdmin={isAdmin}
       />
