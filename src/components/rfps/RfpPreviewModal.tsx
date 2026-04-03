@@ -37,6 +37,7 @@ interface PreviewData {
   staffBios: any[];
   notableProjects: any[];
   narratives: any[];
+  firmHistory: any[];
   pricing: any;
   certs: any[];
   coverLetter?: string;
