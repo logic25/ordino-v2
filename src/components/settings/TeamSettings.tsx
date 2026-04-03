@@ -929,8 +929,8 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                       <StatCard
                         icon={AlertCircle}
                         label="Non-Billable COs"
-                        value="$0"
-                        tooltip="Sum of change orders that could not be billed to the client during the selected period. Currently tracked manually."
+                        value={`$${(displayStats?.nonBillableCOTotal || 0).toLocaleString()}`}
+                        tooltip="Sum of change orders marked as non-billable (internal mistakes) on your projects during the selected period."
                       />
                       <StatCard
                         icon={CheckCircle}
@@ -942,15 +942,16 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                       <StatCard
                         icon={BarChart3}
                         label="Accuracy"
-                        value="N/A"
-                        tooltip="Measures how close estimated completion dates are to actual dates. This metric is not yet active."
+                        value={displayStats?.accuracyPct !== null && displayStats?.accuracyPct !== undefined ? displayStats.accuracyPct : "—"}
+                        suffix={displayStats?.accuracyPct !== null && displayStats?.accuracyPct !== undefined ? "%" : ""}
+                        tooltip="% of assigned services completed on or before their estimated completion date. Requires services with both a due date and completion date."
                       />
                       <StatCard
                         icon={Zap}
                         label="Efficiency Rating"
                         value={displayStats?.efficiency || 0}
                         suffix="%"
-                        tooltip="Weighted composite: Billing % × 53% + Timelog Completion × 40% + Non-Billable CO factor × 7%. Example: 126% billing × 0.53 + 75% timelog × 0.40 + 100 × 0.07 = ~104%."
+                        tooltip="Weighted composite: Billing % × 40% + Timelog Completion × 30% + Accuracy × 23% + Non-Billable CO factor × 7%. When Accuracy has no data, weights redistribute to Billing 53% + Timelog 40% + CO 7%."
                       />
                       <StatCard
                         icon={Award}
