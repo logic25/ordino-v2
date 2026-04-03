@@ -66,6 +66,8 @@ Deno.serve(async (req) => {
         return await queryBugPatterns(supabase, params);
       case "create_bug_from_conversation":
         return await createBugFromConversation(supabase, params);
+      case "vendor_lookup":
+        return await vendorLookup(supabase, params);
       case "list_schema":
         return await listSchema(supabase);
       case "describe_table":
