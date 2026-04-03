@@ -489,7 +489,7 @@ export function BugReports() {
             submitted_at: selectedBug.created_at,
             fixed_at: new Date().toISOString(),
             was_first_attempt: !wasRejected,
-          }).then(() => {}).catch(() => {});
+          }).then(() => {});
 
           // Auto-learn pattern (best-effort)
           if (selectedBug.ai_diagnosis) {
