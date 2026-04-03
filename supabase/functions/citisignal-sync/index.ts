@@ -103,6 +103,10 @@ Deno.serve(async (req) => {
         const properties = lookupData?.data || lookupData || [];
         const list = Array.isArray(properties) ? properties : [];
 
+        // Debug: log BINs returned by CitiSignal
+        const binList = list.map((p: any) => ({ id: p.id, bin: p.bin, address: p.address }));
+        console.log(`CitiSignal page ${page}: ${list.length} properties. BINs: ${JSON.stringify(binList)}`);
+
         const matched = list.find((p: any) => String(p.bin) === String(lookupBin));
         if (matched?.id) {
           citisignalPropertyId = matched.id;
