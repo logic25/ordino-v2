@@ -432,6 +432,7 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
             content: q,
             metadata: {},
             session_id: sessionId,
+            company_id: profile?.company_id || null,
           });
         }
 
@@ -524,6 +525,7 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
               flow_type: res.flow_type,
             },
             session_id: sessionId,
+            company_id: profile?.company_id || null,
           });
         }
       } catch {
