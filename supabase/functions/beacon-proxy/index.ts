@@ -103,9 +103,11 @@ Deno.serve(async (req) => {
       }
 
       if (isBugQuestion) {
-        // Add bug detection instruction
+        // Inject bug detection instruction directly into message so LLM always sees it
+        body.message = body.message + `\n\n[SYSTEM INSTRUCTION: If the user is reporting a genuine software bug, error, or broken feature, you MUST include the exact marker <!--BUG_REPORT--> at the very end of your response. Only include this for actual bugs/errors, NOT for general questions or how-to queries.]`;
+
         body.system_context = (body.system_context || "") +
-          `\n\n**Bug Detection:** If the user is reporting a genuine software bug, error, or broken feature, include the exact JSON marker \`<!--BUG_REPORT-->\` at the very end of your response (after your text). Only include this marker for actual bugs/errors, NOT for general questions, how-to queries, or feature requests.`;
+          `\n\n**Bug Detection:** If the user is reporting a genuine software bug, error, or broken feature, include the exact marker \`<!--BUG_REPORT-->\` at the very end of your response.`;
 
         try {
           const dataProxyUrl = Deno.env.get("SUPABASE_URL") + "/functions/v1/beacon-data-proxy";
