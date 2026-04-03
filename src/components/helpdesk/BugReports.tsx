@@ -332,6 +332,7 @@ export function BugReports() {
       queryClient.invalidateQueries({ queryKey: ["bug-reports"] });
       setShowForm(false);
       setPage(""); setAction(""); setExpected(""); setActual(""); setPriority("medium"); setTranscript("");
+      setLoomUrl(""); setPendingFiles([]); setReportCategory("bug_report");
       setLoomUrl(""); setPendingFiles([]);
     },
     onError: (err: any) => {
