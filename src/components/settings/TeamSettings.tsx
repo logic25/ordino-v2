@@ -762,12 +762,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                       OOO {format(new Date(profileAny.ooo_from + "T00:00:00"), "MMM d")} – {format(new Date(profileAny.ooo_to + "T00:00:00"), "MMM d")}
                     </Badge>
                     {profileAny.ooo_covering_pm_id && (() => {
-                      const coverPm = profiles.find((p: any) => p.id === profileAny.ooo_covering_pm_id);
-                      return coverPm ? (
-                        <p className="text-[10px] text-muted-foreground mt-1">
-                          Covered by {(coverPm as any).display_name || `${(coverPm as any).first_name} ${(coverPm as any).last_name}`}
-                        </p>
-                      ) : null;
+                      return null; // covering PM shown below in contact info
                     })()}
                   </div>
                 )}
