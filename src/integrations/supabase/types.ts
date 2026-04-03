@@ -5272,6 +5272,10 @@ export type Database = {
           monthly_goal: number | null
           notification_preferences: Json | null
           onboarding_completed: boolean
+          ooo_covering_pm_id: string | null
+          ooo_from: string | null
+          ooo_note: string | null
+          ooo_to: string | null
           phone: string | null
           phone_extension: string | null
           preferences: Json | null
@@ -5297,6 +5301,10 @@ export type Database = {
           monthly_goal?: number | null
           notification_preferences?: Json | null
           onboarding_completed?: boolean
+          ooo_covering_pm_id?: string | null
+          ooo_from?: string | null
+          ooo_note?: string | null
+          ooo_to?: string | null
           phone?: string | null
           phone_extension?: string | null
           preferences?: Json | null
@@ -5322,6 +5330,10 @@ export type Database = {
           monthly_goal?: number | null
           notification_preferences?: Json | null
           onboarding_completed?: boolean
+          ooo_covering_pm_id?: string | null
+          ooo_from?: string | null
+          ooo_note?: string | null
+          ooo_to?: string | null
           phone?: string | null
           phone_extension?: string | null
           preferences?: Json | null
@@ -5336,6 +5348,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_ooo_covering_pm_id_fkey"
+            columns: ["ooo_covering_pm_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
