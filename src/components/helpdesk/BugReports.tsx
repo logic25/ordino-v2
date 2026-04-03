@@ -838,7 +838,12 @@ export function BugReports() {
                   <TableRow key={bug.id} className="cursor-pointer" onClick={() => openDetail(bug)}>
                     <TableCell>{statusIcon(bug.status)}</TableCell>
                     <TableCell>
-                      <span className="font-medium text-sm">{bug.title}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium text-sm">{bug.title}</span>
+                        {bug.category === "polish" && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-blue-300 text-blue-600">Polish</Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge variant={priorityVariant(bug.priority)} className="text-xs">{bug.priority}</Badge>

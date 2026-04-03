@@ -22,7 +22,7 @@ function useFeatureRequests() {
       const { data, error } = await supabase
         .from("feature_requests")
         .select("*")
-        .neq("category", "bug_report")
+        .not("category", "in", '("bug_report","polish")')
         .order("upvotes", { ascending: false });
       if (error) throw error;
       return data || [];

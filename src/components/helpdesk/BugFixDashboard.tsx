@@ -11,7 +11,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 export function BugFixDashboard() {
   const { profile } = useAuth();
 
-  const { data: allBugs = [], isLoading } = useQuery({
+  const { data: allItems = [], isLoading } = useQuery({
     queryKey: ["bug-dashboard", profile?.company_id],
     queryFn: async () => {
       if (!profile?.company_id) return [];
@@ -19,12 +19,15 @@ export function BugFixDashboard() {
         .from("feature_requests")
         .select("*")
         .eq("company_id", profile.company_id)
-        .eq("category", "bug_report")
+        .in("category", ["bug_report", "polish"])
         .order("created_at", { ascending: false });
       return data || [];
     },
     enabled: !!profile?.company_id,
   });
+
+  const allBugs = allItems.filter((b: any) => b.category === "bug_report");
+  const allPolish = allItems.filter((b: any) => b.category === "polish");
 
   const { data: fixLogs = [] } = useQuery({
     queryKey: ["bug-fix-logs", profile?.company_id],
