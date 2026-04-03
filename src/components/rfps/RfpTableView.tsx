@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { Fragment, useState, useMemo } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { useUpdateRfpStatus, useUpdateRfpNotes, useDeleteRfp, type Rfp, type RfpStatus, type RfpWithProfiles } from "@/hooks/useRfps";
 import { useToast } from "@/hooks/use-toast";
@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, ArrowUpDown, Search, StickyNote, Shield, Calendar, AlertTriangle, ChevronRight, Pencil, FileText, Trash2 } from "lucide-react";
+import { Loader2, ArrowUpDown, Search, StickyNote, Calendar, AlertTriangle, ChevronRight, Pencil, FileText, Trash2 } from "lucide-react";
 import { RfpBuilderDialog } from "./RfpBuilderDialog";
 import { format, differenceInDays, isPast } from "date-fns";
 import type { RfpFilter } from "./RfpSummaryCards";
@@ -23,6 +23,13 @@ type SortKey = "due_date" | "status" | "agency" | "title" | "created_at";
 type SortDir = "asc" | "desc";
 
 const statusOrder: Record<string, number> = { prospect: 0, drafting: 1, submitted: 2, won: 3, lost: 4 };
+const defaultSortDirections: Record<SortKey, SortDir> = {
+  created_at: "desc",
+  due_date: "asc",
+  status: "asc",
+  agency: "asc",
+  title: "asc",
+};
 
 interface RfpTableViewProps {
   rfps: RfpWithProfiles[];
@@ -186,6 +193,14 @@ function ExpandedRow({ rfp, onEdit, onBuild, onDelete }: { rfp: RfpWithProfiles;
 
 const activeStatuses = ["prospect", "drafting", "submitted"];
 
+const compareOptionalDates = (left?: string | null, right?: string | null) => {
+  const leftTime = left ? Date.parse(left) : Number.POSITIVE_INFINITY;
+  const rightTime = right ? Date.parse(right) : Number.POSITIVE_INFINITY;
+
+  if (leftTime === rightTime) return 0;
+  return leftTime < rightTime ? -1 : 1;
+};
+
 export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps) {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("created_at");
@@ -206,31 +221,48 @@ export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps)
   };
 
   const toggleSort = (key: SortKey) => {
-    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortKey(key); setSortDir("asc"); }
+    if (sortKey === key) {
+      setSortDir((direction) => (direction === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setSortKey(key);
+    setSortDir(defaultSortDirections[key]);
   };
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    let list = rfps.filter((r) => {
+    const list = rfps.filter((r) => {
       if (q && !r.title.toLowerCase().includes(q) && !(r.rfp_number || "").toLowerCase().includes(q) && !(r.agency || "").toLowerCase().includes(q)) return false;
       if (cardFilter === "active") return activeStatuses.includes(r.status);
       if (cardFilter === "won") return r.status === "won";
       if (cardFilter === "lost") return r.status === "lost";
       return true;
     });
+
     list.sort((a, b) => {
+      const direction = sortDir === "asc" ? 1 : -1;
       let cmp = 0;
-      if (sortKey === "due_date") cmp = (a.due_date || "9999").localeCompare(b.due_date || "9999");
-      else if (sortKey === "created_at") cmp = (a.created_at || "").localeCompare(b.created_at || "");
+
+      if (sortKey === "due_date") cmp = compareOptionalDates(a.due_date, b.due_date);
+      else if (sortKey === "created_at") cmp = compareOptionalDates(a.created_at, b.created_at);
       else if (sortKey === "status") cmp = (statusOrder[a.status] ?? 5) - (statusOrder[b.status] ?? 5);
       else if (sortKey === "agency") cmp = (a.agency || "").localeCompare(b.agency || "");
       else cmp = a.title.localeCompare(b.title);
-      // Stable tiebreaker: always sort by created_at desc then id when primary key is equal
-      if (cmp === 0 && sortKey !== "created_at") cmp = (b.created_at || "").localeCompare(a.created_at || "");
-      if (cmp === 0) cmp = a.id.localeCompare(b.id);
-      return sortDir === "desc" ? -cmp : cmp;
+
+      cmp *= direction;
+
+      if (cmp === 0 && sortKey !== "created_at") {
+        cmp = compareOptionalDates(a.created_at, b.created_at) * -1;
+      }
+
+      if (cmp === 0) {
+        cmp = b.id.localeCompare(a.id);
+      }
+
+      return cmp;
     });
+
     return list;
   }, [rfps, search, sortKey, sortDir, cardFilter]);
 
@@ -283,14 +315,14 @@ export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps)
           <TableBody>
             {filtered.map((rfp) => {
               const isExpanded = expandedIds.has(rfp.id);
-              const createdByName = rfp.created_by_profile?.display_name || 
+              const createdByName = rfp.created_by_profile?.display_name ||
                 (rfp.created_by_profile ? `${rfp.created_by_profile.first_name || ""} ${rfp.created_by_profile.last_name || ""}`.trim() : null);
               const submittedByName = rfp.submitted_by_profile?.display_name ||
                 (rfp.submitted_by_profile ? `${rfp.submitted_by_profile.first_name || ""} ${rfp.submitted_by_profile.last_name || ""}`.trim() : null);
+
               return (
-                <>
+                <Fragment key={rfp.id}>
                   <TableRow
-                    key={rfp.id}
                     className="cursor-pointer hover:bg-muted/50"
                     onClick={() => toggleExpand(rfp.id)}
                   >
@@ -329,8 +361,8 @@ export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps)
                       </Button>
                     </TableCell>
                   </TableRow>
-                  {isExpanded && <ExpandedRow key={`${rfp.id}-detail`} rfp={rfp} onEdit={setEditingRfp} onBuild={setBuildingRfp} onDelete={setDeletingRfp} />}
-                </>
+                  {isExpanded && <ExpandedRow rfp={rfp} onEdit={setEditingRfp} onBuild={setBuildingRfp} onDelete={setDeletingRfp} />}
+                </Fragment>
               );
             })}
             {filtered.length === 0 && (
