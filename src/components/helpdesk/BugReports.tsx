@@ -479,7 +479,7 @@ export function BugReports() {
           // Insert fix log (best-effort)
           const changedFiles = filesChanged.split(",").map(f => f.trim()).filter(Boolean);
           const wasRejected = (activityLogs || []).some((l: any) => l.action_type === "status_change" && l.new_value === "in_progress" && l.old_value === "ready_for_review");
-          supabase.from("bug_fix_log").insert({
+          supabase.from("bug_fix_log" as any).insert({
             bug_report_id: selectedBug.id,
             company_id: selectedBug.company_id,
             diagnosis: selectedBug.ai_diagnosis || null,
@@ -489,7 +489,7 @@ export function BugReports() {
             submitted_at: selectedBug.created_at,
             fixed_at: new Date().toISOString(),
             was_first_attempt: !wasRejected,
-          } as any).catch(() => {});
+          }).then(() => {}).catch(() => {});
 
           // Auto-learn pattern (best-effort)
           if (selectedBug.ai_diagnosis) {
