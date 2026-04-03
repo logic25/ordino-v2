@@ -8113,6 +8113,7 @@ export type Database = {
           id: string
           metadata: Json | null
           role: string
+          session_id: string | null
           user_email: string
         }
         Insert: {
@@ -8121,6 +8122,7 @@ export type Database = {
           id?: string
           metadata?: Json | null
           role: string
+          session_id?: string | null
           user_email: string
         }
         Update: {
@@ -8129,6 +8131,7 @@ export type Database = {
           id?: string
           metadata?: Json | null
           role?: string
+          session_id?: string | null
           user_email?: string
         }
         Relationships: []
