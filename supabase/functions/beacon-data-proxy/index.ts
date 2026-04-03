@@ -81,6 +81,26 @@ Deno.serve(async (req) => {
 
 // ── Actions ──────────────────────────────────────────────
 
+// Status aliases: map common synonyms to valid project_status enum values
+const STATUS_ALIASES: Record<string, string> = {
+  active: "open",
+  in_progress: "open",
+  "in progress": "open",
+  ongoing: "open",
+  current: "open",
+  paused: "on_hold",
+  hold: "on_hold",
+  on_hold: "on_hold",
+  completed: "closed",
+  done: "closed",
+  finished: "closed",
+  archived: "closed",
+};
+
+function resolveStatus(raw: string): string {
+  return STATUS_ALIASES[raw.toLowerCase()] ?? raw;
+}
+
 async function queryProjects(sb: any, params: any) {
   let q = sb
     .from("projects")
@@ -90,7 +110,7 @@ async function queryProjects(sb: any, params: any) {
     .order("created_at", { ascending: false })
     .limit(200);
 
-  if (params.status) q = q.eq("status", params.status);
+  if (params.status) q = q.eq("status", resolveStatus(params.status));
   if (params.assigned_to) q = q.eq("assigned_pm_id", params.assigned_to);
   if (params.search) q = q.ilike("name", `%${params.search}%`);
 
@@ -370,8 +390,25 @@ const COLUMN_ALIASES: Record<string, Record<string, string>> = {
   profiles: { goal: "monthly_goal", billing_goal: "monthly_goal" },
 };
 
+// ── Value Alias Mapping (enum synonyms) ──────────────────
+const VALUE_ALIASES: Record<string, Record<string, Record<string, string>>> = {
+  projects: {
+    status: {
+      active: "open", in_progress: "open", "in progress": "open",
+      ongoing: "open", current: "open",
+      paused: "on_hold", hold: "on_hold",
+      completed: "closed", done: "closed", finished: "closed", archived: "closed",
+    },
+  },
+};
+
 function resolveAlias(table: string, column: string): string {
   return COLUMN_ALIASES[table]?.[column] || column;
+}
+
+function resolveValue(table: string, column: string, value: any): any {
+  if (typeof value !== "string") return value;
+  return VALUE_ALIASES[table]?.[column]?.[value.toLowerCase()] ?? value;
 }
 
 function resolveSelectAliases(table: string, select: string): string {
@@ -414,19 +451,20 @@ async function queryOrdino(sb: any, params: any) {
     for (const f of filters) {
       if (!f.column) continue;
       const col = resolveAlias(table, f.column);
+      const val = resolveValue(table, col, f.value);
       const op = f.operator || "eq";
       switch (op) {
-        case "eq":    q = q.eq(col, f.value); break;
-        case "neq":   q = q.neq(col, f.value); break;
-        case "gt":    q = q.gt(col, f.value); break;
-        case "gte":   q = q.gte(col, f.value); break;
-        case "lt":    q = q.lt(col, f.value); break;
-        case "lte":   q = q.lte(col, f.value); break;
-        case "like":  q = q.like(col, f.value); break;
-        case "ilike": q = q.ilike(col, f.value); break;
-        case "is":    q = q.is(col, f.value); break;
-        case "in":    q = q.in(col, f.value); break;
-        default:      q = q.eq(col, f.value);
+        case "eq":    q = q.eq(col, val); break;
+        case "neq":   q = q.neq(col, val); break;
+        case "gt":    q = q.gt(col, val); break;
+        case "gte":   q = q.gte(col, val); break;
+        case "lt":    q = q.lt(col, val); break;
+        case "lte":   q = q.lte(col, val); break;
+        case "like":  q = q.like(col, val); break;
+        case "ilike": q = q.ilike(col, val); break;
+        case "is":    q = q.is(col, val); break;
+        case "in":    q = q.in(col, Array.isArray(val) ? val.map((v: any) => resolveValue(table, col, v)) : val); break;
+        default:      q = q.eq(col, val);
       }
     }
   }
