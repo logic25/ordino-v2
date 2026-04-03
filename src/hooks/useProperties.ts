@@ -28,7 +28,7 @@ export function useProperty(id: string | undefined) {
       if (!id) return null;
       const { data, error } = await supabase
         .from("properties")
-        .select("*")
+        .select("*, creator:profiles!properties_created_by_fkey(display_name, first_name, last_name)")
         .eq("id", id)
         .maybeSingle();
       
@@ -64,7 +64,7 @@ export function useCreateProperty() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("company_id")
+        .select("id, company_id")
         .eq("user_id", user.id)
         .single();
 
@@ -112,6 +112,7 @@ export function useCreateProperty() {
           notes: property.notes || null,
           aka_addresses: property.aka_addresses || [],
           company_id: profile.company_id,
+          created_by: profile.id,
           bbl_verified: !!(property.borough && property.block && property.lot),
         })
         .select()

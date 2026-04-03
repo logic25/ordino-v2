@@ -5876,6 +5876,7 @@ export type Database = {
           co_status: string | null
           company_id: string
           created_at: string | null
+          created_by: string | null
           id: string
           lot: string | null
           metadata: Json | null
@@ -5899,6 +5900,7 @@ export type Database = {
           co_status?: string | null
           company_id: string
           created_at?: string | null
+          created_by?: string | null
           id?: string
           lot?: string | null
           metadata?: Json | null
@@ -5922,6 +5924,7 @@ export type Database = {
           co_status?: string | null
           company_id?: string
           created_at?: string | null
+          created_by?: string | null
           id?: string
           lot?: string | null
           metadata?: Json | null
@@ -5939,6 +5942,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "properties_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
