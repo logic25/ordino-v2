@@ -68,6 +68,8 @@ Deno.serve(async (req) => {
         return await createBugFromConversation(supabase, params);
       case "list_schema":
         return await listSchema(supabase);
+      case "describe_table":
+        return await describeTable(params);
       default:
         return fail(`Unknown action: ${action}`);
     }
@@ -542,6 +544,40 @@ async function listSchema(_sb: any) {
     }
 
     return ok({ tables });
+  } finally {
+    await sql.end();
+  }
+}
+
+// ── Describe Table ───────────────────────────────────────
+
+const BLOCKED_TABLES = /auth|secret|password|key|token|user_roles/i;
+
+async function describeTable(params: any) {
+  const table = params?.table;
+  if (!table || typeof table !== "string") return fail("Missing 'table' param");
+  if (BLOCKED_TABLES.test(table)) return fail("Access denied for that table");
+
+  const dbUrl = Deno.env.get("SUPABASE_DB_URL");
+  if (!dbUrl) return fail("Database URL not configured");
+
+  const { default: postgres } = await import("https://deno.land/x/postgresjs@v3.4.5/mod.js");
+  const sql = postgres(dbUrl, { max: 1 });
+
+  try {
+    const rows = await sql`
+      SELECT column_name, data_type
+      FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = ${table}
+      ORDER BY ordinal_position
+    `;
+
+    if (rows.length === 0) return fail(`Table '${table}' not found`);
+
+    return ok({
+      table,
+      columns: rows.map((r: any) => ({ name: r.column_name, type: r.data_type })),
+    });
   } finally {
     await sql.end();
   }
