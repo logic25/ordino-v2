@@ -1,36 +1,45 @@
 
 
-# Fix: Performance card not updating after goal change
+# Fix: Wire Up Non-Billable COs Metric Using Existing Data
 
-## Problem
+## Key Insight
+Non-billable COs already exist as **negative change orders** created when PMs drop services. They have `amount < 0`, `status = 'approved'`, and `requested_by = 'Internal'`. No new database column is needed.
 
-When you edit a team member's Monthly Goal and save, the Performance card still shows the old Billing %. The save handler calls `refetch()` (to reload profiles) and `setSelectedUser(null)` (to go back to the list) simultaneously. When you click back into the user, the profiles list may not have finished refreshing yet, so the old `monthly_goal` value is used, and the billing stats query doesn't re-run.
+## What Changes
 
-## Root Cause
+### 1. Add `is_non_billable` boolean to change_orders (optional but cleaner)
+Rather than relying solely on negative amounts, add an explicit flag so PMs can also manually mark a positive CO as non-billable (e.g., rework we can't bill for). Default `false`. Auto-set to `true` when a dropped-service CO is created.
 
-In `TeamSettings.tsx` line 1223:
-```typescript
-onUpdate={() => { refetch(); setSelectedUser(null); }}
+**Migration:**
+```sql
+ALTER TABLE change_orders ADD COLUMN is_non_billable boolean DEFAULT false;
 ```
-`refetch()` is async but not awaited. The user can click back into the profile before the fresh data arrives.
 
-Additionally, the billing stats query (`user-billing-stats-v2`) is cached with the old `monthlyGoal` in its key. Even if the profile refreshes, the old cached result may persist briefly.
+### 2. Update ServicesFull.tsx dropped-service CO creation
+When creating negative COs from dropped services, include `is_non_billable: true` in the insert.
 
-## Fix
+### 3. Add "Non-billable" checkbox to CO creation/edit dialog
+Simple checkbox in the CO form — "This is a non-billable change order (internal mistake)". Only visible to admins/PMs.
 
-**File: `src/components/settings/TeamSettings.tsx`**
+### 4. Wire up the Non-Billable COs StatCard in TeamSettings.tsx
+Query `change_orders` where `is_non_billable = true` on the user's assigned projects in the selected period. Sum absolute values of amounts. Replace the hardcoded `$0`.
 
-1. In the `handleSave` function (line 657), after a successful save, invalidate the billing stats query for that user so it re-fetches with the new goal:
-   - Import `useQueryClient` and call `queryClient.invalidateQueries({ queryKey: ["user-billing-stats-v2", user.id] })` after the profile update succeeds.
+### 5. Update Efficiency Rating formula
+Include the real Non-Billable CO factor (lower is better — more non-billable COs = lower score).
 
-2. In the `onUpdate` callback (line 1223), await the refetch before clearing the selected user:
-   ```typescript
-   onUpdate={async () => { await refetch(); setSelectedUser(null); }}
-   ```
+### 6. Add `accuracy_goal` to profiles + compute Accuracy %
+- Migration: `ALTER TABLE profiles ADD COLUMN accuracy_goal numeric DEFAULT NULL`
+- Add "Accuracy Goal (%)" field to the profile edit form
+- Compute: services where `completed_date <= due_date` ÷ total services with both dates, for the user's assigned services
+- Wire into the Accuracy StatCard
 
-3. In `UserDetailView`, also invalidate billing stats from `handleSave` so the data is fresh when the user navigates back in:
-   - Add `useQueryClient` to `UserDetailView`
-   - After successful save, call `queryClient.invalidateQueries({ queryKey: ["user-billing-stats-v2"] })`
-
-This ensures that when you change a monthly goal, the billing percentage recalculates immediately with the new goal value.
+### Files Changed
+| File | Change |
+|------|--------|
+| `change_orders` table | Add `is_non_billable` column |
+| `profiles` table | Add `accuracy_goal` column |
+| `src/components/projects/tabs/ServicesFull.tsx` | Set `is_non_billable: true` on dropped-service COs |
+| `src/hooks/useChangeOrders.ts` | Add `is_non_billable` to types and form input |
+| CO creation/edit UI components | Add non-billable checkbox |
+| `src/components/settings/TeamSettings.tsx` | Wire up Non-Billable COs query, Accuracy computation, edit form field, rebalance Efficiency |
 
