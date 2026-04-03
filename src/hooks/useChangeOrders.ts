@@ -35,6 +35,7 @@ export interface ChangeOrder {
   notes: string | null;
   deposit_percentage: number;
   deposit_paid_at: string | null;
+  is_non_billable: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;
