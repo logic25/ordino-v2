@@ -790,6 +790,14 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
                       ) : (
                         <p className="text-sm">{msg.text}</p>
                       )}
+                      {msg.timestamp && (
+                        <span className={cn(
+                          "block text-[10px] mt-1 text-muted-foreground",
+                          msg.role === "user" ? "text-right text-primary-foreground/60" : ""
+                        )}>
+                          {new Date(msg.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
