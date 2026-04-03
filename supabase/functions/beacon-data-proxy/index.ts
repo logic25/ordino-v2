@@ -66,6 +66,8 @@ Deno.serve(async (req) => {
         return await queryBugPatterns(supabase, params);
       case "create_bug_from_conversation":
         return await createBugFromConversation(supabase, params);
+      case "vendor_lookup":
+        return await vendorLookup(supabase, params);
       case "list_schema":
         return await listSchema(supabase);
       case "describe_table":
@@ -594,6 +596,106 @@ async function createBugFromConversation(sb: any, params: any) {
   }
 
   return ok({ bug_id: bug.id, title: bug.title, status: bug.status });
+}
+
+// ── Vendor / Partner Lookup ──────────────────────────────
+
+async function vendorLookup(sb: any, params: any) {
+  const { type, search, limit: rawLimit } = params || {};
+  const safeLimit = Math.min(Math.max(Number(rawLimit) || 10, 1), 50);
+
+  // Get all RFP partner clients, optionally filtered by client_type
+  let q = sb
+    .from("clients")
+    .select("id, name, client_type, is_rfp_partner")
+    .eq("is_rfp_partner", true)
+    .limit(200);
+
+  if (type) {
+    q = q.ilike("client_type", `%${type}%`);
+  }
+  if (search) {
+    q = q.ilike("name", `%${search}%`);
+  }
+
+  const { data: clients, error: clientErr } = await q;
+  if (clientErr) {
+    console.error("vendor_lookup clients error:", clientErr.message);
+    return fail(clientErr.message, 500);
+  }
+
+  if (!clients || clients.length === 0) {
+    return ok({ vendors: [], count: 0, message: type ? `No partners found with type "${type}"` : "No RFP partners found" });
+  }
+
+  const clientIds = clients.map((c: any) => c.id);
+
+  // Get reviews for these clients
+  const { data: reviews, error: revErr } = await sb
+    .from("company_reviews")
+    .select("client_id, rating, review_text, reviewer_name, created_at")
+    .in("client_id", clientIds);
+
+  if (revErr) {
+    console.error("vendor_lookup reviews error:", revErr.message);
+  }
+
+  // Get primary contacts
+  const { data: contacts } = await sb
+    .from("client_contacts")
+    .select("client_id, name, email, phone, title, is_primary")
+    .in("client_id", clientIds)
+    .order("is_primary", { ascending: false });
+
+  // Build rating map
+  const ratingMap: Record<string, { sum: number; count: number; reviews: any[] }> = {};
+  for (const r of reviews || []) {
+    if (!ratingMap[r.client_id]) ratingMap[r.client_id] = { sum: 0, count: 0, reviews: [] };
+    ratingMap[r.client_id].sum += r.rating;
+    ratingMap[r.client_id].count++;
+    ratingMap[r.client_id].reviews.push({
+      rating: r.rating,
+      text: r.review_text?.slice(0, 200),
+      reviewer: r.reviewer_name,
+      date: r.created_at,
+    });
+  }
+
+  // Build contact map (primary contact per client)
+  const contactMap: Record<string, any> = {};
+  for (const c of contacts || []) {
+    if (!contactMap[c.client_id] || c.is_primary) {
+      contactMap[c.client_id] = { name: c.name, email: c.email, phone: c.phone, title: c.title };
+    }
+  }
+
+  // Assemble and rank
+  const vendors = clients.map((c: any) => {
+    const r = ratingMap[c.id];
+    return {
+      id: c.id,
+      name: c.name,
+      type: c.client_type,
+      avg_rating: r ? Math.round((r.sum / r.count) * 10) / 10 : null,
+      review_count: r?.count || 0,
+      recent_reviews: (r?.reviews || []).slice(0, 3),
+      contact: contactMap[c.id] || null,
+    };
+  });
+
+  // Sort: highest rated first, then by review count
+  vendors.sort((a: any, b: any) => {
+    const aR = a.avg_rating ?? 0;
+    const bR = b.avg_rating ?? 0;
+    if (bR !== aR) return bR - aR;
+    return b.review_count - a.review_count;
+  });
+
+  return ok({
+    vendors: vendors.slice(0, safeLimit),
+    count: vendors.length,
+    query: { type, search },
+  });
 }
 
 // ── List Schema ──────────────────────────────────────────
