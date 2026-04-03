@@ -627,6 +627,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
     job_title: profileAny.job_title || "",
     about: profileAny.about || "",
     monthly_goal: profileAny.monthly_goal ? String(profileAny.monthly_goal) : "",
+    accuracy_goal: profileAny.accuracy_goal ? String(profileAny.accuracy_goal) : "",
     is_active: user.is_active,
   });
 
