@@ -178,6 +178,7 @@ export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalPro
             {sections.map((sectionId) => (
               <div key={sectionId} data-pdf-section={sectionId}>
                 {sectionId === "cover_letter" && coverLetter && <CoverLetterSection text={coverLetter} />}
+                {sectionId === "firm_overview" && <FirmOverviewSection data={firmHistory} />}
                 {sectionId === "company_info" && <CompanyInfoSection data={companyInfo} />}
                 {sectionId === "staff_bios" && <StaffBiosSection data={staffBios} />}
                 {sectionId === "org_chart" && <OrgChartSection data={staffBios} />}
