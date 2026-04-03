@@ -866,6 +866,41 @@ export function BugReports() {
                   </div>
                 )}
 
+                {/* AI Triage Card */}
+                {selectedBug.ai_diagnosis && (
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Brain className="h-4 w-4 text-primary" />
+                      <h4 className="font-semibold text-sm">AI Auto-Triage</h4>
+                      {selectedBug.ai_severity && (
+                        <Badge variant={selectedBug.ai_severity === "critical" || selectedBug.ai_severity === "high" ? "destructive" : "secondary"} className="text-xs ml-auto">
+                          {selectedBug.ai_severity}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-sm space-y-1 whitespace-pre-line">
+                      {selectedBug.ai_diagnosis.split("\n").map((line: string, i: number) => (
+                        <p key={i} className="text-foreground/90 leading-relaxed">
+                          {line.replace(/\*\*/g, "")}
+                        </p>
+                      ))}
+                    </div>
+                    {selectedBug.ai_suggested_files && selectedBug.ai_suggested_files.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {(selectedBug.ai_suggested_files as string[]).map((f: string, i: number) => (
+                          <Badge key={i} variant="outline" className="text-xs font-mono">{f.split("/").pop()}</Badge>
+                        ))}
+                      </div>
+                    )}
+                    {selectedBug.ai_triaged_at && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        <Zap className="h-3 w-3 inline mr-1" />
+                        Triaged {format(new Date(selectedBug.ai_triaged_at), "MMM d 'at' h:mm a")}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-xs text-muted-foreground">Priority</Label>
