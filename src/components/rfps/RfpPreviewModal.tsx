@@ -153,8 +153,8 @@ export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalPro
     </Dialog>
   );
 }
-/* ─── Section heading ─── */
-function SectionHeading({ children, icon: Icon, color = "text-accent" }: { children: React.ReactNode; icon: React.ElementType; color?: string }) {
+
+
   return (
     <div className="flex items-center gap-2 mb-4">
       <div className="w-2 h-2 rounded-full bg-accent" />
