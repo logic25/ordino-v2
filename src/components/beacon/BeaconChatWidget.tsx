@@ -318,7 +318,15 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
         const sysInstruction = `[INSTRUCTIONS: Respond conversationally like a knowledgeable colleague. Lead with what needs attention — stale projects, overdue items, open action items. Mention team activity naturally (e.g., "Maria last updated this 12 days ago"). Only include property/zoning/filing details if specifically asked. Keep it to 3-4 short paragraphs max. End with one practical next step, not a list of questions. No big headings or report formatting.]`;
         enrichedQuery = `${sysInstruction}\n[Context: ${ctxParts.join(" | ")}]\n\n${q}`;
       }
-      const res = await askBeacon(enrichedQuery, userId, userName, activeContext);
+
+      // Inject page & error context for bug detection
+      const contextWithPage: BeaconProjectContext = {
+        ...activeContext,
+        currentPage,
+        recentErrors: recentErrorsRef.current.length > 0 ? recentErrorsRef.current : undefined,
+      };
+
+      const res = await askBeacon(enrichedQuery, userId, userName, contextWithPage);
       setMessages((prev) => [
         ...prev,
         {
@@ -328,6 +336,7 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
           sources: res.sources || [],
           responseTime: res.response_time_ms,
           flowType: res.flow_type,
+          isBugReport: res.is_bug_report,
         },
       ]);
 
