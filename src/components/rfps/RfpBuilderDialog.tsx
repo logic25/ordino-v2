@@ -345,8 +345,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     certifications: { items: certs, type: "certification" },
   };
 
-  // Fetch company logo + info for email branding
-  const { data: companySettings } = (await import("@/hooks/useCompanySettings")).useCompanySettings ? undefined! : { data: null };
+  const { data: companyData } = useCompanySettings();
 
   const assembledContent = {
     rfp,
@@ -358,6 +357,12 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     pricing: pricing[0],
     certs,
     coverLetter,
+    logoUrl: companyData?.logo_url || companyData?.settings?.company_logo_url || undefined,
+    companyName: companyData?.name || undefined,
+    companyAddress: companyData?.address || companyData?.settings?.company_address || undefined,
+    companyPhone: companyData?.phone || companyData?.settings?.company_phone || undefined,
+    companyEmail: companyData?.email || companyData?.settings?.company_email || undefined,
+    companyWebsite: companyData?.website || companyData?.settings?.company_website || undefined,
   };
 
   const draggableSections = sectionOrder.filter((s) => s !== "cover_letter");
