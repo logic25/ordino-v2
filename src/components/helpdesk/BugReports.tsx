@@ -236,7 +236,7 @@ export function BugReports() {
         .from("feature_requests")
         .select("*")
         .eq("company_id", profile.company_id)
-        .eq("category", "bug_report")
+        .in("category", ["bug_report", "polish"])
         .order("created_at", { ascending: false });
       return data || [];
     },
