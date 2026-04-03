@@ -10,10 +10,9 @@ import { format } from "date-fns";
 import {
   Printer, Send, X, Loader2, Calendar,
 } from "lucide-react";
-import { jsPDF } from "jspdf";
-import html2canvas from "html2canvas";
 import type { Rfp } from "@/hooks/useRfps";
 import { buildRfpEmailHtml } from "./buildRfpEmailBody";
+import { generateRfpPdfBlob } from "./RfpResponsePDF";
 
 interface PreviewData {
   rfp: Rfp | null;
@@ -48,44 +47,15 @@ export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalPro
   const emailHtml = useMemo(() => buildRfpEmailHtml(data), [data]);
 
   const handleExportPdf = async () => {
-    if (!contentRef.current) return;
     setExporting(true);
     try {
-      const canvas = await html2canvas(contentRef.current, {
-        scale: 1.5,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-      });
-
-      const A4_WIDTH_MM = 210;
-      const A4_HEIGHT_MM = 297;
-      const MARGIN_MM = 12;
-      const CONTENT_WIDTH_MM = A4_WIDTH_MM - MARGIN_MM * 2;
-
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const pxPerMM = canvas.width / CONTENT_WIDTH_MM;
-      const usableHeightPx = (A4_HEIGHT_MM - MARGIN_MM * 2) * pxPerMM;
-
-      let srcY = 0;
-      let pageIndex = 0;
-
-      while (srcY < canvas.height) {
-        if (pageIndex > 0) pdf.addPage();
-        const slicePx = Math.min(usableHeightPx, canvas.height - srcY);
-        const sliceMM = slicePx / pxPerMM;
-
-        const sliceCanvas = document.createElement("canvas");
-        sliceCanvas.width = canvas.width;
-        sliceCanvas.height = slicePx;
-        const ctx = sliceCanvas.getContext("2d")!;
-        ctx.drawImage(canvas, 0, srcY, canvas.width, slicePx, 0, 0, canvas.width, slicePx);
-
-        pdf.addImage(sliceCanvas.toDataURL("image/jpeg", 0.75), "JPEG", MARGIN_MM, MARGIN_MM, CONTENT_WIDTH_MM, sliceMM);
-        srcY += slicePx;
-        pageIndex++;
-      }
-
-      pdf.save(`RFP-Response-${rfp?.rfp_number || rfp?.title || "draft"}.pdf`);
+      const blob = await generateRfpPdfBlob(data);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `RFP-Response-${rfp?.rfp_number || rfp?.title || "draft"}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
     } catch (e) {
       console.error("PDF export failed", e);
     } finally {
