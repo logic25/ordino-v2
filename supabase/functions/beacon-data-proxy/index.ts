@@ -64,6 +64,8 @@ Deno.serve(async (req) => {
         return await queryOrdino(supabase, params);
       case "query_bug_patterns":
         return await queryBugPatterns(supabase, params);
+      case "create_bug_from_conversation":
+        return await createBugFromConversation(supabase, params);
       default:
         return fail(`Unknown action: ${action}`);
     }
