@@ -71,6 +71,7 @@ export function ChangeOrderDialog({
   const [serviceLines, setServiceLines] = useState<COServiceLine[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [depositPct, setDepositPct] = useState(0);
+  const [isNonBillable, setIsNonBillable] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
