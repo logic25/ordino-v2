@@ -1,45 +1,19 @@
 
 
-# Fix: Wire Up Non-Billable COs Metric Using Existing Data
+# Fix: beacon-data-proxy BOOT_ERROR — Duplicate `BLOCKED_TABLES` Declaration
 
-## Key Insight
-Non-billable COs already exist as **negative change orders** created when PMs drop services. They have `amount < 0`, `status = 'approved'`, and `requested_by = 'Internal'`. No new database column is needed.
+## Problem
+The edge function fails to start with: `Identifier 'BLOCKED_TABLES' has already been declared at line 451:7` (compiled line). The `describe_table` action added a second `const BLOCKED_TABLES` (line 554, a RegExp) when one already exists (line 357, a Set).
 
-## What Changes
+## Fix
+Rename the RegExp on line 554 from `BLOCKED_TABLES` to `DESCRIBE_BLOCKED` (or similar), and update its reference on line 559. That's the entire fix — one rename, two lines changed.
 
-### 1. Add `is_non_billable` boolean to change_orders (optional but cleaner)
-Rather than relying solely on negative amounts, add an explicit flag so PMs can also manually mark a positive CO as non-billable (e.g., rework we can't bill for). Default `false`. Auto-set to `true` when a dropped-service CO is created.
+### File: `supabase/functions/beacon-data-proxy/index.ts`
 
-**Migration:**
-```sql
-ALTER TABLE change_orders ADD COLUMN is_non_billable boolean DEFAULT false;
-```
-
-### 2. Update ServicesFull.tsx dropped-service CO creation
-When creating negative COs from dropped services, include `is_non_billable: true` in the insert.
-
-### 3. Add "Non-billable" checkbox to CO creation/edit dialog
-Simple checkbox in the CO form — "This is a non-billable change order (internal mistake)". Only visible to admins/PMs.
-
-### 4. Wire up the Non-Billable COs StatCard in TeamSettings.tsx
-Query `change_orders` where `is_non_billable = true` on the user's assigned projects in the selected period. Sum absolute values of amounts. Replace the hardcoded `$0`.
-
-### 5. Update Efficiency Rating formula
-Include the real Non-Billable CO factor (lower is better — more non-billable COs = lower score).
-
-### 6. Add `accuracy_goal` to profiles + compute Accuracy %
-- Migration: `ALTER TABLE profiles ADD COLUMN accuracy_goal numeric DEFAULT NULL`
-- Add "Accuracy Goal (%)" field to the profile edit form
-- Compute: services where `completed_date <= due_date` ÷ total services with both dates, for the user's assigned services
-- Wire into the Accuracy StatCard
-
-### Files Changed
-| File | Change |
+| Line | Change |
 |------|--------|
-| `change_orders` table | Add `is_non_billable` column |
-| `profiles` table | Add `accuracy_goal` column |
-| `src/components/projects/tabs/ServicesFull.tsx` | Set `is_non_billable: true` on dropped-service COs |
-| `src/hooks/useChangeOrders.ts` | Add `is_non_billable` to types and form input |
-| CO creation/edit UI components | Add non-billable checkbox |
-| `src/components/settings/TeamSettings.tsx` | Wire up Non-Billable COs query, Accuracy computation, edit form field, rebalance Efficiency |
+| 554 | Rename `const BLOCKED_TABLES = /auth|secret|.../i` to `const DESCRIBE_BLOCKED_PATTERN = /auth|secret|.../i` |
+| 559 | Change `BLOCKED_TABLES.test(table)` to `DESCRIBE_BLOCKED_PATTERN.test(table)` |
+
+After the edit, redeploy `beacon-data-proxy` and verify it boots successfully.
 
