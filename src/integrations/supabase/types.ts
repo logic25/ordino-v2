@@ -8108,6 +8108,7 @@ export type Database = {
       }
       widget_messages: {
         Row: {
+          company_id: string | null
           content: string
           created_at: string | null
           deleted_at: string | null
@@ -8118,6 +8119,7 @@ export type Database = {
           user_email: string
         }
         Insert: {
+          company_id?: string | null
           content: string
           created_at?: string | null
           deleted_at?: string | null
@@ -8128,6 +8130,7 @@ export type Database = {
           user_email: string
         }
         Update: {
+          company_id?: string | null
           content?: string
           created_at?: string | null
           deleted_at?: string | null
@@ -8137,7 +8140,15 @@ export type Database = {
           session_id?: string | null
           user_email?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "widget_messages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
