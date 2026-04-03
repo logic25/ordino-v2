@@ -912,7 +912,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
               ) : (() => {
                 // Use mock data when no real stats or no goal
                 const hasRealData = stats && (stats.totalBilled > 0 || stats.totalHours > 0);
-                const mockStats = { billingPct: 69, timelogCompletion: 87, efficiency: 72, potentialBonus: 0, hasGoal: true };
+                const mockStats = { billingPct: 69, timelogCompletion: 87, efficiency: 72, potentialBonus: 0, hasGoal: true, nonBillableCOTotal: 0, accuracyPct: null };
                 const displayStats = hasRealData ? stats : { ...stats, ...mockStats };
                 const isMock = !hasRealData;
                 return (
