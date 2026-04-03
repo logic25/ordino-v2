@@ -972,7 +972,6 @@ export function BugReports() {
                   </div>
                 )}
 
-
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-xs text-muted-foreground">Priority</Label>
