@@ -219,6 +219,7 @@ export function ChangeOrderDialog({
       })),
       notes: values.notes || undefined,
       deposit_percentage: depositPct,
+      is_non_billable: isNonBillable,
     }, asDraft);
   };
 
