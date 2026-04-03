@@ -161,6 +161,8 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const processingRef = useRef(false);
+  const queueRef = useRef<string[]>([]);
   const [contextCleared, setContextCleared] = useState(false);
 
   // Allow user to clear project context; reset when context changes
