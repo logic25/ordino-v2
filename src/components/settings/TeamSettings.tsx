@@ -805,10 +805,14 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                     <Input className="h-8 text-xs" placeholder="Ext" value={editForm.phone_extension} onChange={(e) => setEditForm({ ...editForm, phone_extension: e.target.value })} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <div>
                     <Label className="text-xs">Monthly Goal ($)</Label>
                     <Input className="h-8 text-xs" type="number" placeholder="33000" value={editForm.monthly_goal} onChange={(e) => setEditForm({ ...editForm, monthly_goal: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Accuracy Goal (%)</Label>
+                    <Input className="h-8 text-xs" type="number" placeholder="90" min="0" max="100" value={editForm.accuracy_goal} onChange={(e) => setEditForm({ ...editForm, accuracy_goal: e.target.value })} />
                   </div>
                   <div>
                     <Label className="text-xs">Hourly Rate ($)</Label>
