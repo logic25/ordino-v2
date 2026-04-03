@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { bug_id } = await req.json();
+    const { bug_id, action } = await req.json();
     if (!bug_id) {
       return new Response(JSON.stringify({ error: "bug_id required" }), {
         status: 400,
@@ -113,6 +113,56 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Handle pattern learning on resolve
+    if (action === "learn_pattern") {
+      const { data: bug } = await supabase
+        .from("feature_requests")
+        .select("*")
+        .eq("id", bug_id)
+        .single();
+
+      if (!bug || !bug.ai_diagnosis) {
+        return new Response(JSON.stringify({ message: "No diagnosis to learn from" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const pageMatch = bug.title?.match(/^\[([^\]]+)\]/);
+      const patternName = `${pageMatch ? pageMatch[1] : "Unknown"}: ${bug.title?.replace(/^\[[^\]]+\]\s*/, "").slice(0, 60)}`;
+      const affectedFiles = bug.files_changed || bug.ai_suggested_files || [];
+
+      // Check for existing similar pattern
+      const { data: existing } = await supabase
+        .from("bug_patterns")
+        .select("*")
+        .eq("company_id", bug.company_id);
+
+      const similar = (existing || []).find((p: any) => {
+        const pFiles = p.affected_files || [];
+        return pFiles.some((f: string) => affectedFiles.includes(f));
+      });
+
+      if (similar) {
+        await supabase.from("bug_patterns").update({
+          occurrences: similar.occurrences + 1,
+          last_seen: new Date().toISOString(),
+          fix_pattern: bug.fix_description || similar.fix_pattern,
+        }).eq("id", similar.id);
+      } else {
+        await supabase.from("bug_patterns").insert({
+          company_id: bug.company_id,
+          pattern_name: patternName,
+          affected_files: affectedFiles,
+          root_cause: bug.ai_diagnosis?.split("\n").find((l: string) => l.includes("Root cause"))?.replace(/.*Root cause:\*?\*?\s*/i, "") || null,
+          fix_pattern: bug.fix_description || null,
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true, action: "pattern_learned" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Fetch the bug report
     const { data: bug, error: bugErr } = await supabase
