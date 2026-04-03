@@ -76,6 +76,23 @@ function createMimeMessage({
 
   const plainBody = body.replace(/<[^>]*>/g, "");
 
+  // Helper: wrap base64 at 76 chars per line (RFC 2045)
+  function wrapBase64(b64: string): string {
+    const lines: string[] = [];
+    for (let i = 0; i < b64.length; i += 76) {
+      lines.push(b64.substring(i, i + 76));
+    }
+    return lines.join("\r\n");
+  }
+
+  // Helper: URL-safe base64 encode for Gmail API
+  function toWebSafeBase64(str: string): string {
+    return btoa(unescape(encodeURIComponent(str)))
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+  }
+
   if (!hasAttachments) {
     // Simple multipart/alternative
     headers.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
@@ -93,16 +110,14 @@ function createMimeMessage({
       `--${boundary}--`,
     ].join("\r\n");
 
-    return btoa(unescape(encodeURIComponent(message)))
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/, "");
+    return toWebSafeBase64(message);
   }
 
   // multipart/mixed with nested multipart/alternative for body
   headers.push(`Content-Type: multipart/mixed; boundary="${boundary}"`);
 
-  const parts = [
+  // Build text portion of the message (headers + body parts)
+  const textParts = [
     ...headers,
     "",
     `--${boundary}`,
@@ -117,23 +132,37 @@ function createMimeMessage({
     "",
     body,
     `--${altBoundary}--`,
-  ];
+  ].join("\r\n");
 
+  // Build attachment parts with proper base64 line wrapping
+  const attachmentParts: string[] = [];
   for (const att of attachments!) {
-    parts.push(
-      `--${boundary}`,
-      `Content-Type: ${att.mime_type}; name="${att.filename}"`,
-      `Content-Disposition: attachment; filename="${att.filename}"`,
+    // RFC 2047 encode filename for non-ASCII characters
+    const safeFilename = /[^\x20-\x7E]/.test(att.filename)
+      ? `=?UTF-8?B?${btoa(unescape(encodeURIComponent(att.filename)))}?=`
+      : att.filename;
+    attachmentParts.push(
+      `\r\n--${boundary}`,
+      `Content-Type: ${att.mime_type}; name="${safeFilename}"`,
+      `Content-Disposition: attachment; filename="${safeFilename}"`,
       "Content-Transfer-Encoding: base64",
       "",
-      att.content
+      wrapBase64(att.content),
     );
   }
 
-  parts.push(`--${boundary}--`);
+  const fullMessage = textParts + attachmentParts.join("\r\n") + `\r\n--${boundary}--`;
 
-  const message = parts.join("\r\n");
-  return btoa(unescape(encodeURIComponent(message)))
+  // For messages with binary attachments, encode using Uint8Array to avoid
+  // charset issues with the encodeURIComponent/unescape approach
+  const encoder = new TextEncoder();
+  const messageBytes = encoder.encode(fullMessage);
+  // Convert Uint8Array to binary string for btoa
+  let binaryStr = "";
+  for (let i = 0; i < messageBytes.length; i++) {
+    binaryStr += String.fromCharCode(messageBytes[i]);
+  }
+  return btoa(binaryStr)
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/, "");
@@ -310,6 +339,15 @@ Deno.serve(async (req) => {
           references = messageIdHeader.value;
         }
       }
+    }
+
+    // Log attachment info for debugging
+    if (attachments && attachments.length > 0) {
+      console.log(`gmail-send: ${attachments.length} attachment(s) included:`,
+        attachments.map((a: any) => ({ filename: a.filename, mime_type: a.mime_type, size_bytes: Math.round((a.content?.length || 0) * 3 / 4) }))
+      );
+    } else {
+      console.log("gmail-send: no attachments");
     }
 
     // Create and send the email
