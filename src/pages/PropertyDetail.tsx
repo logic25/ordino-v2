@@ -666,6 +666,8 @@ export default function PropertyDetail() {
                         { label: "ZIP Code", value: property.zip_code },
                         { label: "Owner", value: property.owner_name },
                         { label: "Owner Contact", value: property.owner_contact },
+                        { label: "Added by", value: (property as any).creator?.display_name || (property as any).creator?.first_name ? `${(property as any).creator.first_name || ""} ${(property as any).creator.last_name || ""}`.trim() : null },
+                        { label: "Added on", value: property.created_at ? safeFormatDate(property.created_at, "MMM d, yyyy 'at' h:mm a") : null },
                       ].map((item) => (
                         <div key={item.label} className="flex justify-between border-b border-border/50 pb-2">
                           <span className="text-sm text-muted-foreground">{item.label}</span>
