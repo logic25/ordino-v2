@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Bug, CheckCircle2, Clock, FileCode, TrendingUp } from "lucide-react";
+import { Loader2, Bug, CheckCircle2, Clock, FileCode, TrendingUp, Paintbrush } from "lucide-react";
 import { format, subDays, startOfWeek, startOfMonth } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
