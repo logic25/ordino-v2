@@ -565,6 +565,20 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
                         )}
                       </div>
                       {msg.sources && <SourcesList sources={msg.sources} onViewDocument={setViewingFile} />}
+                      {msg.isBugReport && !msg.bugLogged && (
+                        <button
+                          onClick={() => handleLogBug(i)}
+                          className="flex items-center gap-1 mt-1 text-[10px] text-destructive hover:text-destructive/80 transition-colors"
+                        >
+                          <Bug className="h-3 w-3" />
+                          Log as Bug
+                        </button>
+                      )}
+                      {msg.bugLogged && (
+                        <span className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground">
+                          <Bug className="h-3 w-3" /> Bug logged ✓
+                        </span>
+                      )}
                     </div>
                   ) : (
                     <p className="text-sm">{msg.text}</p>
