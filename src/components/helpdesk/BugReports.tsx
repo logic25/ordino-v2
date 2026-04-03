@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bug, CheckCircle2, Plus, Clock, Filter, ArrowUpDown, Loader2, Upload, Video, X, Image as ImageIcon, Copy, History, Send, MessageSquare, Eye, Paperclip, ThumbsUp, ThumbsDown, FileIcon, Brain, Zap } from "lucide-react";
+import { Bug, CheckCircle2, Plus, Clock, Filter, ArrowUpDown, Loader2, Upload, Video, X, Image as ImageIcon, Copy, History, Send, MessageSquare, Eye, Paperclip, ThumbsUp, ThumbsDown, FileIcon, Brain, Zap, Paintbrush } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -82,6 +82,7 @@ export function BugReports() {
   const [priority, setPriority] = useState("medium");
   const [loomUrl, setLoomUrl] = useState("");
   const [transcript, setTranscript] = useState("");
+  const [reportCategory, setReportCategory] = useState<"bug_report" | "polish">("bug_report");
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   // Detail sheet
@@ -235,19 +236,25 @@ export function BugReports() {
         .from("feature_requests")
         .select("*")
         .eq("company_id", profile.company_id)
-        .eq("category", "bug_report")
+        .in("category", ["bug_report", "polish"])
         .order("created_at", { ascending: false });
       return data || [];
     },
     enabled: !!profile?.company_id,
   });
 
-  // Stats
-  const openCount = reports.filter((r: any) => r.status === "open").length;
-  const inProgressCount = reports.filter((r: any) => r.status === "in_progress").length;
-  const readyForReviewCount = reports.filter((r: any) => r.status === "ready_for_review").length;
-  const resolvedCount = reports.filter((r: any) => r.status === "resolved").length;
-  const criticalCount = reports.filter((r: any) => r.priority === "critical" && r.status !== "resolved").length;
+  // Split by category
+  const bugReports = reports.filter((r: any) => r.category === "bug_report");
+  const polishItems = reports.filter((r: any) => r.category === "polish");
+  
+  // Stats (bugs only - polish tracked separately)
+  const openCount = bugReports.filter((r: any) => r.status === "open").length;
+  const inProgressCount = bugReports.filter((r: any) => r.status === "in_progress").length;
+  const readyForReviewCount = bugReports.filter((r: any) => r.status === "ready_for_review").length;
+  const resolvedCount = bugReports.filter((r: any) => r.status === "resolved").length;
+  const criticalCount = bugReports.filter((r: any) => r.priority === "critical" && r.status !== "resolved").length;
+  const polishOpenCount = polishItems.filter((r: any) => r.status !== "resolved").length;
+  const polishResolvedCount = polishItems.filter((r: any) => r.status === "resolved").length;
 
   // Filter + sort
   const filtered = reports
@@ -286,7 +293,7 @@ export function BugReports() {
         user_id: profile.id,
         title: `[${page}] ${action.slice(0, 80)}`,
         description,
-        category: "bug_report",
+        category: reportCategory,
         priority,
         status: "open",
         loom_url: loomUrl || null,
@@ -325,6 +332,7 @@ export function BugReports() {
       queryClient.invalidateQueries({ queryKey: ["bug-reports"] });
       setShowForm(false);
       setPage(""); setAction(""); setExpected(""); setActual(""); setPriority("medium"); setTranscript("");
+      setLoomUrl(""); setPendingFiles([]); setReportCategory("bug_report");
       setLoomUrl(""); setPendingFiles([]);
     },
     onError: (err: any) => {
@@ -604,13 +612,14 @@ export function BugReports() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-6 gap-3">
         {[
           { label: "Open", count: openCount, color: "text-destructive", filter: "open" },
           { label: "In Progress", count: inProgressCount, color: "text-amber-500", filter: "in_progress" },
           { label: "Ready for Review", count: readyForReviewCount, color: "text-purple-500", filter: "ready_for_review" },
           { label: "Resolved", count: resolvedCount, color: "text-green-500", filter: "resolved" },
           { label: "Critical", count: criticalCount, color: "text-destructive", filter: "critical" },
+          { label: "Polish", count: polishOpenCount, color: "text-blue-500", filter: "polish", icon: <Paintbrush className="h-3.5 w-3.5 mx-auto mb-0.5 text-blue-500" /> },
         ].map((s) => (
           <Card
             key={s.label}
@@ -619,6 +628,8 @@ export function BugReports() {
               if (s.filter === "critical") {
                 setPriorityFilter("critical");
                 setStatusFilter("all");
+              } else if (s.filter === "polish") {
+                // No special filter needed - just visual info
               } else {
                 setStatusFilter(s.filter);
                 setPriorityFilter("all");
@@ -626,6 +637,7 @@ export function BugReports() {
             }}
           >
             <CardContent className="py-3 px-4 text-center">
+              {'icon' in s && s.icon}
               <p className={cn("text-2xl font-bold", s.color)}>{s.count}</p>
               <p className="text-xs text-muted-foreground">{s.label}</p>
             </CardContent>
@@ -637,9 +649,29 @@ export function BugReports() {
       {showForm && (
         <Card>
           <CardContent className="py-4 px-4 space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Bug className="h-4 w-4" />
-              <span className="font-semibold text-sm">New Bug Report</span>
+            <div className="flex items-center gap-4 mb-2">
+              <div className="flex items-center gap-2">
+                {reportCategory === "bug_report" ? <Bug className="h-4 w-4" /> : <Paintbrush className="h-4 w-4 text-blue-500" />}
+                <span className="font-semibold text-sm">{reportCategory === "bug_report" ? "New Bug Report" : "New Polish Item"}</span>
+              </div>
+              <div className="flex items-center gap-1 ml-auto">
+                <Button
+                  variant={reportCategory === "bug_report" ? "default" : "outline"}
+                  size="sm"
+                  className="h-7 text-xs px-3"
+                  onClick={() => setReportCategory("bug_report")}
+                >
+                  <Bug className="h-3 w-3 mr-1" /> Bug
+                </Button>
+                <Button
+                  variant={reportCategory === "polish" ? "default" : "outline"}
+                  size="sm"
+                  className="h-7 text-xs px-3"
+                  onClick={() => setReportCategory("polish")}
+                >
+                  <Paintbrush className="h-3 w-3 mr-1" /> Polish
+                </Button>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -806,7 +838,12 @@ export function BugReports() {
                   <TableRow key={bug.id} className="cursor-pointer" onClick={() => openDetail(bug)}>
                     <TableCell>{statusIcon(bug.status)}</TableCell>
                     <TableCell>
-                      <span className="font-medium text-sm">{bug.title}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium text-sm">{bug.title}</span>
+                        {bug.category === "polish" && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-blue-300 text-blue-600">Polish</Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge variant={priorityVariant(bug.priority)} className="text-xs">{bug.priority}</Badge>

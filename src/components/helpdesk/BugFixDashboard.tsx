@@ -4,14 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Bug, CheckCircle2, Clock, FileCode, TrendingUp } from "lucide-react";
+import { Loader2, Bug, CheckCircle2, Clock, FileCode, TrendingUp, Paintbrush } from "lucide-react";
 import { format, subDays, startOfWeek, startOfMonth } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 export function BugFixDashboard() {
   const { profile } = useAuth();
 
-  const { data: allBugs = [], isLoading } = useQuery({
+  const { data: allItems = [], isLoading } = useQuery({
     queryKey: ["bug-dashboard", profile?.company_id],
     queryFn: async () => {
       if (!profile?.company_id) return [];
@@ -19,12 +19,15 @@ export function BugFixDashboard() {
         .from("feature_requests")
         .select("*")
         .eq("company_id", profile.company_id)
-        .eq("category", "bug_report")
+        .in("category", ["bug_report", "polish"])
         .order("created_at", { ascending: false });
       return data || [];
     },
     enabled: !!profile?.company_id,
   });
+
+  const allBugs = allItems.filter((b: any) => b.category === "bug_report");
+  const allPolish = allItems.filter((b: any) => b.category === "polish");
 
   const { data: fixLogs = [] } = useQuery({
     queryKey: ["bug-fix-logs", profile?.company_id],
@@ -140,6 +143,22 @@ export function BugFixDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Polish Summary */}
+      {allPolish.length > 0 && (
+        <Card className="border-blue-200 bg-blue-50/30 dark:bg-blue-950/10">
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Paintbrush className="h-4 w-4 text-blue-500" />
+              <span className="font-semibold text-sm">Polish Items</span>
+              <Badge variant="outline" className="ml-auto text-blue-600 border-blue-300">
+                {allPolish.filter((p: any) => p.status !== "resolved").length} open · {allPolish.filter((p: any) => p.status === "resolved").length} done
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">UI improvements tracked separately from bugs — padding, formatting, labels, colors, etc.</p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Chart */}
       <Card>
