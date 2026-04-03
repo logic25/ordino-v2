@@ -197,11 +197,49 @@ function useUserBillingStats(userId: string, period: Period, monthlyGoal: number
       const totalMinutes = (allEntries || []).reduce((s, e) => s + (e.duration_minutes || 0), 0);
       const billableMinutes = (allEntries || []).filter((e) => e.billable).reduce((s, e) => s + (e.duration_minutes || 0), 0);
 
-      // 5. Efficiency: weighted composite
-      // Billing 53%, Timelog 40%, Non-billable CO 7% (Accuracy is N/A so weights redistribute)
-      const efficiency = Math.round(billingPct * 0.53 + timelogCompletion * 0.40 + 100 * 0.07);
+      // 5. Non-Billable COs: sum of |amount| where is_non_billable = true on user's projects
+      let nonBillableCOTotal = 0;
+      if (projectIds.length > 0) {
+        const { data: nbCOs } = await supabase
+          .from("change_orders" as any)
+          .select("amount")
+          .in("project_id", projectIds)
+          .eq("is_non_billable", true)
+          .gte("created_at", format(range.start, "yyyy-MM-dd"))
+          .lte("created_at", format(range.end, "yyyy-MM-dd'T'23:59:59"));
+        nonBillableCOTotal = (nbCOs || []).reduce((s: number, co: any) => s + Math.abs(Number(co.amount) || 0), 0);
+      }
 
-      // 6. Potential Bonus (configurable tier-based on Billing %)
+      // 6. Accuracy: % of services completed on or before due_date
+      let accuracyPct: number | null = null;
+      if (projectIds.length > 0) {
+        const { data: svcData } = await supabase
+          .from("services")
+          .select("due_date, completed_date")
+          .in("project_id", projectIds)
+          .eq("assigned_to", userId)
+          .not("due_date", "is", null)
+          .not("completed_date", "is", null);
+        if (svcData && svcData.length > 0) {
+          const onTime = svcData.filter((s: any) => s.completed_date <= s.due_date).length;
+          accuracyPct = Math.round((onTime / svcData.length) * 100);
+        }
+      }
+
+      // 7. Non-Billable CO factor: 100 if $0, scale down as amount grows relative to billing
+      const coFactor = effectiveGoal > 0
+        ? Math.max(0, Math.round(100 - (nonBillableCOTotal / effectiveGoal) * 100))
+        : 100;
+
+      // 8. Efficiency: weighted composite
+      // Billing 40%, Timelog 30%, Accuracy 23%, Non-billable CO 7%
+      const accuracyForCalc = accuracyPct !== null ? accuracyPct : 0;
+      const hasAccuracy = accuracyPct !== null;
+      const efficiency = hasAccuracy
+        ? Math.round(billingPct * 0.40 + timelogCompletion * 0.30 + accuracyForCalc * 0.23 + coFactor * 0.07)
+        : Math.round(billingPct * 0.53 + timelogCompletion * 0.40 + coFactor * 0.07);
+
+      // 9. Potential Bonus (configurable tier-based on Billing %)
       const tiers = bonusTiers && bonusTiers.length > 0 ? bonusTiers : DEFAULT_BONUS_TIERS;
       let potentialBonus = 0;
       for (const tier of tiers) {
@@ -216,6 +254,8 @@ function useUserBillingStats(userId: string, period: Period, monthlyGoal: number
         billableHours: Math.round(billableMinutes / 60 * 10) / 10,
         billingPct,
         timelogCompletion,
+        nonBillableCOTotal,
+        accuracyPct,
         efficiency,
         potentialBonus,
         monthlyGoal: effectiveGoal,
@@ -627,6 +667,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
     job_title: profileAny.job_title || "",
     about: profileAny.about || "",
     monthly_goal: profileAny.monthly_goal ? String(profileAny.monthly_goal) : "",
+    accuracy_goal: profileAny.accuracy_goal ? String(profileAny.accuracy_goal) : "",
     is_active: user.is_active,
   });
 
@@ -671,6 +712,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
           job_title: editForm.job_title.trim() || null,
           about: editForm.about.trim() || null,
           monthly_goal: editForm.monthly_goal ? parseFloat(editForm.monthly_goal) : null,
+          accuracy_goal: editForm.accuracy_goal ? parseFloat(editForm.accuracy_goal) : null,
           is_active: editForm.is_active,
         } as any)
         .eq("id", user.id);
@@ -803,10 +845,14 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                     <Input className="h-8 text-xs" placeholder="Ext" value={editForm.phone_extension} onChange={(e) => setEditForm({ ...editForm, phone_extension: e.target.value })} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <div>
                     <Label className="text-xs">Monthly Goal ($)</Label>
                     <Input className="h-8 text-xs" type="number" placeholder="33000" value={editForm.monthly_goal} onChange={(e) => setEditForm({ ...editForm, monthly_goal: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Accuracy Goal (%)</Label>
+                    <Input className="h-8 text-xs" type="number" placeholder="90" min="0" max="100" value={editForm.accuracy_goal} onChange={(e) => setEditForm({ ...editForm, accuracy_goal: e.target.value })} />
                   </div>
                   <div>
                     <Label className="text-xs">Hourly Rate ($)</Label>
@@ -866,7 +912,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
               ) : (() => {
                 // Use mock data when no real stats or no goal
                 const hasRealData = stats && (stats.totalBilled > 0 || stats.totalHours > 0);
-                const mockStats = { billingPct: 69, timelogCompletion: 87, efficiency: 72, potentialBonus: 0, hasGoal: true };
+                const mockStats = { billingPct: 69, timelogCompletion: 87, efficiency: 72, potentialBonus: 0, hasGoal: true, nonBillableCOTotal: 0, accuracyPct: null };
                 const displayStats = hasRealData ? stats : { ...stats, ...mockStats };
                 const isMock = !hasRealData;
                 return (
@@ -883,8 +929,8 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                       <StatCard
                         icon={AlertCircle}
                         label="Non-Billable COs"
-                        value="$0"
-                        tooltip="Sum of change orders that could not be billed to the client during the selected period. Currently tracked manually."
+                        value={`$${(displayStats?.nonBillableCOTotal || 0).toLocaleString()}`}
+                        tooltip="Sum of change orders marked as non-billable (internal mistakes) on your projects during the selected period."
                       />
                       <StatCard
                         icon={CheckCircle}
@@ -896,15 +942,16 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                       <StatCard
                         icon={BarChart3}
                         label="Accuracy"
-                        value="N/A"
-                        tooltip="Measures how close estimated completion dates are to actual dates. This metric is not yet active."
+                        value={displayStats?.accuracyPct !== null && displayStats?.accuracyPct !== undefined ? displayStats.accuracyPct : "—"}
+                        suffix={displayStats?.accuracyPct !== null && displayStats?.accuracyPct !== undefined ? "%" : ""}
+                        tooltip="% of assigned services completed on or before their estimated completion date. Requires services with both a due date and completion date."
                       />
                       <StatCard
                         icon={Zap}
                         label="Efficiency Rating"
                         value={displayStats?.efficiency || 0}
                         suffix="%"
-                        tooltip="Weighted composite: Billing % × 53% + Timelog Completion × 40% + Non-Billable CO factor × 7%. Example: 126% billing × 0.53 + 75% timelog × 0.40 + 100 × 0.07 = ~104%."
+                        tooltip="Weighted composite: Billing % × 40% + Timelog Completion × 30% + Accuracy × 23% + Non-Billable CO factor × 7%. When Accuracy has no data, weights redistribute to Billing 53% + Timelog 40% + CO 7%."
                       />
                       <StatCard
                         icon={Award}

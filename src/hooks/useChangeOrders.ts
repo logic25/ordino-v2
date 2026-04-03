@@ -35,6 +35,7 @@ export interface ChangeOrder {
   notes: string | null;
   deposit_percentage: number;
   deposit_paid_at: string | null;
+  is_non_billable: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -50,6 +51,7 @@ export interface ChangeOrderFormInput {
   line_items?: COLineItem[];
   notes?: string;
   deposit_percentage?: number;
+  is_non_billable?: boolean;
 }
 
 const QK = (projectId: string) => ["change-orders", projectId];
@@ -93,6 +95,7 @@ export function useCreateChangeOrder() {
           line_items: input.line_items ?? [],
           notes: input.notes ?? null,
           deposit_percentage: input.deposit_percentage ?? 0,
+          is_non_billable: input.is_non_billable ?? false,
           status: input.status ?? "draft",
           created_by: profile?.id ?? null,
         })

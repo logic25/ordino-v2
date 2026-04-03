@@ -71,6 +71,7 @@ export function ChangeOrderDialog({
   const [serviceLines, setServiceLines] = useState<COServiceLine[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [depositPct, setDepositPct] = useState(0);
+  const [isNonBillable, setIsNonBillable] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -119,10 +120,12 @@ export function ChangeOrderDialog({
           }
         }
         setDepositPct((existingCO as any).deposit_percentage || 0);
+        setIsNonBillable((existingCO as any).is_non_billable || false);
       } else {
         form.reset({ title: "", requested_by: "", notes: "" });
         setServiceLines([]);
         setDepositPct(0);
+        setIsNonBillable(false);
       }
       setSearchTerm("");
     }
@@ -216,6 +219,7 @@ export function ChangeOrderDialog({
       })),
       notes: values.notes || undefined,
       deposit_percentage: depositPct,
+      is_non_billable: isNonBillable,
     }, asDraft);
   };
 
@@ -432,6 +436,18 @@ export function ChangeOrderDialog({
                 </span>
               )}
             </div>
+          </div>
+
+          {/* Non-billable flag */}
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="co-non-billable"
+              checked={isNonBillable}
+              onCheckedChange={(v) => setIsNonBillable(v === true)}
+            />
+            <Label htmlFor="co-non-billable" className="text-sm font-normal cursor-pointer">
+              Non-billable (internal mistake)
+            </Label>
           </div>
 
           {/* Notes */}
