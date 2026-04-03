@@ -360,6 +360,30 @@ const BLOCKED_TABLES = new Set([
 
 const BLOCKED_PATTERNS = ["password", "key", "secret", "token"];
 
+// ── Column Alias Mapping ─────────────────────────────────
+
+const COLUMN_ALIASES: Record<string, Record<string, string>> = {
+  companies: { tax_id: "ein", company_name: "name", tax_number: "ein" },
+  invoices: { total_amount: "total_due", paid_amount: "payment_amount", amount_paid: "payment_amount" },
+  services: { service_name: "name", fee: "fixed_price", price: "fixed_price" },
+  projects: { pm: "assigned_pm_id", project_manager: "assigned_pm_id" },
+  profiles: { goal: "monthly_goal", billing_goal: "monthly_goal" },
+};
+
+function resolveAlias(table: string, column: string): string {
+  return COLUMN_ALIASES[table]?.[column] || column;
+}
+
+function resolveSelectAliases(table: string, select: string): string {
+  if (select === "*") return select;
+  return select.split(",").map((s) => {
+    const trimmed = s.trim();
+    // Skip relation selects like "profiles(display_name)"
+    if (trimmed.includes("(")) return trimmed;
+    return resolveAlias(table, trimmed);
+  }).join(", ");
+}
+
 function isTableBlocked(table: string): boolean {
   const t = table.toLowerCase().trim();
   if (BLOCKED_TABLES.has(t)) return true;
@@ -381,7 +405,7 @@ async function queryOrdino(sb: any, params: any) {
     return fail(`Access to table '${table}' is not allowed`, 403);
   }
 
-  const safeSelect = select || "*";
+  const safeSelect = resolveSelectAliases(table, select || "*");
   const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 200);
 
   let q = sb.from(table).select(safeSelect).limit(safeLimit);
@@ -389,31 +413,51 @@ async function queryOrdino(sb: any, params: any) {
   if (Array.isArray(filters)) {
     for (const f of filters) {
       if (!f.column) continue;
+      const col = resolveAlias(table, f.column);
       const op = f.operator || "eq";
       switch (op) {
-        case "eq":    q = q.eq(f.column, f.value); break;
-        case "neq":   q = q.neq(f.column, f.value); break;
-        case "gt":    q = q.gt(f.column, f.value); break;
-        case "gte":   q = q.gte(f.column, f.value); break;
-        case "lt":    q = q.lt(f.column, f.value); break;
-        case "lte":   q = q.lte(f.column, f.value); break;
-        case "like":  q = q.like(f.column, f.value); break;
-        case "ilike": q = q.ilike(f.column, f.value); break;
-        case "is":    q = q.is(f.column, f.value); break;
-        case "in":    q = q.in(f.column, f.value); break;
-        default:      q = q.eq(f.column, f.value);
+        case "eq":    q = q.eq(col, f.value); break;
+        case "neq":   q = q.neq(col, f.value); break;
+        case "gt":    q = q.gt(col, f.value); break;
+        case "gte":   q = q.gte(col, f.value); break;
+        case "lt":    q = q.lt(col, f.value); break;
+        case "lte":   q = q.lte(col, f.value); break;
+        case "like":  q = q.like(col, f.value); break;
+        case "ilike": q = q.ilike(col, f.value); break;
+        case "is":    q = q.is(col, f.value); break;
+        case "in":    q = q.in(col, f.value); break;
+        default:      q = q.eq(col, f.value);
       }
     }
   }
 
   if (order && order.column) {
-    q = q.order(order.column, { ascending: order.ascending !== false });
+    q = q.order(resolveAlias(table, order.column), { ascending: order.ascending !== false });
   }
 
   const { data, error } = await q;
   if (error) {
     console.error("query_ordino error:", error.message, error.details, error.hint);
-    return fail(error.message, 500);
+
+    // Auto-fetch schema hint so caller can self-correct
+    let schemaHint = null;
+    try {
+      const dbUrl = Deno.env.get("SUPABASE_DB_URL");
+      if (dbUrl) {
+        const { default: postgres } = await import("https://deno.land/x/postgresjs@v3.4.5/mod.js");
+        const sql = postgres(dbUrl, { max: 1 });
+        const rows = await sql`SELECT column_name, data_type FROM information_schema.columns WHERE table_schema='public' AND table_name=${table} ORDER BY ordinal_position`;
+        schemaHint = rows.map((r: any) => ({ name: r.column_name, type: r.data_type }));
+        await sql.end();
+      }
+    } catch { /* ignore schema hint failure */ }
+
+    return new Response(JSON.stringify({
+      data: null,
+      error: error.message,
+      schema_hint: schemaHint,
+      suggestion: schemaHint ? `Available columns: ${schemaHint.map((c: any) => c.name).join(", ")}` : null,
+    }), { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
   return ok({ rows: data, count: data?.length ?? 0 });
