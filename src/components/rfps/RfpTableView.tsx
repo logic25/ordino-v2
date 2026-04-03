@@ -226,6 +226,9 @@ export function RfpTableView({ rfps, isLoading, cardFilter }: RfpTableViewProps)
       else if (sortKey === "status") cmp = (statusOrder[a.status] ?? 5) - (statusOrder[b.status] ?? 5);
       else if (sortKey === "agency") cmp = (a.agency || "").localeCompare(b.agency || "");
       else cmp = a.title.localeCompare(b.title);
+      // Stable tiebreaker: always sort by created_at desc then id when primary key is equal
+      if (cmp === 0 && sortKey !== "created_at") cmp = (b.created_at || "").localeCompare(a.created_at || "");
+      if (cmp === 0) cmp = a.id.localeCompare(b.id);
       return sortDir === "desc" ? -cmp : cmp;
     });
     return list;
