@@ -282,7 +282,7 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
       ? (replyToEmail.subject?.startsWith("Fwd:") ? replyToEmail.subject : `Fwd: ${replyToEmail.subject || "(no subject)"}`)
       : (replyToEmail.subject?.startsWith("Re:") ? replyToEmail.subject : `Re: ${replyToEmail.subject || "(no subject)"}`);
 
-    const forwardBody = buildReplyOrForwardBody(replyBody, isForward);
+    const messageBody = buildComposerMessageBody(replyBody);
 
     undoableSend(
       {
@@ -290,8 +290,9 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
         cc: ccField.trim() || undefined,
         bcc: bccField.trim() || undefined,
         subject,
-        html_body: forwardBody,
+        html_body: messageBody,
         reply_to_email_id: isForward ? undefined : replyToEmail.id,
+        forward_from_email_id: isForward ? replyToEmail.id : undefined,
       },
       () => {
         setReplyBody("");
