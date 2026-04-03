@@ -607,6 +607,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
   isCurrentUser: boolean; isViewerAdmin: boolean;
 }) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [period, setPeriod] = useState<Period>("this_month");
   const [chartYear, setChartYear] = useState(getYear(new Date()));
   const [editing, setEditing] = useState(false);
