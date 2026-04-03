@@ -853,10 +853,12 @@ function StepReview({
 // ─── Step: Submit ───
 
 function StepSubmit({
-  submitEmail, setSubmitEmail, onSubmit, submitting, onPreview,
+  submitEmail, setSubmitEmail, submitCcEmails, setSubmitCcEmails, onSubmit, submitting, onPreview,
 }: {
   submitEmail: string;
   setSubmitEmail: (v: string) => void;
+  submitCcEmails: string;
+  setSubmitCcEmails: (v: string) => void;
   onSubmit: () => void;
   submitting: boolean;
   onPreview: () => void;
@@ -878,6 +880,19 @@ function StepSubmit({
           onChange={(e) => setSubmitEmail(e.target.value)}
           placeholder="agency@email.com"
         />
+      </div>
+
+      <div className="space-y-3">
+        <Label className="text-sm">CC (optional)</Label>
+        <Input
+          type="text"
+          value={submitCcEmails}
+          onChange={(e) => setSubmitCcEmails(e.target.value)}
+          placeholder="chris@company.com, team@company.com"
+        />
+        <p className="text-xs text-muted-foreground">
+          Comma-separated emails. CC recipients get the same email with all attachments.
+        </p>
       </div>
 
       <div className="flex gap-2">
