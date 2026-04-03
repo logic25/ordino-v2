@@ -437,6 +437,8 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
               <StepSubmit
                 submitEmail={submitEmail}
                 setSubmitEmail={setSubmitEmail}
+                submitCcEmails={submitCcEmails}
+                setSubmitCcEmails={setSubmitCcEmails}
                 onSubmit={handleSubmitViaEmail}
                 submitting={submitting}
                 onPreview={() => setPreviewOpen(true)}
