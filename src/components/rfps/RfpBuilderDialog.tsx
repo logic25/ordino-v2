@@ -76,6 +76,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   const [generatingLetter, setGeneratingLetter] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitEmail, setSubmitEmail] = useState("");
+  const [submitCcEmails, setSubmitCcEmails] = useState("");
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [dirty, setDirty] = useState(false);
 
