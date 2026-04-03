@@ -649,9 +649,30 @@ export function BugReports() {
       {showForm && (
         <Card>
           <CardContent className="py-4 px-4 space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Bug className="h-4 w-4" />
-              <span className="font-semibold text-sm">New Bug Report</span>
+            <div className="flex items-center gap-4 mb-2">
+              <div className="flex items-center gap-2">
+                {reportCategory === "bug_report" ? <Bug className="h-4 w-4" /> : <Paintbrush className="h-4 w-4 text-blue-500" />}
+                <span className="font-semibold text-sm">{reportCategory === "bug_report" ? "New Bug Report" : "New Polish Item"}</span>
+              </div>
+              <div className="flex items-center gap-1 ml-auto">
+                <Button
+                  variant={reportCategory === "bug_report" ? "default" : "outline"}
+                  size="sm"
+                  className="h-7 text-xs px-3"
+                  onClick={() => setReportCategory("bug_report")}
+                >
+                  <Bug className="h-3 w-3 mr-1" /> Bug
+                </Button>
+                <Button
+                  variant={reportCategory === "polish" ? "default" : "outline"}
+                  size="sm"
+                  className="h-7 text-xs px-3"
+                  onClick={() => setReportCategory("polish")}
+                >
+                  <Paintbrush className="h-3 w-3 mr-1" /> Polish
+                </Button>
+              </div>
+            </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
