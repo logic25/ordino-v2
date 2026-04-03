@@ -163,13 +163,20 @@ function BeaconChatHistory({
   sessions, 
   loading, 
   onSelect, 
-  onBack 
+  onBack,
+  onDelete,
+  onClearAll,
 }: { 
   sessions: SessionPreview[]; 
   loading: boolean; 
   onSelect: (sessionId: string) => void; 
   onBack: () => void;
+  onDelete: (sessionId: string) => void;
+  onClearAll: () => void;
 }) {
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -192,10 +199,34 @@ function BeaconChatHistory({
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="px-3 py-2 border-b">
+      <div className="px-3 py-2 border-b flex items-center justify-between">
         <button onClick={onBack} className="text-xs text-[#f59e0b] hover:underline">
           ← Back to chat
         </button>
+        {confirmClearAll ? (
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-destructive">Delete all?</span>
+            <button
+              onClick={() => { onClearAll(); setConfirmClearAll(false); }}
+              className="text-[10px] text-destructive font-medium hover:underline"
+            >
+              Yes
+            </button>
+            <button
+              onClick={() => setConfirmClearAll(false)}
+              className="text-[10px] text-muted-foreground hover:underline"
+            >
+              No
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirmClearAll(true)}
+            className="text-[10px] text-muted-foreground hover:text-destructive transition-colors"
+          >
+            Clear All
+          </button>
+        )}
       </div>
       <div className="divide-y">
         {sessions.map((s) => {
@@ -207,19 +238,40 @@ function BeaconChatHistory({
           const isYesterday = date.toDateString() === yesterday.toDateString();
           const dateStr = isToday ? "Today" : isYesterday ? "Yesterday" : date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
           const timeStr = date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+          const isConfirming = confirmId === s.session_id;
 
           return (
-            <button
+            <div
               key={s.session_id}
-              onClick={() => onSelect(s.session_id)}
-              className="w-full px-3 py-2.5 text-left hover:bg-muted/50 transition-colors"
+              className="group w-full px-3 py-2.5 text-left hover:bg-muted/50 transition-colors flex items-center gap-2"
             >
-              <p className="text-xs font-medium truncate">{s.first_message}</p>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-[10px] text-muted-foreground">{dateStr} {timeStr}</span>
-                <span className="text-[10px] text-muted-foreground">· {s.message_count} messages</span>
-              </div>
-            </button>
+              <button
+                onClick={() => onSelect(s.session_id)}
+                className="flex-1 text-left min-w-0"
+              >
+                <p className="text-xs font-medium truncate">{s.first_message}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-[10px] text-muted-foreground">{dateStr} {timeStr}</span>
+                  <span className="text-[10px] text-muted-foreground">· {s.message_count} messages</span>
+                </div>
+              </button>
+              {isConfirming ? (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDelete(s.session_id); setConfirmId(null); }}
+                  className="text-[10px] text-destructive font-medium hover:underline shrink-0"
+                >
+                  Delete?
+                </button>
+              ) : (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setConfirmId(s.session_id); }}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 p-1 hover:bg-destructive/10 rounded"
+                  title="Delete chat"
+                >
+                  <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                </button>
+              )}
+            </div>
           );
         })}
       </div>
