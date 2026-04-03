@@ -48,8 +48,9 @@ interface RfpBuilderDialogProps {
 
 const SECTION_DEFS = [
   { id: "cover_letter", label: "Cover Letter", icon: Mail, libraryTab: null },
-  { id: "company_info", label: "Company Information", icon: Building2, libraryTab: "company" },
-  { id: "staff_bios", label: "Staff Bios & Qualifications", icon: Users, libraryTab: "staff" },
+  { id: "firm_overview", label: "About Our Firm", icon: FileText, libraryTab: "narratives" },
+  { id: "company_info", label: "Company Details", icon: Building2, libraryTab: "company" },
+  { id: "staff_bios", label: "Key Personnel", icon: Users, libraryTab: "staff" },
   { id: "org_chart", label: "Organization Chart", icon: GitBranch, libraryTab: "staff" },
   { id: "notable_projects", label: "Notable Projects", icon: Star, libraryTab: "projects" },
   { id: "narratives", label: "Narratives & Approach", icon: FileText, libraryTab: "narratives" },
