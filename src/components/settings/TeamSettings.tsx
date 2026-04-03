@@ -756,6 +756,21 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                   {user.role}
                 </Badge>
                 {!user.is_active && <Badge variant="secondary" className="ml-2 text-xs">Inactive</Badge>}
+                {profileAny.ooo_from && profileAny.ooo_to && new Date(profileAny.ooo_to + "T23:59:59") >= new Date() && (
+                  <div className="mt-2">
+                    <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-700 border-amber-300">
+                      OOO {format(new Date(profileAny.ooo_from + "T00:00:00"), "MMM d")} – {format(new Date(profileAny.ooo_to + "T00:00:00"), "MMM d")}
+                    </Badge>
+                    {profileAny.ooo_covering_pm_id && (() => {
+                      const coverPm = profiles.find((p: any) => p.id === profileAny.ooo_covering_pm_id);
+                      return coverPm ? (
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          Covered by {(coverPm as any).display_name || `${(coverPm as any).first_name} ${(coverPm as any).last_name}`}
+                        </p>
+                      ) : null;
+                    })()}
+                  </div>
+                )}
               </div>
             </div>
 
