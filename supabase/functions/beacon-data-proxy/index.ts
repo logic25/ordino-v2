@@ -551,12 +551,12 @@ async function listSchema(_sb: any) {
 
 // ── Describe Table ───────────────────────────────────────
 
-const BLOCKED_TABLES = /auth|secret|password|key|token|user_roles/i;
+const DESCRIBE_BLOCKED_PATTERN = /auth|secret|password|key|token|user_roles/i;
 
 async function describeTable(params: any) {
   const table = params?.table;
   if (!table || typeof table !== "string") return fail("Missing 'table' param");
-  if (BLOCKED_TABLES.test(table)) return fail("Access denied for that table");
+  if (DESCRIBE_BLOCKED_PATTERN.test(table)) return fail("Access denied for that table");
 
   const dbUrl = Deno.env.get("SUPABASE_DB_URL");
   if (!dbUrl) return fail("Database URL not configured");
