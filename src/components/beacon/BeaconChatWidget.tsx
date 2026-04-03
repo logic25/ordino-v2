@@ -23,6 +23,31 @@ const quickQuestions = [
   "Energy code?",
 ];
 
+const PAGE_NAME_MAP: Record<string, string> = {
+  "/": "Dashboard",
+  "/projects": "Projects",
+  "/properties": "Properties",
+  "/proposals": "Proposals",
+  "/invoices": "Invoices",
+  "/emails": "Email",
+  "/calendar": "Calendar",
+  "/documents": "Documents",
+  "/clients": "Clients",
+  "/rfps": "RFPs",
+  "/reports": "Reports",
+  "/settings": "Settings",
+  "/help": "Help Center",
+  "/time": "Time Tracking",
+};
+
+function getPageName(pathname: string): string {
+  if (PAGE_NAME_MAP[pathname]) return PAGE_NAME_MAP[pathname];
+  for (const [prefix, name] of Object.entries(PAGE_NAME_MAP)) {
+    if (prefix !== "/" && pathname.startsWith(prefix)) return name;
+  }
+  return "Unknown";
+}
+
 interface ChatMessage {
   role: "user" | "beacon";
   text: string;
@@ -31,6 +56,8 @@ interface ChatMessage {
   responseTime?: number;
   flowType?: string;
   isHistory?: boolean;
+  isBugReport?: boolean;
+  bugLogged?: boolean;
 }
 
 function ConfidenceBadge({ confidence }: { confidence: number }) {
