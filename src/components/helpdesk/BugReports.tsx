@@ -312,9 +312,11 @@ export function BugReports() {
           },
         }).catch(() => {});
 
-        // Trigger AI auto-triage (best-effort)
+        // Trigger AI auto-triage and refresh data when complete
         supabase.functions.invoke("triage-bug-report", {
           body: { bug_id: inserted.id },
+        }).then(() => {
+          queryClient.invalidateQueries({ queryKey: ["bug-reports"] });
         }).catch(() => {});
       }
     },
@@ -902,7 +904,7 @@ export function BugReports() {
                 )}
 
                 {/* AI Triage Card */}
-                {selectedBug.ai_diagnosis && (
+                {selectedBug.ai_diagnosis ? (
                   <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-2">
                     <div className="flex items-center gap-2">
                       <Brain className="h-4 w-4 text-primary" />
@@ -933,6 +935,43 @@ export function BugReports() {
                         Triaged {format(new Date(selectedBug.ai_triaged_at), "MMM d 'at' h:mm a")}
                       </p>
                     )}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed border-muted-foreground/30 p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Brain className="h-4 w-4" />
+                        <span className="text-sm">No AI triage yet</span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          toast({ title: "Running AI triage…" });
+                          try {
+                            // Clear existing triage timestamp so function doesn't skip
+                            await supabase.from("feature_requests").update({ ai_triaged_at: null }).eq("id", selectedBug.id);
+                            await supabase.functions.invoke("triage-bug-report", {
+                              body: { bug_id: selectedBug.id },
+                            });
+                            await queryClient.invalidateQueries({ queryKey: ["bug-reports"] });
+                            // Refresh selectedBug with new data
+                            const { data: refreshed } = await supabase
+                              .from("feature_requests")
+                              .select("*")
+                              .eq("id", selectedBug.id)
+                              .single();
+                            if (refreshed) setSelectedBug(refreshed);
+                            toast({ title: "AI triage complete" });
+                          } catch {
+                            toast({ title: "Triage failed", variant: "destructive" });
+                          }
+                        }}
+                      >
+                        <Brain className="h-3 w-3 mr-1" />
+                        Run AI Triage
+                      </Button>
+                    </div>
                   </div>
                 )}
 
