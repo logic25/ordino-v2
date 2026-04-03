@@ -387,6 +387,45 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
     }
   };
 
+  const handleLogBug = async (msgIndex: number) => {
+    const msg = messages[msgIndex];
+    if (!msg || msg.role !== "beacon") return;
+
+    // Gather conversation context: last few user messages leading to this
+    const conversationSlice = messages.slice(Math.max(0, msgIndex - 5), msgIndex + 1);
+    const summary = conversationSlice.map(m => `${m.role === "user" ? "User" : "Beacon"}: ${m.text.slice(0, 300)}`).join("\n");
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/beacon-proxy?action=create-bug`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            title: `[${currentPage}] Bug reported via Beacon`,
+            description: summary,
+            page: currentPage,
+            ai_diagnosis: msg.text.slice(0, 1000),
+          }),
+        }
+      );
+
+      if (res.ok) {
+        setMessages(prev => prev.map((m, i) => i === msgIndex ? { ...m, bugLogged: true } : m));
+        toast.success("Bug logged from conversation");
+      } else {
+        toast.error("Failed to log bug");
+      }
+    } catch {
+      toast.error("Failed to log bug");
+    }
+  };
+
   const beaconMsgs = messages.filter((m) => m.role === "beacon");
   const lastBeaconMsg = beaconMsgs.length > 0 ? beaconMsgs[beaconMsgs.length - 1] : undefined;
 
