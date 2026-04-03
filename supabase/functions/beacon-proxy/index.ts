@@ -159,7 +159,54 @@ Deno.serve(async (req) => {
         const hasBugMarker = (responseJson.response || "").includes("<!--BUG_REPORT-->");
         if (hasBugMarker) {
           responseJson.response = responseJson.response.replace("<!--BUG_REPORT-->", "").trimEnd();
+        }
+
+        // Auto-log bug when bug keywords were detected
+        if (isBugQuestion) {
           responseJson.is_bug_report = true;
+          responseJson.bug_auto_logged = false;
+
+          try {
+            const sb = createClient(
+              Deno.env.get("SUPABASE_URL")!,
+              Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+            );
+            const { data: profile } = await sb
+              .from("profiles")
+              .select("id, company_id")
+              .eq("user_id", user.id)
+              .maybeSingle();
+
+            if (profile) {
+              const originalMsg = lastMessage
+                .replace(/\[User is on the "[^"]*" page in Ordino\]\n?/g, "")
+                .replace(/\[SYSTEM INSTRUCTION:.*?\]/gs, "")
+                .trim();
+              const pageName = currentPage || "Unknown";
+
+              const { error: insertErr } = await sb
+                .from("feature_requests")
+                .insert({
+                  company_id: profile.company_id,
+                  user_id: profile.id,
+                  title: `[${pageName}] ${originalMsg.slice(0, 80)}`,
+                  description: `**Reported via Beacon on ${pageName} page:**\n${originalMsg}\n\n**Beacon response:**\n${(responseJson.response || "").slice(0, 500)}`,
+                  category: "bug_report",
+                  priority: "medium",
+                  status: "open",
+                  attachments: [],
+                } as any);
+
+              if (!insertErr) {
+                responseJson.bug_auto_logged = true;
+                console.log("Auto-logged bug for page:", pageName);
+              } else {
+                console.error("Auto-log bug insert failed:", insertErr);
+              }
+            }
+          } catch (e) {
+            console.error("Auto-log bug error (non-blocking):", e);
+          }
         } else {
           responseJson.is_bug_report = false;
         }
