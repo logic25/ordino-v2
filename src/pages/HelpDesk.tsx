@@ -6,6 +6,7 @@ import { WhatsNew } from "@/components/helpdesk/WhatsNew";
 import { FeatureRequests } from "@/components/helpdesk/FeatureRequests";
 import { InteractiveTraining } from "@/components/helpdesk/InteractiveTraining";
 import { BugReports } from "@/components/helpdesk/BugReports";
+import { BugFixDashboard } from "@/components/helpdesk/BugFixDashboard";
 import { ProductRoadmap } from "@/components/helpdesk/ProductRoadmap";
 import { AIUsageDashboard } from "@/components/helpdesk/AIUsageDashboard";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -31,6 +32,7 @@ export default function HelpDesk() {
             {isAdmin && <TabsTrigger value="whats-new">What's New</TabsTrigger>}
             <TabsTrigger value="requests">Feature Requests</TabsTrigger>
             <TabsTrigger value="bugs">Bug Reports</TabsTrigger>
+            {isAdmin && <TabsTrigger value="bug-metrics">Bug Metrics</TabsTrigger>}
             {isAdmin && <TabsTrigger value="roadmap">Product Roadmap</TabsTrigger>}
             {isAdmin && <TabsTrigger value="ai-usage">AI Usage</TabsTrigger>}
           </TabsList>
@@ -40,6 +42,7 @@ export default function HelpDesk() {
           {isAdmin && <TabsContent value="whats-new"><WhatsNew /></TabsContent>}
           <TabsContent value="requests"><FeatureRequests /></TabsContent>
           <TabsContent value="bugs"><BugReports /></TabsContent>
+          {isAdmin && <TabsContent value="bug-metrics"><BugFixDashboard /></TabsContent>}
           {isAdmin && (
             <TabsContent value="roadmap"><ProductRoadmap /></TabsContent>
           )}

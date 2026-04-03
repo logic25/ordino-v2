@@ -1392,6 +1392,113 @@ export type Database = {
           },
         ]
       }
+      bug_fix_log: {
+        Row: {
+          bug_report_id: string
+          company_id: string
+          created_at: string
+          diagnosis: string | null
+          files_changed: Json | null
+          fix_description: string | null
+          fixed_at: string | null
+          fixed_by: string | null
+          id: string
+          rejection_notes: string | null
+          submitted_at: string | null
+          verified_at: string | null
+          was_first_attempt: boolean | null
+        }
+        Insert: {
+          bug_report_id: string
+          company_id: string
+          created_at?: string
+          diagnosis?: string | null
+          files_changed?: Json | null
+          fix_description?: string | null
+          fixed_at?: string | null
+          fixed_by?: string | null
+          id?: string
+          rejection_notes?: string | null
+          submitted_at?: string | null
+          verified_at?: string | null
+          was_first_attempt?: boolean | null
+        }
+        Update: {
+          bug_report_id?: string
+          company_id?: string
+          created_at?: string
+          diagnosis?: string | null
+          files_changed?: Json | null
+          fix_description?: string | null
+          fixed_at?: string | null
+          fixed_by?: string | null
+          id?: string
+          rejection_notes?: string | null
+          submitted_at?: string | null
+          verified_at?: string | null
+          was_first_attempt?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bug_fix_log_bug_report_id_fkey"
+            columns: ["bug_report_id"]
+            isOneToOne: false
+            referencedRelation: "feature_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bug_fix_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bug_patterns: {
+        Row: {
+          affected_files: Json | null
+          company_id: string
+          created_at: string
+          fix_pattern: string | null
+          id: string
+          last_seen: string | null
+          occurrences: number
+          pattern_name: string
+          root_cause: string | null
+        }
+        Insert: {
+          affected_files?: Json | null
+          company_id: string
+          created_at?: string
+          fix_pattern?: string | null
+          id?: string
+          last_seen?: string | null
+          occurrences?: number
+          pattern_name: string
+          root_cause?: string | null
+        }
+        Update: {
+          affected_files?: Json | null
+          company_id?: string
+          created_at?: string
+          fix_pattern?: string | null
+          id?: string
+          last_seen?: string | null
+          occurrences?: number
+          pattern_name?: string
+          root_cause?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bug_patterns_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_events: {
         Row: {
           all_day: boolean | null
@@ -3487,6 +3594,10 @@ export type Database = {
       feature_requests: {
         Row: {
           admin_notes: string | null
+          ai_diagnosis: string | null
+          ai_severity: string | null
+          ai_suggested_files: Json | null
+          ai_triaged_at: string | null
           assigned_to: string | null
           attachments: Json | null
           beacon_feedback_id: number | null
@@ -3494,9 +3605,14 @@ export type Database = {
           company_id: string
           created_at: string | null
           description: string | null
+          files_changed: Json | null
+          fix_description: string | null
+          fix_verified_at: string | null
+          fixed_by: string | null
           id: string
           loom_url: string | null
           priority: string | null
+          resolution_time_hours: number | null
           resolved_at: string | null
           source: string
           status: string | null
@@ -3507,6 +3623,10 @@ export type Database = {
         }
         Insert: {
           admin_notes?: string | null
+          ai_diagnosis?: string | null
+          ai_severity?: string | null
+          ai_suggested_files?: Json | null
+          ai_triaged_at?: string | null
           assigned_to?: string | null
           attachments?: Json | null
           beacon_feedback_id?: number | null
@@ -3514,9 +3634,14 @@ export type Database = {
           company_id: string
           created_at?: string | null
           description?: string | null
+          files_changed?: Json | null
+          fix_description?: string | null
+          fix_verified_at?: string | null
+          fixed_by?: string | null
           id?: string
           loom_url?: string | null
           priority?: string | null
+          resolution_time_hours?: number | null
           resolved_at?: string | null
           source?: string
           status?: string | null
@@ -3527,6 +3652,10 @@ export type Database = {
         }
         Update: {
           admin_notes?: string | null
+          ai_diagnosis?: string | null
+          ai_severity?: string | null
+          ai_suggested_files?: Json | null
+          ai_triaged_at?: string | null
           assigned_to?: string | null
           attachments?: Json | null
           beacon_feedback_id?: number | null
@@ -3534,9 +3663,14 @@ export type Database = {
           company_id?: string
           created_at?: string | null
           description?: string | null
+          files_changed?: Json | null
+          fix_description?: string | null
+          fix_verified_at?: string | null
+          fixed_by?: string | null
           id?: string
           loom_url?: string | null
           priority?: string | null
+          resolution_time_hours?: number | null
           resolved_at?: string | null
           source?: string
           status?: string | null

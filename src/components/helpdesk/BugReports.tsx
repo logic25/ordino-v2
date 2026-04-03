@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bug, CheckCircle2, Plus, Clock, Filter, ArrowUpDown, Loader2, Upload, Video, X, Image as ImageIcon, Copy, History, Send, MessageSquare, Eye, Paperclip, ThumbsUp, ThumbsDown, FileIcon } from "lucide-react";
+import { Bug, CheckCircle2, Plus, Clock, Filter, ArrowUpDown, Loader2, Upload, Video, X, Image as ImageIcon, Copy, History, Send, MessageSquare, Eye, Paperclip, ThumbsUp, ThumbsDown, FileIcon, Brain, Zap } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -95,6 +95,9 @@ export function BugReports() {
   const [statusCommentFiles, setStatusCommentFiles] = useState<File[]>([]);
   const statusCommentFileRef = useRef<HTMLInputElement>(null);
   const savingRef = useRef(false);
+  const [fixedBy, setFixedBy] = useState("lovable");
+  const [fixDescription, setFixDescription] = useState("");
+  const [filesChanged, setFilesChanged] = useState("");
 
   // Activity log query
   const { data: activityLogs = [] } = useQuery({
@@ -308,6 +311,11 @@ export function BugReports() {
             reporter_name: profile.display_name || `${profile.first_name} ${profile.last_name}`,
           },
         }).catch(() => {});
+
+        // Trigger AI auto-triage (best-effort)
+        supabase.functions.invoke("triage-bug-report", {
+          body: { bug_id: inserted.id },
+        }).catch(() => {});
       }
     },
     onSuccess: () => {
@@ -358,6 +366,9 @@ export function BugReports() {
     setCommentFiles([]);
     setStatusComment("");
     setStatusCommentFiles([]);
+    setFixedBy("lovable");
+    setFixDescription("");
+    setFilesChanged("");
     savingRef.current = false;
   };
 
@@ -380,6 +391,13 @@ export function BugReports() {
     };
     if (isNewlyResolved) {
       updates.resolved_at = new Date().toISOString();
+      updates.fixed_by = fixedBy;
+      updates.fix_description = statusComment.trim() || null;
+      const changedFiles = filesChanged.split(",").map(f => f.trim()).filter(Boolean);
+      if (changedFiles.length > 0) updates.files_changed = changedFiles;
+      // Calculate resolution time
+      const createdAt = new Date(selectedBug.created_at).getTime();
+      updates.resolution_time_hours = Math.round((Date.now() - createdAt) / (1000 * 60 * 60) * 10) / 10;
     }
     if (editStatus !== "resolved") {
       updates.resolved_at = null;
@@ -458,6 +476,28 @@ export function BugReports() {
 
         // Send ONE combined email for the status change (includes thread context)
         if (isNewlyResolved) {
+          // Insert fix log (best-effort)
+          const changedFiles = filesChanged.split(",").map(f => f.trim()).filter(Boolean);
+          const wasRejected = (activityLogs || []).some((l: any) => l.action_type === "status_change" && l.new_value === "in_progress" && l.old_value === "ready_for_review");
+          supabase.from("bug_fix_log" as any).insert({
+            bug_report_id: selectedBug.id,
+            company_id: selectedBug.company_id,
+            diagnosis: selectedBug.ai_diagnosis || null,
+            fix_description: statusComment.trim() || null,
+            files_changed: changedFiles.length > 0 ? changedFiles : (selectedBug.ai_suggested_files || []),
+            fixed_by: fixedBy,
+            submitted_at: selectedBug.created_at,
+            fixed_at: new Date().toISOString(),
+            was_first_attempt: !wasRejected,
+          }).then(() => {});
+
+          // Auto-learn pattern (best-effort)
+          if (selectedBug.ai_diagnosis) {
+            supabase.functions.invoke("triage-bug-report", {
+              body: { bug_id: selectedBug.id, action: "learn_pattern" },
+            }).catch(() => {});
+          }
+
           supabase.functions.invoke("send-bug-alert", {
             body: {
               action: "resolved",
@@ -861,6 +901,41 @@ export function BugReports() {
                   </div>
                 )}
 
+                {/* AI Triage Card */}
+                {selectedBug.ai_diagnosis && (
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Brain className="h-4 w-4 text-primary" />
+                      <h4 className="font-semibold text-sm">AI Auto-Triage</h4>
+                      {selectedBug.ai_severity && (
+                        <Badge variant={selectedBug.ai_severity === "critical" || selectedBug.ai_severity === "high" ? "destructive" : "secondary"} className="text-xs ml-auto">
+                          {selectedBug.ai_severity}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-sm space-y-1 whitespace-pre-line">
+                      {selectedBug.ai_diagnosis.split("\n").map((line: string, i: number) => (
+                        <p key={i} className="text-foreground/90 leading-relaxed">
+                          {line.replace(/\*\*/g, "")}
+                        </p>
+                      ))}
+                    </div>
+                    {selectedBug.ai_suggested_files && selectedBug.ai_suggested_files.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {(selectedBug.ai_suggested_files as string[]).map((f: string, i: number) => (
+                          <Badge key={i} variant="outline" className="text-xs font-mono">{f.split("/").pop()}</Badge>
+                        ))}
+                      </div>
+                    )}
+                    {selectedBug.ai_triaged_at && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        <Zap className="h-3 w-3 inline mr-1" />
+                        Triaged {format(new Date(selectedBug.ai_triaged_at), "MMM d 'at' h:mm a")}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-xs text-muted-foreground">Priority</Label>
@@ -1077,6 +1152,36 @@ export function BugReports() {
                           <Button size="sm" variant="outline" onClick={() => statusCommentFileRef.current?.click()} title="Attach file">
                             <Paperclip className="h-4 w-4 mr-1" /> Attach
                           </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Fix tracking fields when resolving */}
+                    {editStatus === "resolved" && selectedBug.status !== "resolved" && (
+                      <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                        <div className="flex items-center gap-2">
+                          <FileIcon className="h-4 w-4 text-primary" />
+                          <Label className="text-sm font-medium">Fix Details (optional)</Label>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Fixed By</Label>
+                          <Select value={fixedBy} onValueChange={setFixedBy}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="lovable">Lovable</SelectItem>
+                              <SelectItem value="claude_code">Claude Code</SelectItem>
+                              <SelectItem value="manual">Manual</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Files Changed (comma-separated)</Label>
+                          <Input
+                            value={filesChanged}
+                            onChange={(e) => setFilesChanged(e.target.value)}
+                            placeholder="e.g. src/hooks/useEmails.ts, src/pages/Email.tsx"
+                            className="h-8 text-xs"
+                          />
                         </div>
                       </div>
                     )}
