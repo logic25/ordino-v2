@@ -57,6 +57,7 @@ interface ChatMessage {
   isHistory?: boolean;
   isBugReport?: boolean;
   bugLogged?: boolean;
+  timestamp?: string;
 }
 
 interface SessionPreview {
