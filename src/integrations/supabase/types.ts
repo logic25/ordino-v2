@@ -1699,6 +1699,7 @@ export type Database = {
           internal_signed_at: string | null
           internal_signed_by: string | null
           internal_signer_name: string | null
+          is_non_billable: boolean | null
           line_items: Json | null
           linked_service_names: string[] | null
           notes: string | null
@@ -1730,6 +1731,7 @@ export type Database = {
           internal_signed_at?: string | null
           internal_signed_by?: string | null
           internal_signer_name?: string | null
+          is_non_billable?: boolean | null
           line_items?: Json | null
           linked_service_names?: string[] | null
           notes?: string | null
@@ -1761,6 +1763,7 @@ export type Database = {
           internal_signed_at?: string | null
           internal_signed_by?: string | null
           internal_signer_name?: string | null
+          is_non_billable?: boolean | null
           line_items?: Json | null
           linked_service_names?: string[] | null
           notes?: string | null
@@ -5254,6 +5257,7 @@ export type Database = {
       profiles: {
         Row: {
           about: string | null
+          accuracy_goal: number | null
           avatar_url: string | null
           carrier: string | null
           company_id: string
@@ -5278,6 +5282,7 @@ export type Database = {
         }
         Insert: {
           about?: string | null
+          accuracy_goal?: number | null
           avatar_url?: string | null
           carrier?: string | null
           company_id: string
@@ -5302,6 +5307,7 @@ export type Database = {
         }
         Update: {
           about?: string | null
+          accuracy_goal?: number | null
           avatar_url?: string | null
           carrier?: string | null
           company_id?: string
