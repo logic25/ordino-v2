@@ -214,6 +214,21 @@ export default function PropertyDetail() {
           apps.forEach((a: any, i: number) => (a.num = i + 1));
           setCoApps(apps);
           setCoViolations(viols);
+
+          // Fallback: if CitiSignal returned no violations or complaints, fetch from Socrata
+          if (viols.length === 0 && property?.bin) {
+            try {
+              const socrataViols = await fetchDOBViolations(property.bin, property.borough, property.block, property.lot);
+              if (socrataViols.length > 0) setCoViolations(socrataViols);
+            } catch { /* silent */ }
+          }
+          if (property?.bin) {
+            try {
+              const socrataComplaints = await fetchDOBComplaints(property.bin);
+              if (socrataComplaints.length > 0) setCoComplaints(socrataComplaints);
+            } catch { /* silent */ }
+          }
+
           setLastSynced(format(new Date(), "MM/dd/yyyy h:mm a") + " (CitiSignal)");
         }
       } catch {
