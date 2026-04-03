@@ -480,6 +480,7 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
             text: "Beacon is temporarily unavailable. Please try again.",
             confidence: 0,
             sources: [],
+            timestamp: new Date().toISOString(),
           },
         ]);
       }
