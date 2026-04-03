@@ -13,6 +13,7 @@ export interface BeaconChatResponse {
   flow_type: string;
   cached: boolean;
   response_time_ms: number;
+  is_bug_report?: boolean;
 }
 
 export interface BeaconProjectContext {
