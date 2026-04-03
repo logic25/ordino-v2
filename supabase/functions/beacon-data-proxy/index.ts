@@ -68,6 +68,8 @@ Deno.serve(async (req) => {
         return await createBugFromConversation(supabase, params);
       case "list_schema":
         return await listSchema(supabase);
+      case "describe_table":
+        return await describeTable(params);
       default:
         return fail(`Unknown action: ${action}`);
     }
