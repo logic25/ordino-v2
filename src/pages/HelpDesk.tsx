@@ -6,6 +6,7 @@ import { WhatsNew } from "@/components/helpdesk/WhatsNew";
 import { FeatureRequests } from "@/components/helpdesk/FeatureRequests";
 import { InteractiveTraining } from "@/components/helpdesk/InteractiveTraining";
 import { BugReports } from "@/components/helpdesk/BugReports";
+import { BugFixDashboard } from "@/components/helpdesk/BugFixDashboard";
 import { ProductRoadmap } from "@/components/helpdesk/ProductRoadmap";
 import { AIUsageDashboard } from "@/components/helpdesk/AIUsageDashboard";
 import { usePermissions } from "@/hooks/usePermissions";
