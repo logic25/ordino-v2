@@ -341,6 +341,15 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Log attachment info for debugging
+    if (attachments && attachments.length > 0) {
+      console.log(`gmail-send: ${attachments.length} attachment(s) included:`,
+        attachments.map((a: any) => ({ filename: a.filename, mime_type: a.mime_type, size_bytes: Math.round((a.content?.length || 0) * 3 / 4) }))
+      );
+    } else {
+      console.log("gmail-send: no attachments");
+    }
+
     // Create and send the email
     const raw = createMimeMessage({
       to,
