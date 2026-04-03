@@ -322,6 +322,7 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
                 sources: row.metadata?.sources || [],
                 flowType: row.metadata?.flow_type,
                 isHistory: true,
+                timestamp: row.created_at,
               }));
               setMessages(history);
               setHistoryCount(history.length);
