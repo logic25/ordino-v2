@@ -113,3 +113,9 @@ verify_jwt = false
 
 [functions.beacon-data-proxy]
 verify_jwt = false
+
+[functions.triage-bug-report]
+verify_jwt = false
+
+[functions.weekly-bug-report]
+verify_jwt = false
