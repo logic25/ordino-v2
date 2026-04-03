@@ -411,3 +411,48 @@ async function queryOrdino(sb: any, params: any) {
 
   return ok({ rows: data, count: data?.length ?? 0 });
 }
+
+// ── Bug pattern intelligence ─────────────────────────────
+
+async function queryBugPatterns(sb: any, params: any) {
+  const { search, file_path, limit: rawLimit } = params || {};
+  const safeLimit = Math.min(Math.max(Number(rawLimit) || 20, 1), 100);
+
+  let q = sb
+    .from("bug_patterns")
+    .select("*")
+    .order("occurrences", { ascending: false })
+    .limit(safeLimit);
+
+  const { data, error } = await q;
+  if (error) {
+    console.error("query_bug_patterns error:", error.message);
+    return fail(error.message, 500);
+  }
+
+  let results = data || [];
+
+  // Filter by search term (keyword match on pattern_name or root_cause)
+  if (search && typeof search === "string") {
+    const terms = search.toLowerCase().split(/\s+/).filter((t: string) => t.length > 2);
+    results = results.filter((p: any) => {
+      const text = `${p.pattern_name} ${p.root_cause} ${p.fix_pattern}`.toLowerCase();
+      return terms.some((t: string) => text.includes(t));
+    });
+  }
+
+  // Filter by affected file path
+  if (file_path && typeof file_path === "string") {
+    results = results.filter((p: any) =>
+      (p.affected_files || []).some((f: string) =>
+        f.includes(file_path) || file_path.includes(f)
+      )
+    );
+  }
+
+  return ok({
+    patterns: results,
+    count: results.length,
+    total_occurrences: results.reduce((s: number, p: any) => s + (p.occurrences || 0), 0),
+  });
+}
