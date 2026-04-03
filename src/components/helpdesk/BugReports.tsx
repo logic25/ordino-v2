@@ -841,6 +841,75 @@ export function BugReports() {
                 </SheetTitle>
               </SheetHeader>
               <div className="space-y-4 mt-4">
+                {/* AI Triage Card — shown first for visibility */}
+                {selectedBug.ai_diagnosis ? (
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Brain className="h-4 w-4 text-primary" />
+                      <h4 className="font-semibold text-sm">AI Auto-Triage</h4>
+                      {selectedBug.ai_severity && (
+                        <Badge variant={selectedBug.ai_severity === "critical" || selectedBug.ai_severity === "high" ? "destructive" : "secondary"} className="text-xs ml-auto">
+                          {selectedBug.ai_severity}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-sm space-y-1 whitespace-pre-line">
+                      {selectedBug.ai_diagnosis.split("\n").map((line: string, i: number) => (
+                        <p key={i} className="text-foreground/90 leading-relaxed">
+                          {line.replace(/\*\*/g, "")}
+                        </p>
+                      ))}
+                    </div>
+                    {selectedBug.ai_suggested_files && selectedBug.ai_suggested_files.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {(selectedBug.ai_suggested_files as string[]).map((f: string, i: number) => (
+                          <Badge key={i} variant="outline" className="text-xs font-mono">{f.split("/").pop()}</Badge>
+                        ))}
+                      </div>
+                    )}
+                    {selectedBug.ai_triaged_at && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        <Zap className="h-3 w-3 inline mr-1" />
+                        Triaged {format(new Date(selectedBug.ai_triaged_at), "MMM d 'at' h:mm a")}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed border-muted-foreground/30 p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Brain className="h-4 w-4" />
+                        <span className="text-sm">No AI triage yet</span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          toast({ title: "Running AI triage…" });
+                          try {
+                            await supabase.from("feature_requests").update({ ai_triaged_at: null }).eq("id", selectedBug.id);
+                            await supabase.functions.invoke("triage-bug-report", {
+                              body: { bug_id: selectedBug.id },
+                            });
+                            await queryClient.invalidateQueries({ queryKey: ["bug-reports"] });
+                            const { data: refreshed } = await supabase
+                              .from("feature_requests")
+                              .select("*")
+                              .eq("id", selectedBug.id)
+                              .single();
+                            if (refreshed) setSelectedBug(refreshed);
+                            toast({ title: "AI triage complete" });
+                          } catch {
+                            toast({ title: "Triage failed", variant: "destructive" });
+                          }
+                        }}
+                      >
+                        <Brain className="h-3 w-3 mr-1" />
+                        Run AI Triage
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 {/* Description */}
                 <div>
                   <Label className="text-xs text-muted-foreground">Description</Label>
