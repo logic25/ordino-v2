@@ -366,6 +366,9 @@ export function BugReports() {
     setCommentFiles([]);
     setStatusComment("");
     setStatusCommentFiles([]);
+    setFixedBy("lovable");
+    setFixDescription("");
+    setFilesChanged("");
     savingRef.current = false;
   };
 
