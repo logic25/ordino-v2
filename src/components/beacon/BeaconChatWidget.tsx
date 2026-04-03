@@ -674,13 +674,12 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask Beacon..."
+            placeholder={loading ? "Type your next message..." : "Ask Beacon..."}
             className="flex-1 h-9 text-sm"
-            disabled={loading}
           />
           <Button
             type="submit"
-            disabled={!input.trim() || loading}
+            disabled={!input.trim()}
             size="icon"
             className="h-9 w-9 bg-[#f59e0b] hover:bg-[#d97706] text-white shrink-0"
           >
