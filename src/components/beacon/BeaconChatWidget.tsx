@@ -749,6 +749,8 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
           loading={historyLoading}
           onSelect={handleSelectSession}
           onBack={() => setShowHistory(false)}
+          onDelete={handleDeleteSession}
+          onClearAll={handleClearAllSessions}
         />
       ) : (
         <>
