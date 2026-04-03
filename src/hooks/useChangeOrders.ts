@@ -51,6 +51,7 @@ export interface ChangeOrderFormInput {
   line_items?: COLineItem[];
   notes?: string;
   deposit_percentage?: number;
+  is_non_billable?: boolean;
 }
 
 const QK = (projectId: string) => ["change-orders", projectId];
