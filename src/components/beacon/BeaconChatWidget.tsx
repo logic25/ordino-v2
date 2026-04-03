@@ -493,7 +493,7 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
     setMessages([]);
     setHistoryCount(0);
     setHistoryLoaded(true);
-    setSessionId(crypto.randomUUID());
+    setSessionId(crypto.randomUUID() as string);
     setShowHistory(false);
   };
 
