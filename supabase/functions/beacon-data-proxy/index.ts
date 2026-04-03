@@ -514,58 +514,7 @@ async function createBugFromConversation(sb: any, params: any) {
 
 // ── List Schema ──────────────────────────────────────────
 
-async function listSchema(sb: any) {
-  // Get all columns for public schema tables that have company_id or user_id
-  const { data: cols, error } = await sb.rpc("", {}).catch(() => ({ data: null, error: "rpc not available" }));
-
-  // Use raw SQL via supabase-js postgrest isn't ideal here, so query information_schema directly
-  const url = Deno.env.get("SUPABASE_URL")!;
-  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-  const query = `
-    SELECT c.table_name, c.column_name
-    FROM information_schema.columns c
-    WHERE c.table_schema = 'public'
-      AND c.table_name IN (
-        SELECT DISTINCT table_name
-        FROM information_schema.columns
-        WHERE table_schema = 'public'
-          AND column_name IN ('company_id', 'user_id')
-      )
-    ORDER BY c.table_name, c.ordinal_position
-  `;
-
-  const resp = await fetch(`${url}/rest/v1/rpc/`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "apikey": key,
-      "Authorization": `Bearer ${key}`,
-    },
-  }).catch(() => null);
-
-  // Since we can't easily run raw SQL via PostgREST, use the pg connection
-  // We'll query via the supabase client's ability to query information_schema
-  // Actually, information_schema isn't exposed via PostgREST. Use a different approach:
-  // Query each known table's columns via PostgREST OPTIONS or use a simpler method.
-
-  // Best approach: create a temporary rpc or just hardcode the query via fetch to the SQL endpoint
-  const sqlResp = await fetch(`${url}/rest/v1/`, {
-    method: "GET",
-    headers: {
-      "apikey": key,
-      "Authorization": `Bearer ${key}`,
-      "Accept": "application/json",
-    },
-  }).catch(() => null);
-
-  // Simplest reliable approach: use the Supabase management API or direct pg.
-  // Since we have SUPABASE_DB_URL, let's use that approach with Deno's postgres.
-  
-  // Actually, let's use a pragmatic approach: query a known safe view
-  // PostgREST exposes table definitions. Let's just enumerate.
-
-  // Most reliable: use Deno postgres driver
+async function listSchema(_sb: any) {
   const dbUrl = Deno.env.get("SUPABASE_DB_URL");
   if (!dbUrl) return fail("Database URL not configured");
 
