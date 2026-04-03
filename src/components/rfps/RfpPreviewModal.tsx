@@ -155,9 +155,8 @@ export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalPro
 }
 
 
-  return (
-    <div className="flex items-center gap-2 mb-4">
-      <div className="w-2 h-2 rounded-full bg-accent" />
+
+
       <Icon className={`h-4 w-4 ${color}`} />
       <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{children}</h3>
     </div>
