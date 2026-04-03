@@ -177,6 +177,28 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
   const [beaconOnline, setBeaconOnline] = useState(true);
   const [viewingFile, setViewingFile] = useState<string | null>(null);
 
+  const location = useLocation();
+  const currentPage = getPageName(location.pathname);
+
+  // Capture last 3 console errors for bug context
+  const recentErrorsRef = useRef<string[]>([]);
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      const msg = `${event.message} at ${event.filename}:${event.lineno}`;
+      recentErrorsRef.current = [...recentErrorsRef.current.slice(-2), msg];
+    };
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      const msg = `Unhandled rejection: ${event.reason?.message || event.reason}`;
+      recentErrorsRef.current = [...recentErrorsRef.current.slice(-2), msg];
+    };
+    window.addEventListener("error", handleError);
+    window.addEventListener("unhandledrejection", handleRejection);
+    return () => {
+      window.removeEventListener("error", handleError);
+      window.removeEventListener("unhandledrejection", handleRejection);
+    };
+  }, []);
+
   useEffect(() => {
     const check = () => checkBeaconHealth().then(setBeaconOnline);
     check();
