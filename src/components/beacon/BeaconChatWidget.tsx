@@ -453,6 +453,7 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
             flowType: res.flow_type,
             isBugReport: res.is_bug_report,
             bugLogged: res.bug_auto_logged === true,
+            timestamp: new Date().toISOString(),
           },
         ]);
 
