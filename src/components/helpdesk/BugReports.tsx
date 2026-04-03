@@ -476,6 +476,28 @@ export function BugReports() {
 
         // Send ONE combined email for the status change (includes thread context)
         if (isNewlyResolved) {
+          // Insert fix log (best-effort)
+          const changedFiles = filesChanged.split(",").map(f => f.trim()).filter(Boolean);
+          const wasRejected = (activityLogs || []).some((l: any) => l.action_type === "status_change" && l.new_value === "in_progress" && l.old_value === "ready_for_review");
+          supabase.from("bug_fix_log").insert({
+            bug_report_id: selectedBug.id,
+            company_id: selectedBug.company_id,
+            diagnosis: selectedBug.ai_diagnosis || null,
+            fix_description: statusComment.trim() || null,
+            files_changed: changedFiles.length > 0 ? changedFiles : (selectedBug.ai_suggested_files || []),
+            fixed_by: fixedBy,
+            submitted_at: selectedBug.created_at,
+            fixed_at: new Date().toISOString(),
+            was_first_attempt: !wasRejected,
+          } as any).catch(() => {});
+
+          // Auto-learn pattern (best-effort)
+          if (selectedBug.ai_diagnosis) {
+            supabase.functions.invoke("triage-bug-report", {
+              body: { bug_id: selectedBug.id, action: "learn_pattern" },
+            }).catch(() => {});
+          }
+
           supabase.functions.invoke("send-bug-alert", {
             body: {
               action: "resolved",
