@@ -390,8 +390,25 @@ const COLUMN_ALIASES: Record<string, Record<string, string>> = {
   profiles: { goal: "monthly_goal", billing_goal: "monthly_goal" },
 };
 
+// ── Value Alias Mapping (enum synonyms) ──────────────────
+const VALUE_ALIASES: Record<string, Record<string, Record<string, string>>> = {
+  projects: {
+    status: {
+      active: "open", in_progress: "open", "in progress": "open",
+      ongoing: "open", current: "open",
+      paused: "on_hold", hold: "on_hold",
+      completed: "closed", done: "closed", finished: "closed", archived: "closed",
+    },
+  },
+};
+
 function resolveAlias(table: string, column: string): string {
   return COLUMN_ALIASES[table]?.[column] || column;
+}
+
+function resolveValue(table: string, column: string, value: any): any {
+  if (typeof value !== "string") return value;
+  return VALUE_ALIASES[table]?.[column]?.[value.toLowerCase()] ?? value;
 }
 
 function resolveSelectAliases(table: string, select: string): string {
