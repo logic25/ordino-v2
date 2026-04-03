@@ -14,6 +14,7 @@ export interface BeaconChatResponse {
   cached: boolean;
   response_time_ms: number;
   is_bug_report?: boolean;
+  bug_auto_logged?: boolean;
 }
 
 export interface BeaconProjectContext {
