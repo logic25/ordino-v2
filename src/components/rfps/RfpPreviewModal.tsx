@@ -1,34 +1,19 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import {
-  Mail, Building2, Users, GitBranch, Star, FileText,
-  DollarSign, Award, MapPin, Calendar, CheckCircle,
-  Printer, Send, X, Loader2, Image as ImageIcon,
+  Printer, Send, X, Loader2, Calendar,
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import type { Rfp } from "@/hooks/useRfps";
-import { getProjectPhotoUrl } from "@/hooks/useProjectSheets";
-
-interface StaffBioContent {
-  name: string;
-  title: string;
-  years_experience: number | null;
-  bio: string;
-  hourly_rate: number | null;
-  include_in_org_chart?: boolean;
-  reports_to?: string;
-}
+import { buildRfpEmailHtml } from "./buildRfpEmailBody";
 
 interface PreviewData {
   rfp: Rfp | null;
@@ -41,6 +26,12 @@ interface PreviewData {
   pricing: any;
   certs: any[];
   coverLetter?: string;
+  logoUrl?: string;
+  companyName?: string;
+  companyAddress?: string;
+  companyPhone?: string;
+  companyEmail?: string;
+  companyWebsite?: string;
 }
 
 interface RfpPreviewModalProps {
@@ -50,89 +41,48 @@ interface RfpPreviewModalProps {
 }
 
 export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalProps) {
-  const { rfp, sections, companyInfo, staffBios, notableProjects, narratives, firmHistory, pricing, certs, coverLetter } = data;
+  const { rfp } = data;
   const contentRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
+
+  const emailHtml = useMemo(() => buildRfpEmailHtml(data), [data]);
 
   const handleExportPdf = async () => {
     if (!contentRef.current) return;
     setExporting(true);
     try {
+      const canvas = await html2canvas(contentRef.current, {
+        scale: 1.5,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+      });
+
       const A4_WIDTH_MM = 210;
       const A4_HEIGHT_MM = 297;
       const MARGIN_MM = 12;
       const CONTENT_WIDTH_MM = A4_WIDTH_MM - MARGIN_MM * 2;
-      const USABLE_HEIGHT_MM = A4_HEIGHT_MM - MARGIN_MM * 2;
-      const SECTION_GAP_MM = 4;
-      const SCALE = 1.5;
-
-      // Find all section divs (including nested ones like individual narratives)
-      const sectionEls = Array.from(
-        contentRef.current.querySelectorAll("[data-pdf-section]")
-      ) as HTMLElement[];
-
-      const elements = sectionEls.length > 0 ? sectionEls : [contentRef.current];
 
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      let currentY = MARGIN_MM;
-      let isFirstPage = true;
+      const pxPerMM = canvas.width / CONTENT_WIDTH_MM;
+      const usableHeightPx = (A4_HEIGHT_MM - MARGIN_MM * 2) * pxPerMM;
 
-      for (const el of elements) {
-        const canvas = await html2canvas(el, {
-          scale: SCALE,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-        });
+      let srcY = 0;
+      let pageIndex = 0;
 
-        const scaleFactor = CONTENT_WIDTH_MM / (canvas.width / SCALE);
-        const totalHeightMM = (canvas.height / SCALE) * scaleFactor;
+      while (srcY < canvas.height) {
+        if (pageIndex > 0) pdf.addPage();
+        const slicePx = Math.min(usableHeightPx, canvas.height - srcY);
+        const sliceMM = slicePx / pxPerMM;
 
-        // If section fits on current page, add it directly
-        if (totalHeightMM <= (A4_HEIGHT_MM - MARGIN_MM - currentY)) {
-          const imgData = canvas.toDataURL("image/jpeg", 0.75);
-          pdf.addImage(imgData, "JPEG", MARGIN_MM, currentY, CONTENT_WIDTH_MM, totalHeightMM);
-          currentY += totalHeightMM + SECTION_GAP_MM;
-        } else if (totalHeightMM <= USABLE_HEIGHT_MM) {
-          // Section fits on a fresh page but not the current one
-          if (!isFirstPage || currentY > MARGIN_MM) {
-            pdf.addPage();
-          }
-          currentY = MARGIN_MM;
-          const imgData = canvas.toDataURL("image/jpeg", 0.75);
-          pdf.addImage(imgData, "JPEG", MARGIN_MM, currentY, CONTENT_WIDTH_MM, totalHeightMM);
-          currentY += totalHeightMM + SECTION_GAP_MM;
-        } else {
-          // Section is taller than a page — crop canvas into page-sized slices
-          const pxPerMM = canvas.width / CONTENT_WIDTH_MM;
-          const sliceHeightPx = USABLE_HEIGHT_MM * pxPerMM;
-          let srcY = 0;
+        const sliceCanvas = document.createElement("canvas");
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = slicePx;
+        const ctx = sliceCanvas.getContext("2d")!;
+        ctx.drawImage(canvas, 0, srcY, canvas.width, slicePx, 0, 0, canvas.width, slicePx);
 
-          while (srcY < canvas.height) {
-            if (currentY > MARGIN_MM || !isFirstPage) {
-              pdf.addPage();
-            }
-            currentY = MARGIN_MM;
-
-            const remainingPx = canvas.height - srcY;
-            const thisSlicePx = Math.min(sliceHeightPx, remainingPx);
-            const thisSliceMM = (thisSlicePx / pxPerMM);
-
-            // Create a cropped canvas for this slice
-            const sliceCanvas = document.createElement("canvas");
-            sliceCanvas.width = canvas.width;
-            sliceCanvas.height = thisSlicePx;
-            const ctx = sliceCanvas.getContext("2d")!;
-            ctx.drawImage(canvas, 0, srcY, canvas.width, thisSlicePx, 0, 0, canvas.width, thisSlicePx);
-
-            const sliceData = sliceCanvas.toDataURL("image/jpeg", 0.75);
-            pdf.addImage(sliceData, "JPEG", MARGIN_MM, currentY, CONTENT_WIDTH_MM, thisSliceMM);
-
-            currentY = MARGIN_MM + thisSliceMM + SECTION_GAP_MM;
-            srcY += thisSlicePx;
-          }
-        }
-
-        isFirstPage = false;
+        pdf.addImage(sliceCanvas.toDataURL("image/jpeg", 0.75), "JPEG", MARGIN_MM, MARGIN_MM, CONTENT_WIDTH_MM, sliceMM);
+        srcY += slicePx;
+        pageIndex++;
       }
 
       pdf.save(`RFP-Response-${rfp?.rfp_number || rfp?.title || "draft"}.pdf`);
@@ -172,22 +122,13 @@ export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalPro
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 min-h-0 overflow-y-auto">
-          <div ref={contentRef} className="space-y-6 px-6 py-5 bg-white">
-            {sections.map((sectionId) => (
-              <div key={sectionId} data-pdf-section={sectionId}>
-                {sectionId === "cover_letter" && coverLetter && <CoverLetterSection text={coverLetter} />}
-                {sectionId === "firm_overview" && <FirmOverviewSection data={firmHistory} />}
-                {sectionId === "company_info" && <CompanyInfoSection data={companyInfo} />}
-                {sectionId === "staff_bios" && <StaffBiosSection data={staffBios} />}
-                {sectionId === "org_chart" && <OrgChartSection data={staffBios} />}
-                {sectionId === "notable_projects" && <NotableProjectsSection data={notableProjects} />}
-                {sectionId === "narratives" && <NarrativesSection data={narratives} />}
-                {sectionId === "pricing" && <PricingSection data={pricing} />}
-                {sectionId === "certifications" && <CertsSection data={certs} />}
-              </div>
-            ))}
+        {/* Content — renders the actual branded email HTML */}
+        <div className="flex-1 min-h-0 overflow-y-auto bg-[#f0f0f0]">
+          <div className="max-w-[680px] mx-auto my-6 bg-white shadow-lg rounded-lg overflow-hidden">
+            <div
+              ref={contentRef}
+              dangerouslySetInnerHTML={{ __html: emailHtml }}
+            />
           </div>
         </div>
 
@@ -212,7 +153,6 @@ export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalPro
     </Dialog>
   );
 }
-
 /* ─── Section heading ─── */
 function SectionHeading({ children, icon: Icon, color = "text-accent" }: { children: React.ReactNode; icon: React.ElementType; color?: string }) {
   return (
