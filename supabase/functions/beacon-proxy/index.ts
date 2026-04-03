@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
 
       // ── Data Query Pre-Fetch ──
       // Detect data questions and pre-fetch answers from beacon-data-proxy
-      const isDataQuestion = /\b(how many|count|total|list|show me|what are|which|revenue|outstanding|overdue|active projects|open projects|unpaid|invoices?|proposals?|clients?|projects?|properties|workload|pipeline|forecast)\b/i.test(lastMessage)
+      const isDataQuestion = /\b(how many|count|total|list|show me|what are|which|revenue|outstanding|overdue|active projects|open projects|unpaid|invoices?|proposals?|clients?|projects?|properties|workload|pipeline|forecast|recommend|suggest|know a|know any|good\s+\w+er)\b/i.test(lastMessage)
         && !isBugQuestion;
 
       if (isDataQuestion) {
