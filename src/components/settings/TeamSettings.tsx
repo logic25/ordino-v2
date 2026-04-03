@@ -761,9 +761,6 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                     <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-700 border-amber-300">
                       OOO {format(new Date(profileAny.ooo_from + "T00:00:00"), "MMM d")} – {format(new Date(profileAny.ooo_to + "T00:00:00"), "MMM d")}
                     </Badge>
-                    {profileAny.ooo_covering_pm_id && (() => {
-                      return null; // covering PM shown below in contact info
-                    })()}
                   </div>
                 )}
               </div>
