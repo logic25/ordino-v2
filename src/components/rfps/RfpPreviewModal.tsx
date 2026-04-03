@@ -50,7 +50,7 @@ interface RfpPreviewModalProps {
 }
 
 export function RfpPreviewModal({ open, onOpenChange, data }: RfpPreviewModalProps) {
-  const { rfp, sections, companyInfo, staffBios, notableProjects, narratives, pricing, certs, coverLetter } = data;
+  const { rfp, sections, companyInfo, staffBios, notableProjects, narratives, firmHistory, pricing, certs, coverLetter } = data;
   const contentRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
 
