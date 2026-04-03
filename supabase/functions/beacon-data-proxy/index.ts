@@ -81,6 +81,26 @@ Deno.serve(async (req) => {
 
 // ── Actions ──────────────────────────────────────────────
 
+// Status aliases: map common synonyms to valid project_status enum values
+const STATUS_ALIASES: Record<string, string> = {
+  active: "open",
+  in_progress: "open",
+  "in progress": "open",
+  ongoing: "open",
+  current: "open",
+  paused: "on_hold",
+  hold: "on_hold",
+  on_hold: "on_hold",
+  completed: "closed",
+  done: "closed",
+  finished: "closed",
+  archived: "closed",
+};
+
+function resolveStatus(raw: string): string {
+  return STATUS_ALIASES[raw.toLowerCase()] ?? raw;
+}
+
 async function queryProjects(sb: any, params: any) {
   let q = sb
     .from("projects")
@@ -90,7 +110,7 @@ async function queryProjects(sb: any, params: any) {
     .order("created_at", { ascending: false })
     .limit(200);
 
-  if (params.status) q = q.eq("status", params.status);
+  if (params.status) q = q.eq("status", resolveStatus(params.status));
   if (params.assigned_to) q = q.eq("assigned_pm_id", params.assigned_to);
   if (params.search) q = q.ilike("name", `%${params.search}%`);
 
