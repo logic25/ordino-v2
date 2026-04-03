@@ -271,20 +271,8 @@ export function EmailDetailSheet({ email, open, onOpenChange, onArchived, tagDia
   };
 
   const replyToEmail = email;
-  const fallbackQuotedEmail = [...displayEmails]
-    .reverse()
-    .find((threadEmail) => threadEmail.id !== replyToEmail.id && (threadEmail.body_html || threadEmail.body_text));
-  const originalQuotedContent =
-    replyToEmail.body_html ||
-    replyToEmail.body_text ||
-    fallbackQuotedEmail?.body_html ||
-    fallbackQuotedEmail?.body_text ||
-    "";
-  const quotedDateLabel = replyToEmail.date ? new Date(replyToEmail.date).toLocaleDateString() : "";
-  const buildReplyOrForwardBody = (message: string, isForward: boolean) =>
-    isForward
-      ? `<div>${message.replace(/\n/g, "<br/>")}</div><br/><hr/><p><strong>---------- Forwarded message ----------</strong><br/>From: ${replyToEmail.from_name || replyToEmail.from_email}<br/>Subject: ${replyToEmail.subject || ""}<br/></p>${originalQuotedContent}`
-      : `<div>${message.replace(/\n/g, "<br/>")}</div><br/><div style="padding-left:8px;border-left:2px solid #ccc;color:#555;margin-top:8px"><p style="margin:0 0 4px"><strong>On ${quotedDateLabel}, ${replyToEmail.from_name || replyToEmail.from_email} wrote:</strong></p>${originalQuotedContent}</div>`;
+  const buildComposerMessageBody = (message: string) =>
+    `<div>${message.replace(/\n/g, "<br/>")}</div>`;
 
   const handleReply = () => {
     if (!replyBody.trim()) return;
