@@ -350,6 +350,7 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
           .from("widget_messages" as any)
           .select("session_id, role, content, metadata, created_at")
           .eq("user_email", user.email!)
+          .is("deleted_at", null)
           .order("created_at", { ascending: false })
           .limit(1);
 
