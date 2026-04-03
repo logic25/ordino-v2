@@ -574,6 +574,7 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
         .select("session_id, role, content, created_at")
         .eq("user_email", userEmail)
         .eq("role", "user")
+        .is("deleted_at", null)
         .order("created_at", { ascending: true });
 
       if (data && data.length > 0) {
