@@ -293,7 +293,7 @@ export function BugReports() {
         user_id: profile.id,
         title: `[${page}] ${action.slice(0, 80)}`,
         description,
-        category: "bug_report",
+        category: reportCategory,
         priority,
         status: "open",
         loom_url: loomUrl || null,
