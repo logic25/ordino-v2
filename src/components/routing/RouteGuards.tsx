@@ -33,7 +33,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/setup" replace />;
   }
 
-  return <>{children}</>;
+  return <RouteErrorBoundary>{children}</RouteErrorBoundary>;
 }
 
 // Setup route wrapper - requires auth but NO profile yet
