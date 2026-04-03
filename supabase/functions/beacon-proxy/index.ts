@@ -85,12 +85,19 @@ Deno.serve(async (req) => {
       const lastMessage = body.message || body.messages?.[body.messages?.length - 1]?.content || "";
       const isBugQuestion = /\b(bug|broken|error|crash|fail|not working|issue|fix|wrong|stuck|breaking|doesn't work|can't|cannot|won't)\b/i.test(lastMessage);
 
+      // Inject page context directly into the message so the LLM always sees it
       if (currentPage) {
+        const msgField = body.message || "";
+        let prefix = `[User is on the "${currentPage}" page in Ordino]`;
+        if (recentErrors.length > 0) {
+          prefix += `\n[Recent errors: ${recentErrors.join("; ")}]`;
+        }
+        body.message = `${prefix}\n${msgField}`;
+
+        // Keep system_context as belt-and-suspenders fallback
         body.system_context = (body.system_context || "") +
           `\n\n**User Context:** Currently on the "${currentPage}" page.`;
-      }
-
-      if (recentErrors.length > 0) {
+      } else if (recentErrors.length > 0) {
         body.system_context = (body.system_context || "") +
           `\n\n**Recent Browser Errors:**\n${recentErrors.map((e: string) => `• ${e}`).join("\n")}`;
       }

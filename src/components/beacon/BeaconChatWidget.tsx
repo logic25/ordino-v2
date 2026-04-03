@@ -381,6 +381,10 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
 
         // Prepend project context as system context when active
         let enrichedQuery = q;
+        // Always prepend current page so Beacon knows where the user is
+        if (currentPage && !activeContext?.projectAddress) {
+          enrichedQuery = `[Page: ${currentPage}]\n${q}`;
+        }
         if (activeContext?.projectAddress) {
           const ctxParts = [`Project: ${activeContext.projectAddress}`];
           if (activeContext.projectNumber) ctxParts.push(`Project #: ${activeContext.projectNumber}`);
