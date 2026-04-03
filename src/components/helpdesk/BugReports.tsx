@@ -388,6 +388,13 @@ export function BugReports() {
     };
     if (isNewlyResolved) {
       updates.resolved_at = new Date().toISOString();
+      updates.fixed_by = fixedBy;
+      updates.fix_description = statusComment.trim() || null;
+      const changedFiles = filesChanged.split(",").map(f => f.trim()).filter(Boolean);
+      if (changedFiles.length > 0) updates.files_changed = changedFiles;
+      // Calculate resolution time
+      const createdAt = new Date(selectedBug.created_at).getTime();
+      updates.resolution_time_hours = Math.round((Date.now() - createdAt) / (1000 * 60 * 60) * 10) / 10;
     }
     if (editStatus !== "resolved") {
       updates.resolved_at = null;
