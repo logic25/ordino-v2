@@ -113,9 +113,15 @@ function usePMBillingGoals() {
         const completedItems = pmChecklist.filter((c: any) => c.status === "done").length;
         const readiness = totalItems > 0 ? completedItems / totalItems : 0;
 
-        // Billed this month
+        // Billed this month — prefer billing_requests (what PMs actually submit)
+        const pmBillingReqs = (billingRequests || []).filter((br: any) => pmProjectIds.has(br.project_id));
+        const billedFromRequests = pmBillingReqs.reduce((s: number, br: any) => s + Number(br.total_amount || 0), 0);
+
+        // Fallback: if no billing requests, use invoices
         const pmInvoices = (invoices || []).filter((inv: any) => pmProjectIds.has(inv.project_id));
-        const billedThisMonth = pmInvoices.reduce((s: number, inv: any) => s + (inv.total_due || 0), 0);
+        const billedFromInvoices = pmInvoices.reduce((s: number, inv: any) => s + Number(inv.total_due || 0), 0);
+
+        const billedThisMonth = billedFromRequests > 0 ? billedFromRequests : billedFromInvoices;
 
         // Smart target = total service value * readiness
         const smartTarget = Math.round(totalServiceValue * readiness);
