@@ -111,6 +111,7 @@ Return your response as a JSON object with two fields:
       `Days since sent: ${daysSinceSent}`,
       daysSinceViewed !== null ? `Client viewed it ${daysSinceViewed} day(s) ago` : "Client has NOT opened the proposal yet",
       `Previous follow-ups: ${followUpCount}`,
+      proposalLink ? `Proposal link (for client to view & sign): ${proposalLink}` : null,
       `Sender name: ${pmName}`,
       `Company: ${companyName}`,
       companyPhone ? `Company phone: ${companyPhone}` : null,
