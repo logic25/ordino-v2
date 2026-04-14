@@ -249,7 +249,7 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
             {subsequents && subsequents.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm font-medium flex items-center gap-1.5">
-                  <FileText className="h-3.5 w-3.5 text-muted-foreground" /> Related Filings ({subsequents.length})
+                  <FileText className="h-3.5 w-3.5 text-muted-foreground" /> PAAs & Subsequents ({subsequents.length})
                 </p>
                 <div className="space-y-2">
                   {subsequents.map((sub) => (
