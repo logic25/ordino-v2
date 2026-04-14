@@ -97,6 +97,8 @@ serve(async (req) => {
 
     const systemPrompt = `You are a professional business development assistant for ${companyName}, a consulting/expediting firm. Generate a follow-up email for a proposal that was sent to a client. The email should be professional, warm, and action-oriented. Keep it concise (3-5 short paragraphs max). Do NOT use markdown formatting. Write plain text that reads naturally as an email.
 
+${proposalLink ? `IMPORTANT: Include a call-to-action directing the client to view and sign the proposal using this link: ${proposalLink}. Phrase it naturally, e.g. "You can view and sign the proposal here: [link]" or similar.` : ""}
+
 Return your response as a JSON object with two fields:
 - "subject": the email subject line
 - "body": the email body text (plain text, use \\n for line breaks)`;
