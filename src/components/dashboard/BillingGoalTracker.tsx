@@ -42,7 +42,7 @@ function usePMBillingGoals() {
       const { data: projects } = await supabase
         .from("projects")
         .select("id, assigned_pm_id, status")
-        .eq("status", "open");
+        .in("status", ["open", "on_hold"]);
 
       // Get project services
       const { data: projectServices } = await supabase
