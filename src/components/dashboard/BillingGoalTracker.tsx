@@ -54,10 +54,20 @@ function usePMBillingGoals() {
         .from("project_checklist_items" as any)
         .select("id, project_id, status");
 
-      // Get invoices this month
+      // Get billing requests + invoices this month
       const now = new Date();
       const monthStart = format(startOfMonth(now), "yyyy-MM-dd");
       const monthEnd = format(endOfMonth(now), "yyyy-MM-dd'T'23:59:59");
+
+      // Billing requests capture what PMs actually billed
+      const { data: billingRequests } = await supabase
+        .from("billing_requests")
+        .select("id, project_id, total_amount, created_at, status")
+        .gte("created_at", monthStart)
+        .lte("created_at", monthEnd)
+        .in("status", ["pending", "approved", "invoiced"]);
+
+      // Also get invoices for fallback
       const { data: invoices } = await supabase
         .from("invoices")
         .select("id, project_id, total_due, created_at")
