@@ -590,7 +590,7 @@ export default function PropertyDetail() {
           </Card>
           <Card>
             <CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">DOB Applications</div>
+              <div className="text-xs text-muted-foreground">DOB Filings</div>
               <div className="text-2xl font-bold mt-1">{coImported ? coApps.length : applications.length}</div>
             </CardContent>
           </Card>

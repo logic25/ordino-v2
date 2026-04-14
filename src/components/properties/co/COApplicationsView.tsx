@@ -249,7 +249,7 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
             {subsequents && subsequents.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm font-medium flex items-center gap-1.5">
-                  <FileText className="h-3.5 w-3.5 text-muted-foreground" /> Related Filings ({subsequents.length})
+                  <FileText className="h-3.5 w-3.5 text-muted-foreground" /> PAAs & Subsequents ({subsequents.length})
                 </p>
                 <div className="space-y-2">
                   {subsequents.map((sub) => (
@@ -333,7 +333,9 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
           <select className="text-xs border rounded-md px-2 py-1.5 bg-background" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}>
             {STATUS_FILTERS.map((f) => <option key={f}>{f}</option>)}
           </select>
-          <span className="text-xs text-muted-foreground self-center ml-auto">{filtered.length} of {applications.length} applications</span>
+          <span className="text-xs text-muted-foreground self-center ml-auto">
+            {groupedApps.length} jobs ({filtered.length} filings incl. PAAs) of {applications.length} total
+          </span>
         </div>
       </div>
 
@@ -405,9 +407,9 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
                     <TableCell className="font-mono text-sm font-medium">
                       {app.jobNum}
                       {app.docNum && <span className="text-muted-foreground ml-1 text-xs">Doc #{app.docNum}</span>}
-                      {!isExpanded && (
-                        <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">+{entry.subsequents.length}</Badge>
-                      )}
+                      <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0 bg-purple-500/10 text-purple-700 border-purple-500/20">
+                        +{entry.subsequents.length} PAA{entry.subsequents.length !== 1 ? "s" : ""}
+                      </Badge>
                     </TableCell>
                     <TableCell><Badge variant="outline">{app.jobType || "—"}</Badge></TableCell>
                     <TableCell><Badge className="bg-orange-500/10 text-orange-700 border-orange-500/20" variant="outline">DOB</Badge></TableCell>
