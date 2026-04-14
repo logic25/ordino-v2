@@ -18,7 +18,7 @@ import {
 import {
   Building2, Users, Star, FileText, DollarSign, Award, GitBranch, Eye,
   Loader2, Sparkles, Mail, Download, ChevronLeft, ChevronRight, Send, Check,
-  Pencil, ExternalLink, ChevronDown,
+  Pencil, ExternalLink, ChevronDown, Paperclip,
 } from "lucide-react";
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
@@ -56,6 +56,7 @@ const SECTION_DEFS = [
   { id: "narratives", label: "Narratives & Approach", icon: FileText, libraryTab: "narratives" },
   { id: "pricing", label: "Pricing / Rate Schedule", icon: DollarSign, libraryTab: "pricing" },
   { id: "certifications", label: "Certifications & Licenses", icon: Award, libraryTab: "certs" },
+  { id: "attachments", label: "Attachments", icon: Paperclip, libraryTab: "attachments" },
 ] as const;
 
 const STEPS = [
