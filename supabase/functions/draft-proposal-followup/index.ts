@@ -205,10 +205,14 @@ Return your response as a JSON object with two fields:
       });
     }
 
-    // Convert plain text body to simple HTML
-    const htmlBody = body.split("\n").map((line: string) =>
-      line.trim() ? `<p>${line}</p>` : "<br>"
-    ).join("");
+    // Convert plain text body to simple HTML, making URLs clickable
+    const urlRegex = /(https?:\/\/[^\s<]+)/g;
+    const htmlBody = body.split("\n").map((line: string) => {
+      if (!line.trim()) return "<br>";
+      const escaped = line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const linked = escaped.replace(urlRegex, '<a href="$1" style="color:#2563eb;text-decoration:underline;">$1</a>');
+      return `<p>${linked}</p>`;
+    }).join("");
 
     // Log AI usage
     await supabase.from("ai_usage_logs").insert({
