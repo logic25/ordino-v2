@@ -1,11 +1,12 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Users, Star, FileText, DollarSign, Award } from "lucide-react";
+import { Building2, Users, Star, FileText, DollarSign, Award, Paperclip } from "lucide-react";
 import { CompanyInfoTab } from "./tabs/CompanyInfoTab";
 import { StaffBiosTab } from "./tabs/StaffBiosTab";
 import { NotableProjectsTab } from "./tabs/NotableProjectsTab";
 import { NarrativesTab } from "./tabs/NarrativesTab";
 import { PricingTab } from "./tabs/PricingTab";
 import { CertificationsTab } from "./tabs/CertificationsTab";
+import { AttachmentsTab } from "./tabs/AttachmentsTab";
 import { useSearchParams } from "react-router-dom";
 
 const TABS = [
@@ -15,6 +16,7 @@ const TABS = [
   { value: "narratives", label: "Narratives", icon: FileText, color: "text-success", aliases: ["narratives"] },
   { value: "pricing", label: "Pricing", icon: DollarSign, color: "text-accent", aliases: ["pricing"] },
   { value: "certifications", label: "Certs", icon: Award, color: "text-info", aliases: ["certs"] },
+  { value: "attachments", label: "Files", icon: Paperclip, color: "text-muted-foreground", aliases: ["attachments", "files"] },
 ] as const;
 
 function resolveTab(param: string | null): string {
@@ -53,6 +55,7 @@ export function ContentLibraryTabs() {
       <TabsContent value="narratives"><NarrativesTab /></TabsContent>
       <TabsContent value="pricing"><PricingTab /></TabsContent>
       <TabsContent value="certifications"><CertificationsTab /></TabsContent>
+      <TabsContent value="attachments"><AttachmentsTab /></TabsContent>
     </Tabs>
   );
 }
