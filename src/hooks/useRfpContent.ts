@@ -6,7 +6,7 @@ export type RfpContent = Tables<"rfp_content">;
 export type RfpContentInsert = TablesInsert<"rfp_content">;
 export type RfpContentUpdate = TablesUpdate<"rfp_content">;
 
-export type ContentType = "company_info" | "staff_bio" | "pricing" | "narrative_template" | "certification" | "firm_history";
+export type ContentType = "company_info" | "staff_bio" | "pricing" | "narrative_template" | "certification" | "firm_history" | "attachment";
 
 export function useRfpContent(contentType?: ContentType) {
   return useQuery({
