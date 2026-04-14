@@ -82,6 +82,11 @@ serve(async (req) => {
       : "the team";
     const propertyAddress = proposal.properties?.address || "";
 
+    // Build public proposal link
+    const publicToken = proposal.public_token;
+    const appUrl = Deno.env.get("SITE_URL") || "https://ordinov3.lovable.app";
+    const proposalLink = publicToken ? `${appUrl}/proposal/${publicToken}` : null;
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       return new Response(JSON.stringify({ error: "AI not configured" }), {
