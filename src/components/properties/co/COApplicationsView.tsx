@@ -407,9 +407,9 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
                     <TableCell className="font-mono text-sm font-medium">
                       {app.jobNum}
                       {app.docNum && <span className="text-muted-foreground ml-1 text-xs">Doc #{app.docNum}</span>}
-                      {!isExpanded && (
-                        <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">+{entry.subsequents.length}</Badge>
-                      )}
+                      <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0 bg-purple-500/10 text-purple-700 border-purple-500/20">
+                        +{entry.subsequents.length} PAA{entry.subsequents.length !== 1 ? "s" : ""}
+                      </Badge>
                     </TableCell>
                     <TableCell><Badge variant="outline">{app.jobType || "—"}</Badge></TableCell>
                     <TableCell><Badge className="bg-orange-500/10 text-orange-700 border-orange-500/20" variant="outline">DOB</Badge></TableCell>
