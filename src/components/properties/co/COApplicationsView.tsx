@@ -333,7 +333,9 @@ export function COApplicationsView({ applications, onUpdateApp, initialWorkTypeF
           <select className="text-xs border rounded-md px-2 py-1.5 bg-background" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}>
             {STATUS_FILTERS.map((f) => <option key={f}>{f}</option>)}
           </select>
-          <span className="text-xs text-muted-foreground self-center ml-auto">{filtered.length} of {applications.length} applications</span>
+          <span className="text-xs text-muted-foreground self-center ml-auto">
+            {groupedApps.length} jobs ({filtered.length} filings incl. PAAs) of {applications.length} total
+          </span>
         </div>
       </div>
 
