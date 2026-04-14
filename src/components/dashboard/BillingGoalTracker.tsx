@@ -42,7 +42,7 @@ function usePMBillingGoals() {
       const { data: projects } = await supabase
         .from("projects")
         .select("id, assigned_pm_id, status")
-        .eq("status", "open");
+        .in("status", ["open", "on_hold"]);
 
       // Get project services
       const { data: projectServices } = await supabase
@@ -54,10 +54,20 @@ function usePMBillingGoals() {
         .from("project_checklist_items" as any)
         .select("id, project_id, status");
 
-      // Get invoices this month
+      // Get billing requests + invoices this month
       const now = new Date();
       const monthStart = format(startOfMonth(now), "yyyy-MM-dd");
       const monthEnd = format(endOfMonth(now), "yyyy-MM-dd'T'23:59:59");
+
+      // Billing requests capture what PMs actually billed
+      const { data: billingRequests } = await supabase
+        .from("billing_requests")
+        .select("id, project_id, total_amount, created_at, status")
+        .gte("created_at", monthStart)
+        .lte("created_at", monthEnd)
+        .in("status", ["pending", "approved", "invoiced"]);
+
+      // Also get invoices for fallback
       const { data: invoices } = await supabase
         .from("invoices")
         .select("id, project_id, total_due, created_at")
@@ -103,9 +113,15 @@ function usePMBillingGoals() {
         const completedItems = pmChecklist.filter((c: any) => c.status === "done").length;
         const readiness = totalItems > 0 ? completedItems / totalItems : 0;
 
-        // Billed this month
+        // Billed this month — prefer billing_requests (what PMs actually submit)
+        const pmBillingReqs = (billingRequests || []).filter((br: any) => pmProjectIds.has(br.project_id));
+        const billedFromRequests = pmBillingReqs.reduce((s: number, br: any) => s + Number(br.total_amount || 0), 0);
+
+        // Fallback: if no billing requests, use invoices
         const pmInvoices = (invoices || []).filter((inv: any) => pmProjectIds.has(inv.project_id));
-        const billedThisMonth = pmInvoices.reduce((s: number, inv: any) => s + (inv.total_due || 0), 0);
+        const billedFromInvoices = pmInvoices.reduce((s: number, inv: any) => s + Number(inv.total_due || 0), 0);
+
+        const billedThisMonth = billedFromRequests > 0 ? billedFromRequests : billedFromInvoices;
 
         // Smart target = total service value * readiness
         const smartTarget = Math.round(totalServiceValue * readiness);
