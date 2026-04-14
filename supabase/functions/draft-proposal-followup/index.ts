@@ -82,6 +82,11 @@ serve(async (req) => {
       : "the team";
     const propertyAddress = proposal.properties?.address || "";
 
+    // Build public proposal link
+    const publicToken = proposal.public_token;
+    const appUrl = Deno.env.get("SITE_URL") || "https://ordinov3.lovable.app";
+    const proposalLink = publicToken ? `${appUrl}/proposal/${publicToken}` : null;
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       return new Response(JSON.stringify({ error: "AI not configured" }), {
@@ -91,6 +96,8 @@ serve(async (req) => {
     }
 
     const systemPrompt = `You are a professional business development assistant for ${companyName}, a consulting/expediting firm. Generate a follow-up email for a proposal that was sent to a client. The email should be professional, warm, and action-oriented. Keep it concise (3-5 short paragraphs max). Do NOT use markdown formatting. Write plain text that reads naturally as an email.
+
+${proposalLink ? `IMPORTANT: Include a call-to-action directing the client to view and sign the proposal using this link: ${proposalLink}. Phrase it naturally, e.g. "You can view and sign the proposal here: [link]" or similar.` : ""}
 
 Return your response as a JSON object with two fields:
 - "subject": the email subject line
@@ -104,6 +111,7 @@ Return your response as a JSON object with two fields:
       `Days since sent: ${daysSinceSent}`,
       daysSinceViewed !== null ? `Client viewed it ${daysSinceViewed} day(s) ago` : "Client has NOT opened the proposal yet",
       `Previous follow-ups: ${followUpCount}`,
+      proposalLink ? `Proposal link (for client to view & sign): ${proposalLink}` : null,
       `Sender name: ${pmName}`,
       `Company: ${companyName}`,
       companyPhone ? `Company phone: ${companyPhone}` : null,
@@ -197,10 +205,14 @@ Return your response as a JSON object with two fields:
       });
     }
 
-    // Convert plain text body to simple HTML
-    const htmlBody = body.split("\n").map((line: string) =>
-      line.trim() ? `<p>${line}</p>` : "<br>"
-    ).join("");
+    // Convert plain text body to simple HTML, making URLs clickable
+    const urlRegex = /(https?:\/\/[^\s<]+)/g;
+    const htmlBody = body.split("\n").map((line: string) => {
+      if (!line.trim()) return "<br>";
+      const escaped = line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const linked = escaped.replace(urlRegex, '<a href="$1" style="color:#2563eb;text-decoration:underline;">$1</a>');
+      return `<p>${linked}</p>`;
+    }).join("");
 
     // Log AI usage
     await supabase.from("ai_usage_logs").insert({
