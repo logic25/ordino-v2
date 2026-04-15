@@ -185,6 +185,8 @@ export function useCreateBillingRequest() {
       queryClient.invalidateQueries({ queryKey: ["billing-pending-count"] });
       queryClient.invalidateQueries({ queryKey: ["pm-billing-goals"] });
       queryClient.invalidateQueries({ queryKey: ["project-services-full"] });
+      queryClient.invalidateQueries({ queryKey: ["previously-billed"] });
+      queryClient.invalidateQueries({ queryKey: ["project-services"] });
 
       if (result?.billingRequest) {
         triggerBillingNotifications(result.billingRequest as any).catch(console.error);
@@ -307,6 +309,8 @@ export function useRejectBillingRequest() {
       queryClient.invalidateQueries({ queryKey: ["billing-requests"] });
       queryClient.invalidateQueries({ queryKey: ["billing-pending-count"] });
       queryClient.invalidateQueries({ queryKey: ["pm-billing-goals"] });
+      queryClient.invalidateQueries({ queryKey: ["previously-billed"] });
+      queryClient.invalidateQueries({ queryKey: ["project-services"] });
     },
   });
 }
