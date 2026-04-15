@@ -143,7 +143,7 @@ export function useSendToBilling({ open, preselectedProjectId, preselectedServic
         const updated = { ...s, [field]: value };
         if (updated.billingMode === "percent") {
           const pct = Math.min(100, Math.max(0, Number(updated.inputValue) || 0));
-          updated.billedAmount = +(s.contractAmount * (pct / 100)).toFixed(2);
+          updated.billedAmount = Math.min(s.remaining, +(s.contractAmount * (pct / 100)).toFixed(2));
         } else {
           updated.billedAmount = Math.min(s.remaining, Math.max(0, Number(updated.inputValue) || 0));
         }
@@ -180,7 +180,7 @@ export function useSendToBilling({ open, preselectedProjectId, preselectedServic
     const prevBilled = previouslyBilled[svc.name] || 0;
     const remaining = Math.max(0, contractAmount - prevBilled);
     const mode = entry.billingMethod === "percentage" ? "percent" : "amount";
-    const billedAmt = mode === "percent" ? +(contractAmount * ((entry.billingValue || 100) / 100)).toFixed(2) : Math.min(remaining, entry.amount);
+    const billedAmt = mode === "percent" ? Math.min(remaining, +(contractAmount * ((entry.billingValue || 100) / 100)).toFixed(2)) : Math.min(remaining, entry.amount);
     setSelectedServices((prev) => [
       ...prev.filter((s) => s.serviceId !== svc.id),
       { serviceId: svc.id, name: svc.name, contractAmount, previouslyBilled: prevBilled, remaining, billingMode: mode as "amount" | "percent", inputValue: mode === "percent" ? (entry.billingValue || 100) : Math.min(remaining, entry.amount), billedAmount: Math.min(remaining, billedAmt) },
