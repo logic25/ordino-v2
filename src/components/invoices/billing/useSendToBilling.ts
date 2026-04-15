@@ -143,7 +143,7 @@ export function useSendToBilling({ open, preselectedProjectId, preselectedServic
         const updated = { ...s, [field]: value };
         if (updated.billingMode === "percent") {
           const pct = Math.min(100, Math.max(0, Number(updated.inputValue) || 0));
-          updated.billedAmount = +(s.contractAmount * (pct / 100)).toFixed(2);
+          updated.billedAmount = Math.min(s.remaining, +(s.contractAmount * (pct / 100)).toFixed(2));
         } else {
           updated.billedAmount = Math.min(s.remaining, Math.max(0, Number(updated.inputValue) || 0));
         }
