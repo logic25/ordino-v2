@@ -7,6 +7,7 @@ import { useCreateBillingRequest, type BillingRequestService } from "@/hooks/use
 import { useClientBillingRulesByClient } from "@/hooks/useClientBillingRules";
 import { toast } from "@/hooks/use-toast";
 import type { SelectedService, BillingHistoryEntry } from "./ServiceSelectionList";
+import { calculateBilledAmount, formatRemainingBalanceDescription } from "./billingCalculations";
 
 interface ProjectService {
   id: string;
@@ -141,12 +142,11 @@ export function useSendToBilling({ open, preselectedProjectId, preselectedServic
       prev.map((s) => {
         if (s.serviceId !== serviceId) return s;
         const updated = { ...s, [field]: value };
-        if (updated.billingMode === "percent") {
-          const pct = Math.min(100, Math.max(0, Number(updated.inputValue) || 0));
-          updated.billedAmount = Math.min(s.remaining, +(s.contractAmount * (pct / 100)).toFixed(2));
-        } else {
-          updated.billedAmount = Math.min(s.remaining, Math.max(0, Number(updated.inputValue) || 0));
-        }
+        updated.billedAmount = calculateBilledAmount({
+          billingMode: updated.billingMode,
+          inputValue: Number(updated.inputValue),
+          remaining: s.remaining,
+        });
         return updated;
       })
     );
@@ -180,10 +180,11 @@ export function useSendToBilling({ open, preselectedProjectId, preselectedServic
     const prevBilled = previouslyBilled[svc.name] || 0;
     const remaining = Math.max(0, contractAmount - prevBilled);
     const mode = entry.billingMethod === "percentage" ? "percent" : "amount";
-    const billedAmt = mode === "percent" ? Math.min(remaining, +(contractAmount * ((entry.billingValue || 100) / 100)).toFixed(2)) : Math.min(remaining, entry.amount);
+    const inputValue = mode === "percent" ? (entry.billingValue || 100) : Math.min(remaining, entry.amount);
+    const billedAmt = calculateBilledAmount({ billingMode: mode as "amount" | "percent", inputValue, remaining });
     setSelectedServices((prev) => [
       ...prev.filter((s) => s.serviceId !== svc.id),
-      { serviceId: svc.id, name: svc.name, contractAmount, previouslyBilled: prevBilled, remaining, billingMode: mode as "amount" | "percent", inputValue: mode === "percent" ? (entry.billingValue || 100) : Math.min(remaining, entry.amount), billedAmount: Math.min(remaining, billedAmt) },
+      { serviceId: svc.id, name: svc.name, contractAmount, previouslyBilled: prevBilled, remaining, billingMode: mode as "amount" | "percent", inputValue, billedAmount: billedAmt },
     ]);
     if (entry.billedToContactId) setBilledToContactId(entry.billedToContactId);
   };
@@ -199,7 +200,7 @@ export function useSendToBilling({ open, preselectedProjectId, preselectedServic
     const serviceLines: BillingRequestService[] = hasProjectServices
       ? selectedServices.map((s) => ({
           name: s.name,
-          description: s.billingMode === "percent" ? `${s.inputValue}% of $${s.contractAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "",
+          description: s.billingMode === "percent" ? formatRemainingBalanceDescription(s.inputValue, s.remaining) : "",
           quantity: 1, rate: s.billedAmount, amount: s.billedAmount,
           billing_method: s.billingMode === "percent" ? "percentage" : "amount",
           billing_value: s.inputValue, billed_amount: s.billedAmount,
