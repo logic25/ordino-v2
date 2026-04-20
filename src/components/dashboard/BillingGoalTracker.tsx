@@ -7,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanySettings, type ServiceCatalogItem } from "@/hooks/useCompanySettings";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { startOfMonth, endOfMonth } from "date-fns";
 
 interface PMGoalData {
   id: string;
@@ -54,10 +54,14 @@ function usePMBillingGoals() {
         .from("project_checklist_items" as any)
         .select("id, project_id, status");
 
-      // Get billing requests + invoices this month
+      // Get billing requests + invoices this month.
+      // Use ISO strings so PostgREST casts to TIMESTAMPTZ with an explicit UTC
+      // offset — bare date strings are cast as UTC midnight which silently
+      // drops invoices created in the first few local hours of the month for
+      // US-timezone users.
       const now = new Date();
-      const monthStart = format(startOfMonth(now), "yyyy-MM-dd");
-      const monthEnd = format(endOfMonth(now), "yyyy-MM-dd'T'23:59:59");
+      const monthStart = startOfMonth(now).toISOString();
+      const monthEnd = endOfMonth(now).toISOString();
 
       // Billing requests capture what PMs actually billed
       const { data: billingRequests } = await supabase
