@@ -7,7 +7,7 @@ import { useCreateBillingRequest, type BillingRequestService } from "@/hooks/use
 import { useClientBillingRulesByClient } from "@/hooks/useClientBillingRules";
 import { toast } from "@/hooks/use-toast";
 import type { SelectedService, BillingHistoryEntry } from "./ServiceSelectionList";
-import { calculateBilledAmount, formatRemainingBalanceDescription } from "./billingCalculations";
+import { calculateBilledAmount, formatRemainingBalanceDescription, resolvePreviouslyBilledAmount } from "./billingCalculations";
 
 interface ProjectService {
   id: string;
@@ -15,6 +15,7 @@ interface ProjectService {
   description: string | null;
   total_amount: number | null;
   fixed_price: number | null;
+  billed_amount: number | null;
   billing_type: string | null;
   status: string | null;
 }
@@ -26,7 +27,7 @@ function useProjectServices(projectId: string | null) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("services")
-        .select("id, name, description, total_amount, fixed_price, billing_type, status")
+        .select("id, name, description, total_amount, fixed_price, billed_amount, billing_type, status")
         .eq("project_id", projectId!);
       if (error) throw error;
       return (data || []) as ProjectService[];
@@ -46,17 +47,25 @@ function usePreviouslyBilled(projectId: string | null) {
         .neq("status", "cancelled");
       if (error) throw error;
 
-      const billedMap: Record<string, number> = {};
+      const billedMapById: Record<string, number> = {};
+      const billedMapByName: Record<string, number> = {};
       const historyMap: Record<string, BillingHistoryEntry[]> = {};
 
       for (const req of data || []) {
         const items = (req.services as any[]) || [];
         for (const item of items) {
           const key = item.name || "";
-          billedMap[key] = (billedMap[key] || 0) + (item.amount || item.billed_amount || 0);
+          const amount = Number(item.amount) || Number(item.billed_amount) || 0;
+          const serviceId = item.service_id || item.serviceId || null;
+
+          billedMapByName[key] = (billedMapByName[key] || 0) + amount;
+          if (serviceId) {
+            billedMapById[serviceId] = (billedMapById[serviceId] || 0) + amount;
+          }
+
           if (!historyMap[key]) historyMap[key] = [];
           historyMap[key].push({
-            amount: item.amount || item.billed_amount || 0,
+            amount,
             billingMethod: item.billing_method || "full",
             billingValue: item.billing_value,
             date: req.created_at,
@@ -65,7 +74,7 @@ function usePreviouslyBilled(projectId: string | null) {
           });
         }
       }
-      return { billedMap, historyMap };
+      return { billedMapById, billedMapByName, historyMap };
     },
   });
 }
@@ -90,7 +99,8 @@ export function useSendToBilling({ open, preselectedProjectId, preselectedServic
   const createBillingRequest = useCreateBillingRequest();
   const { data: projectServices = [] } = useProjectServices(projectId || null);
   const { data: prevBilledData } = usePreviouslyBilled(projectId || null);
-  const previouslyBilled = prevBilledData?.billedMap || {};
+  const previouslyBilledById = prevBilledData?.billedMapById || {};
+  const previouslyBilledByName = prevBilledData?.billedMapByName || {};
   const billingHistory = prevBilledData?.historyMap || {};
 
   const selectedProject = projects?.find((p) => p.id === projectId);
@@ -117,12 +127,18 @@ export function useSendToBilling({ open, preselectedProjectId, preselectedServic
     if (toAutoSelect.length > 0) {
       setSelectedServices(toAutoSelect.map(svc => {
         const contractAmount = svc.total_amount || svc.fixed_price || 0;
-        const prevBilled = previouslyBilled[svc.name] || 0;
+        const prevBilled = resolvePreviouslyBilledAmount({
+          serviceId: svc.id,
+          serviceName: svc.name,
+          serviceBilledAmount: svc.billed_amount,
+          billedById: previouslyBilledById,
+          billedByName: previouslyBilledByName,
+        });
         const remaining = Math.max(0, contractAmount - prevBilled);
         return { serviceId: svc.id, name: svc.name, contractAmount, previouslyBilled: prevBilled, remaining, billingMode: "amount" as const, inputValue: remaining, billedAmount: remaining };
       }));
     }
-  }, [open, projectServices, preselectedServiceIds, previouslyBilled]);
+  }, [open, projectServices, preselectedServiceIds, previouslyBilledById, previouslyBilledByName]);
 
   const selectedContact = contacts?.find((c) => c.id === billedToContactId);
 
@@ -131,7 +147,13 @@ export function useSendToBilling({ open, preselectedProjectId, preselectedServic
       const exists = prev.find((s) => s.serviceId === svc.id);
       if (exists) return prev.filter((s) => s.serviceId !== svc.id);
       const contractAmount = svc.total_amount || svc.fixed_price || 0;
-      const prevBilled = previouslyBilled[svc.name] || 0;
+      const prevBilled = resolvePreviouslyBilledAmount({
+        serviceId: svc.id,
+        serviceName: svc.name,
+        serviceBilledAmount: svc.billed_amount,
+        billedById: previouslyBilledById,
+        billedByName: previouslyBilledByName,
+      });
       const remaining = Math.max(0, contractAmount - prevBilled);
       return [...prev, { serviceId: svc.id, name: svc.name, contractAmount, previouslyBilled: prevBilled, remaining, billingMode: "amount", inputValue: remaining, billedAmount: remaining }];
     });
@@ -177,7 +199,13 @@ export function useSendToBilling({ open, preselectedProjectId, preselectedServic
 
   const handleBillAgain = (svc: ProjectService, entry: BillingHistoryEntry) => {
     const contractAmount = svc.total_amount || svc.fixed_price || 0;
-    const prevBilled = previouslyBilled[svc.name] || 0;
+    const prevBilled = resolvePreviouslyBilledAmount({
+      serviceId: svc.id,
+      serviceName: svc.name,
+      serviceBilledAmount: svc.billed_amount,
+      billedById: previouslyBilledById,
+      billedByName: previouslyBilledByName,
+    });
     const remaining = Math.max(0, contractAmount - prevBilled);
     const mode = entry.billingMethod === "percentage" ? "percent" : "amount";
     const inputValue = mode === "percent" ? (entry.billingValue || 100) : Math.min(remaining, entry.amount);
@@ -199,6 +227,7 @@ export function useSendToBilling({ open, preselectedProjectId, preselectedServic
     if (!projectId) { toast({ title: "Select a project", variant: "destructive" }); return; }
     const serviceLines: BillingRequestService[] = hasProjectServices
       ? selectedServices.map((s) => ({
+          service_id: s.serviceId,
           name: s.name,
           description: s.billingMode === "percent" ? formatRemainingBalanceDescription(s.inputValue, s.remaining) : "",
           quantity: 1, rate: s.billedAmount, amount: s.billedAmount,
@@ -237,7 +266,7 @@ export function useSendToBilling({ open, preselectedProjectId, preselectedServic
     selectedServices, manualServices,
     projects, selectedProject, selectedClient, selectedContact,
     contacts, activeRule, hasProjectServices, projectServices,
-    previouslyBilled, billingHistory,
+    previouslyBilled: previouslyBilledByName, billingHistory,
     toggleService, updateSelectedService, updateManualService,
     handleBillAgain, handleSubmit,
     subtotal, fees, totalFees, totalAmount,
