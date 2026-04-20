@@ -110,6 +110,15 @@ export function useSendToBilling({ open, preselectedProjectId, preselectedServic
   const activeRule = billingRules?.[0];
   const hasProjectServices = projectServices.length > 0;
 
+  const getPreviouslyBilledForService = (svc: ProjectService) =>
+    resolvePreviouslyBilledAmount({
+      serviceId: svc.id,
+      serviceName: svc.name,
+      serviceBilledAmount: svc.billed_amount,
+      billedById: previouslyBilledById,
+      billedByName: previouslyBilledByName,
+    });
+
   useEffect(() => { if (preselectedProjectId) setProjectId(preselectedProjectId); }, [preselectedProjectId]);
   useEffect(() => { setBilledToContactId(""); setSelectedServices([]); }, [projectId]);
   useEffect(() => {
@@ -127,18 +136,44 @@ export function useSendToBilling({ open, preselectedProjectId, preselectedServic
     if (toAutoSelect.length > 0) {
       setSelectedServices(toAutoSelect.map(svc => {
         const contractAmount = svc.total_amount || svc.fixed_price || 0;
-        const prevBilled = resolvePreviouslyBilledAmount({
-          serviceId: svc.id,
-          serviceName: svc.name,
-          serviceBilledAmount: svc.billed_amount,
-          billedById: previouslyBilledById,
-          billedByName: previouslyBilledByName,
-        });
+        const prevBilled = getPreviouslyBilledForService(svc);
         const remaining = Math.max(0, contractAmount - prevBilled);
         return { serviceId: svc.id, name: svc.name, contractAmount, previouslyBilled: prevBilled, remaining, billingMode: "amount" as const, inputValue: remaining, billedAmount: remaining };
       }));
     }
   }, [open, projectServices, preselectedServiceIds, previouslyBilledById, previouslyBilledByName]);
+
+  useEffect(() => {
+    if (!open || !hasProjectServices || selectedServices.length === 0) return;
+
+    setSelectedServices((prev) =>
+      prev.map((selected) => {
+        const svc = projectServices.find((service) => service.id === selected.serviceId);
+        if (!svc) return selected;
+
+        const contractAmount = svc.total_amount || svc.fixed_price || 0;
+        const previouslyBilled = getPreviouslyBilledForService(svc);
+        const remaining = Math.max(0, contractAmount - previouslyBilled);
+        const nextInputValue = selected.billingMode === "amount"
+          ? Math.min(Number(selected.inputValue) || 0, remaining)
+          : Math.min(100, Math.max(0, Number(selected.inputValue) || 0));
+
+        return {
+          ...selected,
+          name: svc.name,
+          contractAmount,
+          previouslyBilled,
+          remaining,
+          inputValue: nextInputValue,
+          billedAmount: calculateBilledAmount({
+            billingMode: selected.billingMode,
+            inputValue: nextInputValue,
+            remaining,
+          }),
+        };
+      })
+    );
+  }, [open, hasProjectServices, projectServices, previouslyBilledById, previouslyBilledByName]);
 
   const selectedContact = contacts?.find((c) => c.id === billedToContactId);
 
@@ -147,13 +182,7 @@ export function useSendToBilling({ open, preselectedProjectId, preselectedServic
       const exists = prev.find((s) => s.serviceId === svc.id);
       if (exists) return prev.filter((s) => s.serviceId !== svc.id);
       const contractAmount = svc.total_amount || svc.fixed_price || 0;
-      const prevBilled = resolvePreviouslyBilledAmount({
-        serviceId: svc.id,
-        serviceName: svc.name,
-        serviceBilledAmount: svc.billed_amount,
-        billedById: previouslyBilledById,
-        billedByName: previouslyBilledByName,
-      });
+      const prevBilled = getPreviouslyBilledForService(svc);
       const remaining = Math.max(0, contractAmount - prevBilled);
       return [...prev, { serviceId: svc.id, name: svc.name, contractAmount, previouslyBilled: prevBilled, remaining, billingMode: "amount", inputValue: remaining, billedAmount: remaining }];
     });
@@ -199,13 +228,7 @@ export function useSendToBilling({ open, preselectedProjectId, preselectedServic
 
   const handleBillAgain = (svc: ProjectService, entry: BillingHistoryEntry) => {
     const contractAmount = svc.total_amount || svc.fixed_price || 0;
-    const prevBilled = resolvePreviouslyBilledAmount({
-      serviceId: svc.id,
-      serviceName: svc.name,
-      serviceBilledAmount: svc.billed_amount,
-      billedById: previouslyBilledById,
-      billedByName: previouslyBilledByName,
-    });
+    const prevBilled = getPreviouslyBilledForService(svc);
     const remaining = Math.max(0, contractAmount - prevBilled);
     const mode = entry.billingMethod === "percentage" ? "percent" : "amount";
     const inputValue = mode === "percent" ? (entry.billingValue || 100) : Math.min(remaining, entry.amount);
