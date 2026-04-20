@@ -163,7 +163,7 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId }
         if (field === "billingMode" || field === "inputValue") {
           if (updated.billingMode === "percent") {
             const pct = Math.min(100, Math.max(0, Number(updated.inputValue) || 0));
-            updated.billedAmount = +(s.contractAmount * (pct / 100)).toFixed(2);
+            updated.billedAmount = +Math.min(s.remaining, +(s.remaining * (pct / 100)).toFixed(2)).toFixed(2);
           } else {
             updated.billedAmount = Math.min(s.remaining, Math.max(0, Number(updated.inputValue) || 0));
           }
@@ -222,7 +222,7 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId }
       ? selectedServices.map((s) => ({
           name: s.name,
           description: s.billingMode === "percent"
-            ? `${s.inputValue}% of $${s.contractAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}`
+            ? `${s.inputValue}% of remaining balance ($${s.remaining.toLocaleString("en-US", { minimumFractionDigits: 2 })})`
             : "",
           quantity: 1,
           rate: s.billedAmount,
