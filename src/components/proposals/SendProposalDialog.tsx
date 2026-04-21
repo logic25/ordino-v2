@@ -374,6 +374,12 @@ export function SendProposalDialog({ proposal, open, onOpenChange, onConfirmSend
             </p>
           )}
 
+          {!company?.name && !companyNameProp && (
+            <p className="text-xs text-amber-600 font-medium">
+              ⚠ Company name is not set — the email will show "Our Team" as the sender. Go to Settings → Company Profile to add your company name and logo.
+            </p>
+          )}
+
           {sent && (
             <div className="flex items-center gap-2 text-sm text-emerald-600 font-medium">
               <CheckCircle2 className="h-4 w-4" />

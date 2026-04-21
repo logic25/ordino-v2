@@ -224,18 +224,36 @@ function extractFloor(desc: string): string {
 export async function fetchDOBApplications(bin: string): Promise<COApplication[]> {
   const results: COApplication[] = [];
 
-  // Fetch from all three datasets in parallel
-  const [jobFilingsRes, dobNowRes, electricalRes] = await Promise.all([
+  // Fetch from all four datasets in parallel.
+  // DOB NOW Build is queried from BOTH w9ak-ipjd (job application filings) AND rbx6-tga4
+  // (the dataset specified in CLAUDE.md). Results are merged & deduped so we catch LAAs
+  // and approved permits that may exist in one source but not the other.
+  const [jobFilingsRes, dobNowFilingsRes, dobNowPermitsRes, electricalRes] = await Promise.all([
     fetch(`https://data.cityofnewyork.us/resource/ic3t-wcy2.json?bin__=${bin}&$limit=5000&$order=latest_action_date DESC`)
       .then(r => r.ok ? r.json() : [])
       .catch(() => [] as DOBJobFiling[]),
     fetch(`https://data.cityofnewyork.us/resource/w9ak-ipjd.json?bin=${bin}&$limit=5000&$order=filing_date DESC`)
       .then(r => r.ok ? r.json() : [])
       .catch(() => [] as DOBNowBuild[]),
+    fetch(`https://data.cityofnewyork.us/resource/rbx6-tga4.json?bin=${bin}&$limit=5000&$order=filing_date DESC`)
+      .then(r => r.ok ? r.json() : [])
+      .catch(() => [] as DOBNowBuild[]),
     fetch(`https://data.cityofnewyork.us/resource/dm9a-ab7w.json?bin=${bin}&$limit=5000&$order=filing_date DESC`)
       .then(r => r.ok ? r.json() : [])
       .catch(() => [] as DOBNowElectrical[]),
   ]);
+
+  // Merge DOB NOW Build results from both datasets, dedup by job_filing_number.
+  // Prefer the w9ak-ipjd (application filings) record since it has more fields.
+  const dobNowMerged: DOBNowBuild[] = [...(dobNowFilingsRes as DOBNowBuild[])];
+  const seenFilingNumbers = new Set(dobNowMerged.map(r => r.job_filing_number).filter(Boolean));
+  for (const r of dobNowPermitsRes as DOBNowBuild[]) {
+    if (r.job_filing_number && !seenFilingNumbers.has(r.job_filing_number)) {
+      seenFilingNumbers.add(r.job_filing_number);
+      dobNowMerged.push(r);
+    }
+  }
+  const dobNowRes = dobNowMerged;
 
   // Map DOB Job Filings (BIS)
   for (const f of jobFilingsRes as DOBJobFiling[]) {

@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -490,6 +490,25 @@ export default function PropertyDetail() {
 
   const openCoApps = coApps.filter(a => a.status !== "Signed Off").length;
   const activeCoViols = coViolations.filter(v => v.status === "Active" || v.status === "In Resolution").length;
+
+  // Count unique jobs (not raw filings) so the summary card matches the table's visible row count.
+  // COApplicationsView groups BIS + DOB NOW Build filings by base job number; subsequents / PAAs
+  // are nested inside expandable rows and are NOT counted as separate visible rows.
+  const coJobCount = useMemo(() => {
+    const seen = new Set<string>();
+    let count = 0;
+    for (const app of coApps) {
+      // Electrical filings are always standalone rows
+      if (app.source === "DOB_NOW_ELECTRICAL") { count++; continue; }
+      const baseJob = String(app.jobNum || "").trim().split("-")[0].replace(/\D/g, "");
+      if (!baseJob) { count++; continue; }
+      if (!seen.has(baseJob)) {
+        seen.add(baseJob);
+        count++;
+      }
+    }
+    return count;
+  }, [coApps]);
   const activeComplaints = coComplaints.filter(c => c.status.toUpperCase() !== "CLOSE" && c.status.toUpperCase() !== "CLOSED").length;
 
   // CitiSignal enrollment gate component
@@ -591,7 +610,7 @@ export default function PropertyDetail() {
           <Card>
             <CardContent className="p-4">
               <div className="text-xs text-muted-foreground">DOB Filings</div>
-              <div className="text-2xl font-bold mt-1">{coImported ? coApps.length : applications.length}</div>
+              <div className="text-2xl font-bold mt-1">{coImported ? coJobCount : applications.length}</div>
             </CardContent>
           </Card>
           <Card className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => setEnrollOpen(true)}>
