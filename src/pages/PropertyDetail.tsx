@@ -357,17 +357,30 @@ export default function PropertyDetail() {
       if (profile?.company_id && id) {
         try {
           if (apps.length > 0) {
-            const appRows = apps.map((a: any) => ({
-              property_id: id,
-              company_id: profile.company_id,
-              job_number: a.jobNum || a.job_number || "",
-              application_type: a.workType || a.application_type || "Unknown",
-              filing_status: a.status || null,
-              applicant_name: a.applicant || null,
-              filed_date: a.fileDate || a.filedDate || null,
-              description: a.desc || a.description || null,
-              raw_data: a,
-            }));
+            // Include docNum in the key so subsequent docs on the same BIS job
+            // don't collide and cause the entire upsert batch to fail.
+            const appRowsRaw = apps.map((a: any) => {
+              const baseNum = a.jobNum || a.job_number || "";
+              const docRaw = (a.docNum || a.doc_number || "").toString().replace(/^0+/, "");
+              const docSuffix = (docRaw && docRaw !== "1" && !baseNum.endsWith(`-${docRaw}`)) ? `-${docRaw}` : "";
+              return {
+                property_id: id,
+                company_id: profile.company_id,
+                job_number: `${baseNum}${docSuffix}`,
+                application_type: a.workType || a.application_type || "Unknown",
+                filing_status: a.status || null,
+                applicant_name: a.applicant || null,
+                filed_date: a.fileDate || a.filedDate || null,
+                description: a.desc || a.description || null,
+                raw_data: a,
+              };
+            });
+            // Deduplicate within batch to prevent PostgreSQL self-conflict errors
+            const dedupMap = new Map<string, any>();
+            for (const row of appRowsRaw) {
+              if (row.job_number) dedupMap.set(row.job_number, row);
+            }
+            const appRows = Array.from(dedupMap.values());
             await supabase.from("signal_applications").upsert(appRows as any, { onConflict: "property_id,job_number" });
           }
           if (viols.length > 0) {
