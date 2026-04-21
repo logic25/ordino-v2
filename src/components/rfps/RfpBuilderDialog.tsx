@@ -98,6 +98,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   const { data: firmHistory = [] } = useRfpContent("firm_history");
   const { data: pricing = [] } = useRfpContent("pricing");
   const { data: certs = [] } = useRfpContent("certification");
+  const { data: rfpAttachments = [] } = useRfpContent("attachment");
   const { data: notableProjects = [] } = useNotableApplications();
   const { data: projectSheets = [] } = useProjectSheets();
 
@@ -290,6 +291,35 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
         }
       }
 
+      // Collect uploaded attachment files
+      if (selectedSections.includes("attachments")) {
+        for (const att of rfpAttachments) {
+          const c = att.content as Record<string, any> | null;
+          const filePath = c?.file_path as string | undefined;
+          const attFilename = c?.filename as string | undefined;
+          const mimeType = c?.mime_type as string | undefined;
+          if (!filePath) continue;
+          try {
+            const { data, error: dlErr } = await supabase.storage.from("rfp-documents").download(filePath);
+            if (dlErr || !data) { console.warn("Failed to download attachment:", filePath, dlErr); continue; }
+            const arrayBuf = await data.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuf);
+            let binary = "";
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+            const base64 = btoa(binary);
+            const ext = (attFilename || filePath).split(".").pop()?.split("?")[0] || "pdf";
+            const safeName = (attFilename || filePath.split("/").pop() || "attachment").replace(/[^a-zA-Z0-9_\-. ]/g, "");
+            attachments.push({
+              filename: safeName.includes(".") ? safeName : `${safeName}.${ext}`,
+              content: base64,
+              mime_type: mimeType || data.type || "application/octet-stream",
+            });
+          } catch {
+            console.warn("Failed to fetch attachment:", attFilename || filePath);
+          }
+        }
+      }
+
       const { error } = await supabase.functions.invoke("gmail-send", {
         body: {
           to: submitEmail,
@@ -335,6 +365,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     narratives: narratives.length,
     pricing: pricing.length,
     certifications: certs.length,
+    attachments: rfpAttachments.length,
   };
 
   // Content data map for editing
@@ -347,6 +378,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     narratives: { items: [...narratives], type: "narrative" },
     pricing: { items: pricing, type: "pricing" },
     certifications: { items: certs, type: "certification" },
+    attachments: { items: rfpAttachments, type: "attachments" },
   };
 
   const { data: companyData } = useCompanySettings();
@@ -368,6 +400,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     companyPhone: companyData?.phone || companyData?.settings?.company_phone || undefined,
     companyEmail: companyData?.email || companyData?.settings?.company_email || undefined,
     companyWebsite: companyData?.website || companyData?.settings?.company_website || undefined,
+    attachments: rfpAttachments,
   };
 
   const draggableSections = sectionOrder.filter((s) => s !== "cover_letter");
@@ -790,6 +823,20 @@ function SectionContentPreview({ item, type }: { item: any; type: string }) {
           <p className="text-muted-foreground truncate">
             {content?.cert_type} #{content?.cert_number}
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (type === "attachments") {
+    return (
+      <div className="text-xs bg-card rounded-lg p-2.5 border flex items-center gap-2">
+        <Paperclip className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+        <div className="min-w-0 flex-1">
+          <p className="font-medium truncate">{content?.filename || item.title}</p>
+          {content?.tag && content.tag !== "other" && (
+            <p className="text-muted-foreground truncate capitalize">{content.tag.replace(/_/g, " ")}</p>
+          )}
         </div>
       </div>
     );
