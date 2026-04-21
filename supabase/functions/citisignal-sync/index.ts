@@ -162,19 +162,40 @@ Deno.serve(async (req) => {
     // ── Upsert applications ──
     const applications = fullSyncData?.applications || [];
     if (applications.length > 0) {
-      const appRows = applications
-        .filter((a: any) => a?.application_number || a?.job_number)
-        .map((a: any) => ({
+      // Build a unique filing key that survives multiple DOC numbers on the same BIS job.
+      // CitiSignal may return job 320926726 with doc 01, doc 02, doc 03 — all with the same
+      // job_number. Without a composite key the PostgreSQL upsert batch fails with
+      // "ON CONFLICT DO UPDATE command cannot affect row a second time", silently dropping
+      // ALL rows for that property.
+      //
+      // Also accept job_filing_number (DOB NOW Build format) so those records aren't filtered out.
+      const mapToRow = (a: any) => {
+        const baseNum = a.application_number || a.job_number || a.job_filing_number || a.filing_number || "";
+        if (!baseNum) return null;
+        // Append doc_number when present and not already part of the base (e.g. "320926726-02")
+        const docRaw = (a.doc_number || a.document_number || "").toString().replace(/^0+/, "");
+        const docSuffix = (docRaw && docRaw !== "1" && !baseNum.endsWith(`-${docRaw}`)) ? `-${docRaw}` : "";
+        return {
           property_id,
           company_id: profile.company_id,
-          job_number: a.application_number || a.job_number || "",
+          job_number: `${baseNum}${docSuffix}`,
           application_type: a.application_type || a.work_type || a.job_type || "Unknown",
           filing_status: a.status || a.filing_status || null,
           applicant_name: a.applicant_name || a.applicant || null,
           filed_date: a.filing_date || a.filed_date || null,
           description: a.description || null,
           raw_data: { ...a, source: a.source || "citisignal" },
-        }));
+        };
+      };
+
+      const appRowsRaw = applications.map(mapToRow).filter(Boolean) as any[];
+
+      // Deduplicate within the batch — last record wins if keys still collide after doc_number logic
+      const dedupMap = new Map<string, any>();
+      for (const row of appRowsRaw) {
+        dedupMap.set(row.job_number, row);
+      }
+      const appRows = Array.from(dedupMap.values());
 
       const { error: appErr } = await supabase
         .from("signal_applications")
