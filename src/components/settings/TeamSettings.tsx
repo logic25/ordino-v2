@@ -58,6 +58,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { useEmployeeReviews, useCreateEmployeeReview, useUpdateEmployeeReview } from "@/hooks/useEmployeeReviews";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend, Line, ComposedChart, Tooltip as RechartsTooltip } from "recharts";
+import { InviteMemberDialog } from "./InviteMemberDialog";
 
 const ROLE_COLORS: Record<string, string> = {
   admin: "bg-primary/10 text-primary border-primary/30",
@@ -717,6 +718,29 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
         } as any)
         .eq("id", user.id);
       if (error) throw error;
+
+      // Mirror role change into user_roles for app_role checks (admin only)
+      const oldRole = (user.role as string) || "";
+      const newRole = editForm.role;
+      if (oldRole !== newRole && (user as any).user_id && (user as any).company_id) {
+        if (newRole === "admin") {
+          await supabase
+            .from("user_roles")
+            .upsert({
+              user_id: (user as any).user_id,
+              role: "admin",
+              company_id: (user as any).company_id,
+            } as any, { onConflict: "user_id,role,company_id" });
+        } else if (oldRole === "admin") {
+          await supabase
+            .from("user_roles")
+            .delete()
+            .eq("user_id", (user as any).user_id)
+            .eq("role", "admin")
+            .eq("company_id", (user as any).company_id);
+        }
+      }
+
       await queryClient.invalidateQueries({ queryKey: ["user-billing-stats-v2"] });
       toast({ title: "Profile updated" });
       setEditing(false);
@@ -838,6 +862,7 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
                       <SelectItem value="manager">Manager</SelectItem>
                       <SelectItem value="pm">PM</SelectItem>
                       <SelectItem value="accounting">Accounting</SelectItem>
+                      <SelectItem value="production">Production</SelectItem>
                       <SelectItem value="staff">Staff</SelectItem>
                     </SelectContent>
                   </Select>
@@ -1252,11 +1277,25 @@ export function TeamSettings() {
   const { data: profiles = [], isLoading, refetch } = useCompanyProfiles();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
-  const { user } = useAuth();
+  const { user, profile: currentProfile } = useAuth();
   const isAdmin = useIsAdmin();
 
   // Get current user's profile id
   const currentProfileId = profiles.find((p) => p.user_id === user?.id)?.id;
+
+  // Last sign-in lookup (admin-only RPC)
+  const { data: lastSignIns = [] } = useQuery({
+    queryKey: ["team-last-signins", currentProfile?.company_id],
+    enabled: !!currentProfile?.company_id && isAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_team_last_signins" as any, {
+        target_company_id: currentProfile!.company_id,
+      });
+      if (error) throw error;
+      return (data || []) as Array<{ user_id: string; last_sign_in_at: string | null }>;
+    },
+  });
+  const lastSignInMap = new Map(lastSignIns.map((r) => [r.user_id, r.last_sign_in_at]));
 
   const filteredProfiles = profiles.filter((p) => {
     const q = searchQuery.toLowerCase();
@@ -1308,15 +1347,18 @@ export function TeamSettings() {
         </CardContent>
       </Card>
 
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          type="search"
-          placeholder="Search team members..."
-          className="pl-9"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="relative max-w-md flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search team members..."
+            className="pl-9"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        {isAdmin && <InviteMemberDialog />}
       </div>
 
       <Card>
@@ -1342,6 +1384,7 @@ export function TeamSettings() {
                   <TableHead>Role</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Status</TableHead>
+                  {isAdmin && <TableHead>Last sign-in</TableHead>}
                   <TableHead>Joined</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1390,6 +1433,14 @@ export function TeamSettings() {
                           {profile.is_active ? "Active" : "Inactive"}
                         </Badge>
                       </TableCell>
+                      {isAdmin && (
+                        <TableCell className="text-muted-foreground text-sm">
+                          {(() => {
+                            const ts = lastSignInMap.get(profile.user_id);
+                            return ts ? format(new Date(ts), "MMM d, h:mm a") : "—";
+                          })()}
+                        </TableCell>
+                      )}
                       <TableCell className="text-muted-foreground text-sm">
                         {profile.created_at ? format(new Date(profile.created_at), "MMM d, yyyy") : "—"}
                       </TableCell>

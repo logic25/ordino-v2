@@ -31,6 +31,9 @@ export const ROLE_WIDGETS: Record<string, { id: string; label: string }[]> = {
     { id: "billing-goal-tracker", label: "Billing Goal Tracker" },
     { id: "proposal-followups", label: "Proposal Follow-Ups" },
     { id: "team-overview", label: "Team Overview" },
+    { id: "my-action-items", label: "My Action Items (personal)" },
+    { id: "my-projects", label: "My Projects (personal)" },
+    { id: "quick-time-log", label: "Quick Time Log (personal)" },
   ],
 };
 
