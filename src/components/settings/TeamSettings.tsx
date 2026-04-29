@@ -1360,6 +1360,7 @@ export function TeamSettings() {
                   <TableHead>Role</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Status</TableHead>
+                  {isAdmin && <TableHead>Last sign-in</TableHead>}
                   <TableHead>Joined</TableHead>
                 </TableRow>
               </TableHeader>
