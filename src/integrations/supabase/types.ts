@@ -8306,7 +8306,13 @@ export type Database = {
         | "billed"
         | "paid"
         | "dropped"
-      user_role: "admin" | "manager" | "pm" | "accounting"
+      user_role:
+        | "admin"
+        | "manager"
+        | "pm"
+        | "accounting"
+        | "staff"
+        | "production"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -8483,7 +8489,14 @@ export const Constants = {
         "paid",
         "dropped",
       ],
-      user_role: ["admin", "manager", "pm", "accounting"],
+      user_role: [
+        "admin",
+        "manager",
+        "pm",
+        "accounting",
+        "staff",
+        "production",
+      ],
     },
   },
 } as const
