@@ -402,6 +402,10 @@ export default function Auth() {
                     try {
                       const { error } = await lovable.auth.signInWithOAuth("google", {
                         redirect_uri: `${window.location.origin}/auth/callback`,
+                        extraParams: {
+                          hd: "greenlightexpediting.com",
+                          prompt: "select_account",
+                        },
                       });
                       if (error) {
                         toast({
