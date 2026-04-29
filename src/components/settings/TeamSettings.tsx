@@ -1253,11 +1253,25 @@ export function TeamSettings() {
   const { data: profiles = [], isLoading, refetch } = useCompanyProfiles();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
-  const { user } = useAuth();
+  const { user, profile: currentProfile } = useAuth();
   const isAdmin = useIsAdmin();
 
   // Get current user's profile id
   const currentProfileId = profiles.find((p) => p.user_id === user?.id)?.id;
+
+  // Last sign-in lookup (admin-only RPC)
+  const { data: lastSignIns = [] } = useQuery({
+    queryKey: ["team-last-signins", currentProfile?.company_id],
+    enabled: !!currentProfile?.company_id && isAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_team_last_signins" as any, {
+        target_company_id: currentProfile!.company_id,
+      });
+      if (error) throw error;
+      return (data || []) as Array<{ user_id: string; last_sign_in_at: string | null }>;
+    },
+  });
+  const lastSignInMap = new Map(lastSignIns.map((r) => [r.user_id, r.last_sign_in_at]));
 
   const filteredProfiles = profiles.filter((p) => {
     const q = searchQuery.toLowerCase();
