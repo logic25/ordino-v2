@@ -5166,6 +5166,60 @@ export type Database = {
           },
         ]
       }
+      pending_invites: {
+        Row: {
+          accepted_at: string | null
+          company_id: string
+          created_at: string
+          email: string
+          expires_at: string
+          first_name: string | null
+          id: string
+          invited_by: string | null
+          last_name: string | null
+          role: Database["public"]["Enums"]["user_role"]
+        }
+        Insert: {
+          accepted_at?: string | null
+          company_id: string
+          created_at?: string
+          email: string
+          expires_at?: string
+          first_name?: string | null
+          id?: string
+          invited_by?: string | null
+          last_name?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+        }
+        Update: {
+          accepted_at?: string | null
+          company_id?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          first_name?: string | null
+          id?: string
+          invited_by?: string | null
+          last_name?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_invites_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_invites_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pinned_chat_spaces: {
         Row: {
           created_at: string
@@ -8194,6 +8248,13 @@ export type Database = {
       get_rfi_plan_filenames: {
         Args: { _access_token: string }
         Returns: string[]
+      }
+      get_team_last_signins: {
+        Args: { target_company_id: string }
+        Returns: {
+          last_sign_in_at: string
+          user_id: string
+        }[]
       }
       get_user_app_roles: { Args: { _user_id: string }; Returns: string[] }
       get_user_company_id: { Args: never; Returns: string }
