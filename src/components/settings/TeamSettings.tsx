@@ -1409,6 +1409,14 @@ export function TeamSettings() {
                           {profile.is_active ? "Active" : "Inactive"}
                         </Badge>
                       </TableCell>
+                      {isAdmin && (
+                        <TableCell className="text-muted-foreground text-sm">
+                          {(() => {
+                            const ts = lastSignInMap.get(profile.user_id);
+                            return ts ? format(new Date(ts), "MMM d, h:mm a") : "—";
+                          })()}
+                        </TableCell>
+                      )}
                       <TableCell className="text-muted-foreground text-sm">
                         {profile.created_at ? format(new Date(profile.created_at), "MMM d, yyyy") : "—"}
                       </TableCell>
