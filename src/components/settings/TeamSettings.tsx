@@ -58,6 +58,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { useEmployeeReviews, useCreateEmployeeReview, useUpdateEmployeeReview } from "@/hooks/useEmployeeReviews";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend, Line, ComposedChart, Tooltip as RechartsTooltip } from "recharts";
+import { InviteMemberDialog } from "./InviteMemberDialog";
 
 const ROLE_COLORS: Record<string, string> = {
   admin: "bg-primary/10 text-primary border-primary/30",
