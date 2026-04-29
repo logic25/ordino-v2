@@ -1,18 +1,52 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { useDashboardStats } from "@/hooks/useDashboard";
 import { useTeamUtilization, useProjectsByPM } from "@/hooks/useDashboardData";
 import { TeamOverview } from "./TeamOverview";
 import { ProposalFollowUps } from "./ProposalFollowUps";
+import { MyActionItemsCard } from "./MyActionItemsCard";
+import { RecentProjects } from "./RecentProjects";
+import { QuickTimeLog } from "./QuickTimeLog";
 import { Users, Clock, FileText, FolderKanban } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { BillingGoalTracker } from "./BillingGoalTracker";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 export function ManagerView({ isVisible }: { isVisible?: (id: string) => boolean }) {
   const show = isVisible || (() => true);
+  const { profile } = useAuth();
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: utilization = [], isLoading: utilLoading } = useTeamUtilization();
   const { data: projectsByPM = [], isLoading: pmLoading } = useProjectsByPM();
+
+  const initialPersonal =
+    ((profile as any)?.notification_preferences?.manager_show_personal_widgets ?? false) === true;
+  const [showPersonal, setShowPersonal] = useState<boolean>(initialPersonal);
+
+  useEffect(() => {
+    setShowPersonal(initialPersonal);
+  }, [initialPersonal]);
+
+  const togglePersonal = async (next: boolean) => {
+    setShowPersonal(next);
+    if (!profile?.id) return;
+    const { data } = await supabase
+      .from("profiles")
+      .select("notification_preferences")
+      .eq("id", profile.id)
+      .single();
+    const prefs = (data?.notification_preferences as any) || {};
+    await supabase
+      .from("profiles")
+      .update({
+        notification_preferences: { ...prefs, manager_show_personal_widgets: next },
+      } as any)
+      .eq("id", profile.id);
+  };
 
   const kpis = [
     { label: "Team Members", value: stats?.teamMembers ?? 0, icon: Users },
@@ -23,6 +57,18 @@ export function ManagerView({ isVisible }: { isVisible?: (id: string) => boolean
 
   return (
     <div className="space-y-6">
+      {/* Personal widgets toggle */}
+      <div className="flex items-center justify-end gap-2">
+        <Label htmlFor="show-personal" className="text-sm text-muted-foreground cursor-pointer">
+          Show my personal items
+        </Label>
+        <Switch
+          id="show-personal"
+          checked={showPersonal}
+          onCheckedChange={togglePersonal}
+        />
+      </div>
+
       {/* KPI Row */}
       {show("kpis") && (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -117,6 +163,18 @@ export function ManagerView({ isVisible }: { isVisible?: (id: string) => boolean
         </div>
         {show("team-overview") && <TeamOverview />}
       </div>
+      )}
+
+      {/* Personal widgets section (player-coach) */}
+      {showPersonal && (
+        <div className="space-y-6 pt-2 border-t">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Your personal queue</p>
+          <div className="grid gap-6 lg:grid-cols-2">
+            {show("my-action-items") && <MyActionItemsCard />}
+            {show("my-projects") && <RecentProjects showOnlyMine />}
+          </div>
+          {show("quick-time-log") && <QuickTimeLog />}
+        </div>
       )}
     </div>
   );
