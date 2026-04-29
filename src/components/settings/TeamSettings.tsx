@@ -718,6 +718,29 @@ function UserDetailView({ user, onBack, onUpdate, isCurrentUser, isViewerAdmin }
         } as any)
         .eq("id", user.id);
       if (error) throw error;
+
+      // Mirror role change into user_roles for app_role checks (admin only)
+      const oldRole = (user.role as string) || "";
+      const newRole = editForm.role;
+      if (oldRole !== newRole && (user as any).user_id && (user as any).company_id) {
+        if (newRole === "admin") {
+          await supabase
+            .from("user_roles")
+            .upsert({
+              user_id: (user as any).user_id,
+              role: "admin",
+              company_id: (user as any).company_id,
+            } as any, { onConflict: "user_id,role,company_id" });
+        } else if (oldRole === "admin") {
+          await supabase
+            .from("user_roles")
+            .delete()
+            .eq("user_id", (user as any).user_id)
+            .eq("role", "admin")
+            .eq("company_id", (user as any).company_id);
+        }
+      }
+
       await queryClient.invalidateQueries({ queryKey: ["user-billing-stats-v2"] });
       toast({ title: "Profile updated" });
       setEditing(false);
