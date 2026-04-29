@@ -383,6 +383,32 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
 
   const { data: companyData } = useCompanySettings();
 
+  // Prefer a logo uploaded into the RFP Content Library (Files tab, tagged "logo")
+  // over the global company settings logo. Resolve to a signed URL since the
+  // rfp-documents bucket is private.
+  const [rfpLogoUrl, setRfpLogoUrl] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    const logoAttachment = rfpAttachments.find((a) => {
+      const c = a.content as any;
+      return c?.tag === "logo" && c?.file_path;
+    });
+    if (!logoAttachment) {
+      setRfpLogoUrl(undefined);
+      return;
+    }
+    const path = (logoAttachment.content as any).file_path as string;
+    supabase.storage
+      .from("rfp-documents")
+      .createSignedUrl(path, 60 * 60)
+      .then(({ data }) => {
+        if (!cancelled) setRfpLogoUrl(data?.signedUrl || undefined);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [rfpAttachments]);
+
   const assembledContent = {
     rfp,
     sections: sectionOrder.filter((s) => selectedSections.includes(s)),
@@ -394,7 +420,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     pricing: pricing[0],
     certs,
     coverLetter,
-    logoUrl: companyData?.settings?.company_logo_url || companyData?.logo_url || undefined,
+    logoUrl: rfpLogoUrl || companyData?.settings?.company_logo_url || companyData?.logo_url || undefined,
     companyName: companyData?.name || undefined,
     companyAddress: companyData?.address || companyData?.settings?.company_address || undefined,
     companyPhone: companyData?.phone || companyData?.settings?.company_phone || undefined,
