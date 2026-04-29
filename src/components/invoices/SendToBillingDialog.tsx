@@ -37,9 +37,22 @@ export function SendToBillingDialog({ open, onOpenChange, preselectedProjectId, 
               <Select value={billing.projectId} onValueChange={billing.setProjectId}>
                 <SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger>
                 <SelectContent>
-                  {(billing.projects || []).filter((p) => p.status === "open").map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.project_number || "—"} - {p.name || "Untitled"}</SelectItem>
-                  ))}
+                  {(() => {
+                    const all = billing.projects || [];
+                    const openProjects = all.filter((p) => p.status === "open");
+                    // Always include the currently selected project, even if filtered out by status
+                    const selected = billing.selectedProject;
+                    const options = selected && !openProjects.some((p) => p.id === selected.id)
+                      ? [selected, ...openProjects]
+                      : openProjects;
+                    return options.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.project_number || "—"} - {p.name || "Untitled"}</SelectItem>
+                    ));
+                  })()}
+                  {/* Defensive fallback: projectId set but project not loaded/found at all */}
+                  {billing.projectId && !billing.selectedProject && (
+                    <SelectItem value={billing.projectId}>Selected project</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
