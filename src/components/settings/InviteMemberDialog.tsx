@@ -90,13 +90,56 @@ export function InviteMemberDialog() {
       } as any);
       if (error) throw error;
 
-      // Copy sign-in link
+      // Send invite email via gmail-send
       const link = `${window.location.origin}/auth`;
+      const inviteeName = firstName.trim() || "there";
+      const roleDef = ROLES.find((r) => r.value === role);
+      const roleLabel = roleDef?.label || role;
+
+      const session = (await supabase.auth.getSession()).data.session;
+      if (session) {
+        const emailHtml = `
+          <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px">
+            <div style="background:#1e293b;padding:20px 24px;border-radius:12px 12px 0 0">
+              <h1 style="color:#f59e0b;margin:0;font-size:22px">Ordino</h1>
+            </div>
+            <div style="background:#ffffff;padding:24px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px">
+              <p style="font-size:16px;color:#1e293b;margin:0 0 12px">Hi ${inviteeName},</p>
+              <p style="font-size:14px;color:#475569;line-height:1.6;margin:0 0 20px">
+                You've been invited to join the Greenlight Expediting team on <strong>Ordino</strong> as a <strong>${roleLabel}</strong>.
+              </p>
+              <p style="font-size:14px;color:#475569;line-height:1.6;margin:0 0 20px">
+                Click the button below to sign in with your <strong>@greenlightexpediting.com</strong> Google account.
+              </p>
+              <div style="text-align:center;margin:24px 0">
+                <a href="${link}" style="background:#1e293b;color:#f59e0b;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;display:inline-block">
+                  Sign in to Ordino
+                </a>
+              </div>
+              <p style="font-size:12px;color:#94a3b8;margin:16px 0 0;text-align:center">
+                This invite expires in 14 days. If you have questions, reach out to your manager.
+              </p>
+            </div>
+          </div>`;
+
+        try {
+          await supabase.functions.invoke("gmail-send", {
+            body: {
+              to: cleaned,
+              subject: `You're invited to Ordino — Join as ${roleLabel}`,
+              html_body: emailHtml,
+            },
+          });
+        } catch (emailErr) {
+          console.warn("Invite email failed (invite still created):", emailErr);
+        }
+      }
+
       await navigator.clipboard.writeText(link).catch(() => {});
 
       toast({
-        title: "Invite created",
-        description: `Sign-in link copied. Share it with ${cleaned}.`,
+        title: "Invite created & email sent",
+        description: `Invite email sent to ${cleaned}. Sign-in link also copied.`,
       });
       reset();
       await refetch();
