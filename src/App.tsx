@@ -139,6 +139,7 @@ function AppRoutes() {
       <Route path="/rfps/discover" element={<ProtectedRoute><RfpDiscovery /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
       <Route path="/help" element={<ProtectedRoute><HelpDesk /></ProtectedRoute>} />
+      <Route path="/welcome" element={<ProtectedRoute><Welcome /></ProtectedRoute>} />
       <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
 
       {/* Public RFI form - no auth required */}
