@@ -74,6 +74,7 @@ const HelpDesk = lazyWithRetry(() => import("./pages/HelpDesk"), "help-desk");
 const Chat = lazyWithRetry(() => import("./pages/Chat"), "chat");
 const Privacy = lazyWithRetry(() => import("./pages/Privacy"), "privacy");
 const Terms = lazyWithRetry(() => import("./pages/Terms"), "terms");
+const Welcome = lazyWithRetry(() => import("./pages/Welcome"), "welcome");
 
 function PageSpinner() {
   return (
