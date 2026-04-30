@@ -74,6 +74,7 @@ const HelpDesk = lazyWithRetry(() => import("./pages/HelpDesk"), "help-desk");
 const Chat = lazyWithRetry(() => import("./pages/Chat"), "chat");
 const Privacy = lazyWithRetry(() => import("./pages/Privacy"), "privacy");
 const Terms = lazyWithRetry(() => import("./pages/Terms"), "terms");
+const Welcome = lazyWithRetry(() => import("./pages/Welcome"), "welcome");
 
 function PageSpinner() {
   return (
@@ -138,6 +139,7 @@ function AppRoutes() {
       <Route path="/rfps/discover" element={<ProtectedRoute><RfpDiscovery /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
       <Route path="/help" element={<ProtectedRoute><HelpDesk /></ProtectedRoute>} />
+      <Route path="/welcome" element={<ProtectedRoute><Welcome /></ProtectedRoute>} />
       <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
 
       {/* Public RFI form - no auth required */}
