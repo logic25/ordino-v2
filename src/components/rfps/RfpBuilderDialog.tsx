@@ -371,6 +371,10 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     ? allNotableProjects.filter((p: any) => selectedProjectIds.includes(p.id))
     : allNotableProjects;
 
+  const filteredAttachments = selectedAttachmentIds
+    ? rfpAttachments.filter((a: any) => selectedAttachmentIds.includes(a.id))
+    : rfpAttachments;
+
   const contentCounts: Record<string, number> = {
     cover_letter: coverLetter ? 1 : 0,
     firm_overview: firmHistory.length,
@@ -381,7 +385,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     narratives: narratives.length,
     pricing: pricing.length,
     certifications: certs.length,
-    attachments: rfpAttachments.length,
+    attachments: filteredAttachments.length,
   };
 
   // Content data map for editing
