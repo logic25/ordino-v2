@@ -74,6 +74,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   const [selectedSections, setSelectedSections] = useState<string[]>([...DEFAULT_SECTIONS]);
   const [sectionOrder, setSectionOrder] = useState<string[]>([...DEFAULT_SECTIONS]);
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[] | null>(null); // null = all selected
+  const [selectedAttachmentIds, setSelectedAttachmentIds] = useState<string[] | null>(null); // null = all selected
   const [previewOpen, setPreviewOpen] = useState(false);
   const [coverLetter, setCoverLetter] = useState("");
   const [generatingLetter, setGeneratingLetter] = useState(false);
@@ -130,6 +131,13 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     }
   }, [allNotableProjects, selectedProjectIds, draftLoaded]);
 
+  // Initialize selectedAttachmentIds when attachments load (select all by default)
+  useEffect(() => {
+    if (selectedAttachmentIds === null && rfpAttachments.length > 0 && !draftLoaded) {
+      setSelectedAttachmentIds(rfpAttachments.map((a: any) => a.id));
+    }
+  }, [rfpAttachments, selectedAttachmentIds, draftLoaded]);
+
   // Load draft only once on open
   useEffect(() => {
     if (draft && !draftLoaded && !dirty && open) {
@@ -145,12 +153,18 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
       } else if (allNotableProjects.length > 0) {
         setSelectedProjectIds(allNotableProjects.map((p: any) => p.id));
       }
+      // Restore selected attachment ids from draft metadata
+      if (draftAny.selected_attachment_ids && Array.isArray(draftAny.selected_attachment_ids)) {
+        setSelectedAttachmentIds(draftAny.selected_attachment_ids);
+      } else if (rfpAttachments.length > 0) {
+        setSelectedAttachmentIds(rfpAttachments.map((a: any) => a.id));
+      }
       setDraftLoaded(true);
     }
-  }, [draft, draftLoaded, dirty, open, allNotableProjects]);
+  }, [draft, draftLoaded, dirty, open, allNotableProjects, rfpAttachments]);
 
   useEffect(() => {
-    if (!open) { setDraftLoaded(false); setDirty(false); setSelectedProjectIds(null); }
+    if (!open) { setDraftLoaded(false); setDirty(false); setSelectedProjectIds(null); setSelectedAttachmentIds(null); }
   }, [open]);
 
   const saveDraft = useCallback((overrideStep?: number) => {
@@ -163,8 +177,9 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
       submit_email: submitEmail || null,
       wizard_step: overrideStep ?? step,
       selected_project_ids: selectedProjectIds,
+      selected_attachment_ids: selectedAttachmentIds,
     } as any);
-  }, [rfp?.id, selectedSections, sectionOrder, coverLetter, submitEmail, step, selectedProjectIds]);
+  }, [rfp?.id, selectedSections, sectionOrder, coverLetter, submitEmail, step, selectedProjectIds, selectedAttachmentIds]);
 
   // DnD
   const sensors = useSensors(
@@ -293,7 +308,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
 
       // Collect uploaded attachment files
       if (selectedSections.includes("attachments")) {
-        for (const att of rfpAttachments) {
+        for (const att of filteredRfpAttachments) {
           const c = att.content as Record<string, any> | null;
           const filePath = c?.file_path as string | undefined;
           const attFilename = c?.filename as string | undefined;
@@ -355,6 +370,11 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     ? allNotableProjects.filter((p: any) => selectedProjectIds.includes(p.id))
     : allNotableProjects;
 
+  // Filtered RFP attachments based on selection (logo, files, etc.)
+  const filteredRfpAttachments = selectedAttachmentIds
+    ? rfpAttachments.filter((a: any) => selectedAttachmentIds.includes(a.id))
+    : rfpAttachments;
+
   const contentCounts: Record<string, number> = {
     cover_letter: coverLetter ? 1 : 0,
     firm_overview: firmHistory.length,
@@ -389,7 +409,9 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   const [rfpLogoUrl, setRfpLogoUrl] = useState<string | undefined>(undefined);
   useEffect(() => {
     let cancelled = false;
-    const logoAttachment = rfpAttachments.find((a) => {
+    // Only use the logo if it's currently selected (otherwise the user has
+    // chosen to exclude it from this response).
+    const logoAttachment = filteredRfpAttachments.find((a) => {
       const c = a.content as any;
       return c?.tag === "logo" && c?.file_path;
     });
@@ -407,7 +429,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     return () => {
       cancelled = true;
     };
-  }, [rfpAttachments]);
+  }, [filteredRfpAttachments]);
 
   const assembledContent = {
     rfp,
@@ -426,7 +448,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     companyPhone: companyData?.phone || companyData?.settings?.company_phone || undefined,
     companyEmail: companyData?.email || companyData?.settings?.company_email || undefined,
     companyWebsite: companyData?.website || companyData?.settings?.company_website || undefined,
-    attachments: rfpAttachments,
+    attachments: filteredRfpAttachments,
   };
 
   const draggableSections = sectionOrder.filter((s) => s !== "cover_letter");
@@ -449,6 +471,26 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   const clearProjectSelection = () => {
     setDirty(true);
     setSelectedProjectIds([]);
+  };
+
+  const toggleAttachmentSelection = (attachmentId: string) => {
+    setDirty(true);
+    setSelectedAttachmentIds((prev) => {
+      const ids = prev || rfpAttachments.map((a: any) => a.id);
+      return ids.includes(attachmentId)
+        ? ids.filter((id) => id !== attachmentId)
+        : [...ids, attachmentId];
+    });
+  };
+
+  const selectAllAttachments = () => {
+    setDirty(true);
+    setSelectedAttachmentIds(rfpAttachments.map((a: any) => a.id));
+  };
+
+  const clearAttachmentSelection = () => {
+    setDirty(true);
+    setSelectedAttachmentIds([]);
   };
 
   const goNext = () => { const next = Math.min(step + 1, STEPS.length - 1); setDirty(true); saveDraft(next); setStep(next); };
@@ -519,6 +561,10 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
                 onToggleProject={toggleProjectSelection}
                 onSelectAllProjects={selectAllProjects}
                 onClearProjects={clearProjectSelection}
+                selectedAttachmentIds={selectedAttachmentIds || rfpAttachments.map((a: any) => a.id)}
+                onToggleAttachment={toggleAttachmentSelection}
+                onSelectAllAttachments={selectAllAttachments}
+                onClearAttachments={clearAttachmentSelection}
               />
             )}
             {step === 2 && (
@@ -635,6 +681,10 @@ function StepEditContent({
   onToggleProject,
   onSelectAllProjects,
   onClearProjects,
+  selectedAttachmentIds,
+  onToggleAttachment,
+  onSelectAllAttachments,
+  onClearAttachments,
 }: {
   selectedSections: string[];
   sectionOrder: string[];
@@ -644,6 +694,10 @@ function StepEditContent({
   onToggleProject: (id: string) => void;
   onSelectAllProjects: () => void;
   onClearProjects: () => void;
+  selectedAttachmentIds: string[];
+  onToggleAttachment: (id: string) => void;
+  onSelectAllAttachments: () => void;
+  onClearAttachments: () => void;
 }) {
   const activeSections = sectionOrder
     .filter((s) => selectedSections.includes(s) && s !== "cover_letter");
@@ -667,7 +721,16 @@ function StepEditContent({
           const content = sectionContentMap[sectionId];
           const items = content?.items || [];
           const isNotableProjects = sectionId === "notable_projects";
-          const selectedCount = isNotableProjects ? selectedProjectIds.length : items.length;
+          const isAttachments = sectionId === "attachments";
+          const isToggleable = isNotableProjects || isAttachments;
+          const currentSelectedIds = isAttachments ? selectedAttachmentIds : selectedProjectIds;
+          const onToggleItem = isAttachments ? onToggleAttachment : onToggleProject;
+          const onSelectAll = isAttachments ? onSelectAllAttachments : onSelectAllProjects;
+          const onClear = isAttachments ? onClearAttachments : onClearProjects;
+          const toggleHelp = isAttachments
+            ? "Choose exactly which uploaded files (logo, attachments) to include in this response."
+            : "Choose exactly which project sheets and notable projects to include in this response.";
+          const selectedCount = isToggleable ? currentSelectedIds.length : items.length;
 
           return (
             <Collapsible key={sectionId}>
@@ -677,7 +740,7 @@ function StepEditContent({
                     <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     <span className="text-sm font-medium flex-1">{def.label}</span>
                     <Badge variant={selectedCount > 0 ? "secondary" : "outline"} className="text-xs">
-                      {isNotableProjects ? `${selectedCount}/${items.length} selected` : `${items.length} ${items.length === 1 ? "item" : "items"}`}
+                      {isToggleable ? `${selectedCount}/${items.length} selected` : `${items.length} ${items.length === 1 ? "item" : "items"}`}
                     </Badge>
                     <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180" />
                   </button>
@@ -690,16 +753,16 @@ function StepEditContent({
                       </p>
                     ) : (
                       <>
-                        {isNotableProjects && (
+                        {isToggleable && (
                           <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2">
                             <p className="text-xs text-muted-foreground">
-                              Choose exactly which project sheets and notable projects to include in this response.
+                              {toggleHelp}
                             </p>
                             <div className="flex items-center gap-2 shrink-0">
-                              <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={onSelectAllProjects}>
+                              <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={onSelectAll}>
                                 Select All
                               </Button>
-                              <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={onClearProjects}>
+                              <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={onClear}>
                                 Clear
                               </Button>
                             </div>
@@ -708,7 +771,7 @@ function StepEditContent({
                         <ScrollArea className="h-[320px] rounded-md">
                           <div className="space-y-2 pr-3">
                             {items.map((item: any, idx: number) => {
-                              const checked = selectedProjectIds.includes(item.id);
+                              const checked = isToggleable ? currentSelectedIds.includes(item.id) : false;
                               return (
                                 <div
                                   key={item.id || idx}
@@ -716,24 +779,24 @@ function StepEditContent({
                                   tabIndex={0}
                                   className="w-full rounded-lg text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
                                   onClick={(e) => {
-                                    if (!isNotableProjects) return;
+                                    if (!isToggleable) return;
                                     // Prevent double-toggle: if the click originated from the Checkbox (a <button>), skip — onCheckedChange already handled it
                                     const target = e.target as HTMLElement;
                                     if (target.closest('[role="checkbox"]') || target.closest('button[type="button"]')) return;
-                                    onToggleProject(item.id);
+                                    onToggleItem(item.id);
                                   }}
-                                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); isNotableProjects && onToggleProject(item.id); } }}
+                                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); isToggleable && onToggleItem(item.id); } }}
                                 >
                                   <div className="flex items-start gap-2">
-                                    {isNotableProjects && (
+                                    {isToggleable && (
                                       <Checkbox
                                         checked={checked}
-                                        onCheckedChange={() => onToggleProject(item.id)}
+                                        onCheckedChange={() => onToggleItem(item.id)}
                                         className="mt-2.5 flex-shrink-0"
                                       />
                                     )}
-                                    <div className={isNotableProjects ? "flex-1 min-w-0" : "w-full"}>
-                                      <div className={isNotableProjects && checked ? "rounded-lg ring-1 ring-accent/40" : undefined}>
+                                    <div className={isToggleable ? "flex-1 min-w-0" : "w-full"}>
+                                      <div className={isToggleable && checked ? "rounded-lg ring-1 ring-accent/40" : undefined}>
                                         <SectionContentPreview item={item} type={sectionId} />
                                       </div>
                                     </div>
