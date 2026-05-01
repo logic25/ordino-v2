@@ -471,6 +471,26 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     setSelectedProjectIds([]);
   };
 
+  const toggleAttachmentSelection = (attachmentId: string) => {
+    setDirty(true);
+    setSelectedAttachmentIds((prev) => {
+      const ids = prev || rfpAttachments.map((a: any) => a.id);
+      return ids.includes(attachmentId)
+        ? ids.filter((id) => id !== attachmentId)
+        : [...ids, attachmentId];
+    });
+  };
+
+  const selectAllAttachments = () => {
+    setDirty(true);
+    setSelectedAttachmentIds(rfpAttachments.map((a: any) => a.id));
+  };
+
+  const clearAttachmentSelection = () => {
+    setDirty(true);
+    setSelectedAttachmentIds([]);
+  };
+
   const goNext = () => { const next = Math.min(step + 1, STEPS.length - 1); setDirty(true); saveDraft(next); setStep(next); };
   const goBack = () => { setDirty(true); setStep((s) => Math.max(s - 1, 0)); };
 
