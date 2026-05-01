@@ -679,6 +679,10 @@ function StepEditContent({
   onToggleProject,
   onSelectAllProjects,
   onClearProjects,
+  selectedAttachmentIds,
+  onToggleAttachment,
+  onSelectAllAttachments,
+  onClearAttachments,
 }: {
   selectedSections: string[];
   sectionOrder: string[];
@@ -688,6 +692,10 @@ function StepEditContent({
   onToggleProject: (id: string) => void;
   onSelectAllProjects: () => void;
   onClearProjects: () => void;
+  selectedAttachmentIds: string[];
+  onToggleAttachment: (id: string) => void;
+  onSelectAllAttachments: () => void;
+  onClearAttachments: () => void;
 }) {
   const activeSections = sectionOrder
     .filter((s) => selectedSections.includes(s) && s !== "cover_letter");
@@ -711,7 +719,16 @@ function StepEditContent({
           const content = sectionContentMap[sectionId];
           const items = content?.items || [];
           const isNotableProjects = sectionId === "notable_projects";
-          const selectedCount = isNotableProjects ? selectedProjectIds.length : items.length;
+          const isAttachments = sectionId === "attachments";
+          const isSelectable = isNotableProjects || isAttachments;
+          const selectedIds = isAttachments ? selectedAttachmentIds : selectedProjectIds;
+          const onToggle = isAttachments ? onToggleAttachment : onToggleProject;
+          const onSelectAll = isAttachments ? onSelectAllAttachments : onSelectAllProjects;
+          const onClear = isAttachments ? onClearAttachments : onClearProjects;
+          const selectedCount = isSelectable ? selectedIds.length : items.length;
+          const helperText = isAttachments
+            ? "Choose exactly which files (logo, insurance, org chart, etc.) to attach to this RFP email."
+            : "Choose exactly which project sheets and notable projects to include in this response.";
 
           return (
             <Collapsible key={sectionId}>
@@ -721,7 +738,7 @@ function StepEditContent({
                     <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     <span className="text-sm font-medium flex-1">{def.label}</span>
                     <Badge variant={selectedCount > 0 ? "secondary" : "outline"} className="text-xs">
-                      {isNotableProjects ? `${selectedCount}/${items.length} selected` : `${items.length} ${items.length === 1 ? "item" : "items"}`}
+                      {isSelectable ? `${selectedCount}/${items.length} selected` : `${items.length} ${items.length === 1 ? "item" : "items"}`}
                     </Badge>
                     <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180" />
                   </button>
@@ -734,16 +751,14 @@ function StepEditContent({
                       </p>
                     ) : (
                       <>
-                        {isNotableProjects && (
+                        {isSelectable && (
                           <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2">
-                            <p className="text-xs text-muted-foreground">
-                              Choose exactly which project sheets and notable projects to include in this response.
-                            </p>
+                            <p className="text-xs text-muted-foreground">{helperText}</p>
                             <div className="flex items-center gap-2 shrink-0">
-                              <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={onSelectAllProjects}>
+                              <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={onSelectAll}>
                                 Select All
                               </Button>
-                              <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={onClearProjects}>
+                              <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={onClear}>
                                 Clear
                               </Button>
                             </div>
@@ -752,7 +767,7 @@ function StepEditContent({
                         <ScrollArea className="h-[320px] rounded-md">
                           <div className="space-y-2 pr-3">
                             {items.map((item: any, idx: number) => {
-                              const checked = selectedProjectIds.includes(item.id);
+                              const checked = isSelectable ? selectedIds.includes(item.id) : true;
                               return (
                                 <div
                                   key={item.id || idx}
@@ -760,24 +775,23 @@ function StepEditContent({
                                   tabIndex={0}
                                   className="w-full rounded-lg text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
                                   onClick={(e) => {
-                                    if (!isNotableProjects) return;
-                                    // Prevent double-toggle: if the click originated from the Checkbox (a <button>), skip — onCheckedChange already handled it
+                                    if (!isSelectable) return;
                                     const target = e.target as HTMLElement;
                                     if (target.closest('[role="checkbox"]') || target.closest('button[type="button"]')) return;
-                                    onToggleProject(item.id);
+                                    onToggle(item.id);
                                   }}
-                                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); isNotableProjects && onToggleProject(item.id); } }}
+                                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); isSelectable && onToggle(item.id); } }}
                                 >
                                   <div className="flex items-start gap-2">
-                                    {isNotableProjects && (
+                                    {isSelectable && (
                                       <Checkbox
                                         checked={checked}
-                                        onCheckedChange={() => onToggleProject(item.id)}
+                                        onCheckedChange={() => onToggle(item.id)}
                                         className="mt-2.5 flex-shrink-0"
                                       />
                                     )}
-                                    <div className={isNotableProjects ? "flex-1 min-w-0" : "w-full"}>
-                                      <div className={isNotableProjects && checked ? "rounded-lg ring-1 ring-accent/40" : undefined}>
+                                    <div className={isSelectable ? "flex-1 min-w-0" : "w-full"}>
+                                      <div className={isSelectable && checked ? "rounded-lg ring-1 ring-accent/40" : undefined}>
                                         <SectionContentPreview item={item} type={sectionId} />
                                       </div>
                                     </div>
