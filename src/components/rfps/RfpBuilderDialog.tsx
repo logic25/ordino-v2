@@ -131,6 +131,13 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     }
   }, [allNotableProjects, selectedProjectIds, draftLoaded]);
 
+  // Initialize selectedAttachmentIds when attachments load (select all by default)
+  useEffect(() => {
+    if (selectedAttachmentIds === null && rfpAttachments.length > 0 && !draftLoaded) {
+      setSelectedAttachmentIds(rfpAttachments.map((a: any) => a.id));
+    }
+  }, [rfpAttachments, selectedAttachmentIds, draftLoaded]);
+
   // Load draft only once on open
   useEffect(() => {
     if (draft && !draftLoaded && !dirty && open) {
@@ -146,12 +153,17 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
       } else if (allNotableProjects.length > 0) {
         setSelectedProjectIds(allNotableProjects.map((p: any) => p.id));
       }
+      if (draftAny.selected_attachment_ids && Array.isArray(draftAny.selected_attachment_ids)) {
+        setSelectedAttachmentIds(draftAny.selected_attachment_ids);
+      } else if (rfpAttachments.length > 0) {
+        setSelectedAttachmentIds(rfpAttachments.map((a: any) => a.id));
+      }
       setDraftLoaded(true);
     }
-  }, [draft, draftLoaded, dirty, open, allNotableProjects]);
+  }, [draft, draftLoaded, dirty, open, allNotableProjects, rfpAttachments]);
 
   useEffect(() => {
-    if (!open) { setDraftLoaded(false); setDirty(false); setSelectedProjectIds(null); }
+    if (!open) { setDraftLoaded(false); setDirty(false); setSelectedProjectIds(null); setSelectedAttachmentIds(null); }
   }, [open]);
 
   const saveDraft = useCallback((overrideStep?: number) => {
