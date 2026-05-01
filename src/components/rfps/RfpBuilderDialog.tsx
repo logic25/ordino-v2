@@ -307,7 +307,9 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
 
       // Collect uploaded attachment files
       if (selectedSections.includes("attachments")) {
-        for (const att of rfpAttachments) {
+        const attIds = selectedAttachmentIds ?? rfpAttachments.map((a: any) => a.id);
+        const filteredAttachments = rfpAttachments.filter((a: any) => attIds.includes(a.id));
+        for (const att of filteredAttachments) {
           const c = att.content as Record<string, any> | null;
           const filePath = c?.file_path as string | undefined;
           const attFilename = c?.filename as string | undefined;
