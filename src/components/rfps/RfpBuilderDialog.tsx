@@ -446,7 +446,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     companyPhone: companyData?.phone || companyData?.settings?.company_phone || undefined,
     companyEmail: companyData?.email || companyData?.settings?.company_email || undefined,
     companyWebsite: companyData?.website || companyData?.settings?.company_website || undefined,
-    attachments: rfpAttachments,
+    attachments: filteredAttachments,
   };
 
   const draggableSections = sectionOrder.filter((s) => s !== "cover_letter");
