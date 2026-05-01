@@ -176,8 +176,9 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
       submit_email: submitEmail || null,
       wizard_step: overrideStep ?? step,
       selected_project_ids: selectedProjectIds,
+      selected_attachment_ids: selectedAttachmentIds,
     } as any);
-  }, [rfp?.id, selectedSections, sectionOrder, coverLetter, submitEmail, step, selectedProjectIds]);
+  }, [rfp?.id, selectedSections, sectionOrder, coverLetter, submitEmail, step, selectedProjectIds, selectedAttachmentIds]);
 
   // DnD
   const sensors = useSensors(
