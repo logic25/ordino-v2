@@ -38,7 +38,7 @@ export interface BrandedEmailConfig {
   /** Template overrides from gallery settings */
   templateOverrides?: TemplateOverride;
   /** Style config — accepts either camelCase (resolved) or snake_case (raw from settings) */
-  styleConfig?: ProposalEmailStyleConfig | { accent_color?: string; accent_text_color?: string; font_family?: string; button_radius?: string; body_color?: string; heading_color?: string; body_font_size?: string } | null;
+  styleConfig?: EmailStyleConfig | { accent_color?: string; accent_text_color?: string; font_family?: string; button_radius?: string; body_color?: string; heading_color?: string; body_font_size?: string } | null;
   /** Company info */
   companyName: string;
   companyEmail?: string;
