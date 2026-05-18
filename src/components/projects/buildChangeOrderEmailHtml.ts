@@ -1,4 +1,4 @@
-import { resolveEmailStyle, type ProposalEmailStyleConfig, DEFAULT_PROPOSAL_EMAIL_STYLE } from "@/components/proposals/buildProposalEmailHtml";
+import { resolveEmailStyle, type ProposalEmailStyleConfig } from "@/components/proposals/buildProposalEmailHtml";
 import { fillStyleDefaults, replaceTemplateVariables } from "@/lib/email/shared";
 
 export { resolveEmailStyle };
