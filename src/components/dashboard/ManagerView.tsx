@@ -9,7 +9,7 @@ import { TeamOverview } from "./TeamOverview";
 import { ProposalFollowUps } from "./ProposalFollowUps";
 import { MyActionItemsCard } from "./MyActionItemsCard";
 import { RecentProjects } from "./RecentProjects";
-import { QuickTimeLog } from "./QuickTimeLog";
+import { QuickTimeLog } from "@/components/time/QuickTimeLog";
 import { Users, Clock, FileText, FolderKanban } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { BillingGoalTracker } from "./BillingGoalTracker";

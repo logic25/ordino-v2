@@ -483,7 +483,7 @@ export function DobNowFilingPrepSheet({
       );
 
       const data = await res.json();
-      console.log("[FilingAgent] create-session response:", res.status, data);
+      
 
       if (!res.ok || !data.session_id) {
         toast({ title: "Session error", description: data?.error || "Failed to create browser session.", variant: "destructive" });
@@ -541,11 +541,6 @@ export function DobNowFilingPrepSheet({
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const { data: { session } } = await supabase.auth.getSession();
 
-      console.log("[FilingAgent] Sending request to filing-agent-proxy...", {
-        project_id: project.id,
-        service_id: service.id,
-        session_id: browserbaseSessionId,
-      });
 
       const proxyRes = await fetch(
         `${supabaseUrl}/functions/v1/filing-agent-proxy?action=start-filing`,
@@ -572,7 +567,7 @@ export function DobNowFilingPrepSheet({
       } catch {
         proxyResult = { error: proxyText.substring(0, 200) };
       }
-      console.log("[FilingAgent] Proxy response:", proxyRes.status, proxyResult);
+      
 
       if (!proxyRes.ok) {
         await (supabase.from("filing_runs") as any)

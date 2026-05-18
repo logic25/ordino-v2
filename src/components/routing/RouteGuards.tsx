@@ -18,9 +18,9 @@ export function LoadingScreen() {
 
 // Protected route wrapper - requires auth AND profile
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading, hasProfile } = useAuth();
+  const { user, loading, hasProfile, signingOut } = useAuth();
 
-  if (loading) {
+  if (loading || signingOut) {
     return <LoadingScreen />;
   }
 
