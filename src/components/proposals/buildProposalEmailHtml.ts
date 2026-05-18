@@ -91,16 +91,7 @@ export function buildProposalEmailHtml({
   ctaText,
   signoffText,
 }: ProposalEmailParams): string {
-  const resolvedStyle: Required<ProposalEmailStyleConfig> = {
-    accentColor: style?.accentColor ?? DEFAULT_PROPOSAL_EMAIL_STYLE.accentColor,
-    accentTextColor: style?.accentTextColor ?? style?.accentColor ?? DEFAULT_PROPOSAL_EMAIL_STYLE.accentTextColor,
-    accentForeground: style?.accentForeground ?? DEFAULT_PROPOSAL_EMAIL_STYLE.accentForeground,
-    fontFamily: style?.fontFamily ?? DEFAULT_PROPOSAL_EMAIL_STYLE.fontFamily,
-    buttonRadius: style?.buttonRadius ?? DEFAULT_PROPOSAL_EMAIL_STYLE.buttonRadius,
-    bodyColor: style?.bodyColor ?? DEFAULT_PROPOSAL_EMAIL_STYLE.bodyColor,
-    headingColor: style?.headingColor ?? DEFAULT_PROPOSAL_EMAIL_STYLE.headingColor,
-    bodyFontSize: style?.bodyFontSize ?? DEFAULT_PROPOSAL_EMAIL_STYLE.bodyFontSize,
-  };
+  const resolvedStyle = fillStyleDefaults(style);
 
   const fallbackTemplate = resolveProposalEmailTemplate(undefined, {
     COMPANY_NAME: companyName,
