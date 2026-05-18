@@ -1,13 +1,15 @@
-export interface ProposalEmailStyleConfig {
-  accentColor?: string;
-  accentTextColor?: string;
-  accentForeground?: string;
-  fontFamily?: string;
-  buttonRadius?: string;
-  bodyColor?: string;
-  headingColor?: string;
-  bodyFontSize?: string;
-}
+import {
+  DEFAULT_EMAIL_STYLE,
+  fillStyleDefaults,
+  replaceTemplateVariables,
+  resolveEmailStyle as sharedResolveEmailStyle,
+  type EmailStyleConfig,
+} from "@/lib/email/shared";
+
+// Re-export for back-compat with existing callers
+export type ProposalEmailStyleConfig = EmailStyleConfig;
+export const DEFAULT_PROPOSAL_EMAIL_STYLE = DEFAULT_EMAIL_STYLE;
+export const resolveEmailStyle = sharedResolveEmailStyle;
 
 export interface ProposalEmailTemplateContent {
   subject?: string;
@@ -49,44 +51,6 @@ export const DEFAULT_PROPOSAL_EMAIL_TEMPLATE: Required<ProposalEmailTemplateCont
     "Questions about scope or pricing? Reply to this email and we'll get back to you the same day.",
 };
 
-export const DEFAULT_PROPOSAL_EMAIL_STYLE: Required<ProposalEmailStyleConfig> = {
-  accentColor: "#d7df23",
-  accentTextColor: "#d7df23",
-  accentForeground: "#1f2937",
-  fontFamily: "Arial, Helvetica, sans-serif",
-  buttonRadius: "8px",
-  bodyColor: "#334155",
-  headingColor: "#1e293b",
-  bodyFontSize: "15px",
-};
-
-/**
- * Single source of truth for resolving email styles from company settings.
- * Every caller (gallery, send dialog, hooks, client page) MUST use this
- * so the rendered email is identical everywhere.
- */
-export function resolveEmailStyle(
-  savedStyle?: { accent_color?: string; accent_text_color?: string; font_family?: string; button_radius?: string; body_color?: string; heading_color?: string; body_font_size?: string } | null,
-): ProposalEmailStyleConfig {
-  return {
-    accentColor: savedStyle?.accent_color || DEFAULT_PROPOSAL_EMAIL_STYLE.accentColor,
-    accentTextColor: savedStyle?.accent_text_color || savedStyle?.accent_color || DEFAULT_PROPOSAL_EMAIL_STYLE.accentTextColor,
-    accentForeground: DEFAULT_PROPOSAL_EMAIL_STYLE.accentForeground,
-    fontFamily: savedStyle?.font_family || DEFAULT_PROPOSAL_EMAIL_STYLE.fontFamily,
-    buttonRadius: savedStyle?.button_radius || DEFAULT_PROPOSAL_EMAIL_STYLE.buttonRadius,
-    bodyColor: savedStyle?.body_color || DEFAULT_PROPOSAL_EMAIL_STYLE.bodyColor,
-    headingColor: savedStyle?.heading_color || DEFAULT_PROPOSAL_EMAIL_STYLE.headingColor,
-    bodyFontSize: savedStyle?.body_font_size || DEFAULT_PROPOSAL_EMAIL_STYLE.bodyFontSize,
-  };
-}
-
-function replaceTemplateVariables(template: string, variables: Record<string, string>): string {
-  return Object.entries(variables).reduce(
-    (result, [key, value]) => result.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), value),
-    template,
-  );
-}
-
 export function resolveProposalEmailTemplate(
   overrides: ProposalEmailTemplateContent | undefined,
   variables: Record<string, string>,
@@ -95,10 +59,7 @@ export function resolveProposalEmailTemplate(
     Object.entries(overrides ?? {}).filter(([, value]) => value !== undefined),
   ) as ProposalEmailTemplateContent;
 
-  const merged = {
-    ...DEFAULT_PROPOSAL_EMAIL_TEMPLATE,
-    ...cleanOverrides,
-  };
+  const merged = { ...DEFAULT_PROPOSAL_EMAIL_TEMPLATE, ...cleanOverrides };
 
   return {
     subject: replaceTemplateVariables(merged.subject, variables),
