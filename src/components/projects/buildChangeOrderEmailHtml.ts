@@ -77,16 +77,7 @@ export function buildChangeOrderEmailHtml({
   style,
   template,
 }: ChangeOrderEmailParams): string {
-  const s: Required<ProposalEmailStyleConfig> = {
-    accentColor: style?.accentColor ?? DEFAULT_PROPOSAL_EMAIL_STYLE.accentColor,
-    accentTextColor: style?.accentTextColor ?? style?.accentColor ?? DEFAULT_PROPOSAL_EMAIL_STYLE.accentTextColor,
-    accentForeground: style?.accentForeground ?? DEFAULT_PROPOSAL_EMAIL_STYLE.accentForeground,
-    fontFamily: style?.fontFamily ?? DEFAULT_PROPOSAL_EMAIL_STYLE.fontFamily,
-    buttonRadius: style?.buttonRadius ?? DEFAULT_PROPOSAL_EMAIL_STYLE.buttonRadius,
-    bodyColor: style?.bodyColor ?? DEFAULT_PROPOSAL_EMAIL_STYLE.bodyColor,
-    headingColor: style?.headingColor ?? DEFAULT_PROPOSAL_EMAIL_STYLE.headingColor,
-    bodyFontSize: style?.bodyFontSize ?? DEFAULT_PROPOSAL_EMAIL_STYLE.bodyFontSize,
-  };
+  const s = fillStyleDefaults(style);
 
   const resolved = resolveChangeOrderEmailTemplate(template, {
     CLIENT_NAME: contactName,
