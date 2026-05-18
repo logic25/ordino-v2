@@ -29,7 +29,6 @@ export async function syncFromCitiSignal(
       const errorData = await response.json().catch(() => ({}));
       // If fallback flag is set, let caller know to use Socrata
       if (errorData.fallback) {
-        console.log("CitiSignal unavailable, falling back to Socrata:", errorData.error);
         return null;
       }
       throw new Error(errorData.error || `CitiSignal sync failed: ${response.status}`);
