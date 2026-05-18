@@ -3,9 +3,9 @@
  * All outgoing emails should use this shell for brand consistency.
  */
 
-import { resolveEmailStyle, type ProposalEmailStyleConfig } from "@/components/proposals/buildProposalEmailHtml";
+import { resolveEmailStyle, type EmailStyleConfig } from "@/lib/email/shared";
 
-export type { ProposalEmailStyleConfig as EmailStyleConfig };
+export type { EmailStyleConfig };
 
 // ── Design tokens (must match EmailTemplateGallery.tsx) ──
 const HEADING = "#1e293b";
