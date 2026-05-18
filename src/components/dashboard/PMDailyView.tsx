@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AlertTriangle, CheckCircle2, Clock, Circle, FolderKanban, ArrowRight, ClipboardCheck } from "lucide-react";
 import { useMyAssignedProjects } from "@/hooks/useDashboard";
 import { ProposalFollowUps } from "./ProposalFollowUps";
-import { QuickTimeLog } from "./QuickTimeLog";
+import { QuickTimeLog } from "@/components/time/QuickTimeLog";
 import { MyActionItemsCard } from "./MyActionItemsCard";
 import { differenceInDays } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
