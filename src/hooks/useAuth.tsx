@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef, useMemo } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -11,6 +11,7 @@ interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   hasProfile: boolean;
+  signingOut: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -27,38 +28,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [signingOut, setSigningOut] = useState(false);
   const clockedInRef = useRef(false);
 
-  // Auto clock-in helper
+  // Auto clock-in helper — no external IP lookup (privacy + reliability)
   const autoClockIn = useCallback(async (userId: string, companyId: string) => {
     if (clockedInRef.current) return;
     clockedInRef.current = true;
     try {
       const today = new Date().toISOString().split("T")[0];
-      // Check if already clocked in today before inserting
-      const { data: existing } = await (supabase as any)
+      const { data: existing } = await supabase
         .from("attendance_logs")
         .select("id")
         .eq("user_id", userId)
         .eq("log_date", today)
         .maybeSingle();
 
-      if (existing) return; // Already clocked in today
+      if (existing) return;
 
-      let ipAddress: string | null = null;
-      try {
-        const res = await fetch("https://api.ipify.org?format=json");
-        const json = await res.json();
-        ipAddress = json.ip;
-      } catch { /* non-critical */ }
-
-      await (supabase as any)
+      await supabase
         .from("attendance_logs")
         .insert({
           user_id: userId,
           company_id: companyId,
           clock_in_location: "Auto",
-          ip_address: ipAddress,
         });
-    } catch { /* non-critical */ }
+    } catch (err) {
+      console.error("Auto clock-in failed:", err);
+    }
   }, []);
 
   const fetchProfile = useCallback(async (userId: string) => {
@@ -84,16 +78,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let initialSessionHandled = false;
 
-    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
+
         if (session?.user) {
-          // Mark that onAuthStateChange handled the session so getSession doesn't double-fetch
           initialSessionHandled = true;
-          // Defer to avoid Supabase deadlock, but keep loading true until profile resolves
+          // Defer to avoid Supabase deadlock
           setTimeout(() => {
             fetchProfile(session.user.id).then((profileData) => {
               setProfile(profileData);
@@ -110,13 +102,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // THEN check for existing session (fallback if onAuthStateChange hasn't fired yet)
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (initialSessionHandled) return; // onAuthStateChange already handled it
-      
+      if (initialSessionHandled) return;
+
       setSession(session);
       setUser(session?.user ?? null);
-      
+
       if (session?.user) {
         fetchProfile(session.user.id).then((profileData) => {
           setProfile(profileData);
@@ -157,22 +148,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSigningOut(false);
   };
 
-  // During sign-out, treat hasProfile as true to prevent Setup flash
-  const effectiveHasProfile = useMemo(
-    () => signingOut ? true : !!profile,
-    [signingOut, profile]
-  );
-
   return (
-    <AuthContext.Provider 
-      value={{ 
-        user, 
-        session, 
-        profile, 
-        loading, 
-        hasProfile: effectiveHasProfile,
-        signIn, 
-        signUp, 
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        profile,
+        loading,
+        // Honest: hasProfile reflects actual profile state. Consumers gating
+        // Setup-flash should use the explicit `signingOut` flag instead.
+        hasProfile: !!profile,
+        signingOut,
+        signIn,
+        signUp,
         signOut,
         refreshProfile,
       }}
