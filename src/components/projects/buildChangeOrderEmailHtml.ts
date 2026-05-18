@@ -1,4 +1,5 @@
-import { resolveEmailStyle, type ProposalEmailStyleConfig, DEFAULT_PROPOSAL_EMAIL_STYLE } from "@/components/proposals/buildProposalEmailHtml";
+import { resolveEmailStyle, type ProposalEmailStyleConfig } from "@/components/proposals/buildProposalEmailHtml";
+import { fillStyleDefaults, replaceTemplateVariables } from "@/lib/email/shared";
 
 export { resolveEmailStyle };
 
@@ -30,18 +31,12 @@ export function resolveChangeOrderEmailTemplate(
     signoff: overrides?.signoff || CO_DEFAULTS.signoff,
   };
 
-  const replace = (text: string) =>
-    Object.entries(variables).reduce(
-      (t, [k, v]) => t.split(`{{${k}}}`).join(v),
-      text,
-    );
-
   return {
-    subject: replace(raw.subject),
-    greeting: replace(raw.greeting),
-    body_text: replace(raw.body_text),
-    cta_text: replace(raw.cta_text),
-    signoff: replace(raw.signoff),
+    subject: replaceTemplateVariables(raw.subject, variables),
+    greeting: replaceTemplateVariables(raw.greeting, variables),
+    body_text: replaceTemplateVariables(raw.body_text, variables),
+    cta_text: replaceTemplateVariables(raw.cta_text, variables),
+    signoff: replaceTemplateVariables(raw.signoff, variables),
   };
 }
 
@@ -82,16 +77,7 @@ export function buildChangeOrderEmailHtml({
   style,
   template,
 }: ChangeOrderEmailParams): string {
-  const s: Required<ProposalEmailStyleConfig> = {
-    accentColor: style?.accentColor ?? DEFAULT_PROPOSAL_EMAIL_STYLE.accentColor,
-    accentTextColor: style?.accentTextColor ?? style?.accentColor ?? DEFAULT_PROPOSAL_EMAIL_STYLE.accentTextColor,
-    accentForeground: style?.accentForeground ?? DEFAULT_PROPOSAL_EMAIL_STYLE.accentForeground,
-    fontFamily: style?.fontFamily ?? DEFAULT_PROPOSAL_EMAIL_STYLE.fontFamily,
-    buttonRadius: style?.buttonRadius ?? DEFAULT_PROPOSAL_EMAIL_STYLE.buttonRadius,
-    bodyColor: style?.bodyColor ?? DEFAULT_PROPOSAL_EMAIL_STYLE.bodyColor,
-    headingColor: style?.headingColor ?? DEFAULT_PROPOSAL_EMAIL_STYLE.headingColor,
-    bodyFontSize: style?.bodyFontSize ?? DEFAULT_PROPOSAL_EMAIL_STYLE.bodyFontSize,
-  };
+  const s = fillStyleDefaults(style);
 
   const resolved = resolveChangeOrderEmailTemplate(template, {
     CLIENT_NAME: contactName,
