@@ -31,18 +31,12 @@ export function resolveChangeOrderEmailTemplate(
     signoff: overrides?.signoff || CO_DEFAULTS.signoff,
   };
 
-  const replace = (text: string) =>
-    Object.entries(variables).reduce(
-      (t, [k, v]) => t.split(`{{${k}}}`).join(v),
-      text,
-    );
-
   return {
-    subject: replace(raw.subject),
-    greeting: replace(raw.greeting),
-    body_text: replace(raw.body_text),
-    cta_text: replace(raw.cta_text),
-    signoff: replace(raw.signoff),
+    subject: replaceTemplateVariables(raw.subject, variables),
+    greeting: replaceTemplateVariables(raw.greeting, variables),
+    body_text: replaceTemplateVariables(raw.body_text, variables),
+    cta_text: replaceTemplateVariables(raw.cta_text, variables),
+    signoff: replaceTemplateVariables(raw.signoff, variables),
   };
 }
 
