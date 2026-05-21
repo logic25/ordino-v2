@@ -85,8 +85,11 @@ export function ClientDialog({
     defaultValues: {
       name: "", email: "", phone: "", fax: "", address: "", notes: "",
       lead_owner_id: "", tax_id: "", client_type: "", is_sia: false,
+      specialty_tags: [], internal_notes: "",
     },
   });
+
+  const [tagInput, setTagInput] = useState("");
 
   useEffect(() => {
     if (client) {
@@ -102,12 +105,14 @@ export function ClientDialog({
         client_type: (client as any).client_type || "",
         is_sia: client.is_sia || false,
         is_rfp_partner: (client as any).is_rfp_partner || false,
+        specialty_tags: (client as any).specialty_tags || [],
+        internal_notes: (client as any).internal_notes || "",
       });
     } else {
       form.reset({
         name: defaultName || "", email: "", phone: "", fax: "", address: "", notes: "",
         lead_owner_id: "", tax_id: "", client_type: "", is_sia: false,
-        is_rfp_partner: false,
+        is_rfp_partner: false, specialty_tags: [], internal_notes: "",
       });
     }
   }, [client, form, defaultName]);
