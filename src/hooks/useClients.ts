@@ -42,6 +42,8 @@ export interface ClientFormInput {
   dob_tracking_expiration?: string | null;
   is_sia?: boolean;
   is_rfp_partner?: boolean;
+  specialty_tags?: string[];
+  internal_notes?: string | null;
   contacts?: ClientContactInput[];
 }
 
