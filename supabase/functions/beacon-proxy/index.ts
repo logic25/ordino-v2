@@ -224,9 +224,6 @@ Deno.serve(async (req) => {
                   dataContext.push(`**Live ${label} data:** ${data.proposals.length} proposals. Total pipeline: $${(data.total_pipeline_value || 0).toLocaleString()}`);
                 } else if (data.invoices) {
                   dataContext.push(`**Live ${label} data:** ${data.invoices.length} invoices. Outstanding: $${(data.outstanding_total || 0).toLocaleString()}. Paid: $${(data.paid_total || 0).toLocaleString()}`);
-                  dataContext.push(`**Live ${label} data:** ${data.proposals.length} proposals. Total pipeline: $${(data.total_pipeline_value || 0).toLocaleString()}`);
-                } else if (data.invoices) {
-                  dataContext.push(`**Live ${label} data:** ${data.invoices.length} invoices. Outstanding: $${(data.outstanding_total || 0).toLocaleString()}. Paid: $${(data.paid_total || 0).toLocaleString()}`);
                 } else {
                   dataContext.push(`**Live ${label} data:** ${JSON.stringify(data).slice(0, 500)}`);
                 }
