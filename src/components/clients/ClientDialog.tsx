@@ -50,6 +50,8 @@ const clientSchema = z.object({
   client_type: z.string().optional(),
   is_sia: z.boolean().optional(),
   is_rfp_partner: z.boolean().optional(),
+  specialty_tags: z.array(z.string()).optional(),
+  internal_notes: z.string().max(2000).optional(),
 });
 
 type FormData = z.infer<typeof clientSchema>;
