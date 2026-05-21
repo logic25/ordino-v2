@@ -199,6 +199,8 @@ export function useUpdateClient() {
           dob_tracking_expiration: input.dob_tracking_expiration || null,
           is_sia: input.is_sia ?? false,
           is_rfp_partner: input.is_rfp_partner ?? false,
+          specialty_tags: input.specialty_tags ?? [],
+          internal_notes: input.internal_notes ?? null,
         })
         .eq("id", id)
         .select()
