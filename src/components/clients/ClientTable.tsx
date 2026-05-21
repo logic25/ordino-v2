@@ -214,7 +214,16 @@ export function ClientTable({
                           <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         )}
                       </button>
-                      {client.name}
+                      <div className="flex flex-col gap-1">
+                        <span>{client.name}</span>
+                        {(client as any).is_rfp_partner && ((client as any).specialty_tags?.length > 0) && (
+                          <div className="flex flex-wrap gap-1">
+                            {((client as any).specialty_tags as string[]).slice(0, 4).map((t) => (
+                              <span key={t} className="inline-block px-1.5 py-0.5 text-[10px] rounded-full bg-accent/15 text-accent-foreground border border-accent/30">{t}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">

@@ -2359,6 +2359,7 @@ export type Database = {
           ibm_number: string | null
           ibm_number_expiration: string | null
           id: string
+          internal_notes: string | null
           is_rfp_partner: boolean
           is_sia: boolean
           lead_owner_id: string | null
@@ -2366,6 +2367,7 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          specialty_tags: string[] | null
           tax_id: string | null
           updated_at: string | null
         }
@@ -2382,6 +2384,7 @@ export type Database = {
           ibm_number?: string | null
           ibm_number_expiration?: string | null
           id?: string
+          internal_notes?: string | null
           is_rfp_partner?: boolean
           is_sia?: boolean
           lead_owner_id?: string | null
@@ -2389,6 +2392,7 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          specialty_tags?: string[] | null
           tax_id?: string | null
           updated_at?: string | null
         }
@@ -2405,6 +2409,7 @@ export type Database = {
           ibm_number?: string | null
           ibm_number_expiration?: string | null
           id?: string
+          internal_notes?: string | null
           is_rfp_partner?: boolean
           is_sia?: boolean
           lead_owner_id?: string | null
@@ -2412,6 +2417,7 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          specialty_tags?: string[] | null
           tax_id?: string | null
           updated_at?: string | null
         }

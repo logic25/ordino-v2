@@ -130,13 +130,20 @@ Deno.serve(async (req) => {
               label: "PM workload",
             });
           }
-          if (/recommend|suggest|know a |know any |good |who.*(plumb|architect|engineer|gc|contractor|expedit|surveyor|sia|consultant|vendor|partner)/i.test(msgLower)) {
-            const typeMatch = msgLower.match(/\b(plumb(?:er|ing)?|architect|engineer(?:ing)?|gc|general\s*contractor|contractor|expedit(?:er|or|ing)?|surveyor|sia|consultant|electrician|hvac|structural)\b/);
-            dataQueries.push({
-              action: "vendor_lookup",
-              params: { type: typeMatch ? typeMatch[1] : undefined },
-              label: "vendor recommendations",
-            });
+          {
+            const TRADE_WORDS = "plumb(?:er|ing)?|architect|engineer(?:ing)?|mep|electrician|electrical|hvac|structural|gc|general\\s*contractor|contractor|expedit(?:er|or|ing)?|surveyor|sia|consultant|landscape|fire\\s*protection|draftsman|drafter|sprinkler|elevator|abatement|asbestos|geotech|environmental|acoustic|lighting|interior\\s*designer";
+            const tradeIntent = new RegExp(
+              `(recommend|suggest|know\\s+(?:a|any|of\\s+a|of\\s+any)|good|got\\s+a|need\\s+a|looking\\s+for\\s+a|who\\s+(?:are|is)\\s+our|do\\s+we\\s+have|any\\s+good|list\\s+(?:our|all)|find\\s+(?:me|us))\\b.*\\b(${TRADE_WORDS})|\\b(${TRADE_WORDS})\\b.*\\b(recommend|suggest|good|reliable|responsive)`,
+              "i"
+            );
+            if (tradeIntent.test(msgLower)) {
+              const typeMatch = msgLower.match(new RegExp(`\\b(${TRADE_WORDS})\\b`, "i"));
+              dataQueries.push({
+                action: "vendor_lookup",
+                params: { type: typeMatch ? typeMatch[1] : undefined },
+                label: "vendor recommendations",
+              });
+            }
           }
           if (/filing|readiness/i.test(msgLower)) {
             dataQueries.push({
@@ -191,17 +198,28 @@ Deno.serve(async (req) => {
                 // For structured results like invoices/proposals with totals
                 if (data.vendors) {
                   const vendorLines = (data.vendors || []).map((v: any) => {
-                    let line = `• **${v.name}**`;
-                    if (v.type) line += ` (${v.type})`;
-                    if (v.avg_rating) line += ` — ⭐ ${v.avg_rating}/5 (${v.review_count} reviews)`;
-                    else line += ` — no reviews yet`;
-                    if (v.contact) line += ` | Contact: ${v.contact.name}${v.contact.email ? ` <${v.contact.email}>` : ""}${v.contact.phone ? ` ${v.contact.phone}` : ""}`;
-                    if (v.recent_reviews?.length > 0) {
-                      line += `\n  Latest review: "${v.recent_reviews[0].text}" — ${v.recent_reviews[0].reviewer}`;
+                    const parts: string[] = [`• **${v.name}**`];
+                    if (v.type) parts.push(`(${v.type})`);
+                    if (v.borough) parts.push(`— ${v.borough}`);
+                    if (v.avg_rating) parts.push(`⭐ ${v.avg_rating}/5 (${v.review_count})`);
+                    else parts.push(`no reviews yet`);
+                    let line = parts.join(" ");
+                    if (v.responsiveness) {
+                      line += ` | ⚡ ${v.responsiveness.bucket} (~${v.responsiveness.medianHours}h reply)`;
                     }
+                    if (v.past_jobs_count > 0) {
+                      line += ` | ${v.past_jobs_count} past job${v.past_jobs_count > 1 ? "s" : ""} together`;
+                      if (v.last_worked?.month) line += ` (last: ${v.last_worked.month}${v.last_worked.address ? " — " + v.last_worked.address : ""})`;
+                    }
+                    if (v.specialty_tags?.length) line += ` | Specialties: ${v.specialty_tags.join(", ")}`;
+                    if (v.contact) line += `\n  Contact: ${v.contact.name}${v.contact.email ? ` <${v.contact.email}>` : ""}${v.contact.phone ? ` ${v.contact.phone}` : ""}`;
+                    if (v.recent_reviews?.length > 0 && v.recent_reviews[0].text) {
+                      line += `\n  Latest review (${v.recent_reviews[0].rating}★): "${v.recent_reviews[0].text}" — ${v.recent_reviews[0].reviewer}`;
+                    }
+                    if (v.internal_notes) line += `\n  Internal note: ${v.internal_notes.slice(0, 160)}`;
                     return line;
                   }).join("\n");
-                  dataContext.push(`**Partner recommendations from our database (${data.count} found):**\nPresent these as YOUR recommendations from the company's vetted partner list. Include contact info.\n${vendorLines}`);
+                  dataContext.push(`**Partner recommendations from our database (${data.count} found):**\nPresent these as YOUR recommendations from the company's vetted partner list. Prefer partners with high ratings, fast responsiveness, and past projects together. Include contact info.\n${vendorLines}`);
                 } else if (data.proposals) {
                   dataContext.push(`**Live ${label} data:** ${data.proposals.length} proposals. Total pipeline: $${(data.total_pipeline_value || 0).toLocaleString()}`);
                 } else if (data.invoices) {

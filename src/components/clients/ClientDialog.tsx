@@ -50,6 +50,8 @@ const clientSchema = z.object({
   client_type: z.string().optional(),
   is_sia: z.boolean().optional(),
   is_rfp_partner: z.boolean().optional(),
+  specialty_tags: z.array(z.string()).optional(),
+  internal_notes: z.string().max(2000).optional(),
 });
 
 type FormData = z.infer<typeof clientSchema>;
@@ -83,8 +85,11 @@ export function ClientDialog({
     defaultValues: {
       name: "", email: "", phone: "", fax: "", address: "", notes: "",
       lead_owner_id: "", tax_id: "", client_type: "", is_sia: false,
+      specialty_tags: [], internal_notes: "",
     },
   });
+
+  const [tagInput, setTagInput] = useState("");
 
   useEffect(() => {
     if (client) {
@@ -100,12 +105,14 @@ export function ClientDialog({
         client_type: (client as any).client_type || "",
         is_sia: client.is_sia || false,
         is_rfp_partner: (client as any).is_rfp_partner || false,
+        specialty_tags: (client as any).specialty_tags || [],
+        internal_notes: (client as any).internal_notes || "",
       });
     } else {
       form.reset({
         name: defaultName || "", email: "", phone: "", fax: "", address: "", notes: "",
         lead_owner_id: "", tax_id: "", client_type: "", is_sia: false,
-        is_rfp_partner: false,
+        is_rfp_partner: false, specialty_tags: [], internal_notes: "",
       });
     }
   }, [client, form, defaultName]);
@@ -139,12 +146,25 @@ export function ClientDialog({
         client_type: data.client_type || null,
         is_sia: data.is_sia || false,
         is_rfp_partner: data.is_rfp_partner || false,
+        specialty_tags: data.specialty_tags || [],
+        internal_notes: data.internal_notes || null,
       });
       form.reset();
       onOpenChange(false);
     } catch (error: any) {
       toast({ title: "Error saving company", description: error?.message || "Something went wrong", variant: "destructive" });
     }
+  };
+
+  const addTag = () => {
+    const t = tagInput.trim();
+    if (!t) return;
+    const current = form.getValues("specialty_tags") || [];
+    if (!current.includes(t)) form.setValue("specialty_tags", [...current, t]);
+    setTagInput("");
+  };
+  const removeTag = (t: string) => {
+    form.setValue("specialty_tags", (form.getValues("specialty_tags") || []).filter((x) => x !== t));
   };
 
   const profileOptions = profiles.map((p) => ({
@@ -278,10 +298,47 @@ export function ClientDialog({
             <Label>RFP Partner (show in RFP recommendations)</Label>
           </div>
 
+          {form.watch("is_rfp_partner") && (
+            <>
+              <div className="space-y-2">
+                <Label>Specialty Tags</Label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {(form.watch("specialty_tags") || []).map((t) => (
+                    <span key={t} className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-accent/20 text-accent-foreground border border-accent/30">
+                      {t}
+                      <button type="button" onClick={() => removeTag(t)} className="hover:text-destructive">×</button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="e.g. landmarks, Brooklyn, hospitality"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
+                  />
+                  <Button type="button" variant="outline" onClick={addTag}>Add</Button>
+                </div>
+                <p className="text-xs text-muted-foreground">Used by Beacon to recommend the right partner for each job.</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="internal_notes">Internal Notes (private)</Label>
+                <Textarea
+                  id="internal_notes"
+                  placeholder="Private notes — visible to Beacon and your team, never on RFPs or to clients."
+                  rows={2}
+                  {...form.register("internal_notes")}
+                />
+              </div>
+            </>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
             <Textarea id="notes" placeholder="Any additional notes..." rows={3} {...form.register("notes")} />
           </div>
+
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
