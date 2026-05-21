@@ -146,12 +146,25 @@ export function ClientDialog({
         client_type: data.client_type || null,
         is_sia: data.is_sia || false,
         is_rfp_partner: data.is_rfp_partner || false,
+        specialty_tags: data.specialty_tags || [],
+        internal_notes: data.internal_notes || null,
       });
       form.reset();
       onOpenChange(false);
     } catch (error: any) {
       toast({ title: "Error saving company", description: error?.message || "Something went wrong", variant: "destructive" });
     }
+  };
+
+  const addTag = () => {
+    const t = tagInput.trim();
+    if (!t) return;
+    const current = form.getValues("specialty_tags") || [];
+    if (!current.includes(t)) form.setValue("specialty_tags", [...current, t]);
+    setTagInput("");
+  };
+  const removeTag = (t: string) => {
+    form.setValue("specialty_tags", (form.getValues("specialty_tags") || []).filter((x) => x !== t));
   };
 
   const profileOptions = profiles.map((p) => ({
