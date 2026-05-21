@@ -604,52 +604,56 @@ async function vendorLookup(sb: any, params: any) {
   const { type, search, limit: rawLimit } = params || {};
   const safeLimit = Math.min(Math.max(Number(rawLimit) || 10, 1), 50);
 
-  // Get all RFP partner clients, optionally filtered by client_type
   let q = sb
     .from("clients")
-    .select("id, name, client_type, is_rfp_partner")
+    .select("id, name, email, client_type, is_rfp_partner, address, specialty_tags, internal_notes")
     .eq("is_rfp_partner", true)
     .limit(200);
 
-  if (type) {
-    q = q.ilike("client_type", `%${type}%`);
-  }
-  if (search) {
-    q = q.ilike("name", `%${search}%`);
-  }
+  if (type) q = q.ilike("client_type", `%${type}%`);
+  if (search) q = q.ilike("name", `%${search}%`);
 
   const { data: clients, error: clientErr } = await q;
   if (clientErr) {
     console.error("vendor_lookup clients error:", clientErr.message);
     return fail(clientErr.message, 500);
   }
-
   if (!clients || clients.length === 0) {
     return ok({ vendors: [], count: 0, message: type ? `No partners found with type "${type}"` : "No RFP partners found" });
   }
 
   const clientIds = clients.map((c: any) => c.id);
+  const clientNames = clients.map((c: any) => c.name).filter(Boolean);
 
-  // Get reviews for these clients
-  const { data: reviews, error: revErr } = await sb
-    .from("company_reviews")
-    .select("client_id, rating, review_text, reviewer_name, created_at")
-    .in("client_id", clientIds);
+  // Past-projects filter (name-match on architect/gc text fields)
+  const projectsFilter = clientNames.flatMap((n: string) => {
+    const esc = n.replace(/[,()*%]/g, "");
+    return [`architect_company_name.ilike.%${esc}%`, `gc_company_name.ilike.%${esc}%`];
+  }).join(",");
 
-  if (revErr) {
-    console.error("vendor_lookup reviews error:", revErr.message);
-  }
+  const [reviewsRes, contactsRes, projectsRes] = await Promise.all([
+    sb.from("company_reviews")
+      .select("client_id, rating, review_text, reviewer_name, created_at")
+      .in("client_id", clientIds),
+    sb.from("client_contacts")
+      .select("client_id, name, email, phone, title, is_primary")
+      .in("client_id", clientIds)
+      .order("is_primary", { ascending: false }),
+    projectsFilter
+      ? sb.from("projects")
+          .select("id, architect_company_name, gc_company_name, created_at, properties(address)")
+          .or(projectsFilter)
+          .limit(500)
+      : Promise.resolve({ data: [] }),
+  ]);
 
-  // Get primary contacts
-  const { data: contacts } = await sb
-    .from("client_contacts")
-    .select("client_id, name, email, phone, title, is_primary")
-    .in("client_id", clientIds)
-    .order("is_primary", { ascending: false });
+  const reviews = reviewsRes.data || [];
+  const contacts = contactsRes.data || [];
+  const projects = (projectsRes as any).data || [];
 
-  // Build rating map
+  // Rating aggregation
   const ratingMap: Record<string, { sum: number; count: number; reviews: any[] }> = {};
-  for (const r of reviews || []) {
+  for (const r of reviews) {
     if (!ratingMap[r.client_id]) ratingMap[r.client_id] = { sum: 0, count: 0, reviews: [] };
     ratingMap[r.client_id].sum += r.rating;
     ratingMap[r.client_id].count++;
@@ -660,34 +664,163 @@ async function vendorLookup(sb: any, params: any) {
       date: r.created_at,
     });
   }
+  for (const cid of Object.keys(ratingMap)) {
+    ratingMap[cid].reviews.sort((a: any, b: any) => (b.date || "").localeCompare(a.date || ""));
+  }
 
-  // Build contact map (primary contact per client)
+  // Primary contact + collect emails for responsiveness
   const contactMap: Record<string, any> = {};
-  for (const c of contacts || []) {
+  const emailsByClient: Record<string, string[]> = {};
+  for (const c of contacts) {
     if (!contactMap[c.client_id] || c.is_primary) {
       contactMap[c.client_id] = { name: c.name, email: c.email, phone: c.phone, title: c.title };
     }
+    if (c.email) {
+      if (!emailsByClient[c.client_id]) emailsByClient[c.client_id] = [];
+      emailsByClient[c.client_id].push(c.email.toLowerCase());
+    }
+  }
+  for (const c of clients) {
+    if ((c as any).email) {
+      if (!emailsByClient[c.id]) emailsByClient[c.id] = [];
+      emailsByClient[c.id].push((c as any).email.toLowerCase());
+    }
   }
 
-  // Assemble and rank
+  // Past projects per client (name match)
+  const projectsByClient: Record<string, any[]> = {};
+  for (const c of clients) {
+    const nameLower = (c.name || "").toLowerCase().trim();
+    if (!nameLower) continue;
+    const matched = projects.filter((p: any) =>
+      (p.architect_company_name || "").toLowerCase().includes(nameLower) ||
+      (p.gc_company_name || "").toLowerCase().includes(nameLower)
+    );
+    if (matched.length) {
+      matched.sort((a: any, b: any) => (b.created_at || "").localeCompare(a.created_at || ""));
+      projectsByClient[c.id] = matched;
+    }
+  }
+
+  // Responsiveness: median email reply time over last 90 days
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+  const allPartnerEmails = Array.from(new Set(Object.values(emailsByClient).flat()));
+  const responsivenessByClient: Record<string, { medianHours: number; bucket: string; sampleSize: number }> = {};
+
+  if (allPartnerEmails.length > 0) {
+    const orFromFilter = allPartnerEmails.map(e => `from_email.ilike.${e}`).join(",");
+    const [inboundRes, outboundRes] = await Promise.all([
+      sb.from("emails")
+        .select("thread_id, from_email, to_emails, date")
+        .gte("date", ninetyDaysAgo)
+        .or(orFromFilter)
+        .limit(5000),
+      sb.from("emails")
+        .select("thread_id, from_email, to_emails, date")
+        .gte("date", ninetyDaysAgo)
+        .overlaps("to_emails", allPartnerEmails)
+        .limit(5000),
+    ]);
+
+    const allEmails = [...(inboundRes.data || []), ...(outboundRes.data || [])];
+    const threads: Record<string, any[]> = {};
+    for (const e of allEmails) {
+      if (!e.thread_id) continue;
+      if (!threads[e.thread_id]) threads[e.thread_id] = [];
+      threads[e.thread_id].push(e);
+    }
+    for (const tid of Object.keys(threads)) {
+      const seen = new Set<string>();
+      threads[tid] = threads[tid]
+        .filter((e: any) => {
+          const k = `${e.date}|${e.from_email}`;
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        })
+        .sort((a: any, b: any) => (a.date || "").localeCompare(b.date || ""));
+    }
+
+    for (const [cid, partnerEmails] of Object.entries(emailsByClient)) {
+      const setLower = new Set(partnerEmails);
+      const gaps: number[] = [];
+      for (const tid of Object.keys(threads)) {
+        const msgs = threads[tid];
+        const involved = msgs.some((m: any) =>
+          setLower.has((m.from_email || "").toLowerCase()) ||
+          (m.to_emails || []).some((t: string) => setLower.has((t || "").toLowerCase()))
+        );
+        if (!involved) continue;
+        for (let i = 0; i < msgs.length - 1; i++) {
+          const cur = msgs[i];
+          const nxt = msgs[i + 1];
+          const curFromPartner = setLower.has((cur.from_email || "").toLowerCase());
+          const nxtFromPartner = setLower.has((nxt.from_email || "").toLowerCase());
+          if (!curFromPartner && nxtFromPartner) {
+            const dt = (new Date(nxt.date).getTime() - new Date(cur.date).getTime()) / 3600000;
+            if (dt > 0 && dt < 24 * 30) gaps.push(dt);
+          }
+        }
+      }
+      if (gaps.length >= 3) {
+        gaps.sort((a, b) => a - b);
+        const median = gaps[Math.floor(gaps.length / 2)];
+        let bucket = "Unresponsive";
+        if (median <= 4) bucket = "Fast";
+        else if (median <= 24) bucket = "Same-day";
+        else if (median <= 72) bucket = "Slow";
+        responsivenessByClient[cid] = {
+          medianHours: Math.round(median * 10) / 10,
+          bucket,
+          sampleSize: gaps.length,
+        };
+      }
+    }
+  }
+
+  function borough(addr?: string | null): string | null {
+    if (!addr) return null;
+    const a = addr.toLowerCase();
+    if (a.includes("brooklyn")) return "Brooklyn";
+    if (a.includes("queens")) return "Queens";
+    if (a.includes("bronx")) return "Bronx";
+    if (a.includes("staten island")) return "Staten Island";
+    if (a.includes("manhattan") || /\bnew york, ny\b/.test(a)) return "Manhattan";
+    return null;
+  }
+
   const vendors = clients.map((c: any) => {
     const r = ratingMap[c.id];
+    const past = projectsByClient[c.id] || [];
+    const lastProj = past[0];
+    const lastAddr = lastProj?.properties?.address || null;
+    const lastMonth = lastProj?.created_at
+      ? new Date(lastProj.created_at).toLocaleString("en-US", { month: "short", year: "numeric" })
+      : null;
+    const resp = responsivenessByClient[c.id];
+
     return {
       id: c.id,
       name: c.name,
       type: c.client_type,
+      borough: borough(c.address),
       avg_rating: r ? Math.round((r.sum / r.count) * 10) / 10 : null,
       review_count: r?.count || 0,
-      recent_reviews: (r?.reviews || []).slice(0, 3),
+      recent_reviews: (r?.reviews || []).slice(0, 2),
+      past_jobs_count: past.length,
+      last_worked: lastMonth ? { address: lastAddr, month: lastMonth } : null,
+      responsiveness: resp || null,
+      specialty_tags: c.specialty_tags || [],
+      internal_notes: c.internal_notes || null,
       contact: contactMap[c.id] || null,
     };
   });
 
-  // Sort: highest rated first, then by review count
   vendors.sort((a: any, b: any) => {
     const aR = a.avg_rating ?? 0;
     const bR = b.avg_rating ?? 0;
     if (bR !== aR) return bR - aR;
+    if (b.past_jobs_count !== a.past_jobs_count) return b.past_jobs_count - a.past_jobs_count;
     return b.review_count - a.review_count;
   });
 
