@@ -130,13 +130,20 @@ Deno.serve(async (req) => {
               label: "PM workload",
             });
           }
-          if (/recommend|suggest|know a |know any |good |who.*(plumb|architect|engineer|gc|contractor|expedit|surveyor|sia|consultant|vendor|partner)/i.test(msgLower)) {
-            const typeMatch = msgLower.match(/\b(plumb(?:er|ing)?|architect|engineer(?:ing)?|gc|general\s*contractor|contractor|expedit(?:er|or|ing)?|surveyor|sia|consultant|electrician|hvac|structural)\b/);
-            dataQueries.push({
-              action: "vendor_lookup",
-              params: { type: typeMatch ? typeMatch[1] : undefined },
-              label: "vendor recommendations",
-            });
+          {
+            const TRADE_WORDS = "plumb(?:er|ing)?|architect|engineer(?:ing)?|mep|electrician|electrical|hvac|structural|gc|general\\s*contractor|contractor|expedit(?:er|or|ing)?|surveyor|sia|consultant|landscape|fire\\s*protection|draftsman|drafter|sprinkler|elevator|abatement|asbestos|geotech|environmental|acoustic|lighting|interior\\s*designer";
+            const tradeIntent = new RegExp(
+              `(recommend|suggest|know\\s+(?:a|any|of\\s+a|of\\s+any)|good|got\\s+a|need\\s+a|looking\\s+for\\s+a|who\\s+(?:are|is)\\s+our|do\\s+we\\s+have|any\\s+good|list\\s+(?:our|all)|find\\s+(?:me|us))\\b.*\\b(${TRADE_WORDS})|\\b(${TRADE_WORDS})\\b.*\\b(recommend|suggest|good|reliable|responsive)`,
+              "i"
+            );
+            if (tradeIntent.test(msgLower)) {
+              const typeMatch = msgLower.match(new RegExp(`\\b(${TRADE_WORDS})\\b`, "i"));
+              dataQueries.push({
+                action: "vendor_lookup",
+                params: { type: typeMatch ? typeMatch[1] : undefined },
+                label: "vendor recommendations",
+              });
+            }
           }
           if (/filing|readiness/i.test(msgLower)) {
             dataQueries.push({
