@@ -639,22 +639,23 @@ function resolveTradeKey(raw?: string | null): string | null {
 }
 
 async function vendorLookup(sb: any, params: any) {
-  const { type, search, limit: rawLimit } = params || {};
+  const { type, search, limit: rawLimit, jurisdiction: rawJur } = params || {};
   const safeLimit = Math.min(Math.max(Number(rawLimit) || 10, 1), 50);
   const tradeKey = resolveTradeKey(type);
   const trade = tradeKey ? TRADE_SYNONYMS[tradeKey] : null;
+  const jurisdiction = rawJur ? String(rawJur).toUpperCase().trim() : null;
 
   // 1) Pull firms: RFP partners whose client_type matches any synonym for the trade.
   let firmQ = sb
     .from("clients")
-    .select("id, name, email, client_type, is_rfp_partner, address, specialty_tags, internal_notes")
+    .select("id, name, email, client_type, is_rfp_partner, address, specialty_tags, internal_notes, licensed_jurisdictions")
     .limit(500);
   if (search) firmQ = firmQ.ilike("name", `%${search}%`);
 
   // 2) Pull candidate contacts (across ALL firms) whose title or license matches the trade.
   let contactQ = sb
     .from("client_contacts")
-    .select("client_id, name, first_name, last_name, email, phone, mobile, title, license_type, license_number, is_primary, clients!inner(id, name, client_type, is_rfp_partner, address, specialty_tags, internal_notes, email)")
+    .select("client_id, name, first_name, last_name, email, phone, mobile, title, license_type, license_number, is_primary, licensed_jurisdictions, clients!inner(id, name, client_type, is_rfp_partner, address, specialty_tags, internal_notes, email, licensed_jurisdictions)")
     .limit(500);
 
   const [firmRes, contactRes] = await Promise.all([firmQ, contactQ]);
@@ -663,6 +664,10 @@ async function vendorLookup(sb: any, params: any) {
 
   const allFirms: any[] = firmRes.data || [];
   const allContacts: any[] = contactRes.data || [];
+
+  // Helpers for jurisdiction matching
+  const jurMatches = (arr?: string[] | null) => !jurisdiction || (Array.isArray(arr) && arr.map(s => s.toUpperCase()).includes(jurisdiction));
+  const jurUnknown = (arr?: string[] | null) => !Array.isArray(arr) || arr.length === 0;
 
   // Filter firms by trade type (if specified)
   const matchedFirms = allFirms.filter((c: any) => {
@@ -688,6 +693,7 @@ async function vendorLookup(sb: any, params: any) {
     const reason = cc.license_type && trade && trade.licenseTypes.includes((cc.license_type || "").toUpperCase())
       ? `License: ${cc.license_type}`
       : `Title: ${cc.title || "—"}`;
+    const contactJur: string[] = Array.isArray(cc.licensed_jurisdictions) ? cc.licensed_jurisdictions : [];
     const contact = {
       name: cc.name || [cc.first_name, cc.last_name].filter(Boolean).join(" "),
       email: cc.email,
@@ -695,6 +701,12 @@ async function vendorLookup(sb: any, params: any) {
       title: cc.title,
       license: cc.license_type ? `${cc.license_type}${cc.license_number ? " #" + cc.license_number : ""}` : null,
       match_reason: reason,
+      licensed_jurisdictions: contactJur,
+      jurisdiction_status: !jurisdiction
+        ? "n/a"
+        : jurMatches(contactJur) ? "match"
+        : jurUnknown(contactJur) ? "unknown"
+        : "mismatch",
     };
     if (!contactsByFirm[parent.id]) contactsByFirm[parent.id] = [];
     contactsByFirm[parent.id].push(contact);
@@ -714,9 +726,11 @@ async function vendorLookup(sb: any, params: any) {
       vendors: [],
       suggested_partners: [],
       count: 0,
-      message: type ? `No firms or contacts matched "${type}"` : "No RFP partners found",
+      jurisdiction,
+      message: type ? `No firms or contacts matched "${type}"${jurisdiction ? ` in ${jurisdiction}` : ""}` : "No RFP partners found",
     });
   }
+
 
   const firmIds = firms.map((c: any) => c.id);
   const firmNames = firms.map((c: any) => c.name).filter(Boolean);
