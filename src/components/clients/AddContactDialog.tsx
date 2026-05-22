@@ -109,6 +109,8 @@ export function AddContactDialog({ open, onOpenChange, clientId, defaultName, on
         license_type: form.license_type || null,
         license_number: form.license_number || null,
         specialty: form.specialty || null,
+        licensed_jurisdictions: (form.licensed_jurisdictions || "")
+          .split(/[,\s]+/).map((s: string) => s.trim().toUpperCase()).filter(Boolean),
         lead_owner_id: form.lead_owner_id || null,
         address_1: form.address_1 || null,
         address_2: form.address_2 || null,
