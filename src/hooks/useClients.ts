@@ -43,6 +43,7 @@ export interface ClientFormInput {
   is_sia?: boolean;
   is_rfp_partner?: boolean;
   specialty_tags?: string[];
+  licensed_jurisdictions?: string[];
   internal_notes?: string | null;
   contacts?: ClientContactInput[];
 }
