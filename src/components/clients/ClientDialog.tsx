@@ -338,6 +338,30 @@ export function ClientDialog({
               </div>
 
               <div className="space-y-2">
+                <Label>Licensed Jurisdictions (US states)</Label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {(form.watch("licensed_jurisdictions") || []).map((j) => (
+                    <span key={j} className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-primary/15 text-primary border border-primary/30 font-medium">
+                      {j}
+                      <button type="button" onClick={() => removeJurisdiction(j)} className="hover:text-destructive">×</button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="e.g. NY, NJ, CT"
+                    value={jurInput}
+                    onChange={(e) => setJurInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addJurisdiction(); } }}
+                    maxLength={4}
+                  />
+                  <Button type="button" variant="outline" onClick={addJurisdiction}>Add</Button>
+                </div>
+                <p className="text-xs text-muted-foreground">Two-letter state codes. Beacon uses this to filter trade recommendations by state (e.g. "architect in NJ").</p>
+              </div>
+
+
+              <div className="space-y-2">
                 <Label htmlFor="internal_notes">Internal Notes (private)</Label>
                 <Textarea
                   id="internal_notes"
