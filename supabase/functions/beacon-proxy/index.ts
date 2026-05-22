@@ -234,7 +234,6 @@ Deno.serve(async (req) => {
                     block += `\n\n**Suggested to add as RFP partners** (firms in your contacts with matching people, but not yet marked as partners — mention these to the user so they can promote them):\n${suggestLines}`;
                   }
                   dataContext.push(block);
-                }
                 } else if (data.proposals) {
                   dataContext.push(`**Live ${label} data:** ${data.proposals.length} proposals. Total pipeline: $${(data.total_pipeline_value || 0).toLocaleString()}`);
                 } else if (data.invoices) {
