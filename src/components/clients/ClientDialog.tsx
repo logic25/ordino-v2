@@ -107,6 +107,7 @@ export function ClientDialog({
         is_sia: client.is_sia || false,
         is_rfp_partner: (client as any).is_rfp_partner || false,
         specialty_tags: (client as any).specialty_tags || [],
+        licensed_jurisdictions: (client as any).licensed_jurisdictions || [],
         internal_notes: (client as any).internal_notes || "",
       });
     } else {
