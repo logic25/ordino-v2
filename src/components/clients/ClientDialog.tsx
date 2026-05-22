@@ -51,6 +51,7 @@ const clientSchema = z.object({
   is_sia: z.boolean().optional(),
   is_rfp_partner: z.boolean().optional(),
   specialty_tags: z.array(z.string()).optional(),
+  licensed_jurisdictions: z.array(z.string()).optional(),
   internal_notes: z.string().max(2000).optional(),
 });
 
