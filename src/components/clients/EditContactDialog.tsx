@@ -281,6 +281,17 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
             ) : <div />}
           </div>
 
+          <div className="space-y-1.5">
+            <Label>Licensed Jurisdictions</Label>
+            <Input
+              placeholder="e.g. NY, NJ, CT"
+              value={form.licensed_jurisdictions}
+              onChange={(e) => update("licensed_jurisdictions", e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">Comma-separated state codes. Beacon uses this to filter trade recommendations by state.</p>
+          </div>
+
+
           {/* Settings */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
