@@ -2118,6 +2118,7 @@ export type Database = {
           lead_owner_id: string | null
           license_number: string | null
           license_type: string | null
+          licensed_jurisdictions: string[]
           linkedin_url: string | null
           mobile: string | null
           name: string
@@ -2147,6 +2148,7 @@ export type Database = {
           lead_owner_id?: string | null
           license_number?: string | null
           license_type?: string | null
+          licensed_jurisdictions?: string[]
           linkedin_url?: string | null
           mobile?: string | null
           name: string
@@ -2176,6 +2178,7 @@ export type Database = {
           lead_owner_id?: string | null
           license_number?: string | null
           license_type?: string | null
+          licensed_jurisdictions?: string[]
           linkedin_url?: string | null
           mobile?: string | null
           name?: string
@@ -2363,6 +2366,7 @@ export type Database = {
           is_rfp_partner: boolean
           is_sia: boolean
           lead_owner_id: string | null
+          licensed_jurisdictions: string[]
           metadata: Json | null
           name: string
           notes: string | null
@@ -2388,6 +2392,7 @@ export type Database = {
           is_rfp_partner?: boolean
           is_sia?: boolean
           lead_owner_id?: string | null
+          licensed_jurisdictions?: string[]
           metadata?: Json | null
           name: string
           notes?: string | null
@@ -2413,6 +2418,7 @@ export type Database = {
           is_rfp_partner?: boolean
           is_sia?: boolean
           lead_owner_id?: string | null
+          licensed_jurisdictions?: string[]
           metadata?: Json | null
           name?: string
           notes?: string | null
