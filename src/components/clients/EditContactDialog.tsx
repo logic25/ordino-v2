@@ -56,6 +56,7 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
     license_type: "",
     license_number: "",
     specialty: "",
+    licensed_jurisdictions: "",
   };
 
   const [form, setForm] = useState(emptyForm);
