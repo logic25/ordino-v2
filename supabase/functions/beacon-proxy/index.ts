@@ -20,12 +20,23 @@ Deno.serve(async (req) => {
 
     // Health check doesn't require authentication
     if (action === "health") {
-      const beaconRes = await fetch(`${BEACON_API_URL}/`, { method: "GET" });
-      const responseBody = await beaconRes.text();
-      return new Response(responseBody, {
-        status: beaconRes.status,
-        headers: { ...corsHeaders, "Content-Type": beaconRes.headers.get("Content-Type") || "application/json" },
-      });
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        const beaconRes = await fetch(`${BEACON_API_URL}/`, { method: "GET", signal: controller.signal });
+        clearTimeout(timeout);
+        const responseBody = await beaconRes.text();
+        return new Response(responseBody, {
+          status: beaconRes.status,
+          headers: { ...corsHeaders, "Content-Type": beaconRes.headers.get("Content-Type") || "application/json" },
+        });
+      } catch (e) {
+        console.error("Beacon health check failed:", e);
+        return new Response(
+          JSON.stringify({ status: "unavailable", error: (e as Error).message }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Verify JWT for all other actions
