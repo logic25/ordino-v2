@@ -149,12 +149,29 @@ Deno.serve(async (req) => {
             );
             if (tradeIntent.test(msgLower)) {
               const typeMatch = msgLower.match(new RegExp(`\\b(${TRADE_WORDS})\\b`, "i"));
+              // Detect US state mention (full name or 2-letter code) → pass as jurisdiction
+              const STATE_MAP: Record<string, string> = {
+                "new york": "NY", "ny": "NY",
+                "new jersey": "NJ", "nj": "NJ", "jersey": "NJ",
+                "connecticut": "CT", "ct": "CT",
+                "pennsylvania": "PA", "pa": "PA",
+                "massachusetts": "MA", "mass": "MA", "ma": "MA",
+                "florida": "FL", "fl": "FL",
+                "california": "CA", "calif": "CA", "ca": "CA",
+                "texas": "TX", "tx": "TX",
+              };
+              let jurisdiction: string | undefined;
+              for (const [k, v] of Object.entries(STATE_MAP)) {
+                const re = new RegExp(`\\b${k.replace(/\s+/g, "\\s+")}\\b`, "i");
+                if (re.test(msgLower)) { jurisdiction = v; break; }
+              }
               dataQueries.push({
                 action: "vendor_lookup",
-                params: { type: typeMatch ? typeMatch[1] : undefined },
-                label: "vendor recommendations",
+                params: { type: typeMatch ? typeMatch[1] : undefined, ...(jurisdiction ? { jurisdiction } : {}) },
+                label: jurisdiction ? `vendor recommendations (${jurisdiction})` : "vendor recommendations",
               });
             }
+
           }
           if (/filing|readiness/i.test(msgLower)) {
             dataQueries.push({
@@ -222,10 +239,15 @@ Deno.serve(async (req) => {
                       if (v.last_worked?.month) line += ` (last: ${v.last_worked.month}${v.last_worked.address ? " — " + v.last_worked.address : ""})`;
                     }
                     if (v.specialty_tags?.length) line += `\n  Specialties: ${v.specialty_tags.join(", ")}`;
+                    if (v.licensed_jurisdictions?.length) line += `\n  Licensed in: ${v.licensed_jurisdictions.join(", ")}`;
+                    else if (data.jurisdiction) line += `\n  ⚠️ Licensure in ${data.jurisdiction} not recorded — verify before assigning`;
                     if (v.matched_contacts?.length) {
                       line += `\n  People matching this trade:`;
                       for (const mc of v.matched_contacts) {
-                        line += `\n    – ${mc.name}${mc.title ? ` — ${mc.title}` : ""}${mc.license ? ` (${mc.license})` : ""}${mc.email ? ` <${mc.email}>` : ""}${mc.phone ? ` ${mc.phone}` : ""}`;
+                        const jurNote = mc.licensed_jurisdictions?.length
+                          ? ` [${mc.licensed_jurisdictions.join("/")}]`
+                          : (data.jurisdiction ? ` [${data.jurisdiction}? unverified]` : "");
+                        line += `\n    – ${mc.name}${mc.title ? ` — ${mc.title}` : ""}${mc.license ? ` (${mc.license})` : ""}${jurNote}${mc.email ? ` <${mc.email}>` : ""}${mc.phone ? ` ${mc.phone}` : ""}`;
                       }
                     } else if (v.primary_contact) {
                       line += `\n  Contact: ${v.primary_contact.name}${v.primary_contact.email ? ` <${v.primary_contact.email}>` : ""}${v.primary_contact.phone ? ` ${v.primary_contact.phone}` : ""}`;
@@ -237,7 +259,14 @@ Deno.serve(async (req) => {
                     return line;
                   };
                   const vendorLines = (data.vendors || []).map(renderVendor).join("\n");
-                  let block = `**Partner recommendations from our database (${data.count} RFP partner${data.count === 1 ? "" : "s"} match):**\nPresent these as YOUR recommendations from the company's vetted partner list. ALWAYS state *why* each was selected (match reason, rating, past projects). Prefer high ratings, fast responsiveness, past jobs together.\n${vendorLines}`;
+                  const jurNote = data.jurisdiction
+                    ? ` licensed in ${data.jurisdiction}`
+                    : "";
+                  let block = `**Partner recommendations from our database (${data.count} RFP partner${data.count === 1 ? "" : "s"} match${jurNote}):**\nPresent these as YOUR recommendations from the company's vetted partner list. ALWAYS state *why* each was selected (match reason, rating, past projects${data.jurisdiction ? ", jurisdiction" : ""}). Prefer high ratings, fast responsiveness, past jobs together.${data.jurisdiction ? ` When jurisdiction is requested, treat firms with explicit "Licensed in: ${data.jurisdiction}" as confirmed; flag any "unverified" notes so the user knows to confirm.` : ""}\n${vendorLines}`;
+                  if (data.jurisdiction_unverified?.length) {
+                    const unverifiedLines = data.jurisdiction_unverified.map(renderVendor).join("\n");
+                    block += `\n\n**Possible matches — ${data.jurisdiction} licensure NOT confirmed in our records** (list these too but explicitly tell the user to verify state licensure before assigning):\n${unverifiedLines}`;
+                  }
                   if (data.suggested_partners?.length) {
                     const suggestLines = data.suggested_partners.map((v: any) =>
                       `• **${v.name}** — has ${v.matched_contacts.length} matching contact${v.matched_contacts.length === 1 ? "" : "s"} (${v.matched_contacts.map((m: any) => m.name + (m.title ? ` — ${m.title}` : "")).join("; ")}) but is NOT yet flagged as an RFP partner.`
@@ -245,6 +274,7 @@ Deno.serve(async (req) => {
                     block += `\n\n**Suggested to add as RFP partners** (firms in your contacts with matching people, but not yet marked as partners — mention these to the user so they can promote them):\n${suggestLines}`;
                   }
                   dataContext.push(block);
+
                 } else if (data.proposals) {
                   dataContext.push(`**Live ${label} data:** ${data.proposals.length} proposals. Total pipeline: $${(data.total_pipeline_value || 0).toLocaleString()}`);
                 } else if (data.invoices) {

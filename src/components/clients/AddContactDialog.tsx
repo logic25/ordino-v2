@@ -48,6 +48,7 @@ export function AddContactDialog({ open, onOpenChange, clientId, defaultName, on
     license_type: "",
     license_number: "",
     specialty: "",
+    licensed_jurisdictions: "",
     lead_owner_id: "",
     address_1: "",
     address_2: "",
@@ -71,6 +72,7 @@ export function AddContactDialog({ open, onOpenChange, clientId, defaultName, on
       setForm({
         first_name: "", last_name: "", title: "", email: "", phone: "",
         mobile: "", fax: "", linkedin_url: "", license_type: "", license_number: "", specialty: "",
+        licensed_jurisdictions: "",
         lead_owner_id: "", address_1: "", address_2: "", city: "",
         state: "", zip: "", is_primary: false,
       });
@@ -107,6 +109,8 @@ export function AddContactDialog({ open, onOpenChange, clientId, defaultName, on
         license_type: form.license_type || null,
         license_number: form.license_number || null,
         specialty: form.specialty || null,
+        licensed_jurisdictions: (form.licensed_jurisdictions || "")
+          .split(/[,\s]+/).map((s: string) => s.trim().toUpperCase()).filter(Boolean),
         lead_owner_id: form.lead_owner_id || null,
         address_1: form.address_1 || null,
         address_2: form.address_2 || null,
@@ -126,6 +130,7 @@ export function AddContactDialog({ open, onOpenChange, clientId, defaultName, on
       setForm({
         first_name: "", last_name: "", title: "", email: "", phone: "",
         mobile: "", fax: "", linkedin_url: "", license_type: "", license_number: "", specialty: "",
+        licensed_jurisdictions: "",
         lead_owner_id: "", address_1: "", address_2: "", city: "",
         state: "", zip: "", is_primary: false,
       });
@@ -269,6 +274,17 @@ export function AddContactDialog({ open, onOpenChange, clientId, defaultName, on
               </div>
             ) : <div />}
           </div>
+
+          <div className="space-y-1.5">
+            <Label>Licensed Jurisdictions</Label>
+            <Input
+              placeholder="e.g. NY, NJ, CT"
+              value={form.licensed_jurisdictions}
+              onChange={(e) => update("licensed_jurisdictions", e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">Comma-separated state codes where this person holds a license. Beacon uses this to filter trade recommendations by state.</p>
+          </div>
+
 
           {/* Settings */}
           <div className="grid grid-cols-2 gap-3">

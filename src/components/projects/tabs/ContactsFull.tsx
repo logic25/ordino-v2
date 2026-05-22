@@ -438,6 +438,7 @@ export function ContactsFull({ contacts, pisStatus, projectId, clientId }: { con
           license_type: null,
           license_number: null,
           specialty: null,
+          licensed_jurisdictions: [],
         } : null}
       />
     </div>

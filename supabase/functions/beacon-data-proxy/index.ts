@@ -639,22 +639,23 @@ function resolveTradeKey(raw?: string | null): string | null {
 }
 
 async function vendorLookup(sb: any, params: any) {
-  const { type, search, limit: rawLimit } = params || {};
+  const { type, search, limit: rawLimit, jurisdiction: rawJur } = params || {};
   const safeLimit = Math.min(Math.max(Number(rawLimit) || 10, 1), 50);
   const tradeKey = resolveTradeKey(type);
   const trade = tradeKey ? TRADE_SYNONYMS[tradeKey] : null;
+  const jurisdiction = rawJur ? String(rawJur).toUpperCase().trim() : null;
 
   // 1) Pull firms: RFP partners whose client_type matches any synonym for the trade.
   let firmQ = sb
     .from("clients")
-    .select("id, name, email, client_type, is_rfp_partner, address, specialty_tags, internal_notes")
+    .select("id, name, email, client_type, is_rfp_partner, address, specialty_tags, internal_notes, licensed_jurisdictions")
     .limit(500);
   if (search) firmQ = firmQ.ilike("name", `%${search}%`);
 
   // 2) Pull candidate contacts (across ALL firms) whose title or license matches the trade.
   let contactQ = sb
     .from("client_contacts")
-    .select("client_id, name, first_name, last_name, email, phone, mobile, title, license_type, license_number, is_primary, clients!inner(id, name, client_type, is_rfp_partner, address, specialty_tags, internal_notes, email)")
+    .select("client_id, name, first_name, last_name, email, phone, mobile, title, license_type, license_number, is_primary, licensed_jurisdictions, clients!inner(id, name, client_type, is_rfp_partner, address, specialty_tags, internal_notes, email, licensed_jurisdictions)")
     .limit(500);
 
   const [firmRes, contactRes] = await Promise.all([firmQ, contactQ]);
@@ -663,6 +664,10 @@ async function vendorLookup(sb: any, params: any) {
 
   const allFirms: any[] = firmRes.data || [];
   const allContacts: any[] = contactRes.data || [];
+
+  // Helpers for jurisdiction matching
+  const jurMatches = (arr?: string[] | null) => !jurisdiction || (Array.isArray(arr) && arr.map(s => s.toUpperCase()).includes(jurisdiction));
+  const jurUnknown = (arr?: string[] | null) => !Array.isArray(arr) || arr.length === 0;
 
   // Filter firms by trade type (if specified)
   const matchedFirms = allFirms.filter((c: any) => {
@@ -688,6 +693,7 @@ async function vendorLookup(sb: any, params: any) {
     const reason = cc.license_type && trade && trade.licenseTypes.includes((cc.license_type || "").toUpperCase())
       ? `License: ${cc.license_type}`
       : `Title: ${cc.title || "—"}`;
+    const contactJur: string[] = Array.isArray(cc.licensed_jurisdictions) ? cc.licensed_jurisdictions : [];
     const contact = {
       name: cc.name || [cc.first_name, cc.last_name].filter(Boolean).join(" "),
       email: cc.email,
@@ -695,6 +701,12 @@ async function vendorLookup(sb: any, params: any) {
       title: cc.title,
       license: cc.license_type ? `${cc.license_type}${cc.license_number ? " #" + cc.license_number : ""}` : null,
       match_reason: reason,
+      licensed_jurisdictions: contactJur,
+      jurisdiction_status: !jurisdiction
+        ? "n/a"
+        : jurMatches(contactJur) ? "match"
+        : jurUnknown(contactJur) ? "unknown"
+        : "mismatch",
     };
     if (!contactsByFirm[parent.id]) contactsByFirm[parent.id] = [];
     contactsByFirm[parent.id].push(contact);
@@ -714,9 +726,11 @@ async function vendorLookup(sb: any, params: any) {
       vendors: [],
       suggested_partners: [],
       count: 0,
-      message: type ? `No firms or contacts matched "${type}"` : "No RFP partners found",
+      jurisdiction,
+      message: type ? `No firms or contacts matched "${type}"${jurisdiction ? ` in ${jurisdiction}` : ""}` : "No RFP partners found",
     });
   }
+
 
   const firmIds = firms.map((c: any) => c.id);
   const firmNames = firms.map((c: any) => c.name).filter(Boolean);
@@ -871,6 +885,15 @@ async function vendorLookup(sb: any, params: any) {
       ? `RFP partner — ${c.client_type}`
       : c.is_rfp_partner ? "RFP partner" : null;
 
+    const firmJur: string[] = Array.isArray(c.licensed_jurisdictions) ? c.licensed_jurisdictions : [];
+    const contactJurUnion = Array.from(new Set(matchedContacts.flatMap((mc: any) => mc.licensed_jurisdictions || [])));
+    const effectiveJur = Array.from(new Set([...firmJur, ...contactJurUnion]));
+    const jurisdictionStatus = !jurisdiction
+      ? "n/a"
+      : effectiveJur.map(s => s.toUpperCase()).includes(jurisdiction) ? "match"
+      : effectiveJur.length === 0 ? "unknown"
+      : "mismatch";
+
     return {
       id: c.id,
       name: c.name,
@@ -889,18 +912,29 @@ async function vendorLookup(sb: any, params: any) {
       internal_notes: c.internal_notes || null,
       primary_contact: primaryContactMap[c.id] || null,
       matched_contacts: matchedContacts,
+      licensed_jurisdictions: effectiveJur,
+      jurisdiction_status: jurisdictionStatus,
       match_reasons: [
         partnerMatchReason,
         ...matchedContacts.map((mc: any) => mc.match_reason),
         past.length ? `Past project: ${lastProj.properties?.address || past.length + " jobs"}` : null,
+        jurisdiction && jurisdictionStatus === "match" ? `Licensed in ${jurisdiction}` : null,
       ].filter(Boolean),
     };
   };
 
   const vendors: any[] = [];
   const suggested: any[] = [];
+  const jurisdiction_unverified: any[] = [];
   for (const c of firms) {
     const v = buildVendor(c);
+    // If jurisdiction was requested and this firm explicitly does NOT cover it, drop from primary list.
+    if (jurisdiction && v.jurisdiction_status === "mismatch") continue;
+    // Unknown jurisdiction → still surface but in separate bucket so AI can caveat.
+    if (jurisdiction && v.jurisdiction_status === "unknown") {
+      jurisdiction_unverified.push(v);
+      continue;
+    }
     if (c.is_rfp_partner) vendors.push(v);
     else if (v.matched_contacts.length > 0) suggested.push(v);
   }
@@ -915,10 +949,13 @@ async function vendorLookup(sb: any, params: any) {
   return ok({
     vendors: vendors.slice(0, safeLimit),
     suggested_partners: suggested.slice(0, 10),
+    jurisdiction_unverified: jurisdiction_unverified.slice(0, 10),
     count: vendors.length,
-    query: { type, trade_resolved: tradeKey, search },
+    jurisdiction,
+    query: { type, trade_resolved: tradeKey, search, jurisdiction },
   });
 }
+
 
 // ── List Schema ──────────────────────────────────────────
 

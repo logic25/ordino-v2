@@ -56,6 +56,7 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
     license_type: "",
     license_number: "",
     specialty: "",
+    licensed_jurisdictions: "",
   };
 
   const [form, setForm] = useState(emptyForm);
@@ -81,6 +82,7 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
         license_type: (contact as any).license_type || "",
         license_number: (contact as any).license_number || "",
         specialty: (contact as any).specialty || "",
+        licensed_jurisdictions: ((contact as any).licensed_jurisdictions || []).join(", "),
       });
     }
   }, [contact]);
@@ -115,6 +117,8 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
           license_type: form.license_type || null,
           license_number: form.license_number || null,
           specialty: form.specialty || null,
+          licensed_jurisdictions: (form.licensed_jurisdictions || "")
+            .split(/[,\s]+/).map((s: string) => s.trim().toUpperCase()).filter(Boolean),
         } as any)
         .eq("id", contact.id);
       if (error) throw error;
@@ -276,6 +280,17 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
               </div>
             ) : <div />}
           </div>
+
+          <div className="space-y-1.5">
+            <Label>Licensed Jurisdictions</Label>
+            <Input
+              placeholder="e.g. NY, NJ, CT"
+              value={form.licensed_jurisdictions}
+              onChange={(e) => update("licensed_jurisdictions", e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">Comma-separated state codes. Beacon uses this to filter trade recommendations by state.</p>
+          </div>
+
 
           {/* Settings */}
           <div className="grid grid-cols-2 gap-3">

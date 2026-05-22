@@ -51,6 +51,7 @@ const clientSchema = z.object({
   is_sia: z.boolean().optional(),
   is_rfp_partner: z.boolean().optional(),
   specialty_tags: z.array(z.string()).optional(),
+  licensed_jurisdictions: z.array(z.string()).optional(),
   internal_notes: z.string().max(2000).optional(),
 });
 
@@ -85,7 +86,7 @@ export function ClientDialog({
     defaultValues: {
       name: "", email: "", phone: "", fax: "", address: "", notes: "",
       lead_owner_id: "", tax_id: "", client_type: "", is_sia: false,
-      specialty_tags: [], internal_notes: "",
+      specialty_tags: [], licensed_jurisdictions: [], internal_notes: "",
     },
   });
 
@@ -106,13 +107,14 @@ export function ClientDialog({
         is_sia: client.is_sia || false,
         is_rfp_partner: (client as any).is_rfp_partner || false,
         specialty_tags: (client as any).specialty_tags || [],
+        licensed_jurisdictions: (client as any).licensed_jurisdictions || [],
         internal_notes: (client as any).internal_notes || "",
       });
     } else {
       form.reset({
         name: defaultName || "", email: "", phone: "", fax: "", address: "", notes: "",
         lead_owner_id: "", tax_id: "", client_type: "", is_sia: false,
-        is_rfp_partner: false, specialty_tags: [], internal_notes: "",
+        is_rfp_partner: false, specialty_tags: [], licensed_jurisdictions: [], internal_notes: "",
       });
     }
   }, [client, form, defaultName]);
@@ -147,6 +149,7 @@ export function ClientDialog({
         is_sia: data.is_sia || false,
         is_rfp_partner: data.is_rfp_partner || false,
         specialty_tags: data.specialty_tags || [],
+        licensed_jurisdictions: (data.licensed_jurisdictions || []).map((s) => s.toUpperCase().trim()).filter(Boolean),
         internal_notes: data.internal_notes || null,
       });
       form.reset();
@@ -165,6 +168,18 @@ export function ClientDialog({
   };
   const removeTag = (t: string) => {
     form.setValue("specialty_tags", (form.getValues("specialty_tags") || []).filter((x) => x !== t));
+  };
+
+  const [jurInput, setJurInput] = useState("");
+  const addJurisdiction = () => {
+    const j = jurInput.trim().toUpperCase();
+    if (!j) return;
+    const current = form.getValues("licensed_jurisdictions") || [];
+    if (!current.includes(j)) form.setValue("licensed_jurisdictions", [...current, j]);
+    setJurInput("");
+  };
+  const removeJurisdiction = (j: string) => {
+    form.setValue("licensed_jurisdictions", (form.getValues("licensed_jurisdictions") || []).filter((x) => x !== j));
   };
 
   const profileOptions = profiles.map((p) => ({
@@ -321,6 +336,30 @@ export function ClientDialog({
                 </div>
                 <p className="text-xs text-muted-foreground">Used by Beacon to recommend the right partner for each job.</p>
               </div>
+
+              <div className="space-y-2">
+                <Label>Licensed Jurisdictions (US states)</Label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {(form.watch("licensed_jurisdictions") || []).map((j) => (
+                    <span key={j} className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-primary/15 text-primary border border-primary/30 font-medium">
+                      {j}
+                      <button type="button" onClick={() => removeJurisdiction(j)} className="hover:text-destructive">×</button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="e.g. NY, NJ, CT"
+                    value={jurInput}
+                    onChange={(e) => setJurInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addJurisdiction(); } }}
+                    maxLength={4}
+                  />
+                  <Button type="button" variant="outline" onClick={addJurisdiction}>Add</Button>
+                </div>
+                <p className="text-xs text-muted-foreground">Two-letter state codes. Beacon uses this to filter trade recommendations by state (e.g. "architect in NJ").</p>
+              </div>
+
 
               <div className="space-y-2">
                 <Label htmlFor="internal_notes">Internal Notes (private)</Label>
