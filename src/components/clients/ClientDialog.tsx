@@ -114,7 +114,7 @@ export function ClientDialog({
       form.reset({
         name: defaultName || "", email: "", phone: "", fax: "", address: "", notes: "",
         lead_owner_id: "", tax_id: "", client_type: "", is_sia: false,
-        is_rfp_partner: false, specialty_tags: [], internal_notes: "",
+        is_rfp_partner: false, specialty_tags: [], licensed_jurisdictions: [], internal_notes: "",
       });
     }
   }, [client, form, defaultName]);
