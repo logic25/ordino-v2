@@ -149,6 +149,7 @@ export function ClientDialog({
         is_sia: data.is_sia || false,
         is_rfp_partner: data.is_rfp_partner || false,
         specialty_tags: data.specialty_tags || [],
+        licensed_jurisdictions: (data.licensed_jurisdictions || []).map((s) => s.toUpperCase().trim()).filter(Boolean),
         internal_notes: data.internal_notes || null,
       });
       form.reset();
