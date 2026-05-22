@@ -128,6 +128,7 @@ export function AddContactDialog({ open, onOpenChange, clientId, defaultName, on
       setForm({
         first_name: "", last_name: "", title: "", email: "", phone: "",
         mobile: "", fax: "", linkedin_url: "", license_type: "", license_number: "", specialty: "",
+        licensed_jurisdictions: "",
         lead_owner_id: "", address_1: "", address_2: "", city: "",
         state: "", zip: "", is_primary: false,
       });
