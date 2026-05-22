@@ -117,6 +117,8 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
           license_type: form.license_type || null,
           license_number: form.license_number || null,
           specialty: form.specialty || null,
+          licensed_jurisdictions: (form.licensed_jurisdictions || "")
+            .split(/[,\s]+/).map((s: string) => s.trim().toUpperCase()).filter(Boolean),
         } as any)
         .eq("id", contact.id);
       if (error) throw error;
