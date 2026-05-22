@@ -82,6 +82,7 @@ export function EditContactDialog({ open, onOpenChange, contact }: EditContactDi
         license_type: (contact as any).license_type || "",
         license_number: (contact as any).license_number || "",
         specialty: (contact as any).specialty || "",
+        licensed_jurisdictions: ((contact as any).licensed_jurisdictions || []).join(", "),
       });
     }
   }, [contact]);
