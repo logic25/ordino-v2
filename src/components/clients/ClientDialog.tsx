@@ -170,6 +170,18 @@ export function ClientDialog({
     form.setValue("specialty_tags", (form.getValues("specialty_tags") || []).filter((x) => x !== t));
   };
 
+  const [jurInput, setJurInput] = useState("");
+  const addJurisdiction = () => {
+    const j = jurInput.trim().toUpperCase();
+    if (!j) return;
+    const current = form.getValues("licensed_jurisdictions") || [];
+    if (!current.includes(j)) form.setValue("licensed_jurisdictions", [...current, j]);
+    setJurInput("");
+  };
+  const removeJurisdiction = (j: string) => {
+    form.setValue("licensed_jurisdictions", (form.getValues("licensed_jurisdictions") || []).filter((x) => x !== j));
+  };
+
   const profileOptions = profiles.map((p) => ({
     value: p.id,
     label: p.display_name || `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Unknown",
