@@ -149,12 +149,29 @@ Deno.serve(async (req) => {
             );
             if (tradeIntent.test(msgLower)) {
               const typeMatch = msgLower.match(new RegExp(`\\b(${TRADE_WORDS})\\b`, "i"));
+              // Detect US state mention (full name or 2-letter code) → pass as jurisdiction
+              const STATE_MAP: Record<string, string> = {
+                "new york": "NY", "ny": "NY",
+                "new jersey": "NJ", "nj": "NJ", "jersey": "NJ",
+                "connecticut": "CT", "ct": "CT",
+                "pennsylvania": "PA", "pa": "PA",
+                "massachusetts": "MA", "mass": "MA", "ma": "MA",
+                "florida": "FL", "fl": "FL",
+                "california": "CA", "calif": "CA", "ca": "CA",
+                "texas": "TX", "tx": "TX",
+              };
+              let jurisdiction: string | undefined;
+              for (const [k, v] of Object.entries(STATE_MAP)) {
+                const re = new RegExp(`\\b${k.replace(/\s+/g, "\\s+")}\\b`, "i");
+                if (re.test(msgLower)) { jurisdiction = v; break; }
+              }
               dataQueries.push({
                 action: "vendor_lookup",
-                params: { type: typeMatch ? typeMatch[1] : undefined },
-                label: "vendor recommendations",
+                params: { type: typeMatch ? typeMatch[1] : undefined, ...(jurisdiction ? { jurisdiction } : {}) },
+                label: jurisdiction ? `vendor recommendations (${jurisdiction})` : "vendor recommendations",
               });
             }
+
           }
           if (/filing|readiness/i.test(msgLower)) {
             dataQueries.push({
