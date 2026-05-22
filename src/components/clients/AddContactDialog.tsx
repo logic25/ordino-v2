@@ -48,6 +48,7 @@ export function AddContactDialog({ open, onOpenChange, clientId, defaultName, on
     license_type: "",
     license_number: "",
     specialty: "",
+    licensed_jurisdictions: "",
     lead_owner_id: "",
     address_1: "",
     address_2: "",
