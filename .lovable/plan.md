@@ -1,39 +1,66 @@
-# Enrich Partner Recommendations (Beacon + Companies UI)
+# Fix "Why these architects?" — unify partner lookup + backfill data
 
-Goal: when anyone asks Beacon "do we have a good [architect/plumber/MEP/etc.]?" — or browses Companies — they see meaningful signals to recommend the right partner. Works for every trade, not just architects.
+## The problem in plain English
 
-Since all users will have Gmail connected post-launch, responsiveness from `emails` is a reliable signal.
+When you asked Beacon "do we have a good architect?", it gave you a list of *people* (Tom Bradley, Michael Siano, etc.) pulled loosely from the contacts list by job title. That answer included a structural engineer and a project director — not actually architects.
 
-## What each partner card will show
+Meanwhile, the new partner system we just built searches a different list: *companies* flagged as "RFP Partners." On that list, Gensler and Lawrence Group aren't even marked as partners, and several firms have no trade type set — so the good answer never gets through.
 
-- **Avg rating** + 1–2 recent review snippets (from existing `reviews`)
-- **Past projects together**: count + most recent address + month
-- **Responsiveness**: median email reply time over last 90 days from `emails` table, bucketed as Fast (≤4h) / Same-day (≤24h) / Slow (≤72h) / Unresponsive. Falls back to "Not enough data" when <3 threads.
-- **Specialties**: top-3 inferred from `proposal_items.disciplines`, overridable by manual tags
-- **Manual tags + internal notes** (free-text, never exposed on RFPs)
-- **Borough / territory**
+Two lists, two answers, no one wins. We need to merge them and clean the data.
 
 ## Changes
 
-### 1. Migration — manual override fields on `clients`
-- `specialty_tags text[]` — manual chips (e.g. "landmarks", "Brooklyn", "hospitality")
-- `internal_notes text` — private notes, never leaves the app
+### 1. Backfill existing data (one-time cleanup)
 
-### 2. `beacon-data-proxy/index.ts` — enrich `vendor_lookup`
-For each partner returned, compute and attach: rating avg + 2 recent snippets, past-projects count/address/month, responsiveness bucket + median hours, inferred specialties, manual tags, notes, borough. Cache 5 min per (company_id, type).
+Run a data migration that:
+- Sets `client_type` on firms by inferring from their contacts' titles. If a firm has any contact with title containing "Architect", "RA", or "AIA" → `client_type = 'Architect'`. Same logic for Engineer, GC, Expeditor.
+- Sets `is_rfp_partner = true` on every firm that already has at least one contact with an architect/engineer/GC title AND appears on a past project (`architect_company_name` or `gc_company_name` match). This catches Gensler, Lawrence Group, Thornton Tomasetti, etc.
+- Logs every change so we can review what got flipped.
 
-### 3. `beacon-proxy/index.ts` — broaden intent routing + richer card
-- Expand trade-intent regex to catch plain phrasing: "do we have / who are our / any good / list our / got a / need a [trade]"
-- Expand trade vocabulary: architect, engineer, expeditor, MEP, plumber, electrician, GC, landscape, fire protection, draftsman, consultant, surveyor, etc.
-- Render the enriched fields in the response card
+Pre-production, so safe to run broadly. We'll show you the diff before committing.
 
-### 4. Companies UI — mirror the same data
-- `ClientDialog.tsx` — inputs for specialty tags + internal notes
-- `ClientTable.tsx` / `ClientDetailSheet.tsx` — show specialty chips, "X past jobs" badge, "Last worked: Mar 2026" line, responsiveness badge
+### 2. `beacon-data-proxy` — return firms WITH their people
+
+For a trade query like "architect":
+- Pull firms from `clients` (RFP partners, type matches)
+- Pull individual contacts from `client_contacts` whose `title` matches a curated synonym list for that trade (Architect/RA/Registered Architect/AIA for architects — NOT Engineer or Project Director)
+- Group contacts under their parent firm in the response
+- Attach a `match_reason` per row: "RFP partner — Architect", "Contact title: RA", "Past project: 123 Main St"
+
+So the answer becomes:
+```
+Gensler (RFP partner, 3 past projects together)
+  • Tom Bradley — Senior Architect
+FXCollaborative Architects (RFP partner)
+  • [primary contact]
+```
+
+### 3. `beacon-data-proxy` — surface gaps instead of hiding them
+
+If a firm has matching contacts but `is_rfp_partner = false`, include it in a `suggested_partners` array with: "Lawrence Group has 1 architect contact but isn't an RFP partner — add?"
+
+### 4. `beacon-proxy` — render the new shape
+
+Update the vendor card to show firm → nested contacts → match reason chip, plus a "Suggested to add" footer.
+
+### 5. Single source-of-truth synonym map
+
+```
+architect: Architect, RA, Registered Architect, Architectural, AIA, RA PM
+engineer:  Engineer, PE, Professional Engineer, Structural, MEP
+gc:        GC, General Contractor, Superintendent
+expeditor: Expeditor, Expediter, Filing Rep
+```
+Used by both the contacts-title filter and the trade-intent regex in `beacon-proxy`. Stops a Structural Engineer from showing up under "architect" again.
+
+## Out of scope
+
+- Review/responsiveness scoring (already done, no change)
+- Monetization (already on roadmap)
 
 ## Technical notes
 
-- Responsiveness query: group `emails` by `thread_id` where partner email is in `from_email`/`to_emails`, pair outbound → next inbound, take median delta over last 90 days. Skip threads with <2 messages.
-- Inferred specialties: aggregate `proposal_items.disciplines` across proposals where this `client_id` is the partner; top 3 by frequency.
-- Manual tags always win over inferred when both exist.
-- Monetization (partner_referrals log, priority placement, verified tier) already logged to roadmap — out of scope here.
+- Backfill is a `supabase--insert` UPDATE pass, idempotent, reversible via the change log
+- `client_contacts.client_id` join is cheap
+- Match-reason computed server-side, no LLM judgement
+- Cap contacts-per-firm in response at 3 to keep cards readable

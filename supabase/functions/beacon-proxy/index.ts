@@ -197,29 +197,43 @@ Deno.serve(async (req) => {
               } else if (data && typeof data === "object") {
                 // For structured results like invoices/proposals with totals
                 if (data.vendors) {
-                  const vendorLines = (data.vendors || []).map((v: any) => {
+                  const renderVendor = (v: any) => {
                     const parts: string[] = [`• **${v.name}**`];
                     if (v.type) parts.push(`(${v.type})`);
                     if (v.borough) parts.push(`— ${v.borough}`);
                     if (v.avg_rating) parts.push(`⭐ ${v.avg_rating}/5 (${v.review_count})`);
                     else parts.push(`no reviews yet`);
                     let line = parts.join(" ");
-                    if (v.responsiveness) {
-                      line += ` | ⚡ ${v.responsiveness.bucket} (~${v.responsiveness.medianHours}h reply)`;
-                    }
+                    if (v.match_reasons?.length) line += `\n  Why: ${v.match_reasons.slice(0, 3).join(" · ")}`;
+                    if (v.responsiveness) line += `\n  ⚡ ${v.responsiveness.bucket} (~${v.responsiveness.medianHours}h reply, ${v.responsiveness.sampleSize} threads)`;
                     if (v.past_jobs_count > 0) {
-                      line += ` | ${v.past_jobs_count} past job${v.past_jobs_count > 1 ? "s" : ""} together`;
+                      line += `\n  ${v.past_jobs_count} past job${v.past_jobs_count > 1 ? "s" : ""}`;
                       if (v.last_worked?.month) line += ` (last: ${v.last_worked.month}${v.last_worked.address ? " — " + v.last_worked.address : ""})`;
                     }
-                    if (v.specialty_tags?.length) line += ` | Specialties: ${v.specialty_tags.join(", ")}`;
-                    if (v.contact) line += `\n  Contact: ${v.contact.name}${v.contact.email ? ` <${v.contact.email}>` : ""}${v.contact.phone ? ` ${v.contact.phone}` : ""}`;
+                    if (v.specialty_tags?.length) line += `\n  Specialties: ${v.specialty_tags.join(", ")}`;
+                    if (v.matched_contacts?.length) {
+                      line += `\n  People matching this trade:`;
+                      for (const mc of v.matched_contacts) {
+                        line += `\n    – ${mc.name}${mc.title ? ` — ${mc.title}` : ""}${mc.license ? ` (${mc.license})` : ""}${mc.email ? ` <${mc.email}>` : ""}${mc.phone ? ` ${mc.phone}` : ""}`;
+                      }
+                    } else if (v.primary_contact) {
+                      line += `\n  Contact: ${v.primary_contact.name}${v.primary_contact.email ? ` <${v.primary_contact.email}>` : ""}${v.primary_contact.phone ? ` ${v.primary_contact.phone}` : ""}`;
+                    }
                     if (v.recent_reviews?.length > 0 && v.recent_reviews[0].text) {
                       line += `\n  Latest review (${v.recent_reviews[0].rating}★): "${v.recent_reviews[0].text}" — ${v.recent_reviews[0].reviewer}`;
                     }
                     if (v.internal_notes) line += `\n  Internal note: ${v.internal_notes.slice(0, 160)}`;
                     return line;
-                  }).join("\n");
-                  dataContext.push(`**Partner recommendations from our database (${data.count} found):**\nPresent these as YOUR recommendations from the company's vetted partner list. Prefer partners with high ratings, fast responsiveness, and past projects together. Include contact info.\n${vendorLines}`);
+                  };
+                  const vendorLines = (data.vendors || []).map(renderVendor).join("\n");
+                  let block = `**Partner recommendations from our database (${data.count} RFP partner${data.count === 1 ? "" : "s"} match):**\nPresent these as YOUR recommendations from the company's vetted partner list. ALWAYS state *why* each was selected (match reason, rating, past projects). Prefer high ratings, fast responsiveness, past jobs together.\n${vendorLines}`;
+                  if (data.suggested_partners?.length) {
+                    const suggestLines = data.suggested_partners.map((v: any) =>
+                      `• **${v.name}** — has ${v.matched_contacts.length} matching contact${v.matched_contacts.length === 1 ? "" : "s"} (${v.matched_contacts.map((m: any) => m.name + (m.title ? ` — ${m.title}` : "")).join("; ")}) but is NOT yet flagged as an RFP partner.`
+                    ).join("\n");
+                    block += `\n\n**Suggested to add as RFP partners** (firms in your contacts with matching people, but not yet marked as partners — mention these to the user so they can promote them):\n${suggestLines}`;
+                  }
+                  dataContext.push(block);
                 } else if (data.proposals) {
                   dataContext.push(`**Live ${label} data:** ${data.proposals.length} proposals. Total pipeline: $${(data.total_pipeline_value || 0).toLocaleString()}`);
                 } else if (data.invoices) {
