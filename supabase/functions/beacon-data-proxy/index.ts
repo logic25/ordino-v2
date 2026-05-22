@@ -600,44 +600,140 @@ async function createBugFromConversation(sb: any, params: any) {
 
 // ── Vendor / Partner Lookup ──────────────────────────────
 
+// Single source of truth for trade → synonyms (titles, license types, client_type labels)
+const TRADE_SYNONYMS: Record<string, {
+  titlePattern: RegExp;
+  licenseTypes: string[];
+  typeLabels: string[]; // values that may appear in clients.client_type
+}> = {
+  architect: {
+    titlePattern: /\b(architect|registered\s+architect|architectural|aia|ra\s*pm|ra)\b/i,
+    licenseTypes: ["RA"],
+    typeLabels: ["architect"],
+  },
+  engineer: {
+    titlePattern: /\b(engineer|engineering|structural|mep|professional\s+engineer|pe)\b/i,
+    licenseTypes: ["PE"],
+    typeLabels: ["engineer"],
+  },
+  gc: {
+    titlePattern: /\b(general\s+contractor|gc|superintendent|contractor)\b/i,
+    licenseTypes: [],
+    typeLabels: ["general contractor", "gc"],
+  },
+  expeditor: {
+    titlePattern: /\b(expeditor|expediter|filing\s+rep)\b/i,
+    licenseTypes: [],
+    typeLabels: ["expeditor", "expediter"],
+  },
+};
+
+function resolveTradeKey(raw?: string | null): string | null {
+  if (!raw) return null;
+  const r = raw.toLowerCase();
+  if (/architect|\bra\b|aia/.test(r)) return "architect";
+  if (/engineer|mep|structural|\bpe\b/.test(r)) return "engineer";
+  if (/contractor|\bgc\b|superintend/.test(r)) return "gc";
+  if (/expedit|filing\s*rep/.test(r)) return "expeditor";
+  return null;
+}
+
 async function vendorLookup(sb: any, params: any) {
   const { type, search, limit: rawLimit } = params || {};
   const safeLimit = Math.min(Math.max(Number(rawLimit) || 10, 1), 50);
+  const tradeKey = resolveTradeKey(type);
+  const trade = tradeKey ? TRADE_SYNONYMS[tradeKey] : null;
 
-  let q = sb
+  // 1) Pull firms: RFP partners whose client_type matches any synonym for the trade.
+  let firmQ = sb
     .from("clients")
     .select("id, name, email, client_type, is_rfp_partner, address, specialty_tags, internal_notes")
-    .eq("is_rfp_partner", true)
-    .limit(200);
+    .limit(500);
+  if (search) firmQ = firmQ.ilike("name", `%${search}%`);
 
-  if (type) q = q.ilike("client_type", `%${type}%`);
-  if (search) q = q.ilike("name", `%${search}%`);
+  // 2) Pull candidate contacts (across ALL firms) whose title or license matches the trade.
+  let contactQ = sb
+    .from("client_contacts")
+    .select("client_id, name, first_name, last_name, email, phone, mobile, title, license_type, license_number, is_primary, clients!inner(id, name, client_type, is_rfp_partner, address, specialty_tags, internal_notes, email)")
+    .limit(500);
 
-  const { data: clients, error: clientErr } = await q;
-  if (clientErr) {
-    console.error("vendor_lookup clients error:", clientErr.message);
-    return fail(clientErr.message, 500);
+  const [firmRes, contactRes] = await Promise.all([firmQ, contactQ]);
+  if (firmRes.error) return fail(firmRes.error.message, 500);
+  if (contactRes.error) return fail(contactRes.error.message, 500);
+
+  const allFirms: any[] = firmRes.data || [];
+  const allContacts: any[] = contactRes.data || [];
+
+  // Filter firms by trade type (if specified)
+  const matchedFirms = allFirms.filter((c: any) => {
+    if (!trade) return c.is_rfp_partner;
+    const t = (c.client_type || "").toLowerCase();
+    return c.is_rfp_partner && trade.typeLabels.some(label => t.includes(label));
+  });
+
+  // Filter contacts by trade match
+  const tradeContacts = allContacts.filter((cc: any) => {
+    if (!trade) return false;
+    const title = cc.title || "";
+    const lic = (cc.license_type || "").toUpperCase();
+    return trade.titlePattern.test(title) || trade.licenseTypes.includes(lic);
+  });
+
+  // Group contacts by parent client_id, tagging each with a match_reason.
+  const contactsByFirm: Record<string, any[]> = {};
+  const firmFromContact: Record<string, any> = {};
+  for (const cc of tradeContacts) {
+    const parent = cc.clients;
+    if (!parent) continue;
+    const reason = cc.license_type && trade && trade.licenseTypes.includes((cc.license_type || "").toUpperCase())
+      ? `License: ${cc.license_type}`
+      : `Title: ${cc.title || "—"}`;
+    const contact = {
+      name: cc.name || [cc.first_name, cc.last_name].filter(Boolean).join(" "),
+      email: cc.email,
+      phone: cc.phone || cc.mobile,
+      title: cc.title,
+      license: cc.license_type ? `${cc.license_type}${cc.license_number ? " #" + cc.license_number : ""}` : null,
+      match_reason: reason,
+    };
+    if (!contactsByFirm[parent.id]) contactsByFirm[parent.id] = [];
+    contactsByFirm[parent.id].push(contact);
+    firmFromContact[parent.id] = parent;
   }
-  if (!clients || clients.length === 0) {
-    return ok({ vendors: [], count: 0, message: type ? `No partners found with type "${type}"` : "No RFP partners found" });
+
+  // Union: every firm that is either a matched RFP partner OR has a matching contact.
+  const firmMap: Record<string, any> = {};
+  for (const f of matchedFirms) firmMap[f.id] = f;
+  for (const id of Object.keys(firmFromContact)) {
+    if (!firmMap[id]) firmMap[id] = firmFromContact[id];
+  }
+  const firms = Object.values(firmMap);
+
+  if (firms.length === 0) {
+    return ok({
+      vendors: [],
+      suggested_partners: [],
+      count: 0,
+      message: type ? `No firms or contacts matched "${type}"` : "No RFP partners found",
+    });
   }
 
-  const clientIds = clients.map((c: any) => c.id);
-  const clientNames = clients.map((c: any) => c.name).filter(Boolean);
+  const firmIds = firms.map((c: any) => c.id);
+  const firmNames = firms.map((c: any) => c.name).filter(Boolean);
 
   // Past-projects filter (name-match on architect/gc text fields)
-  const projectsFilter = clientNames.flatMap((n: string) => {
+  const projectsFilter = firmNames.flatMap((n: string) => {
     const esc = n.replace(/[,()*%]/g, "");
     return [`architect_company_name.ilike.%${esc}%`, `gc_company_name.ilike.%${esc}%`];
   }).join(",");
 
-  const [reviewsRes, contactsRes, projectsRes] = await Promise.all([
+  const [reviewsRes, primaryContactsRes, projectsRes] = await Promise.all([
     sb.from("company_reviews")
       .select("client_id, rating, review_text, reviewer_name, created_at")
-      .in("client_id", clientIds),
+      .in("client_id", firmIds),
     sb.from("client_contacts")
       .select("client_id, name, email, phone, title, is_primary")
-      .in("client_id", clientIds)
+      .in("client_id", firmIds)
       .order("is_primary", { ascending: false }),
     projectsFilter
       ? sb.from("projects")
@@ -648,10 +744,9 @@ async function vendorLookup(sb: any, params: any) {
   ]);
 
   const reviews = reviewsRes.data || [];
-  const contacts = contactsRes.data || [];
+  const allFirmContacts = primaryContactsRes.data || [];
   const projects = (projectsRes as any).data || [];
 
-  // Rating aggregation
   const ratingMap: Record<string, { sum: number; count: number; reviews: any[] }> = {};
   for (const r of reviews) {
     if (!ratingMap[r.client_id]) ratingMap[r.client_id] = { sum: 0, count: 0, reviews: [] };
@@ -668,28 +763,27 @@ async function vendorLookup(sb: any, params: any) {
     ratingMap[cid].reviews.sort((a: any, b: any) => (b.date || "").localeCompare(a.date || ""));
   }
 
-  // Primary contact + collect emails for responsiveness
-  const contactMap: Record<string, any> = {};
+  const primaryContactMap: Record<string, any> = {};
   const emailsByClient: Record<string, string[]> = {};
-  for (const c of contacts) {
-    if (!contactMap[c.client_id] || c.is_primary) {
-      contactMap[c.client_id] = { name: c.name, email: c.email, phone: c.phone, title: c.title };
+  for (const c of allFirmContacts) {
+    if (!primaryContactMap[c.client_id] || c.is_primary) {
+      primaryContactMap[c.client_id] = { name: c.name, email: c.email, phone: c.phone, title: c.title };
     }
     if (c.email) {
       if (!emailsByClient[c.client_id]) emailsByClient[c.client_id] = [];
       emailsByClient[c.client_id].push(c.email.toLowerCase());
     }
   }
-  for (const c of clients) {
+  for (const c of firms) {
     if ((c as any).email) {
       if (!emailsByClient[c.id]) emailsByClient[c.id] = [];
       emailsByClient[c.id].push((c as any).email.toLowerCase());
     }
   }
 
-  // Past projects per client (name match)
+  // Past projects per firm
   const projectsByClient: Record<string, any[]> = {};
-  for (const c of clients) {
+  for (const c of firms) {
     const nameLower = (c.name || "").toLowerCase().trim();
     if (!nameLower) continue;
     const matched = projects.filter((p: any) =>
@@ -702,7 +796,7 @@ async function vendorLookup(sb: any, params: any) {
     }
   }
 
-  // Responsiveness: median email reply time over last 90 days
+  // Responsiveness (unchanged)
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
   const allPartnerEmails = Array.from(new Set(Object.values(emailsByClient).flat()));
   const responsivenessByClient: Record<string, { medianHours: number; bucket: string; sampleSize: number }> = {};
@@ -710,37 +804,21 @@ async function vendorLookup(sb: any, params: any) {
   if (allPartnerEmails.length > 0) {
     const orFromFilter = allPartnerEmails.map(e => `from_email.ilike.${e}`).join(",");
     const [inboundRes, outboundRes] = await Promise.all([
-      sb.from("emails")
-        .select("thread_id, from_email, to_emails, date")
-        .gte("date", ninetyDaysAgo)
-        .or(orFromFilter)
-        .limit(5000),
-      sb.from("emails")
-        .select("thread_id, from_email, to_emails, date")
-        .gte("date", ninetyDaysAgo)
-        .overlaps("to_emails", allPartnerEmails)
-        .limit(5000),
+      sb.from("emails").select("thread_id, from_email, to_emails, date").gte("date", ninetyDaysAgo).or(orFromFilter).limit(5000),
+      sb.from("emails").select("thread_id, from_email, to_emails, date").gte("date", ninetyDaysAgo).overlaps("to_emails", allPartnerEmails).limit(5000),
     ]);
-
     const allEmails = [...(inboundRes.data || []), ...(outboundRes.data || [])];
     const threads: Record<string, any[]> = {};
     for (const e of allEmails) {
       if (!e.thread_id) continue;
-      if (!threads[e.thread_id]) threads[e.thread_id] = [];
-      threads[e.thread_id].push(e);
+      (threads[e.thread_id] ||= []).push(e);
     }
     for (const tid of Object.keys(threads)) {
       const seen = new Set<string>();
       threads[tid] = threads[tid]
-        .filter((e: any) => {
-          const k = `${e.date}|${e.from_email}`;
-          if (seen.has(k)) return false;
-          seen.add(k);
-          return true;
-        })
+        .filter((e: any) => { const k = `${e.date}|${e.from_email}`; if (seen.has(k)) return false; seen.add(k); return true; })
         .sort((a: any, b: any) => (a.date || "").localeCompare(b.date || ""));
     }
-
     for (const [cid, partnerEmails] of Object.entries(emailsByClient)) {
       const setLower = new Set(partnerEmails);
       const gaps: number[] = [];
@@ -752,8 +830,7 @@ async function vendorLookup(sb: any, params: any) {
         );
         if (!involved) continue;
         for (let i = 0; i < msgs.length - 1; i++) {
-          const cur = msgs[i];
-          const nxt = msgs[i + 1];
+          const cur = msgs[i], nxt = msgs[i + 1];
           const curFromPartner = setLower.has((cur.from_email || "").toLowerCase());
           const nxtFromPartner = setLower.has((nxt.from_email || "").toLowerCase());
           if (!curFromPartner && nxtFromPartner) {
@@ -769,11 +846,7 @@ async function vendorLookup(sb: any, params: any) {
         if (median <= 4) bucket = "Fast";
         else if (median <= 24) bucket = "Same-day";
         else if (median <= 72) bucket = "Slow";
-        responsivenessByClient[cid] = {
-          medianHours: Math.round(median * 10) / 10,
-          bucket,
-          sampleSize: gaps.length,
-        };
+        responsivenessByClient[cid] = { medianHours: Math.round(median * 10) / 10, bucket, sampleSize: gaps.length };
       }
     }
   }
@@ -789,36 +862,51 @@ async function vendorLookup(sb: any, params: any) {
     return null;
   }
 
-  const vendors = clients.map((c: any) => {
+  const buildVendor = (c: any) => {
     const r = ratingMap[c.id];
     const past = projectsByClient[c.id] || [];
     const lastProj = past[0];
-    const lastAddr = lastProj?.properties?.address || null;
-    const lastMonth = lastProj?.created_at
-      ? new Date(lastProj.created_at).toLocaleString("en-US", { month: "short", year: "numeric" })
-      : null;
-    const resp = responsivenessByClient[c.id];
+    const matchedContacts = (contactsByFirm[c.id] || []).slice(0, 3);
+    const partnerMatchReason = trade && c.is_rfp_partner && (c.client_type || "").toLowerCase().split(/\W+/).some((w: string) => trade.typeLabels.includes(w))
+      ? `RFP partner — ${c.client_type}`
+      : c.is_rfp_partner ? "RFP partner" : null;
 
     return {
       id: c.id,
       name: c.name,
       type: c.client_type,
+      is_rfp_partner: !!c.is_rfp_partner,
       borough: borough(c.address),
       avg_rating: r ? Math.round((r.sum / r.count) * 10) / 10 : null,
       review_count: r?.count || 0,
       recent_reviews: (r?.reviews || []).slice(0, 2),
       past_jobs_count: past.length,
-      last_worked: lastMonth ? { address: lastAddr, month: lastMonth } : null,
-      responsiveness: resp || null,
+      last_worked: lastProj?.created_at
+        ? { address: lastProj.properties?.address || null, month: new Date(lastProj.created_at).toLocaleString("en-US", { month: "short", year: "numeric" }) }
+        : null,
+      responsiveness: responsivenessByClient[c.id] || null,
       specialty_tags: c.specialty_tags || [],
       internal_notes: c.internal_notes || null,
-      contact: contactMap[c.id] || null,
+      primary_contact: primaryContactMap[c.id] || null,
+      matched_contacts: matchedContacts,
+      match_reasons: [
+        partnerMatchReason,
+        ...matchedContacts.map((mc: any) => mc.match_reason),
+        past.length ? `Past project: ${lastProj.properties?.address || past.length + " jobs"}` : null,
+      ].filter(Boolean),
     };
-  });
+  };
+
+  const vendors: any[] = [];
+  const suggested: any[] = [];
+  for (const c of firms) {
+    const v = buildVendor(c);
+    if (c.is_rfp_partner) vendors.push(v);
+    else if (v.matched_contacts.length > 0) suggested.push(v);
+  }
 
   vendors.sort((a: any, b: any) => {
-    const aR = a.avg_rating ?? 0;
-    const bR = b.avg_rating ?? 0;
+    const aR = a.avg_rating ?? 0, bR = b.avg_rating ?? 0;
     if (bR !== aR) return bR - aR;
     if (b.past_jobs_count !== a.past_jobs_count) return b.past_jobs_count - a.past_jobs_count;
     return b.review_count - a.review_count;
@@ -826,8 +914,9 @@ async function vendorLookup(sb: any, params: any) {
 
   return ok({
     vendors: vendors.slice(0, safeLimit),
+    suggested_partners: suggested.slice(0, 10),
     count: vendors.length,
-    query: { type, search },
+    query: { type, trade_resolved: tradeKey, search },
   });
 }
 
