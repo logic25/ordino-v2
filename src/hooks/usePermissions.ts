@@ -85,10 +85,16 @@ export function useUpdatePermission() {
 
 // Main permissions hook for current user
 export function usePermissions() {
+  const { profile } = useAuth() as any;
   const { data: roles } = useUserRoles();
   const { data: permissions } = useRolePermissions();
 
-  const userRoles = roles?.map((r) => r.role) ?? [];
+  // Belt-and-suspenders: if user_roles hasn't been synced for this user yet
+  // (e.g. legacy profile predating the sync trigger), fall back to profile.role
+  // so the sidebar/permissions still resolve.
+  const dbRoles = roles?.map((r) => r.role) ?? [];
+  const fallbackRole = profile?.role ? [String(profile.role)] : [];
+  const userRoles = dbRoles.length > 0 ? dbRoles : fallbackRole;
   const isAdmin = userRoles.includes("admin");
 
   function getPermission(resource: ResourceKey): RolePermission | undefined {
