@@ -474,12 +474,11 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
 
   const toggleAttachmentSelection = (attachmentId: string) => {
     setDirty(true);
-    setSelectedAttachmentIds((prev) => {
-      const ids = prev || rfpAttachments.map((a: any) => a.id);
-      return ids.includes(attachmentId)
-        ? ids.filter((id) => id !== attachmentId)
-        : [...ids, attachmentId];
-    });
+    setSelectedAttachmentIds((prev) =>
+      prev.includes(attachmentId)
+        ? prev.filter((id) => id !== attachmentId)
+        : [...prev, attachmentId]
+    );
   };
 
   const selectAllAttachments = () => {
