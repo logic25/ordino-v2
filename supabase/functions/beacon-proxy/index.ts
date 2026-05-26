@@ -290,8 +290,11 @@ Deno.serve(async (req) => {
           }
 
           if (dataContext.length > 0) {
-            body.system_context = (body.system_context || "") +
-              `\n\n**LIVE DATABASE RESULTS (use these to answer the user's question accurately):**\n${dataContext.join("\n")}`;
+            const strictPreamble = `\n\n**LIVE DATABASE RESULTS — AUTHORITATIVE. Use ONLY the entities listed below to answer. Do NOT list any person or firm not appearing here, even if you remember them from prior context or retrieved documents. If the list is empty, say so plainly — do NOT fall back to free-text recall of contacts.**\n`;
+            body.system_context = (body.system_context || "") + strictPreamble + dataContext.join("\n");
+            // Also append a short note to the user message itself so the chat LLM can't ignore the system_context
+            body.message = (body.message || "") +
+              `\n\n[Internal: Answer ONLY from the LIVE DATABASE RESULTS block in system context. Do not invent or recall other names.]`;
             console.log("Injected data context for query:", dataQueries.map(d => d.label).join(", "));
           }
         } catch (e) {
