@@ -132,13 +132,6 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     }
   }, [allNotableProjects, selectedProjectIds, draftLoaded]);
 
-  // Initialize selectedAttachmentIds when attachments load (select all by default)
-  useEffect(() => {
-    if (selectedAttachmentIds === null && rfpAttachments.length > 0 && !draftLoaded) {
-      setSelectedAttachmentIds(rfpAttachments.map((a: any) => a.id));
-    }
-  }, [rfpAttachments, selectedAttachmentIds, draftLoaded]);
-
   // Load draft only once on open
   useEffect(() => {
     if (draft && !draftLoaded && !dirty && open) {
@@ -147,25 +140,29 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
       setCoverLetter(draft.cover_letter || "");
       setSubmitEmail(draft.submit_email || "");
       setStep(draft.wizard_step || 0);
-      // Restore selected project ids from draft metadata
       const draftAny = draft as any;
-      if (draftAny.selected_project_ids && Array.isArray(draftAny.selected_project_ids)) {
+      if (draftAny.selected_project_ids && Array.isArray(draftAny.selected_project_ids) && draftAny.selected_project_ids.length > 0) {
         setSelectedProjectIds(draftAny.selected_project_ids);
       } else if (allNotableProjects.length > 0) {
         setSelectedProjectIds(allNotableProjects.map((p: any) => p.id));
       }
-      // Restore selected attachment ids from draft metadata
+      // Attachments: opt-in. Use draft selection if present, otherwise empty.
       if (draftAny.selected_attachment_ids && Array.isArray(draftAny.selected_attachment_ids)) {
-        setSelectedAttachmentIds(draftAny.selected_attachment_ids);
-      } else if (rfpAttachments.length > 0) {
-        setSelectedAttachmentIds(rfpAttachments.map((a: any) => a.id));
+        // Intersect with current library so stale IDs drop out
+        const libIds = new Set(rfpAttachments.map((a: any) => a.id));
+        setSelectedAttachmentIds(draftAny.selected_attachment_ids.filter((id: string) => libIds.has(id)));
+      } else {
+        setSelectedAttachmentIds([]);
+      }
+      if (typeof draftAny.include_logo === "boolean") {
+        setIncludeLogo(draftAny.include_logo);
       }
       setDraftLoaded(true);
     }
   }, [draft, draftLoaded, dirty, open, allNotableProjects, rfpAttachments]);
 
   useEffect(() => {
-    if (!open) { setDraftLoaded(false); setDirty(false); setSelectedProjectIds(null); setSelectedAttachmentIds(null); }
+    if (!open) { setDraftLoaded(false); setDirty(false); setSelectedProjectIds(null); setSelectedAttachmentIds([]); setIncludeLogo(true); }
   }, [open]);
 
   const saveDraft = useCallback((overrideStep?: number) => {
