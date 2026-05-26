@@ -751,6 +751,18 @@ function StepEditContent({
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="border-t px-4 py-3 space-y-3 bg-muted/10">
+                    {isAttachments && (
+                      <label className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 cursor-pointer">
+                        <Checkbox
+                          checked={includeLogo}
+                          onCheckedChange={onToggleIncludeLogo}
+                        />
+                        <div className="text-xs">
+                          <p className="font-medium">Include company logo in header</p>
+                          <p className="text-muted-foreground">Adds your company logo to the top of the response email and PDF.</p>
+                        </div>
+                      </label>
+                    )}
                     {items.length === 0 ? (
                       <p className="text-xs text-muted-foreground italic">
                         No content yet. Use the button below to add items.
