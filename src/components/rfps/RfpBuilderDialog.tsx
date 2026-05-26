@@ -685,6 +685,8 @@ function StepEditContent({
   onToggleAttachment,
   onSelectAllAttachments,
   onClearAttachments,
+  includeLogo,
+  onToggleIncludeLogo,
 }: {
   selectedSections: string[];
   sectionOrder: string[];
@@ -698,6 +700,8 @@ function StepEditContent({
   onToggleAttachment: (id: string) => void;
   onSelectAllAttachments: () => void;
   onClearAttachments: () => void;
+  includeLogo: boolean;
+  onToggleIncludeLogo: () => void;
 }) {
   const activeSections = sectionOrder
     .filter((s) => selectedSections.includes(s) && s !== "cover_letter");
