@@ -412,6 +412,36 @@ Deno.serve(async (req) => {
                   },
                   body: JSON.stringify({ bug_id: inserted.id }),
                 }).catch(e => console.error("Triage trigger failed:", e));
+
+                // Fire-and-forget admin email alert
+                try {
+                  const { data: rep } = await sb
+                    .from("profiles")
+                    .select("display_name, first_name, last_name")
+                    .eq("id", profile.id)
+                    .maybeSingle();
+                  const reporterName =
+                    rep?.display_name ||
+                    [rep?.first_name, rep?.last_name].filter(Boolean).join(" ") ||
+                    "A user";
+                  fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-bug-alert`, {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+                    },
+                    body: JSON.stringify({
+                      bug_id: inserted.id,
+                      bug_title: `[${pageName}] ${originalMsg.slice(0, 80)}`,
+                      bug_description: `**Reported via Beacon on ${pageName} page:**\n${originalMsg}\n\n**Beacon response:**\n${(responseJson.response || "").slice(0, 500)}`,
+                      bug_priority: "medium",
+                      company_id: profile.company_id,
+                      reporter_name: reporterName,
+                    }),
+                  }).catch(e => console.error("Bug alert trigger failed:", e));
+                } catch (e) {
+                  console.error("Bug alert trigger error:", e);
+                }
               } else {
                 console.error("Auto-log bug insert failed:", insertErr);
               }
