@@ -1,66 +1,78 @@
-# Fix "Why these architects?" — unify partner lookup + backfill data
+# Track what's waiting on who + smarter vacation handoff
 
-## The problem in plain English
+## Why
 
-When you asked Beacon "do we have a good architect?", it gave you a list of *people* (Tom Bradley, Michael Siano, etc.) pulled loosely from the contacts list by job title. That answer included a structural engineer and a project director — not actually architects.
+Today the dashboard's "Stale" bucket just means "nothing changed in 14 days." It can't tell the difference between:
+- You dropped the ball (idle, on you)
+- You're correctly waiting on the client
+- Client owes you a doc/signature/payment
 
-Meanwhile, the new partner system we just built searches a different list: *companies* flagged as "RFP Partners." On that list, Gensler and Lawrence Group aren't even marked as partners, and several firms have no trade type set — so the good answer never gets through.
+And when a PM goes on vacation, the covering PM gets nothing — no list of what they're inheriting, no context on who's waiting on what.
 
-Two lists, two answers, no one wins. We need to merge them and clean the data.
+This plan ships both in one pass because feature #2 depends on the state added in #1.
 
-## Changes
+---
 
-### 1. Backfill existing data (one-time cleanup)
+## Part 1 — Project "waiting on" state
 
-Run a data migration that:
-- Sets `client_type` on firms by inferring from their contacts' titles. If a firm has any contact with title containing "Architect", "RA", or "AIA" → `client_type = 'Architect'`. Same logic for Engineer, GC, Expeditor.
-- Sets `is_rfp_partner = true` on every firm that already has at least one contact with an architect/engineer/GC title AND appears on a past project (`architect_company_name` or `gc_company_name` match). This catches Gensler, Lawrence Group, Thornton Tomasetti, etc.
-- Logs every change so we can review what got flipped.
+### Schema (projects table)
+- `waiting_on` enum: `us | client | agency | partner | none` (default `us`)
+- `waiting_since timestamptz`
+- `waiting_note text` (optional, e.g. "Waiting on signed PIS")
 
-Pre-production, so safe to run broadly. We'll show you the diff before committing.
+### UI
+- One-click toggle in project header: "Waiting on client" / "Back to us" → sets `waiting_on` + stamps `waiting_since`
+- Small badge on project rows (table + dashboard cards): `⏸ Waiting on client · 8d`
+- Auto-reset to `us` when: client email arrives on the thread, PIS submitted, CO signed, payment posted (hook into existing webhooks)
 
-### 2. `beacon-data-proxy` — return firms WITH their people
+### Smarter stale buckets in PMDailyView
+Replace the single "Stale 14d+" bucket with three:
+- 🔴 **On you, idle 7+ days** — `waiting_on=us` + no `updated_at` change
+- 🟡 **Waiting on client 14+ days** — nudge-worthy; one-click "Send follow-up" using existing partner email templates
+- ⚪️ **Truly stale 30+ days** — anything else
 
-For a trade query like "architect":
-- Pull firms from `clients` (RFP partners, type matches)
-- Pull individual contacts from `client_contacts` whose `title` matches a curated synonym list for that trade (Architect/RA/Registered Architect/AIA for architects — NOT Engineer or Project Director)
-- Group contacts under their parent firm in the response
-- Attach a `match_reason` per row: "RFP partner — Architect", "Contact title: RA", "Past project: 123 Main St"
+Beacon picks this up via the existing project context query.
 
-So the answer becomes:
-```
-Gensler (RFP partner, 3 past projects together)
-  • Tom Bradley — Senior Architect
-FXCollaborative Architects (RFP partner)
-  • [primary contact]
-```
+---
 
-### 3. `beacon-data-proxy` — surface gaps instead of hiding them
+## Part 2 — Vacation handoff (extends existing OOO)
 
-If a firm has matching contacts but `is_rfp_partner = false`, include it in a `suggested_partners` array with: "Lawrence Group has 1 architect contact but isn't an RFP partner — add?"
+### On OOO activation
+Auto-generate a **handoff summary** for the covering PM:
+- All open projects where `assigned_pm_id = me`
+- For each: `waiting_on` state, days in that state, last client touch, next action
+- Delivered as: in-app notification + email to cover
 
-### 4. `beacon-proxy` — render the new shape
+### During OOO window
+- Covering PM's daily view shows inherited projects badged: `Covering for Chris (back Jun 3)`
+- New email/notification routing for those projects → covering PM
+- Original PM still sees them but read-only banner
 
-Update the vendor card to show firm → nested contacts → match reason chip, plus a "Suggested to add" footer.
+### On return
+"While you were out" digest: what changed, what the cover handled, what's still pending.
 
-### 5. Single source-of-truth synonym map
-
-```
-architect: Architect, RA, Registered Architect, Architectural, AIA, RA PM
-engineer:  Engineer, PE, Professional Engineer, Structural, MEP
-gc:        GC, General Contractor, Superintendent
-expeditor: Expeditor, Expediter, Filing Rep
-```
-Used by both the contacts-title filter and the trade-intent regex in `beacon-proxy`. Stops a Structural Engineer from showing up under "architect" again.
-
-## Out of scope
-
-- Review/responsiveness scoring (already done, no change)
-- Monetization (already on roadmap)
+---
 
 ## Technical notes
 
-- Backfill is a `supabase--insert` UPDATE pass, idempotent, reversible via the change log
-- `client_contacts.client_id` join is cheap
-- Match-reason computed server-side, no LLM judgement
-- Cap contacts-per-firm in response at 3 to keep cards readable
+- New enum + columns: simple migration, no breaking changes
+- Auto-reset hooks: piggyback on existing `gmail-sync`, `pis-submit`, `change-orders` triggers — just `UPDATE projects SET waiting_on='us'` when relevant event fires
+- Handoff summary: new edge function `generate-ooo-handoff` called from OOO save handler
+- Routing during OOO: filter in `useEmails` / `useNotifications` already aware of `assigned_pm_id` — add OOO-cover fallback lookup
+- All UI changes are additive (new badges, new toggle button, new bucket) — no rewrites
+
+## Build order
+1. Migration: `waiting_on` columns
+2. Toggle UI on project header
+3. Auto-reset hooks (gmail-sync, PIS, CO, payments)
+4. Rewrite stale buckets in `PMDailyView`
+5. Beacon awareness (project context query)
+6. `generate-ooo-handoff` edge function
+7. OOO save handler triggers handoff
+8. Routing/cover badges in daily view + emails
+9. Return digest
+
+## Out of scope
+- SMS/call responsiveness tracking
+- Auto-suggested next action (AI) — manual `waiting_note` for now
+- Multi-cover (one cover per OOO window)
