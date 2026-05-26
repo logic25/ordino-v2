@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
               const typeMatch = msgLower.match(new RegExp(`\\b(${TRADE_WORDS})\\b`, "i"));
               // Detect US state mention (full name or 2-letter code) → pass as jurisdiction
               const STATE_MAP: Record<string, string> = {
-                "new york": "NY", "ny": "NY",
+                "new york": "NY", "ny": "NY", "nyc": "NY",
                 "new jersey": "NJ", "nj": "NJ", "jersey": "NJ",
                 "connecticut": "CT", "ct": "CT",
                 "pennsylvania": "PA", "pa": "PA",
@@ -160,11 +160,14 @@ Deno.serve(async (req) => {
                 "california": "CA", "calif": "CA", "ca": "CA",
                 "texas": "TX", "tx": "TX",
               };
+              // NYC boroughs imply NY licensure
+              const NYC_BOROUGHS = /\b(queens|brooklyn|bronx|manhattan|staten\s*island)\b/i;
               let jurisdiction: string | undefined;
               for (const [k, v] of Object.entries(STATE_MAP)) {
                 const re = new RegExp(`\\b${k.replace(/\s+/g, "\\s+")}\\b`, "i");
                 if (re.test(msgLower)) { jurisdiction = v; break; }
               }
+              if (!jurisdiction && NYC_BOROUGHS.test(msgLower)) jurisdiction = "NY";
               dataQueries.push({
                 action: "vendor_lookup",
                 params: { type: typeMatch ? typeMatch[1] : undefined, ...(jurisdiction ? { jurisdiction } : {}) },
@@ -287,8 +290,11 @@ Deno.serve(async (req) => {
           }
 
           if (dataContext.length > 0) {
-            body.system_context = (body.system_context || "") +
-              `\n\n**LIVE DATABASE RESULTS (use these to answer the user's question accurately):**\n${dataContext.join("\n")}`;
+            const strictPreamble = `\n\n**LIVE DATABASE RESULTS — AUTHORITATIVE. Use ONLY the entities listed below to answer. Do NOT list any person or firm not appearing here, even if you remember them from prior context or retrieved documents. If the list is empty, say so plainly — do NOT fall back to free-text recall of contacts.**\n`;
+            body.system_context = (body.system_context || "") + strictPreamble + dataContext.join("\n");
+            // Also append a short note to the user message itself so the chat LLM can't ignore the system_context
+            body.message = (body.message || "") +
+              `\n\n[Internal: Answer ONLY from the LIVE DATABASE RESULTS block in system context. Do not invent or recall other names.]`;
             console.log("Injected data context for query:", dataQueries.map(d => d.label).join(", "));
           }
         } catch (e) {
