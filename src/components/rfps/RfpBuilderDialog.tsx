@@ -73,8 +73,9 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   const [step, setStep] = useState(0);
   const [selectedSections, setSelectedSections] = useState<string[]>([...DEFAULT_SECTIONS]);
   const [sectionOrder, setSectionOrder] = useState<string[]>([...DEFAULT_SECTIONS]);
-  const [selectedProjectIds, setSelectedProjectIds] = useState<string[] | null>(null); // null = all selected
-  const [selectedAttachmentIds, setSelectedAttachmentIds] = useState<string[] | null>(null); // null = all selected
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[] | null>(null); // null = all selected (projects opt-out)
+  const [selectedAttachmentIds, setSelectedAttachmentIds] = useState<string[]>([]); // attachments are opt-in
+  const [includeLogo, setIncludeLogo] = useState(true);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [coverLetter, setCoverLetter] = useState("");
   const [generatingLetter, setGeneratingLetter] = useState(false);
@@ -131,13 +132,6 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     }
   }, [allNotableProjects, selectedProjectIds, draftLoaded]);
 
-  // Initialize selectedAttachmentIds when attachments load (select all by default)
-  useEffect(() => {
-    if (selectedAttachmentIds === null && rfpAttachments.length > 0 && !draftLoaded) {
-      setSelectedAttachmentIds(rfpAttachments.map((a: any) => a.id));
-    }
-  }, [rfpAttachments, selectedAttachmentIds, draftLoaded]);
-
   // Load draft only once on open
   useEffect(() => {
     if (draft && !draftLoaded && !dirty && open) {
@@ -146,25 +140,29 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
       setCoverLetter(draft.cover_letter || "");
       setSubmitEmail(draft.submit_email || "");
       setStep(draft.wizard_step || 0);
-      // Restore selected project ids from draft metadata
       const draftAny = draft as any;
-      if (draftAny.selected_project_ids && Array.isArray(draftAny.selected_project_ids)) {
+      if (draftAny.selected_project_ids && Array.isArray(draftAny.selected_project_ids) && draftAny.selected_project_ids.length > 0) {
         setSelectedProjectIds(draftAny.selected_project_ids);
       } else if (allNotableProjects.length > 0) {
         setSelectedProjectIds(allNotableProjects.map((p: any) => p.id));
       }
-      // Restore selected attachment ids from draft metadata
+      // Attachments: opt-in. Use draft selection if present, otherwise empty.
       if (draftAny.selected_attachment_ids && Array.isArray(draftAny.selected_attachment_ids)) {
-        setSelectedAttachmentIds(draftAny.selected_attachment_ids);
-      } else if (rfpAttachments.length > 0) {
-        setSelectedAttachmentIds(rfpAttachments.map((a: any) => a.id));
+        // Intersect with current library so stale IDs drop out
+        const libIds = new Set(rfpAttachments.map((a: any) => a.id));
+        setSelectedAttachmentIds(draftAny.selected_attachment_ids.filter((id: string) => libIds.has(id)));
+      } else {
+        setSelectedAttachmentIds([]);
+      }
+      if (typeof draftAny.include_logo === "boolean") {
+        setIncludeLogo(draftAny.include_logo);
       }
       setDraftLoaded(true);
     }
   }, [draft, draftLoaded, dirty, open, allNotableProjects, rfpAttachments]);
 
   useEffect(() => {
-    if (!open) { setDraftLoaded(false); setDirty(false); setSelectedProjectIds(null); setSelectedAttachmentIds(null); }
+    if (!open) { setDraftLoaded(false); setDirty(false); setSelectedProjectIds(null); setSelectedAttachmentIds([]); setIncludeLogo(true); }
   }, [open]);
 
   const saveDraft = useCallback((overrideStep?: number) => {
@@ -176,10 +174,11 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
       cover_letter: coverLetter || null,
       submit_email: submitEmail || null,
       wizard_step: overrideStep ?? step,
-      selected_project_ids: selectedProjectIds,
+      selected_project_ids: selectedProjectIds ?? undefined,
       selected_attachment_ids: selectedAttachmentIds,
+      include_logo: includeLogo,
     } as any);
-  }, [rfp?.id, selectedSections, sectionOrder, coverLetter, submitEmail, step, selectedProjectIds, selectedAttachmentIds]);
+  }, [rfp?.id, selectedSections, sectionOrder, coverLetter, submitEmail, step, selectedProjectIds, selectedAttachmentIds, includeLogo]);
 
   // DnD
   const sensors = useSensors(
@@ -370,10 +369,10 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     ? allNotableProjects.filter((p: any) => selectedProjectIds.includes(p.id))
     : allNotableProjects;
 
-  // Filtered RFP attachments based on selection (logo, files, etc.)
-  const filteredRfpAttachments = selectedAttachmentIds
-    ? rfpAttachments.filter((a: any) => selectedAttachmentIds.includes(a.id))
-    : rfpAttachments;
+  // Filtered RFP attachments based on selection (opt-in)
+  const filteredRfpAttachments = rfpAttachments.filter((a: any) =>
+    selectedAttachmentIds.includes(a.id)
+  );
 
   const contentCounts: Record<string, number> = {
     cover_letter: coverLetter ? 1 : 0,
@@ -385,7 +384,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     narratives: narratives.length,
     pricing: pricing.length,
     certifications: certs.length,
-    attachments: rfpAttachments.length,
+    attachments: selectedAttachmentIds.length,
   };
 
   // Content data map for editing
@@ -442,7 +441,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     pricing: pricing[0],
     certs,
     coverLetter,
-    logoUrl: rfpLogoUrl || companyData?.settings?.company_logo_url || companyData?.logo_url || undefined,
+    logoUrl: includeLogo ? (rfpLogoUrl || companyData?.settings?.company_logo_url || companyData?.logo_url || undefined) : undefined,
     companyName: companyData?.name || undefined,
     companyAddress: companyData?.address || companyData?.settings?.company_address || undefined,
     companyPhone: companyData?.phone || companyData?.settings?.company_phone || undefined,
@@ -475,12 +474,11 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
 
   const toggleAttachmentSelection = (attachmentId: string) => {
     setDirty(true);
-    setSelectedAttachmentIds((prev) => {
-      const ids = prev || rfpAttachments.map((a: any) => a.id);
-      return ids.includes(attachmentId)
-        ? ids.filter((id) => id !== attachmentId)
-        : [...ids, attachmentId];
-    });
+    setSelectedAttachmentIds((prev) =>
+      prev.includes(attachmentId)
+        ? prev.filter((id) => id !== attachmentId)
+        : [...prev, attachmentId]
+    );
   };
 
   const selectAllAttachments = () => {
@@ -561,10 +559,12 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
                 onToggleProject={toggleProjectSelection}
                 onSelectAllProjects={selectAllProjects}
                 onClearProjects={clearProjectSelection}
-                selectedAttachmentIds={selectedAttachmentIds || rfpAttachments.map((a: any) => a.id)}
+                selectedAttachmentIds={selectedAttachmentIds}
                 onToggleAttachment={toggleAttachmentSelection}
                 onSelectAllAttachments={selectAllAttachments}
                 onClearAttachments={clearAttachmentSelection}
+                includeLogo={includeLogo}
+                onToggleIncludeLogo={() => { setDirty(true); setIncludeLogo((v) => !v); }}
               />
             )}
             {step === 2 && (
@@ -685,6 +685,8 @@ function StepEditContent({
   onToggleAttachment,
   onSelectAllAttachments,
   onClearAttachments,
+  includeLogo,
+  onToggleIncludeLogo,
 }: {
   selectedSections: string[];
   sectionOrder: string[];
@@ -698,6 +700,8 @@ function StepEditContent({
   onToggleAttachment: (id: string) => void;
   onSelectAllAttachments: () => void;
   onClearAttachments: () => void;
+  includeLogo: boolean;
+  onToggleIncludeLogo: () => void;
 }) {
   const activeSections = sectionOrder
     .filter((s) => selectedSections.includes(s) && s !== "cover_letter");
@@ -747,6 +751,18 @@ function StepEditContent({
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="border-t px-4 py-3 space-y-3 bg-muted/10">
+                    {isAttachments && (
+                      <label className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 cursor-pointer">
+                        <Checkbox
+                          checked={includeLogo}
+                          onCheckedChange={onToggleIncludeLogo}
+                        />
+                        <div className="text-xs">
+                          <p className="font-medium">Include company logo in header</p>
+                          <p className="text-muted-foreground">Adds your company logo to the top of the response email and PDF.</p>
+                        </div>
+                      </label>
+                    )}
                     {items.length === 0 ? (
                       <p className="text-xs text-muted-foreground italic">
                         No content yet. Use the button below to add items.

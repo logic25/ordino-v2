@@ -7207,6 +7207,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          include_logo: boolean
           rfp_id: string
           section_order: string[]
           selected_attachment_ids: string[] | null
@@ -7222,6 +7223,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          include_logo?: boolean
           rfp_id: string
           section_order?: string[]
           selected_attachment_ids?: string[] | null
@@ -7237,6 +7239,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          include_logo?: boolean
           rfp_id?: string
           section_order?: string[]
           selected_attachment_ids?: string[] | null
