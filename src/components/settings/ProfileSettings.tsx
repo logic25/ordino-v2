@@ -218,7 +218,11 @@ function OOOSection() {
         .eq("id", profile!.id);
       if (error) throw error;
       await refreshProfile();
-      toast({ title: "Out of Office set" });
+      // Fire-and-forget handoff summary to covering PM
+      supabase.functions.invoke("generate-ooo-handoff").catch((err) => {
+        console.warn("OOO handoff failed", err);
+      });
+      toast({ title: "Out of Office set", description: "Handoff summary sent to your cover." });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {

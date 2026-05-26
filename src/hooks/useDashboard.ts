@@ -133,8 +133,7 @@ export function useMyAssignedProjects() {
         `)
         .or(`assigned_pm_id.eq.${profile.id},senior_pm_id.eq.${profile.id}`)
         .eq("status", "open")
-        .order("updated_at", { ascending: false })
-        .limit(5);
+        .order("updated_at", { ascending: false });
 
       if (error) throw error;
       return data;
