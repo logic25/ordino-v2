@@ -49,6 +49,9 @@ export function useUpsertRfpDraft() {
       cover_letter?: string | null;
       submit_email?: string | null;
       wizard_step?: number;
+      selected_project_ids?: string[];
+      selected_attachment_ids?: string[];
+      include_logo?: boolean;
     }) => {
       if (!profile?.company_id) throw new Error("No company");
       const payload = {
