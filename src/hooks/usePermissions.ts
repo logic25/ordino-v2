@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useUserRoles } from "./useUserRoles";
+import { useAuth } from "./useAuth";
 
 export type ResourceKey =
   | "dashboard" | "projects" | "properties" | "proposals" | "invoices"
