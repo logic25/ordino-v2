@@ -44,16 +44,14 @@ serve(async (req) => {
     });
   }
 
-  // Shared secret check — if LEAD_WEBHOOK_SECRET is configured, require it
+  // Shared secret check — MANDATORY
   const webhookSecret = Deno.env.get("LEAD_WEBHOOK_SECRET");
-  if (webhookSecret) {
-    const providedSecret = req.headers.get("x-webhook-secret");
-    if (providedSecret !== webhookSecret) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+  const providedSecret = req.headers.get("x-webhook-secret");
+  if (!webhookSecret || !providedSecret || providedSecret !== webhookSecret) {
+    return new Response(JSON.stringify({ error: "Forbidden" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {
