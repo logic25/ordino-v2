@@ -73,8 +73,9 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   const [step, setStep] = useState(0);
   const [selectedSections, setSelectedSections] = useState<string[]>([...DEFAULT_SECTIONS]);
   const [sectionOrder, setSectionOrder] = useState<string[]>([...DEFAULT_SECTIONS]);
-  const [selectedProjectIds, setSelectedProjectIds] = useState<string[] | null>(null); // null = all selected
-  const [selectedAttachmentIds, setSelectedAttachmentIds] = useState<string[] | null>(null); // null = all selected
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[] | null>(null); // null = all selected (projects opt-out)
+  const [selectedAttachmentIds, setSelectedAttachmentIds] = useState<string[]>([]); // attachments are opt-in
+  const [includeLogo, setIncludeLogo] = useState(true);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [coverLetter, setCoverLetter] = useState("");
   const [generatingLetter, setGeneratingLetter] = useState(false);
