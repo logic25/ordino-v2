@@ -157,7 +157,7 @@ function ThreadMessage({
               <div
                 className="text-sm max-w-none [&_img]:h-auto [&_pre]:whitespace-pre-wrap"
                 style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
-                dangerouslySetInnerHTML={{ __html: email.body_html }}
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(email.body_html, { FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'form'], FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'formaction'] }) }}
               />
             ) : (
               <pre className="whitespace-pre-wrap text-sm font-sans text-foreground break-words">
