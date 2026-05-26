@@ -15,16 +15,34 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    // Auth: verify JWT
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const authClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
+    const { data: { user }, error: userError } = await authClient.auth.getUser();
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     const sb = createClient(supabaseUrl, serviceRoleKey);
 
-    const { company_id, action } = await req.json();
+    // Derive company_id from the authenticated user's profile — do not trust client input
+    const { data: profile } = await sb
+      .from("profiles")
+      .select("company_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
+    const company_id = profile?.company_id;
     if (!company_id) {
-      return new Response(JSON.stringify({ error: "company_id required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify({ error: "No company membership" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+
+    const { action } = await req.json().catch(() => ({ action: undefined }));
 
     // Get open/in-progress projects
     const { data: projects } = await sb
