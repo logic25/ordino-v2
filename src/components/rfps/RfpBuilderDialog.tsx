@@ -559,10 +559,12 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
                 onToggleProject={toggleProjectSelection}
                 onSelectAllProjects={selectAllProjects}
                 onClearProjects={clearProjectSelection}
-                selectedAttachmentIds={selectedAttachmentIds || rfpAttachments.map((a: any) => a.id)}
+                selectedAttachmentIds={selectedAttachmentIds}
                 onToggleAttachment={toggleAttachmentSelection}
                 onSelectAllAttachments={selectAllAttachments}
                 onClearAttachments={clearAttachmentSelection}
+                includeLogo={includeLogo}
+                onToggleIncludeLogo={() => { setDirty(true); setIncludeLogo((v) => !v); }}
               />
             )}
             {step === 2 && (
