@@ -369,10 +369,10 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     ? allNotableProjects.filter((p: any) => selectedProjectIds.includes(p.id))
     : allNotableProjects;
 
-  // Filtered RFP attachments based on selection (logo, files, etc.)
-  const filteredRfpAttachments = selectedAttachmentIds
-    ? rfpAttachments.filter((a: any) => selectedAttachmentIds.includes(a.id))
-    : rfpAttachments;
+  // Filtered RFP attachments based on selection (opt-in)
+  const filteredRfpAttachments = rfpAttachments.filter((a: any) =>
+    selectedAttachmentIds.includes(a.id)
+  );
 
   const contentCounts: Record<string, number> = {
     cover_letter: coverLetter ? 1 : 0,
@@ -384,7 +384,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     narratives: narratives.length,
     pricing: pricing.length,
     certifications: certs.length,
-    attachments: rfpAttachments.length,
+    attachments: selectedAttachmentIds.length,
   };
 
   // Content data map for editing
