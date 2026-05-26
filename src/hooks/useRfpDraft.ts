@@ -12,6 +12,9 @@ export interface RfpDraft {
   cover_letter: string | null;
   submit_email: string | null;
   wizard_step: number;
+  selected_project_ids: string[] | null;
+  selected_attachment_ids: string[] | null;
+  include_logo: boolean;
   created_at: string;
   updated_at: string;
 }
