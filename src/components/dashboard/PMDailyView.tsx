@@ -74,21 +74,32 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
   const now = new Date();
 
   const categorized = (projects || []).reduce<{
+    onYou: any[];
+    waitingClient: any[];
     stale: any[];
-    needsUpdate: any[];
     active: any[];
     all: any[];
   }>(
     (acc, p) => {
       const daysSinceUpdate = differenceInDays(now, new Date(p.updated_at));
-      const item = { ...p, daysSinceUpdate };
-      if (daysSinceUpdate > 14) acc.stale.push(item);
-      else if (daysSinceUpdate > 7) acc.needsUpdate.push(item);
-      else acc.active.push(item);
+      const waitingOn = (p as any).waiting_on || "us";
+      const waitingSince = (p as any).waiting_since ? new Date((p as any).waiting_since) : null;
+      const daysWaiting = waitingSince ? differenceInDays(now, waitingSince) : 0;
+      const item = { ...p, daysSinceUpdate, waitingOn, daysWaiting };
+
+      if (waitingOn === "us" && daysSinceUpdate >= 7) {
+        acc.onYou.push(item);
+      } else if (waitingOn === "client" && daysWaiting >= 14) {
+        acc.waitingClient.push(item);
+      } else if (daysSinceUpdate >= 30) {
+        acc.stale.push(item);
+      } else {
+        acc.active.push(item);
+      }
       acc.all.push(item);
       return acc;
     },
-    { stale: [], needsUpdate: [], active: [], all: [] }
+    { onYou: [], waitingClient: [], stale: [], active: [], all: [] }
   );
 
   return (
@@ -119,22 +130,32 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
               </div>
             ) : (
               <>
-                {categorized.stale.length > 0 && (
+                {categorized.onYou.length > 0 && (
                   <div className="space-y-2">
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-destructive flex items-center gap-1.5">
-                      <AlertTriangle className="h-3 w-3" /> Stale — No activity 14+ days
+                      <AlertTriangle className="h-3 w-3" /> On you — idle 7+ days
                     </h4>
-                    {categorized.stale.map((p) => (
+                    {categorized.onYou.map((p) => (
                       <ProjectRow key={p.id} project={p} onClick={() => navigate(`/projects/${p.id}`)} />
                     ))}
                   </div>
                 )}
-                {categorized.needsUpdate.length > 0 && (
+                {categorized.waitingClient.length > 0 && (
                   <div className="space-y-2">
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-amber-600 flex items-center gap-1.5">
-                      <Clock className="h-3 w-3" /> Needs Update — 7-14 days
+                      <Clock className="h-3 w-3" /> Waiting on client — 14+ days (nudge time)
                     </h4>
-                    {categorized.needsUpdate.map((p) => (
+                    {categorized.waitingClient.map((p) => (
+                      <ProjectRow key={p.id} project={p} onClick={() => navigate(`/projects/${p.id}`)} />
+                    ))}
+                  </div>
+                )}
+                {categorized.stale.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Clock className="h-3 w-3" /> Truly stale — 30+ days
+                    </h4>
+                    {categorized.stale.map((p) => (
                       <ProjectRow key={p.id} project={p} onClick={() => navigate(`/projects/${p.id}`)} />
                     ))}
                   </div>
@@ -144,7 +165,7 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-primary flex items-center gap-1.5">
                       <CheckCircle2 className="h-3 w-3" /> Recently Active
                     </h4>
-                    {categorized.active.map((p) => (
+                    {categorized.active.slice(0, 8).map((p) => (
                       <ProjectRow key={p.id} project={p} onClick={() => navigate(`/projects/${p.id}`)} />
                     ))}
                   </div>
