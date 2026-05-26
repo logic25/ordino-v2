@@ -1,78 +1,55 @@
-# Track what's waiting on who + smarter vacation handoff
+## Problem
 
-## Why
+In the RFP Builder ("Build RFP Response" wizard), the logo and uploaded attachments (e.g. "Attachment 6") appear in the response but Chris cannot uncheck them — every response is forced to include them.
 
-Today the dashboard's "Stale" bucket just means "nothing changed in 14 days." It can't tell the difference between:
-- You dropped the ball (idle, on you)
-- You're correctly waiting on the client
-- Client owes you a doc/signature/payment
+## Root causes (from code review of `src/components/rfps/RfpBuilderDialog.tsx`)
 
-And when a PM goes on vacation, the covering PM gets nothing — no list of what they're inheriting, no context on who's waiting on what.
+1. **Race condition zeroing the toggle state.** `selectedAttachmentIds` starts as `null` (meaning "all selected"). Two effects try to populate it:
+   - The "default to all" effect (line 134) only runs while `!draftLoaded`.
+   - The draft-load effect (line 142) sets `draftLoaded = true` immediately, but if `rfpAttachments` hasn't loaded yet at that moment it skips the fallback that copies all attachment IDs.
+   - Net effect: `selectedAttachmentIds` can stay `null` forever. The UI then renders `selectedAttachmentIds || rfpAttachments.map(...)` on every render, so the checkbox always *looks* checked again after toggling because the parent prop snaps back to "all".
+2. **Logo can never be excluded.** `assembledContent.logoUrl` falls back to `companyData.settings.company_logo_url || companyData.logo_url` (line 445). Even when the user unchecks the logo attachment (or the entire Attachments section), the company logo is re-injected into the PDF and the email header. There is no per-response "no logo" switch.
+3. **Attachments are opt-out, not opt-in.** Defaulting every attachment in the library to "included" on every new RFP is the source of the "mandatory" feeling — Chris has many files in the library and doesn't want all of them attached to every submission by default.
 
-This plan ships both in one pass because feature #2 depends on the state added in #1.
+## Fix
 
----
+### A. Make selection state authoritative
+- Stop using `null` as a sentinel for `selectedAttachmentIds` / `selectedProjectIds`. Initialize as `[]` and persist explicitly.
+- Remove the `prev || rfpAttachments.map(...)` fallbacks inside `toggleAttachmentSelection`, `selectAllAttachments`, `clearAttachmentSelection`, and inside the `StepEditContent` props — pass the real array.
+- Replace the two competing init effects with a single effect that runs once when both the draft query and `rfpAttachments` query have settled:
+  - If draft has `selected_attachment_ids`, use it (intersected with current library so stale IDs drop out).
+  - Else: default to **empty** (opt-in). Same change for `selected_project_ids` is out of scope — projects keep the current "all by default" behavior since that matches existing UX expectations.
 
-## Part 1 — Project "waiting on" state
+### B. Per-response logo control
+- Add a `include_logo` boolean to the wizard state (default `true`), persisted on the draft alongside `selected_attachment_ids`.
+- In Step 1 ("Edit"), inside the Attachments collapsible, add a top row: a single checkbox **"Include company logo in header"** (separate from library attachments, since the logo is rendered as PDF/email header art, not as a file attachment).
+- When `include_logo === false`, force `assembledContent.logoUrl = undefined` regardless of `rfpLogoUrl` or `companyData` fallback. The email/PDF header already renders the company name when no logo is present.
 
-### Schema (projects table)
-- `waiting_on` enum: `us | client | agency | partner | none` (default `us`)
-- `waiting_since timestamptz`
-- `waiting_note text` (optional, e.g. "Waiting on signed PIS")
+### C. Persist new fields
+- Extend `useUpsertRfpDraft` payload typing (`src/hooks/useRfpDraft.ts`) to include `selected_attachment_ids: string[]` and `include_logo: boolean`. The underlying column already accepts arbitrary JSON metadata via the `as any` cast, so no migration is required — verify by reading one row after save.
 
-### UI
-- One-click toggle in project header: "Waiting on client" / "Back to us" → sets `waiting_on` + stamps `waiting_since`
-- Small badge on project rows (table + dashboard cards): `⏸ Waiting on client · 8d`
-- Auto-reset to `us` when: client email arrives on the thread, PIS submitted, CO signed, payment posted (hook into existing webhooks)
+### D. UX clarity in Step 0 ("Select")
+- Update the Attachments section card subtitle to read "`X of Y selected`" using `selectedAttachmentIds.length` instead of the raw library count, so users see at a glance that the section is empty by default.
 
-### Smarter stale buckets in PMDailyView
-Replace the single "Stale 14d+" bucket with three:
-- 🔴 **On you, idle 7+ days** — `waiting_on=us` + no `updated_at` change
-- 🟡 **Waiting on client 14+ days** — nudge-worthy; one-click "Send follow-up" using existing partner email templates
-- ⚪️ **Truly stale 30+ days** — anything else
+## Files to touch
 
-Beacon picks this up via the existing project context query.
+- `src/components/rfps/RfpBuilderDialog.tsx` — state model, effects, toggle handlers, logo gating, attachments UI in Step 1.
+- `src/hooks/useRfpDraft.ts` — extend `RfpDraft` interface and `useUpsertRfpDraft` payload type.
+- (No DB migration; metadata persists in the existing draft row.)
 
----
+## Verification in sandbox (mandatory before declaring done)
 
-## Part 2 — Vacation handoff (extends existing OOO)
+1. Open `/rfps`, pick an existing RFP with attachments in the library, click "Build Response".
+2. Step 0: confirm Attachments shows `0 / N selected`.
+3. Step 1: expand Attachments. Confirm:
+   - Every library file starts **unchecked**.
+   - Clicking a checkbox toggles it and the state sticks across re-renders.
+   - "Select All" / "Clear" both work.
+   - The new "Include company logo in header" checkbox toggles cleanly.
+4. Click "Full Preview". Confirm:
+   - With logo unchecked → preview shows company name, no logo image.
+   - With one attachment checked → only that file is listed (and only that file is attached when sending — verify by inspecting `attachments` in the submit payload via console).
+5. Close and reopen the dialog → selections persist (draft was saved).
+6. `bunx tsc --noEmit` passes.
 
-### On OOO activation
-Auto-generate a **handoff summary** for the covering PM:
-- All open projects where `assigned_pm_id = me`
-- For each: `waiting_on` state, days in that state, last client touch, next action
-- Delivered as: in-app notification + email to cover
-
-### During OOO window
-- Covering PM's daily view shows inherited projects badged: `Covering for Chris (back Jun 3)`
-- New email/notification routing for those projects → covering PM
-- Original PM still sees them but read-only banner
-
-### On return
-"While you were out" digest: what changed, what the cover handled, what's still pending.
-
----
-
-## Technical notes
-
-- New enum + columns: simple migration, no breaking changes
-- Auto-reset hooks: piggyback on existing `gmail-sync`, `pis-submit`, `change-orders` triggers — just `UPDATE projects SET waiting_on='us'` when relevant event fires
-- Handoff summary: new edge function `generate-ooo-handoff` called from OOO save handler
-- Routing during OOO: filter in `useEmails` / `useNotifications` already aware of `assigned_pm_id` — add OOO-cover fallback lookup
-- All UI changes are additive (new badges, new toggle button, new bucket) — no rewrites
-
-## Build order
-1. Migration: `waiting_on` columns
-2. Toggle UI on project header
-3. Auto-reset hooks (gmail-sync, PIS, CO, payments)
-4. Rewrite stale buckets in `PMDailyView`
-5. Beacon awareness (project context query)
-6. `generate-ooo-handoff` edge function
-7. OOO save handler triggers handoff
-8. Routing/cover badges in daily view + emails
-9. Return digest
-
-## Out of scope
-- SMS/call responsiveness tracking
-- Auto-suggested next action (AI) — manual `waiting_note` for now
-- Multi-cover (one cover per OOO window)
+Only after all six checks pass do we report the fix as complete.
