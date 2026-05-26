@@ -580,19 +580,53 @@ async function createBugFromConversation(sb: any, params: any) {
     return fail(error.message, 500);
   }
 
+  const SB_URL = Deno.env.get("SUPABASE_URL");
+  const SRK = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
   // Auto-trigger triage (non-blocking)
   try {
-    const triageUrl = Deno.env.get("SUPABASE_URL") + "/functions/v1/triage-bug-report";
-    fetch(triageUrl, {
+    fetch(SB_URL + "/functions/v1/triage-bug-report", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        Authorization: `Bearer ${SRK}`,
       },
       body: JSON.stringify({ bug_id: bug.id }),
     }).catch(e => console.error("Auto-triage trigger failed:", e));
   } catch (e) {
     console.error("Auto-triage trigger failed:", e);
+  }
+
+  // Fire email alert to admins (non-blocking) — Beacon-created bugs were
+  // previously silent because only the in-app form invoked send-bug-alert.
+  try {
+    const { data: reporter } = await sb
+      .from("profiles")
+      .select("display_name, first_name, last_name")
+      .eq("id", reporter_id)
+      .maybeSingle();
+    const reporterName =
+      reporter?.display_name ||
+      [reporter?.first_name, reporter?.last_name].filter(Boolean).join(" ") ||
+      "A user";
+
+    fetch(SB_URL + "/functions/v1/send-bug-alert", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SRK}`,
+      },
+      body: JSON.stringify({
+        bug_id: bug.id,
+        bug_title: title,
+        bug_description: description || "",
+        bug_priority: "medium",
+        company_id,
+        reporter_name: reporterName,
+      }),
+    }).catch(e => console.error("Bug alert trigger failed:", e));
+  } catch (e) {
+    console.error("Bug alert trigger failed:", e);
   }
 
   return ok({ bug_id: bug.id, title: bug.title, status: bug.status });
