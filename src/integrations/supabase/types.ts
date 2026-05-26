@@ -5765,6 +5765,9 @@ export type Database = {
           tpp_name: string | null
           unit_number: string | null
           updated_at: string | null
+          waiting_note: string | null
+          waiting_on: Database["public"]["Enums"]["project_waiting_on"]
+          waiting_since: string
         }
         Insert: {
           actual_construction_completion?: string | null
@@ -5826,6 +5829,9 @@ export type Database = {
           tpp_name?: string | null
           unit_number?: string | null
           updated_at?: string | null
+          waiting_note?: string | null
+          waiting_on?: Database["public"]["Enums"]["project_waiting_on"]
+          waiting_since?: string
         }
         Update: {
           actual_construction_completion?: string | null
@@ -5887,6 +5893,9 @@ export type Database = {
           tpp_name?: string | null
           unit_number?: string | null
           updated_at?: string | null
+          waiting_note?: string | null
+          waiting_on?: Database["public"]["Enums"]["project_waiting_on"]
+          waiting_since?: string
         }
         Relationships: [
           {
@@ -8365,6 +8374,7 @@ export type Database = {
         | "rejected"
         | "voided"
       project_status: "open" | "on_hold" | "closed" | "paid"
+      project_waiting_on: "us" | "client" | "agency" | "partner" | "none"
       proposal_status:
         | "draft"
         | "sent"
@@ -8546,6 +8556,7 @@ export const Constants = {
         "voided",
       ],
       project_status: ["open", "on_hold", "closed", "paid"],
+      project_waiting_on: ["us", "client", "agency", "partner", "none"],
       proposal_status: [
         "draft",
         "sent",
