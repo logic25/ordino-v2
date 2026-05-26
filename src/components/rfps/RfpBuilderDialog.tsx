@@ -174,10 +174,11 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
       cover_letter: coverLetter || null,
       submit_email: submitEmail || null,
       wizard_step: overrideStep ?? step,
-      selected_project_ids: selectedProjectIds,
+      selected_project_ids: selectedProjectIds ?? undefined,
       selected_attachment_ids: selectedAttachmentIds,
+      include_logo: includeLogo,
     } as any);
-  }, [rfp?.id, selectedSections, sectionOrder, coverLetter, submitEmail, step, selectedProjectIds, selectedAttachmentIds]);
+  }, [rfp?.id, selectedSections, sectionOrder, coverLetter, submitEmail, step, selectedProjectIds, selectedAttachmentIds, includeLogo]);
 
   // DnD
   const sensors = useSensors(
