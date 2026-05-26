@@ -441,7 +441,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
     pricing: pricing[0],
     certs,
     coverLetter,
-    logoUrl: rfpLogoUrl || companyData?.settings?.company_logo_url || companyData?.logo_url || undefined,
+    logoUrl: includeLogo ? (rfpLogoUrl || companyData?.settings?.company_logo_url || companyData?.logo_url || undefined) : undefined,
     companyName: companyData?.name || undefined,
     companyAddress: companyData?.address || companyData?.settings?.company_address || undefined,
     companyPhone: companyData?.phone || companyData?.settings?.company_phone || undefined,
