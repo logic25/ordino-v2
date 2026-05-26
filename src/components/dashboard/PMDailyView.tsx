@@ -287,13 +287,21 @@ function ProjectRow({ project, onClick }: { project: any; onClick: () => void })
     closed: "bg-muted text-muted-foreground",
   };
 
+  const waitingLabels: Record<string, string> = {
+    client: "⏸ Waiting on client",
+    agency: "⏸ Waiting on agency",
+    partner: "⏸ Waiting on partner",
+    none: "✓ No blockers",
+  };
+  const waitingBadge = project.waitingOn && waitingLabels[project.waitingOn];
+
   return (
     <div
       className="flex items-center justify-between p-3 rounded-lg border border-border hover:border-accent/50 hover:bg-accent/5 transition-all cursor-pointer"
       onClick={onClick}
     >
       <div className="space-y-0.5 min-w-0 flex-1">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <FolderKanban className="h-4 w-4 text-muted-foreground shrink-0" />
           <span className="font-medium text-sm truncate">
             {project.name || project.properties?.address || "Untitled"}
@@ -301,6 +309,12 @@ function ProjectRow({ project, onClick }: { project: any; onClick: () => void })
           <Badge className={statusColors[project.status] || "bg-muted"} variant="secondary">
             {project.status?.replace("_", " ")}
           </Badge>
+          {waitingBadge && (
+            <Badge variant="outline" className="text-[10px] font-normal">
+              {waitingBadge}
+              {project.daysWaiting > 0 && ` · ${project.daysWaiting}d`}
+            </Badge>
+          )}
         </div>
         <p className="text-xs text-muted-foreground pl-6">
           {project.project_number && `#${project.project_number} • `}

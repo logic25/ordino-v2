@@ -84,7 +84,25 @@ export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, is
                 onClick={() => navigate(`/projects/${project.id}`)}
               >
                 <TableCell className="font-mono text-sm">{project.project_number || "—"}</TableCell>
-                <TableCell className="font-medium">{project.name || project.proposals?.title || "Untitled"}</TableCell>
+                <TableCell className="font-medium">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span>{project.name || project.proposals?.title || "Untitled"}</span>
+                    {(() => {
+                      const w = (project as any).waiting_on;
+                      const since = (project as any).waiting_since;
+                      if (!w || w === "us") return null;
+                      const labels: Record<string, string> = {
+                        client: "⏸ Client", agency: "⏸ Agency", partner: "⏸ Partner", none: "✓ No blockers",
+                      };
+                      const days = since ? Math.floor((Date.now() - new Date(since).getTime()) / 86400000) : 0;
+                      return (
+                        <Badge variant="outline" className="text-[10px] font-normal">
+                          {labels[w] || w}{days > 0 && ` · ${days}d`}
+                        </Badge>
+                      );
+                    })()}
+                  </div>
+                </TableCell>
                 <TableCell className="text-muted-foreground">{project.properties?.address || "—"}</TableCell>
                 <TableCell className="text-muted-foreground">{project.clients?.name || "—"}</TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
