@@ -299,14 +299,14 @@ export function FilingAgentSupervisionPanel({
         </div>
       </div>
 
-      {/* ── AGENT VIEW (running OR terminal w/ screenshots) ── */}
-      {(isRunning || screenshots.length > 0) && (
+      {/* ── LIVE AGENT VIEW (while running) ── */}
+      {isRunning && (
         <div className="rounded-lg border bg-background overflow-hidden">
           {/* Header */}
           <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/30">
             <Monitor className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-xs font-medium text-muted-foreground flex-1">
-              {isRunning ? "Live Agent View" : isError ? "Last Screen Before Failure" : "Agent View"}
+              Live Agent View
             </span>
             {screenshots.length > 0 && (
               <span className="text-[10px] text-muted-foreground/60 font-mono">
@@ -321,21 +321,14 @@ export function FilingAgentSupervisionPanel({
               <img
                 src={latestScreenshot.url}
                 alt={latestScreenshot.step || "Agent screenshot"}
-                className="w-full h-auto cursor-zoom-in"
+                className="w-full h-auto"
                 key={latestScreenshot.url}
-                onClick={() => window.open(latestScreenshot.url, "_blank")}
               />
               {/* Step overlay */}
-              <div className={`absolute bottom-0 left-0 right-0 px-3 py-2 flex items-center gap-2 text-white ${isError ? "bg-destructive/80" : "bg-black/70"}`}>
-                {isRunning ? (
-                  <Loader2 className="h-3 w-3 animate-spin shrink-0" />
-                ) : isError ? (
-                  <XCircle className="h-3 w-3 shrink-0" />
-                ) : (
-                  <CheckCircle2 className="h-3 w-3 shrink-0" />
-                )}
+              <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white px-3 py-2 flex items-center gap-2">
+                <Loader2 className="h-3 w-3 animate-spin shrink-0" />
                 <span className="text-xs font-mono truncate">
-                  {isError ? "Failed at " : "Step "}{currentStepIndex}{latestStep ? ` — ${latestStep.step}` : ""}
+                  Step {currentStepIndex}{latestStep ? ` — ${latestStep.step}` : ""}
                 </span>
               </div>
             </div>
