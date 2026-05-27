@@ -451,6 +451,7 @@ Deno.serve(async (req) => {
     }
 
     const reqBody = isServiceRole ? (req as any)._parsedBody : await req.json();
+    console.log("gmail-send: body keys", Object.keys(reqBody || {}), "attachments_in_body:", Array.isArray(reqBody?.attachments) ? reqBody.attachments.length : typeof reqBody?.attachments);
     const { to, cc, bcc, subject, html_body, reply_to_email_id, forward_from_email_id, attachments, project_id, tag_category } = reqBody;
 
     if (!to || !subject || !html_body) {
