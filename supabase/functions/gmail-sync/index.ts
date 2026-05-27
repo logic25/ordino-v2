@@ -210,13 +210,46 @@ Deno.serve(async (req) => {
     // For first sync, allow more consecutive existing pages before stopping
     const maxFullyExistingPages = isFirstSync ? 5 : 2;
 
+    // Wall-clock budget — always return before the edge runtime kills us
+    const startedAt = Date.now();
+    const TIME_BUDGET_MS = 60_000;
+
+    // Pre-fetch sender email -> profile id map ONCE (replaces per-email auth.admin loop)
+    const senderEmailToProfileId = new Map<string, string>();
+    try {
+      const { data: companyProfiles } = await supabaseAdmin
+        .from("profiles")
+        .select("id, user_id")
+        .eq("company_id", profile.company_id)
+        .eq("is_active", true);
+      if (companyProfiles && companyProfiles.length > 0) {
+        const { data: authList } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+        const userIdToEmail = new Map<string, string>();
+        for (const u of authList?.users || []) {
+          if (u.email) userIdToEmail.set(u.id, u.email.toLowerCase());
+        }
+        for (const cp of companyProfiles) {
+          const em = userIdToEmail.get(cp.user_id);
+          if (em) senderEmailToProfileId.set(em, cp.id);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to build sender->profile map:", e);
+    }
+
     let syncedCount = 0;
     let totalChecked = 0;
     let pageToken: string | undefined = undefined;
     let pagesProcessed = 0;
-    let fullyExistingPages = 0; // stop after 2 consecutive pages with zero new emails
+    let fullyExistingPages = 0;
+    let partial = false;
 
     while (pagesProcessed < maxPages) {
+      if (Date.now() - startedAt > TIME_BUDGET_MS) {
+        partial = true;
+        break;
+      }
+
       const url = new URL("https://www.googleapis.com/gmail/v1/users/me/messages");
       url.searchParams.set("maxResults", "50");
       if (pageToken) url.searchParams.set("pageToken", pageToken);
@@ -230,19 +263,12 @@ Deno.serve(async (req) => {
 
       let newOnThisPage = 0;
       for (const msg of listData.messages) {
+        if (Date.now() - startedAt > TIME_BUDGET_MS) {
+          partial = true;
+          break;
+        }
         totalChecked++;
 
-        // Check if already synced
-        const { data: existing } = await supabaseAdmin
-          .from("emails")
-          .select("id")
-          .eq("gmail_message_id", msg.id)
-          .eq("company_id", profile.company_id)
-          .maybeSingle();
-
-        if (existing) continue;
-
-        // Fetch full message
         const msgRes = await fetch(
           `https://www.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=full`,
           { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -274,11 +300,9 @@ Deno.serve(async (req) => {
         const subject = getHeader(headers, "Subject") || "(no subject)";
 
         // ── Bug reply detection ──
-        // If subject contains [BUG-xxxxxxxx], route as a bug comment instead of a normal email
         const bugTagMatch = subject.match(/\[BUG-([a-f0-9]{8})\]/i);
         if (bugTagMatch) {
           const bugIdPrefix = bugTagMatch[1].toLowerCase();
-          // Find the bug by ID prefix
           const { data: matchingBug } = await supabaseAdmin
             .from("feature_requests")
             .select("id, company_id, user_id")
@@ -288,36 +312,11 @@ Deno.serve(async (req) => {
             .maybeSingle();
 
           if (matchingBug) {
-            // Strip quoted content from reply
             const replyBody = stripQuotedContent(body_text || body_html || "");
             if (replyBody.trim()) {
-              // Find sender's profile by email
-              const { data: senderProfiles } = await supabaseAdmin
-                .from("profiles")
-                .select("id")
-                .eq("company_id", profile.company_id)
-                .eq("is_active", true);
+              const senderProfileId =
+                (from_email && senderEmailToProfileId.get(from_email.toLowerCase())) || profile.id;
 
-              let senderProfileId = profile.id; // default to syncing user
-              if (senderProfiles && from_email) {
-                // Try to match sender email to a profile via auth
-                for (const sp of senderProfiles) {
-                  const { data: spData } = await supabaseAdmin
-                    .from("profiles")
-                    .select("user_id")
-                    .eq("id", sp.id)
-                    .single();
-                  if (spData?.user_id) {
-                    const { data: { user: authUser } } = await supabaseAdmin.auth.admin.getUserById(spData.user_id);
-                    if (authUser?.email?.toLowerCase() === from_email.toLowerCase()) {
-                      senderProfileId = sp.id;
-                      break;
-                    }
-                  }
-                }
-              }
-
-              // Insert as bug comment
               await supabaseAdmin.from("bug_comments").insert({
                 bug_id: matchingBug.id,
                 company_id: matchingBug.company_id,
@@ -325,7 +324,6 @@ Deno.serve(async (req) => {
                 message: replyBody.trim(),
               });
 
-              // Log activity
               await supabaseAdmin.from("bug_activity_logs").insert({
                 bug_id: matchingBug.id,
                 company_id: matchingBug.company_id,
@@ -336,7 +334,6 @@ Deno.serve(async (req) => {
 
               console.log(`Routed email reply to bug ${matchingBug.id} from ${from_email}`);
             }
-            // Skip normal email insertion for bug replies
             newOnThisPage++;
             syncedCount++;
             continue;
@@ -360,37 +357,49 @@ Deno.serve(async (req) => {
           }
         }
 
-        const { data: inserted, error: insertError } = await supabaseAdmin
-          .from("emails")
-          .insert({
-            company_id: profile.company_id,
-            user_id: profile.id,
-            gmail_message_id: msg.id,
-            thread_id: msg.threadId,
-            subject,
-            from_email,
-            from_name,
-            to_emails,
-            date: emailDate,
-            body_text,
-            body_html,
-            snippet: msgData.snippet || "",
-            has_attachments: attachments.length > 0,
-            labels: msgData.labelIds || [],
-            is_read: !(msgData.labelIds || []).includes("UNREAD"),
-          })
-          .select("id")
-          .single();
+        // Upsert (replaces existence SELECT + INSERT). With ignoreDuplicates, a duplicate returns null.
+        const upsertRow = {
+          company_id: profile.company_id,
+          user_id: profile.id,
+          gmail_message_id: msg.id,
+          thread_id: msg.threadId,
+          subject,
+          from_email,
+          from_name,
+          to_emails,
+          date: emailDate,
+          body_text,
+          body_html,
+          snippet: msgData.snippet || "",
+          has_attachments: attachments.length > 0,
+          labels: msgData.labelIds || [],
+          is_read: !(msgData.labelIds || []).includes("UNREAD"),
+        };
+
+        const doUpsert = async () =>
+          await supabaseAdmin
+            .from("emails")
+            .upsert(upsertRow, { onConflict: "gmail_message_id,company_id", ignoreDuplicates: true })
+            .select("id")
+            .maybeSingle();
+
+        let { data: inserted, error: insertError } = await doUpsert();
+        if (insertError && (insertError as any).code === "57014") {
+          await new Promise((r) => setTimeout(r, 500));
+          ({ data: inserted, error: insertError } = await doUpsert());
+        }
 
         if (insertError) {
           console.error("Insert error:", insertError);
           continue;
         }
 
-        // Insert attachments
-        if (attachments.length > 0 && inserted) {
+        // inserted === null => row already existed (skipped by ignoreDuplicates)
+        if (!inserted) continue;
+
+        if (attachments.length > 0) {
           const attachmentRows = attachments.map((a: any) => ({
-            email_id: inserted.id,
+            email_id: inserted!.id,
             company_id: profile.company_id,
             filename: a.filename,
             mime_type: a.mime_type,
@@ -405,17 +414,16 @@ Deno.serve(async (req) => {
         syncedCount++;
       }
 
-      // Track pages with no new emails
+      if (partial) break;
+
       if (newOnThisPage === 0) {
         fullyExistingPages++;
       } else {
         fullyExistingPages = 0;
       }
 
-      // Stop if enough consecutive pages had nothing new
       if (fullyExistingPages >= maxFullyExistingPages) break;
 
-      // Move to next page
       pageToken = listData.nextPageToken;
       if (!pageToken) break;
       pagesProcessed++;
