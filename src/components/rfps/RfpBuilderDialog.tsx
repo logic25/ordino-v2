@@ -306,7 +306,10 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
       }
 
       // Collect uploaded attachment files
-      if (selectedSections.includes("attachments")) {
+      // Attach any explicitly-selected library files, regardless of whether
+      // the "Attachments" section is enabled in the body (the section controls
+      // the in-document listing; the checkbox controls the actual file attach).
+      if (filteredRfpAttachments.length > 0) {
         for (const att of filteredRfpAttachments) {
           const c = att.content as Record<string, any> | null;
           const filePath = c?.file_path as string | undefined;
