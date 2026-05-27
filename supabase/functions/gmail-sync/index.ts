@@ -435,8 +435,18 @@ Deno.serve(async (req) => {
       .update({ last_sync_at: new Date().toISOString() })
       .eq("id", connection.id);
 
+    const elapsedMs = Date.now() - startedAt;
+    console.log(
+      `[gmail-sync] done synced=${syncedCount} checked=${totalChecked} pages=${pagesProcessed + 1} partial=${partial} elapsed=${elapsedMs}ms`
+    );
+
     return new Response(
-      JSON.stringify({ synced: syncedCount, total_checked: totalChecked, pages_processed: pagesProcessed + 1 }),
+      JSON.stringify({
+        synced: syncedCount,
+        total_checked: totalChecked,
+        pages_processed: pagesProcessed + 1,
+        partial,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
