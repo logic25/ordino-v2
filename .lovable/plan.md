@@ -1,38 +1,39 @@
 ## What we know
 
-- Chris ticked an attachment checkbox in the RFP builder, sent the RFP to himself, and the email arrived with no file attached.
-- `gmail-send` edge function logs at 18:42:50Z explicitly show `gmail-send: no attachments` for that send — i.e. the frontend is invoking the edge function **without** any attachments in the body.
-- Frontend code in `RfpBuilderDialog.tsx` *looks* correct: it filters `rfpAttachments` by `selectedAttachmentIds`, downloads each from `rfp-documents` storage, base64-encodes, and passes them to `gmail-send`.
+- You clicked Sync. The `gmail-sync` edge function ran from 18:56:32 to 18:59:52 (~3m 20s), then was force-shut down by the runtime (edge functions cap around 150s and the client connection drops well before that). The browser likely got an aborted request, no toast, and the email list never refreshed.
+- The function logs also show one `Insert error: code 57014 (canceling statement due to statement timeout)` on the `emails` insert at 18:57:38. That's a single DB statement that got killed — most likely a side effect of the function being heavily blocked on slow per-message work, not a schema problem.
+- New emails DID land in the DB (latest `synced_at` is 18:59:51, i.e. some rows were saved before shutdown), but because the function never returned, React Query never invalidated `["emails"]`, so the UI didn't refetch. A manual page refresh would probably show them.
 
-So either (a) `selectedAttachmentIds` is empty at submit time, (b) `filteredRfpAttachments` resolves to 0, (c) every storage download is silently failing inside the try/catch, or (d) the `content` payload shape is different from what we expect (e.g. JSON string instead of object, so `c?.file_path` is undefined).
+## Root cause
 
-We don't currently have enough logging to distinguish these.
+Two compounding problems in `supabase/functions/gmail-sync/index.ts`:
+
+1. **Bug-reply detection loop is O(emails × profiles).** For every synced message whose subject contains `[BUG-xxxxxxxx]`, the function loops over every active profile in the company and calls `supabase.auth.admin.getUserById(...)` one by one to match the sender. With ~10 profiles and a normal page of bug-tagged emails, this is dozens of round-trips per message, every sync. This is the main wall-clock killer.
+2. **Everything is serial.** For each of up to 150–500 messages per sync we do: 1 existence SELECT, 1 Gmail `messages.get`, 1 INSERT, optional attachment INSERT, plus the bug loop above. With this much serial work the function regularly blows past the edge-runtime time limit, the client connection is closed, and the UI never refreshes.
 
 ## Plan
 
-1. **Add diagnostic logging to `handleSubmitViaEmail` in `src/components/rfps/RfpBuilderDialog.tsx`** so we can see exactly what's happening client-side on next attempt:
-   - Log `selectedAttachmentIds`, `rfpAttachments.length`, and `filteredRfpAttachments.length` at the top of the handler.
-   - For each attachment, log the resolved `file_path`, `filename`, whether `content` was an object or a string (and parse it if it's a string), and any download error.
-   - Log the final `attachments.length` right before invoking `gmail-send`.
+1. **Pre-fetch the profile → email map once per sync.** Before the page loop, call `auth.admin.listUsers()` (or query profiles joined to a cached user-email map) one time and build `Map<email, profile_id>`. Replace the inner `for (sp of senderProfiles) { getUserById(...) }` loop with a single map lookup. This is the biggest win — turns ~N×M auth calls into 1.
+2. **Add a wall-clock budget.** Track `startedAt` at the top of the handler. Before each new page, if `Date.now() - startedAt > 60_000`, break out of the page loop, update `last_sync_at`, and return a normal response with whatever was synced (plus `partial: true`). This guarantees the function always returns to the client and the UI always invalidates, even on big mailboxes.
+3. **Skip the existence SELECT by using upsert with `ignoreDuplicates`.** Replace the per-message `select id ... maybeSingle()` + `insert` pattern with a single `upsert({...}, { onConflict: "gmail_message_id,company_id", ignoreDuplicates: true })` against the existing unique index `idx_emails_gmail_id_company`. This cuts one round-trip per message in half.
+4. **Tighten the existing `Insert error` handling.** If insert fails (e.g. statement timeout), retry the insert once with a 500ms backoff before `continue`-ing. One transient timeout shouldn't silently drop a message.
+5. **No client-side changes needed.** `useSyncGmail` already invalidates `["emails"]` on success — it just needs the function to actually return.
+6. **Manual verification after deploy.** Have you click Sync once. Confirm: (a) the function returns within ~60s, (b) the toast shows `Synced N new emails`, (c) the inbox list refreshes without a manual reload. Then check `gmail-sync` logs for zero `Insert error` entries.
 
-2. **Harden the attachment-content parsing** so if `att.content` is ever a JSON string (Postgres `jsonb` can sometimes round-trip that way), we still extract `file_path`. Same hardening for cert/staff content paths, since those are coded identically.
+## Why this matches what you saw
 
-3. **Add a server-side log of incoming body keys** in `supabase/functions/gmail-send/index.ts` (one line: `console.log("gmail-send: body keys", Object.keys(reqBody), "attachments_in_body:", Array.isArray(reqBody.attachments) ? reqBody.attachments.length : typeof reqBody.attachments)`). This confirms whether the field is being dropped in transit vs never sent.
-
-4. **Tell Chris to retry one send** so we capture the diagnostics. Based on what the logs show, either:
-   - Selection state is empty → fix the state/selection bug.
-   - Download is failing → fix the storage path / signed-URL flow.
-   - Content shape mismatch → the parsing hardening in step 2 will already fix it.
-
-5. Remove the noisy diagnostic logs (keep the one-line summary log) once the root cause is fixed.
+You clicked Sync, the function got stuck in the bug-reply loop and hit the runtime time limit, the request was killed mid-flight, React Query never invalidated, and the inbox view kept showing the old cached list — so the synced emails were "missing" even though some of them were already in the DB.
 
 ## Technical details
 
-- Files touched:
-  - `src/components/rfps/RfpBuilderDialog.tsx` — add logs in `handleSubmitViaEmail` (around lines 232–348); harden `content` parsing for cert / staff / attachment loops.
-  - `supabase/functions/gmail-send/index.ts` — add one `console.log` near line 454 where `reqBody` is destructured.
-- No schema changes, no UI changes visible to the user.
-- The hardening also covers the case where `useRfpContent` returns content as `string` (we'll do `typeof c === "string" ? JSON.parse(c) : c`).
-- Once we have one diagnostic send from Chris, the fix is likely a 5-line change and the logs come back out.
+- File: `supabase/functions/gmail-sync/index.ts`
+  - Add `const startedAt = Date.now()` near line 213.
+  - Add `if (Date.now() - startedAt > 60_000) break` at the top of each `pagesProcessed` loop iteration.
+  - Build `senderEmailToProfileId: Map<string, string>` once after fetching `profile`, replacing the per-email loop at lines 295–318.
+  - Swap the `select` + `insert` at lines 236–388 for a single `upsert({...}, { onConflict: "gmail_message_id,company_id", ignoreDuplicates: true }).select("id").maybeSingle()`. Treat a `null` return as "already existed" and skip attachment insert in that case.
+  - Wrap the upsert in a single retry on `57014`.
+  - Response shape stays the same (`{ synced, total_checked, pages_processed }`) plus optional `partial: true` when the budget cut us off.
+- No schema changes. No frontend changes. No new env vars. Deploy `gmail-sync` only.
+- Risk: very low. The bug-reply behavior is preserved (map lookup instead of slow loop); the upsert relies on an index that already exists; the time budget only ever shortens a run, never lengthens it.
 
-No other code paths are affected.
+If you want, after the fix lands I can also add a one-line `[gmail-sync]` summary log per run (counts + ms elapsed) so future "sync didn't work" reports are diagnosable in 5 seconds instead of guessing from edge-function logs.
