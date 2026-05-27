@@ -540,11 +540,37 @@ export function FilingAgentSupervisionPanel({
       {/* ── ERROR DISPLAY ── */}
       {isError && (
         <div className="space-y-2">
-          {run.error_message && (
-            <div className="p-3 rounded-lg border border-destructive/30 bg-destructive/5 text-sm text-destructive">
-              <p className="font-medium text-xs mb-1">Error Details</p>
-              {run.error_message}
-            </div>
+          <div className="p-3 rounded-lg border border-destructive/30 bg-destructive/5 text-sm text-destructive space-y-2">
+            <p className="font-medium text-xs">Error Details</p>
+            {run.error_message ? (
+              <p className="whitespace-pre-wrap break-words">{run.error_message}</p>
+            ) : (
+              <div className="space-y-1.5 text-xs text-destructive/90">
+                <p>The filing agent failed without reporting an error message.</p>
+                {screenshots.length > 0 && (
+                  <p>• Check the screenshot gallery above — the last image shows where the agent stopped.</p>
+                )}
+                {progressLog.length > 0 ? (
+                  <p>• Last step reached: <span className="font-mono">{progressLog[progressLog.length - 1]?.step}</span></p>
+                ) : (
+                  <p>• No steps were logged before failure (the agent likely failed during startup).</p>
+                )}
+                {run.recording_url && <p>• Open the full session recording below for the complete trace.</p>}
+                {run.agent_session_id && (
+                  <p className="font-mono text-[10px] text-destructive/60 pt-1">Session: {run.agent_session_id}</p>
+                )}
+              </div>
+            )}
+          </div>
+          {run.live_url && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-1.5 text-xs"
+              onClick={() => window.open(run.live_url!, "_blank")}
+            >
+              <ExternalLink className="h-3.5 w-3.5" /> Open Agent Session
+            </Button>
           )}
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" className="gap-1.5" onClick={onRetry} disabled={retrying}>
