@@ -232,11 +232,30 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
   const handleSubmitViaEmail = async () => {
     if (!submitEmail || !rfp) return;
     setSubmitting(true);
+
+    // Helper: jsonb fields sometimes round-trip as JSON strings — normalize.
+    const asObj = (v: any): Record<string, any> | null => {
+      if (!v) return null;
+      if (typeof v === "string") {
+        try { return JSON.parse(v); } catch { return null; }
+      }
+      return typeof v === "object" ? v : null;
+    };
+
+    console.log("[RFP submit] starting", {
+      selectedAttachmentIds,
+      rfpAttachmentsCount: rfpAttachments.length,
+      filteredRfpAttachmentsCount: filteredRfpAttachments.length,
+      certsCount: certs.length,
+      staffBiosCount: staffBios.length,
+      sectionsIncludesStaffBios: selectedSections.includes("staff_bios"),
+    });
+
     try {
       // Collect certification file attachments from content.document_path or file_url
       const attachments: { filename: string; content: string; mime_type: string }[] = [];
       for (const cert of certs) {
-        const content = cert.content as Record<string, any> | null;
+        const content = asObj(cert.content);
         const docPath = content?.document_path as string | undefined;
         const docName = content?.document_name as string | undefined;
         const fileUrl = cert.file_url;
@@ -248,7 +267,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
           if (docPath) {
             // Download from rfp-documents storage bucket
             const { data, error: dlErr } = await supabase.storage.from("rfp-documents").download(docPath);
-            if (dlErr || !data) { console.warn("Failed to download cert from storage:", docPath, dlErr); continue; }
+            if (dlErr || !data) { console.warn("[RFP submit] Failed to download cert from storage:", docPath, dlErr); continue; }
             blob = data;
           } else {
             const res = await fetch(fileUrl!);
@@ -267,8 +286,8 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
             content: base64,
             mime_type: blob.type || "application/pdf",
           });
-        } catch {
-          console.warn("Failed to fetch cert attachment:", cert.title);
+        } catch (e) {
+          console.warn("[RFP submit] Failed to fetch cert attachment:", cert.title, e);
         }
       }
 
@@ -277,7 +296,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
       // Collect staff resume attachments
       if (selectedSections.includes("staff_bios")) {
         for (const staff of staffBios) {
-          const content = staff.content as Record<string, any> | null;
+          const content = asObj(staff.content);
           const resumeUrl = content?.resume_url as string | undefined;
           const resumeFilename = content?.resume_filename as string | undefined;
           const staffName = content?.name || staff.title || "Staff";
@@ -286,7 +305,7 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
 
           try {
             const { data, error: dlErr } = await supabase.storage.from("rfp-documents").download(resumeUrl);
-            if (dlErr || !data) { console.warn("Failed to download resume:", resumeUrl, dlErr); continue; }
+            if (dlErr || !data) { console.warn("[RFP submit] Failed to download resume:", resumeUrl, dlErr); continue; }
             const arrayBuf = await data.arrayBuffer();
             const bytes = new Uint8Array(arrayBuf);
             let binary = "";
@@ -299,8 +318,8 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
               content: base64,
               mime_type: data.type || "application/pdf",
             });
-          } catch {
-            console.warn("Failed to fetch resume for:", staffName);
+          } catch (e) {
+            console.warn("[RFP submit] Failed to fetch resume for:", staffName, e);
           }
         }
       }
@@ -309,16 +328,26 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
       // Attach any explicitly-selected library files, regardless of whether
       // the "Attachments" section is enabled in the body (the section controls
       // the in-document listing; the checkbox controls the actual file attach).
+      console.log("[RFP submit] processing filtered library attachments", filteredRfpAttachments.map(a => ({
+        id: a.id,
+        title: a.title,
+        contentType: typeof a.content,
+        contentRaw: a.content,
+      })));
       if (filteredRfpAttachments.length > 0) {
         for (const att of filteredRfpAttachments) {
-          const c = att.content as Record<string, any> | null;
+          const c = asObj(att.content);
           const filePath = c?.file_path as string | undefined;
           const attFilename = c?.filename as string | undefined;
           const mimeType = c?.mime_type as string | undefined;
-          if (!filePath) continue;
+          console.log("[RFP submit] attachment iter", { id: att.id, filePath, attFilename, mimeType, hasContent: !!c });
+          if (!filePath) {
+            console.warn("[RFP submit] skipping attachment with no file_path", att.id, att.title);
+            continue;
+          }
           try {
             const { data, error: dlErr } = await supabase.storage.from("rfp-documents").download(filePath);
-            if (dlErr || !data) { console.warn("Failed to download attachment:", filePath, dlErr); continue; }
+            if (dlErr || !data) { console.warn("[RFP submit] Failed to download attachment:", filePath, dlErr); continue; }
             const arrayBuf = await data.arrayBuffer();
             const bytes = new Uint8Array(arrayBuf);
             let binary = "";
@@ -331,11 +360,14 @@ export function RfpBuilderDialog({ rfp, open, onOpenChange }: RfpBuilderDialogPr
               content: base64,
               mime_type: mimeType || data.type || "application/octet-stream",
             });
-          } catch {
-            console.warn("Failed to fetch attachment:", attFilename || filePath);
+            console.log("[RFP submit] attachment added", safeName, "size_bytes≈", bytes.length);
+          } catch (e) {
+            console.warn("[RFP submit] Failed to fetch attachment:", attFilename || filePath, e);
           }
         }
       }
+
+      console.log("[RFP submit] invoking gmail-send with", attachments.length, "attachment(s)");
 
       const { error } = await supabase.functions.invoke("gmail-send", {
         body: {
