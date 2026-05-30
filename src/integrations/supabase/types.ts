@@ -5649,6 +5649,54 @@ export type Database = {
           },
         ]
       }
+      project_notes: {
+        Row: {
+          body: string
+          company_id: string
+          created_at: string
+          id: string
+          project_id: string
+          source: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          body: string
+          company_id: string
+          created_at?: string
+          id?: string
+          project_id: string
+          source?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          body?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          project_id?: string
+          source?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_notes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_notes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_timeline_events: {
         Row: {
           actor_id: string | null
