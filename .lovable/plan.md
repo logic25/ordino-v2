@@ -1,41 +1,23 @@
-# Project Notes + Weekly AI Project Summaries
+# Add Notes tab to the real Project Detail page
 
 ## Problem
-- The "Notes" tab on each project is mock UI — nothing saves, no real AI summary.
-- The OOO handoff function exists but has no project-note context to pull from.
-- No scheduled weekly "where does each open project stand?" digest.
+The `NotesTab` component was wired into `ProjectExpandedTabs.tsx`, but that file isn't rendered anywhere in production. The page the user actually sees at `/projects/:id` is `src/pages/ProjectDetail.tsx`, which has its own `<Tabs>` block (Services, Emails, Contacts, Timeline, Documents, Time Logs, Change Orders, Action Items, Job Costing, Research) — **no Notes tab**. So today there is nowhere in the live UI to add a note.
 
-## What we'll build
+## Fix
+1. **`src/pages/ProjectDetail.tsx`**
+   - Import `NotesTab` from `@/components/projects/tabs/NotesTab`.
+   - Import `StickyNote` icon from `lucide-react`.
+   - Add a `<TabsTrigger value="notes">` immediately after **Services** (second tab — high visibility, matches where Sheri intuitively went looking).
+   - Add a matching `<TabsContent value="notes">` rendering `<NotesTab projectId={project.id} />`.
 
-### 1. Real project notes (persistence)
-- New `project_notes` table: `project_id`, `company_id`, `user_id`, `body`, `source` (`manual` | `ai_weekly` | `ai_on_demand`), `created_at`.
-- RLS scoped to `company_id` via `is_company_member()`.
-- Rewrite `NotesTab.tsx` to read/write from the table (replace mock `useState`).
-- Show manual notes + AI summaries interleaved, newest first, with source badge.
+2. **Remove the stale scaffold** — delete `src/components/projects/ProjectExpandedTabs.tsx`. It's a dead file (only self-referenced) and keeping it around will keep confusing future edits about where the real tabs live.
 
-### 2. On-demand AI project summary
-- New edge function `summarize-project`: pulls the project's tasks, recent emails tagged to the project, time entries, checklist state, recent activity — feeds Gemini Flash for a 4–6 sentence "current state" summary.
-- Stores result as a `project_notes` row with `source = 'ai_on_demand'`.
-- Wire the existing "AI Summary" button in NotesTab to call it.
+3. **Sanity-check `NotesTab.tsx`** — confirm it still compiles against the live `project_notes` schema (no extra changes expected; just verify after the move).
 
-### 3. Weekly auto-summary for open projects
-- New edge function `weekly-project-digest` (runs Monday 6am via pg_cron).
-- For each project in `active` / `in_progress` status per company:
-  - Calls the same summarization logic.
-  - Writes a `project_notes` row with `source = 'ai_weekly'`.
-- Sends one consolidated digest email per PM (their assigned open projects only) with the summaries inline.
+## Out of scope
+- Dashboard "This Week's AI Summaries" widget.
+- Showing latest note inline on project list rows.
+- Migrating any legacy Ordino notes.
 
-### 4. Feed OOO handoff with notes
-- Update `generate-ooo-handoff` to include the latest `project_notes` row (manual or AI) per project the user owns, so the covering teammate sees real context, not just task lists.
-
-## Where Sheri would put project notes
-On any project → **Notes tab**. She types into the textarea, clicks Save, it persists. She'll also see a fresh AI summary auto-appear every Monday and can hit "Generate Summary" anytime.
-
-## Out of scope (separate asks)
-- Migrating old Ordino notes in (do after stable).
-- Slack/Chat delivery of the weekly digest (email only for v1).
-
-## Technical notes
-- Reuse Gemini 2.5 Flash via Lovable AI Gateway (no new key).
-- Use `pg_cron` + edge function pattern already in place for other scheduled jobs.
-- Email digest reuses the branded HTML shell from `buildBrandedEmailHtml`.
+## Result
+Sheri opens any project → sees a **Notes** tab right after Services → can type a note and hit **Add Note**, or hit **Generate AI Summary** for an on-demand status write-up. Those notes also automatically feed the weekly Monday digest and the OOO handoff that are already deployed.

@@ -41,8 +41,9 @@ import {
   Phone, Circle, Upload, Search, Plus, AlertTriangle, Trash2,
   ArrowUpRight, ArrowDownLeft, ClipboardList, FileImage,
   FileSpreadsheet, Download, Sparkles, Eye, ShieldCheck, PenLine,
-  GripVertical, ArrowUp, ArrowDown, UserPlus, ArrowUpDown,
+  GripVertical, ArrowUp, ArrowDown, UserPlus, ArrowUpDown, StickyNote,
 } from "lucide-react";
+import { NotesTab } from "@/components/projects/tabs/NotesTab";
 import { useProject, useUpdateProject, ProjectWithRelations } from "@/hooks/useProjects";
 import { useProjectTimer } from "@/hooks/useProjectTimer";
 import { useSendProposal } from "@/hooks/useProposals";
@@ -455,6 +456,9 @@ export default function ProjectDetail() {
               <TabsTrigger value="services" className="gap-1.5 data-[state=active]:bg-background">
                 <FileText className="h-3.5 w-3.5" /> Services ({realServices.length})
               </TabsTrigger>
+              <TabsTrigger value="notes" className="gap-1.5 data-[state=active]:bg-background">
+                <StickyNote className="h-3.5 w-3.5" /> Notes
+              </TabsTrigger>
               <TabsTrigger value="emails" className="gap-1.5 data-[state=active]:bg-background">
                 <Mail className="h-3.5 w-3.5" /> Emails
               </TabsTrigger>
@@ -494,6 +498,9 @@ export default function ProjectDetail() {
                     } catch { /* non-critical */ }
                   }
                 }} />
+              </TabsContent>
+              <TabsContent value="notes" className="mt-0 p-4">
+                <NotesTab projectId={project.id} />
               </TabsContent>
               <TabsContent value="emails" className="mt-0">
                 <EmailsFullLive projectId={project.id} projectName={project.name} mockEmails={emails} />
