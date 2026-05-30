@@ -86,8 +86,15 @@ export function TemplateRichTextEditor({ content, onChange, className }: Templat
 
     setUploading(true);
     try {
+      const { data: profileRow } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("user_id", (await supabase.auth.getUser()).data.user?.id || "")
+        .single();
+      const companyId = profileRow?.company_id;
+      if (!companyId) throw new Error("No company");
       const ext = file.name.split(".").pop() || "png";
-      const path = `instruction-templates/${crypto.randomUUID()}.${ext}`;
+      const path = `${companyId}/instruction-templates/${crypto.randomUUID()}.${ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from("company-assets")
