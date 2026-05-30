@@ -36,11 +36,23 @@ Deno.serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
 
+    // Resolve cron secret (env or vault)
+    let resolvedCronSecret = cronSecret || "";
+    if (!resolvedCronSecret) {
+      const { data: vaultRow } = await admin
+        .schema("vault" as any)
+        .from("decrypted_secrets")
+        .select("decrypted_secret")
+        .eq("name", "cron_secret")
+        .maybeSingle();
+      resolvedCronSecret = (vaultRow as any)?.decrypted_secret || "";
+    }
+
     // ---- Auth: user JWT OR cron secret ----
     let actorUserId: string | undefined;
     let companyId: string | undefined;
     const callerCronSecret = req.headers.get("x-cron-secret");
-    if (cronSecret && callerCronSecret === cronSecret) {
+    if (resolvedCronSecret && callerCronSecret === resolvedCronSecret) {
       actorUserId = body.actorUserId;
       companyId = body.companyId;
     } else {
