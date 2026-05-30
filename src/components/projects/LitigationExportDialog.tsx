@@ -14,12 +14,20 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { pdf } from "@react-pdf/renderer";
 import { LitigationPDF } from "./LitigationPDF";
+import { supabase } from "@/integrations/supabase/client";
 import type { ProjectWithRelations } from "@/hooks/useProjects";
 import type {
   MockService, MockContact, MockMilestone,
   MockEmail, MockDocument, MockTimeEntry,
 } from "./projectMockData";
 import type { ChangeOrder } from "@/hooks/useChangeOrders";
+
+export interface AiSummaryEntry {
+  body: string;
+  source: string;
+  created_at: string;
+  author?: string | null;
+}
 
 interface LitigationExportDialogProps {
   open: boolean;
