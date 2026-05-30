@@ -12,17 +12,27 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders, status: 200 });
 
   try {
-    const cronSecret = Deno.env.get("CRON_SECRET");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const admin = createClient(supabaseUrl, serviceKey);
+
+    // Resolve cron secret: prefer env, fall back to Vault
+    let cronSecret = Deno.env.get("CRON_SECRET") || "";
+    if (!cronSecret) {
+      const { data: vaultRow } = await admin
+        .schema("vault" as any)
+        .from("decrypted_secrets")
+        .select("decrypted_secret")
+        .eq("name", "cron_secret")
+        .maybeSingle();
+      cronSecret = (vaultRow as any)?.decrypted_secret || "";
+    }
     const callerSecret = req.headers.get("x-cron-secret");
     if (!cronSecret || callerSecret !== cronSecret) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const admin = createClient(supabaseUrl, serviceKey);
 
     // Pull all open projects across companies (skip mock/test if status taxonomy filters needed later)
     const { data: projects, error } = await admin
