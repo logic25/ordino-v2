@@ -197,6 +197,17 @@ export function LitigationExportDialog({
             </div>
           </div>
 
+          {includes.aiSummary && (
+            <label className="flex items-center gap-2 text-xs cursor-pointer text-muted-foreground -mt-1">
+              <Checkbox
+                checked={refreshAi}
+                onCheckedChange={(v) => setRefreshAi(!!v)}
+                className="h-3.5 w-3.5"
+              />
+              Generate a fresh AI summary before exporting (recommended)
+            </label>
+          )}
+
           {/* Output Format */}
           <div className="space-y-2">
             <Label className="text-sm font-semibold">Output Format</Label>
