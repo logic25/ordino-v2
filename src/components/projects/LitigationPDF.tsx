@@ -74,6 +74,7 @@ const PageFooter = ({ projectNumber }: { projectNumber: string }) => (
 export function LitigationPDF({
   project, milestones, emails, documents, timeEntries,
   changeOrders, contacts, services, startDate, endDate, includes,
+  aiSummaries = [],
 }: LitigationPDFProps) {
   const projectName = project.name || project.proposals?.title || "Untitled Project";
   const projectNumber = project.project_number || "—";
