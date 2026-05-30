@@ -61,21 +61,44 @@ Deno.serve(async (req) => {
 
     const oooName = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Your colleague";
 
+    // Fetch latest project_note per project (manual or AI) for richer handoff context
+    const projectIds = (projects || []).map((p: any) => p.id);
+    const latestNoteByProject = new Map<string, { body: string; source: string }>();
+    if (projectIds.length > 0) {
+      const { data: noteRows } = await admin
+        .from("project_notes")
+        .select("project_id, body, source, created_at")
+        .in("project_id", projectIds)
+        .order("created_at", { ascending: false });
+      for (const n of noteRows || []) {
+        if (!latestNoteByProject.has(n.project_id)) {
+          latestNoteByProject.set(n.project_id, { body: n.body, source: n.source });
+        }
+      }
+    }
+
     // Bucket projects
     const now = Date.now();
     const buckets = { onYou: [] as any[], waitingClient: [] as any[], other: [] as any[] };
     (projects || []).forEach((p: any) => {
       const since = p.waiting_since ? new Date(p.waiting_since).getTime() : now;
       const daysWaiting = Math.floor((now - since) / 86400000);
-      const enriched = { ...p, daysWaiting };
+      const enriched = { ...p, daysWaiting, latestNote: latestNoteByProject.get(p.id) };
       if (p.waiting_on === "us") buckets.onYou.push(enriched);
       else if (p.waiting_on === "client") buckets.waitingClient.push(enriched);
       else buckets.other.push(enriched);
     });
 
     const total = (projects || []).length;
-    const fmtLine = (p: any) =>
-      `• ${p.name || p.properties?.address || "Untitled"}${p.project_number ? ` (#${p.project_number})` : ""}${p.clients?.name ? ` — ${p.clients.name}` : ""}${p.waiting_note ? ` — ${p.waiting_note}` : ""}${p.daysWaiting ? ` · ${p.daysWaiting}d` : ""}`;
+    const fmtLine = (p: any) => {
+      const head = `• ${p.name || p.properties?.address || "Untitled"}${p.project_number ? ` (#${p.project_number})` : ""}${p.clients?.name ? ` — ${p.clients.name}` : ""}${p.waiting_note ? ` — ${p.waiting_note}` : ""}${p.daysWaiting ? ` · ${p.daysWaiting}d` : ""}`;
+      if (p.latestNote?.body) {
+        const tag = p.latestNote.source === "manual" ? "Note" : "AI";
+        const truncated = p.latestNote.body.length > 240 ? p.latestNote.body.slice(0, 240) + "…" : p.latestNote.body;
+        return `${head}\n    ${tag}: ${truncated}`;
+      }
+      return head;
+    };
 
     const bodyLines: string[] = [];
     bodyLines.push(`${oooName} is out ${profile.ooo_from} → ${profile.ooo_to}.`);
