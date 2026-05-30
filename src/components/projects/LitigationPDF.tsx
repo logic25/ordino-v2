@@ -141,6 +141,7 @@ export function LitigationPDF({
       {/* Table of Contents */}
       <Page size="LETTER" style={s.page}>
         <Text style={s.sectionTitle}>Table of Contents</Text>
+        {includes.aiSummary && aiSummaries.length > 0 && <View style={s.row}><Text>0. AI Project Summary &amp; Note History</Text></View>}
         <View style={s.row}><Text>1. Complete Chronological Timeline</Text></View>
         {includes.emails && <View style={s.row}><Text>2. Communication Log</Text></View>}
         {includes.documents && <View style={s.row}><Text>3. Document Register</Text></View>}
@@ -152,6 +153,33 @@ export function LitigationPDF({
         <View style={s.row}><Text>9. Certification</Text></View>
         <PageFooter projectNumber={projectNumber} />
       </Page>
+
+      {/* AI Project Summary */}
+      {includes.aiSummary && aiSummaries.length > 0 && (
+        <Page size="LETTER" style={s.page}>
+          <Text style={s.sectionTitle}>0. AI Project Summary &amp; Note History</Text>
+          <Text style={{ ...s.muted, marginBottom: 8 }}>
+            Latest AI-generated status summary followed by manual notes and prior AI digests, newest first.
+          </Text>
+          {aiSummaries.map((n, i) => {
+            const label =
+              n.source === "ai_weekly" ? "AI Weekly Digest" :
+              n.source === "ai_on_demand" ? "AI On-Demand Summary" :
+              "Manual Note";
+            const dateStr = (() => { try { return format(new Date(n.created_at), "MMM d, yyyy 'at' h:mm a"); } catch { return n.created_at; } })();
+            const isLatest = i === 0;
+            return (
+              <View key={i} style={isLatest ? s.critical : { ...s.row, flexDirection: "column", paddingVertical: 8 }} wrap={false}>
+                <Text style={s.bold}>{label} — {dateStr}{n.author ? ` — ${n.author}` : ""}</Text>
+                <Text style={{ marginTop: 4 }}>{n.body}</Text>
+              </View>
+            );
+          })}
+          <PageFooter projectNumber={projectNumber} />
+        </Page>
+      )}
+
+
 
       {/* Chronological Timeline */}
       <Page size="LETTER" style={s.page}>
