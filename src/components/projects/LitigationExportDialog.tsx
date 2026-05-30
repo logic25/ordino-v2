@@ -43,6 +43,7 @@ interface LitigationExportDialogProps {
 }
 
 const INCLUDE_OPTIONS = [
+  { key: "aiSummary", label: "AI Project Summary" },
   { key: "emails", label: "Emails & Communications" },
   { key: "timeline", label: "Timeline Events" },
   { key: "documents", label: "Document Register" },
@@ -62,9 +63,10 @@ export function LitigationExportDialog({
   const [startDate, setStartDate] = useState<Date>(new Date("2026-01-01"));
   const [endDate, setEndDate] = useState<Date>(new Date());
   const [includes, setIncludes] = useState<Record<IncludeKey, boolean>>({
-    emails: true, timeline: true, documents: true, timeLogs: true,
+    aiSummary: true, emails: true, timeline: true, documents: true, timeLogs: true,
     financials: true, decisions: true, changeOrders: true, contacts: true,
   });
+  const [refreshAi, setRefreshAi] = useState(true);
   const [outputFormat, setOutputFormat] = useState<"pdf" | "pdf_zip">("pdf");
   const [generating, setGenerating] = useState(false);
   const { toast } = useToast();
