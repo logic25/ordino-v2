@@ -78,6 +78,30 @@ export function LitigationExportDialog({
   const handleGenerate = async () => {
     setGenerating(true);
     try {
+      let aiSummaries: AiSummaryEntry[] = [];
+      if (includes.aiSummary) {
+        if (refreshAi) {
+          try {
+            await supabase.functions.invoke("summarize-project", { body: { projectId: project.id } });
+          } catch (e) {
+            console.warn("AI summary refresh failed; using existing notes", e);
+          }
+        }
+        const { data: notes } = await supabase
+          .from("project_notes")
+          .select("body, source, created_at, profiles:user_id(first_name,last_name)")
+          .eq("project_id", project.id)
+          .in("source", ["ai_weekly", "ai_on_demand", "manual"])
+          .order("created_at", { ascending: false })
+          .limit(10);
+        aiSummaries = (notes || []).map((n: any) => ({
+          body: n.body,
+          source: n.source,
+          created_at: n.created_at,
+          author: n.profiles ? [n.profiles.first_name, n.profiles.last_name].filter(Boolean).join(" ") : null,
+        }));
+      }
+
       const blob = await pdf(
         <LitigationPDF
           project={project}
@@ -91,6 +115,7 @@ export function LitigationExportDialog({
           startDate={startDate}
           endDate={endDate}
           includes={includes}
+          aiSummaries={aiSummaries}
         />
       ).toBlob();
 
