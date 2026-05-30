@@ -41,8 +41,9 @@ import {
   Phone, Circle, Upload, Search, Plus, AlertTriangle, Trash2,
   ArrowUpRight, ArrowDownLeft, ClipboardList, FileImage,
   FileSpreadsheet, Download, Sparkles, Eye, ShieldCheck, PenLine,
-  GripVertical, ArrowUp, ArrowDown, UserPlus, ArrowUpDown,
+  GripVertical, ArrowUp, ArrowDown, UserPlus, ArrowUpDown, StickyNote,
 } from "lucide-react";
+import { NotesTab } from "@/components/projects/tabs/NotesTab";
 import { useProject, useUpdateProject, ProjectWithRelations } from "@/hooks/useProjects";
 import { useProjectTimer } from "@/hooks/useProjectTimer";
 import { useSendProposal } from "@/hooks/useProposals";
