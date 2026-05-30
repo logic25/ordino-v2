@@ -42,6 +42,13 @@ const s = StyleSheet.create({
   signatureLine: { borderTopWidth: 1, borderTopColor: "#333", width: 200, marginTop: 40, paddingTop: 4 },
 });
 
+interface AiSummaryEntry {
+  body: string;
+  source: string;
+  created_at: string;
+  author?: string | null;
+}
+
 interface LitigationPDFProps {
   project: ProjectWithRelations;
   milestones: MockMilestone[];
@@ -54,6 +61,7 @@ interface LitigationPDFProps {
   startDate: Date;
   endDate: Date;
   includes: Record<string, boolean>;
+  aiSummaries?: AiSummaryEntry[];
 }
 
 const PageFooter = ({ projectNumber }: { projectNumber: string }) => (
