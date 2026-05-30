@@ -461,6 +461,7 @@ export default function ProjectDetail() {
               </TabsTrigger>
               <TabsTrigger value="emails" className="gap-1.5 data-[state=active]:bg-background">
                 <Mail className="h-3.5 w-3.5" /> Emails
+              </TabsTrigger>
               <TabsTrigger value="contacts" className="gap-1.5 data-[state=active]:bg-background">
                 <Users className="h-3.5 w-3.5" /> Contacts ({contacts.length})
               </TabsTrigger>
