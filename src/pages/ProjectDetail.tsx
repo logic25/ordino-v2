@@ -456,9 +456,11 @@ export default function ProjectDetail() {
               <TabsTrigger value="services" className="gap-1.5 data-[state=active]:bg-background">
                 <FileText className="h-3.5 w-3.5" /> Services ({realServices.length})
               </TabsTrigger>
+              <TabsTrigger value="notes" className="gap-1.5 data-[state=active]:bg-background">
+                <StickyNote className="h-3.5 w-3.5" /> Notes
+              </TabsTrigger>
               <TabsTrigger value="emails" className="gap-1.5 data-[state=active]:bg-background">
                 <Mail className="h-3.5 w-3.5" /> Emails
-              </TabsTrigger>
               <TabsTrigger value="contacts" className="gap-1.5 data-[state=active]:bg-background">
                 <Users className="h-3.5 w-3.5" /> Contacts ({contacts.length})
               </TabsTrigger>
