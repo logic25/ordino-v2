@@ -14,12 +14,20 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { pdf } from "@react-pdf/renderer";
 import { LitigationPDF } from "./LitigationPDF";
+import { supabase } from "@/integrations/supabase/client";
 import type { ProjectWithRelations } from "@/hooks/useProjects";
 import type {
   MockService, MockContact, MockMilestone,
   MockEmail, MockDocument, MockTimeEntry,
 } from "./projectMockData";
 import type { ChangeOrder } from "@/hooks/useChangeOrders";
+
+export interface AiSummaryEntry {
+  body: string;
+  source: string;
+  created_at: string;
+  author?: string | null;
+}
 
 interface LitigationExportDialogProps {
   open: boolean;
@@ -35,6 +43,7 @@ interface LitigationExportDialogProps {
 }
 
 const INCLUDE_OPTIONS = [
+  { key: "aiSummary", label: "AI Project Summary" },
   { key: "emails", label: "Emails & Communications" },
   { key: "timeline", label: "Timeline Events" },
   { key: "documents", label: "Document Register" },
@@ -54,9 +63,10 @@ export function LitigationExportDialog({
   const [startDate, setStartDate] = useState<Date>(new Date("2026-01-01"));
   const [endDate, setEndDate] = useState<Date>(new Date());
   const [includes, setIncludes] = useState<Record<IncludeKey, boolean>>({
-    emails: true, timeline: true, documents: true, timeLogs: true,
+    aiSummary: true, emails: true, timeline: true, documents: true, timeLogs: true,
     financials: true, decisions: true, changeOrders: true, contacts: true,
   });
+  const [refreshAi, setRefreshAi] = useState(true);
   const [outputFormat, setOutputFormat] = useState<"pdf" | "pdf_zip">("pdf");
   const [generating, setGenerating] = useState(false);
   const { toast } = useToast();
@@ -68,6 +78,30 @@ export function LitigationExportDialog({
   const handleGenerate = async () => {
     setGenerating(true);
     try {
+      let aiSummaries: AiSummaryEntry[] = [];
+      if (includes.aiSummary) {
+        if (refreshAi) {
+          try {
+            await supabase.functions.invoke("summarize-project", { body: { projectId: project.id } });
+          } catch (e) {
+            console.warn("AI summary refresh failed; using existing notes", e);
+          }
+        }
+        const { data: notes } = await supabase
+          .from("project_notes")
+          .select("body, source, created_at, profiles:user_id(first_name,last_name)")
+          .eq("project_id", project.id)
+          .in("source", ["ai_weekly", "ai_on_demand", "manual"])
+          .order("created_at", { ascending: false })
+          .limit(10);
+        aiSummaries = (notes || []).map((n: any) => ({
+          body: n.body,
+          source: n.source,
+          created_at: n.created_at,
+          author: n.profiles ? [n.profiles.first_name, n.profiles.last_name].filter(Boolean).join(" ") : null,
+        }));
+      }
+
       const blob = await pdf(
         <LitigationPDF
           project={project}
@@ -81,6 +115,7 @@ export function LitigationExportDialog({
           startDate={startDate}
           endDate={endDate}
           includes={includes}
+          aiSummaries={aiSummaries}
         />
       ).toBlob();
 
@@ -161,6 +196,17 @@ export function LitigationExportDialog({
               ))}
             </div>
           </div>
+
+          {includes.aiSummary && (
+            <label className="flex items-center gap-2 text-xs cursor-pointer text-muted-foreground -mt-1">
+              <Checkbox
+                checked={refreshAi}
+                onCheckedChange={(v) => setRefreshAi(!!v)}
+                className="h-3.5 w-3.5"
+              />
+              Generate a fresh AI summary before exporting (recommended)
+            </label>
+          )}
 
           {/* Output Format */}
           <div className="space-y-2">
