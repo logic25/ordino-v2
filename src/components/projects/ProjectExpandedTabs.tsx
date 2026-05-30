@@ -102,7 +102,7 @@ export function ProjectExpandedTabs({
         </div>
 
         <TabsContent value="services" className="mt-0"><ServicesTab services={services} /></TabsContent>
-        <TabsContent value="notes" className="mt-0"><NotesTab /></TabsContent>
+        <TabsContent value="notes" className="mt-0"><NotesTab projectId={projectId} /></TabsContent>
         <TabsContent value="emails" className="mt-0"><EmailsTab emails={emails} /></TabsContent>
         <TabsContent value="contacts" className="mt-0"><ContactsTab contacts={contacts} /></TabsContent>
         <TabsContent value="timeline" className="mt-0"><TimelineTab projectId={projectId} /></TabsContent>
