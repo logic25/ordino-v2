@@ -109,7 +109,7 @@ export function useAccountingDashboard() {
       const [billingRes, invoicesRes, promisesRes] = await Promise.all([
         supabase
           .from("billing_requests")
-          .select("id, status, total_amount, created_by, project_id, projects(name, project_number, properties(address)), created_by_profile:profiles!billing_requests_created_by_fkey(first_name, last_name)")
+          .select("id, status, total_amount, created_by, project_id, projects(name, project_number, properties(address)), created_by_profile:profiles!billing_requests_created_by_fkey(first_name, last_name), expenses:project_expenses!project_expenses_billing_request_id_fkey(id, description, vendor)")
           .eq("status", "pending")
           .order("created_at", { ascending: false }),
         supabase
