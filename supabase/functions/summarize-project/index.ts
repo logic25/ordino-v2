@@ -115,10 +115,59 @@ Deno.serve(async (req) => {
     // Recent project_notes (manual) so AI knows what was already said
     const { data: recentNotes } = await admin
       .from("project_notes")
-      .select("body, source, created_at")
+      .select("body, source, created_at, service_id, services(name)")
       .eq("project_id", project.id)
       .order("created_at", { ascending: false })
       .limit(5);
+
+    // Recent tagged emails for this project (last 30 days). Snippet for all,
+    // trimmed body_text for the 3 most recent so AI can reference what was actually said.
+    const { data: emailTags } = await admin
+      .from("email_project_tags")
+      .select("category, tagged_at, emails(subject, from_name, from_email, date, snippet, body_text)")
+      .eq("project_id", project.id)
+      .gte("tagged_at", since30)
+      .order("tagged_at", { ascending: false })
+      .limit(10);
+
+    const stripQuotedReplies = (s: string): string => {
+      if (!s) return "";
+      // Cut at common reply markers
+      const markers = [
+        /\n[ \t]*On .{1,120} wrote:/i,
+        /\n[ \t]*-----Original Message-----/i,
+        /\n[ \t]*From: .+\n.*Sent: /i,
+        /\n[ \t]*From: .+\n.*Date: /i,
+      ];
+      let out = s;
+      for (const m of markers) {
+        const idx = out.search(m);
+        if (idx > 0) out = out.slice(0, idx);
+      }
+      // Drop quoted lines starting with ">"
+      out = out
+        .split("\n")
+        .filter((ln) => !/^\s*>/.test(ln))
+        .join("\n");
+      return out.trim();
+    };
+
+    const recentEmails = (emailTags || []).map((t: any, idx: number) => {
+      const e = t.emails || {};
+      const base = {
+        from: [e.from_name, e.from_email].filter(Boolean).join(" "),
+        date: e.date,
+        subject: e.subject,
+        category: t.category,
+        snippet: e.snippet || null,
+      };
+      // Trimmed body only for the 3 most recent
+      if (idx < 3 && e.body_text) {
+        const cleaned = stripQuotedReplies(e.body_text);
+        return { ...base, body: cleaned.length > 600 ? cleaned.slice(0, 600) + "…" : cleaned };
+      }
+      return base;
+    });
 
     // ---- Build prompt ----
     const ctx = {
@@ -140,10 +189,16 @@ Deno.serve(async (req) => {
       recent_activity: (activities || []).map((a: any) => ({
         type: a.type, description: a.description, at: a.created_at,
       })),
-      recent_notes: (recentNotes || []).map((n: any) => ({ source: n.source, body: n.body, at: n.created_at })),
+      recent_notes: (recentNotes || []).map((n: any) => ({
+        source: n.source,
+        service: n.services?.name || null,
+        body: n.body,
+        at: n.created_at,
+      })),
+      recent_emails: recentEmails,
     };
 
-    const systemPrompt = `You are an operations analyst for Ordino, a project-management platform for NYC construction filings. Write a CONCISE status summary (4-6 sentences, no bullets, no headers) describing where this project stands RIGHT NOW: who/what we're waiting on, recent meaningful activity, blockers, and the next concrete action. Be specific. Use plain English. Never invent facts not present in the JSON context.`;
+    const systemPrompt = `You are an operations analyst for Ordino, a project-management platform for NYC construction filings. Write a CONCISE status summary (4-6 sentences, no bullets, no headers) describing where this project stands RIGHT NOW: who/what we're waiting on, recent meaningful activity, blockers, and the next concrete action. Be specific. Use plain English. Never invent facts not present in the JSON context. Notes and emails may include a service tag (e.g. "PAA1 — Sprinkler") — reference the specific service when it explains the status. Recent client/agency emails are included — quote or reference what was actually said when it explains the current status or blocker.`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -160,6 +215,7 @@ Deno.serve(async (req) => {
         temperature: 0.3,
       }),
     });
+
 
     if (!aiResponse.ok) {
       const status = aiResponse.status;

@@ -63,16 +63,20 @@ Deno.serve(async (req) => {
 
     // Fetch latest project_note per project (manual or AI) for richer handoff context
     const projectIds = (projects || []).map((p: any) => p.id);
-    const latestNoteByProject = new Map<string, { body: string; source: string }>();
+    const latestNoteByProject = new Map<string, { body: string; source: string; serviceName: string | null }>();
     if (projectIds.length > 0) {
       const { data: noteRows } = await admin
         .from("project_notes")
-        .select("project_id, body, source, created_at")
+        .select("project_id, body, source, created_at, service_id, services(name)")
         .in("project_id", projectIds)
         .order("created_at", { ascending: false });
       for (const n of noteRows || []) {
         if (!latestNoteByProject.has(n.project_id)) {
-          latestNoteByProject.set(n.project_id, { body: n.body, source: n.source });
+          latestNoteByProject.set(n.project_id, {
+            body: n.body,
+            source: n.source,
+            serviceName: (n as any).services?.name ?? null,
+          });
         }
       }
     }
@@ -94,11 +98,13 @@ Deno.serve(async (req) => {
       const head = `• ${p.name || p.properties?.address || "Untitled"}${p.project_number ? ` (#${p.project_number})` : ""}${p.clients?.name ? ` — ${p.clients.name}` : ""}${p.waiting_note ? ` — ${p.waiting_note}` : ""}${p.daysWaiting ? ` · ${p.daysWaiting}d` : ""}`;
       if (p.latestNote?.body) {
         const tag = p.latestNote.source === "manual" ? "Note" : "AI";
+        const scope = p.latestNote.serviceName ? `[${p.latestNote.serviceName}] ` : "";
         const truncated = p.latestNote.body.length > 240 ? p.latestNote.body.slice(0, 240) + "…" : p.latestNote.body;
-        return `${head}\n    ${tag}: ${truncated}`;
+        return `${head}\n    ${tag}: ${scope}${truncated}`;
       }
       return head;
     };
+
 
     const bodyLines: string[] = [];
     bodyLines.push(`${oooName} is out ${profile.ooo_from} → ${profile.ooo_to}.`);

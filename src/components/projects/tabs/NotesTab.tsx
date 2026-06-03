@@ -1,10 +1,17 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { StickyNote, Sparkles, Loader2, Trash2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { StickyNote, Sparkles, Loader2, Trash2, Tag } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -13,18 +20,43 @@ interface NotesTabProps {
   projectId?: string;
 }
 
+interface ProjectService {
+  id: string;
+  name: string;
+}
+
 interface ProjectNote {
   id: string;
   body: string;
   source: "manual" | "ai_weekly" | "ai_on_demand";
   created_at: string;
   user_id: string | null;
+  service_id: string | null;
 }
+
+const GENERAL = "__general__";
 
 export function NotesTab({ projectId }: NotesTabProps) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [manualNote, setManualNote] = useState("");
+  const [composerServiceId, setComposerServiceId] = useState<string>(GENERAL);
+  const [filterServiceId, setFilterServiceId] = useState<string>("all");
+
+  const { data: services = [] } = useQuery({
+    queryKey: ["project-services-for-notes", projectId],
+    queryFn: async () => {
+      if (!projectId) return [] as ProjectService[];
+      const { data, error } = await supabase
+        .from("services")
+        .select("id, name")
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data || []) as ProjectService[];
+    },
+    enabled: !!projectId,
+  });
 
   const { data: notes = [], isLoading } = useQuery({
     queryKey: ["project-notes", projectId],
@@ -32,7 +64,7 @@ export function NotesTab({ projectId }: NotesTabProps) {
       if (!projectId) return [] as ProjectNote[];
       const { data, error } = await supabase
         .from("project_notes")
-        .select("id, body, source, created_at, user_id")
+        .select("id, body, source, created_at, user_id, service_id")
         .eq("project_id", projectId)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -40,6 +72,18 @@ export function NotesTab({ projectId }: NotesTabProps) {
     },
     enabled: !!projectId,
   });
+
+  const serviceNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    services.forEach((s) => m.set(s.id, s.name));
+    return m;
+  }, [services]);
+
+  const filteredNotes = useMemo(() => {
+    if (filterServiceId === "all") return notes;
+    if (filterServiceId === GENERAL) return notes.filter((n) => !n.service_id);
+    return notes.filter((n) => n.service_id === filterServiceId);
+  }, [notes, filterServiceId]);
 
   const addMutation = useMutation({
     mutationFn: async (body: string) => {
@@ -58,15 +102,18 @@ export function NotesTab({ projectId }: NotesTabProps) {
         user_id: userRes.user.id,
         body,
         source: "manual",
+        service_id: composerServiceId === GENERAL ? null : composerServiceId,
       });
       if (error) throw error;
     },
     onSuccess: async () => {
       setManualNote("");
+      setComposerServiceId(GENERAL);
       await qc.invalidateQueries({ queryKey: ["project-notes", projectId] });
       toast({ title: "Note added" });
     },
-    onError: (e: any) => toast({ title: "Could not save note", description: e.message, variant: "destructive" }),
+    onError: (e: any) =>
+      toast({ title: "Could not save note", description: e.message, variant: "destructive" }),
   });
 
   const summaryMutation = useMutation({
@@ -83,7 +130,8 @@ export function NotesTab({ projectId }: NotesTabProps) {
       await qc.invalidateQueries({ queryKey: ["project-notes", projectId] });
       toast({ title: "AI summary generated" });
     },
-    onError: (e: any) => toast({ title: "Could not generate summary", description: e.message, variant: "destructive" }),
+    onError: (e: any) =>
+      toast({ title: "Could not generate summary", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
@@ -94,7 +142,8 @@ export function NotesTab({ projectId }: NotesTabProps) {
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["project-notes", projectId] });
     },
-    onError: (e: any) => toast({ title: "Could not delete", description: e.message, variant: "destructive" }),
+    onError: (e: any) =>
+      toast({ title: "Could not delete", description: e.message, variant: "destructive" }),
   });
 
   if (!projectId) {
@@ -105,7 +154,7 @@ export function NotesTab({ projectId }: NotesTabProps) {
     );
   }
 
-  const renderBadge = (source: ProjectNote["source"]) => {
+  const renderSourceBadge = (source: ProjectNote["source"]) => {
     if (source === "manual") {
       return (
         <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1">
@@ -121,6 +170,23 @@ export function NotesTab({ projectId }: NotesTabProps) {
     );
   };
 
+  const renderServiceBadge = (serviceId: string | null) => {
+    if (!serviceId) {
+      return (
+        <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-muted/40">
+          General
+        </Badge>
+      );
+    }
+    const name = serviceNameById.get(serviceId) || "Service";
+    return (
+      <Badge className="text-[10px] px-1.5 py-0 gap-1 bg-primary/10 text-primary border border-primary/20 hover:bg-primary/10">
+        <Tag className="h-2.5 w-2.5" />
+        {name}
+      </Badge>
+    );
+  };
+
   return (
     <div className="p-4 space-y-4">
       <div className="space-y-2">
@@ -130,14 +196,31 @@ export function NotesTab({ projectId }: NotesTabProps) {
           onChange={(e) => setManualNote(e.target.value)}
           className="min-h-[80px] text-sm"
         />
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={composerServiceId} onValueChange={setComposerServiceId}>
+            <SelectTrigger className="h-8 w-[200px] text-xs">
+              <SelectValue placeholder="Service (optional)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={GENERAL}>General (project-wide)</SelectItem>
+              {services.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button
             size="sm"
             className="gap-1.5"
             onClick={() => addMutation.mutate(manualNote.trim())}
             disabled={!manualNote.trim() || addMutation.isPending}
           >
-            {addMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <StickyNote className="h-3.5 w-3.5" />}
+            {addMutation.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <StickyNote className="h-3.5 w-3.5" />
+            )}
             Add Note
           </Button>
           <Button
@@ -147,7 +230,11 @@ export function NotesTab({ projectId }: NotesTabProps) {
             onClick={() => summaryMutation.mutate()}
             disabled={summaryMutation.isPending}
           >
-            {summaryMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+            {summaryMutation.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="h-3.5 w-3.5" />
+            )}
             Generate AI Summary
           </Button>
         </div>
@@ -155,20 +242,64 @@ export function NotesTab({ projectId }: NotesTabProps) {
 
       <Separator />
 
+      {services.length > 0 && notes.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setFilterServiceId("all")}
+            className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
+              filterServiceId === "all"
+                ? "bg-foreground text-background border-foreground"
+                : "bg-background text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterServiceId(GENERAL)}
+            className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
+              filterServiceId === GENERAL
+                ? "bg-foreground text-background border-foreground"
+                : "bg-background text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            General
+          </button>
+          {services.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => setFilterServiceId(s.id)}
+              className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
+                filterServiceId === s.id
+                  ? "bg-foreground text-background border-foreground"
+                  : "bg-background text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              {s.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       {isLoading ? (
         <div className="text-sm text-muted-foreground flex items-center gap-2">
           <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading notes...
         </div>
-      ) : notes.length === 0 ? (
+      ) : filteredNotes.length === 0 ? (
         <div className="text-sm text-muted-foreground italic">
-          No notes yet. Add context for your team, or generate an AI summary to capture current status.
+          {notes.length === 0
+            ? "No notes yet. Add context for your team, or generate an AI summary to capture current status."
+            : "No notes match this filter."}
         </div>
       ) : (
         <div className="space-y-3">
-          {notes.map((note) => (
+          {filteredNotes.map((note) => (
             <div key={note.id} className="p-3 rounded-lg border bg-background group">
-              <div className="flex items-center gap-2 mb-1.5">
-                {renderBadge(note.source)}
+              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                {renderSourceBadge(note.source)}
+                {renderServiceBadge(note.service_id)}
                 <span className="text-[10px] text-muted-foreground font-mono">
                   {formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}
                 </span>
