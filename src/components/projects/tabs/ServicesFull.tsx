@@ -362,6 +362,7 @@ export function ServicesFull({ services: initialServices, project, contacts, all
   const [editingBillDate, setEditingBillDate] = useState<string | null>(null);
   const [dobPrepService, setDobPrepService] = useState<MockService | null>(null);
   const [sendToBillingOpen, setSendToBillingOpen] = useState(false);
+  const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const { data: companyProfiles = [] } = useCompanyProfiles();
   const { toast } = useToast();
   const queryClient = useQueryClient();
