@@ -13,6 +13,7 @@ import { ProposalFollowUps } from "./ProposalFollowUps";
 import { YearOverYearChart } from "./YearOverYearChart";
 import { ProposalActivityCard } from "./ProposalActivityCard";
 import { BillingGoalTracker } from "./BillingGoalTracker";
+import { ExpenseApprovalsCard } from "./ExpenseApprovalsCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
@@ -132,6 +133,9 @@ export function AdminCompanyView({ isVisible }: { isVisible?: (id: string) => bo
 
       {/* Row 4: Billing Goal Tracker */}
       {show("billing-goal-tracker") && <BillingGoalTracker />}
+
+      {/* Expense Approvals */}
+      <ExpenseApprovalsCard />
 
       {/* Row 5: Team Overview */}
       {show("team-overview") && <TeamOverview />}

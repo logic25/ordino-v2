@@ -138,31 +138,45 @@ export function AccountingView({ isVisible }: { isVisible?: (id: string) => bool
             <p className="text-sm text-muted-foreground text-center py-6">No pending billing submissions</p>
           ) : (
             <>
-              {(acctData?.pendingBilling || []).slice(0, 5).map((br: any) => (
-                <div
-                  key={br.id}
-                  className="flex items-center justify-between p-3 rounded-lg border hover:border-accent/50 hover:bg-accent/5 transition-all cursor-pointer"
-                  onClick={() => navigate("/invoices")}
-                >
-                  <div className="space-y-0.5">
-                  <p className="font-medium text-sm" data-clarity-mask="true">
-                      {br.projects?.project_number ? `${br.projects.project_number} — ` : ""}{br.projects?.name || "Unknown project"}
-                    </p>
-                    {br.projects?.properties?.address && (
+              {(acctData?.pendingBilling || []).slice(0, 5).map((br: any) => {
+                const isExpense = Array.isArray(br.expenses) && br.expenses.length > 0;
+                const expense = isExpense ? br.expenses[0] : null;
+                return (
+                  <div
+                    key={br.id}
+                    className="flex items-center justify-between p-3 rounded-lg border hover:border-accent/50 hover:bg-accent/5 transition-all cursor-pointer"
+                    onClick={() => navigate("/invoices")}
+                  >
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium text-sm" data-clarity-mask="true">
+                          {br.projects?.project_number ? `${br.projects.project_number} — ` : ""}{br.projects?.name || "Unknown project"}
+                        </p>
+                        {isExpense && (
+                          <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 text-[10px]">Expense</Badge>
+                        )}
+                      </div>
+                      {br.projects?.properties?.address && (
+                        <p className="text-xs text-muted-foreground" data-clarity-mask="true">
+                          {br.projects.properties.address}
+                        </p>
+                      )}
+                      {isExpense && expense && (
+                        <p className="text-xs text-muted-foreground" data-clarity-mask="true">
+                          {expense.description}{expense.vendor ? ` · ${expense.vendor}` : ""}
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground" data-clarity-mask="true">
-                        {br.projects.properties.address}
+                        Submitted by {br.created_by_profile?.first_name} {br.created_by_profile?.last_name}
                       </p>
-                    )}
-                    <p className="text-xs text-muted-foreground" data-clarity-mask="true">
-                      Submitted by {br.created_by_profile?.first_name} {br.created_by_profile?.last_name}
-                    </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-sm" data-clarity-mask="true">${(br.total_amount || 0).toLocaleString()}</p>
+                      <Badge variant="secondary" className="text-[10px]">Pending</Badge>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-sm" data-clarity-mask="true">${(br.total_amount || 0).toLocaleString()}</p>
-                    <Badge variant="secondary" className="text-[10px]">Pending</Badge>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
               {(acctData?.pendingBilling?.length ?? 0) > 5 && (
                 <Button variant="outline" size="sm" className="w-full" onClick={() => navigate("/invoices")}>
                   View all {acctData?.pendingBilling?.length} submissions

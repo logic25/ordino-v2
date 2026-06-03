@@ -27,7 +27,7 @@ import { DobNowFilingPrepSheet } from "@/components/projects/DobNowFilingPrepShe
 import { SendToBillingDialog } from "@/components/invoices/SendToBillingDialog";
 import { ComposeEmailDialog } from "@/components/emails/ComposeEmailDialog";
 import { ExpenseDialog } from "@/components/projects/ExpenseDialog";
-import { useProjectExpenses } from "@/hooks/useProjectExpenses";
+import { useProjectExpenses, useReleaseExpenseToBilling, getReceiptSignedUrl } from "@/hooks/useProjectExpenses";
 import { cn, formatCurrency } from "@/lib/utils";
 import { predictBillDates, applyBillDatePredictions } from "@/hooks/useBillDatePrediction";
 import { serviceStatusStyles } from "@/components/projects/projectMockData";
@@ -351,6 +351,8 @@ function SortableServiceRowWrapper({ id, disabled, children }: { id: string; dis
 
 function ExpensesSection({ projectId, clientId }: { projectId: string; clientId: string | null }) {
   const { data: expenses = [], isLoading } = useProjectExpenses(projectId);
+  const release = useReleaseExpenseToBilling();
+  const { toast } = useToast();
   if (isLoading || expenses.length === 0) return null;
   const statusStyles: Record<string, string> = {
     pending_approval: "bg-amber-100 text-amber-800",
@@ -362,23 +364,52 @@ function ExpensesSection({ projectId, clientId }: { projectId: string; clientId:
     paid: "bg-emerald-100 text-emerald-800",
     non_billable: "bg-muted text-muted-foreground",
   };
+  const openReceipt = async (path: string) => {
+    try {
+      const url = await getReceiptSignedUrl(path);
+      window.open(url, "_blank");
+    } catch (err: any) {
+      toast({ title: "Could not load receipt", description: err.message, variant: "destructive" });
+    }
+  };
+  const handleRelease = async (id: string) => {
+    try {
+      await release.mutateAsync({ expenseId: id });
+      toast({ title: "Released to billing", description: "Sai will be notified." });
+    } catch (err: any) {
+      toast({ title: "Failed", description: err.message, variant: "destructive" });
+    }
+  };
   return (
     <div className="px-6 py-3 border-b bg-muted/20">
       <div className="text-xs font-semibold text-muted-foreground mb-2">Expenses ({expenses.length})</div>
       <div className="space-y-1.5">
-        {expenses.map((e: any) => (
-          <div key={e.id} className="flex items-center justify-between gap-2 text-sm bg-background rounded px-3 py-2 border">
-            <div className="flex items-center gap-2 min-w-0">
-              <DollarSign className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <span className="font-medium truncate">{e.description}</span>
-              {e.vendor && <span className="text-muted-foreground text-xs truncate">· {e.vendor}</span>}
+        {expenses.map((e: any) => {
+          const canRelease = e.status === "approved" || e.status === "on_hold";
+          return (
+            <div key={e.id} className="flex items-center justify-between gap-2 text-sm bg-background rounded px-3 py-2 border">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <DollarSign className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="font-medium truncate">{e.description}</span>
+                {e.vendor && <span className="text-muted-foreground text-xs truncate">· {e.vendor}</span>}
+                {e.receipt_url && (
+                  <button onClick={() => openReceipt(e.receipt_url)} className="text-xs text-primary hover:underline shrink-0 inline-flex items-center gap-0.5">
+                    <FileText className="h-3 w-3" /> receipt
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Badge variant="outline" className={cn("text-xs", statusStyles[e.status] || "")}>{e.status.replace(/_/g, " ")}</Badge>
+                <span className="font-semibold tabular-nums">{formatCurrency(Number(e.billable_amount) || 0)}</span>
+                {canRelease && (
+                  <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => handleRelease(e.id)} disabled={release.isPending}>
+                    {e.status === "approved" ? "Mark Paid → Bill" : "Release to billing"}
+                  </Button>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Badge variant="outline" className={cn("text-xs", statusStyles[e.status] || "")}>{e.status.replace(/_/g, " ")}</Badge>
-              <span className="font-semibold tabular-nums">{formatCurrency(Number(e.billable_amount) || 0)}</span>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
