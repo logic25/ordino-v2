@@ -527,6 +527,13 @@ export function ServicesFull({ services: initialServices, project, contacts, all
 
   return (
     <div className="min-w-0">
+      <div className="flex items-center justify-between gap-2 px-6 py-3 border-b">
+        <span className="text-sm font-semibold text-muted-foreground">Services & Expenses</span>
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setExpenseDialogOpen(true)}>
+          <DollarSign className="h-3.5 w-3.5" /> Add Expense
+        </Button>
+      </div>
+      <ExpensesSection projectId={project.id} clientId={project.client_id || null} />
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-2 px-6 py-3 bg-muted/40 border-b flex-wrap">
           <span className="text-sm text-muted-foreground font-medium">{selectedIds.size} selected:</span>
@@ -535,6 +542,8 @@ export function ServicesFull({ services: initialServices, project, contacts, all
           <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30" onClick={handleDropService}><XCircle className="h-3.5 w-3.5" /> Drop</Button>
         </div>
       )}
+      <ExpenseDialog open={expenseDialogOpen} onOpenChange={setExpenseDialogOpen} projectId={project.id} clientId={project.client_id || null} />
+
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={topLevelIds} strategy={verticalListSortingStrategy}>
       <div className="overflow-x-auto">

@@ -1,69 +1,76 @@
+## Goal
 
-# Plan: Service-tagged notes + email-aware weekly AI digest
+One unified "Add Expense" flow on a project that handles three real-world cases:
 
-## Part 1 — Notes get an optional Service tag (Option C)
+1. **PM already paid, ready to bill** → goes straight to Sai
+2. **PM already paid, NOT ready to bill yet** → held on the project until released
+3. **Client wants us to pay something — needs Manny/Chris approval first** → replaces the current Slack/text approval flow
 
-### Database
-- Add `service_id uuid null` to `public.project_notes`, FK → `services.id` on delete set null.
-- Index on `(project_id, service_id, created_at desc)` for filtered feeds.
-- No RLS changes — existing project-scoped policies cover it.
+## The button & modal
 
-### NotesTab UI (`src/components/projects/tabs/NotesTab.tsx`)
-- Composer: textarea + small **Service (optional)** dropdown listing this project's services (defaults to `General`).
-- Each note row shows a badge: `General` (gray) or `PAA1 — Sprinkler` (colored).
-- Filter chips above the feed: `All · General · <each service>` — client-side filter.
-- Delete + AI summary buttons unchanged. AI summaries always save as `General`.
+Keep the existing **"Add Expense"** button on the project's Services tab. Replace today's "Add Custom Service" modal with a proper expense form:
 
-### OOO handoff
-- Include service tag inline in the latest-notes formatter: `[PAA1 — Sprinkler] examiner objections received 3d ago`.
+| Field | Notes |
+|---|---|
+| Title / Description | Same as today |
+| Amount (cost) | What we paid or what client is asking us to pay |
+| Markup % | Free numeric input, anyone can enter, default 0 |
+| Vendor (optional) | For receipts / future QBO mapping |
+| **Receipt upload** | PDF or image, stored in a private bucket |
+| Bill-to contact | Defaults to project's Bill-To |
+| **This expense is…** (top toggle) | ① Already paid → ready to bill · ② Already paid → hold for later · ③ Needs approval before I pay |
+| Hold reason (if ②) | Short text — "waiting on CO #4", "billing at closeout", etc. |
 
-### Litigation package
-- Out of scope (your call). Keeps current chronological behavior.
+## Three flows, one record
 
----
+**① Already paid → ready to bill**
+- Status: `pending_billing`
+- Auto-creates a `billing_requests` row (same table service billing uses today)
+- **Sai + accounting get the existing billing email** — subject includes amount, vendor, project
+- Shows in Sai's Accounting Dashboard → "PM Billing Submissions" card with an "Expense" badge
 
-## Part 2 — Weekly AI digest: scope, cost, and email awareness
+**② Already paid → hold for later**
+- Status: `on_hold` with reason
+- No email to Sai
+- Sits on project Financials tab with yellow "On Hold" pill + **"Release to billing"** button (one click → flips to flow ①)
+- Surfaced on PM dashboard so it's not forgotten
 
-The job lives at `supabase/functions/weekly-project-digest/index.ts` and already runs Sunday nights via pg_cron, calling `summarize-project` per project.
+**③ Needs approval first**
+- Status: `pending_approval`
+- **Email + in-app notification to Manny + Chris only** (approver list configurable in Settings)
+- New "Approvals" inbox card on the admin dashboard with one-click **Approve** / **Deny** (deny requires reason)
+- PM gets notified of decision
+- On Approve → status `approved`, PM pays, comes back, clicks **"Mark as paid"** + uploads receipt → flips to flow ①
+- On Deny → status `denied`, PM sees reason, can edit and resubmit
 
-### Open projects only — already correct
-Query filters `.eq("status", "open")`. Closed / executed / archived projects are skipped. No change needed.
+**Auto-approve threshold:** Settings → Expenses → "Auto-approve under $___" (default **$250**). Anything below skips approval and goes straight to flow ① or ②. Anything at/above requires Manny + Chris.
 
-### Email thread bodies — adding them now
-Today the summarizer only sees email *metadata* via the `activities` table (subject lines on `email_received` / `email_sent` rows). You want body context for real awareness — fair.
+## Database (`project_expenses` table)
 
-**Change in `summarize-project/index.ts`:**
-1. After loading the project, query `email_project_tags` joined to `emails` for that project, last 30 days, limit 10 most recent.
-2. For each, include: `from_name`, `from_email`, `date`, `subject`, and a **trimmed body** — prefer `snippet` (Gmail's ~200-char preview, already in the row, no extra cost), and pull `body_text` truncated to ~600 chars for the **3 most recent** threads only (where context matters most).
-3. Strip quoted reply chains (`On <date>, <person> wrote:` and lines starting with `>`) before truncation so we don't waste tokens on duplicated history.
-4. Pass under `recent_emails` in the JSON context. Update the system prompt: *"Recent client/agency emails are included — reference what was said when it explains the current status or blocker."*
+`project_id`, `service_id` (optional parent), `description`, `vendor`, `amount`, `markup_pct`, `billable_amount` (computed), `incurred_date`, `receipt_url`, `billed_to_contact_id`, `status` (`pending_approval` | `approved` | `denied` | `on_hold` | `pending_billing` | `billed` | `paid` | `non_billable`), `hold_reason`, `approval_status`, `approved_by`, `approved_at`, `denied_reason`, `invoice_line_id`, `qbo_expense_id`, `qbo_bill_id` (reserved for future QBO sync), `created_by`. RLS mirrors `services`.
 
-Result: summaries can say things like *"Examiner Garcia replied Tuesday rejecting the sprinkler stamp; PM hasn't responded yet"* instead of just *"email received."*
+## Where it shows up
 
-### Cost at 1,000 open projects per week
-Per project, new prompt size:
-- Project meta + services + notes + activities: ~3K tokens (unchanged)
-- 10 email metas (snippet only): ~600 tokens
-- 3 trimmed bodies (~600 chars ≈ 200 tokens each): ~600 tokens
-- **Total input: ~4–5K tokens. Output: ~250 tokens.**
+- **Project → Services tab** → expenses listed alongside services with status pill, receipt link, timeline events
+- **Admin Dashboard** → new "Expense Approvals" card (Manny + Chris only)
+- **Accounting Dashboard** → expenses join existing "PM Billing Submissions" list with "Expense" badge
+- **PM Dashboard** → "On Hold" expense count + "Awaiting your approval" if applicable
+- **Project Timeline** → every state change logged ("Manny logged $450 held expense", "Chris approved $1,200 filing fee", "Sent to billing")
 
-Model is `google/gemini-2.5-flash` (cheapest reasoning-tier on Lovable AI). At current pricing this is **fractions of a cent per project**, so **~$10–25/month** for a weekly run over 1,000 projects.
+## Mike cleanup
 
-Pacer is 250 ms between calls → 1,000 projects ≈ 4–5 min wall clock, sequential to respect rate limits.
+Set `profiles.is_active = false` on Mike's row. Removes him from active-staff filters (bug alerts, billing notifications, OOO coverage, new assignments). All historical records he touched stay intact with his name. Reversible.
 
-Two levers if it ever creeps up:
-1. Drop to `gemini-2.5-flash-lite` (~3× cheaper, fine for status blurbs).
-2. Skip projects with **zero activity in last 30 days** (no notes, no activities, no emails) — saves 30–50% of calls in practice. Easy add later.
+## What this does NOT change
 
-Ship as-is; revisit only if usage actually spikes.
+- Change Orders still required for scope changes needing client signature
+- Existing Service → Send to Billing flow untouched
+- No QBO integration built in this round — just the schema columns reserved
 
----
+## What I need from you to start building
 
-## Out of scope
-- Litigation grouping by service.
-- Per-service notes sub-tab inside service detail (the optional tag handles it).
-- Ingesting *all* emails (untagged) — we only read emails already linked to the project via `email_project_tags`, which respects what your team has curated.
-
-## Result
-- Team can quick-tag any note to a service when it matters, ignore it for general updates.
-- Weekly digest is scoped to open projects, costs ~$10–25/mo at 1K projects, and now reads tagged email bodies so the AI knows what clients/agencies actually said — not just that mail arrived.
+1. ✅ Markup field: free numeric, anyone can enter (confirmed)
+2. ✅ Receipt upload (confirmed)
+3. ✅ Approval flow integrated here (confirmed)
+4. **Confirm auto-approve threshold default = $250** (or tell me a different number, or "always require approval")
+5. **Confirm approvers = Manny + Chris** (or any admin)
