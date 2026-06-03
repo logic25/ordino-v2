@@ -6,6 +6,107 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// ── Design tokens (mirrors src/lib/buildBrandedEmailHtml.ts) ──
+const HEADING = "#1e293b";
+const BODY_COLOR = "#334155";
+const MUTED = "#94a3b8";
+const BORDER = "#e2e8f0";
+const CARD_BG = "#f8fafc";
+
+const DEFAULT_STYLE = {
+  accentColor: "#16a34a",
+  fontFamily: "Arial, Helvetica, sans-serif",
+  buttonRadius: "8px",
+  bodyColor: BODY_COLOR,
+  headingColor: HEADING,
+  bodyFontSize: "14px",
+};
+
+function resolveStyle(raw: any) {
+  if (!raw) return DEFAULT_STYLE;
+  return {
+    accentColor: raw.accent_color || raw.accentColor || DEFAULT_STYLE.accentColor,
+    fontFamily: raw.font_family || raw.fontFamily || DEFAULT_STYLE.fontFamily,
+    buttonRadius: raw.button_radius || raw.buttonRadius || DEFAULT_STYLE.buttonRadius,
+    bodyColor: raw.body_color || raw.bodyColor || DEFAULT_STYLE.bodyColor,
+    headingColor: raw.heading_color || raw.headingColor || DEFAULT_STYLE.headingColor,
+    bodyFontSize: raw.body_font_size || raw.bodyFontSize || DEFAULT_STYLE.bodyFontSize,
+  };
+}
+
+function buildBrandedShell(opts: {
+  style: any;
+  logoUrl?: string;
+  companyName: string;
+  companyAddress?: string;
+  companyPhone?: string;
+  companyEmail?: string;
+  docLabel: string;
+  docNumber?: string;
+  innerHtml: string;
+  stripeColor?: string;
+}) {
+  const { style, logoUrl, companyName, companyAddress, companyPhone, companyEmail, docLabel, docNumber, innerHtml, stripeColor } = opts;
+  const accent = style.accentColor;
+  const font = style.fontFamily;
+  const stripe = stripeColor || accent;
+  const contactLine = [companyPhone, companyEmail].filter(Boolean).join(" · ");
+  const logoLockup = logoUrl
+    ? `<img src="${logoUrl}" alt="${companyName}" width="320" style="display:block;max-width:320px;max-height:64px;height:auto;border:0;" />`
+    : `<span style="font-size:18px;font-weight:700;color:${accent};font-family:${font};">${companyName}</span>`;
+
+  const docRightHtml = docNumber
+    ? `<td style="vertical-align:top;text-align:right;white-space:nowrap;width:30%;font-family:${font};">
+        <p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:${MUTED};font-weight:600;font-family:${font};">${docLabel}</p>
+        <p style="margin:2px 0 0;font-size:20px;font-weight:800;color:${HEADING};letter-spacing:-0.3px;line-height:1;font-family:${font};">${docNumber}</p>
+      </td>`
+    : `<td style="vertical-align:top;text-align:right;width:30%;font-family:${font};">
+        <p style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:${MUTED};font-weight:600;font-family:${font};">${docLabel}</p>
+      </td>`;
+
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:${CARD_BG};font-family:${font};">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${CARD_BG};font-family:${font};">
+    <tr>
+      <td align="center" style="padding:32px 16px;font-family:${font};">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;font-family:${font};">
+          <tr>
+            <td style="background:#ffffff;padding:28px 32px 0 32px;border:1px solid ${BORDER};border-bottom:none;border-radius:12px 12px 0 0;font-family:${font};">
+              <table role="presentation" style="width:100%;table-layout:fixed;" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="vertical-align:top;width:70%;padding-right:20px;font-family:${font};">
+                    ${logoLockup}
+                    ${companyAddress ? `<p style="margin:10px 0 0;color:${MUTED};font-size:11px;line-height:1.4;max-width:280px;font-family:${font};">${companyAddress}</p>` : ""}
+                    ${contactLine ? `<p style="margin:4px 0 0;color:${MUTED};font-size:11px;line-height:1.4;max-width:280px;word-break:break-word;font-family:${font};">${contactLine}</p>` : ""}
+                  </td>
+                  ${docRightHtml}
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#ffffff;padding:0 48px;">
+              <div style="height:3px;line-height:3px;font-size:3px;background:${stripe};">&nbsp;</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#ffffff;padding:32px;border:1px solid ${BORDER};border-top:none;border-radius:0 0 12px 12px;font-family:${font};">
+              ${innerHtml}
+            </td>
+          </tr>
+          ${contactLine ? `<tr><td style="text-align:center;padding:16px;font-size:11px;color:${MUTED};font-family:${font};">${contactLine}</td></tr>` : ""}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body></html>`;
+}
+
+function fmtMoney(n: number) {
+  return `$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { status: 200, headers: corsHeaders });
@@ -62,7 +163,6 @@ serve(async (req) => {
       .select("id, user_id, first_name, last_name, display_name")
       .in("id", profileIds);
 
-    // Get auth emails for those users
     const userIds = (approvers || []).map((a: any) => a.user_id).filter(Boolean);
     const emails: { email: string; name: string }[] = [];
     for (const uid of userIds) {
@@ -82,60 +182,90 @@ serve(async (req) => {
       });
     }
 
+    // ── Fetch company branding ──
+    const { data: companyData } = await supabase
+      .from("companies")
+      .select("name, logo_url, address, phone, email, settings")
+      .eq("id", exp.company_id)
+      .maybeSingle();
+
+    const companyName = companyData?.name || "Ordino";
+    const settings = (companyData?.settings && typeof companyData.settings === "object" && !Array.isArray(companyData.settings)) ? companyData.settings as Record<string, any> : {};
+    const style = resolveStyle(settings.email_style);
+    const logoUrl = companyData?.logo_url || settings.company_logo_url || undefined;
+    const companyAddress = settings.company_address || companyData?.address || "";
+    const companyPhone = settings.company_phone || companyData?.phone || "";
+    const companyEmail = settings.company_email || companyData?.email || "";
+
+    // ── Expense details ──
     const project = (exp as any).projects || {};
     const projRef = `${project.project_number || ""} ${project.name || ""}`.trim() || "Project";
     const address = project.properties?.address || "";
     const requester = (exp as any).created_by_profile;
     const requesterName = requester?.display_name || `${requester?.first_name || ""} ${requester?.last_name || ""}`.trim() || "PM";
-    const amount = `$${Number(exp.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
-    const billable = `$${Number(exp.billable_amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
-    const link = `https://ordinov3.lovable.app/dashboard?expense=${exp.id}`;
+    const amount = fmtMoney(Number(exp.amount));
+    const billable = fmtMoney(Number(exp.billable_amount));
+    const markupPct = Number(exp.markup_pct) || 0;
+    const link = `https://app.ordinocrm.com/dashboard?expense=${exp.id}`;
     const subject = `Expense Approval — ${amount} — ${projRef}`;
 
-    const accent = "#f59e0b";
+    // Stripe color: amber to denote approval urgency
+    const stripeColor = "#f59e0b";
 
-    const htmlBody = `
-<!DOCTYPE html>
-<html><head><meta charset="utf-8"></head>
-<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,Helvetica,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 0;">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
-        <tr>
-          <td style="padding:20px 24px;background:${accent};color:#fff;">
-            <div style="font-size:13px;text-transform:uppercase;letter-spacing:1.5px;opacity:0.9;">Expense Approval Needed</div>
-            <div style="font-size:22px;font-weight:700;margin-top:4px;">${amount}</div>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:24px;">
-            <p style="margin:0 0 16px;font-size:14px;color:#1a1a1a;">
-              <strong>${requesterName}</strong> is requesting approval to pay an expense.
-            </p>
-            <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;">
-              <tr><td style="padding:10px 14px;font-size:13px;color:#666;width:130px;">Project</td><td style="padding:10px 14px;font-size:13px;color:#111;">${projRef}</td></tr>
-              ${address ? `<tr><td style="padding:10px 14px;font-size:13px;color:#666;">Address</td><td style="padding:10px 14px;font-size:13px;color:#111;">${address}</td></tr>` : ""}
-              <tr><td style="padding:10px 14px;font-size:13px;color:#666;">Description</td><td style="padding:10px 14px;font-size:13px;color:#111;">${exp.description}</td></tr>
-              ${exp.vendor ? `<tr><td style="padding:10px 14px;font-size:13px;color:#666;">Vendor</td><td style="padding:10px 14px;font-size:13px;color:#111;">${exp.vendor}</td></tr>` : ""}
-              <tr><td style="padding:10px 14px;font-size:13px;color:#666;">Cost</td><td style="padding:10px 14px;font-size:13px;color:#111;font-weight:600;">${amount}</td></tr>
-              ${Number(exp.markup_pct) > 0 ? `<tr><td style="padding:10px 14px;font-size:13px;color:#666;">Markup</td><td style="padding:10px 14px;font-size:13px;color:#111;">${exp.markup_pct}% (bills to client: ${billable})</td></tr>` : ""}
-            </table>
-            <div style="margin-top:24px;text-align:center;">
-              <a href="${link}" style="display:inline-block;padding:12px 28px;background:${accent};color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Review & Approve</a>
-            </div>
-          </td>
-        </tr>
-        <tr><td style="padding:14px 24px;border-top:1px solid #e5e7eb;font-size:11px;color:#999;text-align:center;">Ordino · Expense Approvals</td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body></html>`.trim();
+    const fontSize = style.bodyFontSize;
+    const headingClr = style.headingColor;
+    const bodyClr = style.bodyColor;
+    const accent = style.accentColor;
+    const btnRadius = style.buttonRadius;
+    const font = style.fontFamily;
+
+    const rowStyle = `padding:10px 14px;font-size:${fontSize};font-family:${font};`;
+    const labelStyle = `${rowStyle}color:${MUTED};width:130px;`;
+    const valueStyle = `${rowStyle}color:${headingClr};`;
+
+    const detailsTable = `
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BORDER};border-radius:8px;background:${CARD_BG};margin:8px 0 0;">
+        <tr><td style="${labelStyle}">Project</td><td style="${valueStyle}">${projRef}</td></tr>
+        ${address ? `<tr><td style="${labelStyle}">Address</td><td style="${valueStyle}">${address}</td></tr>` : ""}
+        <tr><td style="${labelStyle}">Description</td><td style="${valueStyle}">${exp.description}</td></tr>
+        ${exp.vendor ? `<tr><td style="${labelStyle}">Vendor</td><td style="${valueStyle}">${exp.vendor}</td></tr>` : ""}
+        <tr><td style="${labelStyle}">Cost</td><td style="${valueStyle}font-weight:600;">${amount}</td></tr>
+        ${markupPct > 0 ? `<tr><td style="${labelStyle}">Markup</td><td style="${valueStyle}">${markupPct}% · bills to client: <strong>${billable}</strong></td></tr>` : ""}
+        <tr><td style="${labelStyle}">Requested by</td><td style="${valueStyle}">${requesterName}</td></tr>
+      </table>`;
+
+    const innerHtml = `
+      <p style="margin:0 0 16px;font-size:${fontSize};color:${headingClr};line-height:1.6;font-family:${font};">Hi {{APPROVER_NAME}},</p>
+      <p style="margin:0 0 8px;font-size:${fontSize};color:${bodyClr};line-height:1.6;font-family:${font};">
+        <strong>${requesterName}</strong> is requesting approval to pay an expense.
+      </p>
+      ${detailsTable}
+      <div style="text-align:center;margin:28px 0 8px;">
+        <a href="${link}" style="display:inline-block;background:${accent};color:#1a1a2e;text-decoration:none;padding:14px 44px;border-radius:${btnRadius};font-size:16px;font-weight:700;letter-spacing:0.2px;font-family:${font};">Review &amp; Approve</a>
+      </div>
+      <p style="margin:24px 0 0;font-size:${fontSize};color:${bodyClr};line-height:1.6;font-family:${font};">
+        Approving releases the expense back to the PM to pay and mark as paid. Denying notifies them with your reason.
+      </p>
+      <p style="margin:16px 0 0;font-size:${fontSize};color:${headingClr};font-family:${font};">— ${companyName}</p>
+    `;
 
     const sentTo: string[] = [];
     for (const r of emails) {
       try {
+        const personalizedInner = innerHtml.replace("{{APPROVER_NAME}}", r.name);
+        const html = buildBrandedShell({
+          style,
+          logoUrl,
+          companyName,
+          companyAddress,
+          companyPhone,
+          companyEmail,
+          docLabel: "Expense Approval",
+          innerHtml: personalizedInner,
+          stripeColor,
+        });
         await supabase.functions.invoke("gmail-send", {
-          body: { to: r.email, subject, html_body: htmlBody },
+          body: { to: r.email, subject, html_body: html },
         });
         sentTo.push(r.email);
       } catch (err) {
