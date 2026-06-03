@@ -330,7 +330,7 @@ export function usePendingBillingCount() {
   });
 }
 
-async function triggerBillingNotifications(billingRequest: any) {
+export async function triggerBillingNotifications(billingRequest: any) {
   try {
     // Get notification preferences for this company
     const { data: prefs } = await supabase
