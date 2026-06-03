@@ -26,6 +26,8 @@ import { useProjectChecklist, useAddChecklistItem, useUpdateChecklistItem, useDe
 import { DobNowFilingPrepSheet } from "@/components/projects/DobNowFilingPrepSheet";
 import { SendToBillingDialog } from "@/components/invoices/SendToBillingDialog";
 import { ComposeEmailDialog } from "@/components/emails/ComposeEmailDialog";
+import { ExpenseDialog } from "@/components/projects/ExpenseDialog";
+import { useProjectExpenses } from "@/hooks/useProjectExpenses";
 import { cn, formatCurrency } from "@/lib/utils";
 import { predictBillDates, applyBillDatePredictions } from "@/hooks/useBillDatePrediction";
 import { serviceStatusStyles } from "@/components/projects/projectMockData";
