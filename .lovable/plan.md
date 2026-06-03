@@ -1,76 +1,56 @@
-## Goal
+# Finish Expense Wiring
 
-One unified "Add Expense" flow on a project that handles three real-world cases:
+Scope: complete what was started for the unified expense + approval flow. No dashboard changes this round (we'll tackle a login-screen "Upcoming Work" widget on the main Dashboard next, per your note).
 
-1. **PM already paid, ready to bill** → goes straight to Sai
-2. **PM already paid, NOT ready to bill yet** → held on the project until released
-3. **Client wants us to pay something — needs Manny/Chris approval first** → replaces the current Slack/text approval flow
+## 1. Approval email trigger
+In `useCreateExpense` (in `useProjectExpenses.ts`), after inserting an expense with `status = pending_approval`, invoke the existing `send-expense-approval-request` edge function with: expense id, project name/number, vendor, amount, requester, receipt URL, and approver email list (Manny + Chris from settings). Function already exists — just needs to be called.
 
-## The button & modal
+## 2. Admin "Expense Approvals" inbox
+New component on the Admin/Production Dashboard (`src/pages/Dashboard.tsx` or its admin section): a card titled **Expense Approvals (N)** showing every expense where `approval_status = pending`. Each row:
+- Project # + name (linked)
+- Description + vendor
+- Amount + markup % + billable total
+- Requester avatar + name
+- Receipt thumbnail/link (signed URL)
+- **Approve** / **Deny (with reason)** buttons → calls `useApproveExpense` / `useDenyExpense`
+- Auto-approve badge if amount < company threshold
 
-Keep the existing **"Add Expense"** button on the project's Services tab. Replace today's "Add Custom Service" modal with a proper expense form:
+Visible only to admins (Manny + Chris). Uses `usePendingExpenseApprovals` hook (already exists).
 
-| Field | Notes |
-|---|---|
-| Title / Description | Same as today |
-| Amount (cost) | What we paid or what client is asking us to pay |
-| Markup % | Free numeric input, anyone can enter, default 0 |
-| Vendor (optional) | For receipts / future QBO mapping |
-| **Receipt upload** | PDF or image, stored in a private bucket |
-| Bill-to contact | Defaults to project's Bill-To |
-| **This expense is…** (top toggle) | ① Already paid → ready to bill · ② Already paid → hold for later · ③ Needs approval before I pay |
-| Hold reason (if ②) | Short text — "waiting on CO #4", "billing at closeout", etc. |
+## 3. Receipt viewer
+Inline thumbnail in:
+- Approvals inbox (above)
+- The `ExpensesSection` list on the Services tab
+- A "View receipt" link that opens the signed URL in a new tab (use `getReceiptSignedUrl`)
 
-## Three flows, one record
+## 4. Accounting queue badge
+In `src/components/dashboard/AccountingDashboard.tsx` (PM Billing Submissions section), join `billing_requests` → `project_expenses` via `billing_request_id`. When a row originated from an expense, show an amber **Expense** badge next to the project name plus vendor in the description.
 
-**① Already paid → ready to bill**
-- Status: `pending_billing`
-- Auto-creates a `billing_requests` row (same table service billing uses today)
-- **Sai + accounting get the existing billing email** — subject includes amount, vendor, project
-- Shows in Sai's Accounting Dashboard → "PM Billing Submissions" card with an "Expense" badge
+## 5. Settings UI for threshold + approvers
+Add to `src/pages/Settings.tsx` under a new **Expenses** section:
+- Numeric input: "Auto-approve threshold ($)" — writes to `companies.settings.expense_auto_approve_threshold` (column already added)
+- Multi-select of admin profiles: "Approvers" — writes to `companies.settings.expense_approvers` (array of profile ids; new settings JSON key, no schema change needed)
+- Default approvers = Manny + Chris if unset
 
-**② Already paid → hold for later**
-- Status: `on_hold` with reason
-- No email to Sai
-- Sits on project Financials tab with yellow "On Hold" pill + **"Release to billing"** button (one click → flips to flow ①)
-- Surfaced on PM dashboard so it's not forgotten
+The edge function and `useCreateExpense` read approvers from settings (falling back to all admins).
 
-**③ Needs approval first**
-- Status: `pending_approval`
-- **Email + in-app notification to Manny + Chris only** (approver list configurable in Settings)
-- New "Approvals" inbox card on the admin dashboard with one-click **Approve** / **Deny** (deny requires reason)
-- PM gets notified of decision
-- On Approve → status `approved`, PM pays, comes back, clicks **"Mark as paid"** + uploads receipt → flips to flow ①
-- On Deny → status `denied`, PM sees reason, can edit and resubmit
+## 6. Decision routing on approve
+When an admin clicks Approve in the inbox:
+- `approval_status → approved`, `status → approved`
+- In-app notification to the requesting PM: "Your expense for {vendor} was approved — pay it and mark as paid to release for billing"
+- PM sees a "Mark as Paid" button on their expense row → flips status to `pending_billing`, which fires the existing trigger to create a `billing_request` row → Sai gets the standard billing email (no change to that path)
 
-**Auto-approve threshold:** Settings → Expenses → "Auto-approve under $___" (default **$250**). Anything below skips approval and goes straight to flow ① or ②. Anything at/above requires Manny + Chris.
+When Deny:
+- `approval_status → denied`, `status → denied`, `denied_reason` saved
+- In-app notification to requester with reason
+- Requester can edit and resubmit (status flips back to `pending_approval`)
 
-## Database (`project_expenses` table)
+## Technical notes
+- All changes client-side + one edge function call; no schema migrations needed (table, threshold column, and storage bucket already exist)
+- `usePendingExpenseApprovals` already exists in `useProjectExpenses.ts`
+- Notifications use the existing `notifications` table — no new types beyond `expense_pending_approval`, `expense_approved`, `expense_denied`
+- RLS on `project_expenses` already filters by company; approval visibility gated client-side by admin role check
 
-`project_id`, `service_id` (optional parent), `description`, `vendor`, `amount`, `markup_pct`, `billable_amount` (computed), `incurred_date`, `receipt_url`, `billed_to_contact_id`, `status` (`pending_approval` | `approved` | `denied` | `on_hold` | `pending_billing` | `billed` | `paid` | `non_billable`), `hold_reason`, `approval_status`, `approved_by`, `approved_at`, `denied_reason`, `invoice_line_id`, `qbo_expense_id`, `qbo_bill_id` (reserved for future QBO sync), `created_by`. RLS mirrors `services`.
-
-## Where it shows up
-
-- **Project → Services tab** → expenses listed alongside services with status pill, receipt link, timeline events
-- **Admin Dashboard** → new "Expense Approvals" card (Manny + Chris only)
-- **Accounting Dashboard** → expenses join existing "PM Billing Submissions" list with "Expense" badge
-- **PM Dashboard** → "On Hold" expense count + "Awaiting your approval" if applicable
-- **Project Timeline** → every state change logged ("Manny logged $450 held expense", "Chris approved $1,200 filing fee", "Sent to billing")
-
-## Mike cleanup
-
-Set `profiles.is_active = false` on Mike's row. Removes him from active-staff filters (bug alerts, billing notifications, OOO coverage, new assignments). All historical records he touched stay intact with his name. Reversible.
-
-## What this does NOT change
-
-- Change Orders still required for scope changes needing client signature
-- Existing Service → Send to Billing flow untouched
-- No QBO integration built in this round — just the schema columns reserved
-
-## What I need from you to start building
-
-1. ✅ Markup field: free numeric, anyone can enter (confirmed)
-2. ✅ Receipt upload (confirmed)
-3. ✅ Approval flow integrated here (confirmed)
-4. **Confirm auto-approve threshold default = $250** (or tell me a different number, or "always require approval")
-5. **Confirm approvers = Manny + Chris** (or any admin)
+## Out of scope (next round)
+- Dashboard "Upcoming Work" widget for login screen (pipeline health, pending approvals, on-hold, approved-unbilled by PM) — noted, will tackle separately
+- QuickBooks mapping (columns `qbo_expense_id` / `qbo_bill_id` already reserved)
