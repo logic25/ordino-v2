@@ -349,6 +349,43 @@ function SortableServiceRowWrapper({ id, disabled, children }: { id: string; dis
   return <>{children(attributes, disabled ? undefined : listeners, setNodeRef, style)}</>;
 }
 
+function ExpensesSection({ projectId, clientId }: { projectId: string; clientId: string | null }) {
+  const { data: expenses = [], isLoading } = useProjectExpenses(projectId);
+  if (isLoading || expenses.length === 0) return null;
+  const statusStyles: Record<string, string> = {
+    pending_approval: "bg-amber-100 text-amber-800",
+    approved: "bg-blue-100 text-blue-800",
+    denied: "bg-red-100 text-red-800",
+    on_hold: "bg-yellow-100 text-yellow-800",
+    pending_billing: "bg-purple-100 text-purple-800",
+    billed: "bg-green-100 text-green-800",
+    paid: "bg-emerald-100 text-emerald-800",
+    non_billable: "bg-muted text-muted-foreground",
+  };
+  return (
+    <div className="px-6 py-3 border-b bg-muted/20">
+      <div className="text-xs font-semibold text-muted-foreground mb-2">Expenses ({expenses.length})</div>
+      <div className="space-y-1.5">
+        {expenses.map((e: any) => (
+          <div key={e.id} className="flex items-center justify-between gap-2 text-sm bg-background rounded px-3 py-2 border">
+            <div className="flex items-center gap-2 min-w-0">
+              <DollarSign className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span className="font-medium truncate">{e.description}</span>
+              {e.vendor && <span className="text-muted-foreground text-xs truncate">· {e.vendor}</span>}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Badge variant="outline" className={cn("text-xs", statusStyles[e.status] || "")}>{e.status.replace(/_/g, " ")}</Badge>
+              <span className="font-semibold tabular-nums">{formatCurrency(Number(e.billable_amount) || 0)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+
 export function ServicesFull({ services: initialServices, project, contacts, allServices, timeEntries = [], onAddCOs }: { services: MockService[]; project: ProjectWithRelations; contacts: MockContact[]; allServices: MockService[]; timeEntries?: MockTimeEntry[]; onAddCOs?: (cos: Array<{ title: string; description?: string; amount: number; status?: ChangeOrder["status"]; requested_by?: string; linked_service_names?: string[]; reason?: string; project_id: string; company_id: string }>) => void }) {
   const [orderedServices, setOrderedServices] = useState(initialServices);
   const initialKey = initialServices.map(s => `${s.id}:${s.needsDobFiling ? 1 : 0}:${s.status}:${s.totalAmount}:${s.billedAmount}:${s.costAmount}:${s.assignedTo}:${s.estimatedBillDate}`).join(",");
