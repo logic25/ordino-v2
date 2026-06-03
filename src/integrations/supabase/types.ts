@@ -5656,6 +5656,7 @@ export type Database = {
           created_at: string
           id: string
           project_id: string
+          service_id: string | null
           source: string
           updated_at: string
           user_id: string | null
@@ -5666,6 +5667,7 @@ export type Database = {
           created_at?: string
           id?: string
           project_id: string
+          service_id?: string | null
           source?: string
           updated_at?: string
           user_id?: string | null
@@ -5676,6 +5678,7 @@ export type Database = {
           created_at?: string
           id?: string
           project_id?: string
+          service_id?: string | null
           source?: string
           updated_at?: string
           user_id?: string | null
@@ -5693,6 +5696,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_notes_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
             referencedColumns: ["id"]
           },
         ]
