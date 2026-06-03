@@ -26,6 +26,7 @@ import { NotificationSettings } from "@/components/settings/NotificationSettings
 import { BillingNotificationSettings } from "@/components/settings/BillingNotificationSettings";
 import { ReportSettings } from "@/components/settings/ReportSettings";
 import { EmailTemplateGallery } from "@/components/settings/EmailTemplateGallery";
+import { ExpensesSettings } from "@/components/settings/ExpensesSettings";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { Mail, Brain, ExternalLink, BarChart3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -166,7 +167,7 @@ function DeleteAccountDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   );
 }
 
-type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists" | "roles" | "partner_templates" | "signal" | "instruction_templates" | "notifications" | "beacon" | "billing_notifications" | "reports" | "email_gallery";
+type SettingsSection = "main" | "profile" | "company" | "proposals" | "rfi_templates" | "invoices" | "automation" | "team" | "lists" | "roles" | "partner_templates" | "signal" | "instruction_templates" | "notifications" | "beacon" | "billing_notifications" | "reports" | "email_gallery" | "expenses";
 
 interface SettingsSectionDef {
   id: SettingsSection;
@@ -202,6 +203,7 @@ const settingsGroups: SettingsGroup[] = [
     sections: [
       { id: "proposals", title: "Proposals & Services", description: "Service catalog and default terms", icon: Package },
       { id: "invoices", title: "Invoices & Billing", description: "Payment terms, collections, and client billing rules", icon: Receipt },
+      { id: "expenses", title: "Expenses & Approvals", description: "Auto-approve threshold and approver list for project expenses", icon: DollarSign, adminOnly: true },
       { id: "rfi_templates", title: "RFI Templates", description: "Configure client questionnaire forms", icon: FileText },
       { id: "instruction_templates", title: "Instruction Templates", description: "Reusable email templates for DOB instructions", icon: Mail },
       { id: "partner_templates", title: "Partner Outreach Templates", description: "Email templates for RFP partner notifications", icon: Mail },
@@ -260,6 +262,7 @@ export default function Settings() {
       case "beacon": return <BeaconSettingsSection />;
       case "billing_notifications": return <BillingNotificationSettings />;
       case "reports": return <ReportSettings />;
+      case "expenses": return <ExpensesSettings />;
       default:
         return (
           <>
