@@ -123,7 +123,24 @@ export function ProjectTable({ projects, onEdit, onView, onDelete, onSendRfi, is
                     </SelectContent>
                   </Select>
                 </TableCell>
-                <TableCell><Badge variant={status.variant}>{status.label}</Badge></TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant={status.variant}>{status.label}</Badge>
+                    {(() => {
+                      const last = (project as any).last_activity_at;
+                      const threshold = (project as any).stale_threshold_days || 14;
+                      const isOpen = project.status === "open";
+                      if (!isOpen || !last) return null;
+                      const days = Math.floor((Date.now() - new Date(last).getTime()) / 86400000);
+                      if (days < threshold) return null;
+                      return (
+                        <Badge variant="destructive" className="text-[10px]" title={`No activity in ${days} days`}>
+                          Stale — {days}d
+                        </Badge>
+                      );
+                    })()}
+                  </div>
+                </TableCell>
                 <TableCell className="text-muted-foreground">{formatCurrency(project.proposals?.total_amount ?? null)}</TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
