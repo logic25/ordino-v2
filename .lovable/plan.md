@@ -1,56 +1,60 @@
-# Finish Expense Wiring
+## 1. Switch low-stakes AI features to Gemini 2.5 Flash-Lite
 
-Scope: complete what was started for the unified expense + approval flow. No dashboard changes this round (we'll tackle a login-screen "Upcoming Work" widget on the main Dashboard next, per your note).
+Update the model string on these 11 edge functions (~5-8× cheaper, no quality loss for structured/classification work):
 
-## 1. Approval email trigger
-In `useCreateExpense` (in `useProjectExpenses.ts`), after inserting an expense with `status = pending_approval`, invoke the existing `send-expense-approval-request` edge function with: expense id, project name/number, vendor, amount, requester, receipt URL, and approver email list (Manny + Chris from settings). Function already exists — just needs to be called.
+- `summarize-project`, `cleanup-notes`, `extract-tasks`, `extract-rfp`, `parse-objection`
+- `predict-payment-risk`, `generate-changelog`, `triage-bug-report`
+- `monitor-rfps` (both call sites), `process-automation-rules`
 
-## 2. Admin "Expense Approvals" inbox
-New component on the Admin/Production Dashboard (`src/pages/Dashboard.tsx` or its admin section): a card titled **Expense Approvals (N)** showing every expense where `approval_status = pending`. Each row:
-- Project # + name (linked)
-- Description + vendor
-- Amount + markup % + billable total
-- Requester avatar + name
-- Receipt thumbnail/link (signed URL)
-- **Approve** / **Deny (with reason)** buttons → calls `useApproveExpense` / `useDenyExpense`
-- Auto-approve badge if amount < company threshold
+**Keep on Flash** (outbound writing / interactive — tone matters): `ask-ordino`, `draft-checklist-followup`, `draft-proposal-followup`, `generate-rfp-cover-letter`, `auto-checklist-followups`, `generate-project-checklist`.
 
-Visible only to admins (Manny + Chris). Uses `usePendingExpenseApprovals` hook (already exists).
+**Keep on Pro:** `code-research`. **Beacon AI** untouched.
 
-## 3. Receipt viewer
-Inline thumbnail in:
-- Approvals inbox (above)
-- The `ExpensesSection` list on the Services tab
-- A "View receipt" link that opens the signed URL in a new tab (use `getReceiptSignedUrl`)
+## 2. Make the pending-approval pill actionable
 
-## 4. Accounting queue badge
-In `src/components/dashboard/AccountingDashboard.tsx` (PM Billing Submissions section), join `billing_requests` → `project_expenses` via `billing_request_id`. When a row originated from an expense, show an amber **Expense** badge next to the project name plus vendor in the description.
+- New `ApproveExpenseDialog` (amount, vendor, category, project link, receipt, Approve / Reject / Open project).
+- Wire to **every pending pill**: dashboard `ExpenseApprovalsCard`, project Expenses subsection (add buttons — currently missing), email "Review & Approve" link → `/projects/:id?expense=:id&action=approve` auto-opens the dialog.
+- Reuses existing `useApproveExpense` mutation.
 
-## 5. Settings UI for threshold + approvers
-Add to `src/pages/Settings.tsx` under a new **Expenses** section:
-- Numeric input: "Auto-approve threshold ($)" — writes to `companies.settings.expense_auto_approve_threshold` (column already added)
-- Multi-select of admin profiles: "Approvers" — writes to `companies.settings.expense_approvers` (array of profile ids; new settings JSON key, no schema change needed)
-- Default approvers = Manny + Chris if unset
+## 3. Replace unused Open Services email with a **Monday Meeting Report**
 
-The edge function and `useCreateExpense` read approvers from settings (falling back to all admins).
+Sent Sunday 11 PM ET to PMs + leadership, mirrored at `/reports/monday-meeting`. Built by new `generate-monday-report` edge function (Flash — runs weekly, quality matters).
 
-## 6. Decision routing on approve
-When an admin clicks Approve in the inbox:
-- `approval_status → approved`, `status → approved`
-- In-app notification to the requesting PM: "Your expense for {vendor} was approved — pay it and mark as paid to release for billing"
-- PM sees a "Mark as Paid" button on their expense row → flips status to `pending_billing`, which fires the existing trigger to create a `billing_request` row → Sai gets the standard billing email (no change to that path)
+1. **Top of mind this week** — 5-8 projects AI-ranked by urgency. Each: project #, address, one-sentence "what's happening / what's needed" (pulled from latest `project_notes` AI summary).
+2. **Filings expected this week** — uses the existing `predictBillDates` learner (already in `useBillDatePrediction.ts`) which infers per-service-type duration from historical `services.billed_at` vs `created_at`, then adjusts for open-checklist buffer. Shows services whose **predicted** date falls in the next 7 days, grouped by PM, with a confidence band (±N days, sample count). Manual `estimated_filing_date` is used as an override when set; otherwise the prediction is the source of truth. Predictions get more accurate as more services close.
+3. **Where someone needs help** — blocked projects (`waiting_on` >7 days, 3+ unanswered emails, stalled checklist, or stale per §5) + suggested helper from team availability.
+4. **Just-closed / wins** — last 7 days: filings, approvals, COs signed.
+5. **Numbers** — # active, # filings predicted this week, # blocked, $ billed last week, $ outstanding.
 
-When Deny:
-- `approval_status → denied`, `status → denied`, `denied_reason` saved
-- In-app notification to requester with reason
-- Requester can edit and resubmit (status flips back to `pending_approval`)
+Old "Open Services" email becomes opt-in toggle in notification prefs.
+
+## 4. Promote the predicted-date learner project-wide
+
+Since we're leaning on it for the Monday Report, also surface it everywhere a filing date appears:
+- **Service rows** — show predicted date with a small "AI · ±Nd · N samples" tooltip when no manual estimate is set; manual estimate wins when present.
+- **Project page header** — "Next predicted filing: …" line.
+- **Move logic to a new `predict-service-dates` edge function** so it runs server-side for crons (Monday Report) instead of being client-only. Frontend hook calls the same function for consistency.
+- Backfill nothing — predictions are computed on read; no schema change needed.
+
+## 5. AI Usage page refinements
+
+- **Cost projection** card per feature ("Project Summaries: ~$X/mo, ~$Y/yr at current pace").
+- **Top spenders** table sorted by $/mo.
+- **Budget alert threshold** — admin sets monthly cap; banner + notification when projected spend crosses it.
+- New `ai_budget_settings` table (company-scoped, admin-only RLS + GRANTs).
+
+## 6. Stale-project tracking (backend + UI only — no daily email)
+
+Future Beacon nudge will use this signal to proactively DM PMs.
+
+- Add `projects.last_activity_at` (timestamptz) + `projects.stale_threshold_days` (int, nullable) via migration.
+- Trigger updates `last_activity_at` on insert/update of `project_notes`, `email_project_tags`, `project_checklist_items`, `activities`, `services`, `change_orders`, and `projects.status`. Backfill from latest of those.
+- **UI**: red "Stale — X days" pill on the projects list + "Stale" filter chip. Monday Report's "Where someone needs help" pulls from this signal.
 
 ## Technical notes
-- All changes client-side + one edge function call; no schema migrations needed (table, threshold column, and storage bucket already exist)
-- `usePendingExpenseApprovals` already exists in `useProjectExpenses.ts`
-- Notifications use the existing `notifications` table — no new types beyond `expense_pending_approval`, `expense_approved`, `expense_denied`
-- RLS on `project_expenses` already filters by company; approval visibility gated client-side by admin role check
 
-## Out of scope (next round)
-- Dashboard "Upcoming Work" widget for login screen (pipeline health, pending approvals, on-hold, approved-unbilled by PM) — noted, will tackle separately
-- QuickBooks mapping (columns `qbo_expense_id` / `qbo_bill_id` already reserved)
+- **Migrations**: `projects.last_activity_at` + `stale_threshold_days` + trigger + backfill; `ai_budget_settings` table.
+- **Edge functions**: model swaps on the 11 in §1; new `generate-monday-report` (cron Sun 11 PM ET); new `predict-service-dates` (server-side port of `useBillDatePrediction`).
+- **Frontend**: `AIUsageDashboard.tsx` (projection + top spenders + banner); new `AIBudgetSettings.tsx`; new `ApproveExpenseDialog.tsx` wired to all pills; projects list stale pill + filter; new `MondayReport.tsx` route; predicted-date badges on service rows + project header; notification prefs add "Weekly Monday report" (on) + "Legacy open-services report" (off).
+
+Ready to ship.
