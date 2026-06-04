@@ -169,6 +169,31 @@ Deno.serve(async (req) => {
       return base;
     });
 
+    // Project readiness — open checklist items (what we're still waiting on)
+    const { data: checklist } = await admin
+      .from("project_checklist_items")
+      .select("label, category, from_whom, status, requested_date")
+      .eq("project_id", project.id)
+      .order("sort_order");
+
+    const nowMs = Date.now();
+    const openChecklist = (checklist || []).filter((c: any) => c.status !== "done");
+    const completedCount = (checklist || []).length - openChecklist.length;
+    const readiness = {
+      total_items: (checklist || []).length,
+      completed: completedCount,
+      open: openChecklist.length,
+      ready_to_file: (checklist || []).length > 0 && openChecklist.length === 0,
+      open_items: openChecklist.map((c: any) => ({
+        label: c.label,
+        category: c.category,
+        from_whom: c.from_whom,
+        days_waiting: c.requested_date
+          ? Math.floor((nowMs - new Date(c.requested_date).getTime()) / 86400000)
+          : null,
+      })),
+    };
+
     // ---- Build prompt ----
     const ctx = {
       project: {
@@ -183,6 +208,7 @@ Deno.serve(async (req) => {
         estimated_completion: project.estimated_construction_completion,
         legacy_notes: project.notes,
       },
+      readiness,
       services: (services || []).map((s: any) => ({
         name: s.name, status: s.status, billed: s.billed_amount, total: s.total_amount,
       })),
@@ -198,7 +224,7 @@ Deno.serve(async (req) => {
       recent_emails: recentEmails,
     };
 
-    const systemPrompt = `You are an operations analyst for Ordino, a project-management platform for NYC construction filings. Write a CONCISE status summary (4-6 sentences, no bullets, no headers) describing where this project stands RIGHT NOW: who/what we're waiting on, recent meaningful activity, blockers, and the next concrete action. Be specific. Use plain English. Never invent facts not present in the JSON context. Notes and emails may include a service tag (e.g. "PAA1 — Sprinkler") — reference the specific service when it explains the status. Recent client/agency emails are included — quote or reference what was actually said when it explains the current status or blocker.`;
+    const systemPrompt = `You are an operations analyst for Ordino, a project-management platform for NYC construction filings. Write a CONCISE status summary (4-6 sentences, no bullets, no headers) describing where this project stands RIGHT NOW: readiness (what checklist items are still open and from whom), recent meaningful activity, blockers from emails, and the next concrete action. Be specific — name the open checklist items and who we're waiting on. If readiness.ready_to_file is true, say it's ready to file. Quote or reference what client/agency emails actually said when it explains the current status. Use plain English. Never invent facts not in the JSON.`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
