@@ -229,6 +229,9 @@ export default function Projects() {
                 <TabsTrigger value="on_hold">On Hold ({onHoldCount})</TabsTrigger>
                 <TabsTrigger value="closed">Closed ({visibleProjects.filter(p => p.status === "closed").length})</TabsTrigger>
                 <TabsTrigger value="paid">Paid ({visibleProjects.filter(p => p.status === "paid").length})</TabsTrigger>
+                <TabsTrigger value="stale" className="data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground">
+                  Stale ({staleCount})
+                </TabsTrigger>
               </TabsList>
             </div>
             <div className="relative w-full sm:max-w-md sm:flex-1">
