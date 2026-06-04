@@ -298,6 +298,47 @@ export type Database = {
           },
         ]
       }
+      ai_budget_settings: {
+        Row: {
+          alert_emails: string[]
+          alert_threshold_pct: number
+          company_id: string
+          created_at: string
+          id: string
+          last_alert_sent_at: string | null
+          monthly_cap_usd: number | null
+          updated_at: string
+        }
+        Insert: {
+          alert_emails?: string[]
+          alert_threshold_pct?: number
+          company_id: string
+          created_at?: string
+          id?: string
+          last_alert_sent_at?: string | null
+          monthly_cap_usd?: number | null
+          updated_at?: string
+        }
+        Update: {
+          alert_emails?: string[]
+          alert_threshold_pct?: number
+          company_id?: string
+          created_at?: string
+          id?: string
+          last_alert_sent_at?: string | null
+          monthly_cap_usd?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_budget_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_roadmap_suggestions: {
         Row: {
           category: string | null
@@ -5932,6 +5973,7 @@ export type Database = {
           gc_phone: string | null
           id: string
           is_external: boolean
+          last_activity_at: string | null
           last_editor_id: string | null
           metadata: Json | null
           name: string | null
@@ -5954,6 +5996,7 @@ export type Database = {
           sia_number: string | null
           sia_nys_lic: string | null
           sia_phone: string | null
+          stale_threshold_days: number | null
           status: Database["public"]["Enums"]["project_status"]
           tenant_name: string | null
           tpp_email: string | null
@@ -5996,6 +6039,7 @@ export type Database = {
           gc_phone?: string | null
           id?: string
           is_external?: boolean
+          last_activity_at?: string | null
           last_editor_id?: string | null
           metadata?: Json | null
           name?: string | null
@@ -6018,6 +6062,7 @@ export type Database = {
           sia_number?: string | null
           sia_nys_lic?: string | null
           sia_phone?: string | null
+          stale_threshold_days?: number | null
           status?: Database["public"]["Enums"]["project_status"]
           tenant_name?: string | null
           tpp_email?: string | null
@@ -6060,6 +6105,7 @@ export type Database = {
           gc_phone?: string | null
           id?: string
           is_external?: boolean
+          last_activity_at?: string | null
           last_editor_id?: string | null
           metadata?: Json | null
           name?: string | null
@@ -6082,6 +6128,7 @@ export type Database = {
           sia_number?: string | null
           sia_nys_lic?: string | null
           sia_phone?: string | null
+          stale_threshold_days?: number | null
           status?: Database["public"]["Enums"]["project_status"]
           tenant_name?: string | null
           tpp_email?: string | null
