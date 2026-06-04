@@ -27,7 +27,9 @@ import { DobNowFilingPrepSheet } from "@/components/projects/DobNowFilingPrepShe
 import { SendToBillingDialog } from "@/components/invoices/SendToBillingDialog";
 import { ComposeEmailDialog } from "@/components/emails/ComposeEmailDialog";
 import { ExpenseDialog } from "@/components/projects/ExpenseDialog";
+import { ApproveExpenseDialog } from "@/components/expenses/ApproveExpenseDialog";
 import { useProjectExpenses, useReleaseExpenseToBilling, getReceiptSignedUrl } from "@/hooks/useProjectExpenses";
+import { useSearchParams } from "react-router-dom";
 import { cn, formatCurrency } from "@/lib/utils";
 import { predictBillDates, applyBillDatePredictions } from "@/hooks/useBillDatePrediction";
 import { serviceStatusStyles } from "@/components/projects/projectMockData";
