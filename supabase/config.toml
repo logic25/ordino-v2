@@ -119,3 +119,6 @@ verify_jwt = false
 
 [functions.weekly-bug-report]
 verify_jwt = false
+
+[functions.auto-summarize-projects]
+verify_jwt = false
