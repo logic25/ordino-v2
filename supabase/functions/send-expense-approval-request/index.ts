@@ -249,7 +249,29 @@ serve(async (req) => {
       <p style="margin:16px 0 0;font-size:${fontSize};color:${headingClr};font-family:${font};">— ${companyName}</p>
     `;
 
+    // Pick a sender profile (requester first, else first admin with a Gmail connection)
+    const candidateSenderIds = [exp.created_by, ...(approvers || []).map((a: any) => a.id)].filter(Boolean);
+    let senderProfileId: string | null = null;
+    if (candidateSenderIds.length > 0) {
+      const { data: conns } = await supabase
+        .from("gmail_connections")
+        .select("user_id")
+        .in("user_id", candidateSenderIds);
+      const connectedSet = new Set((conns || []).map((c: any) => c.user_id));
+      senderProfileId = candidateSenderIds.find((id: string) => connectedSet.has(id)) || null;
+    }
+
+    if (!senderProfileId) {
+      console.error("No Gmail-connected sender available for expense", expense_id);
+      return new Response(JSON.stringify({ ok: false, reason: "no_gmail_sender" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const sentTo: string[] = [];
+    const sendErrors: any[] = [];
     for (const r of emails) {
       try {
         const personalizedInner = innerHtml.replace("{{APPROVER_NAME}}", r.name);
@@ -264,16 +286,34 @@ serve(async (req) => {
           innerHtml: personalizedInner,
           stripeColor,
         });
-        await supabase.functions.invoke("gmail-send", {
-          body: { to: r.email, subject, html_body: html },
+        const resp = await fetch(`${supabaseUrl}/functions/v1/gmail-send`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceKey}`,
+            apikey: serviceKey,
+          },
+          body: JSON.stringify({
+            to: r.email,
+            subject,
+            html_body: html,
+            user_id: senderProfileId,
+          }),
         });
-        sentTo.push(r.email);
+        const respJson = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          console.error("gmail-send failed for", r.email, resp.status, respJson);
+          sendErrors.push({ to: r.email, status: resp.status, ...respJson });
+        } else {
+          sentTo.push(r.email);
+        }
       } catch (err) {
-        console.error("gmail-send failed for", r.email, err);
+        console.error("gmail-send threw for", r.email, err);
+        sendErrors.push({ to: r.email, error: (err as Error).message });
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, sent_to: sentTo }), {
+    return new Response(JSON.stringify({ ok: sendErrors.length === 0, sent_to: sentTo, errors: sendErrors, sender_profile_id: senderProfileId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
