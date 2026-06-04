@@ -5649,6 +5649,143 @@ export type Database = {
           },
         ]
       }
+      project_expenses: {
+        Row: {
+          amount: number
+          approval_status: string
+          approved_at: string | null
+          approved_by: string | null
+          billable_amount: number | null
+          billed_to_contact_id: string | null
+          billing_request_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          denied_reason: string | null
+          description: string
+          hold_reason: string | null
+          id: string
+          incurred_date: string | null
+          invoice_line_id: string | null
+          markup_pct: number
+          paid_at: string | null
+          project_id: string
+          qbo_bill_id: string | null
+          qbo_expense_id: string | null
+          receipt_url: string | null
+          service_id: string | null
+          status: string
+          updated_at: string
+          vendor: string | null
+        }
+        Insert: {
+          amount?: number
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          billable_amount?: number | null
+          billed_to_contact_id?: string | null
+          billing_request_id?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          denied_reason?: string | null
+          description: string
+          hold_reason?: string | null
+          id?: string
+          incurred_date?: string | null
+          invoice_line_id?: string | null
+          markup_pct?: number
+          paid_at?: string | null
+          project_id: string
+          qbo_bill_id?: string | null
+          qbo_expense_id?: string | null
+          receipt_url?: string | null
+          service_id?: string | null
+          status?: string
+          updated_at?: string
+          vendor?: string | null
+        }
+        Update: {
+          amount?: number
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          billable_amount?: number | null
+          billed_to_contact_id?: string | null
+          billing_request_id?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          denied_reason?: string | null
+          description?: string
+          hold_reason?: string | null
+          id?: string
+          incurred_date?: string | null
+          invoice_line_id?: string | null
+          markup_pct?: number
+          paid_at?: string | null
+          project_id?: string
+          qbo_bill_id?: string | null
+          qbo_expense_id?: string | null
+          receipt_url?: string | null
+          service_id?: string | null
+          status?: string
+          updated_at?: string
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_expenses_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_expenses_billed_to_contact_id_fkey"
+            columns: ["billed_to_contact_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_expenses_billing_request_id_fkey"
+            columns: ["billing_request_id"]
+            isOneToOne: false
+            referencedRelation: "billing_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_expenses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_expenses_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_expenses_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_expenses_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_notes: {
         Row: {
           body: string
