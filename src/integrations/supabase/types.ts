@@ -8463,6 +8463,10 @@ export type Database = {
         }
         Returns: string
       }
+      enqueue_project_summary: {
+        Args: { _company_id: string; _project_id: string }
+        Returns: undefined
+      }
       get_public_company_info: { Args: { _company_id: string }; Returns: Json }
       get_public_profile_info: { Args: { _profile_id: string }; Returns: Json }
       get_public_proposal: { Args: { _token: string }; Returns: Json }
