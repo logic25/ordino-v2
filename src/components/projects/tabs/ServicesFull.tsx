@@ -355,9 +355,26 @@ function ExpensesSection({ projectId, clientId }: { projectId: string; clientId:
   const { data: expenses = [], isLoading } = useProjectExpenses(projectId);
   const release = useReleaseExpenseToBilling();
   const { toast } = useToast();
+  const [approveId, setApproveId] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Auto-open the approve dialog from the email link:
+  // /projects/:id?expense=<id>&action=approve
+  useEffect(() => {
+    const ex = searchParams.get("expense");
+    const action = searchParams.get("action");
+    if (ex && action === "approve") {
+      setApproveId(ex);
+      const next = new URLSearchParams(searchParams);
+      next.delete("expense");
+      next.delete("action");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   if (isLoading || expenses.length === 0) return null;
   const statusStyles: Record<string, string> = {
-    pending_approval: "bg-amber-100 text-amber-800",
+    pending_approval: "bg-amber-100 text-amber-800 hover:bg-amber-200",
     approved: "bg-blue-100 text-blue-800",
     denied: "bg-red-100 text-red-800",
     on_hold: "bg-yellow-100 text-yellow-800",
@@ -388,6 +405,7 @@ function ExpensesSection({ projectId, clientId }: { projectId: string; clientId:
       <div className="space-y-1.5">
         {expenses.map((e: any) => {
           const canRelease = e.status === "approved" || e.status === "on_hold";
+          const isPending = e.status === "pending_approval";
           return (
             <div key={e.id} className="flex items-center justify-between gap-2 text-sm bg-background rounded px-3 py-2 border">
               <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -401,7 +419,18 @@ function ExpensesSection({ projectId, clientId }: { projectId: string; clientId:
                 )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <Badge variant="outline" className={cn("text-xs", statusStyles[e.status] || "")}>{e.status.replace(/_/g, " ")}</Badge>
+                {isPending ? (
+                  <button
+                    type="button"
+                    onClick={() => setApproveId(e.id)}
+                    title="Review & approve"
+                    className={cn("text-xs px-2 py-0.5 rounded-md border inline-flex items-center gap-1 transition-colors", statusStyles[e.status])}
+                  >
+                    pending approval
+                  </button>
+                ) : (
+                  <Badge variant="outline" className={cn("text-xs", statusStyles[e.status] || "")}>{e.status.replace(/_/g, " ")}</Badge>
+                )}
                 <span className="font-semibold tabular-nums">{formatCurrency(Number(e.billable_amount) || 0)}</span>
                 {canRelease && (
                   <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => handleRelease(e.id)} disabled={release.isPending}>
@@ -413,9 +442,11 @@ function ExpensesSection({ projectId, clientId }: { projectId: string; clientId:
           );
         })}
       </div>
+      <ApproveExpenseDialog expenseId={approveId} open={!!approveId} onOpenChange={(o) => { if (!o) setApproveId(null); }} />
     </div>
   );
 }
+
 
 
 
