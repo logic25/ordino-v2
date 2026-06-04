@@ -44,9 +44,18 @@ export default function Projects() {
     : projects;
   const visibleProjects = (isAdmin && showAllProjects) ? projects : myProjects;
 
+  const isStale = (p: any) => {
+    if (p.status !== "open" || !p.last_activity_at) return false;
+    const threshold = p.stale_threshold_days || 14;
+    const days = Math.floor((Date.now() - new Date(p.last_activity_at).getTime()) / 86400000);
+    return days >= threshold;
+  };
+
   const filteredProjects = visibleProjects.filter((p) => {
     // Status filter
-    if (statusFilter !== "all" && p.status !== statusFilter) return false;
+    if (statusFilter === "stale") {
+      if (!isStale(p)) return false;
+    } else if (statusFilter !== "all" && p.status !== statusFilter) return false;
     // Search filter
     const query = searchQuery.toLowerCase();
     if (!query) return true;
@@ -63,6 +72,7 @@ export default function Projects() {
   const openCount = visibleProjects.filter((p) => p.status === "open").length;
   const onHoldCount = visibleProjects.filter((p) => p.status === "on_hold").length;
   const closedCount = visibleProjects.filter((p) => ["closed", "paid"].includes(p.status)).length;
+  const staleCount = visibleProjects.filter(isStale).length;
 
   const totalValue = visibleProjects.reduce(
     (sum, p) => sum + Number(p.proposals?.total_amount || 0),
