@@ -250,7 +250,7 @@ Analyze this bug and provide a triage assessment. Use the architecture context a
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash-lite",
         messages: [
           { role: "system", content: "You are a senior software engineer performing bug triage. Be specific and actionable." },
           { role: "user", content: prompt },

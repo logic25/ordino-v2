@@ -129,7 +129,7 @@ serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
+            model: "google/gemini-2.5-flash-lite",
             messages: [
               {
                 role: "system",
@@ -319,7 +319,7 @@ Only include items that appear to be active procurement opportunities (RFPs, RFQ
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
+            model: "google/gemini-2.5-flash-lite",
             messages: [
               {
                 role: "system",

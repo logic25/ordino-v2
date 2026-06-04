@@ -86,7 +86,7 @@ CRITICAL: Output ONLY the raw JSON object. No markdown. No code fences. Every ke
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: "google/gemini-2.5-flash-lite",
           messages: [
             { role: "system", content: systemPrompt },
             {
