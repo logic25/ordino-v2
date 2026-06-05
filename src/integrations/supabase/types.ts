@@ -304,6 +304,7 @@ export type Database = {
           alert_threshold_pct: number
           company_id: string
           created_at: string
+          enforce_cap: boolean
           id: string
           last_alert_sent_at: string | null
           monthly_cap_usd: number | null
@@ -314,6 +315,7 @@ export type Database = {
           alert_threshold_pct?: number
           company_id: string
           created_at?: string
+          enforce_cap?: boolean
           id?: string
           last_alert_sent_at?: string | null
           monthly_cap_usd?: number | null
@@ -324,6 +326,7 @@ export type Database = {
           alert_threshold_pct?: number
           company_id?: string
           created_at?: string
+          enforce_cap?: boolean
           id?: string
           last_alert_sent_at?: string | null
           monthly_cap_usd?: number | null
