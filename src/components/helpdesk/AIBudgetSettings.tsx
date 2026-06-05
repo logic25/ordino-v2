@@ -20,6 +20,7 @@ export function AIBudgetSettings() {
   const [cap, setCap] = useState<string>("");
   const [threshold, setThreshold] = useState<number>(80);
   const [emails, setEmails] = useState<string>("");
+  const [enforceCap, setEnforceCap] = useState<boolean>(false);
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ["ai-budget-settings", companyId],
@@ -56,6 +57,7 @@ export function AIBudgetSettings() {
       setCap(settings.monthly_cap_usd?.toString() || "");
       setThreshold(settings.alert_threshold_pct || 80);
       setEmails((settings.alert_emails || []).join(", "));
+      setEnforceCap(!!settings.enforce_cap);
     }
   }, [settings]);
 
@@ -66,6 +68,7 @@ export function AIBudgetSettings() {
         monthly_cap_usd: cap ? Number(cap) : null,
         alert_threshold_pct: threshold,
         alert_emails: emails.split(",").map(e => e.trim()).filter(Boolean),
+        enforce_cap: enforceCap,
       };
       if (settings?.id) {
         await supabase.from("ai_budget_settings" as any).update(payload).eq("id", settings.id);
