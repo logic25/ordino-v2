@@ -181,7 +181,7 @@ export async function applyBillDatePredictions(predictions: BillDatePrediction[]
   const updates = predictions.map(p =>
     supabase
       .from("services")
-      .update({ estimated_bill_date: p.predictedDate } as any)
+      .update({ estimated_bill_date: p.predictedDate, bill_date_source: "ai" } as any)
       .eq("id", p.serviceId)
   );
 
