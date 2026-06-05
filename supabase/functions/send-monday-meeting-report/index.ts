@@ -183,9 +183,15 @@ Deno.serve(async (req) => {
       const userIds = [...new Set((roles || []).map(r => r.user_id))];
       const { data: profiles } = await admin
         .from("profiles")
-        .select("id, user_id, first_name, last_name, display_name, email")
+        .select("id, user_id, first_name, last_name, display_name, email, notification_preferences")
         .eq("company_id", company.id)
         .in("user_id", userIds);
+
+      // Filter out opted-out users (default: enabled)
+      const optedInProfiles = (profiles || []).filter((p: any) => {
+        const pref = (p.notification_preferences || {}).monday_meeting_report;
+        return pref?.enabled !== false; // undefined → enabled
+      });
 
       // Pull open projects with notes + last activity
       const { data: projects } = await admin
