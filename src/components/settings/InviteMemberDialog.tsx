@@ -13,15 +13,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useCustomRoles } from "@/hooks/useUserRoles";
 
-const ROLES: { value: string; label: string; description: string }[] = [
-  { value: "pm", label: "PM", description: "Project Manager — owns their own queue & projects." },
-  { value: "manager", label: "Manager", description: "Team oversight — sees team KPIs, utilization, workload." },
-  { value: "accounting", label: "Accounting", description: "Billing & collections — full access to invoices." },
-  { value: "production", label: "Production", description: "Field/filing staff — full project access, read-only billing." },
-  { value: "admin", label: "Admin", description: "Full access to everything, including settings." },
-  { value: "staff", label: "Staff", description: "Generic team member — limited default access." },
-];
+// Roles are loaded dynamically from custom_roles (see useCustomRoles)
 
 type Invite = {
   id: string;
@@ -38,12 +32,22 @@ export function InviteMemberDialog() {
   const { profile } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { data: customRoles = [] } = useCustomRoles();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [role, setRole] = useState("pm");
+  const [role, setRole] = useState("production");
   const [saving, setSaving] = useState(false);
+
+  // Build role options from custom_roles, excluding admin (must be granted manually)
+  const roleOptions = customRoles
+    .filter((r) => r.name !== "admin")
+    .map((r) => ({
+      value: r.name,
+      label: r.name.charAt(0).toUpperCase() + r.name.slice(1),
+      description: r.description || "",
+    }));
 
   const { data: invites = [], refetch } = useQuery({
     queryKey: ["pending-invites", profile?.company_id],
@@ -63,7 +67,7 @@ export function InviteMemberDialog() {
     setEmail("");
     setFirstName("");
     setLastName("");
-    setRole("pm");
+    setRole("production");
   };
 
   const handleInvite = async () => {
@@ -93,7 +97,7 @@ export function InviteMemberDialog() {
       // Send invite email via gmail-send
       const link = `${window.location.origin}/auth`;
       const inviteeName = firstName.trim() || "there";
-      const roleDef = ROLES.find((r) => r.value === role);
+      const roleDef = roleOptions.find((r) => r.value === role);
       const roleLabel = roleDef?.label || role;
 
       const session = (await supabase.auth.getSession()).data.session;
@@ -214,7 +218,7 @@ export function InviteMemberDialog() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {ROLES.map((r) => (
+                  {roleOptions.map((r) => (
                     <SelectItem key={r.value} value={r.value}>
                       <div className="flex flex-col">
                         <span className="font-medium">{r.label}</span>
