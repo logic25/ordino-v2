@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useCustomRoles } from "@/hooks/useUserRoles";
 
 const ROLES: { value: string; label: string; description: string }[] = [
   { value: "pm", label: "PM", description: "Project Manager — owns their own queue & projects." },
