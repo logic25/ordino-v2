@@ -84,6 +84,24 @@ function BeaconQuickStats() {
 }
 
 function BeaconSettingsSection() {
+  const [backfilling, setBackfilling] = useState(false);
+  const handleBackfill = async () => {
+    setBackfilling(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke("backfill-project-summaries", {
+        body: { force: false },
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
+      });
+      if (error) throw error;
+      toast.success(`Backfill complete: ${data?.succeeded ?? 0} succeeded, ${data?.failed ?? 0} failed`);
+    } catch (e: any) {
+      toast.error(`Backfill failed: ${e?.message ?? "Unknown error"}`);
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -114,6 +132,16 @@ function BeaconSettingsSection() {
           >
             <ExternalLink className="h-4 w-4 mr-2" /> Open Beacon Dashboard
           </Button>
+          <Separator />
+          <div className="p-3 border rounded-lg space-y-2">
+            <p className="text-sm font-medium">Backfill Project AI Notes</p>
+            <p className="text-xs text-muted-foreground">
+              One-time action: generate AI summary notes for every open project so Beacon can answer questions about them. Can take a few minutes.
+            </p>
+            <Button onClick={handleBackfill} disabled={backfilling} className="w-full">
+              {backfilling ? "Backfilling…" : "Run Backfill"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
       <BeaconQuickStats />
