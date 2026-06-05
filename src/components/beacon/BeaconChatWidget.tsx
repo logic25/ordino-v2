@@ -343,57 +343,12 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
     return () => clearInterval(interval);
   }, []);
 
-  // Load history for current session when widget opens
+  // Always open as a fresh new chat. Past chats are available via the History button.
   useEffect(() => {
-    if (!open || historyLoaded || !user?.email) return;
+    if (!open || historyLoaded) return;
+    setHistoryLoaded(true);
+  }, [open, historyLoaded]);
 
-    (async () => {
-      try {
-        // Try to load the most recent session
-        const { data: recentData } = await supabase
-          .from("widget_messages" as any)
-          .select("session_id, role, content, metadata, created_at")
-          .eq("user_email", user.email!)
-          .is("deleted_at", null)
-          .order("created_at", { ascending: false })
-          .limit(1);
-
-        if (recentData && recentData.length > 0) {
-          const recentSessionId = (recentData as any[])[0].session_id;
-          if (recentSessionId) {
-            setSessionId(recentSessionId);
-            // Load all messages for that session
-            const { data } = await supabase
-              .from("widget_messages" as any)
-              .select("role, content, metadata, created_at")
-              .eq("user_email", user.email!)
-              .eq("session_id", recentSessionId)
-              .is("deleted_at", null)
-              .order("created_at", { ascending: true })
-              .limit(50);
-
-            if (data && data.length > 0) {
-              const history: ChatMessage[] = (data as any[]).map((row) => ({
-                role: row.role === "user" ? "user" : "beacon",
-                text: row.content,
-                confidence: row.metadata?.confidence,
-                sources: row.metadata?.sources || [],
-                flowType: row.metadata?.flow_type,
-                isHistory: true,
-                timestamp: row.created_at,
-              }));
-              setMessages(history);
-              setHistoryCount(history.length);
-            }
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load Beacon history:", err);
-      } finally {
-        setHistoryLoaded(true);
-      }
-    })();
-  }, [open, historyLoaded, user?.email]);
 
   // Scroll to the top of the latest bot response, or bottom for user messages
   useEffect(() => {
@@ -658,19 +613,21 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
     try {
       const userEmail = user?.email;
       if (!userEmail) return;
-      await supabase
+      const { error } = await supabase
         .from("widget_messages" as any)
         .update({ deleted_at: new Date().toISOString() } as any)
         .eq("user_email", userEmail)
-        .eq("session_id", targetSessionId);
+        .eq("session_id", targetSessionId)
+        .is("deleted_at", null);
+      if (error) throw error;
       setHistorySessions((prev) => prev.filter((s) => s.session_id !== targetSessionId));
       if (sessionId === targetSessionId) {
         handleNewChat();
       }
       toast.success("Chat deleted");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to delete session:", err);
-      toast.error("Failed to delete chat");
+      toast.error(err?.message || "Failed to delete chat");
     }
   };
 
@@ -678,18 +635,21 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
     try {
       const userEmail = user?.email;
       if (!userEmail) return;
-      await supabase
+      const { error } = await supabase
         .from("widget_messages" as any)
         .update({ deleted_at: new Date().toISOString() } as any)
-        .eq("user_email", userEmail);
+        .eq("user_email", userEmail)
+        .is("deleted_at", null);
+      if (error) throw error;
       setHistorySessions([]);
       handleNewChat();
       toast.success("All chats cleared");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to clear all sessions:", err);
-      toast.error("Failed to clear chats");
+      toast.error(err?.message || "Failed to clear chats");
     }
   };
+
 
   const handleLogBug = async (msgIndex: number) => {
     const msg = messages[msgIndex];
