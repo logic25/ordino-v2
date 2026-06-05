@@ -218,7 +218,7 @@ export function InviteMemberDialog() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {ROLES.map((r) => (
+                  {roleOptions.map((r) => (
                     <SelectItem key={r.value} value={r.value}>
                       <div className="flex flex-col">
                         <span className="font-medium">{r.label}</span>
