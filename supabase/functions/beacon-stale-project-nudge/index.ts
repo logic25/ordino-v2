@@ -25,11 +25,6 @@ Deno.serve(async (req) => {
   }
 
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
-
   const { data: projects, error } = await supabase
     .from("projects")
     .select("id, company_id, name, project_number, assigned_pm_id, senior_pm_id, last_activity_at, stale_threshold_days, properties(address)")
