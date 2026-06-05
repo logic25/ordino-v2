@@ -395,6 +395,57 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
           });
         }
 
+        // ---- Project status intercept ----
+        // When viewing a project, route "what's going on / status / update" questions
+        // to our internal summarize-project function so it uses the project's real
+        // notes, emails, checklist & activity (Railway Beacon doesn't have this data).
+        const statusRegex = /\b(status|what(?:'?s| is)? (?:going on|happening|the status|up)|where (?:are we|do we stand)|update|summary|summarize|recap|catch me up|going on with)\b/i;
+        if (activeContext?.projectId && statusRegex.test(q)) {
+          try {
+            const { data, error } = await supabase.functions.invoke("summarize-project", {
+              body: { projectId: activeContext.projectId, persist: true, source: "ai_on_demand" },
+            });
+            if (error) throw error;
+            const summary: string = data?.summary || "No summary returned.";
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: "beacon",
+                text: summary + "\n\n_Saved to project notes._",
+                confidence: 1,
+                sources: [],
+                flowType: "project_summary",
+                timestamp: new Date().toISOString(),
+              },
+            ]);
+            if (userEmail) {
+              await supabase.from("widget_messages" as any).insert({
+                user_email: userEmail,
+                role: "assistant",
+                content: summary,
+                metadata: { flow_type: "project_summary", project_id: activeContext.projectId },
+                session_id: sessionId,
+                company_id: profile?.company_id || null,
+              });
+            }
+            continue;
+          } catch (e: any) {
+            console.error("summarize-project failed:", e);
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: "beacon",
+                text: `Couldn't pull this project's status: ${e?.message || "unknown error"}`,
+                confidence: 0,
+                sources: [],
+                timestamp: new Date().toISOString(),
+              },
+            ]);
+            continue;
+          }
+        }
+
+
         // Prepend project context as system context when active
         let enrichedQuery = q;
         // Always prepend current page so Beacon knows where the user is
