@@ -162,15 +162,18 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    // Auth
-    let cronSecret = Deno.env.get("CRON_SECRET") || "";
-    if (!cronSecret) {
-      const { data } = await admin.schema("vault" as any).from("decrypted_secrets").select("decrypted_secret").eq("name", "cron_secret").maybeSingle();
-      cronSecret = (data as any)?.decrypted_secret || "";
-    }
-    if (req.headers.get("x-cron-secret") !== cronSecret) {
+    // Auth — accept either the env CRON_SECRET or the vault `cron_secret` (covers both managed-env and pg_net callers)
+    const provided = req.headers.get("x-cron-secret") || "";
+    const acceptable = new Set<string>();
+    const envSecret = Deno.env.get("CRON_SECRET");
+    if (envSecret) acceptable.add(envSecret);
+    const { data: vaultRow } = await admin.schema("vault" as any).from("decrypted_secrets").select("decrypted_secret").eq("name", "cron_secret").maybeSingle();
+    const vaultSecret = (vaultRow as any)?.decrypted_secret;
+    if (vaultSecret) acceptable.add(vaultSecret);
+    if (!provided || !acceptable.has(provided)) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+
 
     // For each company
     const { data: companies } = await admin.from("companies").select("id, name");
