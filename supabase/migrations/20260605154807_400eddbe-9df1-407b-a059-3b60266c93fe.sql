@@ -1,0 +1,1 @@
+ALTER TABLE public.ai_budget_settings ADD COLUMN IF NOT EXISTS enforce_cap boolean NOT NULL DEFAULT false;

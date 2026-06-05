@@ -72,6 +72,7 @@ export interface ProjectFormInput {
   client_reference_number?: string | null;
   completion_date?: string | null;
   notes?: string | null;
+  stale_threshold_days?: number | null;
 }
 
 export function useProjects() {

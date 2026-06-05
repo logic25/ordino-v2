@@ -20,6 +20,7 @@ export function AIBudgetSettings() {
   const [cap, setCap] = useState<string>("");
   const [threshold, setThreshold] = useState<number>(80);
   const [emails, setEmails] = useState<string>("");
+  const [enforceCap, setEnforceCap] = useState<boolean>(false);
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ["ai-budget-settings", companyId],
@@ -56,6 +57,7 @@ export function AIBudgetSettings() {
       setCap(settings.monthly_cap_usd?.toString() || "");
       setThreshold(settings.alert_threshold_pct || 80);
       setEmails((settings.alert_emails || []).join(", "));
+      setEnforceCap(!!settings.enforce_cap);
     }
   }, [settings]);
 
@@ -66,6 +68,7 @@ export function AIBudgetSettings() {
         monthly_cap_usd: cap ? Number(cap) : null,
         alert_threshold_pct: threshold,
         alert_emails: emails.split(",").map(e => e.trim()).filter(Boolean),
+        enforce_cap: enforceCap,
       };
       if (settings?.id) {
         await supabase.from("ai_budget_settings" as any).update(payload).eq("id", settings.id);
@@ -129,7 +132,27 @@ export function AIBudgetSettings() {
             onChange={e => setCap(e.target.value)}
             className="h-9 text-sm"
           />
-          <p className="text-[11px] text-muted-foreground">Leave blank for no cap. Used for alerts only — does not block AI calls.</p>
+          <p className="text-[11px] text-muted-foreground">Leave blank for no cap.</p>
+        </div>
+
+        {/* Enforcement toggle */}
+        <div className="flex items-start gap-3 rounded-md border p-3">
+          <input
+            id="enforce_cap"
+            type="checkbox"
+            checked={enforceCap}
+            onChange={(e) => setEnforceCap(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-border accent-primary"
+            disabled={!cap}
+          />
+          <div className="flex-1">
+            <Label htmlFor="enforce_cap" className="text-xs font-medium cursor-pointer">
+              Block AI requests when over cap
+            </Label>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              When on, AI-powered features stop running for the rest of the month once you exceed the cap. When off, you only get alerts.
+            </p>
+          </div>
         </div>
 
         {/* Alert threshold */}
