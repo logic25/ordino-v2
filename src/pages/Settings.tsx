@@ -94,7 +94,8 @@ function BeaconSettingsSection() {
         headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
       });
       if (error) throw error;
-      toast.success(`Backfill complete: ${data?.succeeded ?? 0} succeeded, ${data?.failed ?? 0} failed`);
+      toast.success(data?.message ?? `Backfill started for ${data?.total ?? 0} projects. Runs in the background — check back in a few minutes.`);
+
     } catch (e: any) {
       toast.error(`Backfill failed: ${e?.message ?? "Unknown error"}`);
     } finally {
