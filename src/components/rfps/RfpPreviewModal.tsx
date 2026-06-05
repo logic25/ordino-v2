@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo } from "react";
+import DOMPurify from "dompurify";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +14,7 @@ import {
 import type { Rfp } from "@/hooks/useRfps";
 import { buildRfpEmailHtml } from "./buildRfpEmailBody";
 import { generateRfpPdfBlob } from "./RfpResponsePDF";
+
 
 interface PreviewData {
   rfp: Rfp | null;
