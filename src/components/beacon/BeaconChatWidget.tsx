@@ -396,52 +396,105 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
         }
 
         // ---- Project status intercept ----
-        // When viewing a project, route "what's going on / status / update" questions
-        // to our internal summarize-project function so it uses the project's real
-        // notes, emails, checklist & activity (Railway Beacon doesn't have this data).
+        // Detects status-style questions and routes to our internal summarize-project
+        // function. Resolves the project from either active context OR a project
+        // number / name mentioned inline in the question.
         const statusRegex = /\b(status|what(?:'?s| is)? (?:going on|happening|the status|up)|where (?:are we|do we stand)|update|summary|summarize|recap|catch me up|going on with)\b/i;
-        if (activeContext?.projectId && statusRegex.test(q)) {
-          try {
-            const { data, error } = await supabase.functions.invoke("summarize-project", {
-              body: { projectId: activeContext.projectId, persist: true, source: "ai_on_demand" },
-            });
-            if (error) throw error;
-            const summary: string = data?.summary || "No summary returned.";
-            setMessages((prev) => [
-              ...prev,
-              {
-                role: "beacon",
-                text: summary + "\n\n_Saved to project notes._",
-                confidence: 1,
-                sources: [],
-                flowType: "project_summary",
-                timestamp: new Date().toISOString(),
-              },
-            ]);
-            if (userEmail) {
-              await supabase.from("widget_messages" as any).insert({
-                user_email: userEmail,
-                role: "assistant",
-                content: summary,
-                metadata: { flow_type: "project_summary", project_id: activeContext.projectId },
-                session_id: sessionId,
-                company_id: profile?.company_id || null,
-              });
+        if (statusRegex.test(q)) {
+          let resolvedProjectId: string | null = activeContext?.projectId || null;
+          let resolvedLabel: string | null = null;
+
+          if (!resolvedProjectId && profile?.company_id) {
+            // Try project number like 0737-2026
+            const numMatch = q.match(/\b(\d{2,4}-\d{2,4})\b/);
+            if (numMatch) {
+              const { data: pj } = await supabase
+                .from("projects")
+                .select("id, project_number, name")
+                .eq("company_id", profile.company_id)
+                .eq("project_number", numMatch[1])
+                .maybeSingle();
+              if (pj) {
+                resolvedProjectId = pj.id;
+                resolvedLabel = `${pj.project_number} — ${pj.name}`;
+              }
             }
-            continue;
-          } catch (e: any) {
-            console.error("summarize-project failed:", e);
-            setMessages((prev) => [
-              ...prev,
-              {
-                role: "beacon",
-                text: `Couldn't pull this project's status: ${e?.message || "unknown error"}`,
-                confidence: 0,
-                sources: [],
-                timestamp: new Date().toISOString(),
-              },
-            ]);
-            continue;
+
+            // Fuzzy name match
+            if (!resolvedProjectId) {
+              const nameMatch = q.match(/(?:project|with|for|on)\s+(?:the\s+)?([A-Za-z0-9][A-Za-z0-9 &'\-\.]{2,60})/i);
+              const term = nameMatch?.[1]?.trim().replace(/[?.!,]+$/, "");
+              if (term && term.length >= 3) {
+                const { data: pjs } = await supabase
+                  .from("projects")
+                  .select("id, project_number, name")
+                  .eq("company_id", profile.company_id)
+                  .ilike("name", `%${term}%`)
+                  .limit(3);
+                if (pjs && pjs.length === 1) {
+                  resolvedProjectId = pjs[0].id;
+                  resolvedLabel = `${pjs[0].project_number} — ${pjs[0].name}`;
+                } else if (pjs && pjs.length > 1) {
+                  setMessages((prev) => [
+                    ...prev,
+                    {
+                      role: "beacon",
+                      text: `I found multiple projects matching "${term}":\n\n${pjs.map(p => `• ${p.project_number} — ${p.name}`).join("\n")}\n\nWhich one? (paste the project number)`,
+                      confidence: 1,
+                      sources: [],
+                      timestamp: new Date().toISOString(),
+                    },
+                  ]);
+                  continue;
+                }
+              }
+            }
+          }
+
+          if (resolvedProjectId) {
+            try {
+              const { data, error } = await supabase.functions.invoke("summarize-project", {
+                body: { projectId: resolvedProjectId, persist: true, source: "ai_on_demand" },
+              });
+              if (error) throw error;
+              const summary: string = data?.summary || "No summary returned.";
+              const header = resolvedLabel ? `**${resolvedLabel}**\n\n` : "";
+              setMessages((prev) => [
+                ...prev,
+                {
+                  role: "beacon",
+                  text: header + summary + "\n\n_Saved to project notes._",
+                  confidence: 1,
+                  sources: [],
+                  flowType: "project_summary",
+                  timestamp: new Date().toISOString(),
+                },
+              ]);
+              if (userEmail) {
+                await supabase.from("widget_messages" as any).insert({
+                  user_email: userEmail,
+                  role: "assistant",
+                  content: summary,
+                  metadata: { flow_type: "project_summary", project_id: resolvedProjectId },
+                  session_id: sessionId,
+                  company_id: profile?.company_id || null,
+                });
+              }
+              continue;
+            } catch (e: any) {
+              console.error("summarize-project failed:", e);
+              setMessages((prev) => [
+                ...prev,
+                {
+                  role: "beacon",
+                  text: `Couldn't pull that project's status: ${e?.message || "unknown error"}`,
+                  confidence: 0,
+                  sources: [],
+                  timestamp: new Date().toISOString(),
+                },
+              ]);
+              continue;
+            }
           }
         }
 
