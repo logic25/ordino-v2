@@ -190,30 +190,34 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    const supabaseUser = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    const callerAuthId = user.id;
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const { data: callerProfile } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("user_id", callerAuthId)
-      .single();
+    const authHeader = req.headers.get("Authorization");
+    const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    const isServiceRole = token && token === serviceRoleKey;
+
+    let callerAuthId: string | null = null;
+    if (!isServiceRole) {
+      if (!token) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const supabaseUser = createClient(
+        supabaseUrl,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: `Bearer ${token}` } } }
+      );
+      const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
+      if (userError || !user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      callerAuthId = user.id;
+    }
+
+    const { data: callerProfile } = callerAuthId
+      ? await supabase.from("profiles").select("id").eq("user_id", callerAuthId).single()
+      : { data: null as { id: string } | null };
 
     const body = await req.json();
     const { action, bug_id, bug_title, bug_description, bug_priority, company_id, reporter_name } = body;
