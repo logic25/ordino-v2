@@ -48,20 +48,25 @@ Deno.serve(async (req) => {
       resolvedCronSecret = (vaultRow as any)?.decrypted_secret || "";
     }
 
-    // ---- Auth: user JWT OR cron secret ----
+    // ---- Auth: user JWT OR cron secret OR service role key ----
     let actorUserId: string | undefined;
     let companyId: string | undefined;
     const callerCronSecret = req.headers.get("x-cron-secret");
+    const authHeader = req.headers.get("Authorization") || "";
+    const bearer = authHeader.replace("Bearer ", "");
+
     if (resolvedCronSecret && callerCronSecret === resolvedCronSecret) {
       actorUserId = body.actorUserId;
       companyId = body.companyId;
+    } else if (bearer && bearer === serviceKey) {
+      // Trusted backend caller using the service role key.
+      actorUserId = body.actorUserId;
+      companyId = body.companyId;
     } else {
-      const authHeader = req.headers.get("Authorization") || "";
-      const jwt = authHeader.replace("Bearer ", "");
       const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
         global: { headers: { Authorization: authHeader } },
       });
-      const { data: { user }, error: userErr } = await userClient.auth.getUser(jwt);
+      const { data: { user }, error: userErr } = await userClient.auth.getUser(bearer);
       if (userErr || !user) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
