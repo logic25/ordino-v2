@@ -97,7 +97,7 @@ export function InviteMemberDialog() {
       // Send invite email via gmail-send
       const link = `${window.location.origin}/auth`;
       const inviteeName = firstName.trim() || "there";
-      const roleDef = ROLES.find((r) => r.value === role);
+      const roleDef = roleOptions.find((r) => r.value === role);
       const roleLabel = roleDef?.label || role;
 
       const session = (await supabase.auth.getSession()).data.session;
