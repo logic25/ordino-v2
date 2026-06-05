@@ -45,73 +45,74 @@ Deno.serve(async (req) => {
       .in("status", ["open"]);
     if (projErr) throw projErr;
 
-    const results: any[] = [];
-    let ok = 0, skipped = 0, failed = 0;
+    const projectList = projects || [];
 
-    for (const p of projects || []) {
-      // Skip if a fresh AI note already exists, unless force=true
-      if (!force) {
-        const since = new Date(Date.now() - 6 * 3600 * 1000).toISOString();
-        const { data: recent } = await admin
-          .from("project_notes")
-          .select("id")
-          .eq("project_id", p.id)
-          .in("source", ["ai_on_demand", "ai_weekly", "ai_auto"])
-          .gte("created_at", since)
-          .limit(1);
-        if (recent && recent.length > 0) {
-          skipped++;
-          results.push({ project_id: p.id, name: p.name, status: "skipped" });
-          continue;
-        }
-      }
+    // Run the heavy loop in the background so we don't hit the 150s request timeout.
+    const work = (async () => {
+      let ok = 0, skipped = 0, failed = 0;
+      for (const p of projectList) {
+        try {
+          if (!force) {
+            const since = new Date(Date.now() - 6 * 3600 * 1000).toISOString();
+            const { data: recent } = await admin
+              .from("project_notes")
+              .select("id")
+              .eq("project_id", p.id)
+              .in("source", ["ai_on_demand", "ai_weekly", "ai_auto"])
+              .gte("created_at", since)
+              .limit(1);
+            if (recent && recent.length > 0) { skipped++; continue; }
+          }
 
-      let actorUserId: string | undefined;
-      if (p.assigned_pm_id) {
-        const { data: pm } = await admin
-          .from("profiles").select("user_id").eq("id", p.assigned_pm_id).maybeSingle();
-        actorUserId = pm?.user_id || user.id;
-      } else {
-        actorUserId = user.id;
-      }
+          let actorUserId: string | undefined = user.id;
+          if (p.assigned_pm_id) {
+            const { data: pm } = await admin
+              .from("profiles").select("user_id").eq("id", p.assigned_pm_id).maybeSingle();
+            actorUserId = pm?.user_id || user.id;
+          }
 
-      try {
-        const res = await fetch(`${supabaseUrl}/functions/v1/summarize-project`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${serviceKey}`,
-            "apikey": serviceKey,
-          },
-          body: JSON.stringify({
-            projectId: p.id,
-            companyId: prof.company_id,
-            actorUserId,
-            persist: true,
-            source: "ai_on_demand",
-          }),
-        });
-        const json = await res.json().catch(() => ({}));
-        if (res.ok) {
-          ok++;
-          results.push({ project_id: p.id, name: p.name, status: "ok" });
-        } else {
+          const res = await fetch(`${supabaseUrl}/functions/v1/summarize-project`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${serviceKey}`,
+              "apikey": serviceKey,
+            },
+            body: JSON.stringify({
+              projectId: p.id,
+              companyId: prof.company_id,
+              actorUserId,
+              persist: true,
+              source: "ai_on_demand",
+            }),
+          });
+          if (res.ok) ok++; else failed++;
+        } catch (e) {
           failed++;
-          results.push({ project_id: p.id, name: p.name, status: "failed", error: json?.error || res.status });
+          console.error("backfill project failed", p.id, e);
         }
-      } catch (e: any) {
-        failed++;
-        results.push({ project_id: p.id, name: p.name, status: "failed", error: e?.message });
+        await new Promise((r) => setTimeout(r, 150));
       }
+      console.log(`backfill-project-summaries done: ok=${ok} skipped=${skipped} failed=${failed} total=${projectList.length}`);
+    })();
 
-      // Small delay to ease rate limits
-      await new Promise((r) => setTimeout(r, 250));
+    // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
+    if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(work);
+    } else {
+      work.catch((e) => console.error("backfill background error", e));
     }
 
     return new Response(
-      JSON.stringify({ total: (projects || []).length, ok, skipped, failed, results }),
+      JSON.stringify({
+        queued: true,
+        total: projectList.length,
+        message: `Backfill started for ${projectList.length} projects. This runs in the background and may take a few minutes.`,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
+
   } catch (e: any) {
     console.error("backfill-project-summaries error", e);
     return new Response(JSON.stringify({ error: e.message || String(e) }), {
