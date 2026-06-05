@@ -122,3 +122,6 @@ verify_jwt = false
 
 [functions.auto-summarize-projects]
 verify_jwt = false
+
+[functions.summarize-project]
+verify_jwt = false
