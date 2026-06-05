@@ -166,7 +166,7 @@ export function InviteMemberDialog() {
   };
 
   const handleCopyLink = async () => {
-    await navigator.clipboard.writeText(`${window.location.origin}/auth`);
+    await navigator.clipboard.writeText("https://ordinopm.com/auth");
     toast({ title: "Sign-in link copied" });
   };
 
