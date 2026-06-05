@@ -4,7 +4,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Loader2, Save, Bell, Receipt, FolderKanban, FileText, Mail, Megaphone } from "lucide-react";
+import { Loader2, Save, Bell, Receipt, FolderKanban, FileText, Mail, Megaphone, CalendarDays } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -22,6 +22,7 @@ const CATEGORIES: NotificationCategory[] = [
   { key: "project_updates", label: "Project Updates", description: "Assignments, checklist changes, status updates", icon: FolderKanban },
   { key: "proposal_activity", label: "Proposal Activity", description: "New proposals, status changes, follow-ups", icon: FileText },
   { key: "email_alerts", label: "Email Alerts", description: "New emails, follow-up reminders", icon: Mail },
+  { key: "monday_meeting_report", label: "Monday Meeting Report", description: "Sunday 11pm email with top-of-mind projects, filings, wins, and where help is needed", icon: CalendarDays },
   { key: "system_alerts", label: "System Alerts", description: "Feature updates, product news", icon: Megaphone },
 ];
 
