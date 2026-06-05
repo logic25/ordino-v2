@@ -94,8 +94,9 @@ export function InviteMemberDialog() {
       } as any);
       if (error) throw error;
 
-      // Send invite email via gmail-send
-      const link = `${window.location.origin}/auth`;
+      // Send invite email via gmail-send — always use production URL, not preview/editor origin
+      const PRODUCTION_URL = "https://ordinopm.com";
+      const link = `${PRODUCTION_URL}/auth`;
       const inviteeName = firstName.trim() || "there";
       const roleDef = roleOptions.find((r) => r.value === role);
       const roleLabel = roleDef?.label || role;
@@ -165,7 +166,7 @@ export function InviteMemberDialog() {
   };
 
   const handleCopyLink = async () => {
-    await navigator.clipboard.writeText(`${window.location.origin}/auth`);
+    await navigator.clipboard.writeText("https://ordinopm.com/auth");
     toast({ title: "Sign-in link copied" });
   };
 
