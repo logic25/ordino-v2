@@ -32,12 +32,22 @@ export function InviteMemberDialog() {
   const { profile } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { data: customRoles = [] } = useCustomRoles();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [role, setRole] = useState("pm");
+  const [role, setRole] = useState("production");
   const [saving, setSaving] = useState(false);
+
+  // Build role options from custom_roles, excluding admin (must be granted manually)
+  const roleOptions = customRoles
+    .filter((r) => r.name !== "admin")
+    .map((r) => ({
+      value: r.name,
+      label: r.name.charAt(0).toUpperCase() + r.name.slice(1),
+      description: r.description || "",
+    }));
 
   const { data: invites = [], refetch } = useQuery({
     queryKey: ["pending-invites", profile?.company_id],
