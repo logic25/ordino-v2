@@ -3,9 +3,31 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-sentry-hook",
+    "authorization, x-client-info, apikey, content-type, sentry-hook-signature, sentry-hook-resource",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+// Constant-time hex compare
+function timingSafeEqualHex(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < a.length; i++) mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return mismatch === 0;
+}
+
+async function verifySentrySignature(rawBody: string, headerSig: string | null, secret: string): Promise<boolean> {
+  if (!headerSig) return false;
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody));
+  const hex = Array.from(new Uint8Array(mac)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return timingSafeEqualHex(hex, headerSig.toLowerCase());
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -19,10 +41,30 @@ Deno.serve(async (req) => {
     });
   }
 
-  try {
-    const body = await req.json();
+  // ---- Auth: fail-closed signature verification ----
+  const secret = Deno.env.get("SENTRY_WEBHOOK_SECRET");
+  if (!secret) {
+    console.error("SENTRY_WEBHOOK_SECRET not configured — refusing request");
+    return new Response(JSON.stringify({ error: "Webhook not configured" }), {
+      status: 503,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
-    // Sentry sends issue alerts with action = "created" or "triggered"
+  const rawBody = await req.text();
+  const sig = req.headers.get("sentry-hook-signature");
+  const ok = await verifySentrySignature(rawBody, sig, secret);
+  if (!ok) {
+    console.warn("Sentry webhook signature mismatch");
+    return new Response(JSON.stringify({ error: "Invalid signature" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  try {
+    const body = JSON.parse(rawBody);
+
     const action = body.action;
     if (!action) {
       return new Response(JSON.stringify({ ok: true, skipped: true }), {
@@ -34,23 +76,18 @@ Deno.serve(async (req) => {
     const issueData = body.data?.issue || body.data?.event || {};
     const errorTitle = issueData.title || issueData.metadata?.type || "Unknown error";
     const errorMessage = issueData.metadata?.value || issueData.culprit || "";
-    const platform = issueData.platform || "javascript";
     const tags = issueData.tags || [];
-
-    // Try to extract the affected page from tags or URL
     const urlTag = tags.find((t: any) => t.key === "url" || t.key === "page");
-    const affectedPage = urlTag?.value || "";
+    const _affectedPage = urlTag?.value || "";
 
-    // Try to extract the user email from the issue context
     const userContext = issueData.user || {};
     const userEmail = userContext.email || "";
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Check if this matches a known bug pattern
     const { data: patterns } = await supabase
       .from("bug_patterns")
       .select("*")
@@ -64,32 +101,43 @@ Deno.serve(async (req) => {
       return words.some((w: string) => patternText.includes(w));
     });
 
-    // If we can identify the user, insert a proactive Beacon message
+    // Only insert a widget message if userEmail corresponds to a real profile.
+    // This prevents injection of "assistant" messages for arbitrary addresses.
     if (userEmail) {
-      let proactiveMessage = `🔔 I noticed a JavaScript error on the page you were just on:\n\n**${errorTitle}**`;
-      if (errorMessage) proactiveMessage += `\n${errorMessage}`;
-      if (matchedPattern) {
-        proactiveMessage += `\n\nThis matches a known pattern: **"${matchedPattern.pattern_name}"** (seen ${matchedPattern.occurrences}x before). Root cause: ${matchedPattern.root_cause || "under investigation"}.`;
-        if (matchedPattern.fix_pattern) {
-          proactiveMessage += ` Fix: ${matchedPattern.fix_pattern}`;
-        }
-      }
-      proactiveMessage += `\n\nWas something not working correctly? Let me know and I can log it as a bug.`;
+      const { data: knownProfile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", userEmail)
+        .maybeSingle();
 
-      await supabase.from("widget_messages").insert({
-        user_email: userEmail,
-        role: "assistant",
-        content: proactiveMessage,
-        metadata: {
-          source: "sentry",
-          error_title: errorTitle,
-          matched_pattern: matchedPattern?.pattern_name || null,
-          is_bug_report: true,
-        },
-      });
+      if (knownProfile) {
+        let proactiveMessage = `🔔 I noticed a JavaScript error on the page you were just on:\n\n**${errorTitle}**`;
+        if (errorMessage) proactiveMessage += `\n${errorMessage}`;
+        if (matchedPattern) {
+          proactiveMessage += `\n\nThis matches a known pattern: **"${matchedPattern.pattern_name}"** (seen ${matchedPattern.occurrences}x before). Root cause: ${matchedPattern.root_cause || "under investigation"}.`;
+          if (matchedPattern.fix_pattern) {
+            proactiveMessage += ` Fix: ${matchedPattern.fix_pattern}`;
+          }
+        }
+        proactiveMessage += `\n\nWas something not working correctly? Let me know and I can log it as a bug.`;
+
+        await supabase.from("widget_messages").insert({
+          user_email: userEmail,
+          role: "assistant",
+          content: proactiveMessage,
+          metadata: {
+            source: "sentry",
+            error_title: errorTitle,
+            matched_pattern: matchedPattern?.pattern_name || null,
+            is_bug_report: true,
+          },
+        });
+      } else {
+        console.log(`Sentry alert for unknown email ${userEmail} — not inserting widget message`);
+      }
     }
 
-    console.log(`Sentry alert processed: "${errorTitle}" | user: ${userEmail || "unknown"} | pattern match: ${matchedPattern?.pattern_name || "none"}`);
+    console.log(`Sentry alert processed: "${errorTitle}" | pattern match: ${matchedPattern?.pattern_name || "none"}`);
 
     return new Response(JSON.stringify({ ok: true, matched_pattern: matchedPattern?.pattern_name || null }), {
       status: 200,
