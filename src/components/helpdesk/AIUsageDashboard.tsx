@@ -14,6 +14,7 @@ import {
 import { Brain, Zap, DollarSign, TrendingUp, Users, ExternalLink, HelpCircle, Info, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BeaconAnalyticsDashboard } from "./BeaconAnalyticsDashboard";
+import { AIBudgetSettings } from "./AIBudgetSettings";
 
 // Human-readable labels for each AI feature
 const FEATURE_LABELS: Record<string, { label: string; description: string }> = {
@@ -613,6 +614,9 @@ export function AIUsageDashboard() {
           </Button>
         </CardContent>
       </Card>
+
+      {/* AI budget settings */}
+      <AIBudgetSettings />
 
       <p className="text-[11px] text-muted-foreground">
         * Costs are estimates. Actual billing is managed through your Lovable workspace.{" "}
