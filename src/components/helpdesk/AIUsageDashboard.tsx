@@ -153,21 +153,22 @@ export function AIUsageDashboard() {
 
   // By user
   const byUser = Object.entries(
-    logs.reduce((acc: Record<string, { count: number; tokens: number; name: string }>, l: any) => {
+    logs.reduce((acc: Record<string, { count: number; tokens: number; cost: number; name: string }>, l: any) => {
       const key = l.user_id || "system";
       const name =
         l.profiles?.display_name ||
         [l.profiles?.first_name, l.profiles?.last_name].filter(Boolean).join(" ") ||
         "Automated / System";
-      if (!acc[key]) acc[key] = { count: 0, tokens: 0, name };
+      if (!acc[key]) acc[key] = { count: 0, tokens: 0, cost: 0, name };
       acc[key].count++;
       acc[key].tokens += l.total_tokens || 0;
+      acc[key].cost += parseFloat(l.estimated_cost_usd) || 0;
       return acc;
     }, {})
   )
     .map(([uid, d]) => ({ uid, ...d }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 8);
+    .sort((a, b) => b.cost - a.cost)
+    .slice(0, 12);
 
   // Daily trend
   const byDay = Object.entries(
@@ -418,8 +419,8 @@ export function AIUsageDashboard() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-1.5">
-              <Users className="h-4 w-4" /> Usage by Team Member
-              <InfoTip>How many AI calls each person triggered. "Automated" calls happen in the background (e.g. scheduled reminders).</InfoTip>
+              <Users className="h-4 w-4" /> Top Spenders by Team Member
+              <InfoTip>Sorted by estimated cost. "Automated" calls happen in the background (e.g. scheduled reminders, Monday Report).</InfoTip>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -430,7 +431,7 @@ export function AIUsageDashboard() {
             ) : (
               <div className="space-y-2">
                 {byUser.map((u) => {
-                  const pct = totalRequests > 0 ? (u.count / totalRequests) * 100 : 0;
+                  const pct = totalCost > 0 ? (u.cost / totalCost) * 100 : 0;
                   return (
                     <div key={u.uid} className="flex items-center gap-3">
                       <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -441,7 +442,9 @@ export function AIUsageDashboard() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1">
                           <span className="text-xs font-medium truncate">{u.name}</span>
-                          <span className="text-[10px] text-muted-foreground shrink-0">{u.count} calls</span>
+                          <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">
+                            {formatCostFull(u.cost)} · {u.count} calls
+                          </span>
                         </div>
                         <div className="mt-0.5 h-1.5 rounded-full bg-muted overflow-hidden">
                           <div
