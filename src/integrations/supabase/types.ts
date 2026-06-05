@@ -7909,6 +7909,7 @@ export type Database = {
           application_id: string
           assigned_to: string | null
           assigned_to_name: string | null
+          bill_date_source: string
           billed_amount: number | null
           billed_at: string | null
           billing_milestones: Json | null
@@ -7945,6 +7946,7 @@ export type Database = {
           application_id: string
           assigned_to?: string | null
           assigned_to_name?: string | null
+          bill_date_source?: string
           billed_amount?: number | null
           billed_at?: string | null
           billing_milestones?: Json | null
@@ -7981,6 +7983,7 @@ export type Database = {
           application_id?: string
           assigned_to?: string | null
           assigned_to_name?: string | null
+          bill_date_source?: string
           billed_amount?: number | null
           billed_at?: string | null
           billing_milestones?: Json | null
