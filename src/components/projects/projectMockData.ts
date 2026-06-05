@@ -32,6 +32,7 @@ export interface MockService {
   costAmount: number;
   assignedTo: string;
   estimatedBillDate: string | null;
+  billDateSource?: "manual" | "ai";
   billedAt: string | null;
   scopeOfWork: string;
   jobDescription?: string;

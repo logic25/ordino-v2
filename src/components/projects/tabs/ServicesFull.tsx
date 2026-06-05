@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Pencil, FileText, User, Loader2, ExternalLink, ChevronRight, ChevronDown,
   Send, XCircle, CheckCheck, Plus, AlertTriangle, Trash2, DollarSign,
@@ -490,10 +491,12 @@ export function ServicesFull({ services: initialServices, project, contacts, all
   }, [filingAuditLogs]);
 
   const updateServiceField = async (id: string, field: "assignedTo" | "estimatedBillDate", value: string) => {
-    setOrderedServices(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
+    setOrderedServices(prev => prev.map(s => s.id === id ? { ...s, [field]: value, ...(field === "estimatedBillDate" ? { billDateSource: "manual" as const } : {}) } : s));
     const dbField = field === "assignedTo" ? "assigned_to" : "estimated_bill_date";
     try {
-      await supabase.from("services").update({ [dbField]: value || null } as any).eq("id", id);
+      const patch: any = { [dbField]: value || null };
+      if (field === "estimatedBillDate") patch.bill_date_source = "manual";
+      await supabase.from("services").update(patch).eq("id", id);
       toast({ title: "Updated", description: `Service ${field === "assignedTo" ? "assignment" : "bill date"} updated.` });
     } catch (err: any) {
       toast({ title: "Error saving", description: err.message, variant: "destructive" });
@@ -783,8 +786,20 @@ export function ServicesFull({ services: initialServices, project, contacts, all
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <Popover open={editingBillDate === svc.id} onOpenChange={(open) => setEditingBillDate(open ? svc.id : null)}>
                             <PopoverTrigger asChild>
-                              <button className="h-7 px-1 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/40 rounded cursor-pointer whitespace-nowrap">
+                              <button className="h-7 px-1 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/40 rounded cursor-pointer whitespace-nowrap inline-flex items-center gap-1">
                                 {svc.estimatedBillDate || "— Set date"}
+                                {svc.billDateSource === "ai" && svc.estimatedBillDate && (
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Sparkles className="h-3 w-3 text-violet-500" />
+                                      </TooltipTrigger>
+                                      <TooltipContent className="text-xs max-w-[200px]">
+                                        AI-suggested based on historical timelines for similar services. Click to override.
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
                               </button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start">

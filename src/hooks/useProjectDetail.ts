@@ -155,6 +155,7 @@ export function useProjectServices(projectId: string | undefined) {
         estimatedBillDate: svc.estimated_bill_date
           ? format(new Date(svc.estimated_bill_date), "MM/dd/yyyy")
           : null,
+        billDateSource: (svc.bill_date_source === "ai" ? "ai" : "manual") as "manual" | "ai",
         billedAt: svc.billed_at
           ? format(new Date(svc.billed_at), "MM/dd/yyyy")
           : null,
