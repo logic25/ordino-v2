@@ -206,7 +206,7 @@ serve(async (req) => {
     const amount = fmtMoney(Number(exp.amount));
     const billable = fmtMoney(Number(exp.billable_amount));
     const markupPct = Number(exp.markup_pct) || 0;
-    const link = `https://app.ordinocrm.com/dashboard?expense=${exp.id}`;
+    const link = `https://app.ordinocrm.com/projects/${project.id}?expense=${exp.id}&action=approve`;
     const subject = `Expense Approval — ${amount} — ${projRef}`;
 
     // Stripe color: amber to denote approval urgency
