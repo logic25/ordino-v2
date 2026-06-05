@@ -613,19 +613,21 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
     try {
       const userEmail = user?.email;
       if (!userEmail) return;
-      await supabase
+      const { error } = await supabase
         .from("widget_messages" as any)
         .update({ deleted_at: new Date().toISOString() } as any)
         .eq("user_email", userEmail)
-        .eq("session_id", targetSessionId);
+        .eq("session_id", targetSessionId)
+        .is("deleted_at", null);
+      if (error) throw error;
       setHistorySessions((prev) => prev.filter((s) => s.session_id !== targetSessionId));
       if (sessionId === targetSessionId) {
         handleNewChat();
       }
       toast.success("Chat deleted");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to delete session:", err);
-      toast.error("Failed to delete chat");
+      toast.error(err?.message || "Failed to delete chat");
     }
   };
 
@@ -633,18 +635,21 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
     try {
       const userEmail = user?.email;
       if (!userEmail) return;
-      await supabase
+      const { error } = await supabase
         .from("widget_messages" as any)
         .update({ deleted_at: new Date().toISOString() } as any)
-        .eq("user_email", userEmail);
+        .eq("user_email", userEmail)
+        .is("deleted_at", null);
+      if (error) throw error;
       setHistorySessions([]);
       handleNewChat();
       toast.success("All chats cleared");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to clear all sessions:", err);
-      toast.error("Failed to clear chats");
+      toast.error(err?.message || "Failed to clear chats");
     }
   };
+
 
   const handleLogBug = async (msgIndex: number) => {
     const msg = messages[msgIndex];
