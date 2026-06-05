@@ -153,21 +153,22 @@ export function AIUsageDashboard() {
 
   // By user
   const byUser = Object.entries(
-    logs.reduce((acc: Record<string, { count: number; tokens: number; name: string }>, l: any) => {
+    logs.reduce((acc: Record<string, { count: number; tokens: number; cost: number; name: string }>, l: any) => {
       const key = l.user_id || "system";
       const name =
         l.profiles?.display_name ||
         [l.profiles?.first_name, l.profiles?.last_name].filter(Boolean).join(" ") ||
         "Automated / System";
-      if (!acc[key]) acc[key] = { count: 0, tokens: 0, name };
+      if (!acc[key]) acc[key] = { count: 0, tokens: 0, cost: 0, name };
       acc[key].count++;
       acc[key].tokens += l.total_tokens || 0;
+      acc[key].cost += parseFloat(l.estimated_cost_usd) || 0;
       return acc;
     }, {})
   )
     .map(([uid, d]) => ({ uid, ...d }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 8);
+    .sort((a, b) => b.cost - a.cost)
+    .slice(0, 12);
 
   // Daily trend
   const byDay = Object.entries(
