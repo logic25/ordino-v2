@@ -15,14 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useCustomRoles } from "@/hooks/useUserRoles";
 
-const ROLES: { value: string; label: string; description: string }[] = [
-  { value: "pm", label: "PM", description: "Project Manager — owns their own queue & projects." },
-  { value: "manager", label: "Manager", description: "Team oversight — sees team KPIs, utilization, workload." },
-  { value: "accounting", label: "Accounting", description: "Billing & collections — full access to invoices." },
-  { value: "production", label: "Production", description: "Field/filing staff — full project access, read-only billing." },
-  { value: "admin", label: "Admin", description: "Full access to everything, including settings." },
-  { value: "staff", label: "Staff", description: "Generic team member — limited default access." },
-];
+// Roles are loaded dynamically from custom_roles (see useCustomRoles)
 
 type Invite = {
   id: string;
