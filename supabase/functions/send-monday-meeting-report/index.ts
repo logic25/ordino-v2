@@ -220,7 +220,7 @@ Deno.serve(async (req) => {
       for (const p of projects || []) {
         const pmId = p.assigned_pm_id || p.senior_pm_id;
         if (!pmId) continue;
-        const prof = profiles?.find(pp => pp.id === pmId);
+        const prof = optedInProfiles.find((pp: any) => pp.id === pmId);
         if (!prof?.email) continue;
         if (!byPm.has(prof.id)) byPm.set(prof.id, { profile: prof, projects: [] });
         byPm.get(prof.id)!.projects.push(p);
