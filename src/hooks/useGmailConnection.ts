@@ -7,7 +7,7 @@ export function useGmailConnection() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("gmail_connections")
-        .select("*")
+        .select("id, user_id, company_id, email_address, sync_enabled, last_sync_at, token_expires_at, history_id, created_at, updated_at")
         .maybeSingle();
 
       if (error) throw error;
