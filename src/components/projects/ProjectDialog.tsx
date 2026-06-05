@@ -62,6 +62,7 @@ export function ProjectDialog({
     client_reference_number: "",
     completion_date: null,
     notes: "",
+    stale_threshold_days: null,
   });
 
   useEffect(() => {
@@ -81,6 +82,7 @@ export function ProjectDialog({
         client_reference_number: (project as any).client_reference_number || "",
         completion_date: project.completion_date,
         notes: project.notes || "",
+        stale_threshold_days: (project as any).stale_threshold_days ?? null,
       });
     } else {
       setForm({
@@ -98,6 +100,7 @@ export function ProjectDialog({
         client_reference_number: "",
         completion_date: null,
         notes: "",
+        stale_threshold_days: null,
       });
     }
   }, [project, open]);
@@ -235,14 +238,33 @@ export function ProjectDialog({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="client_reference_number">Client Reference #</Label>
-            <Input
-              id="client_reference_number"
-              value={form.client_reference_number || ""}
-              onChange={(e) => setForm((f) => ({ ...f, client_reference_number: e.target.value }))}
-              placeholder="e.g., NY Tent #611490"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="client_reference_number">Client Reference #</Label>
+              <Input
+                id="client_reference_number"
+                value={form.client_reference_number || ""}
+                onChange={(e) => setForm((f) => ({ ...f, client_reference_number: e.target.value }))}
+                placeholder="e.g., NY Tent #611490"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="stale_threshold_days">Stale after (days)</Label>
+              <Input
+                id="stale_threshold_days"
+                type="number"
+                min={1}
+                max={365}
+                value={form.stale_threshold_days ?? ""}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    stale_threshold_days: e.target.value ? Number(e.target.value) : null,
+                  }))
+                }
+                placeholder="14 (default)"
+              />
+            </div>
           </div>
 
           {/* People */}
