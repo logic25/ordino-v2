@@ -67,7 +67,7 @@ export function InviteMemberDialog() {
     setEmail("");
     setFirstName("");
     setLastName("");
-    setRole("pm");
+    setRole("production");
   };
 
   const handleInvite = async () => {
