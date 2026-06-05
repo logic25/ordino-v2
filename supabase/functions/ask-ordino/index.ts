@@ -83,6 +83,31 @@ Deno.serve(async (req) => {
     const { question, conversationHistory = [] } = await req.json();
     if (!question) throw new Error("question required");
 
+    // AI Budget enforcement — block if cap exceeded and admin enabled enforcement
+    const { data: budget } = await supabaseAdmin
+      .from("ai_budget_settings")
+      .select("monthly_cap_usd, enforce_cap")
+      .eq("company_id", profile.company_id)
+      .maybeSingle();
+    if (budget?.enforce_cap && budget?.monthly_cap_usd) {
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+      const { data: usage } = await supabaseAdmin
+        .from("ai_usage_logs")
+        .select("estimated_cost_usd")
+        .eq("company_id", profile.company_id)
+        .gte("created_at", monthStart.toISOString());
+      const mtd = (usage || []).reduce((s: number, r: any) => s + (parseFloat(r.estimated_cost_usd) || 0), 0);
+      if (mtd >= Number(budget.monthly_cap_usd)) {
+        return new Response(JSON.stringify({
+          error: "AI monthly budget exceeded",
+          message: `Your company has reached its $${budget.monthly_cap_usd} monthly AI cap ($${mtd.toFixed(2)} used). An admin can raise the cap or disable enforcement in Help Desk → AI Usage.`,
+        }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
+
     const intents = classifyIntent(question);
     const projectNumbers = extractProjectNumbers(question);
     const context: Record<string, any> = {};
