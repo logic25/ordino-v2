@@ -188,8 +188,3 @@ export function DashboardStats({ role }: DashboardStatsProps) {
     </div>
   );
 }
-
-// Fallback for UserClock icon (not in lucide-react default export)
-function UserClock({ className }: { className?: string }) {
-  return <Clock className={className} />;
-}
