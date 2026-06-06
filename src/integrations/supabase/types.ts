@@ -342,6 +342,58 @@ export type Database = {
           },
         ]
       }
+      ai_feedback: {
+        Row: {
+          company_id: string
+          correction_text: string
+          created_at: string
+          id: string
+          project_id: string
+          source_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          company_id: string
+          correction_text: string
+          created_at?: string
+          id?: string
+          project_id: string
+          source_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          company_id?: string
+          correction_text?: string
+          created_at?: string
+          id?: string
+          project_id?: string
+          source_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_feedback_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_feedback_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_feedback_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "project_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_roadmap_suggestions: {
         Row: {
           category: string | null

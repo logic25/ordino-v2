@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { StickyNote, Sparkles, Loader2, Trash2, Tag } from "lucide-react";
+import { StickyNote, Sparkles, Loader2, Trash2, Tag, MessageSquareWarning, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -42,6 +42,8 @@ export function NotesTab({ projectId }: NotesTabProps) {
   const [manualNote, setManualNote] = useState("");
   const [composerServiceId, setComposerServiceId] = useState<string>(GENERAL);
   const [filterServiceId, setFilterServiceId] = useState<string>("all");
+  const [correctingNoteId, setCorrectingNoteId] = useState<string | null>(null);
+  const [correctionText, setCorrectionText] = useState("");
 
   const { data: services = [] } = useQuery({
     queryKey: ["project-services-for-notes", projectId],
@@ -144,6 +146,35 @@ export function NotesTab({ projectId }: NotesTabProps) {
     },
     onError: (e: any) =>
       toast({ title: "Could not delete", description: e.message, variant: "destructive" }),
+  });
+
+  const correctionMutation = useMutation({
+    mutationFn: async ({ noteId, text }: { noteId: string; text: string }) => {
+      if (!projectId) throw new Error("Missing project");
+      const { data: userRes } = await supabase.auth.getUser();
+      if (!userRes.user) throw new Error("Not signed in");
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("user_id", userRes.user.id)
+        .maybeSingle();
+      if (!prof?.company_id) throw new Error("No company");
+      const { error } = await supabase.from("ai_feedback").insert({
+        project_id: projectId,
+        company_id: prof.company_id,
+        user_id: userRes.user.id,
+        source_id: noteId,
+        correction_text: text,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setCorrectingNoteId(null);
+      setCorrectionText("");
+      toast({ title: "Correction saved", description: "Future AI summaries will incorporate this." });
+    },
+    onError: (e: any) =>
+      toast({ title: "Could not save correction", description: e.message, variant: "destructive" }),
   });
 
   if (!projectId) {
@@ -295,7 +326,10 @@ export function NotesTab({ projectId }: NotesTabProps) {
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredNotes.map((note) => (
+          {filteredNotes.map((note) => {
+            const isAi = note.source !== "manual";
+            const isCorrecting = correctingNoteId === note.id;
+            return (
             <div key={note.id} className="p-3 rounded-lg border bg-background group">
               <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                 {renderSourceBadge(note.source)}
@@ -303,19 +337,80 @@ export function NotesTab({ projectId }: NotesTabProps) {
                 <span className="text-[10px] text-muted-foreground font-mono">
                   {formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}
                 </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="ml-auto h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
-                  onClick={() => deleteMutation.mutate(note.id)}
-                  disabled={deleteMutation.isPending}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
+                <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                  {isAi && !isCorrecting && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 gap-1 text-[10px]"
+                      onClick={() => {
+                        setCorrectingNoteId(note.id);
+                        setCorrectionText("");
+                      }}
+                      title="This summary is wrong — tell the AI what was actually true"
+                    >
+                      <MessageSquareWarning className="h-3 w-3" />
+                      Correct
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    onClick={() => deleteMutation.mutate(note.id)}
+                    disabled={deleteMutation.isPending}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
               </div>
               <p className="text-sm whitespace-pre-line">{note.body}</p>
+              {isCorrecting && (
+                <div className="mt-3 space-y-2 p-3 rounded border bg-muted/40">
+                  <div className="text-[11px] text-muted-foreground">
+                    What was actually true? Future AI summaries on this project will treat your correction as ground truth.
+                  </div>
+                  <Textarea
+                    autoFocus
+                    placeholder="e.g. The architect is on extended leave through July — not unresponsive."
+                    value={correctionText}
+                    onChange={(e) => setCorrectionText(e.target.value)}
+                    className="min-h-[60px] text-sm"
+                  />
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() =>
+                        correctionMutation.mutate({ noteId: note.id, text: correctionText.trim() })
+                      }
+                      disabled={!correctionText.trim() || correctionMutation.isPending}
+                    >
+                      {correctionMutation.isPending ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Check className="h-3 w-3" />
+                      )}
+                      Save correction
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => {
+                        setCorrectingNoteId(null);
+                        setCorrectionText("");
+                      }}
+                    >
+                      <X className="h-3 w-3" />
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
