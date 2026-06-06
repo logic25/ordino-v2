@@ -80,9 +80,9 @@ export function useMarkProposalApproved() {
         .from("profiles")
         .select("id, company_id")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
-      if (!profile) throw new Error("Profile not found");
+      if (!profile) throw new Error("Your profile isn't set up yet. Please sign out and back in.");
 
       // Fetch proposal with items to create project
       const { data: proposal, error: proposalError } = await supabase
@@ -278,7 +278,7 @@ export function useDismissFollowUp() {
         .eq("user_id", user.id)
         .maybeSingle();
 
-      if (!profile) throw new Error("Profile not found");
+      if (!profile) throw new Error("Your profile isn't set up yet. Please sign out and back in.");
 
       const { error } = await supabase
         .from("proposals")
@@ -326,7 +326,7 @@ export function useLogFollowUp() {
         .eq("user_id", user.id)
         .maybeSingle();
 
-      if (!profile) throw new Error("Profile not found");
+      if (!profile) throw new Error("Your profile isn't set up yet. Please sign out and back in.");
 
       // Log activity
       await supabase.from("proposal_follow_ups").insert({
