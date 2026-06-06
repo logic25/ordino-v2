@@ -1598,6 +1598,54 @@ export type Database = {
         }
         Relationships: []
       }
+      beacon_tool_log: {
+        Row: {
+          company_id: string
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          id: string
+          parameters: Json | null
+          project_id: string | null
+          question_id: string | null
+          question_text: string | null
+          row_count: number | null
+          success: boolean
+          tool_name: string
+          user_id: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          parameters?: Json | null
+          project_id?: string | null
+          question_id?: string | null
+          question_text?: string | null
+          row_count?: number | null
+          success?: boolean
+          tool_name: string
+          user_id?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          parameters?: Json | null
+          project_id?: string | null
+          question_id?: string | null
+          question_text?: string | null
+          row_count?: number | null
+          success?: boolean
+          tool_name?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       billing_notification_preferences: {
         Row: {
           company_id: string
