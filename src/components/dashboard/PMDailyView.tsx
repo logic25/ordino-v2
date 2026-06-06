@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,12 +7,56 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AlertTriangle, CheckCircle2, Clock, Circle, FolderKanban, ArrowRight, ClipboardCheck } from "lucide-react";
 import { useMyAssignedProjects } from "@/hooks/useDashboard";
 import { ProposalFollowUps } from "./ProposalFollowUps";
-import { QuickTimeLog } from "@/components/time/QuickTimeLog";
 import { MyActionItemsCard } from "./MyActionItemsCard";
 import { differenceInDays } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+
+const BUCKET_PREVIEW = 3;
+
+function ProjectBucket({
+  id,
+  title,
+  tone,
+  icon,
+  items,
+  onItemClick,
+}: {
+  id?: string;
+  title: string;
+  tone: "destructive" | "amber" | "muted";
+  icon: React.ReactNode;
+  items: any[];
+  onItemClick: (p: any) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  if (items.length === 0) return null;
+  const toneClass =
+    tone === "destructive" ? "text-destructive" : tone === "amber" ? "text-amber-600" : "text-muted-foreground";
+  const visible = expanded ? items : items.slice(0, BUCKET_PREVIEW);
+  const hidden = items.length - visible.length;
+  return (
+    <div id={id} className="space-y-2 scroll-mt-24">
+      <h4 className={`text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 ${toneClass}`}>
+        {icon} {title} <span className="text-muted-foreground font-normal normal-case tracking-normal">· {items.length}</span>
+      </h4>
+      {visible.map((p) => (
+        <ProjectRow key={p.id} project={p} onClick={() => onItemClick(p)} />
+      ))}
+      {items.length > BUCKET_PREVIEW && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors pl-1"
+        >
+          {expanded ? "Show less" : `Show ${hidden} more`}
+        </button>
+      )}
+    </div>
+  );
+}
+
 
 function useMyProjectReadiness() {
   const { profile } = useAuth();
