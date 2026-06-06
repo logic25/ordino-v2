@@ -111,6 +111,7 @@ function getInitials(profile: any, email?: string | null): string {
 
 export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const location = useLocation();
   const { toast } = useToast();
   const { canAccess, loading: permLoading } = usePermissions();
