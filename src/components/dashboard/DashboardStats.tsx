@@ -172,13 +172,21 @@ export function DashboardStats({ role }: DashboardStatsProps) {
   return (
     <div className="space-y-4">
       {pendingDraftsCount > 0 && (
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
-          <Sparkles className="h-4 w-4 text-primary" />
+        <button
+          type="button"
+          onClick={() => {
+            const el = document.getElementById("section-readiness");
+            if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+          className="w-full flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20 hover:bg-primary/10 transition-colors text-left"
+          title="AI-drafted client nudge emails waiting for your review"
+        >
+          <Sparkles className="h-4 w-4 text-primary shrink-0" />
           <span className="text-sm font-medium">
-            {pendingDraftsCount} auto-generated follow-up draft{pendingDraftsCount > 1 ? "s" : ""} pending review
+            {pendingDraftsCount} AI-drafted client nudge{pendingDraftsCount > 1 ? "s" : ""} waiting for your review
           </span>
-          <span className="text-xs text-muted-foreground ml-auto">Check project readiness checklists</span>
-        </div>
+          <span className="text-xs text-primary ml-auto underline-offset-2 hover:underline">Review in Project Readiness →</span>
+        </button>
       )}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         {pmStats.map((stat) => (
