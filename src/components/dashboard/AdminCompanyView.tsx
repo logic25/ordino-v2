@@ -1,21 +1,23 @@
 import { useState } from "react";
 import { formatCompactCurrency } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Building2, TrendingUp, Users, DollarSign } from "lucide-react";
 import { useDashboardStats } from "@/hooks/useDashboard";
 import { useNavigate } from "react-router-dom";
-import { useRevenueTrend } from "@/hooks/useDashboardData";
+import { useRevenueTrend, useTeamUtilization, useProjectsByPM } from "@/hooks/useDashboardData";
 import { PMDailyView } from "./PMDailyView";
 import { TeamOverview } from "./TeamOverview";
 import { ProposalFollowUps } from "./ProposalFollowUps";
 import { YearOverYearChart } from "./YearOverYearChart";
 import { ProposalActivityCard } from "./ProposalActivityCard";
+import { ProposalsPipelineCard } from "./ProposalsPipelineCard";
+import { AccountingSummaryStrip } from "./AccountingSummaryStrip";
 import { BillingGoalTracker } from "./BillingGoalTracker";
 import { ExpenseApprovalsCard } from "./ExpenseApprovalsCard";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Cell } from "recharts";
 
 export function AdminCompanyView({ isVisible }: { isVisible?: (id: string) => boolean }) {
   const show = isVisible || (() => true);
@@ -125,20 +127,93 @@ export function AdminCompanyView({ isVisible }: { isVisible?: (id: string) => bo
         <YearOverYearChart />
         <ProposalActivityCard />
       </div>
-
-      {/* Row 3b: Follow-Ups full width */}
-      <ProposalFollowUps />
       </>
       )}
 
-      {/* Row 4: Billing Goal Tracker */}
+      {/* Proposals Pipeline by Stage */}
+      {show("proposals-pipeline") && <ProposalsPipelineCard />}
+
+      {/* Team utilization + projects by PM */}
+      {show("team-utilization") && <TeamUtilizationStrip />}
+
+      {/* Accounting summary strip */}
+      {show("accounting-summary") && <AccountingSummaryStrip />}
+
+      {/* Follow-Ups full width */}
+      {show("yoy-proposals-followups") && <ProposalFollowUps />}
+
+      {/* Billing Goal Tracker */}
       {show("billing-goal-tracker") && <BillingGoalTracker />}
 
       {/* Expense Approvals */}
       <ExpenseApprovalsCard />
 
-      {/* Row 5: Team Overview */}
+      {/* Team Overview */}
       {show("team-overview") && <TeamOverview />}
+    </div>
+  );
+}
+
+function TeamUtilizationStrip() {
+  const { data: utilization = [], isLoading: utilLoading } = useTeamUtilization();
+  const { data: projectsByPM = [], isLoading: pmLoading } = useProjectsByPM();
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Team Utilization (This Week)</CardTitle>
+          <CardDescription>Billable vs total hours by team member</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {utilLoading ? (
+            <Skeleton className="h-[280px] w-full" />
+          ) : utilization.length > 0 ? (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={utilization.slice(0, 10)} layout="vertical" barGap={2}>
+                <XAxis type="number" tick={{ fontSize: 11 }} unit="h" />
+                <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={110} />
+                <Tooltip
+                  formatter={(v: number, name: string) => [`${v}h`, name]}
+                  contentStyle={{ fontSize: 12 }}
+                />
+                <Bar dataKey="billableHours" fill="hsl(var(--primary))" name="Billable" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="totalHours" fill="hsl(var(--muted-foreground))" name="Total" radius={[0, 4, 4, 0]} opacity={0.3} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-muted-foreground text-center py-8 text-sm">No team data</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Projects by PM</CardTitle>
+          <CardDescription>Active project distribution across team</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {pmLoading ? (
+            <Skeleton className="h-[280px] w-full" />
+          ) : projectsByPM.length > 0 ? (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={projectsByPM.slice(0, 10)} layout="vertical">
+                <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={110} />
+                <Tooltip contentStyle={{ fontSize: 12 }} />
+                <Bar dataKey="projects" name="Projects" radius={[0, 4, 4, 0]}>
+                  {projectsByPM.slice(0, 10).map((_: any, i: number) => {
+                    const colors = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--muted-foreground))", "hsl(var(--secondary))"];
+                    return <Cell key={i} fill={colors[i % colors.length]} />;
+                  })}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-muted-foreground text-center py-8 text-sm">No project assignments found</p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

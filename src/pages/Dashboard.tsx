@@ -6,8 +6,8 @@ import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { PMDailyView } from "@/components/dashboard/PMDailyView";
 import { AdminCompanyView } from "@/components/dashboard/AdminCompanyView";
 import { AccountingView } from "@/components/dashboard/AccountingView";
-import { ManagerView } from "@/components/dashboard/ManagerView";
-import { RolePreviewSelector } from "@/components/dashboard/RolePreviewSelector";
+
+import { RolePreviewSelector, type DashboardRole } from "@/components/dashboard/RolePreviewSelector";
 import { DashboardLayoutConfig } from "@/components/dashboard/DashboardLayoutConfig";
 import { useDashboardLayout } from "@/hooks/useDashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWalkthrough } from "@/components/walkthrough/WalkthroughProvider";
 import { WALKTHROUGHS } from "@/components/walkthrough/walkthroughs";
 
-type DashboardRole = "admin" | "pm" | "accounting" | "manager";
+function mapRoleToDashboard(role: string): DashboardRole {
+  if (role === "admin") return "admin";
+  if (role === "accounting") return "accounting";
+  return "pm"; // production and any other staff role
+}
 
 function NewHireWelcomeBanner({ name, onDismiss }: { name: string; onDismiss: () => void }) {
   const { startWalkthrough } = useWalkthrough();
@@ -49,7 +53,7 @@ export default function Dashboard() {
   const { profile } = useAuth();
   const { track } = useTelemetry();
   const actualRole = profile?.role || "pm";
-  const [previewRole, setPreviewRole] = useState<DashboardRole>(actualRole as DashboardRole);
+  const [previewRole, setPreviewRole] = useState<DashboardRole>(mapRoleToDashboard(actualRole));
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
 
   const role = previewRole;
@@ -87,8 +91,6 @@ export default function Dashboard() {
         return "Here's what needs your attention today.";
       case "accounting":
         return "Here's your billing overview and collection status.";
-      case "manager":
-        return "Here's your team's performance and workload.";
       case "admin":
         return "Here's an overview of your company's operations.";
       default:
@@ -104,8 +106,6 @@ export default function Dashboard() {
         return <AdminCompanyView isVisible={layout.isVisible} />;
       case "accounting":
         return <AccountingView isVisible={layout.isVisible} />;
-      case "manager":
-        return <ManagerView isVisible={layout.isVisible} />;
       default:
         return <PMDailyView isVisible={layout.isVisible} />;
     }
