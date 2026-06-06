@@ -2,48 +2,61 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
+async function fetchActiveTeam(companyId: string) {
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name, display_name, role")
+    .eq("company_id", companyId)
+    .eq("is_active", true);
+  return data || [];
+}
+
+function nameOf(p: any) {
+  return (
+    `${p.first_name || ""} ${p.last_name || ""}`.trim() ||
+    p.display_name ||
+    "Unknown"
+  );
+}
 
 export function useProjectsByPM() {
+  const { profile } = useAuth();
   return useQuery({
-    queryKey: ["projects-by-pm"],
+    queryKey: ["projects-by-pm", profile?.company_id],
+    enabled: !!profile?.company_id,
     queryFn: async () => {
+      const companyId = profile!.company_id!;
+      const team = await fetchActiveTeam(companyId);
+
       const { data: projects } = await supabase
         .from("projects")
-        .select(`
-          id, status, assigned_pm_id,
-          assigned_pm:profiles!projects_assigned_pm_id_fkey(id, first_name, last_name, display_name)
-        `)
+        .select("id, assigned_pm_id")
+        .eq("company_id", companyId)
         .eq("status", "open");
 
-      const pmMap: Record<string, { name: string; projects: number }> = {};
+      const counts: Record<string, number> = {};
       (projects || []).forEach((p: any) => {
-        const pmId = p.assigned_pm_id;
-        if (!pmId) return;
-        if (!pmMap[pmId]) {
-          const pm = p.assigned_pm;
-          pmMap[pmId] = {
-            name: pm ? `${pm.first_name || ""} ${pm.last_name || ""}`.trim() || pm.display_name || "Unknown" : "Unassigned",
-            projects: 0,
-          };
-        }
-        pmMap[pmId].projects++;
+        if (p.assigned_pm_id) counts[p.assigned_pm_id] = (counts[p.assigned_pm_id] || 0) + 1;
       });
 
-      const result = Object.entries(pmMap)
-        .map(([id, data]) => ({ id, ...data }))
+      return team
+        .map((p: any) => ({ id: p.id, name: nameOf(p), projects: counts[p.id] || 0 }))
         .sort((a, b) => b.projects - a.projects);
-
-      return result;
     },
   });
 }
 
 export function useTeamUtilization() {
+  const { profile } = useAuth();
   return useQuery({
-    queryKey: ["team-utilization-dashboard"],
+    queryKey: ["team-utilization-dashboard", profile?.company_id],
+    enabled: !!profile?.company_id,
     queryFn: async () => {
+      const companyId = profile!.company_id!;
       const today = new Date().toISOString().split("T")[0];
       const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0];
+
+      const team = await fetchActiveTeam(companyId);
 
       const { data: activities } = await supabase
         .from("activities")
@@ -51,27 +64,20 @@ export function useTeamUtilization() {
         .gte("activity_date", weekAgo)
         .lte("activity_date", today);
 
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, first_name, last_name, display_name, role")
-        .eq("is_active", true);
-
       const { data: projects } = await supabase
         .from("projects")
         .select("id, assigned_pm_id")
+        .eq("company_id", companyId)
         .eq("status", "open");
 
-      const pmProjectCount: Record<string, number> = {};
+      const projectCount: Record<string, number> = {};
       (projects || []).forEach((p: any) => {
-        if (p.assigned_pm_id) {
-          pmProjectCount[p.assigned_pm_id] = (pmProjectCount[p.assigned_pm_id] || 0) + 1;
-        }
+        if (p.assigned_pm_id) projectCount[p.assigned_pm_id] = (projectCount[p.assigned_pm_id] || 0) + 1;
       });
 
       const byUser: Record<string, { name: string; billable: number; nonBillable: number; projects: number }> = {};
-      (profiles || []).forEach((p: any) => {
-        const name = `${p.first_name || ""} ${p.last_name || ""}`.trim() || p.display_name || "Unknown";
-        byUser[p.id] = { name, billable: 0, nonBillable: 0, projects: pmProjectCount[p.id] || 0 };
+      team.forEach((p: any) => {
+        byUser[p.id] = { name: nameOf(p), billable: 0, nonBillable: 0, projects: projectCount[p.id] || 0 };
       });
 
       (activities || []).forEach((a: any) => {
@@ -81,23 +87,18 @@ export function useTeamUtilization() {
         else byUser[a.user_id].nonBillable += mins;
       });
 
-      let result = Object.entries(byUser)
-        .map(([id, data]) => ({
+      return Object.entries(byUser)
+        .map(([id, d]) => ({
           id,
-          name: data.name,
-          billableHours: Math.round((data.billable / 60) * 10) / 10,
-          totalHours: Math.round(((data.billable + data.nonBillable) / 60) * 10) / 10,
-          projects: data.projects,
-          rate: data.billable + data.nonBillable > 0
-            ? Math.round((data.billable / (data.billable + data.nonBillable)) * 100)
+          name: d.name,
+          billableHours: Math.round((d.billable / 60) * 10) / 10,
+          totalHours: Math.round(((d.billable + d.nonBillable) / 60) * 10) / 10,
+          projects: d.projects,
+          rate: d.billable + d.nonBillable > 0
+            ? Math.round((d.billable / (d.billable + d.nonBillable)) * 100)
             : 0,
         }))
-        .filter((u) => u.totalHours > 0 || u.projects > 0)
         .sort((a, b) => b.totalHours - a.totalHours);
-
-      // Show real data — no mock fallback
-
-      return result;
     },
   });
 }
@@ -188,6 +189,52 @@ export function useRevenueTrend(months: number = 6) {
       }
 
       return result;
+    },
+  });
+}
+
+export interface ProposalsPipelineStage {
+  status: string;
+  label: string;
+  count: number;
+  value: number;
+}
+
+const PIPELINE_STAGES: { status: string; label: string }[] = [
+  { status: "draft", label: "Draft" },
+  { status: "sent", label: "Sent" },
+  { status: "signed_client", label: "Signed" },
+  { status: "executed", label: "Won" },
+  { status: "lost", label: "Lost" },
+];
+
+export function useProposalsPipeline() {
+  const { profile } = useAuth();
+  return useQuery({
+    queryKey: ["proposals-pipeline", profile?.company_id],
+    enabled: !!profile?.company_id,
+    queryFn: async (): Promise<ProposalsPipelineStage[]> => {
+      const { data } = await supabase
+        .from("proposals")
+        .select("status, total_amount")
+        .eq("company_id", profile!.company_id!);
+
+      const buckets: Record<string, { count: number; value: number }> = {};
+      PIPELINE_STAGES.forEach((s) => (buckets[s.status] = { count: 0, value: 0 }));
+
+      (data || []).forEach((p: any) => {
+        const key = p.status;
+        if (!buckets[key]) return;
+        buckets[key].count += 1;
+        buckets[key].value += Number(p.total_amount) || 0;
+      });
+
+      return PIPELINE_STAGES.map((s) => ({
+        status: s.status,
+        label: s.label,
+        count: buckets[s.status].count,
+        value: buckets[s.status].value,
+      }));
     },
   });
 }
