@@ -1,60 +1,79 @@
-## 1. Switch low-stakes AI features to Gemini 2.5 Flash-Lite
+# Generate Fix Prompt — Bug Reports
 
-Update the model string on these 11 edge functions (~5-8× cheaper, no quality loss for structured/classification work):
+Replace the existing minimal "Copy for Lovable" button in the bug detail sheet with a richer **Generate Fix Prompt** action. One click assembles every piece of context a coding agent needs and copies it to the clipboard. The user pastes into Claude Code or Lovable; nothing autonomous runs.
 
-- `summarize-project`, `cleanup-notes`, `extract-tasks`, `extract-rfp`, `parse-objection`
-- `predict-payment-risk`, `generate-changelog`, `triage-bug-report`
-- `monitor-rfps` (both call sites), `process-automation-rules`
+## User flow
 
-**Keep on Flash** (outbound writing / interactive — tone matters): `ask-ordino`, `draft-checklist-followup`, `draft-proposal-followup`, `generate-rfp-cover-letter`, `auto-checklist-followups`, `generate-project-checklist`.
+1. Open a triaged bug in the detail sheet
+2. Pick destination tool from a small dropdown next to the button: **Claude Code** or **Lovable** (defaults to last choice in localStorage)
+3. Click **Generate Fix Prompt** — spinner shows while the edge function assembles file contents
+4. Toast confirms copy; prompt is on the clipboard, ready to paste
 
-**Keep on Pro:** `code-research`. **Beacon AI** untouched.
+The button is enabled even without triage, but shows a tooltip recommending "Run AI Triage first" when `ai_diagnosis` is empty.
 
-## 2. Make the pending-approval pill actionable
+## What goes into the prompt
 
-- New `ApproveExpenseDialog` (amount, vendor, category, project link, receipt, Approve / Reject / Open project).
-- Wire to **every pending pill**: dashboard `ExpenseApprovalsCard`, project Expenses subsection (add buttons — currently missing), email "Review & Approve" link → `/projects/:id?expense=:id&action=approve` auto-opens the dialog.
-- Reuses existing `useApproveExpense` mutation.
+A single markdown block, structured for fast scanning by a coding agent:
 
-## 3. Replace unused Open Services email with a **Monday Meeting Report**
+1. **Header** — bug id, title, page, priority, status, destination tool
+2. **Reproduction** — description, expected vs actual, repro steps, Loom URL, screenshot URLs
+3. **AI triage** — severity, root cause, suggested fix, complexity, suggested files (verbatim from triage)
+4. **Similar past bugs** — top 3 `bug_patterns` rows ranked by file overlap + keyword match against this bug (same scoring already used in `triage-bug-report`); each shows pattern name, occurrences, root cause, prior fix
+5. **Current file contents** — for each path in `ai_suggested_files`, a fenced code block with the live file contents (see "File contents source" below)
+6. **Acceptance criteria** — auto-generated checklist:
+   - Original repro no longer reproduces
+   - No regressions in adjacent components listed
+   - Tests pass (`bun run test` if test file is touched)
+   - Changelog entry added per project rule
+7. **Tool note** — different closing line depending on dropdown choice:
+   - Claude Code → "You have filesystem access — re-read files before editing in case they changed."
+   - Lovable → "Apply the smallest change that fixes the bug. Reference the file paths above."
 
-Sent Sunday 11 PM ET to PMs + leadership, mirrored at `/reports/monday-meeting`. Built by new `generate-monday-report` edge function (Flash — runs weekly, quality matters).
+## File contents source
 
-1. **Top of mind this week** — 5-8 projects AI-ranked by urgency. Each: project #, address, one-sentence "what's happening / what's needed" (pulled from latest `project_notes` AI summary).
-2. **Filings expected this week** — uses the existing `predictBillDates` learner (already in `useBillDatePrediction.ts`) which infers per-service-type duration from historical `services.billed_at` vs `created_at`, then adjusts for open-checklist buffer. Shows services whose **predicted** date falls in the next 7 days, grouped by PM, with a confidence band (±N days, sample count). Manual `estimated_filing_date` is used as an override when set; otherwise the prediction is the source of truth. Predictions get more accurate as more services close.
-3. **Where someone needs help** — blocked projects (`waiting_on` >7 days, 3+ unanswered emails, stalled checklist, or stale per §5) + suggested helper from team availability.
-4. **Just-closed / wins** — last 7 days: filings, approvals, COs signed.
-5. **Numbers** — # active, # filings predicted this week, # blocked, $ billed last week, $ outstanding.
+A new edge function **`assemble-fix-prompt`** does the assembly server-side because the browser can't read repo files. It accepts `{ bug_id, target_tool }`, verifies the caller's company matches the bug (same pattern as `triage-bug-report`), and fetches file contents from the connected GitHub repo via the raw API.
 
-Old "Open Services" email becomes opt-in toggle in notification prefs.
+Required to make this work:
+- `GITHUB_TOKEN` secret (PAT with `repo` read scope on the Ordino repo)
+- `GITHUB_REPO` secret (e.g. `your-org/ordino`)
+- `GITHUB_BRANCH` secret (defaults to `main`)
 
-## 4. Promote the predicted-date learner project-wide
+If `GITHUB_TOKEN` is not set, the function gracefully falls back: it still returns the full prompt minus file contents, with a line `> Note: GitHub token not configured — agent should read files itself.` This means we can ship the UI immediately and you add the token whenever you want the time-saver to kick in.
 
-Since we're leaning on it for the Monday Report, also surface it everywhere a filing date appears:
-- **Service rows** — show predicted date with a small "AI · ±Nd · N samples" tooltip when no manual estimate is set; manual estimate wins when present.
-- **Project page header** — "Next predicted filing: …" line.
-- **Move logic to a new `predict-service-dates` edge function** so it runs server-side for crons (Monday Report) instead of being client-only. Frontend hook calls the same function for consistency.
-- Backfill nothing — predictions are computed on read; no schema change needed.
+Per-file behavior:
+- Skip files >1500 lines (include a "file too large, agent should read directly" placeholder)
+- Skip directories (paths ending in `/`)
+- Cap total prompt size at ~80KB; if over, drop largest files first and note the omission
 
-## 5. AI Usage page refinements
+## Where the code lives
 
-- **Cost projection** card per feature ("Project Summaries: ~$X/mo, ~$Y/yr at current pace").
-- **Top spenders** table sorted by $/mo.
-- **Budget alert threshold** — admin sets monthly cap; banner + notification when projected spend crosses it.
-- New `ai_budget_settings` table (company-scoped, admin-only RLS + GRANTs).
+```text
+supabase/functions/assemble-fix-prompt/index.ts   NEW — assembles prompt, fetches files
+src/components/helpdesk/BugReports.tsx            EDIT — replace copyForLovable with new flow
+src/components/helpdesk/fixPromptDestination.ts   NEW — small localStorage helper for last-used tool
+```
 
-## 6. Stale-project tracking (backend + UI only — no daily email)
+## UI placement
 
-Future Beacon nudge will use this signal to proactively DM PMs.
+In the detail sheet, the existing "Copy for Lovable" button currently sits near the comments section. Move it into the AI Triage card footer (or just below it when triage is missing) as a `ButtonGroup`-style cluster:
 
-- Add `projects.last_activity_at` (timestamptz) + `projects.stale_threshold_days` (int, nullable) via migration.
-- Trigger updates `last_activity_at` on insert/update of `project_notes`, `email_project_tags`, `project_checklist_items`, `activities`, `services`, `change_orders`, and `projects.status`. Backfill from latest of those.
-- **UI**: red "Stale — X days" pill on the projects list + "Stale" filter chip. Monday Report's "Where someone needs help" pulls from this signal.
+```text
+[ Generate Fix Prompt ▼ Claude Code ]   [ Re-run Triage ]
+```
 
-## Technical notes
+The split-button uses shadcn `Button` + `DropdownMenu`. Selecting from the dropdown both triggers the action and remembers the choice.
 
-- **Migrations**: `projects.last_activity_at` + `stale_threshold_days` + trigger + backfill; `ai_budget_settings` table.
-- **Edge functions**: model swaps on the 11 in §1; new `generate-monday-report` (cron Sun 11 PM ET); new `predict-service-dates` (server-side port of `useBillDatePrediction`).
-- **Frontend**: `AIUsageDashboard.tsx` (projection + top spenders + banner); new `AIBudgetSettings.tsx`; new `ApproveExpenseDialog.tsx` wired to all pills; projects list stale pill + filter; new `MondayReport.tsx` route; predicted-date badges on service rows + project header; notification prefs add "Weekly Monday report" (on) + "Legacy open-services report" (off).
+## Out of scope (confirmed)
 
-Ready to ship.
+- No webhook triggers
+- No GitHub PR creation or write API calls
+- No CI integration, no auto-merge
+- No changes to `bug_fix_log` flow — `fixed_by` stays user-selected at resolve time
+
+## Changelog
+
+Per the auto-logging rule, the same task inserts a `changelog_entries` row: "Added Generate Fix Prompt to Bug Reports — bundles triage, similar patterns, and current file code into a copy-ready prompt."
+
+## Open decision before build
+
+The plan assumes the **hybrid** approach for file contents (GitHub fetch when token is present, paths-only fallback otherwise) since it's the lowest-friction way to ship without blocking on a PAT. If you'd rather start with paths-only and never add the GitHub fetch, say the word and I'll drop the edge function entirely and do the assembly client-side. The UI surface stays identical either way.
