@@ -151,7 +151,7 @@ export function DashboardStats({ role }: DashboardStatsProps) {
       title: "Waiting on Client",
       value: waitingClientCount,
       subtitle: "14+ days — time to nudge",
-      icon: <UserClock className={`h-4 w-4 ${waitingClientCount > 0 ? "text-amber-600" : "text-muted-foreground"}`} />,
+      icon: <Hourglass className={`h-4 w-4 ${waitingClientCount > 0 ? "text-amber-600" : "text-muted-foreground"}`} />,
       onClick: () => scrollTo("bucket-waiting-client"),
       accent: waitingClientCount > 0 ? ("amber" as const) : ("neutral" as const),
       loading: projLoading,
