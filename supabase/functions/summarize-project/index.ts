@@ -2,6 +2,7 @@
 // (optionally) persists it to project_notes as source='ai_on_demand' or 'ai_weekly'.
 // Can be invoked by the frontend (user JWT) OR by the weekly cron (x-cron-secret + body.companyId + body.projectId + body.actorUserId).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { computePisStatusFromRfi } from "../_shared/pisStatus.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
