@@ -270,10 +270,13 @@ export function useDismissFollowUp() {
 
   return useMutation({
     mutationFn: async ({ id, notes }: { id: string; notes?: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
       const { data: profile } = await supabase
         .from("profiles")
         .select("id, company_id")
-        .single();
+        .eq("user_id", user.id)
+        .maybeSingle();
 
       if (!profile) throw new Error("Profile not found");
 
@@ -315,10 +318,13 @@ export function useLogFollowUp() {
       action: string;
       notes?: string;
     }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
       const { data: profile } = await supabase
         .from("profiles")
         .select("id, company_id")
-        .single();
+        .eq("user_id", user.id)
+        .maybeSingle();
 
       if (!profile) throw new Error("Profile not found");
 
