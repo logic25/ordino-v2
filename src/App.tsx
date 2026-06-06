@@ -75,6 +75,9 @@ const Chat = lazyWithRetry(() => import("./pages/Chat"), "chat");
 const Privacy = lazyWithRetry(() => import("./pages/Privacy"), "privacy");
 const Terms = lazyWithRetry(() => import("./pages/Terms"), "terms");
 const Welcome = lazyWithRetry(() => import("./pages/Welcome"), "welcome");
+const BdLeads = lazyWithRetry(() => import("./pages/bd/BdLeads"), "bd-leads");
+const BdEvents = lazyWithRetry(() => import("./pages/bd/BdEvents"), "bd-events");
+const BdSequences = lazyWithRetry(() => import("./pages/bd/BdSequences"), "bd-sequences");
 
 function PageSpinner() {
   return (
@@ -127,6 +130,9 @@ function AppRoutes() {
       <Route path="/properties/:id" element={<ProtectedRoute><PropertyDetail /></ProtectedRoute>} />
       <Route path="/time" element={<ProtectedRoute><Time /></ProtectedRoute>} />
       <Route path="/proposals" element={<ProtectedRoute><Proposals /></ProtectedRoute>} />
+      <Route path="/bd/leads" element={<ProtectedRoute><BdLeads /></ProtectedRoute>} />
+      <Route path="/bd/events" element={<ProtectedRoute><BdEvents /></ProtectedRoute>} />
+      <Route path="/bd/sequences" element={<ProtectedRoute><BdSequences /></ProtectedRoute>} />
       <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
       <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
       <Route path="/clients/:id" element={<ProtectedRoute><ClientDetail /></ProtectedRoute>} />

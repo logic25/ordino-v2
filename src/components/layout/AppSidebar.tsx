@@ -36,6 +36,10 @@ const mainNav = [
   { title: "Properties", icon: Building2, href: "/properties", resource: "properties" as ResourceKey },
   { title: "Time", icon: Clock, href: "/time", resource: "time_logs" as ResourceKey },
   { title: "Proposals", icon: FileText, href: "/proposals", resource: "proposals" as ResourceKey },
+  { title: "__bd_header__", icon: LayoutDashboard, href: "#bd", resource: "proposals" as ResourceKey, isHeader: true },
+  { title: "Leads", icon: Users, href: "/bd/leads", resource: "proposals" as ResourceKey },
+  { title: "Events", icon: CalendarDays, href: "/bd/events", resource: "proposals" as ResourceKey },
+  { title: "Sequences", icon: Mail, href: "/bd/sequences", resource: "proposals" as ResourceKey },
   { title: "Billing", icon: Receipt, href: "/invoices", resource: "invoices" as ResourceKey },
   { title: "Email", icon: Mail, href: "/emails", resource: "emails" as ResourceKey },
   { title: "Calendar", icon: CalendarDays, href: "/calendar", resource: "calendar" as ResourceKey },
@@ -59,6 +63,9 @@ const routePrefetchMap: Record<string, () => Promise<unknown>> = {
   "/properties": () => import("@/pages/Properties"),
   "/time": () => import("@/pages/Time"),
   "/proposals": () => import("@/pages/Proposals"),
+  "/bd/leads": () => import("@/pages/bd/BdLeads"),
+  "/bd/events": () => import("@/pages/bd/BdEvents"),
+  "/bd/sequences": () => import("@/pages/bd/BdSequences"),
   "/invoices": () => import("@/pages/Invoices"),
   "/emails": () => import("@/pages/Emails"),
   "/calendar": () => import("@/pages/Calendar"),
@@ -161,9 +168,22 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
       {/* Main Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-hide">
         {filteredMainNav.map((item) => {
-          const isActive = location.pathname === item.href || 
+          if ((item as any).isHeader) {
+            if (collapsed) {
+              return <Separator key={item.href} className="my-2 bg-sidebar-border" />;
+            }
+            return (
+              <div
+                key={item.href}
+                className="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40"
+              >
+                BD
+              </div>
+            );
+          }
+          const isActive = location.pathname === item.href ||
             (item.href !== "/dashboard" && location.pathname.startsWith(item.href));
-          
+
           return (
             <NavLink
               key={item.href}
