@@ -121,16 +121,12 @@ export async function getProject(ctx: Ctx, args: { project_id: string }) {
     p.assigned_pm_id
       ? ctx.supabase.from("profiles").select("display_name").eq("id", p.assigned_pm_id).maybeSingle()
       : Promise.resolve({ data: null }),
-    p.assigned_senior_pm_id
-      ? ctx.supabase.from("profiles").select("display_name").eq("id", p.assigned_senior_pm_id).maybeSingle()
-      : Promise.resolve({ data: null }),
   ]);
 
   return {
     project: {
       ...p,
       pm_name: pmRes?.data?.display_name || null,
-      senior_pm_name: srPmRes?.data?.display_name || null,
     },
     open_checklist_items: openChecklist ?? 0,
     open_pis_fields: openPis ?? 0,
