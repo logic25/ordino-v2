@@ -99,7 +99,7 @@ export async function getProject(ctx: Ctx, args: { project_id: string }) {
       ready_to_file_at, last_activity_at,
       assigned_pm_id, assigned_senior_pm_id,
       properties(address, borough, block, lot, bin),
-      clients!projects_client_id_fkey(name, type)
+      clients!projects_client_id_fkey(name, client_type)
     `)
     .eq("id", args.project_id)
     .eq("company_id", ctx.companyId)
@@ -153,14 +153,14 @@ export async function queryTable(ctx: Ctx, args: {
   const cols = filterColumns(args.table, args.columns);
   const limit = Math.min(args.limit ?? MAX_ROWS_QUERY, MAX_ROWS_QUERY);
 
-  // Total matching count (head-only, capped).
+  // Total matching count (head-only).
   let countQ = ctx.supabase
     .from(args.table)
-    .select("*", { count: "exact", head: true })
+    .select("id", { count: "exact", head: true })
     .eq("project_id", args.project_id);
   for (const f of args.filters ?? []) countQ = applyFilter(countQ, f);
   const { count: totalCount, error: cntErr } = await countQ;
-  if (cntErr) throw new Error(`count_failed:${cntErr.message}`);
+  if (cntErr) throw new Error(`count_failed:${cntErr.message || cntErr.code || JSON.stringify(cntErr)}`);
 
   let q = ctx.supabase
     .from(args.table)
@@ -192,11 +192,11 @@ export async function countRows(ctx: Ctx, args: {
   await assertProjectAccess(ctx, args.project_id);
   let q = ctx.supabase
     .from(args.table)
-    .select("*", { count: "exact", head: true })
+    .select("id", { count: "exact", head: true })
     .eq("project_id", args.project_id);
   for (const f of args.filters ?? []) q = applyFilter(q, f);
   const { count, error } = await q;
-  if (error) throw new Error(`count_failed:${error.message}`);
+  if (error) throw new Error(`count_failed:${error.message || error.code || JSON.stringify(error)}`);
   return { count: count ?? 0 };
 }
 

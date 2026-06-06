@@ -12,7 +12,7 @@ export const COLUMN_ALLOWLIST: Record<string, string[]> = {
     "id", "address", "borough", "block", "lot", "bin", "zip",
   ],
   clients: [
-    "id", "name", "type", "status", "primary_contact_id", "created_at",
+    "id", "name", "client_type", "is_sia", "is_rfp_partner", "created_at",
   ],
   client_contacts: [
     "id", "client_id", "name", "role", "email", "phone", "is_primary",
