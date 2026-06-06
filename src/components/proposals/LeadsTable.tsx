@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Link } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -123,6 +124,11 @@ export function LeadsTable({ leads, onDelete, onConvertToProposal, onUpdateLead,
 
   return (
     <>
+      <div className="flex justify-end mb-2">
+        <Button asChild variant="link" size="sm" className="h-auto p-0 text-muted-foreground">
+          <Link to="/bd/leads">Open the full BD Leads workspace →</Link>
+        </Button>
+      </div>
       <Table>
         <TableHeader>
           <TableRow>

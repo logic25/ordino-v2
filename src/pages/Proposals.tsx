@@ -17,7 +17,7 @@ import { LeadsTable } from "@/components/proposals/LeadsTable";
 import { SignatureDialog, type SignatureRecipient } from "@/components/proposals/SignatureDialog";
 import { ProposalApprovalDialog } from "@/components/proposals/ProposalApprovalDialog";
 import { ProposalPreviewModal } from "@/components/proposals/ProposalPreviewModal";
-import { LeadCaptureDialog, type LeadCaptureData } from "@/components/proposals/LeadCaptureDialog";
+import { CaptureLeadModal } from "@/components/bd/CaptureLeadModal";
 import { SendProposalDialog } from "@/components/proposals/SendProposalDialog";
 import {
   useProposals,
@@ -505,93 +505,8 @@ export default function Proposals() {
     }
   };
 
-  const handleLeadSubmit = async (data: LeadCaptureData) => {
-    try {
-      // Always persist the lead (including party info)
-      const leadData: any = {
-        full_name: data.full_name,
-        contact_phone: data.contact_phone,
-        contact_email: data.contact_email,
-        property_address: data.property_address,
-        subject: data.subject,
-        client_type: data.client_type,
-        source: data.source,
-        notes: data.notes,
-        referred_by: data.referred_by || undefined,
-        assigned_to: data.assigned_pm_id || undefined,
-        architect_name: data.architect_name,
-        architect_company: data.architect_company,
-        architect_phone: data.architect_phone,
-        architect_email: data.architect_email,
-        architect_license_type: data.architect_license_type,
-        architect_license_number: data.architect_license_number,
-        gc_name: data.gc_name,
-        gc_company: data.gc_company,
-        gc_phone: data.gc_phone,
-        gc_email: data.gc_email,
-        sia_name: data.sia_name,
-        sia_company: data.sia_company,
-        sia_phone: data.sia_phone,
-        sia_email: data.sia_email,
-        tpp_name: data.tpp_name,
-        tpp_email: data.tpp_email,
-      };
-
-      if (data.create_proposal) {
-        // Create proposal and link it to the lead — carry party info forward
-        const newProposal = await createProposal.mutateAsync({
-          property_id: null as any,
-          title: `Lead: ${data.full_name}${data.property_address ? ` – ${data.property_address}` : ""}`,
-          client_name: data.full_name,
-          client_email: data.contact_email || null,
-          lead_source: data.source,
-          notes: [
-            data.contact_phone ? `Phone: ${data.contact_phone}` : "",
-            data.subject ? `Subject: ${data.subject}` : "",
-            data.client_type ? `Type: ${data.client_type}` : "",
-            data.notes || "",
-          ].filter(Boolean).join("\n"),
-          assigned_pm_id: data.assigned_pm_id || null,
-          sales_person_id: data.assigned_pm_id || null,
-          architect_name: data.architect_name || null,
-          architect_company: data.architect_company || null,
-          architect_phone: data.architect_phone || null,
-          architect_email: data.architect_email || null,
-          architect_license_type: data.architect_license_type || null,
-          architect_license_number: data.architect_license_number || null,
-          gc_name: data.gc_name || null,
-          gc_company: data.gc_company || null,
-          gc_phone: data.gc_phone || null,
-          gc_email: data.gc_email || null,
-          sia_name: data.sia_name || null,
-          sia_company: data.sia_company || null,
-          sia_phone: data.sia_phone || null,
-          sia_email: data.sia_email || null,
-          tpp_name: data.tpp_name || null,
-          tpp_email: data.tpp_email || null,
-        } as any);
-
-        leadData.proposal_id = newProposal.id;
-        leadData.status = "converted";
-        await createLead.mutateAsync(leadData);
-
-        toast({
-          title: "Lead captured!",
-          description: `Draft proposal created for ${data.full_name}.`,
-        });
-      } else {
-        await createLead.mutateAsync(leadData);
-        toast({
-          title: "Lead saved!",
-          description: `${data.full_name} logged as a new lead.`,
-        });
-        setActiveTab("leads");
-      }
-      setLeadDialogOpen(false);
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    }
-  };
+  // Lead capture is handled by the shared <CaptureLeadModal/> (BD module), which
+  // dual-writes + seeds the activity thread. Phantom draft proposals were removed.
 
   const handleDeleteLead = async (id: string) => {
     try {
@@ -956,11 +871,10 @@ export default function Proposals() {
         defaultPmId={(approvingProposal as any)?.assigned_pm_id || ""}
       />
 
-      <LeadCaptureDialog
+      <CaptureLeadModal
         open={leadDialogOpen}
         onOpenChange={setLeadDialogOpen}
-        onSubmit={handleLeadSubmit}
-        isLoading={createLead.isPending || createProposal.isPending}
+        onCreated={() => setActiveTab("leads")}
       />
 
       <ProposalPreviewModal
