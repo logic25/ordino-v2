@@ -76,6 +76,7 @@ const Privacy = lazyWithRetry(() => import("./pages/Privacy"), "privacy");
 const Terms = lazyWithRetry(() => import("./pages/Terms"), "terms");
 const Welcome = lazyWithRetry(() => import("./pages/Welcome"), "welcome");
 const BdLeads = lazyWithRetry(() => import("./pages/bd/BdLeads"), "bd-leads");
+const BdLeadDetail = lazyWithRetry(() => import("./pages/bd/BdLeadDetail"), "bd-lead-detail");
 const BdEvents = lazyWithRetry(() => import("./pages/bd/BdEvents"), "bd-events");
 const BdSequences = lazyWithRetry(() => import("./pages/bd/BdSequences"), "bd-sequences");
 
@@ -131,6 +132,7 @@ function AppRoutes() {
       <Route path="/time" element={<ProtectedRoute><Time /></ProtectedRoute>} />
       <Route path="/proposals" element={<ProtectedRoute><Proposals /></ProtectedRoute>} />
       <Route path="/bd/leads" element={<ProtectedRoute><BdLeads /></ProtectedRoute>} />
+      <Route path="/bd/leads/:id" element={<ProtectedRoute><BdLeadDetail /></ProtectedRoute>} />
       <Route path="/bd/events" element={<ProtectedRoute><BdEvents /></ProtectedRoute>} />
       <Route path="/bd/sequences" element={<ProtectedRoute><BdSequences /></ProtectedRoute>} />
       <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
