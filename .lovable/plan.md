@@ -1,44 +1,58 @@
-## Production dashboard — smarter KPI strip + untouched-projects bucket
+# Fix: Attendance sessions never clock out
 
-### 1. Replace the 4 Production KPI cards
-File: `src/components/dashboard/DashboardStats.tsx` (PM/Production branch only — Admin and Accounting unaffected).
+## What's actually broken
 
-New cards, left → right:
+Confirmed in the database — this is a real bug, not a display glitch:
 
-| # | Title | Value | Subtitle | Click |
-|---|---|---|---|---|
-| 1 | **Hours Today** | sum of today's `time_log_activities.duration_minutes` for me, formatted `h:mm` | "Keep logging" | `/time` |
-| 2 | **On You** | count of my open projects with `waiting_on = 'us'` AND `updated_at` ≥ 7 days ago | "Idle 7+ days — your move" | scrolls to On-You bucket |
-| 3 | **Waiting on Client** | count of my open projects with `waiting_on = 'client'` AND `waiting_since` ≥ 14 days ago | "14+ days — time to nudge" | scrolls to Waiting-on-Client bucket |
-| 4 | **Project Readiness <50%** | count of my open projects where checklist completion < 50% | shows lowest-% project name, e.g. "Lowest: PIS 7 (20%)" | scrolls to Project Readiness card |
+- **Manny:** 14+ open sessions going back to early May (every day you logged in and never clicked Clock Out).
+- **Natalia & Sheri:** several open sessions each.
+- The oldest dangling clock-in is from **May 8, 2026** — almost a month "clocked in."
 
-All four are derived from data the dashboard already fetches (`useMyAssignedProjects`, `useMyProjectReadiness`, `useDashboardStats.todayHours`) — no new endpoints needed. Add a small `useProductionKpis` helper in `src/hooks/useDashboard.ts` that composes them so the cards render in one render pass.
+## Why it's happening
 
-Cards use:
-- destructive accent when value > 0 for "On You"
-- amber accent when value > 0 for "Waiting on Client" and "Readiness <50%"
-- neutral for "Hours Today"
+Two failures combine:
 
-### 2. Add "Hasn't been touched" bucket to My Projects (`PMDailyView.tsx`)
-- New hook `useMyUntouchedProjects` — open projects assigned to me with **zero** rows in `time_log_activities` AND no `updated_at` newer than `created_at + 1 day`.
-- Render bucket at the top of the "My Projects" card with an amber header `"Hasn't been touched — kick these off"`.
-- Remove the `.slice(0, 8)` cap on "Recently Active" and sort it **oldest `updated_at` first**.
+1. **No auto-close cron exists.** The Help Center copy at `src/components/helpdesk/HowToGuides.tsx:219` literally tells users *"Sessions left open past midnight are auto-closed and flagged for review."* — but there's no edge function or `pg_cron` job that does it. `auto_closed` is always `false` in the DB.
+2. **Auto clock-in on every login** (`useAutoClockIn` in `src/hooks/useAttendance.ts:167`) creates a new row each day, but most users never click Clock Out. The unique constraint silently swallows duplicate same-day attempts (`error.code === "23505"` → `return null`), so nothing visibly breaks until you look at the attendance table and see weeks of open sessions.
 
-### 3. Cleanup
-- Drop the now-unused "My Projects (count)" and "Team Members" entries from the production layout defaults in `useDashboardLayout.ts`.
-- Add anchors (`id="bucket-on-you"`, etc.) on the bucket headers in `PMDailyView` so the KPI cards can `scrollIntoView` on click.
+## The fix (three parts)
 
-### 4. Changelog
-Insert one `changelog_entries` row: "Production dashboard upgraded — KPI cards now show On You / Waiting on Client / Readiness gaps, and a new 'Hasn't been touched' bucket surfaces neglected projects."
+### 1. Backfill — close every dangling session
+For every `attendance_logs` row where `clock_out IS NULL` AND `log_date < today`:
+- Set `clock_out` = `log_date` at 23:59:59 in the company timezone (fallback America/New_York since this is NYC-focused).
+- Set `auto_closed = true`.
+- Compute `total_minutes` from clock_in → clock_out, **capped at 600 minutes (10 hrs)** so a month-old open session doesn't show as 700 billable hours.
+- Add a note: `"Auto-closed by system backfill — original clock-out missing"`.
 
-### Files touched
-- `src/components/dashboard/DashboardStats.tsx`
-- `src/components/dashboard/PMDailyView.tsx`
-- `src/hooks/useDashboard.ts`
-- `src/hooks/useDashboardLayout.ts`
+Today's still-open rows are left alone (you're actually clocked in right now).
 
-### Out of scope
-- Admin and Accounting dashboards (untouched).
-- Role-preview selector, role renaming.
-- New tasks/proposals widgets.
-- DB migrations (none required).
+### 2. Nightly auto-close cron
+New edge function `auto-close-attendance` + `pg_cron` schedule that runs every day at **05:00 UTC** (≈ 1 AM ET, after midnight in all US timezones):
+- Finds rows where `clock_out IS NULL` AND `log_date < CURRENT_DATE`.
+- Sets `clock_out` to end of `log_date`, `auto_closed = true`, `total_minutes` computed and capped at 600.
+- Logs a row to `automation_logs` for visibility.
+- Uses the `x-cron-secret` pattern per the project's automation-auth rules.
+
+### 3. Surface auto-closed sessions in the UI
+`AttendanceTable.tsx` already has an `auto_closed` branch (line 91) — promote it visually:
+- Show an amber "Auto-closed" pill instead of the time in the Clock Out column.
+- Add a small "Fix" button on auto-closed rows that opens the existing manual-edit flow (mandatory reason per the time-tracking audit-trail rule) so the user can correct the real clock-out time. This keeps the audit trail clean.
+
+## Optional polish (ask before doing)
+
+- **Prevent the re-occurrence at clock-in time:** when `useClockIn` runs and finds yesterday's row still open for that user, auto-close it first (same logic as the cron, but inline). Catches drift between nightly runs.
+- **Daily summary email to admins** listing yesterday's auto-closed sessions so out-of-office / forgotten logouts are visible the next morning. Reuses the existing notification pipeline.
+
+## Files touched
+
+- New: `supabase/functions/auto-close-attendance/index.ts`
+- Migration: `pg_cron` schedule + one-time backfill UPDATE
+- Edit: `src/components/time/AttendanceTable.tsx` — auto-closed pill + Fix button
+- Edit: `src/hooks/useAttendance.ts` — optional pre-clock-in cleanup
+- Changelog: insert one `changelog_entries` row (fix type) per project policy
+
+## What this does NOT change
+
+- Doesn't touch project-level time logs (those are separate from attendance).
+- Doesn't change the auto-clock-in-on-login behavior — that's intentional per the time-tracking system memory.
+- No schema changes beyond the cron schedule.
