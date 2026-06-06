@@ -54,18 +54,30 @@ export function ProposalFollowUps() {
   };
 
   const handleLogCall = async (id: string) => {
-    await logFollowUp.mutateAsync({ proposalId: id, action: "called", notes: "Called client to follow up" });
-    toast({ title: "Follow-up logged", description: "Next follow-up scheduled." });
+    try {
+      await logFollowUp.mutateAsync({ proposalId: id, action: "called", notes: "Called client to follow up" });
+      toast({ title: "Follow-up logged", description: "Next follow-up scheduled." });
+    } catch (err: any) {
+      toast({ title: "Could not log follow-up", description: err?.message || "Please try again.", variant: "destructive" });
+    }
   };
 
   const handleDismiss = async (id: string) => {
-    await dismissFollowUp.mutateAsync({ id });
-    toast({ title: "Dismissed", description: "Follow-up dismissed for this proposal." });
+    try {
+      await dismissFollowUp.mutateAsync({ id });
+      toast({ title: "Dismissed", description: "Follow-up dismissed for this proposal." });
+    } catch (err: any) {
+      toast({ title: "Could not dismiss", description: err?.message || "Please try again.", variant: "destructive" });
+    }
   };
 
   const handleSnooze = async (id: string, days: number) => {
-    await snoozeFollowUp.mutateAsync({ id, days });
-    toast({ title: "Snoozed", description: `Follow-up snoozed for ${days} days.` });
+    try {
+      await snoozeFollowUp.mutateAsync({ id, days });
+      toast({ title: "Snoozed", description: `Follow-up snoozed for ${days} days.` });
+    } catch (err: any) {
+      toast({ title: "Could not snooze", description: err?.message || "Please try again.", variant: "destructive" });
+    }
   };
 
   const getUrgency = (dateStr: string) => {

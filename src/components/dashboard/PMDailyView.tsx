@@ -8,6 +8,7 @@ import { AlertTriangle, CheckCircle2, Clock, Circle, FolderKanban, ArrowRight, C
 import { useMyAssignedProjects } from "@/hooks/useDashboard";
 import { ProposalFollowUps } from "./ProposalFollowUps";
 import { MyActionItemsCard } from "./MyActionItemsCard";
+import { QuickTimeLog } from "@/components/time/QuickTimeLog";
 import { differenceInDays } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -342,6 +343,7 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
       <div className="space-y-6">
         {show("my-action-items") && <MyActionItemsCard />}
         {show("proposal-followups") && <ProposalFollowUps />}
+        {show("quick-time-log") && <QuickTimeLog />}
       </div>
     </div>
   );
