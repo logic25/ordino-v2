@@ -1,22 +1,665 @@
+import { useMemo, useState } from "react";
+import { format } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { BdPlaceholder } from "@/components/bd/BdPlaceholder";
-import { Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Calendar, MapPin, ExternalLink, Plus, MoreHorizontal, Check, X, Trash2,
+  Users, Globe, BadgeCheck, ChevronDown, Pencil,
+} from "lucide-react";
+import {
+  useBdEvents, useCreateBdEvent, useUpdateBdEvent, useDeleteBdEvent,
+  useEventAttendees, useAddEventAttendee, useUpdateEventAttendee, useRemoveEventAttendee,
+  useEventSources, useUpsertEventSource, useMarkSourceChecked, useDeleteEventSource,
+  useMemberships, useUpsertMembership, useDeleteMembership,
+  type BdEvent, type EventStatus, type EventSource, type BdMembership,
+} from "@/hooks/useBdEvents";
+import { useCompanyProfiles } from "@/hooks/useProfiles";
+import { useToast } from "@/hooks/use-toast";
+import { initials } from "@/components/bd/leadConstants";
+
+const STATUS_META: Record<EventStatus, { label: string; className: string }> = {
+  PENDING_APPROVAL: { label: "Pending", className: "bg-gray-100 text-gray-700 border-gray-200" },
+  APPROVED: { label: "Approved", className: "bg-blue-100 text-blue-700 border-blue-200" },
+  REGISTERED: { label: "Registered", className: "bg-purple-100 text-purple-700 border-purple-200" },
+  ATTENDED: { label: "Attended", className: "bg-green-100 text-green-700 border-green-200" },
+  SKIPPED: { label: "Skipped", className: "bg-amber-100 text-amber-700 border-amber-200" },
+  CANCELLED: { label: "Cancelled", className: "bg-red-100 text-red-700 border-red-200" },
+};
+
+const FREQ_LABELS = { WEEKLY: "Weekly", BI_WEEKLY: "Bi-weekly", MONTHLY: "Monthly", QUARTERLY: "Quarterly" } as const;
+const SRC_PRIORITY_LABELS = { HIGH: "High", MED: "Medium", LOW: "Low" } as const;
+
+function fmtDate(d: string | null) {
+  if (!d) return "—";
+  try { return format(new Date(d), "MMM d, yyyy"); } catch { return d; }
+}
+function fmtMoney(v: number | null) {
+  if (v == null) return "—";
+  return `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+}
 
 export default function BdEvents() {
+  const [tab, setTab] = useState("events");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editEvent, setEditEvent] = useState<BdEvent | null>(null);
+  const [detailEvent, setDetailEvent] = useState<BdEvent | null>(null);
+  const [filterStatus, setFilterStatus] = useState<EventStatus | "ALL">("ALL");
+  const [search, setSearch] = useState("");
+
+  const events = useBdEvents();
+  const updateEvent = useUpdateBdEvent();
+  const deleteEvent = useDeleteBdEvent();
+  const { toast } = useToast();
+
+  const filtered = useMemo(() => {
+    return (events.data ?? []).filter((e) => {
+      if (filterStatus !== "ALL" && e.status !== filterStatus) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        if (!(`${e.name} ${e.location ?? ""} ${e.category ?? ""}`.toLowerCase().includes(q))) return false;
+      }
+      return true;
+    });
+  }, [events.data, filterStatus, search]);
+
+  const setStatus = (id: string, status: EventStatus) =>
+    updateEvent.mutate({ id, status }, { onSuccess: () => toast({ title: `Marked ${STATUS_META[status].label.toLowerCase()}` }) });
+
   return (
     <AppLayout>
-      <div className="space-y-6 animate-fade-in">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Events</h1>
-          <p className="text-muted-foreground mt-1">Industry events with approval workflow and attendee tracking.</p>
+      <div className="p-6 max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold">Events</h1>
+            <p className="text-sm text-muted-foreground">Industry events, sources to monitor, and your memberships.</p>
+          </div>
+          <Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-1.5" />New event</Button>
         </div>
-        <BdPlaceholder
-          title="Events"
-          sprint={6}
-          description="Propose events for approval, register attendees, and link Leads captured at each event. Includes the Activity thread for team commentary."
-          icon={Calendar}
-        />
+
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList>
+            <TabsTrigger value="events"><Calendar className="h-4 w-4 mr-1.5" />Events</TabsTrigger>
+            <TabsTrigger value="sources"><Globe className="h-4 w-4 mr-1.5" />Sources</TabsTrigger>
+            <TabsTrigger value="memberships"><BadgeCheck className="h-4 w-4 mr-1.5" />Memberships</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="events" className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Search events…" className="max-w-sm"
+                value={search} onChange={(e) => setSearch(e.target.value)}
+              />
+              <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
+                <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All statuses</SelectItem>
+                  {Object.entries(STATUS_META).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>{v.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="ml-auto text-sm text-muted-foreground">{filtered.length} events</div>
+            </div>
+
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Event</TableHead>
+                      <TableHead>When</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Cost</TableHead>
+                      <TableHead>Going</TableHead>
+                      <TableHead>Leads</TableHead>
+                      <TableHead className="w-12" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((e) => (
+                      <TableRow key={e.id} className="cursor-pointer hover:bg-muted/40"
+                        onClick={() => setDetailEvent(e)}>
+                        <TableCell className="font-medium">
+                          <div>{e.name}</div>
+                          {e.location && (
+                            <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                              <MapPin className="h-3 w-3" />{e.location}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm">{fmtDate(e.start_date)}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={STATUS_META[e.status].className}>
+                            {STATUS_META[e.status].label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {e.included_in_membership ? (
+                            <span className="text-green-700 text-xs">Included</span>
+                          ) : (
+                            <span>{fmtMoney(e.cost_actual ?? e.cost_member ?? e.cost_low)}</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm">{e.attendee_count ?? 0}</TableCell>
+                        <TableCell className="text-sm">{e.lead_count ?? 0}</TableCell>
+                        <TableCell onClick={(ev) => ev.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => setStatus(e.id, "APPROVED")}>Approve</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setStatus(e.id, "REGISTERED")}>Registered</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setStatus(e.id, "ATTENDED")}>Attended</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setStatus(e.id, "SKIPPED")}>Skip</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setStatus(e.id, "CANCELLED")}>Cancel</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setEditEvent(e)}><Pencil className="h-3.5 w-3.5 mr-1.5" />Edit</DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive"
+                                onClick={() => { if (confirm("Delete event?")) deleteEvent.mutate(e.id); }}>
+                                <Trash2 className="h-3.5 w-3.5 mr-1.5" />Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {filtered.length === 0 && (
+                      <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground text-sm">
+                        {events.isLoading ? "Loading…" : "No events yet. Click New event to add one."}
+                      </TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="sources"><SourcesTab /></TabsContent>
+          <TabsContent value="memberships"><MembershipsTab /></TabsContent>
+        </Tabs>
       </div>
+
+      <EventDialog open={createOpen || !!editEvent} event={editEvent}
+        onOpenChange={(o) => { if (!o) { setCreateOpen(false); setEditEvent(null); } }} />
+      <EventDetailSheet event={detailEvent} onOpenChange={(o) => { if (!o) setDetailEvent(null); }} />
     </AppLayout>
+  );
+}
+
+// ====== Event Dialog ======
+function EventDialog({ open, event, onOpenChange }: { open: boolean; event: BdEvent | null; onOpenChange: (o: boolean) => void }) {
+  const create = useCreateBdEvent();
+  const update = useUpdateBdEvent();
+  const memberships = useMemberships();
+  const { toast } = useToast();
+
+  const [form, setForm] = useState<Partial<BdEvent>>({});
+
+  useMemo(() => {
+    setForm(event ? { ...event } : {
+      name: "", status: "PENDING_APPROVAL", priority: "DISCUSS", included_in_membership: false,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event, open]);
+
+  const save = async () => {
+    if (!form.name?.trim()) { toast({ title: "Name required", variant: "destructive" }); return; }
+    try {
+      if (event) await update.mutateAsync({ id: event.id, ...form });
+      else await create.mutateAsync(form as any);
+      toast({ title: event ? "Event updated" : "Event created" });
+      onOpenChange(false);
+    } catch (e: any) {
+      toast({ title: "Save failed", description: e.message, variant: "destructive" });
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{event ? "Edit event" : "New event"}</DialogTitle>
+          <DialogDescription>Industry conferences, networking, etc.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label>Name *</Label>
+            <Input value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Start date</Label>
+              <Input type="date" value={form.start_date ?? ""}
+                onChange={(e) => setForm({ ...form, start_date: e.target.value || null })} />
+            </div>
+            <div>
+              <Label>End date</Label>
+              <Input type="date" value={form.end_date ?? ""}
+                onChange={(e) => setForm({ ...form, end_date: e.target.value || null })} />
+            </div>
+          </div>
+          <div>
+            <Label>Location</Label>
+            <Input value={form.location ?? ""} onChange={(e) => setForm({ ...form, location: e.target.value || null })} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Category</Label>
+              <Input value={form.category ?? ""} placeholder="e.g. Conference, Networking"
+                onChange={(e) => setForm({ ...form, category: e.target.value || null })} />
+            </div>
+            <div>
+              <Label>Source URL</Label>
+              <Input value={form.source_url ?? ""} placeholder="https://…"
+                onChange={(e) => setForm({ ...form, source_url: e.target.value || null })} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Status</Label>
+              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as EventStatus })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(STATUS_META).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>{v.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Priority</Label>
+              <Select value={form.priority ?? "DISCUSS"} onValueChange={(v) => setForm({ ...form, priority: v as any })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="GO">Go</SelectItem>
+                  <SelectItem value="DISCUSS">Discuss</SelectItem>
+                  <SelectItem value="SKIP">Skip</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <Label>Cost low</Label>
+              <Input type="number" value={form.cost_low ?? ""}
+                onChange={(e) => setForm({ ...form, cost_low: e.target.value ? Number(e.target.value) : null })} />
+            </div>
+            <div>
+              <Label>Cost high</Label>
+              <Input type="number" value={form.cost_high ?? ""}
+                onChange={(e) => setForm({ ...form, cost_high: e.target.value ? Number(e.target.value) : null })} />
+            </div>
+            <div>
+              <Label>Actual paid</Label>
+              <Input type="number" value={form.cost_actual ?? ""}
+                onChange={(e) => setForm({ ...form, cost_actual: e.target.value ? Number(e.target.value) : null })} />
+            </div>
+          </div>
+          <div>
+            <Label>Linked membership (if included)</Label>
+            <Select
+              value={form.membership_id ?? "__none"}
+              onValueChange={(v) => setForm({ ...form, membership_id: v === "__none" ? null : v, included_in_membership: v !== "__none" })}>
+              <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">None</SelectItem>
+                {(memberships.data ?? []).map((m) => (
+                  <SelectItem key={m.id} value={m.id}>{m.organization}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Notes</Label>
+            <Textarea rows={3} value={form.notes ?? ""}
+              onChange={(e) => setForm({ ...form, notes: e.target.value || null })} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={save} disabled={create.isPending || update.isPending}>
+            {event ? "Save" : "Create"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ====== Event Detail Sheet (attendees + meta) ======
+function EventDetailSheet({ event, onOpenChange }: { event: BdEvent | null; onOpenChange: (o: boolean) => void }) {
+  const attendees = useEventAttendees(event?.id);
+  const addAtt = useAddEventAttendee();
+  const updAtt = useUpdateEventAttendee();
+  const rmAtt = useRemoveEventAttendee();
+  const profiles = useCompanyProfiles();
+  const [pickUser, setPickUser] = useState("");
+
+  if (!event) return null;
+  const presentIds = new Set((attendees.data ?? []).map((a) => a.user_id));
+  const available = (profiles.data ?? []).filter((p) => !presentIds.has(p.id));
+
+  return (
+    <Sheet open={!!event} onOpenChange={onOpenChange}>
+      <SheetContent className="sm:max-w-lg overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>{event.name}</SheetTitle>
+          <SheetDescription>{fmtDate(event.start_date)} · {event.location ?? "—"}</SheetDescription>
+        </SheetHeader>
+        <div className="space-y-6 mt-4">
+          <div className="flex flex-wrap gap-2 text-xs">
+            <Badge variant="outline" className={STATUS_META[event.status].className}>{STATUS_META[event.status].label}</Badge>
+            {event.category && <Badge variant="secondary">{event.category}</Badge>}
+            {event.included_in_membership && <Badge variant="outline" className="bg-green-50 text-green-700">Membership</Badge>}
+            {event.source_url && (
+              <a href={event.source_url} target="_blank" rel="noreferrer"
+                 className="text-xs underline inline-flex items-center gap-1">
+                Source <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+          </div>
+
+          {event.notes && (
+            <div>
+              <h4 className="text-sm font-medium mb-1">Notes</h4>
+              <p className="text-sm whitespace-pre-wrap text-muted-foreground">{event.notes}</p>
+            </div>
+          )}
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-medium flex items-center gap-1.5"><Users className="h-4 w-4" />Attendees</h4>
+            </div>
+            <div className="flex gap-2 mb-3">
+              <Select value={pickUser} onValueChange={setPickUser}>
+                <SelectTrigger><SelectValue placeholder="Add teammate…" /></SelectTrigger>
+                <SelectContent>
+                  {available.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {[p.first_name, p.last_name].filter(Boolean).join(" ") || p.display_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button size="sm" disabled={!pickUser}
+                onClick={() => { addAtt.mutate({ event_id: event.id, user_id: pickUser }); setPickUser(""); }}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="space-y-1">
+              {(attendees.data ?? []).map((a) => {
+                const name = [a.user?.first_name, a.user?.last_name].filter(Boolean).join(" ") || "Unknown";
+                return (
+                  <div key={a.id} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/40">
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-7 w-7"><AvatarFallback className="text-xs">{initials(name)}</AvatarFallback></Avatar>
+                      <span className="text-sm">{name}</span>
+                      <Badge variant="outline" className="text-xs">{a.rsvp_status ?? "—"}</Badge>
+                      {a.attended && <Badge variant="outline" className="bg-green-50 text-green-700 text-xs">Attended</Badge>}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button size="icon" variant="ghost" className="h-7 w-7"
+                        title="Mark attended"
+                        onClick={() => updAtt.mutate({ id: a.id, event_id: event.id, attended: !a.attended })}>
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-7 w-7"
+                        onClick={() => rmAtt.mutate({ id: a.id, event_id: event.id })}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+              {(attendees.data ?? []).length === 0 && (
+                <div className="text-xs text-muted-foreground py-2">No attendees yet.</div>
+              )}
+            </div>
+          </div>
+
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Cost</CardTitle></CardHeader>
+            <CardContent className="text-sm space-y-1">
+              <div>Range: {fmtMoney(event.cost_low)} – {fmtMoney(event.cost_high)}</div>
+              <div>Member: {fmtMoney(event.cost_member)} · Non-member: {fmtMoney(event.cost_nonmember)}</div>
+              <div>Actual paid: {fmtMoney(event.cost_actual)}</div>
+            </CardContent>
+          </Card>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+// ====== Sources Tab ======
+function SourcesTab() {
+  const sources = useEventSources();
+  const upsert = useUpsertEventSource();
+  const markChecked = useMarkSourceChecked();
+  const del = useDeleteEventSource();
+  const [open, setOpen] = useState(false);
+  const [edit, setEdit] = useState<EventSource | null>(null);
+  const [form, setForm] = useState<Partial<EventSource>>({});
+  const { toast } = useToast();
+
+  const startEdit = (s: EventSource | null) => {
+    setEdit(s);
+    setForm(s ? { ...s } : { name: "", url: "", check_frequency: "MONTHLY", priority: "MED" });
+    setOpen(true);
+  };
+
+  const save = async () => {
+    if (!form.name?.trim() || !form.url?.trim()) { toast({ title: "Name and URL required", variant: "destructive" }); return; }
+    await upsert.mutateAsync(form as any);
+    setOpen(false); toast({ title: edit ? "Source updated" : "Source added" });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">Sites/feeds to check periodically for new events.</p>
+        <Button size="sm" onClick={() => startEdit(null)}><Plus className="h-4 w-4 mr-1.5" />Add source</Button>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>URL</TableHead>
+                <TableHead>Frequency</TableHead>
+                <TableHead>Priority</TableHead>
+                <TableHead>Last checked</TableHead>
+                <TableHead className="w-32" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(sources.data ?? []).map((s) => (
+                <TableRow key={s.id}>
+                  <TableCell className="font-medium">{s.name}</TableCell>
+                  <TableCell>
+                    <a href={s.url} target="_blank" rel="noreferrer" className="text-xs underline inline-flex items-center gap-1 max-w-xs truncate">
+                      {s.url.replace(/^https?:\/\//, "")} <ExternalLink className="h-3 w-3 shrink-0" />
+                    </a>
+                  </TableCell>
+                  <TableCell className="text-sm">{FREQ_LABELS[s.check_frequency]}</TableCell>
+                  <TableCell><Badge variant="outline">{SRC_PRIORITY_LABELS[s.priority]}</Badge></TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{fmtDate(s.last_checked_at)}</TableCell>
+                  <TableCell className="text-right">
+                    <Button size="sm" variant="ghost" onClick={() => markChecked.mutate(s.id)}>
+                      <Check className="h-3.5 w-3.5 mr-1" />Checked
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(s)}><Pencil className="h-3.5 w-3.5" /></Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
+                      onClick={() => { if (confirm("Delete source?")) del.mutate(s.id); }}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {(sources.data ?? []).length === 0 && (
+                <TableRow><TableCell colSpan={6} className="text-center py-8 text-sm text-muted-foreground">No sources yet.</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{edit ? "Edit source" : "Add source"}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label>Name *</Label><Input value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+            <div><Label>URL *</Label><Input value={form.url ?? ""} onChange={(e) => setForm({ ...form, url: e.target.value })} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Frequency</Label>
+                <Select value={form.check_frequency ?? "MONTHLY"} onValueChange={(v) => setForm({ ...form, check_frequency: v as any })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(FREQ_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Priority</Label>
+                <Select value={form.priority ?? "MED"} onValueChange={(v) => setForm({ ...form, priority: v as any })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(SRC_PRIORITY_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div><Label>Notes</Label><Textarea rows={2} value={form.notes ?? ""} onChange={(e) => setForm({ ...form, notes: e.target.value || null })} /></div>
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={save}>Save</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ====== Memberships Tab ======
+function MembershipsTab() {
+  const memberships = useMemberships();
+  const upsert = useUpsertMembership();
+  const del = useDeleteMembership();
+  const [open, setOpen] = useState(false);
+  const [edit, setEdit] = useState<BdMembership | null>(null);
+  const [form, setForm] = useState<Partial<BdMembership>>({});
+  const { toast } = useToast();
+
+  const startEdit = (m: BdMembership | null) => {
+    setEdit(m);
+    setForm(m ? { ...m } : { organization: "", status: "EVALUATING" });
+    setOpen(true);
+  };
+
+  const save = async () => {
+    if (!form.organization?.trim()) { toast({ title: "Organization required", variant: "destructive" }); return; }
+    await upsert.mutateAsync(form as any);
+    setOpen(false); toast({ title: edit ? "Membership updated" : "Membership added" });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">Memberships you hold (or are evaluating). Drives "included" events pricing.</p>
+        <Button size="sm" onClick={() => startEdit(null)}><Plus className="h-4 w-4 mr-1.5" />Add membership</Button>
+      </div>
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Organization</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Annual cost</TableHead>
+                <TableHead>Renewal</TableHead>
+                <TableHead className="w-24" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(memberships.data ?? []).map((m) => (
+                <TableRow key={m.id}>
+                  <TableCell className="font-medium">{m.organization}</TableCell>
+                  <TableCell><Badge variant="outline">{m.status}</Badge></TableCell>
+                  <TableCell>{fmtMoney(m.annual_cost)}</TableCell>
+                  <TableCell className="text-sm">{fmtDate(m.next_renewal)}</TableCell>
+                  <TableCell className="text-right">
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(m)}><Pencil className="h-3.5 w-3.5" /></Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
+                      onClick={() => { if (confirm("Delete membership?")) del.mutate(m.id); }}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {(memberships.data ?? []).length === 0 && (
+                <TableRow><TableCell colSpan={5} className="text-center py-8 text-sm text-muted-foreground">No memberships yet.</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{edit ? "Edit membership" : "Add membership"}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label>Organization *</Label><Input value={form.organization ?? ""} onChange={(e) => setForm({ ...form, organization: e.target.value })} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Status</Label>
+                <Select value={form.status ?? "EVALUATING"} onValueChange={(v) => setForm({ ...form, status: v as any })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ACTIVE">Active</SelectItem>
+                    <SelectItem value="EXPIRED">Expired</SelectItem>
+                    <SelectItem value="NOT_MEMBER">Not member</SelectItem>
+                    <SelectItem value="EVALUATING">Evaluating</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Annual cost</Label>
+                <Input type="number" value={form.annual_cost ?? ""} onChange={(e) => setForm({ ...form, annual_cost: e.target.value ? Number(e.target.value) : null })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Member since</Label><Input type="date" value={form.member_since ?? ""} onChange={(e) => setForm({ ...form, member_since: e.target.value || null })} /></div>
+              <div><Label>Next renewal</Label><Input type="date" value={form.next_renewal ?? ""} onChange={(e) => setForm({ ...form, next_renewal: e.target.value || null })} /></div>
+            </div>
+            <div><Label>Login</Label><Input value={form.login_username ?? ""} onChange={(e) => setForm({ ...form, login_username: e.target.value || null })} /></div>
+            <div><Label>Notes</Label><Textarea rows={2} value={form.notes ?? ""} onChange={(e) => setForm({ ...form, notes: e.target.value || null })} /></div>
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={save}>Save</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

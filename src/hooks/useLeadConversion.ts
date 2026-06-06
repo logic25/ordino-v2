@@ -27,16 +27,20 @@ export function useConvertLeadToClient() {
       const companyName = (lead.company || "").trim();
       let clientId: string | null = null;
 
-      // Exact-normalized match (ilike with no wildcards = case-insensitive equality).
+      // Fuzzy-normalized match: strip common suffixes + punctuation, case-insensitive.
+      const normalize = (s: string) =>
+        s.toLowerCase()
+          .replace(/[.,'"`]/g, "")
+          .replace(/\b(inc|llc|ltd|corp|corporation|co|company|group|holdings|associates|partners|llp|pllc)\b/g, "")
+          .replace(/\s+/g, " ")
+          .trim();
       if (companyName) {
+        const normTarget = normalize(companyName);
         const { data: matches } = await supabase
           .from("clients")
           .select("id, name")
-          .eq("company_id", profile.company_id)
-          .ilike("name", companyName);
-        const exact = (matches || []).find(
-          (c: any) => (c.name || "").trim().toLowerCase() === companyName.toLowerCase(),
-        );
+          .eq("company_id", profile.company_id);
+        const exact = (matches || []).find((c: any) => normalize(c.name || "") === normTarget);
         clientId = exact?.id ?? null;
       }
 

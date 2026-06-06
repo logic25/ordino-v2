@@ -23,7 +23,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   UserPlus, Flame, ArrowUpDown, SlidersHorizontal, Columns3, Download, Trash2,
-  ChevronDown, Plus, Star, MoreHorizontal,
+  ChevronDown, Plus, Star, Send,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAssignableProfiles } from "@/hooks/useProfiles";
@@ -390,7 +390,7 @@ export default function BdLeads() {
               <SelectTrigger className="h-8 w-40"><SelectValue placeholder="Change stage" /></SelectTrigger>
               <SelectContent>{STAGE_ORDER.map((s) => <SelectItem key={s} value={s}>{STAGE_META[s].label}</SelectItem>)}</SelectContent>
             </Select>
-            <Button size="sm" variant="outline" disabled title="Coming in Sprint 3"><MoreHorizontal className="mr-1.5 h-3.5 w-3.5" />Add tag</Button>
+            <BulkEnrollSequence ids={selectedIds} />
             <Button size="sm" variant="outline" onClick={handleExport}><Download className="mr-1.5 h-3.5 w-3.5" />Export</Button>
             {isAdmin && (
               <Button size="sm" variant="outline" className="text-destructive" onClick={handleBulkDelete}>
@@ -529,5 +529,27 @@ function FilterPopover({
         <Button variant="ghost" size="sm" className="w-full" onClick={() => setFilters({})}>Clear filters</Button>
       </PopoverContent>
     </Popover>
+  );
+}
+
+// ====== Bulk enroll selected leads in a sequence ======
+import { useSequences, useEnrollLead } from "@/hooks/useBdSequences";
+
+function BulkEnrollSequence({ ids }: { ids: string[] }) {
+  const sequences = useSequences();
+  const enroll = useEnrollLead();
+  const { toast } = useToast();
+  return (
+    <Select onValueChange={(sequence_id) => {
+      enroll.mutate({ sequence_id, lead_ids: ids }, {
+        onSuccess: () => toast({ title: `Enrolled ${ids.length} lead${ids.length === 1 ? "" : "s"}` }),
+      });
+    }}>
+      <SelectTrigger className="h-8 w-44"><SelectValue placeholder="Enroll in sequence" /></SelectTrigger>
+      <SelectContent>
+        {(sequences.data ?? []).length === 0 && <div className="px-2 py-1.5 text-xs text-muted-foreground">No sequences. Create one in BD → Sequences.</div>}
+        {(sequences.data ?? []).map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+      </SelectContent>
+    </Select>
   );
 }
