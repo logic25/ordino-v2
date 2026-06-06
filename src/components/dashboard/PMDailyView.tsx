@@ -208,11 +208,6 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
             </CardTitle>
             <CardDescription>Checklist completion and missing items</CardDescription>
           </CardHeader>
-              <ClipboardCheck className="h-4 w-4" />
-              Project Readiness
-            </CardTitle>
-            <CardDescription>Checklist completion and missing items</CardDescription>
-          </CardHeader>
           <CardContent className="space-y-3">
             {readinessLoading ? (
               [1, 2].map((i) => (
