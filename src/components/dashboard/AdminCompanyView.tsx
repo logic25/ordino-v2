@@ -216,6 +216,4 @@ function TeamUtilizationStrip() {
       </Card>
     </div>
   );
-    </div>
-  );
 }
