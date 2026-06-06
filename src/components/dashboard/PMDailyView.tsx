@@ -140,8 +140,18 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
               </div>
             ) : (
               <>
+                {categorized.untouched.length > 0 && (
+                  <div id="bucket-untouched" className="space-y-2 scroll-mt-24">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-amber-600 flex items-center gap-1.5">
+                      <AlertTriangle className="h-3 w-3" /> Hasn't been touched — kick these off
+                    </h4>
+                    {categorized.untouched.map((p) => (
+                      <ProjectRow key={p.id} project={p} onClick={() => navigate(`/projects/${p.id}`)} />
+                    ))}
+                  </div>
+                )}
                 {categorized.onYou.length > 0 && (
-                  <div className="space-y-2">
+                  <div id="bucket-on-you" className="space-y-2 scroll-mt-24">
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-destructive flex items-center gap-1.5">
                       <AlertTriangle className="h-3 w-3" /> On you — idle 7+ days
                     </h4>
@@ -151,7 +161,7 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
                   </div>
                 )}
                 {categorized.waitingClient.length > 0 && (
-                  <div className="space-y-2">
+                  <div id="bucket-waiting-client" className="space-y-2 scroll-mt-24">
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-amber-600 flex items-center gap-1.5">
                       <Clock className="h-3 w-3" /> Waiting on client — 14+ days (nudge time)
                     </h4>
@@ -175,7 +185,7 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-primary flex items-center gap-1.5">
                       <CheckCircle2 className="h-3 w-3" /> Recently Active
                     </h4>
-                    {categorized.active.slice(0, 8).map((p) => (
+                    {categorized.active.map((p) => (
                       <ProjectRow key={p.id} project={p} onClick={() => navigate(`/projects/${p.id}`)} />
                     ))}
                   </div>
