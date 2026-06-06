@@ -19,6 +19,19 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown, Wand2 } from "lucide-react";
+import {
+  type FixPromptDestination,
+  getDestination,
+  setDestination,
+  DESTINATION_LABEL,
+} from "./fixPromptDestination";
 
 const PAGES = [
   "Dashboard", "Projects", "Properties", "Proposals", "Invoices / Billing",
@@ -99,6 +112,9 @@ export function BugReports() {
   const [fixedBy, setFixedBy] = useState("lovable");
   const [fixDescription, setFixDescription] = useState("");
   const [filesChanged, setFilesChanged] = useState("");
+  const [fixPromptDest, setFixPromptDest] = useState<FixPromptDestination>("lovable");
+  const [generatingPrompt, setGeneratingPrompt] = useState(false);
+  useEffect(() => { setFixPromptDest(getDestination()); }, []);
 
   // Activity log query
   const { data: activityLogs = [] } = useQuery({
@@ -567,22 +583,36 @@ export function BugReports() {
     });
   };
 
-  const copyForLovable = () => {
-    if (!selectedBug) return;
-    const attachments = getAttachments(selectedBug);
-    const parts = [
-      `**Bug Report: ${selectedBug.title}**`,
-      `Priority: ${selectedBug.priority}`,
-      "",
-      selectedBug.description,
-    ];
-    if (selectedBug.loom_url) parts.push("", `Loom: ${selectedBug.loom_url}`);
-    if (attachments.length > 0) parts.push("", `Screenshots:\n${attachments.map(a => `- ${a.url}`).join("\n")}`);
-    parts.push("", "Please analyze this bug and suggest a fix.");
-
-    navigator.clipboard.writeText(parts.join("\n"));
-    toast({ title: "Copied to clipboard", description: "Paste into Lovable chat to get a fix." });
+  const generateFixPrompt = async (tool: FixPromptDestination) => {
+    if (!selectedBug || generatingPrompt) return;
+    setFixPromptDest(tool);
+    setDestination(tool);
+    setGeneratingPrompt(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("assemble-fix-prompt", {
+        body: { bug_id: selectedBug.id, target_tool: tool },
+      });
+      if (error || !data?.prompt) throw error ?? new Error("No prompt returned");
+      await navigator.clipboard.writeText(data.prompt);
+      const fileNote = data.github_configured
+        ? `${data.files_included} file${data.files_included === 1 ? "" : "s"} of code included`
+        : "Paths only (no GitHub token configured)";
+      toast({
+        title: `Fix prompt copied for ${DESTINATION_LABEL[tool]}`,
+        description: `${fileNote}. Paste into ${DESTINATION_LABEL[tool]}.`,
+      });
+    } catch (e) {
+      console.error("generateFixPrompt failed", e);
+      toast({
+        title: "Couldn't generate fix prompt",
+        description: (e as Error)?.message ?? "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingPrompt(false);
+    }
   };
+
 
   const getAssigneeName = (id: string | null) => {
     if (!id) return "—";
@@ -1144,14 +1174,52 @@ export function BugReports() {
                   </div>
                 </div>
 
-                {/* Copy for Lovable — visible to everyone */}
+                {/* Generate Fix Prompt — visible to everyone */}
                 <div className="border-t pt-4">
-                  <Button size="sm" variant="outline" className="w-full" onClick={copyForLovable}>
-                    <Copy className="h-3.5 w-3.5 mr-2" />
-                    Copy for Lovable
-                  </Button>
-                  <p className="text-xs text-muted-foreground mt-1 text-center">Copy formatted bug report to paste into Lovable chat</p>
+                  <div className="flex gap-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 rounded-r-none border-r-0"
+                      disabled={generatingPrompt}
+                      onClick={() => generateFixPrompt(fixPromptDest)}
+                    >
+                      {generatingPrompt ? (
+                        <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                      ) : (
+                        <Wand2 className="h-3.5 w-3.5 mr-2" />
+                      )}
+                      Generate Fix Prompt for {DESTINATION_LABEL[fixPromptDest]}
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-l-none px-2"
+                          disabled={generatingPrompt}
+                          aria-label="Choose destination tool"
+                        >
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => generateFixPrompt("claude_code")}>
+                          Generate for Claude Code
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => generateFixPrompt("lovable")}>
+                          Generate for Lovable
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 text-center">
+                    {selectedBug.ai_diagnosis
+                      ? "Bundles triage, similar patterns, and current file code."
+                      : "Tip: run AI Triage first for richer context."}
+                  </p>
                 </div>
+
 
                 {isAdmin && (
                   <div className="border-t pt-4 space-y-4">
