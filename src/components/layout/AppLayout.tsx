@@ -4,6 +4,7 @@ import { AppSidebar } from "./AppSidebar";
 import { TopBar } from "./TopBar";
 import { ClockOutModal } from "@/components/time/ClockOutModal";
 import { BeaconChatWidget } from "@/components/beacon/BeaconChatWidget";
+import { GmailConnectPrompt } from "@/components/emails/GmailConnectPrompt";
 import type { BeaconProjectContext } from "@/services/beaconApi";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -210,6 +211,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         <div className="flex-1 flex flex-col min-w-0">
           <TopBar onMenuToggle={() => setMobileOpen((v) => !v)} />
           <main className="flex-1 overflow-auto p-3 sm:p-4 md:p-6">
+            <GmailConnectPrompt variant="banner" />
             {children}
           </main>
           <footer className="border-t border-border px-4 py-3 flex items-center justify-center gap-4 text-xs text-muted-foreground">
