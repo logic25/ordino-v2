@@ -4,6 +4,7 @@
 //   3. project_id ownership check against caller's company
 //   4. Operational bounds (row caps)
 import { assertTableAllowed, filterColumns, TABLES_WITHOUT_PROJECT_ID } from "./allowlist.ts";
+import { computePisStatusFromRfi } from "../_shared/pisStatus.ts";
 
 const MAX_ROWS_QUERY = 25;
 const MAX_ROWS_TOTAL_COUNT = 100; // cap returned to LLM in `total_matching_rows` (head-count via .head .count('exact'))
@@ -106,22 +107,21 @@ export async function getProject(ctx: Ctx, args: { project_id: string }) {
   if (error) throw new Error(`get_project_failed:${error.message}`);
   if (!p) throw new Error("project_not_accessible");
 
-  // Sidecar counts
-  const [{ count: openChecklist }, { count: openPis }, pmRes] = await Promise.all([
+  // Sidecar counts. PIS gaps are derived from the latest rfi_requests row,
+  // not the dead pis_tracking table.
+  const [{ count: openChecklist }, pisStatus, pmRes] = await Promise.all([
     ctx.supabase
       .from("project_checklist_items")
       .select("id", { count: "exact", head: true })
       .eq("project_id", args.project_id)
       .neq("status", "done"),
-    ctx.supabase
-      .from("pis_tracking")
-      .select("id", { count: "exact", head: true })
-      .eq("project_id", args.project_id)
-      .is("fulfilled_at", null),
+    computePisStatusFromRfi(ctx.supabase, args.project_id),
     p.assigned_pm_id
       ? ctx.supabase.from("profiles").select("display_name").eq("id", p.assigned_pm_id).maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
+
+  const openPis = pisStatus.totalFields - pisStatus.completedFields;
 
   return {
     project: {
@@ -129,8 +129,12 @@ export async function getProject(ctx: Ctx, args: { project_id: string }) {
       pm_name: pmRes?.data?.display_name || null,
     },
     open_checklist_items: openChecklist ?? 0,
-    open_pis_fields: openPis ?? 0,
-    ready_to_file: (openChecklist ?? 0) === 0 && (openPis ?? 0) === 0,
+    open_pis_fields: openPis,
+    pis_total_fields: pisStatus.totalFields,
+    pis_completed_fields: pisStatus.completedFields,
+    pis_missing_field_labels: pisStatus.missingFields.slice(0, 30),
+    pis_sent_date: pisStatus.sentDate,
+    ready_to_file: (openChecklist ?? 0) === 0 && openPis === 0,
   };
 }
 
