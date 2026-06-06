@@ -112,9 +112,6 @@ function useMyProjectReadiness() {
 export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean }) {
   const navigate = useNavigate();
   const { data: projects, isLoading } = useMyAssignedProjects();
-export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean }) {
-  const navigate = useNavigate();
-  const { data: projects, isLoading } = useMyAssignedProjects();
   const { data: readiness = [], isLoading: readinessLoading } = useMyProjectReadiness();
   const [readinessExpanded, setReadinessExpanded] = useState(false);
 
