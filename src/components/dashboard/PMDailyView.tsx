@@ -185,58 +185,48 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
               </div>
             ) : (
               <>
-                {categorized.untouched.length > 0 && (
-                  <div id="bucket-untouched" className="space-y-2 scroll-mt-24">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-amber-600 flex items-center gap-1.5">
-                      <AlertTriangle className="h-3 w-3" /> Hasn't been touched — kick these off
-                    </h4>
-                    {categorized.untouched.map((p) => (
-                      <ProjectRow key={p.id} project={p} onClick={() => navigate(`/projects/${p.id}`)} />
-                    ))}
-                  </div>
-                )}
-                {categorized.onYou.length > 0 && (
-                  <div id="bucket-on-you" className="space-y-2 scroll-mt-24">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-destructive flex items-center gap-1.5">
-                      <AlertTriangle className="h-3 w-3" /> On you — idle 7+ days
-                    </h4>
-                    {categorized.onYou.map((p) => (
-                      <ProjectRow key={p.id} project={p} onClick={() => navigate(`/projects/${p.id}`)} />
-                    ))}
-                  </div>
-                )}
-                {categorized.waitingClient.length > 0 && (
-                  <div id="bucket-waiting-client" className="space-y-2 scroll-mt-24">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-amber-600 flex items-center gap-1.5">
-                      <Clock className="h-3 w-3" /> Waiting on client — 14+ days (nudge time)
-                    </h4>
-                    {categorized.waitingClient.map((p) => (
-                      <ProjectRow key={p.id} project={p} onClick={() => navigate(`/projects/${p.id}`)} />
-                    ))}
-                  </div>
-                )}
-                {categorized.stale.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <Clock className="h-3 w-3" /> Truly stale — 30+ days
-                    </h4>
-                    {categorized.stale.map((p) => (
-                      <ProjectRow key={p.id} project={p} onClick={() => navigate(`/projects/${p.id}`)} />
-                    ))}
-                  </div>
-                )}
-                {categorized.active.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-primary flex items-center gap-1.5">
-                      <CheckCircle2 className="h-3 w-3" /> Recently Active
-                    </h4>
-                    {categorized.active.map((p) => (
-                      <ProjectRow key={p.id} project={p} onClick={() => navigate(`/projects/${p.id}`)} />
-                    ))}
-                  </div>
-                )}
+                <ProjectBucket
+                  id="bucket-untouched"
+                  title="Hasn't been touched"
+                  tone="amber"
+                  icon={<AlertTriangle className="h-3 w-3" />}
+                  items={categorized.untouched}
+                  onItemClick={(p) => navigate(`/projects/${p.id}`)}
+                />
+                <ProjectBucket
+                  id="bucket-on-you"
+                  title="On you — idle 7+ days"
+                  tone="destructive"
+                  icon={<AlertTriangle className="h-3 w-3" />}
+                  items={categorized.onYou}
+                  onItemClick={(p) => navigate(`/projects/${p.id}`)}
+                />
+                <ProjectBucket
+                  id="bucket-waiting-client"
+                  title="Waiting on client — 14+ days"
+                  tone="amber"
+                  icon={<Clock className="h-3 w-3" />}
+                  items={categorized.waitingClient}
+                  onItemClick={(p) => navigate(`/projects/${p.id}`)}
+                />
+                <ProjectBucket
+                  title="Truly stale — 30+ days"
+                  tone="muted"
+                  icon={<Clock className="h-3 w-3" />}
+                  items={categorized.stale}
+                  onItemClick={(p) => navigate(`/projects/${p.id}`)}
+                />
+                {categorized.untouched.length === 0 &&
+                  categorized.onYou.length === 0 &&
+                  categorized.waitingClient.length === 0 &&
+                  categorized.stale.length === 0 && (
+                    <div className="flex flex-col items-center py-6 text-center">
+                      <CheckCircle2 className="h-8 w-8 text-primary/60 mb-2" />
+                      <p className="text-sm text-muted-foreground">All caught up — no projects need attention right now.</p>
+                    </div>
+                  )}
                 <Button variant="outline" className="w-full" onClick={() => navigate("/projects")}>
-                  View All Projects <ArrowRight className="h-4 w-4 ml-1" />
+                  View all my projects <ArrowRight className="h-4 w-4 ml-1" />
                 </Button>
               </>
             )}
