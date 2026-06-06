@@ -400,7 +400,11 @@ export function BeaconChatWidget({ projectContext: externalContext }: BeaconChat
         // function. Resolves the project from either active context OR a project
         // number / name mentioned inline in the question.
         const statusRegex = /\b(status|what(?:'?s| is)? (?:going on|happening|the status|up)|where (?:are we|do we stand)|update|summary|summarize|recap|catch me up|going on with)\b/i;
-        if (statusRegex.test(q)) {
+        // When a project is in active context, prefer beacon-qa (tool-calling over
+        // live tables) over the generic summarize-project blurb. Only use the
+        // status intercept when no project is active and the user is asking about
+        // one by number/name inline.
+        if (statusRegex.test(q) && !activeContext?.projectId) {
           let resolvedProjectId: string | null = activeContext?.projectId || null;
           let resolvedLabel: string | null = null;
 
