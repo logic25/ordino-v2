@@ -148,7 +148,34 @@ export function NotesTab({ projectId }: NotesTabProps) {
       toast({ title: "Could not delete", description: e.message, variant: "destructive" }),
   });
 
-  if (!projectId) {
+  const correctionMutation = useMutation({
+    mutationFn: async ({ noteId, text }: { noteId: string; text: string }) => {
+      if (!projectId) throw new Error("Missing project");
+      const { data: userRes } = await supabase.auth.getUser();
+      if (!userRes.user) throw new Error("Not signed in");
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("user_id", userRes.user.id)
+        .maybeSingle();
+      if (!prof?.company_id) throw new Error("No company");
+      const { error } = await supabase.from("ai_feedback").insert({
+        project_id: projectId,
+        company_id: prof.company_id,
+        user_id: userRes.user.id,
+        source_id: noteId,
+        correction_text: text,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setCorrectingNoteId(null);
+      setCorrectionText("");
+      toast({ title: "Correction saved", description: "Future AI summaries will incorporate this." });
+    },
+    onError: (e: any) =>
+      toast({ title: "Could not save correction", description: e.message, variant: "destructive" }),
+  });
     return (
       <div className="p-4 text-sm text-muted-foreground">
         Project notes are unavailable for this view.
