@@ -1,4 +1,4 @@
-import { Clock, AlertTriangle, UserClock, ClipboardCheck } from "lucide-react";
+import { Clock, AlertTriangle, Hourglass, ClipboardCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useDashboardStats, useMyAssignedProjects } from "@/hooks/useDashboard";
 import { Skeleton } from "@/components/ui/skeleton";
