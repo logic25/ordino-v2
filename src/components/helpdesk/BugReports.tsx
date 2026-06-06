@@ -112,6 +112,9 @@ export function BugReports() {
   const [fixedBy, setFixedBy] = useState("lovable");
   const [fixDescription, setFixDescription] = useState("");
   const [filesChanged, setFilesChanged] = useState("");
+  const [fixPromptDest, setFixPromptDest] = useState<FixPromptDestination>("lovable");
+  const [generatingPrompt, setGeneratingPrompt] = useState(false);
+  useEffect(() => { setFixPromptDest(getDestination()); }, []);
 
   // Activity log query
   const { data: activityLogs = [] } = useQuery({
