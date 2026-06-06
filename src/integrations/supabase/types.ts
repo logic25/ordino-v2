@@ -345,28 +345,31 @@ export type Database = {
       ai_feedback: {
         Row: {
           company_id: string
-          correction_text: string
+          correction_text: string | null
           created_at: string
           id: string
           project_id: string
+          rating: string
           source_id: string | null
           user_id: string | null
         }
         Insert: {
           company_id: string
-          correction_text: string
+          correction_text?: string | null
           created_at?: string
           id?: string
           project_id: string
+          rating?: string
           source_id?: string | null
           user_id?: string | null
         }
         Update: {
           company_id?: string
-          correction_text?: string
+          correction_text?: string | null
           created_at?: string
           id?: string
           project_id?: string
+          rating?: string
           source_id?: string | null
           user_id?: string | null
         }

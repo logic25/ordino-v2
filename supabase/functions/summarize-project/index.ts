@@ -200,10 +200,12 @@ Deno.serve(async (req) => {
     };
 
     // ---- Past corrections: human-validated ground truth for this project ----
+    // Only `edit`-type feedback carries explicit ground truth. Thumbs ratings are signal, not text.
     const { data: corrections } = await admin
       .from("ai_feedback")
       .select("source_id, correction_text, created_at")
       .eq("project_id", project.id)
+      .eq("rating", "edit")
       .order("created_at", { ascending: false })
       .limit(10);
 

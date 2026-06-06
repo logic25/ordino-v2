@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { StickyNote, Sparkles, Loader2, Trash2, Tag, MessageSquareWarning, Check, X } from "lucide-react";
+import { StickyNote, Sparkles, Loader2, Trash2, Tag, ThumbsUp, ThumbsDown, Pencil, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -74,6 +74,29 @@ export function NotesTab({ projectId }: NotesTabProps) {
     },
     enabled: !!projectId,
   });
+
+  const { data: myFeedback = [] } = useQuery({
+    queryKey: ["ai-feedback-mine", projectId],
+    queryFn: async () => {
+      if (!projectId) return [] as { source_id: string; rating: string }[];
+      const { data: userRes } = await supabase.auth.getUser();
+      if (!userRes.user) return [];
+      const { data, error } = await supabase
+        .from("ai_feedback")
+        .select("source_id, rating")
+        .eq("project_id", projectId)
+        .eq("user_id", userRes.user.id);
+      if (error) throw error;
+      return (data || []) as { source_id: string; rating: string }[];
+    },
+    enabled: !!projectId,
+  });
+
+  const feedbackBySource = useMemo(() => {
+    const m = new Map<string, string>();
+    myFeedback.forEach((f) => f.source_id && m.set(f.source_id, f.rating));
+    return m;
+  }, [myFeedback]);
 
   const serviceNameById = useMemo(() => {
     const m = new Map<string, string>();
@@ -148,8 +171,16 @@ export function NotesTab({ projectId }: NotesTabProps) {
       toast({ title: "Could not delete", description: e.message, variant: "destructive" }),
   });
 
-  const correctionMutation = useMutation({
-    mutationFn: async ({ noteId, text }: { noteId: string; text: string }) => {
+  const feedbackMutation = useMutation({
+    mutationFn: async ({
+      noteId,
+      rating,
+      text,
+    }: {
+      noteId: string;
+      rating: "up" | "down" | "edit";
+      text?: string;
+    }) => {
       if (!projectId) throw new Error("Missing project");
       const { data: userRes } = await supabase.auth.getUser();
       if (!userRes.user) throw new Error("Not signed in");
@@ -164,17 +195,30 @@ export function NotesTab({ projectId }: NotesTabProps) {
         company_id: prof.company_id,
         user_id: userRes.user.id,
         source_id: noteId,
-        correction_text: text,
+        rating,
+        correction_text: rating === "edit" ? text ?? null : null,
       });
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async (_d, vars) => {
       setCorrectingNoteId(null);
       setCorrectionText("");
-      toast({ title: "Correction saved", description: "Future AI summaries will incorporate this." });
+      await qc.invalidateQueries({ queryKey: ["ai-feedback-mine", projectId] });
+      toast({
+        title:
+          vars.rating === "edit"
+            ? "Correction saved"
+            : vars.rating === "up"
+            ? "Thanks — marked accurate"
+            : "Thanks — marked inaccurate",
+        description:
+          vars.rating === "edit"
+            ? "Future AI summaries will incorporate this."
+            : undefined,
+      });
     },
     onError: (e: any) =>
-      toast({ title: "Could not save correction", description: e.message, variant: "destructive" }),
+      toast({ title: "Could not save feedback", description: e.message, variant: "destructive" }),
   });
 
   if (!projectId) {
@@ -329,6 +373,9 @@ export function NotesTab({ projectId }: NotesTabProps) {
           {filteredNotes.map((note) => {
             const isAi = note.source !== "manual";
             const isCorrecting = correctingNoteId === note.id;
+            const existingRating = feedbackBySource.get(note.id);
+            const hasFeedback = !!existingRating;
+            const pending = feedbackMutation.isPending && feedbackMutation.variables?.noteId === note.id;
             return (
             <div key={note.id} className="p-3 rounded-lg border bg-background group">
               <div className="flex items-center gap-2 mb-1.5 flex-wrap">
@@ -337,26 +384,57 @@ export function NotesTab({ projectId }: NotesTabProps) {
                 <span className="text-[10px] text-muted-foreground font-mono">
                   {formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}
                 </span>
-                <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                <div className="ml-auto flex items-center gap-1">
                   {isAi && !isCorrecting && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 gap-1 text-[10px]"
-                      onClick={() => {
-                        setCorrectingNoteId(note.id);
-                        setCorrectionText("");
-                      }}
-                      title="This summary is wrong — tell the AI what was actually true"
-                    >
-                      <MessageSquareWarning className="h-3 w-3" />
-                      Correct
-                    </Button>
+                    hasFeedback ? (
+                      <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1 px-1.5">
+                        {existingRating === "up" && <ThumbsUp className="h-3 w-3" />}
+                        {existingRating === "down" && <ThumbsDown className="h-3 w-3" />}
+                        {existingRating === "edit" && <Pencil className="h-3 w-3" />}
+                        Feedback recorded
+                      </span>
+                    ) : (
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => feedbackMutation.mutate({ noteId: note.id, rating: "up" })}
+                          disabled={pending}
+                          title="This summary is accurate"
+                        >
+                          <ThumbsUp className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => feedbackMutation.mutate({ noteId: note.id, rating: "down" })}
+                          disabled={pending}
+                          title="This summary is inaccurate"
+                        >
+                          <ThumbsDown className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => {
+                            setCorrectingNoteId(note.id);
+                            setCorrectionText("");
+                          }}
+                          disabled={pending}
+                          title="Tell the AI what was actually true"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )
                   )}
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-6 w-6 p-0"
+                    className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
                     onClick={() => deleteMutation.mutate(note.id)}
                     disabled={deleteMutation.isPending}
                   >
@@ -382,11 +460,15 @@ export function NotesTab({ projectId }: NotesTabProps) {
                       size="sm"
                       className="gap-1.5"
                       onClick={() =>
-                        correctionMutation.mutate({ noteId: note.id, text: correctionText.trim() })
+                        feedbackMutation.mutate({
+                          noteId: note.id,
+                          rating: "edit",
+                          text: correctionText.trim(),
+                        })
                       }
-                      disabled={!correctionText.trim() || correctionMutation.isPending}
+                      disabled={!correctionText.trim() || pending}
                     >
-                      {correctionMutation.isPending ? (
+                      {pending ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
                       ) : (
                         <Check className="h-3 w-3" />
