@@ -168,9 +168,22 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
       {/* Main Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-hide">
         {filteredMainNav.map((item) => {
-          const isActive = location.pathname === item.href || 
+          if ((item as any).isHeader) {
+            if (collapsed) {
+              return <Separator key={item.href} className="my-2 bg-sidebar-border" />;
+            }
+            return (
+              <div
+                key={item.href}
+                className="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40"
+              >
+                BD
+              </div>
+            );
+          }
+          const isActive = location.pathname === item.href ||
             (item.href !== "/dashboard" && location.pathname.startsWith(item.href));
-          
+
           return (
             <NavLink
               key={item.href}
