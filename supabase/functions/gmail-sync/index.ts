@@ -243,6 +243,10 @@ Deno.serve(async (req) => {
     let pagesProcessed = 0;
     let fullyExistingPages = 0;
     let partial = false;
+    // Track read-state sync-back + new unread inbox emails
+    const newUnreadInbox: { gmail_message_id: string; subject: string; from_name: string }[] = [];
+    const readGmailIds: string[] = [];
+    const unreadGmailIds: string[] = [];
 
     while (pagesProcessed < maxPages) {
       if (Date.now() - startedAt > TIME_BUDGET_MS) {
