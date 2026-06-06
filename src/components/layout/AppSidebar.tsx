@@ -30,16 +30,25 @@ import { usePermissions, type ResourceKey } from "@/hooks/usePermissions";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { useUnreadIndicators } from "@/hooks/useUnreadIndicators";
 
-const mainNav = [
+type NavItem = { title: string; icon: any; href: string; resource: ResourceKey };
+type NavGroup = { kind: "group"; label: string; items: NavItem[] };
+type NavEntry = NavItem | NavGroup;
+
+const mainNav: NavEntry[] = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/dashboard", resource: "dashboard" as ResourceKey },
   { title: "Projects", icon: FolderKanban, href: "/projects", resource: "projects" as ResourceKey },
   { title: "Properties", icon: Building2, href: "/properties", resource: "properties" as ResourceKey },
   { title: "Time", icon: Clock, href: "/time", resource: "time_logs" as ResourceKey },
   { title: "Proposals", icon: FileText, href: "/proposals", resource: "proposals" as ResourceKey },
-  { title: "__bd_header__", icon: LayoutDashboard, href: "#bd", resource: "proposals" as ResourceKey, isHeader: true },
-  { title: "Leads", icon: Users, href: "/bd/leads", resource: "proposals" as ResourceKey },
-  { title: "Events", icon: CalendarDays, href: "/bd/events", resource: "proposals" as ResourceKey },
-  { title: "Sequences", icon: Mail, href: "/bd/sequences", resource: "proposals" as ResourceKey },
+  {
+    kind: "group",
+    label: "BD",
+    items: [
+      { title: "Leads", icon: Users, href: "/bd/leads", resource: "proposals" as ResourceKey },
+      { title: "Events", icon: CalendarDays, href: "/bd/events", resource: "proposals" as ResourceKey },
+      { title: "Sequences", icon: Mail, href: "/bd/sequences", resource: "proposals" as ResourceKey },
+    ],
+  },
   { title: "Billing", icon: Receipt, href: "/invoices", resource: "invoices" as ResourceKey },
   { title: "Email", icon: Mail, href: "/emails", resource: "emails" as ResourceKey },
   { title: "Calendar", icon: CalendarDays, href: "/calendar", resource: "calendar" as ResourceKey },
