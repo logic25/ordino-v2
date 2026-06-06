@@ -5314,13 +5314,16 @@ export type Database = {
           architect_phone: string | null
           assigned_to: string | null
           business_card_photo_url: string | null
+          client_id: string | null
           client_type: string | null
+          company: string | null
           company_id: string
           contact_email: string | null
           contact_id: string | null
           contact_phone: string | null
           created_at: string
           created_by: string | null
+          deleted_at: string | null
           drawings_uploaded: boolean | null
           event_id: string | null
           expected_value: number | null
@@ -5339,6 +5342,7 @@ export type Database = {
           proposal_id: string | null
           referred_by: string | null
           referred_by_contact_id: string | null
+          role: string | null
           sia_company: string | null
           sia_email: string | null
           sia_name: string | null
@@ -5351,6 +5355,7 @@ export type Database = {
           tpp_email: string | null
           tpp_name: string | null
           updated_at: string
+          updated_by: string | null
         }
         Insert: {
           architect_company?: string | null
@@ -5361,13 +5366,16 @@ export type Database = {
           architect_phone?: string | null
           assigned_to?: string | null
           business_card_photo_url?: string | null
+          client_id?: string | null
           client_type?: string | null
+          company?: string | null
           company_id: string
           contact_email?: string | null
           contact_id?: string | null
           contact_phone?: string | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           drawings_uploaded?: boolean | null
           event_id?: string | null
           expected_value?: number | null
@@ -5386,6 +5394,7 @@ export type Database = {
           proposal_id?: string | null
           referred_by?: string | null
           referred_by_contact_id?: string | null
+          role?: string | null
           sia_company?: string | null
           sia_email?: string | null
           sia_name?: string | null
@@ -5400,6 +5409,7 @@ export type Database = {
           tpp_email?: string | null
           tpp_name?: string | null
           updated_at?: string
+          updated_by?: string | null
         }
         Update: {
           architect_company?: string | null
@@ -5410,13 +5420,16 @@ export type Database = {
           architect_phone?: string | null
           assigned_to?: string | null
           business_card_photo_url?: string | null
+          client_id?: string | null
           client_type?: string | null
+          company?: string | null
           company_id?: string
           contact_email?: string | null
           contact_id?: string | null
           contact_phone?: string | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           drawings_uploaded?: boolean | null
           event_id?: string | null
           expected_value?: number | null
@@ -5435,6 +5448,7 @@ export type Database = {
           proposal_id?: string | null
           referred_by?: string | null
           referred_by_contact_id?: string | null
+          role?: string | null
           sia_company?: string | null
           sia_email?: string | null
           sia_name?: string | null
@@ -5449,6 +5463,7 @@ export type Database = {
           tpp_email?: string | null
           tpp_name?: string | null
           updated_at?: string
+          updated_by?: string | null
         }
         Relationships: [
           {
@@ -5456,6 +5471,13 @@ export type Database = {
             columns: ["assigned_to"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
@@ -5498,6 +5520,13 @@ export type Database = {
             columns: ["referred_by_contact_id"]
             isOneToOne: false
             referencedRelation: "client_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -7350,6 +7379,7 @@ export type Database = {
           internal_signed_by: string | null
           job_description: string | null
           last_follow_up_at: string | null
+          lead_id: string | null
           lead_source: string | null
           metadata: Json | null
           next_follow_up_date: string | null
@@ -7429,6 +7459,7 @@ export type Database = {
           internal_signed_by?: string | null
           job_description?: string | null
           last_follow_up_at?: string | null
+          lead_id?: string | null
           lead_source?: string | null
           metadata?: Json | null
           next_follow_up_date?: string | null
@@ -7508,6 +7539,7 @@ export type Database = {
           internal_signed_by?: string | null
           job_description?: string | null
           last_follow_up_at?: string | null
+          lead_id?: string | null
           lead_source?: string | null
           metadata?: Json | null
           next_follow_up_date?: string | null
@@ -7598,6 +7630,13 @@ export type Database = {
             columns: ["internal_signed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
           {
