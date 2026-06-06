@@ -228,6 +228,20 @@ Deno.serve(async (req) => {
       })
     );
 
+    // ---- PIS gaps: which PIS fields are still unfulfilled ----
+    const { data: pisRows } = await admin
+      .from("pis_tracking")
+      .select("field_label, first_requested_at, reminder_count, fulfilled_at")
+      .eq("project_id", project.id)
+      .is("fulfilled_at", null)
+      .order("first_requested_at", { ascending: true });
+
+    const pis_gaps = (pisRows || []).map((r: any) => ({
+      field: r.field_label,
+      first_requested_at: r.first_requested_at,
+      reminders_sent: r.reminder_count,
+    }));
+
     // ---- Build prompt ----
     const ctx = {
       project: {
@@ -243,6 +257,7 @@ Deno.serve(async (req) => {
         legacy_notes: project.notes,
       },
       readiness,
+      pis_gaps,
       services: (services || []).map((s: any) => ({
         name: s.name, status: s.status, billed: s.billed_amount, total: s.total_amount,
       })),
@@ -259,6 +274,7 @@ Deno.serve(async (req) => {
       past_corrections: correctionsWithContext,
     };
 
+
     const systemPrompt = `You are an operations analyst for Ordino, a project-management platform for NYC construction filings. Write a CONCISE status summary (4-6 sentences, no bullets, no headers) describing where this project stands RIGHT NOW: readiness (what checklist items are still open and from whom), recent meaningful activity, blockers from emails, and the next concrete fact the team should be aware of.
 
 For each statement, classify it mentally as either:
@@ -273,7 +289,7 @@ Only write DIRECT and INFERRED statements. Hedge INFERRED statements with langua
 
 If past_corrections is non-empty, treat those as ground truth about this project. Do not repeat mistakes the team has already corrected. For example, if a past correction notes that someone is on extended leave, do not characterize lack of response from them as "unresponsive" or "stale" — incorporate the corrected context.
 
-Be specific — name the open checklist items and who we're waiting on. If readiness.ready_to_file is true, say it's ready to file. Quote or reference what client/agency emails actually said when it explains the current status. Use plain English. Never invent facts not in the JSON.`;
+Be specific — name the open checklist items and who we're waiting on. If pis_gaps is non-empty, the Project Information Sheet still has unanswered fields; name the missing fields (use field labels) and treat them as outstanding from the client. If readiness.ready_to_file is true, say it's ready to file. Quote or reference what client/agency emails actually said when it explains the current status. Use plain English. Never invent facts not in the JSON.`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
