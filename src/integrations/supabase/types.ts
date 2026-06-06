@@ -693,6 +693,581 @@ export type Database = {
           },
         ]
       }
+      bd_activities: {
+        Row: {
+          company_id: string
+          content: string | null
+          created_at: string
+          created_by: string | null
+          event_id: string | null
+          id: string
+          is_pinned: boolean
+          lead_id: string | null
+          metadata: Json
+          type: Database["public"]["Enums"]["bd_activity_type"]
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          event_id?: string | null
+          id?: string
+          is_pinned?: boolean
+          lead_id?: string | null
+          metadata?: Json
+          type: Database["public"]["Enums"]["bd_activity_type"]
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          event_id?: string | null
+          id?: string
+          is_pinned?: boolean
+          lead_id?: string | null
+          metadata?: Json
+          type?: Database["public"]["Enums"]["bd_activity_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_activities_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_activities_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_activities_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "bd_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_activities_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bd_event_attendees: {
+        Row: {
+          attended: boolean
+          company_id: string
+          created_at: string
+          created_by: string | null
+          event_id: string
+          id: string
+          rsvp_status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attended?: boolean
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          event_id: string
+          id?: string
+          rsvp_status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attended?: boolean
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          event_id?: string
+          id?: string
+          rsvp_status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_event_attendees_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_event_attendees_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_event_attendees_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "bd_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_event_attendees_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bd_event_sources: {
+        Row: {
+          check_frequency: Database["public"]["Enums"]["bd_check_frequency"]
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          last_checked_at: string | null
+          last_checked_by: string | null
+          name: string
+          notes: string | null
+          priority: Database["public"]["Enums"]["bd_source_priority"]
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          check_frequency?: Database["public"]["Enums"]["bd_check_frequency"]
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_checked_at?: string | null
+          last_checked_by?: string | null
+          name: string
+          notes?: string | null
+          priority?: Database["public"]["Enums"]["bd_source_priority"]
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          check_frequency?: Database["public"]["Enums"]["bd_check_frequency"]
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_checked_at?: string | null
+          last_checked_by?: string | null
+          name?: string
+          notes?: string | null
+          priority?: Database["public"]["Enums"]["bd_source_priority"]
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_event_sources_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_event_sources_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_event_sources_last_checked_by_fkey"
+            columns: ["last_checked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bd_events: {
+        Row: {
+          category: string | null
+          company_id: string
+          cost_actual: number | null
+          cost_high: number | null
+          cost_low: number | null
+          cost_member: number | null
+          cost_nonmember: number | null
+          created_at: string
+          created_by: string | null
+          end_date: string | null
+          end_time: string | null
+          id: string
+          included_in_membership: boolean
+          location: string | null
+          membership_id: string | null
+          name: string
+          next_action: string | null
+          notes: string | null
+          paid_by_user_id: string | null
+          price_verified:
+            | Database["public"]["Enums"]["bd_price_verified"]
+            | null
+          priority: Database["public"]["Enums"]["bd_event_priority"] | null
+          proposed_by: string | null
+          source_url: string | null
+          start_date: string | null
+          start_time: string | null
+          status: Database["public"]["Enums"]["bd_event_status"]
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          company_id: string
+          cost_actual?: number | null
+          cost_high?: number | null
+          cost_low?: number | null
+          cost_member?: number | null
+          cost_nonmember?: number | null
+          created_at?: string
+          created_by?: string | null
+          end_date?: string | null
+          end_time?: string | null
+          id?: string
+          included_in_membership?: boolean
+          location?: string | null
+          membership_id?: string | null
+          name: string
+          next_action?: string | null
+          notes?: string | null
+          paid_by_user_id?: string | null
+          price_verified?:
+            | Database["public"]["Enums"]["bd_price_verified"]
+            | null
+          priority?: Database["public"]["Enums"]["bd_event_priority"] | null
+          proposed_by?: string | null
+          source_url?: string | null
+          start_date?: string | null
+          start_time?: string | null
+          status?: Database["public"]["Enums"]["bd_event_status"]
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          company_id?: string
+          cost_actual?: number | null
+          cost_high?: number | null
+          cost_low?: number | null
+          cost_member?: number | null
+          cost_nonmember?: number | null
+          created_at?: string
+          created_by?: string | null
+          end_date?: string | null
+          end_time?: string | null
+          id?: string
+          included_in_membership?: boolean
+          location?: string | null
+          membership_id?: string | null
+          name?: string
+          next_action?: string | null
+          notes?: string | null
+          paid_by_user_id?: string | null
+          price_verified?:
+            | Database["public"]["Enums"]["bd_price_verified"]
+            | null
+          priority?: Database["public"]["Enums"]["bd_event_priority"] | null
+          proposed_by?: string | null
+          source_url?: string | null
+          start_date?: string | null
+          start_time?: string | null
+          status?: Database["public"]["Enums"]["bd_event_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_events_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_events_membership_id_fkey"
+            columns: ["membership_id"]
+            isOneToOne: false
+            referencedRelation: "bd_memberships"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_events_paid_by_user_id_fkey"
+            columns: ["paid_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_events_proposed_by_fkey"
+            columns: ["proposed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bd_memberships: {
+        Row: {
+          annual_cost: number | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          login_username: string | null
+          member_since: string | null
+          next_renewal: string | null
+          notes: string | null
+          organization: string
+          status: Database["public"]["Enums"]["bd_membership_status"]
+          updated_at: string
+        }
+        Insert: {
+          annual_cost?: number | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          login_username?: string | null
+          member_since?: string | null
+          next_renewal?: string | null
+          notes?: string | null
+          organization: string
+          status?: Database["public"]["Enums"]["bd_membership_status"]
+          updated_at?: string
+        }
+        Update: {
+          annual_cost?: number | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          login_username?: string | null
+          member_since?: string | null
+          next_renewal?: string | null
+          notes?: string | null
+          organization?: string
+          status?: Database["public"]["Enums"]["bd_membership_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_memberships_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_memberships_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bd_sequence_enrollments: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          current_step: number
+          id: string
+          last_sent_at: string | null
+          lead_id: string
+          paused_reason: string | null
+          sequence_id: string
+          status: Database["public"]["Enums"]["bd_sequence_status"]
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          current_step?: number
+          id?: string
+          last_sent_at?: string | null
+          lead_id: string
+          paused_reason?: string | null
+          sequence_id: string
+          status?: Database["public"]["Enums"]["bd_sequence_status"]
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          current_step?: number
+          id?: string
+          last_sent_at?: string | null
+          lead_id?: string
+          paused_reason?: string | null
+          sequence_id?: string
+          status?: Database["public"]["Enums"]["bd_sequence_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_sequence_enrollments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_sequence_enrollments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_sequence_enrollments_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_sequence_enrollments_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "bd_sequences"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bd_sequence_steps: {
+        Row: {
+          body_template: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          day_offset: number
+          id: string
+          sequence_id: string
+          step_number: number
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          body_template?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          day_offset?: number
+          id?: string
+          sequence_id: string
+          step_number: number
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          body_template?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          day_offset?: number
+          id?: string
+          sequence_id?: string
+          step_number?: number
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_sequence_steps_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_sequence_steps_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_sequence_steps_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "bd_sequences"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bd_sequences: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          target_persona: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          target_persona?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          target_persona?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_sequences_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_sequences_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       beacon_api_usage: {
         Row: {
           api_name: string
@@ -2158,6 +2733,7 @@ export type Database = {
           first_name: string | null
           id: string
           is_primary: boolean
+          is_referrer: boolean
           last_name: string | null
           lead_owner_id: string | null
           license_number: string | null
@@ -2188,6 +2764,7 @@ export type Database = {
           first_name?: string | null
           id?: string
           is_primary?: boolean
+          is_referrer?: boolean
           last_name?: string | null
           lead_owner_id?: string | null
           license_number?: string | null
@@ -2218,6 +2795,7 @@ export type Database = {
           first_name?: string | null
           id?: string
           is_primary?: boolean
+          is_referrer?: boolean
           last_name?: string | null
           lead_owner_id?: string | null
           license_number?: string | null
@@ -4582,28 +5160,39 @@ export type Database = {
           architect_name: string | null
           architect_phone: string | null
           assigned_to: string | null
+          business_card_photo_url: string | null
           client_type: string | null
           company_id: string
           contact_email: string | null
+          contact_id: string | null
           contact_phone: string | null
           created_at: string
           created_by: string | null
           drawings_uploaded: boolean | null
+          event_id: string | null
+          expected_value: number | null
           full_name: string
           gc_company: string | null
           gc_email: string | null
           gc_name: string | null
           gc_phone: string | null
+          hot_opportunity: boolean
           id: string
           notes: string | null
+          project_timeline:
+            | Database["public"]["Enums"]["bd_lead_timeline"]
+            | null
           property_address: string | null
           proposal_id: string | null
           referred_by: string | null
+          referred_by_contact_id: string | null
           sia_company: string | null
           sia_email: string | null
           sia_name: string | null
           sia_phone: string | null
           source: string
+          source_type: Database["public"]["Enums"]["bd_lead_source_type"] | null
+          stage: Database["public"]["Enums"]["bd_lead_stage"] | null
           status: string
           subject: string | null
           tpp_email: string | null
@@ -4618,28 +5207,41 @@ export type Database = {
           architect_name?: string | null
           architect_phone?: string | null
           assigned_to?: string | null
+          business_card_photo_url?: string | null
           client_type?: string | null
           company_id: string
           contact_email?: string | null
+          contact_id?: string | null
           contact_phone?: string | null
           created_at?: string
           created_by?: string | null
           drawings_uploaded?: boolean | null
+          event_id?: string | null
+          expected_value?: number | null
           full_name: string
           gc_company?: string | null
           gc_email?: string | null
           gc_name?: string | null
           gc_phone?: string | null
+          hot_opportunity?: boolean
           id?: string
           notes?: string | null
+          project_timeline?:
+            | Database["public"]["Enums"]["bd_lead_timeline"]
+            | null
           property_address?: string | null
           proposal_id?: string | null
           referred_by?: string | null
+          referred_by_contact_id?: string | null
           sia_company?: string | null
           sia_email?: string | null
           sia_name?: string | null
           sia_phone?: string | null
           source?: string
+          source_type?:
+            | Database["public"]["Enums"]["bd_lead_source_type"]
+            | null
+          stage?: Database["public"]["Enums"]["bd_lead_stage"] | null
           status?: string
           subject?: string | null
           tpp_email?: string | null
@@ -4654,28 +5256,41 @@ export type Database = {
           architect_name?: string | null
           architect_phone?: string | null
           assigned_to?: string | null
+          business_card_photo_url?: string | null
           client_type?: string | null
           company_id?: string
           contact_email?: string | null
+          contact_id?: string | null
           contact_phone?: string | null
           created_at?: string
           created_by?: string | null
           drawings_uploaded?: boolean | null
+          event_id?: string | null
+          expected_value?: number | null
           full_name?: string
           gc_company?: string | null
           gc_email?: string | null
           gc_name?: string | null
           gc_phone?: string | null
+          hot_opportunity?: boolean
           id?: string
           notes?: string | null
+          project_timeline?:
+            | Database["public"]["Enums"]["bd_lead_timeline"]
+            | null
           property_address?: string | null
           proposal_id?: string | null
           referred_by?: string | null
+          referred_by_contact_id?: string | null
           sia_company?: string | null
           sia_email?: string | null
           sia_name?: string | null
           sia_phone?: string | null
           source?: string
+          source_type?:
+            | Database["public"]["Enums"]["bd_lead_source_type"]
+            | null
+          stage?: Database["public"]["Enums"]["bd_lead_stage"] | null
           status?: string
           subject?: string | null
           tpp_email?: string | null
@@ -4698,6 +5313,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "leads_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
@@ -4705,10 +5327,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "leads_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "bd_events"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "leads_proposal_id_fkey"
             columns: ["proposal_id"]
             isOneToOne: false
             referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_referred_by_contact_id_fkey"
+            columns: ["referred_by_contact_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts"
             referencedColumns: ["id"]
           },
         ]
@@ -8621,6 +9257,52 @@ export type Database = {
         | "inspection"
         | "complete"
         | "closed"
+      bd_activity_type:
+        | "NOTE"
+        | "EMAIL"
+        | "CALL"
+        | "MEETING"
+        | "STAGE_CHANGE"
+        | "STATUS_CHANGE"
+        | "SYSTEM"
+        | "PROPOSAL_CREATED"
+        | "APPROVAL"
+      bd_check_frequency: "WEEKLY" | "BI_WEEKLY" | "MONTHLY" | "QUARTERLY"
+      bd_event_priority: "GO" | "DISCUSS" | "SKIP"
+      bd_event_status:
+        | "PENDING_APPROVAL"
+        | "APPROVED"
+        | "REGISTERED"
+        | "ATTENDED"
+        | "SKIPPED"
+        | "CANCELLED"
+      bd_lead_source_type:
+        | "EVENT"
+        | "REFERRAL"
+        | "PHONE"
+        | "EMAIL"
+        | "WEBSITE"
+        | "GOOGLE"
+        | "COLD"
+        | "OTHER"
+      bd_lead_stage:
+        | "NEW"
+        | "CONTACTED"
+        | "QUALIFIED"
+        | "PROPOSAL"
+        | "NEGOTIATION"
+        | "WON"
+        | "LOST"
+      bd_lead_timeline:
+        | "IMMEDIATE"
+        | "MONTHS_1_3"
+        | "MONTHS_3_6"
+        | "MONTHS_6_PLUS"
+        | "UNKNOWN"
+      bd_membership_status: "ACTIVE" | "EXPIRED" | "NOT_MEMBER" | "EVALUATING"
+      bd_price_verified: "VERIFIED" | "UNVERIFIED" | "PARTIALLY"
+      bd_sequence_status: "ACTIVE" | "PAUSED" | "COMPLETED" | "EXITED"
+      bd_source_priority: "HIGH" | "MED" | "LOW"
       co_status:
         | "draft"
         | "pending_internal"
@@ -8802,6 +9484,57 @@ export const Constants = {
         "complete",
         "closed",
       ],
+      bd_activity_type: [
+        "NOTE",
+        "EMAIL",
+        "CALL",
+        "MEETING",
+        "STAGE_CHANGE",
+        "STATUS_CHANGE",
+        "SYSTEM",
+        "PROPOSAL_CREATED",
+        "APPROVAL",
+      ],
+      bd_check_frequency: ["WEEKLY", "BI_WEEKLY", "MONTHLY", "QUARTERLY"],
+      bd_event_priority: ["GO", "DISCUSS", "SKIP"],
+      bd_event_status: [
+        "PENDING_APPROVAL",
+        "APPROVED",
+        "REGISTERED",
+        "ATTENDED",
+        "SKIPPED",
+        "CANCELLED",
+      ],
+      bd_lead_source_type: [
+        "EVENT",
+        "REFERRAL",
+        "PHONE",
+        "EMAIL",
+        "WEBSITE",
+        "GOOGLE",
+        "COLD",
+        "OTHER",
+      ],
+      bd_lead_stage: [
+        "NEW",
+        "CONTACTED",
+        "QUALIFIED",
+        "PROPOSAL",
+        "NEGOTIATION",
+        "WON",
+        "LOST",
+      ],
+      bd_lead_timeline: [
+        "IMMEDIATE",
+        "MONTHS_1_3",
+        "MONTHS_3_6",
+        "MONTHS_6_PLUS",
+        "UNKNOWN",
+      ],
+      bd_membership_status: ["ACTIVE", "EXPIRED", "NOT_MEMBER", "EVALUATING"],
+      bd_price_verified: ["VERIFIED", "UNVERIFIED", "PARTIALLY"],
+      bd_sequence_status: ["ACTIVE", "PAUSED", "COMPLETED", "EXITED"],
+      bd_source_priority: ["HIGH", "MED", "LOW"],
       co_status: [
         "draft",
         "pending_internal",
