@@ -30,16 +30,25 @@ import { usePermissions, type ResourceKey } from "@/hooks/usePermissions";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { useUnreadIndicators } from "@/hooks/useUnreadIndicators";
 
-const mainNav = [
+type NavItem = { title: string; icon: any; href: string; resource: ResourceKey };
+type NavGroup = { kind: "group"; label: string; items: NavItem[] };
+type NavEntry = NavItem | NavGroup;
+
+const mainNav: NavEntry[] = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/dashboard", resource: "dashboard" as ResourceKey },
   { title: "Projects", icon: FolderKanban, href: "/projects", resource: "projects" as ResourceKey },
   { title: "Properties", icon: Building2, href: "/properties", resource: "properties" as ResourceKey },
   { title: "Time", icon: Clock, href: "/time", resource: "time_logs" as ResourceKey },
   { title: "Proposals", icon: FileText, href: "/proposals", resource: "proposals" as ResourceKey },
-  { title: "__bd_header__", icon: LayoutDashboard, href: "#bd", resource: "proposals" as ResourceKey, isHeader: true },
-  { title: "Leads", icon: Users, href: "/bd/leads", resource: "proposals" as ResourceKey },
-  { title: "Events", icon: CalendarDays, href: "/bd/events", resource: "proposals" as ResourceKey },
-  { title: "Sequences", icon: Mail, href: "/bd/sequences", resource: "proposals" as ResourceKey },
+  {
+    kind: "group",
+    label: "BD",
+    items: [
+      { title: "Leads", icon: Users, href: "/bd/leads", resource: "proposals" as ResourceKey },
+      { title: "Events", icon: CalendarDays, href: "/bd/events", resource: "proposals" as ResourceKey },
+      { title: "Sequences", icon: Mail, href: "/bd/sequences", resource: "proposals" as ResourceKey },
+    ],
+  },
   { title: "Billing", icon: Receipt, href: "/invoices", resource: "invoices" as ResourceKey },
   { title: "Email", icon: Mail, href: "/emails", resource: "emails" as ResourceKey },
   { title: "Calendar", icon: CalendarDays, href: "/calendar", resource: "calendar" as ResourceKey },
@@ -117,8 +126,16 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
     "/invoices": billingPendingCount,
   };
 
-  const filteredMainNav = useMemo(() =>
-    mainNav.filter((item) => canAccess(item.resource)),
+  const filteredMainNav = useMemo<NavEntry[]>(() =>
+    mainNav.reduce<NavEntry[]>((acc, entry) => {
+      if ("kind" in entry && entry.kind === "group") {
+        const items = entry.items.filter((i) => canAccess(i.resource));
+        if (items.length > 0) acc.push({ ...entry, items });
+      } else if (canAccess((entry as NavItem).resource)) {
+        acc.push(entry);
+      }
+      return acc;
+    }, []),
     [canAccess]
   );
 
@@ -167,51 +184,65 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       {/* Main Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-hide">
-        {filteredMainNav.map((item) => {
-          if ((item as any).isHeader) {
-            if (collapsed) {
-              return <Separator key={item.href} className="my-2 bg-sidebar-border" />;
-            }
+        {(() => {
+          const renderItem = (item: NavItem, opts?: { indented?: boolean }) => {
+            const isActive = location.pathname === item.href ||
+              (item.href !== "/dashboard" && location.pathname.startsWith(item.href));
             return (
-              <div
+              <NavLink
                 key={item.href}
-                className="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40"
+                to={item.href}
+                onClick={onNavigate}
+                onMouseEnter={() => prefetchRoute(item.href)}
+                data-tour={`nav-${item.href.replace("/", "")}`}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150",
+                  "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
+                  isActive && "bg-sidebar-accent text-sidebar-foreground font-medium",
+                  collapsed && "justify-center px-2",
+                  opts?.indented && !collapsed && "ml-2"
+                )}
               >
-                BD
-              </div>
+                <span className="relative flex-shrink-0">
+                  <item.icon className={cn("h-5 w-5", isActive && "text-sidebar-primary")} />
+                  {unreadCountMap[item.href] > 0 ? (
+                    <span className="absolute -top-1.5 -right-2.5 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center ring-2 ring-sidebar px-1">
+                      {unreadCountMap[item.href] > 99 ? "99+" : unreadCountMap[item.href]}
+                    </span>
+                  ) : unreadDotMap[item.href] ? (
+                    <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary ring-2 ring-sidebar" />
+                  ) : null}
+                </span>
+                {!collapsed && <span>{item.title}</span>}
+              </NavLink>
             );
-          }
-          const isActive = location.pathname === item.href ||
-            (item.href !== "/dashboard" && location.pathname.startsWith(item.href));
+          };
 
-          return (
-            <NavLink
-              key={item.href}
-              to={item.href}
-              onClick={onNavigate}
-              onMouseEnter={() => prefetchRoute(item.href)}
-              data-tour={`nav-${item.href.replace("/", "")}`}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150",
-                "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
-                isActive && "bg-sidebar-accent text-sidebar-foreground font-medium",
-                collapsed && "justify-center px-2"
-              )}
-            >
-              <span className="relative flex-shrink-0">
-                <item.icon className={cn("h-5 w-5", isActive && "text-sidebar-primary")} />
-                {unreadCountMap[item.href] > 0 ? (
-                  <span className="absolute -top-1.5 -right-2.5 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center ring-2 ring-sidebar px-1">
-                    {unreadCountMap[item.href] > 99 ? "99+" : unreadCountMap[item.href]}
-                  </span>
-                ) : unreadDotMap[item.href] ? (
-                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary ring-2 ring-sidebar" />
-                ) : null}
-              </span>
-              {!collapsed && <span>{item.title}</span>}
-            </NavLink>
-          );
-        })}
+          return filteredMainNav.map((entry, idx) => {
+            if ("kind" in entry && entry.kind === "group") {
+              if (collapsed) {
+                return (
+                  <div key={`group-${entry.label}-${idx}`} className="space-y-1">
+                    <Separator className="my-2 bg-sidebar-border" />
+                    {entry.items.map((i) => renderItem(i))}
+                  </div>
+                );
+              }
+              return (
+                <div key={`group-${entry.label}-${idx}`} className="pt-3 pb-1">
+                  <div className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">
+                    {entry.label}
+                  </div>
+                  <div className="space-y-1 border-l border-sidebar-border/60 ml-3 pl-1">
+                    {entry.items.map((i) => renderItem(i, { indented: true }))}
+                  </div>
+                </div>
+              );
+            }
+            return renderItem(entry as NavItem);
+          });
+        })()}
+
 
         <Separator className="my-4 bg-sidebar-border" />
 
