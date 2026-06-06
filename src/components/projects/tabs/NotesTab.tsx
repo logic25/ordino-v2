@@ -75,6 +75,29 @@ export function NotesTab({ projectId }: NotesTabProps) {
     enabled: !!projectId,
   });
 
+  const { data: myFeedback = [] } = useQuery({
+    queryKey: ["ai-feedback-mine", projectId],
+    queryFn: async () => {
+      if (!projectId) return [] as { source_id: string; rating: string }[];
+      const { data: userRes } = await supabase.auth.getUser();
+      if (!userRes.user) return [];
+      const { data, error } = await supabase
+        .from("ai_feedback")
+        .select("source_id, rating")
+        .eq("project_id", projectId)
+        .eq("user_id", userRes.user.id);
+      if (error) throw error;
+      return (data || []) as { source_id: string; rating: string }[];
+    },
+    enabled: !!projectId,
+  });
+
+  const feedbackBySource = useMemo(() => {
+    const m = new Map<string, string>();
+    myFeedback.forEach((f) => f.source_id && m.set(f.source_id, f.rating));
+    return m;
+  }, [myFeedback]);
+
   const serviceNameById = useMemo(() => {
     const m = new Map<string, string>();
     services.forEach((s) => m.set(s.id, s.name));
