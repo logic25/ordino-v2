@@ -176,6 +176,8 @@ export function NotesTab({ projectId }: NotesTabProps) {
     onError: (e: any) =>
       toast({ title: "Could not save correction", description: e.message, variant: "destructive" }),
   });
+
+  if (!projectId) {
     return (
       <div className="p-4 text-sm text-muted-foreground">
         Project notes are unavailable for this view.
