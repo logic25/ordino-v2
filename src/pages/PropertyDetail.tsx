@@ -439,6 +439,25 @@ export default function PropertyDetail() {
     setActiveTab("co_applications");
   }, []);
 
+  // Count unique jobs (not raw filings) so the summary card matches the table's visible row count.
+  // Must stay above the early returns below to preserve hook order.
+  const coJobCountMemo = useMemo(() => {
+    const seen = new Set<string>();
+    let count = 0;
+    for (const app of coApps) {
+      if (app.source === "DOB_NOW_ELECTRICAL") { count++; continue; }
+      const baseJob = String(app.jobNum || "").trim().split("-")[0].replace(/\D/g, "");
+      if (!baseJob) { count++; continue; }
+      if (!seen.has(baseJob)) {
+        seen.add(baseJob);
+        count++;
+      }
+    }
+    return count;
+  }, [coApps]);
+
+
+
   if (isLoading) {
     return (
       <AppLayout>
@@ -507,21 +526,7 @@ export default function PropertyDetail() {
   // Count unique jobs (not raw filings) so the summary card matches the table's visible row count.
   // COApplicationsView groups BIS + DOB NOW Build filings by base job number; subsequents / PAAs
   // are nested inside expandable rows and are NOT counted as separate visible rows.
-  const coJobCount = useMemo(() => {
-    const seen = new Set<string>();
-    let count = 0;
-    for (const app of coApps) {
-      // Electrical filings are always standalone rows
-      if (app.source === "DOB_NOW_ELECTRICAL") { count++; continue; }
-      const baseJob = String(app.jobNum || "").trim().split("-")[0].replace(/\D/g, "");
-      if (!baseJob) { count++; continue; }
-      if (!seen.has(baseJob)) {
-        seen.add(baseJob);
-        count++;
-      }
-    }
-    return count;
-  }, [coApps]);
+  const coJobCount = coJobCountMemo;
   const activeComplaints = coComplaints.filter(c => c.status.toUpperCase() !== "CLOSE" && c.status.toUpperCase() !== "CLOSED").length;
 
   // CitiSignal enrollment gate component
