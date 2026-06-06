@@ -199,6 +199,33 @@ Deno.serve(async (req) => {
       })),
     };
 
+    // ---- Past corrections: human-validated ground truth for this project ----
+    const { data: corrections } = await admin
+      .from("ai_feedback")
+      .select("source_id, correction_text, created_at")
+      .eq("project_id", project.id)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    const correctionsWithContext = await Promise.all(
+      (corrections || []).map(async (c: any) => {
+        let what_ai_said = "(original summary unavailable)";
+        if (c.source_id) {
+          const { data: note } = await admin
+            .from("project_notes")
+            .select("body, created_at")
+            .eq("id", c.source_id)
+            .maybeSingle();
+          if (note?.body) what_ai_said = note.body;
+        }
+        return {
+          date: c.created_at,
+          what_ai_said,
+          what_was_actually_true: c.correction_text,
+        };
+      })
+    );
+
     // ---- Build prompt ----
     const ctx = {
       project: {
@@ -227,9 +254,24 @@ Deno.serve(async (req) => {
         at: n.created_at,
       })),
       recent_emails: recentEmails,
+      past_corrections: correctionsWithContext,
     };
 
-    const systemPrompt = `You are an operations analyst for Ordino, a project-management platform for NYC construction filings. Write a CONCISE status summary (4-6 sentences, no bullets, no headers) describing where this project stands RIGHT NOW: readiness (what checklist items are still open and from whom), recent meaningful activity, blockers from emails, and the next concrete action. Be specific — name the open checklist items and who we're waiting on. If readiness.ready_to_file is true, say it's ready to file. Quote or reference what client/agency emails actually said when it explains the current status. Use plain English. Never invent facts not in the JSON.`;
+    const systemPrompt = `You are an operations analyst for Ordino, a project-management platform for NYC construction filings. Write a CONCISE status summary (4-6 sentences, no bullets, no headers) describing where this project stands RIGHT NOW: readiness (what checklist items are still open and from whom), recent meaningful activity, blockers from emails, and the next concrete fact the team should be aware of.
+
+For each statement, classify it mentally as either:
+
+DIRECT: explicitly in the data (readiness items, email content, exact dates)
+
+INFERRED: a reasonable inference from multiple data points
+
+UNKNOWN: not derivable from what you can see
+
+Only write DIRECT and INFERRED statements. Hedge INFERRED statements with language like "appears", "likely", "based on recent activity", "the data suggests". Reserve confident language ("is waiting on", "has not responded") for DIRECT statements. If completing the summary would require an UNKNOWN statement, omit it and end the summary early.
+
+If past_corrections is non-empty, treat those as ground truth about this project. Do not repeat mistakes the team has already corrected. For example, if a past correction notes that someone is on extended leave, do not characterize lack of response from them as "unresponsive" or "stale" — incorporate the corrected context.
+
+Be specific — name the open checklist items and who we're waiting on. If readiness.ready_to_file is true, say it's ready to file. Quote or reference what client/agency emails actually said when it explains the current status. Use plain English. Never invent facts not in the JSON.`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
