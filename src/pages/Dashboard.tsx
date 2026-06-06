@@ -53,7 +53,7 @@ export default function Dashboard() {
   const { profile } = useAuth();
   const { track } = useTelemetry();
   const actualRole = profile?.role || "pm";
-  const [previewRole, setPreviewRole] = useState<DashboardRole>(actualRole as DashboardRole);
+  const [previewRole, setPreviewRole] = useState<DashboardRole>(mapRoleToDashboard(actualRole));
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
 
   const role = previewRole;
@@ -91,8 +91,6 @@ export default function Dashboard() {
         return "Here's what needs your attention today.";
       case "accounting":
         return "Here's your billing overview and collection status.";
-      case "manager":
-        return "Here's your team's performance and workload.";
       case "admin":
         return "Here's an overview of your company's operations.";
       default:
@@ -108,8 +106,6 @@ export default function Dashboard() {
         return <AdminCompanyView isVisible={layout.isVisible} />;
       case "accounting":
         return <AccountingView isVisible={layout.isVisible} />;
-      case "manager":
-        return <ManagerView isVisible={layout.isVisible} />;
       default:
         return <PMDailyView isVisible={layout.isVisible} />;
     }
