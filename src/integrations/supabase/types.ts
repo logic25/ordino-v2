@@ -5254,56 +5254,6 @@ export type Database = {
           },
         ]
       }
-      lead_views: {
-        Row: {
-          columns_json: Json
-          company_id: string
-          created_at: string
-          created_by: string | null
-          filters_json: Json
-          id: string
-          is_default: boolean
-          name: string
-          sort_json: Json
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          columns_json?: Json
-          company_id: string
-          created_at?: string
-          created_by?: string | null
-          filters_json?: Json
-          id?: string
-          is_default?: boolean
-          name: string
-          sort_json?: Json
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          columns_json?: Json
-          company_id?: string
-          created_at?: string
-          created_by?: string | null
-          filters_json?: Json
-          id?: string
-          is_default?: boolean
-          name?: string
-          sort_json?: Json
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "lead_views_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       leads: {
         Row: {
           architect_company: string | null
@@ -5351,11 +5301,6 @@ export type Database = {
           tpp_email: string | null
           tpp_name: string | null
           updated_at: string
-          client_id: string | null
-          company: string | null
-          deleted_at: string | null
-          role: string | null
-          updated_by: string | null
         }
         Insert: {
           architect_company?: string | null
@@ -5405,11 +5350,6 @@ export type Database = {
           tpp_email?: string | null
           tpp_name?: string | null
           updated_at?: string
-          client_id?: string | null
-          company?: string | null
-          deleted_at?: string | null
-          role?: string | null
-          updated_by?: string | null
         }
         Update: {
           architect_company?: string | null
@@ -5459,27 +5399,8 @@ export type Database = {
           tpp_email?: string | null
           tpp_name?: string | null
           updated_at?: string
-          client_id?: string | null
-          company?: string | null
-          deleted_at?: string | null
-          role?: string | null
-          updated_by?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "leads_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leads_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "leads_assigned_to_fkey"
             columns: ["assigned_to"]
@@ -7379,7 +7300,6 @@ export type Database = {
           internal_signed_by: string | null
           job_description: string | null
           last_follow_up_at: string | null
-          lead_id: string | null
           lead_source: string | null
           metadata: Json | null
           next_follow_up_date: string | null
@@ -7459,7 +7379,6 @@ export type Database = {
           internal_signed_by?: string | null
           job_description?: string | null
           last_follow_up_at?: string | null
-          lead_id?: string | null
           lead_source?: string | null
           metadata?: Json | null
           next_follow_up_date?: string | null
@@ -7539,7 +7458,6 @@ export type Database = {
           internal_signed_by?: string | null
           job_description?: string | null
           last_follow_up_at?: string | null
-          lead_id?: string | null
           lead_source?: string | null
           metadata?: Json | null
           next_follow_up_date?: string | null
@@ -9483,7 +9401,6 @@ export type Database = {
         | "MONTHS_1_3"
         | "MONTHS_3_6"
         | "MONTHS_6_PLUS"
-        | "PLANNING"
         | "UNKNOWN"
       bd_membership_status: "ACTIVE" | "EXPIRED" | "NOT_MEMBER" | "EVALUATING"
       bd_price_verified: "VERIFIED" | "UNVERIFIED" | "PARTIALLY"
@@ -9715,7 +9632,6 @@ export const Constants = {
         "MONTHS_1_3",
         "MONTHS_3_6",
         "MONTHS_6_PLUS",
-        "PLANNING",
         "UNKNOWN",
       ],
       bd_membership_status: ["ACTIVE", "EXPIRED", "NOT_MEMBER", "EVALUATING"],
