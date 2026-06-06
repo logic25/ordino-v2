@@ -74,6 +74,7 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
   const now = new Date();
 
   const categorized = (projects || []).reduce<{
+    untouched: any[];
     onYou: any[];
     waitingClient: any[];
     stale: any[];
@@ -82,12 +83,17 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
   }>(
     (acc, p) => {
       const daysSinceUpdate = differenceInDays(now, new Date(p.updated_at));
+      const daysSinceCreate = differenceInDays(now, new Date((p as any).created_at));
+      const updatedSinceCreate = differenceInDays(new Date(p.updated_at), new Date((p as any).created_at));
       const waitingOn = (p as any).waiting_on || "us";
       const waitingSince = (p as any).waiting_since ? new Date((p as any).waiting_since) : null;
       const daysWaiting = waitingSince ? differenceInDays(now, waitingSince) : 0;
       const item = { ...p, daysSinceUpdate, waitingOn, daysWaiting };
 
-      if (waitingOn === "us" && daysSinceUpdate >= 7) {
+      // Untouched: never meaningfully edited (updated_at within 1 day of created_at) and at least 3 days old
+      if (updatedSinceCreate <= 1 && daysSinceCreate >= 3) {
+        acc.untouched.push(item);
+      } else if (waitingOn === "us" && daysSinceUpdate >= 7) {
         acc.onYou.push(item);
       } else if (waitingOn === "client" && daysWaiting >= 14) {
         acc.waitingClient.push(item);
@@ -99,8 +105,12 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
       acc.all.push(item);
       return acc;
     },
-    { onYou: [], waitingClient: [], stale: [], active: [], all: [] }
+    { untouched: [], onYou: [], waitingClient: [], stale: [], active: [], all: [] }
   );
+
+  // Sort Recently Active oldest-first so neglected ones rise; no cap.
+  categorized.active.sort((a, b) => b.daysSinceUpdate - a.daysSinceUpdate);
+
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
