@@ -11,6 +11,7 @@ export type Notification = Tables<"notifications">;
 export function useNotifications() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const query = useQuery({
     queryKey: ["notifications", profile?.id],
@@ -28,7 +29,7 @@ export function useNotifications() {
     enabled: !!profile?.id,
   });
 
-  // Realtime subscription for new notifications
+  // Realtime subscription for new notifications — also shows a toast
   useEffect(() => {
     if (!profile?.id) return;
     const channel = supabase
@@ -41,8 +42,17 @@ export function useNotifications() {
           table: "notifications",
           filter: `user_id=eq.${profile.id}`,
         },
-        () => {
+        (payload) => {
           queryClient.invalidateQueries({ queryKey: ["notifications", profile.id] });
+          const n = payload.new as Notification;
+          if (n && !n.read_at && !n.dismissed_at) {
+            toast(n.title, {
+              description: n.body || undefined,
+              action: n.link
+                ? { label: "Open", onClick: () => navigate(n.link!) }
+                : undefined,
+            });
+          }
         }
       )
       .subscribe();
@@ -50,7 +60,7 @@ export function useNotifications() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [profile?.id, queryClient]);
+  }, [profile?.id, queryClient, navigate]);
 
   const unreadCount = (query.data ?? []).filter((n) => !n.read_at).length;
 
