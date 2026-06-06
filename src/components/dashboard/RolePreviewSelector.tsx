@@ -1,7 +1,7 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Eye } from "lucide-react";
 
-type DashboardRole = "admin" | "pm" | "accounting" | "manager";
+export type DashboardRole = "admin" | "pm" | "accounting";
 
 interface RolePreviewSelectorProps {
   currentRole: string;
@@ -9,11 +9,10 @@ interface RolePreviewSelectorProps {
   onPreviewChange: (role: DashboardRole) => void;
 }
 
-const roleLabels: Record<string, string> = {
+const roleLabels: Record<DashboardRole, string> = {
   admin: "Admin",
-  pm: "Project Manager",
+  pm: "Production",
   accounting: "Accounting",
-  manager: "Manager",
 };
 
 export function RolePreviewSelector({ currentRole, previewRole, onPreviewChange }: RolePreviewSelectorProps) {
@@ -28,7 +27,7 @@ export function RolePreviewSelector({ currentRole, previewRole, onPreviewChange 
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {Object.entries(roleLabels).map(([value, label]) => (
+          {(Object.entries(roleLabels) as [DashboardRole, string][]).map(([value, label]) => (
             <SelectItem key={value} value={value}>{label}</SelectItem>
           ))}
         </SelectContent>
