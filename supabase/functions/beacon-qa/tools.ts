@@ -107,7 +107,7 @@ export async function getProject(ctx: Ctx, args: { project_id: string }) {
   if (!p) throw new Error("project_not_accessible");
 
   // Sidecar counts
-  const [{ count: openChecklist }, { count: openPis }, pmRes, srPmRes] = await Promise.all([
+  const [{ count: openChecklist }, { count: openPis }, pmRes] = await Promise.all([
     ctx.supabase
       .from("project_checklist_items")
       .select("id", { count: "exact", head: true })
