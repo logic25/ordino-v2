@@ -1,21 +1,23 @@
 import { useState } from "react";
 import { formatCompactCurrency } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Building2, TrendingUp, Users, DollarSign } from "lucide-react";
 import { useDashboardStats } from "@/hooks/useDashboard";
 import { useNavigate } from "react-router-dom";
-import { useRevenueTrend } from "@/hooks/useDashboardData";
+import { useRevenueTrend, useTeamUtilization, useProjectsByPM } from "@/hooks/useDashboardData";
 import { PMDailyView } from "./PMDailyView";
 import { TeamOverview } from "./TeamOverview";
 import { ProposalFollowUps } from "./ProposalFollowUps";
 import { YearOverYearChart } from "./YearOverYearChart";
 import { ProposalActivityCard } from "./ProposalActivityCard";
+import { ProposalsPipelineCard } from "./ProposalsPipelineCard";
+import { AccountingSummaryStrip } from "./AccountingSummaryStrip";
 import { BillingGoalTracker } from "./BillingGoalTracker";
 import { ExpenseApprovalsCard } from "./ExpenseApprovalsCard";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Cell } from "recharts";
 
 export function AdminCompanyView({ isVisible }: { isVisible?: (id: string) => boolean }) {
   const show = isVisible || (() => true);
