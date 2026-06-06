@@ -42,6 +42,8 @@ export function NotesTab({ projectId }: NotesTabProps) {
   const [manualNote, setManualNote] = useState("");
   const [composerServiceId, setComposerServiceId] = useState<string>(GENERAL);
   const [filterServiceId, setFilterServiceId] = useState<string>("all");
+  const [correctingNoteId, setCorrectingNoteId] = useState<string | null>(null);
+  const [correctionText, setCorrectionText] = useState("");
 
   const { data: services = [] } = useQuery({
     queryKey: ["project-services-for-notes", projectId],
