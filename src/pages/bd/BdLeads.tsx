@@ -390,7 +390,7 @@ export default function BdLeads() {
               <SelectTrigger className="h-8 w-40"><SelectValue placeholder="Change stage" /></SelectTrigger>
               <SelectContent>{STAGE_ORDER.map((s) => <SelectItem key={s} value={s}>{STAGE_META[s].label}</SelectItem>)}</SelectContent>
             </Select>
-            <Button size="sm" variant="outline" disabled title="Coming in Sprint 3"><MoreHorizontal className="mr-1.5 h-3.5 w-3.5" />Add tag</Button>
+            <BulkEnrollSequence ids={selectedIds} />
             <Button size="sm" variant="outline" onClick={handleExport}><Download className="mr-1.5 h-3.5 w-3.5" />Export</Button>
             {isAdmin && (
               <Button size="sm" variant="outline" className="text-destructive" onClick={handleBulkDelete}>
