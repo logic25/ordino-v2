@@ -398,8 +398,18 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        const labelIds: string[] = msgData.labelIds || [];
+        const isUnread = labelIds.includes("UNREAD");
+        const isInbox = labelIds.includes("INBOX");
+        if (isUnread) unreadGmailIds.push(msg.id);
+        else readGmailIds.push(msg.id);
+
         // inserted === null => row already existed (skipped by ignoreDuplicates)
         if (!inserted) continue;
+
+        if (isUnread && isInbox) {
+          newUnreadInbox.push({ gmail_message_id: msg.id, subject, from_name: from_name || from_email });
+        }
 
         if (attachments.length > 0) {
           const attachmentRows = attachments.map((a: any) => ({
