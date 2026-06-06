@@ -531,3 +531,26 @@ function FilterPopover({
     </Popover>
   );
 }
+
+// ====== Bulk enroll selected leads in a sequence ======
+import { useSequences, useEnrollLead } from "@/hooks/useBdSequences";
+import { Send } from "lucide-react";
+
+function BulkEnrollSequence({ ids }: { ids: string[] }) {
+  const sequences = useSequences();
+  const enroll = useEnrollLead();
+  const { toast } = useToast();
+  return (
+    <Select onValueChange={(sequence_id) => {
+      enroll.mutate({ sequence_id, lead_ids: ids }, {
+        onSuccess: () => toast({ title: `Enrolled ${ids.length} lead${ids.length === 1 ? "" : "s"}` }),
+      });
+    }}>
+      <SelectTrigger className="h-8 w-44"><SelectValue placeholder={<><Send className="inline h-3 w-3 mr-1" />Enroll in sequence</>} /></SelectTrigger>
+      <SelectContent>
+        {(sequences.data ?? []).length === 0 && <div className="px-2 py-1.5 text-xs text-muted-foreground">No sequences. Create one in BD → Sequences.</div>}
+        {(sequences.data ?? []).map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+      </SelectContent>
+    </Select>
+  );
+}
