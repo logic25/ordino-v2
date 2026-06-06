@@ -74,6 +74,7 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
   const now = new Date();
 
   const categorized = (projects || []).reduce<{
+    untouched: any[];
     onYou: any[];
     waitingClient: any[];
     stale: any[];
@@ -82,12 +83,17 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
   }>(
     (acc, p) => {
       const daysSinceUpdate = differenceInDays(now, new Date(p.updated_at));
+      const daysSinceCreate = differenceInDays(now, new Date((p as any).created_at));
+      const updatedSinceCreate = differenceInDays(new Date(p.updated_at), new Date((p as any).created_at));
       const waitingOn = (p as any).waiting_on || "us";
       const waitingSince = (p as any).waiting_since ? new Date((p as any).waiting_since) : null;
       const daysWaiting = waitingSince ? differenceInDays(now, waitingSince) : 0;
       const item = { ...p, daysSinceUpdate, waitingOn, daysWaiting };
 
-      if (waitingOn === "us" && daysSinceUpdate >= 7) {
+      // Untouched: never meaningfully edited (updated_at within 1 day of created_at) and at least 3 days old
+      if (updatedSinceCreate <= 1 && daysSinceCreate >= 3) {
+        acc.untouched.push(item);
+      } else if (waitingOn === "us" && daysSinceUpdate >= 7) {
         acc.onYou.push(item);
       } else if (waitingOn === "client" && daysWaiting >= 14) {
         acc.waitingClient.push(item);
@@ -99,8 +105,12 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
       acc.all.push(item);
       return acc;
     },
-    { onYou: [], waitingClient: [], stale: [], active: [], all: [] }
+    { untouched: [], onYou: [], waitingClient: [], stale: [], active: [], all: [] }
   );
+
+  // Sort Recently Active oldest-first so neglected ones rise; no cap.
+  categorized.active.sort((a, b) => b.daysSinceUpdate - a.daysSinceUpdate);
+
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
@@ -130,8 +140,18 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
               </div>
             ) : (
               <>
+                {categorized.untouched.length > 0 && (
+                  <div id="bucket-untouched" className="space-y-2 scroll-mt-24">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-amber-600 flex items-center gap-1.5">
+                      <AlertTriangle className="h-3 w-3" /> Hasn't been touched — kick these off
+                    </h4>
+                    {categorized.untouched.map((p) => (
+                      <ProjectRow key={p.id} project={p} onClick={() => navigate(`/projects/${p.id}`)} />
+                    ))}
+                  </div>
+                )}
                 {categorized.onYou.length > 0 && (
-                  <div className="space-y-2">
+                  <div id="bucket-on-you" className="space-y-2 scroll-mt-24">
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-destructive flex items-center gap-1.5">
                       <AlertTriangle className="h-3 w-3" /> On you — idle 7+ days
                     </h4>
@@ -141,7 +161,7 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
                   </div>
                 )}
                 {categorized.waitingClient.length > 0 && (
-                  <div className="space-y-2">
+                  <div id="bucket-waiting-client" className="space-y-2 scroll-mt-24">
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-amber-600 flex items-center gap-1.5">
                       <Clock className="h-3 w-3" /> Waiting on client — 14+ days (nudge time)
                     </h4>
@@ -165,7 +185,7 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-primary flex items-center gap-1.5">
                       <CheckCircle2 className="h-3 w-3" /> Recently Active
                     </h4>
-                    {categorized.active.slice(0, 8).map((p) => (
+                    {categorized.active.map((p) => (
                       <ProjectRow key={p.id} project={p} onClick={() => navigate(`/projects/${p.id}`)} />
                     ))}
                   </div>
@@ -180,7 +200,7 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
 
         {/* Project Readiness */}
         {show("project-readiness") && (
-        <Card>
+        <Card id="section-readiness" className="scroll-mt-24">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <ClipboardCheck className="h-4 w-4" />
