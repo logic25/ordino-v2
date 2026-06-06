@@ -443,6 +443,59 @@ Deno.serve(async (req) => {
       pagesProcessed++;
     }
 
+    // Sync read-state back from Gmail for existing rows (chunked to avoid huge IN lists)
+    try {
+      const chunk = <T,>(arr: T[], size: number) =>
+        Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size));
+      for (const ids of chunk(readGmailIds, 200)) {
+        if (ids.length === 0) continue;
+        await supabaseAdmin
+          .from("emails")
+          .update({ is_read: true })
+          .eq("user_id", profile.id)
+          .in("gmail_message_id", ids)
+          .eq("is_read", false);
+      }
+      for (const ids of chunk(unreadGmailIds, 200)) {
+        if (ids.length === 0) continue;
+        await supabaseAdmin
+          .from("emails")
+          .update({ is_read: false })
+          .eq("user_id", profile.id)
+          .in("gmail_message_id", ids)
+          .eq("is_read", true);
+      }
+    } catch (e) {
+      console.error("Failed to sync read-state back from Gmail:", e);
+    }
+
+    // Create a bell notification when new unread inbox emails arrived
+    if (newUnreadInbox.length > 0) {
+      try {
+        const count = newUnreadInbox.length;
+        const previewSenders = Array.from(
+          new Set(newUnreadInbox.slice(0, 3).map((e) => e.from_name).filter(Boolean))
+        ).join(", ");
+        const title = count === 1 ? "1 new email" : `${count} new emails`;
+        const body =
+          count === 1
+            ? `${newUnreadInbox[0].from_name}: ${newUnreadInbox[0].subject}`
+            : previewSenders
+              ? `From ${previewSenders}${count > 3 ? ` and ${count - 3} more` : ""}`
+              : undefined;
+        await supabaseAdmin.from("notifications").insert({
+          company_id: profile.company_id,
+          user_id: profile.id,
+          type: "email_received",
+          title,
+          body,
+          link: "/emails",
+        });
+      } catch (e) {
+        console.error("Failed to insert email_received notification:", e);
+      }
+    }
+
     // Update last sync
     await supabaseAdmin
       .from("gmail_connections")
