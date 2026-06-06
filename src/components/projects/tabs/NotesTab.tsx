@@ -171,8 +171,16 @@ export function NotesTab({ projectId }: NotesTabProps) {
       toast({ title: "Could not delete", description: e.message, variant: "destructive" }),
   });
 
-  const correctionMutation = useMutation({
-    mutationFn: async ({ noteId, text }: { noteId: string; text: string }) => {
+  const feedbackMutation = useMutation({
+    mutationFn: async ({
+      noteId,
+      rating,
+      text,
+    }: {
+      noteId: string;
+      rating: "up" | "down" | "edit";
+      text?: string;
+    }) => {
       if (!projectId) throw new Error("Missing project");
       const { data: userRes } = await supabase.auth.getUser();
       if (!userRes.user) throw new Error("Not signed in");
@@ -187,17 +195,30 @@ export function NotesTab({ projectId }: NotesTabProps) {
         company_id: prof.company_id,
         user_id: userRes.user.id,
         source_id: noteId,
-        correction_text: text,
+        rating,
+        correction_text: rating === "edit" ? text ?? null : null,
       });
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async (_d, vars) => {
       setCorrectingNoteId(null);
       setCorrectionText("");
-      toast({ title: "Correction saved", description: "Future AI summaries will incorporate this." });
+      await qc.invalidateQueries({ queryKey: ["ai-feedback-mine", projectId] });
+      toast({
+        title:
+          vars.rating === "edit"
+            ? "Correction saved"
+            : vars.rating === "up"
+            ? "Thanks — marked accurate"
+            : "Thanks — marked inaccurate",
+        description:
+          vars.rating === "edit"
+            ? "Future AI summaries will incorporate this."
+            : undefined,
+      });
     },
     onError: (e: any) =>
-      toast({ title: "Could not save correction", description: e.message, variant: "destructive" }),
+      toast({ title: "Could not save feedback", description: e.message, variant: "destructive" }),
   });
 
   if (!projectId) {
