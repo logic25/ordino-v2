@@ -325,11 +325,10 @@ export function PMDailyView({ isVisible }: { isVisible?: (id: string) => boolean
       </div>
       )}
 
-      {/* Right: Follow-ups + Quick log */}
+      {/* Right: My tasks + proposal follow-ups */}
       <div className="space-y-6">
         {show("my-action-items") && <MyActionItemsCard />}
         {show("proposal-followups") && <ProposalFollowUps />}
-        {show("quick-time-log") && <QuickTimeLog />}
       </div>
     </div>
   );
