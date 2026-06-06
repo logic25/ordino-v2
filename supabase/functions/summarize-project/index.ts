@@ -289,7 +289,7 @@ Only write DIRECT and INFERRED statements. Hedge INFERRED statements with langua
 
 If past_corrections is non-empty, treat those as ground truth about this project. Do not repeat mistakes the team has already corrected. For example, if a past correction notes that someone is on extended leave, do not characterize lack of response from them as "unresponsive" or "stale" — incorporate the corrected context.
 
-Be specific — name the open checklist items and who we're waiting on. If readiness.ready_to_file is true, say it's ready to file. Quote or reference what client/agency emails actually said when it explains the current status. Use plain English. Never invent facts not in the JSON.`;
+Be specific — name the open checklist items and who we're waiting on. If pis_gaps is non-empty, the Project Information Sheet still has unanswered fields; name the missing fields (use field labels) and treat them as outstanding from the client. If readiness.ready_to_file is true, say it's ready to file. Quote or reference what client/agency emails actually said when it explains the current status. Use plain English. Never invent facts not in the JSON.`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
