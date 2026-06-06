@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
  * Returns unread indicators for Chat, Email, and Billing sidebar items.
  */
 export function useUnreadIndicators() {
-  // Lightweight query: only fetch id + is_read for unread count
+  // Inbox-scoped unread (matches Gmail Inbox): not archived, contains INBOX label
   const { data: unreadEmails = [] } = useQuery({
     queryKey: ["email-unread-count"],
     queryFn: async () => {
@@ -14,7 +14,8 @@ export function useUnreadIndicators() {
         .from("emails")
         .select("id")
         .eq("is_read", false)
-        .is("archived_at", null);
+        .is("archived_at", null)
+        .contains("labels", ["INBOX"]);
       if (error) throw error;
       return data ?? [];
     },

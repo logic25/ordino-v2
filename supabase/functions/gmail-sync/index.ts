@@ -243,6 +243,10 @@ Deno.serve(async (req) => {
     let pagesProcessed = 0;
     let fullyExistingPages = 0;
     let partial = false;
+    // Track read-state sync-back + new unread inbox emails
+    const newUnreadInbox: { gmail_message_id: string; subject: string; from_name: string }[] = [];
+    const readGmailIds: string[] = [];
+    const unreadGmailIds: string[] = [];
 
     while (pagesProcessed < maxPages) {
       if (Date.now() - startedAt > TIME_BUDGET_MS) {
@@ -394,8 +398,18 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        const labelIds: string[] = msgData.labelIds || [];
+        const isUnread = labelIds.includes("UNREAD");
+        const isInbox = labelIds.includes("INBOX");
+        if (isUnread) unreadGmailIds.push(msg.id);
+        else readGmailIds.push(msg.id);
+
         // inserted === null => row already existed (skipped by ignoreDuplicates)
         if (!inserted) continue;
+
+        if (isUnread && isInbox) {
+          newUnreadInbox.push({ gmail_message_id: msg.id, subject, from_name: from_name || from_email });
+        }
 
         if (attachments.length > 0) {
           const attachmentRows = attachments.map((a: any) => ({
@@ -427,6 +441,59 @@ Deno.serve(async (req) => {
       pageToken = listData.nextPageToken;
       if (!pageToken) break;
       pagesProcessed++;
+    }
+
+    // Sync read-state back from Gmail for existing rows (chunked to avoid huge IN lists)
+    try {
+      const chunk = <T,>(arr: T[], size: number) =>
+        Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size));
+      for (const ids of chunk(readGmailIds, 200)) {
+        if (ids.length === 0) continue;
+        await supabaseAdmin
+          .from("emails")
+          .update({ is_read: true })
+          .eq("user_id", profile.id)
+          .in("gmail_message_id", ids)
+          .eq("is_read", false);
+      }
+      for (const ids of chunk(unreadGmailIds, 200)) {
+        if (ids.length === 0) continue;
+        await supabaseAdmin
+          .from("emails")
+          .update({ is_read: false })
+          .eq("user_id", profile.id)
+          .in("gmail_message_id", ids)
+          .eq("is_read", true);
+      }
+    } catch (e) {
+      console.error("Failed to sync read-state back from Gmail:", e);
+    }
+
+    // Create a bell notification when new unread inbox emails arrived
+    if (newUnreadInbox.length > 0) {
+      try {
+        const count = newUnreadInbox.length;
+        const previewSenders = Array.from(
+          new Set(newUnreadInbox.slice(0, 3).map((e) => e.from_name).filter(Boolean))
+        ).join(", ");
+        const title = count === 1 ? "1 new email" : `${count} new emails`;
+        const body =
+          count === 1
+            ? `${newUnreadInbox[0].from_name}: ${newUnreadInbox[0].subject}`
+            : previewSenders
+              ? `From ${previewSenders}${count > 3 ? ` and ${count - 3} more` : ""}`
+              : undefined;
+        await supabaseAdmin.from("notifications").insert({
+          company_id: profile.company_id,
+          user_id: profile.id,
+          type: "email_received",
+          title,
+          body,
+          link: "/emails",
+        });
+      } catch (e) {
+        console.error("Failed to insert email_received notification:", e);
+      }
     }
 
     // Update last sync

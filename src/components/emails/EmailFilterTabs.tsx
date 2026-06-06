@@ -165,7 +165,7 @@ export function EmailFilterTabs({ activeTab, onTabChange, counts }: EmailFilterT
                 "ml-1.5 text-xs tabular-nums",
                 isActive ? "text-foreground" : "text-muted-foreground/60"
               )}>
-                {count}
+                {count > 999 ? "999+" : count}
               </span>
             )}
             {isActive && (
