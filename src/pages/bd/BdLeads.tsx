@@ -546,7 +546,7 @@ function BulkEnrollSequence({ ids }: { ids: string[] }) {
         onSuccess: () => toast({ title: `Enrolled ${ids.length} lead${ids.length === 1 ? "" : "s"}` }),
       });
     }}>
-      <SelectTrigger className="h-8 w-44"><SelectValue placeholder={<><Send className="inline h-3 w-3 mr-1" />Enroll in sequence</>} /></SelectTrigger>
+      <SelectTrigger className="h-8 w-44"><SelectValue placeholder="Enroll in sequence" /></SelectTrigger>
       <SelectContent>
         {(sequences.data ?? []).length === 0 && <div className="px-2 py-1.5 text-xs text-muted-foreground">No sequences. Create one in BD → Sequences.</div>}
         {(sequences.data ?? []).map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
